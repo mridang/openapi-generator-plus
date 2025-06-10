@@ -1,0 +1,32 @@
+{
+  "branches": [
+    "master"
+  ],
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    "@semantic-release/release-notes-generator",
+    [
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "./mvn build",
+        "publishCmd": "./mvn publish"
+      }
+    ],
+    "gradle-semantic-release-plugin",
+    [
+      "@semantic-release/github",
+      {
+        "assets": []
+      }
+    ],
+    [
+      "@semantic-release/git",
+      {
+        "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}",
+        "assets": [
+          "gradle.properties"
+        ]
+      }
+    ]
+  ]
+}
