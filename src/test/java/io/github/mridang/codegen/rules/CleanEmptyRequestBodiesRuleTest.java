@@ -21,7 +21,6 @@ import static org.junit.jupiter.api.Assertions.*;
 @DisplayName("CleanEmptyRequestBodiesRule Tests (No Mocks)")
 class CleanEmptyRequestBodiesRuleTest {
 
-    // Using a standard logger; you can check console output or use more advanced test appenders
     private static final Logger logger = LoggerFactory.getLogger(CleanEmptyRequestBodiesRuleTest.class);
 
     private CleanEmptyRequestBodiesRule rule;
@@ -36,10 +35,9 @@ class CleanEmptyRequestBodiesRuleTest {
     @Test
     @DisplayName("Should throw NoPathsException when paths object is null")
     void testApply_whenPathsIsNull_shouldThrowException() {
-        // Given
+
         openAPI.setPaths(null);
 
-        // When & Then
         CleanEmptyRequestBodiesRule.NoPathsException exception = assertThrows(
             CleanEmptyRequestBodiesRule.NoPathsException.class,
             () -> rule.apply(openAPI, Collections.emptyMap(), logger)
@@ -54,10 +52,9 @@ class CleanEmptyRequestBodiesRuleTest {
     @Test
     @DisplayName("Should throw NoPathsException when paths object is empty")
     void testApply_whenPathsIsEmpty_shouldThrowException() {
-        // Given
+
         openAPI.setPaths(new Paths()); // Empty paths
 
-        // When & Then
         assertThrows(
             CleanEmptyRequestBodiesRule.NoPathsException.class,
             () -> rule.apply(openAPI, Collections.emptyMap(), logger)
@@ -67,7 +64,7 @@ class CleanEmptyRequestBodiesRuleTest {
     @Test
     @DisplayName("Should remove request body if its content is null")
     void testApply_whenRequestBodyContentIsNull_shouldRemoveRequestBody() {
-        // Given
+
         Operation operation = new Operation();
         RequestBody requestBody = new RequestBody();
         requestBody.setContent(null); // Content is null
@@ -78,17 +75,15 @@ class CleanEmptyRequestBodiesRuleTest {
         paths.addPathItem("/test", pathItem);
         openAPI.setPaths(paths);
 
-        // When
         rule.apply(openAPI, Collections.emptyMap(), logger);
 
-        // Then
         assertNull(operation.getRequestBody(), "Request body should have been removed");
     }
 
     @Test
     @DisplayName("Should remove request body if its content is empty")
     void testApply_whenRequestBodyContentIsEmpty_shouldRemoveRequestBody() {
-        // Given
+
         Operation operation = new Operation();
         RequestBody requestBody = new RequestBody();
         requestBody.setContent(new Content()); // Content is empty
@@ -99,17 +94,15 @@ class CleanEmptyRequestBodiesRuleTest {
         paths.addPathItem("/test", pathItem);
         openAPI.setPaths(paths);
 
-        // When
         rule.apply(openAPI, Collections.emptyMap(), logger);
 
-        // Then
         assertNull(operation.getRequestBody(), "Request body should have been removed");
     }
 
     @Test
     @DisplayName("Should remove request body if media type schema is null")
     void testApply_whenSchemaIsNull_shouldRemoveRequestBody() {
-        // Given
+
         Operation operation = new Operation();
         RequestBody requestBody = new RequestBody();
         Content content = new Content();
@@ -124,17 +117,15 @@ class CleanEmptyRequestBodiesRuleTest {
         paths.addPathItem("/test", pathItem);
         openAPI.setPaths(paths);
 
-        // When
         rule.apply(openAPI, Collections.emptyMap(), logger);
 
-        // Then
         assertNull(operation.getRequestBody(), "Request body with null schema should be removed");
     }
 
     @Test
     @DisplayName("Should keep request body if it has a meaningful schema")
     void testApply_whenSchemaIsPresent_shouldKeepRequestBody() {
-        // Given
+
         Operation operation = new Operation();
         RequestBody originalRequestBody = new RequestBody();
         Content content = new Content();
@@ -149,10 +140,8 @@ class CleanEmptyRequestBodiesRuleTest {
         paths.addPathItem("/test", pathItem);
         openAPI.setPaths(paths);
 
-        // When
         rule.apply(openAPI, Collections.emptyMap(), logger);
 
-        // Then
         assertNotNull(operation.getRequestBody(), "Request body should be kept");
         assertSame(originalRequestBody, operation.getRequestBody(), "Request body should not be changed");
     }
@@ -160,14 +149,13 @@ class CleanEmptyRequestBodiesRuleTest {
     @Test
     @DisplayName("Should correctly process multiple operations")
     void testApply_withMultipleOperations_shouldProcessAll() {
-        // Given
-        // Operation 1: Empty request body
+
+
         Operation opWithEmptyBody = new Operation();
         RequestBody emptyRequestBody = new RequestBody();
         emptyRequestBody.setContent(new Content());
         opWithEmptyBody.setRequestBody(emptyRequestBody);
 
-        // Operation 2: Valid request body
         Operation opWithValidBody = new Operation();
         RequestBody validRequestBody = new RequestBody();
         Content content = new Content();
@@ -180,10 +168,8 @@ class CleanEmptyRequestBodiesRuleTest {
         paths.addPathItem("/multitest", pathItem);
         openAPI.setPaths(paths);
 
-        // When
         rule.apply(openAPI, Collections.emptyMap(), logger);
 
-        // Then
         assertNull(opWithEmptyBody.getRequestBody(), "Empty request body should have been removed");
         assertNotNull(opWithValidBody.getRequestBody(), "Valid request body should be kept");
     }
@@ -191,7 +177,7 @@ class CleanEmptyRequestBodiesRuleTest {
     @Test
     @DisplayName("Should not fail if an operation has no request body")
     void testApply_whenOperationHasNoRequestBody_shouldNotFail() {
-        // Given
+
         Operation operation = new Operation();
         operation.setRequestBody(null); // No request body to begin with
 
@@ -200,7 +186,6 @@ class CleanEmptyRequestBodiesRuleTest {
         paths.addPathItem("/test", pathItem);
         openAPI.setPaths(paths);
 
-        // When & Then
         assertDoesNotThrow(
             () -> rule.apply(openAPI, Collections.emptyMap(), logger),
             "Rule should execute without error for operations lacking a request body"

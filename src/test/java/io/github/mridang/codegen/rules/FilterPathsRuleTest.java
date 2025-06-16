@@ -30,7 +30,6 @@ class FilterPathsRuleTest {
         openAPI = new OpenAPI();
         originalPaths = new Paths();
 
-        // Populate with some initial paths for testing
         originalPaths.addPathItem("/api/v1/users", new PathItem());
         originalPaths.addPathItem("/api/v1/products", new PathItem());
         originalPaths.addPathItem("/internal/status", new PathItem());
@@ -42,14 +41,12 @@ class FilterPathsRuleTest {
     @Test
     @DisplayName("Should do nothing if regex value is not provided in config")
     void testApply_whenNoRegexProvided_shouldSkipFiltering() {
-        // Given
+
         Map<String, String> emptyConfig = Collections.emptyMap();
         int originalSize = openAPI.getPaths().size();
 
-        // When
         rule.apply(openAPI, emptyConfig, logger);
 
-        // Then
         assertNotNull(openAPI.getPaths(), "Paths should not be null");
         assertEquals(originalSize, openAPI.getPaths().size(), "Paths should not have been filtered");
     }
@@ -57,15 +54,13 @@ class FilterPathsRuleTest {
     @Test
     @DisplayName("Should do nothing if regex value is empty in config")
     void testApply_whenRegexIsEmpty_shouldSkipFiltering() {
-        // Given
+
         Map<String, String> configWithEmptyValue = new HashMap<>();
         configWithEmptyValue.put(FilterPathsRule.RULE_VALUE_KEY, "");
         int originalSize = openAPI.getPaths().size();
 
-        // When
         rule.apply(openAPI, configWithEmptyValue, logger);
 
-        // Then
         assertNotNull(openAPI.getPaths());
         assertEquals(originalSize, openAPI.getPaths().size(), "Paths should not have been filtered for empty regex");
     }
@@ -73,11 +68,10 @@ class FilterPathsRuleTest {
     @Test
     @DisplayName("Should throw NoPathsException when paths object is null")
     void testApply_whenPathsIsNull_shouldThrowNoPathsException() {
-        // Given
+
         openAPI.setPaths(null);
         Map<String, String> config = Collections.singletonMap(FilterPathsRule.RULE_VALUE_KEY, "/api/.*");
 
-        // When & Then
         FilterPathsRule.NoPathsException exception = assertThrows(
             FilterPathsRule.NoPathsException.class,
             () -> rule.apply(openAPI, config, logger)
@@ -91,11 +85,10 @@ class FilterPathsRuleTest {
     @Test
     @DisplayName("Should throw NoPathsException when paths object is empty")
     void testApply_whenPathsIsEmpty_shouldThrowNoPathsException() {
-        // Given
+
         openAPI.setPaths(new Paths()); // Empty paths
         Map<String, String> config = Collections.singletonMap(FilterPathsRule.RULE_VALUE_KEY, "/api/.*");
 
-        // When & Then
         assertThrows(
             FilterPathsRule.NoPathsException.class,
             () -> rule.apply(openAPI, config, logger)
@@ -105,14 +98,12 @@ class FilterPathsRuleTest {
     @Test
     @DisplayName("Should keep only paths that match a single regex")
     void testApply_shouldKeepMatchingPaths() {
-        // Given
-        // Regex to keep only v1 paths
+
+
         Map<String, String> config = Collections.singletonMap(FilterPathsRule.RULE_VALUE_KEY, "/api/v1/.*");
 
-        // When
         rule.apply(openAPI, config, logger);
 
-        // Then
         Paths filteredPaths = openAPI.getPaths();
         assertEquals(2, filteredPaths.size(), "Should only keep the two v1 paths");
         assertTrue(filteredPaths.containsKey("/api/v1/users"), "Should contain /api/v1/users");
@@ -124,15 +115,13 @@ class FilterPathsRuleTest {
     @Test
     @DisplayName("Should keep paths that match any of multiple comma-separated regexes")
     void testApply_withMultipleRegexPatterns() {
-        // Given
-        // Regex to keep all 'users' paths and the 'status' path
+
+
         String regex = ".*/users.*,/internal/status";
         Map<String, String> config = Collections.singletonMap(FilterPathsRule.RULE_VALUE_KEY, regex);
 
-        // When
         rule.apply(openAPI, config, logger);
 
-        // Then
         Paths filteredPaths = openAPI.getPaths();
         assertEquals(3, filteredPaths.size(), "Should keep all three matching paths");
         assertTrue(filteredPaths.containsKey("/api/v1/users"), "Should contain v1 users path");
@@ -144,13 +133,11 @@ class FilterPathsRuleTest {
     @Test
     @DisplayName("Should result in empty paths if no path matches the regex")
     void testApply_whenNoPathsMatch_shouldResultInEmptyPaths() {
-        // Given
+
         Map<String, String> config = Collections.singletonMap(FilterPathsRule.RULE_VALUE_KEY, "/nonexistent/.*");
 
-        // When
         rule.apply(openAPI, config, logger);
 
-        // Then
         Paths filteredPaths = openAPI.getPaths();
         assertNotNull(filteredPaths, "Paths object should not be null");
         assertTrue(filteredPaths.isEmpty(), "Paths should be empty as no path matched");
