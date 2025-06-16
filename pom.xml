@@ -2,9 +2,9 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.mridang</groupId>
-  <artifactId>client</artifactId>
+  <artifactId>codegen-plus</artifactId>
   <packaging>jar</packaging>
-  <name>TODO</name>
+  <name>OpenAPI Custom Normalizer Library</name>
   <version>0.0.1</version>
   <inceptionYear>2025</inceptionYear>
   <url>https://github.com/mridang/openapi-generator-plus</url>
@@ -143,6 +143,13 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <version>3.4.2</version>
+        <configuration>
+          <archive>
+            <manifestEntries>
+              <Service-Provider>io.github.mridang.codegen.AdvancedOpenAPINormalizer</Service-Provider>
+            </manifestEntries>
+          </archive>
+        </configuration>
         <executions>
           <execution>
             <goals>
@@ -150,8 +157,6 @@
             </goals>
           </execution>
         </executions>
-        <configuration>
-        </configuration>
       </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
@@ -425,6 +430,18 @@
       <artifactId>openapi-generator-core</artifactId>
       <version>7.12.0</version>
       <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <version>1.2.13</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-core</artifactId>
+      <version>1.2.13</version>
+      <scope>provided</scope>
     </dependency>
   </dependencies>
   <properties>
