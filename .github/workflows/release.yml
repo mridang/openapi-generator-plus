@@ -28,7 +28,7 @@ jobs:
           cache: maven
 
       - name: Run semantic-release
-        uses: mridang/action-semantic-release@v1.0.0
+        uses: mridang/action-semantic-release@v1.4.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
         env:
