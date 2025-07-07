@@ -23,7 +23,14 @@
         ]
       }
     ],
-    "semantic-release-maven",
+    [
+      "semantic-release-maven",
+      {
+        "profiles": [
+          "deployment"
+        ]
+      }
+    ],
     [
       "@semantic-release/git",
       {
