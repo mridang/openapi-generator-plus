@@ -5,6 +5,7 @@ import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.ConsoleAppender;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.rules.CleanEmptyRequestBodiesRule;
 import io.github.mridang.codegen.rules.FilterPathsRule;
 import io.github.mridang.codegen.rules.OnlyAllowJsonRule;
@@ -14,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -43,6 +45,7 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
         AdvancedOpenAPINormalizer.class
     );
     private final Map<String, String> inputRules;
+    @SuppressFBWarnings("EI_EXPOSE_REP2")
     private final OpenAPI openAPI;
 
     /**
@@ -63,7 +66,7 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
     public AdvancedOpenAPINormalizer(OpenAPI openAPI, Map<String, String> inputRules) {
         super(openAPI, inputRules);
         this.openAPI = openAPI;
-        this.inputRules = inputRules;
+        this.inputRules = new HashMap<>(inputRules);
         LOGGER.info("Instance created. Rules: {}", inputRules);
 
 

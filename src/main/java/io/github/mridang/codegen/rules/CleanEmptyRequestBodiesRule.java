@@ -1,5 +1,6 @@
 package io.github.mridang.codegen.rules;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
@@ -78,6 +79,7 @@ public class CleanEmptyRequestBodiesRule implements CustomNormalizationRule {
      * @param logger     A logger instance for logging messages.
      */
     @Override
+    @SuppressFBWarnings("IMPROPER_UNICODE")
     public void apply(OpenAPI openAPI, Map<String, String> ruleConfig, Logger logger) {
         // Determine the operating mode, defaulting to "Tag".
         String mode = ruleConfig.getOrDefault(RULE_VALUE_KEY, "Tag");

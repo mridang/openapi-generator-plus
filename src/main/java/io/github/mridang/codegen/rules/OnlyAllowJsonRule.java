@@ -1,5 +1,6 @@
 package io.github.mridang.codegen.rules;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
@@ -144,6 +145,7 @@ public class OnlyAllowJsonRule implements CustomNormalizationRule {
      * @param logger       A logger instance for logging messages.
      * @throws RuntimeException If any content type not in {@code allowedTypes} is found.
      */
+    @SuppressFBWarnings("THROWS_METHOD_THROWS_RUNTIMEEXCEPTION")
     private void validateOnlyJsonPresent(OpenAPI openAPI, List<String> allowedTypes, Logger logger) {
         Paths paths = openAPI.getPaths();
         if (paths == null || paths.isEmpty()) {
