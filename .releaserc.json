@@ -8,16 +8,22 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "./mvn build",
-        "publishCmd": "./mvn publish"
+        "prepareCmd": "mvn --batch-mode --show-version dependency:go-offline"
       }
     ],
     [
       "@semantic-release/github",
       {
-        "assets": []
+        "successComment": false,
+        "failComment": false,
+        "assets": [
+          {
+            "path": "target/*.jar"
+          }
+        ]
       }
     ],
+    "semantic-release-maven",
     [
       "@semantic-release/git",
       {
