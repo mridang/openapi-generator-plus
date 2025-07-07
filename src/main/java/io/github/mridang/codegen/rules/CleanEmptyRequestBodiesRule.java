@@ -3,86 +3,127 @@ package io.github.mridang.codegen.rules;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
-import io.swagger.v3.oas.models.Paths;
 import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.parameters.RequestBody;
 import org.slf4j.Logger;
 
+import javax.annotation.Nullable;
 import java.util.Map;
 
 /**
- * Implements a custom rule to remove empty request bodies from API operations.
- * An empty request body is defined as one that is null, has no content types,
- * or has content types where all associated schemas are null.
- * <p>
- * This rule iterates through all paths and their operations. For each
- * operation, it inspects the {@code RequestBody}. If the
- * {@code RequestBody} is determined to be empty based on its content
- * and schema definitions, it is set to {@code null} for that operation.
+ * Implements a custom rule to handle empty request bodies in an OpenAPI specification.
+ * It operates in two modes, configured via ruleConfig:
+ * 1.  <b>Tag (default):</b> Adds an 'x-is-empty-body: true' vendor extension to any
+ * request body that is both 'required' and effectively empty.
+ * 2.  <b>Remove:</b> Deletes any request body that is both optional (not required)
+ * and effectively empty.
  */
 public class CleanEmptyRequestBodiesRule implements CustomNormalizationRule {
 
+    public static final String RULE_VALUE_KEY = "value";
+
     /**
-     * Applies the rule to remove empty request bodies from the OpenAPI object.
+     * Checks if a schema is "effectively empty". An empty schema is one that is
+     * null, a broken reference, defines an object with no properties, or is a
+     * blank schema with no defining characteristics.
+     *
+     * @param schema  The schema to inspect, which may be a reference.
+     * @param openAPI The full OpenAPI model, used to resolve references.
+     * @return true if the schema is effectively empty, false otherwise.
+     */
+    private boolean isSchemaEffectivelyEmpty(@Nullable Schema<?> schema, OpenAPI openAPI) {
+        if (schema == null) {
+            return true;
+        }
+
+        // If the schema is a reference ($ref), resolve it from the components.
+        if (schema.get$ref() != null) {
+            String ref = schema.get$ref();
+            // Assumes a simple local reference like '#/components/schemas/MySchema'
+            String componentName = ref.substring(ref.lastIndexOf('/') + 1);
+            if (openAPI.getComponents() != null && openAPI.getComponents().getSchemas() != null) {
+                schema = openAPI.getComponents().getSchemas().get(componentName);
+                if (schema == null) {
+                    return true; // The reference is broken or points to null.
+                }
+            }
+        }
+
+        // An object schema is empty if it has no properties and doesn't allow additional ones.
+        if ("object".equals(schema.getType())) {
+            boolean hasNoProperties = schema.getProperties() == null || schema.getProperties().isEmpty();
+            Object additionalProps = schema.getAdditionalProperties();
+            boolean allowsAdditional = additionalProps instanceof Schema || Boolean.TRUE.equals(additionalProps);
+            return hasNoProperties && !allowsAdditional;
+        }
+
+        // A schema is also empty if it has no type and no other structural keywords.
+        // This catches cases like a completely blank `new Schema<>()`.
+        return schema.getType() == null &&
+            schema.getProperties() == null &&
+            schema.getItems() == null &&
+            schema.getAllOf() == null &&
+            schema.getAnyOf() == null &&
+            schema.getOneOf() == null;
+    }
+
+    /**
+     * Applies the rule to tag or remove empty request bodies from the OpenAPI object.
+     * The mode is determined by the 'value' key in ruleConfig, defaulting to "Tag".
      *
      * @param openAPI    The OpenAPI object to be modified.
-     * @param ruleConfig Configuration specific to this rule (not directly used here,
-     *                   but part of the interface).
+     * @param ruleConfig Configuration for this rule.
      * @param logger     A logger instance for logging messages.
      */
     @Override
     public void apply(OpenAPI openAPI, Map<String, String> ruleConfig, Logger logger) {
-        logger.info("Starting CLEAN_EMPTY_REQUEST_BODIES rule.");
+        // Determine the operating mode, defaulting to "Tag".
+        String mode = ruleConfig.getOrDefault(RULE_VALUE_KEY, "Tag");
+        logger.info("Starting rule to handle empty request bodies in '{}' mode.", mode);
 
-        Paths paths = openAPI.getPaths();
-        if (paths == null || paths.isEmpty()) {
+        if (openAPI.getPaths() == null || openAPI.getPaths().isEmpty()) {
             throw new NoPathsException(
                 "Error: Paths object is null or empty, cannot process request " +
                     "bodies for empty request body removal."
             );
         }
 
-        for (Map.Entry<String, PathItem> pathEntry : paths.entrySet()) {
-            PathItem pathItem = pathEntry.getValue();
-
+        for (PathItem pathItem : openAPI.getPaths().values()) {
             for (Operation operation : pathItem.readOperations()) {
                 RequestBody requestBody = operation.getRequestBody();
+                if (requestBody == null) {
+                    continue;
+                }
 
-                if (requestBody != null) {
-                    boolean hasMeaningfulContent = false;
-                    Content content = requestBody.getContent();
+                Content content = requestBody.getContent();
+                Schema<?> schema = null;
+                // Get the schema from the first available media type.
+                if (content != null && !content.isEmpty()) {
+                    MediaType mediaType = content.values().iterator().next();
+                    schema = mediaType.getSchema();
+                }
 
-                    if (content != null && !content.isEmpty()) {
-                        for (MediaType mediaType : content.values()) {
-                            Schema<?> schema = mediaType.getSchema();
-
-                            if (schema != null) {
-                                hasMeaningfulContent = true;
-                                break;
-                            }
+                if (isSchemaEffectivelyEmpty(schema, openAPI)) {
+                    // In "Remove" mode, only remove the body if it's optional.
+                    if ("Remove".equalsIgnoreCase(mode)) {
+                        if (!Boolean.TRUE.equals(requestBody.getRequired())) {
+                            logger.info("Removing optional empty request body for operation '{}'", operation.getOperationId());
+                            operation.setRequestBody(null);
                         }
                     }
-
-                    if (!hasMeaningfulContent) {
-                        logger.info(
-                            "Removing empty request body for operation '{}' " +
-                                "(Path: {}).", operation.getOperationId(),
-                            pathEntry.getKey()
-                        );
-                        operation.setRequestBody(null);
-                    } else {
-                        logger.info(
-                            "Keeping non-empty request body for operation '{}' " +
-                                "(Path: {}).", operation.getOperationId(),
-                            pathEntry.getKey()
-                        );
+                    // In "Tag" mode, only tag the body if it's required.
+                    else {
+                        if (Boolean.TRUE.equals(requestBody.getRequired())) {
+                            logger.info("Tagging required empty request body for operation '{}' with 'x-is-empty-body: true'", operation.getOperationId());
+                            requestBody.addExtension("x-is-empty-body", true);
+                        }
                     }
                 }
             }
         }
-        logger.info("CLEAN_EMPTY_REQUEST_BODIES rule completed.");
+        logger.info("Rule for handling empty request bodies completed.");
     }
 
     /**
