@@ -9,6 +9,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.rules.CleanEmptyRequestBodiesRule;
 import io.github.mridang.codegen.rules.FilterPathsRule;
 import io.github.mridang.codegen.rules.OnlyAllowJsonRule;
+import io.github.mridang.codegen.rules.TagCompositionMembersRule;
 import io.swagger.v3.oas.models.OpenAPI;
 import org.openapitools.codegen.OpenAPINormalizer;
 import org.slf4j.Logger;
@@ -34,7 +35,6 @@ import java.util.Map;
  */
 public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
 
-    // Define rule keys for easier reference
     private static final String RULE_CLEAN_EMPTY_REQUEST_BODIES =
         "CLEAN_EMPTY_REQUEST_BODIES";
     private static final String RULE_ONLY_ALLOW_JSON =
@@ -110,7 +110,8 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
      */
     @SuppressWarnings("unused")
     protected void normalize() {
-        // Dynamically apply rules based on inputRules
+        new TagCompositionMembersRule().apply(openAPI, inputRules, LOGGER);
+
         if (inputRules.containsKey(RULE_CLEAN_EMPTY_REQUEST_BODIES)) {
             LOGGER.info("Executing rule: {}", RULE_CLEAN_EMPTY_REQUEST_BODIES);
             new CleanEmptyRequestBodiesRule().apply(openAPI, inputRules, LOGGER);
@@ -121,7 +122,6 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
             new OnlyAllowJsonRule().apply(openAPI, inputRules, LOGGER);
         }
 
-        // Apply FILTER_PATHS rule here, now that normalize() has fully prepared the OpenAPI object.
         if (inputRules.containsKey(RULE_FILTER_PATHS)) {
             String regexValue = inputRules.get(RULE_FILTER_PATHS);
             if (regexValue == null || regexValue.isEmpty()) {
