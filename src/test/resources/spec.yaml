@@ -1,0 +1,61 @@
+openapi: 3.0.0
+info:
+  title: Dummy API for Testing
+  version: 1.0.0
+
+servers:
+  - url: http://api.example.com/v1
+
+paths:
+  /users:
+    post:
+      summary: Create a new user
+      operationId: createUser
+      requestBody:
+        description: User object to be created
+        required: true
+        content:
+          application/json:
+            schema:
+              # Scenario 1: Using a reusable $ref to an object
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '204':
+          description: User created successfully.
+
+  /users/{id}:
+    patch:
+      summary: Update a user's status
+      operationId: updateUserStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: Status update information
+        required: true
+        content:
+          application/json:
+            schema:
+              # Scenario 2: Using an inline schema
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [active, inactive]
+      responses:
+        '204':
+          description: User status updated successfully.
+
+components:
+  schemas:
+    CreateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
