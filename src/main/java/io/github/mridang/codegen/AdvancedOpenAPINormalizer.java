@@ -6,10 +6,7 @@ import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.ConsoleAppender;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import io.github.mridang.codegen.rules.CleanEmptyRequestBodiesRule;
-import io.github.mridang.codegen.rules.FilterPathsRule;
-import io.github.mridang.codegen.rules.OnlyAllowJsonRule;
-import io.github.mridang.codegen.rules.TagCompositionMembersRule;
+import io.github.mridang.codegen.rules.*;
 import io.swagger.v3.oas.models.OpenAPI;
 import org.openapitools.codegen.OpenAPINormalizer;
 import org.slf4j.Logger;
@@ -110,7 +107,7 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
      */
     @SuppressWarnings("unused")
     protected void normalize() {
-        new TagCompositionMembersRule().apply(openAPI, inputRules, LOGGER);
+        //new FlattenCompositionRule().apply(openAPI, inputRules, LOGGER);
 
         if (inputRules.containsKey(RULE_CLEAN_EMPTY_REQUEST_BODIES)) {
             LOGGER.info("Executing rule: {}", RULE_CLEAN_EMPTY_REQUEST_BODIES);
