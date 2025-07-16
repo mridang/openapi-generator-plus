@@ -52,6 +52,11 @@ public class BetterNodeCodegen extends TypeScriptFetchClientCodegen implements U
         modelTestTemplateFiles.clear();
     }
 
+    @Override
+    public String getLibrary() {
+        return "typescript-fetch";
+    }
+
     /**
      * Gets the unique name of this generator. This name is used to select the
      * generator from the command line or other tools.

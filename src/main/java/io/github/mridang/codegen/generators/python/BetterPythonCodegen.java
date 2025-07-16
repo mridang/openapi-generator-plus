@@ -4,13 +4,15 @@ import io.github.mridang.codegen.generators.UnsupportedFeaturesValidator;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.servers.Server;
 import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.languages.PythonClientCodegen;
 
+import java.io.File;
 import java.util.List;
 
 /**
  * A custom Python code generator that provides sane defaults for generating a
- * minimal, modern Python client for the 'zitadel-client' project.
+ * minimal, modern Python client.
  * <p>
  * This generator is configured to:
  * <ul>
@@ -68,6 +70,12 @@ public class BetterPythonCodegen extends PythonClientCodegen implements Unsuppor
     public void processOpts() {
         super.processOpts();
         this.supportingFiles.clear();
+
+        String modelPath = modelPackage.replace('.', File.separatorChar);
+        String apiPath = apiPackage.replace('.', File.separatorChar);
+        supportingFiles.add(new SupportingFile("__init__model.mustache", modelPath, "__init__.py"));
+        supportingFiles.add(new SupportingFile("__init__api.mustache", apiPath, "__init__.py"));
+
     }
 
     @Override

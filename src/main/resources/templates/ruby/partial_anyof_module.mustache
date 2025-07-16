@@ -1,0 +1,109 @@
+{{#description}}
+# {{{.}}}
+{{/description}}
+module {{classname}}
+  class << self
+    {{#anyOf}}
+    {{#-first}}
+    # List of class defined in anyOf (OpenAPI v3)
+    def openapi_any_of
+      [
+    {{/-first}}
+        :'{{{.}}}'{{^-last}},{{/-last}}
+    {{#-last}}
+      ]
+    end
+
+    {{/-last}}
+    {{/anyOf}}
+    # Builds the object
+    # @param [Mixed] Data to be matched against the list of anyOf items
+    # @return [Object] Returns the model or the data itself
+    def build(data)
+      # Go through the list of anyOf items and attempt to identify the appropriate one.
+      # Note:
+      # - No advanced validation of types in some cases (e.g. "x: { type: string }" will happily match { x: 123 })
+      #   due to the way the deserialization is made in the base_object template (it just casts without verifying).
+      # - TODO: scalar values are de facto behaving as if they were nullable.
+      # - TODO: logging when debugging is set.
+      openapi_any_of.each do |klass_name| # Renamed klass to klass_name for clarity
+        begin
+          next if klass_name == :AnyType # "nullable: true"
+          typed_data = find_and_cast_into_type(klass_name, data)
+          return typed_data if typed_data
+        rescue # rescue all errors so we keep iterating even if the current item lookup raises
+        end
+      end
+
+      openapi_any_of.include?(:AnyType) ? data : nil
+    end
+
+    private
+
+    SchemaMismatchError = Class.new(StandardError)
+
+    # Note: 'File' is missing here because in the regular case we get the data _after_ a call to JSON.parse.
+    def find_and_cast_into_type(klass_name, data) # Renamed klass to klass_name
+      return if data.nil?
+
+      case klass_name.to_s # Use klass_name here
+      when 'Boolean'
+        return data if data.instance_of?(TrueClass) || data.instance_of?(FalseClass)
+      when 'Float'
+        return data if data.instance_of?(Float)
+      when 'Integer'
+        return data if data.instance_of?(Integer)
+      when 'Time'
+        return Time.parse(data)
+      when 'Date'
+        return Date.parse(data)
+      when 'String'
+        return data if data.instance_of?(String)
+      when 'Object' # "type: object"
+        return data if data.instance_of?(Hash)
+      when /\AArray<(?<sub_type>.+)>\z/ # "type: array"
+        if data.instance_of?(Array)
+          sub_type = Regexp.last_match[:sub_type]
+          # MODIFIED: ensure sub_type is symbol for recursive call
+          return data.map { |item| find_and_cast_into_type(sub_type.to_sym, item) }
+        end
+      when /\AHash<String, (?<sub_type>.+)>\z/ # "type: object" with "additionalProperties: { ... }"
+        if data.instance_of?(Hash) && data.keys.all? { |k| k.instance_of?(Symbol) || k.instance_of?(String) }
+          sub_type = Regexp.last_match[:sub_type]
+          # MODIFIED: ensure sub_type is symbol for recursive call
+          return data.each_with_object({}) { |(k, v), hsh| hsh[k] = find_and_cast_into_type(sub_type.to_sym, v) }
+        end
+      else # model
+        # MODIFIED: Ensure model is looked up in the Models namespace
+        const = {{moduleName}}::Models.const_get(klass_name) # Use klass_name here
+        if const
+          if const.respond_to?(:openapi_any_of) # nested anyOf model
+            model = const.build(data)
+            return model if model
+          # BEGIN: Logic for allOf and regular models - Consider if this is needed for anyOf or if build_from_hash is sufficient
+          elsif const.respond_to?(:openapi_allOf) # allOf model
+             model = const.build(data)
+             return model if model
+          # END: Logic for allOf
+          else # regular model
+            # The original template had a strict check for acceptable_attributes for oneOf.
+            # For anyOf, this might be too restrictive as we only need one to match.
+            # If data has extra keys, it might fail here but match another schema in anyOf.
+            # Consider if this check should be here or if build_from_hash should be more lenient for anyOf.
+            # For now, keeping the structure similar to the provided oneOf.
+            # raise if const.respond_to?(:acceptable_attributes) && data.is_a?(Hash) && !(data.keys.map(&:to_sym) - const.acceptable_attributes).empty?
+            model = const.build_from_hash(data) # build_from_hash should be robust enough
+            return model if model # if build_from_hash returns a model, it's a potential match
+          end
+        end
+      end
+
+      raise # if no match by now, raise
+    rescue SchemaMismatchError => e # Specific rescue for re-raising
+      raise e # Re-raise the specific error if it's already a SchemaMismatchError
+    rescue => e # General rescue for other errors (e.g., NameError from const_get, TypeError during parsing)
+      # MODIFIED: Updated class name in error message to include full namespace context and use inspect for data
+      raise SchemaMismatchError, "#{data.inspect} doesn't match the {{moduleName}}::Models::#{klass_name} type. Original error: #{e.message}"
+    end
+  end
+end

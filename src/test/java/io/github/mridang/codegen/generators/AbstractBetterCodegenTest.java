@@ -1,6 +1,5 @@
 package io.github.mridang.codegen.generators;
 
-import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.DefaultGenerator;
 import org.openapitools.codegen.config.CodegenConfigurator;
 
@@ -24,13 +23,10 @@ public abstract class AbstractBetterCodegenTest {
         return tempDir;
     }
 
-    protected void doGenerate(String generatorName, Path outputDir) {
+    protected void doGenerate(String generatorName, Path outputDir, Map<String, Object> genOpts) {
         final CodegenConfigurator configurator = new CodegenConfigurator()
             .setGeneratorName(generatorName)
-            .setAdditionalProperties(Map.of(
-                CodegenConstants.MODEL_PACKAGE, "xyz.abcdef.models",
-                CodegenConstants.API_PACKAGE, "xyz.abcdef.api"
-            ))
+            .setAdditionalProperties(genOpts)
             .setInputSpec("src/test/resources/spec.yaml")
             .setOutputDir(outputDir.toString().replace("\\", "/"));
 

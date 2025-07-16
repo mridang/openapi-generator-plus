@@ -1,0 +1,43 @@
+=begin
+{{> api_info}}
+=end
+
+require 'date'
+require 'time'
+
+module {{moduleName}}::Models
+{{#models}}
+  {{#model}}
+  {{! If a schema has properties, ALWAYS generate a standard class. }}
+  {{! This prevents schemas that have both `properties` and `oneOf` from being incorrectly }}
+  {{! generated as modules. }}
+    {{#hasVars}}
+      {{>partial_model_generic}}
+    {{/hasVars}}
+    {{! If a schema has NO properties, then check if it's a special type. }}
+    {{^hasVars}}
+      {{#isEnum}}
+        {{>partial_model_enum_class}}
+      {{/isEnum}}
+      {{^isEnum}}
+        {{#oneOf}}
+          {{#-first}}
+            {{>partial_oneof_module}}
+          {{/-first}}
+        {{/oneOf}}
+        {{#anyOf}}
+          {{#-first}}
+            {{>partial_anyof_module}}
+          {{/-first}}
+        {{/anyOf}}
+        {{^oneOf}}
+          {{^anyOf}}
+          {{! This handles truly empty objects (no properties, no composition) }}
+            {{>partial_model_generic}}
+          {{/anyOf}}
+        {{/oneOf}}
+      {{/isEnum}}
+    {{/hasVars}}
+  {{/model}}
+{{/models}}
+end

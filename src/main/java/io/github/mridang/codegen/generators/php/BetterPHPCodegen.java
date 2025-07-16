@@ -4,6 +4,7 @@ import io.github.mridang.codegen.generators.UnsupportedFeaturesValidator;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.servers.Server;
 import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.languages.PhpClientCodegen;
 
 import java.util.List;
@@ -67,6 +68,7 @@ public class BetterPHPCodegen extends PhpClientCodegen implements UnsupportedFea
     public void processOpts() {
         super.processOpts();
         this.supportingFiles.clear();
+        supportingFiles.add(new SupportingFile("ModelInterface.mustache", toSrcPath(modelPackage, srcBasePath), "ModelInterface.php"));
     }
 
     @Override

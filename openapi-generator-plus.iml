@@ -4,6 +4,11 @@
     <content url="file://$MODULE_DIR$" dumb="true">
       <excludeFolder url="file://$MODULE_DIR$/.devbox" />
       <excludeFolder url="file://$MODULE_DIR$/.idea" />
+      <excludeFolder url="file://$MODULE_DIR$/src/test/java/io/github/mridang/codegen/generators/java/.out" />
+      <excludeFolder url="file://$MODULE_DIR$/src/test/java/io/github/mridang/codegen/generators/node/.out" />
+      <excludeFolder url="file://$MODULE_DIR$/src/test/java/io/github/mridang/codegen/generators/php/.out" />
+      <excludeFolder url="file://$MODULE_DIR$/src/test/java/io/github/mridang/codegen/generators/python/.out" />
+      <excludeFolder url="file://$MODULE_DIR$/src/test/java/io/github/mridang/codegen/generators/ruby/.out" />
     </content>
   </component>
 </module>
