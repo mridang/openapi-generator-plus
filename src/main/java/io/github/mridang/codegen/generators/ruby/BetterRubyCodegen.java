@@ -1,5 +1,6 @@
 package io.github.mridang.codegen.generators.ruby;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.UnsupportedFeaturesValidator;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.servers.Server;
@@ -88,6 +89,7 @@ public class BetterRubyCodegen extends RubyClientCodegen implements UnsupportedF
      * @return The correctly nested path to the model files.
      */
     @Override
+    @SuppressFBWarnings("PATH_TRAVERSAL_IN")
     public String modelFileFolder() {
         String path = moduleName.replaceAll("::", "/");
         return Paths.get(getOutputDir(), libFolder, underscore(path), modelPackage().replace(".", File.separator))
@@ -107,6 +109,7 @@ public class BetterRubyCodegen extends RubyClientCodegen implements UnsupportedF
      * @return The correctly nested path to the API files.
      */
     @Override
+    @SuppressFBWarnings("PATH_TRAVERSAL_IN")
     public String apiFileFolder() {
         String path = moduleName.replaceAll("::", "/");
         return Paths.get(getOutputDir(), libFolder, underscore(path), apiPackage().replace(".", File.separator))
