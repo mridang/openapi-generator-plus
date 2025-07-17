@@ -1,10 +1,5 @@
 package io.github.mridang.codegen;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.LoggerContext;
-import ch.qos.logback.classic.encoder.PatternLayoutEncoder;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.ConsoleAppender;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.rules.CleanEmptyRequestBodiesRule;
 import io.github.mridang.codegen.rules.FilterPathsRule;
@@ -67,32 +62,6 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
         this.openAPI = openAPI;
         this.inputRules = new HashMap<>(inputRules);
         LOGGER.info("Instance created. Rules: {}", inputRules);
-
-
-        LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
-        PatternLayoutEncoder encoder = new PatternLayoutEncoder();
-        encoder.setContext(loggerContext);
-        encoder.setPattern("%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n");
-        encoder.start();
-
-        ConsoleAppender<ILoggingEvent> consoleAppender = new ConsoleAppender<>();
-        consoleAppender.setContext(loggerContext);
-        consoleAppender.setEncoder(encoder);
-        consoleAppender.start();
-
-        ch.qos.logback.classic.Logger advancedNormalizerLogger =
-            loggerContext.getLogger("io.github.mridang.codegen.AdvancedOpenAPINormalizer");
-        ch.qos.logback.classic.Logger rulesLogger =
-            loggerContext.getLogger("io.github.mridang.codegen.rules");
-
-        advancedNormalizerLogger.setLevel(Level.DEBUG);
-        rulesLogger.setLevel(Level.DEBUG);
-
-        advancedNormalizerLogger.setAdditive(false);
-        rulesLogger.setAdditive(false);
-
-        advancedNormalizerLogger.addAppender(consoleAppender);
-        rulesLogger.addAppender(consoleAppender);
     }
 
     /**
