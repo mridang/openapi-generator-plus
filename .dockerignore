@@ -4,3 +4,4 @@
 # Include only the essential files needed for building the library
 !*.xml
 !src/
+!etc/

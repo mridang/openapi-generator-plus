@@ -331,6 +331,18 @@
   </build>
   <profiles>
     <profile>
+      <id>docker</id>
+      <properties>
+        <skipTests>true</skipTests>
+        <maven.test.skip>true</maven.test.skip>
+        <maven.source.skip>true</maven.source.skip>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+      </properties>
+      <build>
+        <finalName>codegen-plus</finalName>
+      </build>
+    </profile>
+    <profile>
       <id>deployment</id>
       <build>
         <plugins>
