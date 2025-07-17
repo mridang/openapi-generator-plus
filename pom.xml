@@ -12,7 +12,7 @@
   <scm>
     <connection>scm:git:git@github.com:mridang/openapi-generator-plus.git</connection>
     <developerConnection>scm:git:git@github.com:mridang/openapi-generator-plus.git</developerConnection>
-    <tag>main</tag>
+    <tag>master</tag>
     <url>https://github.com/mridang/openapi-generator-plus</url>
   </scm>
   <licenses>
@@ -28,6 +28,9 @@
       <name>Mridang Agarwalla</name>
       <email>mridang.agarwalla@gmail.com</email>
       <url>https://www.github.com/mridang</url>
+      <roles>
+        <role>developer</role>
+      </roles>
       <timezone>America/New_York</timezone>
     </developer>
   </developers>
@@ -74,8 +77,7 @@
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.14.0</version>
         <configuration>
-          <source>9</source>
-          <target>9</target>
+          <release>11</release>
           <fork>true</fork>
           <meminitial>128m</meminitial>
           <maxmem>512m</maxmem>
@@ -206,7 +208,7 @@
         <version>3.11.2</version>
         <configuration>
           <doclint>none</doclint>
-          <source>1.8</source>
+          <source>11</source>
         </configuration>
         <executions>
           <execution>
@@ -314,6 +316,17 @@
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <groupId>org.sonatype.central</groupId>
+        <artifactId>central-publishing-maven-plugin</artifactId>
+        <version>0.8.0</version>
+        <extensions>true</extensions>
+        <configuration>
+          <publishingServerId>central</publishingServerId>
+          <autoPublish>true</autoPublish>
+          <waitUntil>uploaded</waitUntil>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
   <profiles>
@@ -405,10 +418,12 @@
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-compiler-plugin</artifactId>
             <configuration>
+              <release>11</release>
               <compilerArgs>
                 <arg>-XDcompilePolicy=simple</arg>
                 <arg>--should-stop=ifError=FLOW</arg>
                 <arg>-Xlint:all</arg>
+                <arg>-Xlint:-path</arg>
                 <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=io.github.mridang</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
