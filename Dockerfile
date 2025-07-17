@@ -10,7 +10,7 @@ COPY . .
 
 RUN mvn --batch-mode --no-transfer-progress clean install --activate-profiles docker
 
-FROM openapitools/openapi-generator-cli:v7.13.0
+FROM openapitools/openapi-generator-cli:v7.14.0
 
 WORKDIR /local
 
