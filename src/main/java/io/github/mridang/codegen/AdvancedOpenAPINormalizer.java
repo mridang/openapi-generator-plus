@@ -35,6 +35,7 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
         "ONLY_ALLOW_JSON";
     private static final String RULE_FILTER_PATHS =
         "FILTER_PATHS";
+    @SuppressFBWarnings("MF_CLASS_MASKS_FIELD")
     protected final Logger LOGGER = LoggerFactory.getLogger(
         AdvancedOpenAPINormalizer.class
     );
