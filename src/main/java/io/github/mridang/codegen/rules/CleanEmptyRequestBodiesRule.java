@@ -23,8 +23,6 @@ import java.util.Map;
  */
 public class CleanEmptyRequestBodiesRule implements CustomNormalizationRule {
 
-    public static final String RULE_VALUE_KEY = "value";
-
     /**
      * Checks if a schema is "effectively empty". An empty schema is one that is
      * null, a broken reference, defines an object with no properties, or is a
