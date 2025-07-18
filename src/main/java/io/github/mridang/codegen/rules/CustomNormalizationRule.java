@@ -12,6 +12,8 @@ import java.util.Map;
  */
 public interface CustomNormalizationRule {
 
+    String RULE_VALUE_KEY = "value";
+
     /**
      * Applies the specific normalization rule to the given OpenAPI object.
      * Implementations should modify the {@code openAPI} object in place.

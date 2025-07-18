@@ -17,6 +17,7 @@ Before code generation, the tool can preprocess and standardize your OpenAPI v3 
 * **JSON-Only Content**: Enforces `application/json` as the only allowed content type across the entire API specification, removing other defined types.
 * **Path Filtering**: Selectively includes or excludes API paths using regular expressions, allowing you to generate SDKs for just a subset of your API.
 * **Empty Request Body Handling**: Automatically processes operations with empty request bodies, either by removing them or tagging them based on your configuration.
+* **Scriptable Custom Rules**: Hook into your own JavaScript-based transformations via GraalVM.
 
 **Opinionated Code Generators**
 
@@ -93,7 +94,6 @@ serializationLibrary: jackson
 disallowAdditionalPropertiesIfNotPresent: false
 useOneOfDiscriminatorLookup: true
 hideGenerationTimestamp: true
-
 ```
 
 Assuming you have your OpenAPI specification in a file named `spec.json` and the following configuration saved as `config.yml` in your current directory.

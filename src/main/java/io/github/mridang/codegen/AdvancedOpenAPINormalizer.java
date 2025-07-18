@@ -24,6 +24,7 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
     private static final String RULE_ONLY_ALLOW_JSON = "ONLY_ALLOW_JSON";
     private static final String RULE_FILTER_PATHS = "FILTER_PATHS";
     private static final String RULE_GARBAGE_COLLECT = "GARBAGE_COLLECT_COMPONENTS";
+    private static final String RULE_SCRIPTABLE = "RUN_SCRIPT";
     @SuppressWarnings("HidingField")
     @SuppressFBWarnings("MF_CLASS_MASKS_FIELD")
     protected final Logger LOGGER = LoggerFactory.getLogger(AdvancedOpenAPINormalizer.class);
@@ -56,6 +57,7 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
         applyRule(RULE_CLEAN_EMPTY_REQUEST_BODIES, new CleanEmptyRequestBodiesRule());
         applyRule(RULE_ONLY_ALLOW_JSON, new OnlyAllowJsonRule());
         applyRule(RULE_FILTER_PATHS, new FilterPathsRule());
+        applyRule(RULE_SCRIPTABLE, new ScriptableRule());
         applyRule(RULE_GARBAGE_COLLECT, new GarbageCollectComponentsRule());
 
         LOGGER.info("All custom normalizations applied.");
