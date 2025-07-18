@@ -1,4 +1,3 @@
-// file: src/main/java/io/github/mridang/codegen/rules/GarbageCollectComponentsRule.java
 package io.github.mridang.codegen.rules;
 
 import io.swagger.v3.core.util.Json;
@@ -6,11 +5,7 @@ import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import org.slf4j.Logger;
 
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Implements a "garbage collection" rule for an OpenAPI specification.

@@ -44,7 +44,7 @@ paths:
               properties:
                 status:
                   type: string
-                  enum: [active, inactive]
+                  enum: [ active, inactive ]
       responses:
         '204':
           description: User status updated successfully.
