@@ -1,5 +1,6 @@
 package io.github.mridang.codegen;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.rules.*;
 import io.swagger.v3.oas.models.OpenAPI;
 import org.openapitools.codegen.OpenAPINormalizer;
@@ -23,7 +24,8 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
     private static final String RULE_ONLY_ALLOW_JSON = "ONLY_ALLOW_JSON";
     private static final String RULE_FILTER_PATHS = "FILTER_PATHS";
     private static final String RULE_GARBAGE_COLLECT = "GARBAGE_COLLECT_COMPONENTS";
-
+    @SuppressWarnings("HidingField")
+    @SuppressFBWarnings("MF_CLASS_MASKS_FIELD")
     protected final Logger LOGGER = LoggerFactory.getLogger(AdvancedOpenAPINormalizer.class);
     private final Map<String, String> customRules;
 
@@ -34,6 +36,7 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
      * @param inputRules A map of configuration rules that control which custom
      *                   normalizations are applied.
      */
+    @SuppressFBWarnings("EI_EXPOSE_REP2")
     public AdvancedOpenAPINormalizer(OpenAPI openAPI, Map<String, String> inputRules) {
         super(openAPI, inputRules);
         this.customRules = inputRules;
