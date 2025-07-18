@@ -1,9 +1,7 @@
 package io.github.mridang.codegen;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import io.github.mridang.codegen.rules.CleanEmptyRequestBodiesRule;
-import io.github.mridang.codegen.rules.FilterPathsRule;
-import io.github.mridang.codegen.rules.OnlyAllowJsonRule;
+import io.github.mridang.codegen.rules.*;
 import io.swagger.v3.oas.models.OpenAPI;
 import org.openapitools.codegen.OpenAPINormalizer;
 import org.slf4j.Logger;
@@ -36,11 +34,13 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
     private static final String RULE_FILTER_PATHS =
         "FILTER_PATHS";
     @SuppressFBWarnings("MF_CLASS_MASKS_FIELD")
+    @SuppressWarnings("HidingField")
     protected final Logger LOGGER = LoggerFactory.getLogger(
         AdvancedOpenAPINormalizer.class
     );
     private final Map<String, String> inputRules;
     @SuppressFBWarnings("EI_EXPOSE_REP2")
+    @SuppressWarnings("HidingField")
     private final OpenAPI openAPI;
 
     /**
@@ -78,8 +78,8 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
      * behavior in custom rules that rely on a fully processed specification.
      */
     @SuppressWarnings("unused")
+    @Override
     protected void normalize() {
-        //new FlattenCompositionRule().apply(openAPI, inputRules, LOGGER);
 
         if (inputRules.containsKey(RULE_CLEAN_EMPTY_REQUEST_BODIES)) {
             LOGGER.info("Executing rule: {}", RULE_CLEAN_EMPTY_REQUEST_BODIES);
