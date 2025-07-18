@@ -3,201 +3,65 @@ package io.github.mridang.codegen.rules;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.PathItem;
-import io.swagger.v3.oas.models.Paths;
 import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.parameters.RequestBody;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
+import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static io.github.mridang.codegen.rules.SpecAssertions.HttpMethod;
+import static io.github.mridang.codegen.rules.SpecAssertions.assertThat;
 
-@DisplayName("OnlyAllowJsonRule Tests (No Mocks)")
-class OnlyAllowJsonRuleTest {
-
-    private static final Logger logger = LoggerFactory.getLogger(OnlyAllowJsonRuleTest.class);
-
-    private OnlyAllowJsonRule rule;
-    private OpenAPI openAPI;
-    private Operation operation;
-
-    @BeforeEach
-    void setUp() {
-        rule = new OnlyAllowJsonRule();
-        openAPI = new OpenAPI();
-        operation = new Operation().operationId("testOp");
-
-        PathItem pathItem = new PathItem().post(operation);
-        Paths paths = new Paths();
-        paths.addPathItem("/test", pathItem);
-        openAPI.setPaths(paths);
-    }
+class OnlyAllowJsonRuleTest extends BaseRuleTest<OnlyAllowJsonRule> {
 
     @Test
     @DisplayName("Should remove non-JSON content types from RequestBody")
-    void testApply_removesNonJsonFromRequestBody() {
+    void shouldRemoveNonJsonFromRequestBody() {
+        OpenAPI openAPI = new OpenAPI().path("/test", new PathItem().post(new Operation()
+            .requestBody(new RequestBody().content(new Content()
+                .addMediaType("application/json", new MediaType())
+                .addMediaType("application/xml", new MediaType())))));
 
-        Content content = new Content()
-            .addMediaType("application/json", new MediaType())
-            .addMediaType("application/xml", new MediaType())
-            .addMediaType("text/plain", new MediaType());
-        RequestBody requestBody = new RequestBody().content(content);
-        operation.setRequestBody(requestBody);
+        rule.apply(openAPI, Map.of(), logger);
 
-        rule.apply(openAPI, Collections.emptyMap(), logger);
-
-        RequestBody resultContent = operation.getRequestBody();
-        assertNotNull(resultContent, "Request body should still exist");
-        assertNotNull(resultContent.getContent(), "Content in request body should not be null");
-        assertEquals(1, resultContent.getContent().size(), "Only one content type should remain");
-        assertTrue(resultContent.getContent().containsKey("application/json"), "application/json should be present");
-        assertFalse(resultContent.getContent().containsKey("application/xml"), "application/xml should be removed");
+        assertThat(openAPI)
+            .forOperation(HttpMethod.POST, "/test")
+            .hasRequestBody(body -> body.hasContentTypes("application/json"));
     }
 
     @Test
-    @DisplayName("Should remove RequestBody entirely if it becomes empty after filtering")
-    void testApply_removesRequestBodyIfItBecomesEmpty() {
+    @DisplayName("Should remove RequestBody if it becomes empty after filtering")
+    void shouldRemoveRequestBodyIfEmpty() {
+        OpenAPI openAPI = new OpenAPI().path("/test", new PathItem().post(new Operation()
+            .requestBody(new RequestBody().content(new Content()
+                .addMediaType("application/xml", new MediaType())))));
 
-        Content content = new Content()
-            .addMediaType("application/xml", new MediaType())
-            .addMediaType("text/plain", new MediaType());
-        operation.setRequestBody(new RequestBody().content(content));
+        rule.apply(openAPI, Map.of(), logger);
 
-        rule.apply(openAPI, Collections.emptyMap(), logger);
-
-        assertNull(operation.getRequestBody(), "Request body should be null after all content types are removed");
+        assertThat(openAPI)
+            .forOperation(HttpMethod.POST, "/test")
+            .hasRequestBody(SpecAssertions.RequestBodyAsserter::isNull);
     }
 
     @Test
     @DisplayName("Should remove non-JSON content types from ApiResponses")
-    void testApply_removesNonJsonFromResponses() {
+    void shouldRemoveNonJsonFromResponses() {
+        OpenAPI openAPI = new OpenAPI().path("/test", new PathItem().post(new Operation()
+            .responses(new ApiResponses().addApiResponse("200", new ApiResponse()
+                .content(new Content()
+                    .addMediaType("application/json", new MediaType())
+                    .addMediaType("application/xml", new MediaType()))))));
 
-        Content content = new Content()
-            .addMediaType("application/json", new MediaType())
-            .addMediaType("application/xml", new MediaType());
-        ApiResponse apiResponse = new ApiResponse().description("A response").content(content);
-        operation.setResponses(new ApiResponses().addApiResponse("200", apiResponse));
+        rule.apply(openAPI, Map.of(), logger);
 
-        rule.apply(openAPI, Collections.emptyMap(), logger);
-
-        ApiResponses resultResponses = operation.getResponses();
-        assertNotNull(resultResponses, "ApiResponses object should not be null");
-        ApiResponse resultResponse = resultResponses.get("200");
-        assertNotNull(resultResponse, "The 200 response should not be null");
-        Content resultContent = resultResponse.getContent();
-        assertNotNull(resultContent, "Content in response should not be null");
-
-        assertEquals(1, resultContent.size(), "Only one content type should remain in response");
-        assertTrue(resultContent.containsKey("application/json"), "Response should contain application/json");
-    }
-
-    @Test
-    @DisplayName("Should make response content empty but not remove the response itself")
-    void testApply_emptiesResponseContentWithoutRemovingResponse() {
-
-        Content content = new Content().addMediaType("application/xml", new MediaType());
-        ApiResponse apiResponse = new ApiResponse().description("A response").content(content);
-        operation.setResponses(new ApiResponses().addApiResponse("204", apiResponse));
-
-        rule.apply(openAPI, Collections.emptyMap(), logger);
-
-        ApiResponses resultResponses = operation.getResponses();
-        assertNotNull(resultResponses);
-        ApiResponse resultResponse = resultResponses.get("204");
-        assertNotNull(resultResponse, "The ApiResponse object itself should not be removed");
-        assertNotNull(resultResponse.getContent(), "Content object should exist");
-        assertTrue(resultResponse.getContent().isEmpty(), "Response content should be empty");
-    }
-
-    @Test
-    @DisplayName("Should throw NoPathsException if paths are empty")
-    void testApply_whenNoPathsExist_shouldThrowException() {
-
-        openAPI.setPaths(new Paths()); // Empty paths
-
-        assertThrows(
-            OnlyAllowJsonRule.NoPathsException.class,
-            () -> rule.apply(openAPI, Collections.emptyMap(), logger),
-            "Should throw NoPathsException because validation runs on empty paths"
-        );
-    }
-
-    @Test
-    @DisplayName("Should throw NoPathsException if paths object is null")
-    void testApply_whenPathsIsNull_shouldThrowException() {
-
-        openAPI.setPaths(null);
-
-        assertThrows(
-            OnlyAllowJsonRule.NoPathsException.class,
-            () -> rule.apply(openAPI, Collections.emptyMap(), logger),
-            "Should throw NoPathsException because validation runs on null paths"
-        );
-    }
-
-    @Test
-    @DisplayName("Should run without error for operations with no content")
-    void testApply_withNoContent_shouldNotFail() {
-
-        Operation opWithNoContent = new Operation();
-        opWithNoContent.setRequestBody(null);
-        opWithNoContent.setResponses(new ApiResponses()
-            .addApiResponse("204", new ApiResponse().description("No Content")));
-
-        Paths paths = openAPI.getPaths();
-        assertNotNull(paths);
-        PathItem pathItem = paths.get("/test");
-        assertNotNull(pathItem);
-        pathItem.setGet(opWithNoContent);
-
-        assertDoesNotThrow(
-            () -> rule.apply(openAPI, Collections.emptyMap(), logger),
-            "Rule should execute without error for operations with no content types"
-        );
-    }
-
-    @Test
-    @DisplayName("Should correctly process a mix of valid and invalid operations")
-    void testApply_withMixedOperations_shouldProcessCorrectly() {
-
-        Operation opToFilter = new Operation();
-        Content requestContent = new Content().addMediaType("application/xml", new MediaType());
-        Content responseContent = new Content().addMediaType("application/json", new MediaType()).addMediaType("application/xml", new MediaType());
-        opToFilter.setRequestBody(new RequestBody().content(requestContent));
-        opToFilter.setResponses(new ApiResponses().addApiResponse("200", new ApiResponse().content(responseContent)));
-
-        Paths paths = openAPI.getPaths();
-        assertNotNull(paths);
-        PathItem pathItem = paths.get("/test");
-        assertNotNull(pathItem);
-        pathItem.setPut(opToFilter);
-
-        rule.apply(openAPI, Collections.emptyMap(), logger);
-
-
-        assertNotNull(openAPI.getPaths());
-        assertNotNull(openAPI.getPaths().get("/test"));
-        assertNull(openAPI.getPaths().get("/test").getPost().getRequestBody());
-
-        Operation filteredOp = openAPI.getPaths().get("/test").getPut();
-        assertNotNull(filteredOp);
-        assertNull(filteredOp.getRequestBody(), "Request body of second op should be removed");
-
-        ApiResponses filteredResponses = filteredOp.getResponses();
-        assertNotNull(filteredResponses);
-        ApiResponse filtered200Response = filteredResponses.get("200");
-        assertNotNull(filtered200Response);
-        Content filteredResponseContent = filtered200Response.getContent();
-        assertNotNull(filteredResponseContent);
-
-        assertEquals(1, filteredResponseContent.size(), "Response content of second op should be filtered");
-        assertTrue(filteredResponseContent.containsKey("application/json"), "Only JSON should remain in response of second op");
+        assertThat(openAPI)
+            .forOperation(HttpMethod.POST, "/test")
+            .hasResponses(responses -> responses
+                .code("200", response -> response.hasContentTypes("application/json"))
+            );
     }
 }

@@ -27,6 +27,8 @@ import java.util.Map;
  */
 public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
 
+    private static final String RULE_STRIP_PARAMS =
+        "STRIP_PARAMS";
     private static final String RULE_CLEAN_EMPTY_REQUEST_BODIES =
         "CLEAN_EMPTY_REQUEST_BODIES";
     private static final String RULE_ONLY_ALLOW_JSON =
@@ -80,6 +82,15 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
     @SuppressWarnings("unused")
     @Override
     protected void normalize() {
+        if (inputRules.containsKey(RULE_STRIP_PARAMS)) {
+            LOGGER.info("Executing rule: {}", RULE_STRIP_PARAMS);
+            Map<String, String> ruleConfig = new HashMap<>();
+            ruleConfig.put(
+                StripParametersRule.RULE_VALUE_KEY,
+                inputRules.get(RULE_STRIP_PARAMS)
+            );
+            new StripParametersRule().apply(openAPI, ruleConfig, LOGGER);
+        }
 
         if (inputRules.containsKey(RULE_CLEAN_EMPTY_REQUEST_BODIES)) {
             LOGGER.info("Executing rule: {}", RULE_CLEAN_EMPTY_REQUEST_BODIES);
@@ -107,6 +118,8 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
             }
         }
 
+
+        new GarbageCollectComponentsRule().apply(openAPI, inputRules, LOGGER);
         LOGGER.info("All custom normalizations applied.");
     }
 }
