@@ -22,7 +22,7 @@ import {
 {{#operations}}
 {{#operation}}
 {{#allParams.0}}
-export interface {{#prefixParameterInterfaces}}{{classname}}{{/prefixParameterInterfaces}}{{operationIdCamelCase}}Request {
+export interface {{classname}}{{operationIdCamelCase}}Request {
 {{#allParams}}
     {{paramName}}{{^required}}?{{/required}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{#hasReadOnly}}Omit<{{{dataType}}}, {{#readOnlyVars}}'{{baseName}}'{{^-last}}|{{/-last}}{{/readOnlyVars}}>{{/hasReadOnly}}{{^hasReadOnly}}{{{dataType}}}{{/hasReadOnly}}{{#isNullable}} | null{{/isNullable}}{{/isEnum}};
 {{/allParams}}
@@ -56,7 +56,7 @@ export interface {{classname}}Interface {
     {{nickname}}({{#allParams}}{{paramName}}{{^required}}?{{/required}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isEnum}}, {{/allParams}}initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<{{{returnType}}}{{#returnType}}{{#isResponseOptional}} | null | undefined {{/isResponseOptional}}{{/returnType}}{{^returnType}}void{{/returnType}}>;
     {{/useSingleRequestParameter}}
     {{#useSingleRequestParameter}}
-    {{nickname}}({{#allParams.0}}requestParameters: {{#prefixParameterInterfaces}}{{classname}}{{/prefixParameterInterfaces}}{{operationIdCamelCase}}Request, {{/allParams.0}}initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<{{{returnType}}}{{#returnType}}{{#isResponseOptional}} | null | undefined {{/isResponseOptional}}{{/returnType}}{{^returnType}}void{{/returnType}}>;
+    {{nickname}}({{#allParams.0}}requestParameters: {{classname}}{{operationIdCamelCase}}Request, {{/allParams.0}}initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<{{{returnType}}}{{#returnType}}{{#isResponseOptional}} | null | undefined {{/isResponseOptional}}{{/returnType}}{{^returnType}}void{{/returnType}}>;
     {{/useSingleRequestParameter}}
 
 {{/operation}}
@@ -87,7 +87,7 @@ export class {{classname}} extends runtime.BaseAPI {
      * @deprecated
      {{/isDeprecated}}
      */
-    private async {{nickname}}Raw({{#allParams.0}}requestParameters: {{#prefixParameterInterfaces}}{{classname}}{{/prefixParameterInterfaces}}{{operationIdCamelCase}}Request, {{/allParams.0}}initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
+    private async {{nickname}}Raw({{#allParams.0}}requestParameters: {{classname}}{{operationIdCamelCase}}Request, {{/allParams.0}}initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<runtime.ApiResponse<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
         {{#allParams}}
         {{#required}}
         if (requestParameters['{{paramName}}'] == null) {
@@ -372,7 +372,7 @@ export class {{classname}} extends runtime.BaseAPI {
     }
     {{/useSingleRequestParameter}}
     {{#useSingleRequestParameter}}
-    async {{nickname}}({{#allParams.0}}requestParameters: {{#prefixParameterInterfaces}}{{classname}}{{/prefixParameterInterfaces}}{{operationIdCamelCase}}Request{{^hasRequiredParams}} = {}{{/hasRequiredParams}}, {{/allParams.0}}initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<{{{returnType}}}{{#returnType}}{{#isResponseOptional}} | null | undefined {{/isResponseOptional}}{{/returnType}}{{^returnType}}void{{/returnType}}> {
+    async {{nickname}}({{#allParams.0}}requestParameters: {{classname}}{{operationIdCamelCase}}Request{{^hasRequiredParams}} = {}{{/hasRequiredParams}}, {{/allParams.0}}initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<{{{returnType}}}{{#returnType}}{{#isResponseOptional}} | null | undefined {{/isResponseOptional}}{{/returnType}}{{^returnType}}void{{/returnType}}> {
         {{#returnType}}
         const response = await this.{{nickname}}Raw({{#allParams.0}}requestParameters, {{/allParams.0}}initOverrides);
         {{#isResponseOptional}}
