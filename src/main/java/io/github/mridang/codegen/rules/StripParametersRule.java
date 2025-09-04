@@ -22,8 +22,6 @@ import java.util.stream.Collectors;
  */
 public class StripParametersRule implements CustomNormalizationRule {
 
-    public static final String RULE_VALUE_KEY = "value";
-
     @Override
     public void apply(OpenAPI openAPI, Map<String, String> ruleConfig, Logger logger) {
         String paramsToRemoveString = ruleConfig.get(RULE_VALUE_KEY);
