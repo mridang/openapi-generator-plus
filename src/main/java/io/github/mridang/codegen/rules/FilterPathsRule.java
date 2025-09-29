@@ -22,11 +22,6 @@ import java.util.regex.Pattern;
 public class FilterPathsRule implements CustomNormalizationRule {
 
     /**
-     * Key used in {@code ruleConfig} to specify the regex patterns (comma-separated).
-     */
-    public static final String RULE_VALUE_KEY = "value";
-
-    /**
      * Applies the rule to filter API paths based on regular expressions.
      *
      * @param openAPI    The OpenAPI object to be modified.

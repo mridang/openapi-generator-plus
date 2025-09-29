@@ -42,7 +42,6 @@ class CustomRubyClientCodegenTest {
     void toApiFilename_AcronymAtStart() {
         CustomRubyClientCodegen codegen = new CustomRubyClientCodegen();
         String input = "OIDCConfig";
-        // Corrected expectation for Zeitwerk compatibility.
         String expected = "o_i_d_c_config_api";
         String actual = codegen.toApiFilename(input);
         assertEquals(expected, actual);
