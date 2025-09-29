@@ -5,7 +5,7 @@
   <artifactId>codegen-plus</artifactId>
   <packaging>jar</packaging>
   <name>OpenAPI Custom Normalizer Library</name>
-  <version>1.7.1</version>
+  <version>1.8.2</version>
   <inceptionYear>2025</inceptionYear>
   <url>https://github.com/mridang/openapi-generator-plus</url>
   <description>A small custom OpenAPI normalizer for the official generator.</description>
