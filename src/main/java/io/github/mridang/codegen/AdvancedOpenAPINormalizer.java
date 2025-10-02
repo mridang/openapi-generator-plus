@@ -1,12 +1,16 @@
 package io.github.mridang.codegen;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.Appender;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.rules.*;
 import io.swagger.v3.oas.models.OpenAPI;
 import org.openapitools.codegen.OpenAPINormalizer;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -25,9 +29,8 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
     private static final String RULE_FILTER_PATHS = "FILTER_PATHS";
     private static final String RULE_GARBAGE_COLLECT = "GARBAGE_COLLECT_COMPONENTS";
     private static final String RULE_SCRIPTABLE = "RUN_SCRIPT";
-    @SuppressWarnings("HidingField")
-    @SuppressFBWarnings("MF_CLASS_MASKS_FIELD")
-    protected final Logger LOGGER = LoggerFactory.getLogger(AdvancedOpenAPINormalizer.class);
+    @Nullable
+    private final Logger customLogger;
     private final Map<String, String> customRules;
 
     /**
@@ -41,7 +44,35 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
     public AdvancedOpenAPINormalizer(OpenAPI openAPI, Map<String, String> inputRules) {
         super(openAPI, inputRules);
         this.customRules = inputRules;
-        LOGGER.info("AdvancedOpenAPINormalizer instance created. Rules: {}", customRules);
+
+        org.slf4j.Logger slf4jLogger = LoggerFactory.getLogger(AdvancedOpenAPINormalizer.class);
+
+        if (slf4jLogger instanceof Logger) {
+            this.customLogger = (Logger) slf4jLogger;
+            Logger parentLogger = (Logger) LoggerFactory.getLogger(OpenAPINormalizer.class);
+            Iterator<Appender<ILoggingEvent>> appenderIterator = parentLogger.iteratorForAppenders();
+            while (appenderIterator.hasNext()) {
+                Appender<ILoggingEvent> appender = appenderIterator.next();
+                customLogger.addAppender(appender);
+            }
+            if (parentLogger.getLevel() != null) {
+                customLogger.setLevel(parentLogger.getLevel());
+            }
+            customLogger.setAdditive(false);
+        } else {
+            this.customLogger = null;
+        }
+
+        getLogger().info("AdvancedOpenAPINormalizer instance created. Rules: {}", customRules);
+    }
+
+    /**
+     * Returns the appropriate logger instance based on runtime environment.
+     *
+     * @return Logger instance
+     */
+    private org.slf4j.Logger getLogger() {
+        return customLogger != null ? customLogger : LOGGER;
     }
 
     /**
@@ -51,7 +82,7 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
     @Override
     protected void normalize() {
         super.normalize();
-        LOGGER.info("Default normalization complete. Applying custom rules...");
+        getLogger().info("Default normalization complete. Applying custom rules...");
 
         applyRule(RULE_STRIP_PARAMS, new StripParametersRule());
         applyRule(RULE_CLEAN_EMPTY_REQUEST_BODIES, new CleanEmptyRequestBodiesRule());
@@ -60,7 +91,7 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
         applyRule(RULE_SCRIPTABLE, new ScriptableRule());
         applyRule(RULE_GARBAGE_COLLECT, new GarbageCollectComponentsRule());
 
-        LOGGER.info("All custom normalizations applied.");
+        getLogger().info("All custom normalizations applied.");
     }
 
     /**
@@ -73,9 +104,9 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
      */
     private void applyRule(String ruleKey, CustomNormalizationRule rule) {
         if (customRules.containsKey(ruleKey)) {
-            LOGGER.info("Executing rule: {}", ruleKey);
+            getLogger().info("Executing rule: {}", ruleKey);
             Map<String, String> ruleConfig = Map.of("value", customRules.get(ruleKey));
-            rule.apply(this.openAPI, ruleConfig, LOGGER);
+            rule.apply(this.openAPI, ruleConfig, getLogger());
         }
     }
 }
