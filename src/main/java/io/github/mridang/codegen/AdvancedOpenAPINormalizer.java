@@ -49,7 +49,7 @@ public class AdvancedOpenAPINormalizer extends OpenAPINormalizer {
 
         if (slf4jLogger instanceof Logger) {
             this.customLogger = (Logger) slf4jLogger;
-            Logger parentLogger = (Logger) LoggerFactory.getLogger(OpenAPINormalizer.class);
+            Logger parentLogger = (Logger) LoggerFactory.getLogger("org.openapitools");
             Iterator<Appender<ILoggingEvent>> appenderIterator = parentLogger.iteratorForAppenders();
             while (appenderIterator.hasNext()) {
                 Appender<ILoggingEvent> appender = appenderIterator.next();
