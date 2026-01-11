@@ -122,7 +122,7 @@
           <argLine>${jacoco.agent} -Xms512m -Xmx1500m</argLine>
           <parallel>methods</parallel>
           <useUnlimitedThreads>true</useUnlimitedThreads>
-          <reportsDirectory>${project.build.directory}/reports</reportsDirectory>
+          <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
           <trimStackTrace>false</trimStackTrace>
         </configuration>
       </plugin>

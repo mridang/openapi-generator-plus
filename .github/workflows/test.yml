@@ -1,4 +1,4 @@
-name: Run Tests (Jest)
+name: Run Tests
 
 on: push
 
@@ -51,3 +51,10 @@ jobs:
 
       - name: Run Junit
         run: mvn verify --batch-mode
+
+      - name: Generate coverage report
+        if: always()
+        uses: mridang/action-test-reporter@v3
+        with:
+          results-path: 'target/surefire-reports/*.xml'
+          coverage-path: 'target/coverage/jacoco.xml'
