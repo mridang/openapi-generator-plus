@@ -1,4 +1,4 @@
-FROM maven:3.9-amazoncorretto-17 AS builder
+FROM maven:3-amazoncorretto-25 AS builder
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ COPY . .
 
 RUN mvn --batch-mode --no-transfer-progress clean install --activate-profiles docker
 
-FROM openapitools/openapi-generator-cli:v7.14.0
+FROM openapitools/openapi-generator-cli:v7.18.0
 
 WORKDIR /local
 
