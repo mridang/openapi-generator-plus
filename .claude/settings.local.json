@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs find:*)",
+      "Bash(tree:*)",
+      "Bash(wc:*)",
+      "WebSearch",
+      "Bash(ls:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:java.testcontainers.org)",
+      "WebFetch(domain:petstore3.swagger.io)",
+      "Bash(devbox run:*)",
+      "Bash(docker info:*)",
+      "Bash(docker run:*)",
+      "Bash(curl:*)",
+      "Bash(/Users/mridang/.nix-profile/bin/mvn failsafe:integration-test:*)",
+      "Bash(/usr/bin/which:*)",
+      "Bash(TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock devbox run:*)",
+      "WebFetch(domain:mvnrepository.com)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(xargs:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(git reset HEAD .claude/settings.local.json codegen-plus.iml)",
+      "Bash(git add:*)"
+    ]
+  }
+}

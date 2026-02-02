@@ -13,6 +13,8 @@ import java.nio.file.Paths;
 import java.util.List;
 import java.util.Locale;
 
+import org.openapitools.codegen.SupportingFile;
+
 import static org.openapitools.codegen.utils.StringUtils.underscore;
 
 /**
@@ -68,12 +70,25 @@ public class BetterRubyCodegen extends RubyClientCodegen implements UnsupportedF
 
     /**
      * Processes generator options and then customizes the output by removing
-     * all supporting files, ensuring a minimal code generation.
+     * non-essential supporting files while keeping the core infrastructure
+     * needed for the API classes to function.
      */
     @Override
     public void processOpts() {
         super.processOpts();
         this.supportingFiles.clear();
+
+        String modulePath = underscore(moduleName.replaceAll("::", "/"));
+        String libPath = libFolder + File.separator + modulePath;
+
+        // Main gem entry point
+        supportingFiles.add(new SupportingFile("gem.mustache", libFolder, gemName + ".rb"));
+
+        // Essential supporting files for API functionality
+        supportingFiles.add(new SupportingFile("api_client.mustache", libPath, "api_client.rb"));
+        supportingFiles.add(new SupportingFile("configuration.mustache", libPath, "configuration.rb"));
+        supportingFiles.add(new SupportingFile("api_error.mustache", libPath, "api_error.rb"));
+        supportingFiles.add(new SupportingFile("version.mustache", libPath, "version.rb"));
     }
 
     /**
