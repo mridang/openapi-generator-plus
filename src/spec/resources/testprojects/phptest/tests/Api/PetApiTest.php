@@ -8,6 +8,9 @@ use PetstoreClient\Api\PetApi;
 use PetstoreClient\Configuration;
 use PetstoreClient\Model\Pet;
 
+/**
+ * Integration tests for the Pet API endpoints.
+ */
 class PetApiTest extends TestCase
 {
     private PetApi $api;
@@ -68,10 +71,8 @@ class PetApiTest extends TestCase
 
     public function testDeletePet(): void
     {
-        // Delete operation - Prism will return success
         $this->api->deletePet(1);
 
-        // If we get here without exception, the call succeeded
         $this->assertTrue(true);
     }
 }

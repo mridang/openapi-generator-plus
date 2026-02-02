@@ -1,3 +1,5 @@
+# Integration tests for the Store API endpoints.
+
 require 'spec_helper'
 
 RSpec.describe OpigenClient::Api::StoreApi do
@@ -40,7 +42,6 @@ RSpec.describe OpigenClient::Api::StoreApi do
 
   describe '#delete_order' do
     it 'deletes an order' do
-      # Delete operation - Prism will return success
       expect { api.delete_order(1) }.not_to raise_error
     end
   end

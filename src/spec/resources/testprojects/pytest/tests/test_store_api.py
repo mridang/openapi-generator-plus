@@ -1,3 +1,5 @@
+"""Integration tests for the Store API endpoints."""
+
 import pytest
 from datetime import datetime, timezone
 from petstore_client.api.store_api import StoreApi
@@ -7,6 +9,7 @@ from petstore_client.models.order import Order
 
 
 class TestStoreApi:
+    """Test suite for StoreApi operations."""
 
     @pytest.fixture(autouse=True)
     def setup(self, api_base_url):
@@ -41,8 +44,6 @@ class TestStoreApi:
         assert result.id is not None
 
     def test_delete_order(self):
-        # Delete operation - Prism will return success
         self.api.delete_order(1)
 
-        # If we get here without exception, the call succeeded
         assert True

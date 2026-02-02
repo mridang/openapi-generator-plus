@@ -1,3 +1,5 @@
+"""Integration tests for the Pet API endpoints."""
+
 import pytest
 from petstore_client.api.pet_api import PetApi
 from petstore_client.api_client import ApiClient
@@ -6,6 +8,7 @@ from petstore_client.models.pet import Pet
 
 
 class TestPetApi:
+    """Test suite for PetApi operations."""
 
     @pytest.fixture(autouse=True)
     def setup(self, api_base_url):
@@ -53,8 +56,6 @@ class TestPetApi:
         assert result is not None
 
     def test_delete_pet(self):
-        # Delete operation - Prism will return success
         self.api.delete_pet(1)
 
-        # If we get here without exception, the call succeeded
         assert True

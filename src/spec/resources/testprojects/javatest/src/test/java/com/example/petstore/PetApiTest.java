@@ -10,6 +10,9 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Integration tests for the Pet API endpoints.
+ */
 class PetApiTest {
 
     private PetApi api;
@@ -72,10 +75,8 @@ class PetApiTest {
 
     @Test
     void testDeletePet() throws Exception {
-        // Delete operation - Prism will return success
         api.deletePet(1L);
 
-        // If we get here without exception, the call succeeded
         assertThat(true).isTrue();
     }
 }

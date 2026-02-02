@@ -11,6 +11,9 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Integration tests for the Store API endpoints.
+ */
 class StoreApiTest {
 
     private StoreApi api;
@@ -59,10 +62,8 @@ class StoreApiTest {
 
     @Test
     void testDeleteOrder() throws Exception {
-        // Delete operation - Prism will return success
         api.deleteOrder(1L);
 
-        // If we get here without exception, the call succeeded
         assertThat(true).isTrue();
     }
 }

@@ -1,3 +1,5 @@
+# Integration tests for the Pet API endpoints.
+
 require 'spec_helper'
 
 RSpec.describe OpigenClient::Api::PetApi do
@@ -56,7 +58,6 @@ RSpec.describe OpigenClient::Api::PetApi do
 
   describe '#delete_pet' do
     it 'deletes a pet' do
-      # Delete operation - Prism will return success
       expect { api.delete_pet(1) }.not_to raise_error
     end
   end
