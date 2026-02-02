@@ -4,6 +4,7 @@ import io.github.mridang.codegen.generators.UnsupportedFeaturesValidator;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.servers.Server;
 import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.languages.JavaClientCodegen;
 
 import java.util.List;
@@ -61,12 +62,27 @@ public class BetterJavaCodegen extends JavaClientCodegen implements UnsupportedF
 
     /**
      * Processes generator options and then customizes the output by removing
-     * all supporting files, ensuring a minimal code generation.
+     * non-essential supporting files while keeping the core infrastructure
+     * needed for the API classes to function.
      */
     @Override
     public void processOpts() {
         super.processOpts();
-        this.supportingFiles.clear();
+        // Keep all supporting files from parent - just remove build files
+        supportingFiles.removeIf(f ->
+            f.getDestinationFilename().equals("pom.xml") ||
+            f.getDestinationFilename().equals("build.gradle") ||
+            f.getDestinationFilename().equals("build.sbt") ||
+            f.getDestinationFilename().equals("settings.gradle") ||
+            f.getDestinationFilename().equals("gradle.properties") ||
+            f.getDestinationFilename().equals("gradlew") ||
+            f.getDestinationFilename().equals("gradlew.bat") ||
+            f.getDestinationFilename().equals("README.md") ||
+            f.getDestinationFilename().equals(".travis.yml") ||
+            f.getDestinationFilename().equals(".gitignore") ||
+            f.getDestinationFilename().equals("git_push.sh") ||
+            f.getDestinationFilename().endsWith(".sbt")
+        );
     }
 
     @Override

@@ -64,7 +64,8 @@ public class BetterPythonCodegen extends PythonClientCodegen implements Unsuppor
 
     /**
      * Processes generator options and then customizes the output by removing
-     * all supporting files, ensuring a minimal code generation.
+     * non-essential supporting files while keeping the core infrastructure
+     * needed for the API classes to function.
      */
     @Override
     public void processOpts() {
@@ -73,9 +74,19 @@ public class BetterPythonCodegen extends PythonClientCodegen implements Unsuppor
 
         String modelPath = modelPackage.replace('.', File.separatorChar);
         String apiPath = apiPackage.replace('.', File.separatorChar);
+        String packagePath = packageName.replace('.', File.separatorChar);
+
+        // Package __init__ files
         supportingFiles.add(new SupportingFile("__init__model.mustache", modelPath, "__init__.py"));
         supportingFiles.add(new SupportingFile("__init__api.mustache", apiPath, "__init__.py"));
+        supportingFiles.add(new SupportingFile("__init__package.mustache", packagePath, "__init__.py"));
 
+        // Essential supporting files for API functionality
+        supportingFiles.add(new SupportingFile("api_client.mustache", packagePath, "api_client.py"));
+        supportingFiles.add(new SupportingFile("api_response.mustache", packagePath, "api_response.py"));
+        supportingFiles.add(new SupportingFile("rest.mustache", packagePath, "rest.py"));
+        supportingFiles.add(new SupportingFile("configuration.mustache", packagePath, "configuration.py"));
+        supportingFiles.add(new SupportingFile("exceptions.mustache", packagePath, "exceptions.py"));
     }
 
     @Override

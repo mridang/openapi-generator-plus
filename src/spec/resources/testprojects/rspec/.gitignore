@@ -1,0 +1,6 @@
+# Bundle dependencies
+/vendor/
+Gemfile.lock
+
+# RSpec artifacts
+/.rspec_status

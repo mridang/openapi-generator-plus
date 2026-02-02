@@ -378,7 +378,7 @@ use Exception;
                 }
 
                 try {
-                    return ObjectSerializer::deserialize($content, $returnType, $this->config, []);
+                    return ObjectSerializer::deserialize($content, $returnType, []);
                 } catch (Exception $e) {
                     throw new RuntimeException(
                         "Failed to process successful response for status $statusCode",
@@ -612,7 +612,6 @@ use Exception;
         $queryParams = array_merge($queryParams, ObjectSerializer::toQueryValue(
             ${{paramName}},
             '{{baseName}}', // param base name
-            $this->config->getBooleanFormatForQueryString(),
             '{{#schema}}{{openApiType}}{{/schema}}', // openApiType
             '{{style}}', // style
             {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}}, // explode
@@ -703,7 +702,7 @@ use Exception;
                 # if Content-Type contains "application/json", json_encode the form parameters
                 $httpBody = \GuzzleHttp\Utils::jsonEncode($formParams);
             } else {
-                $httpBody = ObjectSerializer::buildQuery($formParams, $this->config->getBooleanFormatForQueryString());
+                $httpBody = ObjectSerializer::buildQuery($formParams);
             }
         }
 
@@ -760,7 +759,7 @@ use Exception;
         {{^servers.0}}
         $operationHost = $this->config->getHost();
         {{/servers.0}}
-        $query = ObjectSerializer::buildQuery($queryParams, $this->config->getBooleanFormatForQueryString());
+        $query = ObjectSerializer::buildQuery($queryParams);
         return new Request(
             '{{httpMethod}}',
             $operationHost . $resourcePath . ($query ? "?{$query}" : ''),

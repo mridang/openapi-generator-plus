@@ -62,13 +62,20 @@ public class BetterPHPCodegen extends PhpClientCodegen implements UnsupportedFea
 
     /**
      * Processes generator options and then customizes the output by removing
-     * all supporting files, ensuring a minimal code generation.
+     * non-essential supporting files while keeping the core infrastructure
+     * needed for the API classes to function.
      */
     @Override
     public void processOpts() {
         super.processOpts();
         this.supportingFiles.clear();
+
+        // Essential supporting files for API functionality
         supportingFiles.add(new SupportingFile("ModelInterface.mustache", toSrcPath(modelPackage, srcBasePath), "ModelInterface.php"));
+        supportingFiles.add(new SupportingFile("Configuration.mustache", toSrcPath(invokerPackage, srcBasePath), "Configuration.php"));
+        supportingFiles.add(new SupportingFile("ObjectSerializer.mustache", toSrcPath(invokerPackage, srcBasePath), "ObjectSerializer.php"));
+        supportingFiles.add(new SupportingFile("ApiException.mustache", toSrcPath(invokerPackage, srcBasePath), "ApiException.php"));
+        supportingFiles.add(new SupportingFile("HeaderSelector.mustache", toSrcPath(invokerPackage, srcBasePath), "HeaderSelector.php"));
     }
 
     @Override
