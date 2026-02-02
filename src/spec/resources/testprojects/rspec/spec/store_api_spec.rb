@@ -19,7 +19,7 @@ RSpec.describe OpigenClient::Api::StoreApi do
         id: 1,
         pet_id: 12345,
         quantity: 1,
-        ship_date: Time.now.utc,
+        ship_date: Time.now.utc.iso8601,
         status: 'placed',
         complete: false
       )
