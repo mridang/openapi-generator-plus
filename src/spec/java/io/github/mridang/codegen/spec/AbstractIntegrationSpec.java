@@ -185,6 +185,11 @@ public abstract class AbstractIntegrationSpec {
         }
       }
 
+      // Fix file permissions before container exits so JUnit can clean up @TempDir
+      // Docker containers run as root and create files owned by root, which the
+      // host user cannot delete. This makes all files world-writable.
+      runtimeContainer.execInContainer("sh", "-c", "chmod -R 777 /app || true");
+
       return new ExecResult(exitCode, output.toString());
     } catch (Exception e) {
       logger.error("Failed to execute commands in runtime container", e);
