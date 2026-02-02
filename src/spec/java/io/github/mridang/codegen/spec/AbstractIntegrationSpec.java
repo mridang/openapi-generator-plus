@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -53,6 +54,14 @@ public abstract class AbstractIntegrationSpec {
   static void setupSharedInfrastructure() {
     sharedNetwork = Network.newNetwork();
     logger.info("Created shared Docker network: {}", sharedNetwork.getId());
+  }
+
+  @AfterAll
+  static void teardownSharedInfrastructure() {
+    if (sharedNetwork != null) {
+      sharedNetwork.close();
+      logger.info("Closed shared Docker network");
+    }
   }
 
   @BeforeEach
