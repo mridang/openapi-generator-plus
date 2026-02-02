@@ -11,6 +11,7 @@ Generator version: 7.14.0
 =end
 
 # load the gem
+require 'uri'
 require 'opigen_client'
 
 # Configure the client to use the API_BASE_URL environment variable
