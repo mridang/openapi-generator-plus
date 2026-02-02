@@ -25,6 +25,7 @@ __all__ = [
     "Configuration",
     "ObjectSerializer",
     "SerializationError",
+    "HeaderSelector",
     "OpenApiException",
     "ApiTypeError",
     "ApiValueError",
@@ -48,6 +49,7 @@ from petstore_client.api_client import ApiClient as ApiClient
 from petstore_client.configuration import Configuration as Configuration
 from petstore_client.object_serializer import ObjectSerializer as ObjectSerializer
 from petstore_client.object_serializer import SerializationError as SerializationError
+from petstore_client.header_selector import HeaderSelector as HeaderSelector
 from petstore_client.exceptions import OpenApiException as OpenApiException
 from petstore_client.exceptions import ApiTypeError as ApiTypeError
 from petstore_client.exceptions import ApiValueError as ApiValueError

@@ -100,6 +100,7 @@ public class ApiClient {
   protected CloseableHttpClient httpClient;
   protected ObjectMapper objectMapper;
   protected ObjectSerializer objectSerializer;
+  protected HeaderSelector headerSelector;
   protected String tempFolderPath = null;
 
   protected Map<String, Authentication> authentications;
@@ -116,6 +117,9 @@ public class ApiClient {
     // Initialize the ObjectSerializer which manages all JSON serialization
     objectSerializer = new ObjectSerializer();
     objectMapper = objectSerializer.getObjectMapper();
+
+    // Initialize the HeaderSelector for content negotiation
+    headerSelector = new HeaderSelector();
 
     dateFormat = ApiClient.buildDefaultDateFormat();
 
@@ -523,6 +527,15 @@ public class ApiClient {
   }
 
   /**
+   * Returns the HeaderSelector used for content negotiation.
+   *
+   * @return HeaderSelector instance
+   */
+  public HeaderSelector getHeaderSelector() {
+    return headerSelector;
+  }
+
+  /**
    * Check if the given MIME is a JSON MIME.
    * JSON MIME examples:
    *   application/json
@@ -530,16 +543,15 @@ public class ApiClient {
    *   APPLICATION/JSON
    *   application/vnd.company+json
    * @param mime MIME
-   * @return True if MIME type is boolean
+   * @return True if MIME type is JSON
    */
   public boolean isJsonMime(String mime) {
-    String jsonMime = "(?i)^(application/json|[^;/ \t]+/[^;/ \t]+[+]json)[ \t]*(;.*)?$";
-    return mime != null && (mime.matches(jsonMime) || mime.equals("*/*"));
+    return mime != null && (headerSelector.isJsonMime(mime) || mime.equals("*/*"));
   }
 
   /**
    * Select the Accept header's value from the given accepts array:
-   *   if JSON exists in the given array, use it;
+   *   if JSON exists in the given array, use it with quality weights;
    *   otherwise use all of them (joining into a string)
    *
    * @param accepts The accepts array to select from
@@ -547,15 +559,7 @@ public class ApiClient {
    *   null will be returned (not to set the Accept header explicitly).
    */
   public String selectHeaderAccept(String[] accepts) {
-    if (accepts.length == 0) {
-      return null;
-    }
-    for (String accept : accepts) {
-      if (isJsonMime(accept)) {
-        return accept;
-      }
-    }
-    return StringUtil.join(accepts, ",");
+    return headerSelector.selectAcceptHeader(accepts);
   }
 
   /**

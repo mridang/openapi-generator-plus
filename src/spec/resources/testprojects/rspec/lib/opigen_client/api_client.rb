@@ -17,6 +17,7 @@ require 'tempfile'
 require 'time'
 require 'typhoeus'
 require 'opigen_client/object_serializer'
+require 'opigen_client/header_selector'
 
 
 module OpigenClient
@@ -34,11 +35,17 @@ module OpigenClient
     # @return [ObjectSerializer]
     attr_reader :object_serializer
 
+    # The HeaderSelector instance used for content negotiation.
+    #
+    # @return [HeaderSelector]
+    attr_reader :header_selector
+
     # Initializes the ApiClient
     # @option config [Configuration] Configuration for initializing the object, default to Configuration.default
     def initialize(config = Configuration.default)
       @config = config
       @object_serializer = ObjectSerializer.new
+      @header_selector = HeaderSelector.new
       @user_agent = "OpenAPI-Generator/#{VERSION}/ruby"
       @default_headers = {
         'Content-Type' => 'application/json',
@@ -284,13 +291,14 @@ module OpigenClient
     end
 
     # Return Accept header based on an array of accepts provided.
+    #
+    # Delegates to HeaderSelector for RFC 9110 compliant content negotiation
+    # with quality weights.
+    #
     # @param [Array] accepts array for Accept
     # @return [String] the Accept header (e.g. application/json)
     def select_header_accept(accepts)
-      return nil if accepts.nil? || accepts.empty?
-      # use JSON when present, otherwise use all of the provided
-      json_accept = accepts.find { |s| json_mime?(s) }
-      json_accept || accepts.join(',')
+      @header_selector.select_accept_header(accepts)
     end
 
     # Return Content-Type header based on an array of content types provided.

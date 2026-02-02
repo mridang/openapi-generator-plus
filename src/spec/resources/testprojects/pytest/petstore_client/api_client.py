@@ -31,6 +31,7 @@ from petstore_client.api_response import ApiResponse, T as ApiResponseT
 import petstore_client.models
 from petstore_client import rest
 from petstore_client.object_serializer import ObjectSerializer
+from petstore_client.header_selector import HeaderSelector
 from petstore_client.exceptions import (
     ApiValueError,
     ApiException,
@@ -74,6 +75,7 @@ class ApiClient:
         self.configuration = configuration
 
         self._object_serializer = ObjectSerializer()
+        self._header_selector = HeaderSelector()
         self.rest_client = rest.RESTClientObject(configuration)
         self.default_headers = {}
         if header_name is not None:
@@ -91,6 +93,15 @@ class ApiClient:
             The ObjectSerializer instance.
         """
         return self._object_serializer
+
+    @property
+    def header_selector(self) -> HeaderSelector:
+        """Get the HeaderSelector instance used by this client.
+
+        Returns:
+            The HeaderSelector instance.
+        """
+        return self._header_selector
 
     def __enter__(self):
         return self
@@ -492,17 +503,13 @@ class ApiClient:
     def select_header_accept(self, accepts: List[str]) -> Optional[str]:
         """Returns `Accept` based on an array of accepts provided.
 
+        Delegates to HeaderSelector for RFC 9110 compliant content negotiation
+        with quality weights.
+
         :param accepts: List of headers.
         :return: Accept (e.g. application/json).
         """
-        if not accepts:
-            return None
-
-        for accept in accepts:
-            if re.search('json', accept, re.IGNORECASE):
-                return accept
-
-        return accepts[0]
+        return self._header_selector._select_accept_header(accepts)
 
     def select_header_content_type(self, content_types):
         """Returns `Content-Type` based on an array of content_types provided.
