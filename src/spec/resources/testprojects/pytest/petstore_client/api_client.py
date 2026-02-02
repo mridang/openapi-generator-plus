@@ -30,6 +30,7 @@ from petstore_client.configuration import Configuration
 from petstore_client.api_response import ApiResponse, T as ApiResponseT
 import petstore_client.models
 from petstore_client import rest
+from petstore_client.object_serializer import ObjectSerializer
 from petstore_client.exceptions import (
     ApiValueError,
     ApiException,
@@ -58,18 +59,6 @@ class ApiClient:
         to the API
     """
 
-    PRIMITIVE_TYPES = (float, bool, bytes, str, int)
-    NATIVE_TYPES_MAPPING = {
-        'int': int,
-        'long': int, # TODO remove as only py3 is supported?
-        'float': float,
-        'str': str,
-        'bool': bool,
-        'date': datetime.date,
-        'datetime': datetime.datetime,
-        'decimal': decimal.Decimal,
-        'object': object,
-    }
     _pool = None
 
     def __init__(
@@ -84,6 +73,7 @@ class ApiClient:
             configuration = Configuration.get_default()
         self.configuration = configuration
 
+        self._object_serializer = ObjectSerializer()
         self.rest_client = rest.RESTClientObject(configuration)
         self.default_headers = {}
         if header_name is not None:
@@ -92,6 +82,15 @@ class ApiClient:
         # Set default User-Agent.
         self.user_agent = 'OpenAPI-Generator/1.0.0/python'
         self.client_side_validation = configuration.client_side_validation
+
+    @property
+    def object_serializer(self) -> ObjectSerializer:
+        """Get the ObjectSerializer instance used by this client.
+
+        Returns:
+            The ObjectSerializer instance.
+        """
+        return self._object_serializer
 
     def __enter__(self):
         return self
@@ -335,61 +334,12 @@ class ApiClient:
     def sanitize_for_serialization(self, obj):
         """Builds a JSON POST object.
 
-        If obj is None, return None.
-        If obj is SecretStr, return obj.get_secret_value()
-        If obj is str, int, long, float, bool, return directly.
-        If obj is datetime.datetime, datetime.date
-            convert to string in iso8601 format.
-        If obj is decimal.Decimal return string representation.
-        If obj is list, sanitize each element in the list.
-        If obj is dict, return the dict.
-        If obj is OpenAPI model, return the properties dict.
+        Delegates to ObjectSerializer for consistent serialization behavior.
 
         :param obj: The data to serialize.
         :return: The serialized form of data.
         """
-        if obj is None:
-            return None
-        elif isinstance(obj, Enum):
-            return obj.value
-        elif isinstance(obj, SecretStr):
-            return obj.get_secret_value()
-        elif isinstance(obj, self.PRIMITIVE_TYPES):
-            return obj
-        elif isinstance(obj, list):
-            return [
-                self.sanitize_for_serialization(sub_obj) for sub_obj in obj
-            ]
-        elif isinstance(obj, tuple):
-            return tuple(
-                self.sanitize_for_serialization(sub_obj) for sub_obj in obj
-            )
-        elif isinstance(obj, (datetime.datetime, datetime.date)):
-            return obj.isoformat()
-        elif isinstance(obj, decimal.Decimal):
-            return str(obj)
-
-        elif isinstance(obj, dict):
-            obj_dict = obj
-        else:
-            # Convert model obj to dict except
-            # attributes `openapi_types`, `attribute_map`
-            # and attributes which value is not None.
-            # Convert attribute name to json key in
-            # model definition for request.
-            if hasattr(obj, 'to_dict') and callable(getattr(obj, 'to_dict')):
-                obj_dict = obj.to_dict()
-            else:
-                obj_dict = obj.__dict__
-
-        if isinstance(obj_dict, list):
-            # here we handle instances that can either be a list or something else, and only became a real list by calling to_dict()
-            return self.sanitize_for_serialization(obj_dict)
-
-        return {
-            key: self.sanitize_for_serialization(val)
-            for key, val in obj_dict.items()
-        }
+        return self._object_serializer._sanitize_for_serialization(obj)
 
     def deserialize(self, response_text: str, response_type: str, content_type: Optional[str]):
         """Deserializes response into an object.
@@ -426,49 +376,14 @@ class ApiClient:
     def __deserialize(self, data, klass):
         """Deserializes dict, list, str into an object.
 
+        Delegates to ObjectSerializer for consistent deserialization behavior.
+
         :param data: dict, list or str.
         :param klass: class literal, or string of class name.
 
         :return: object.
         """
-        if data is None:
-            return None
-
-        if isinstance(klass, str):
-            if klass.startswith('List['):
-                m = re.match(r'List\[(.*)]', klass)
-                assert m is not None, "Malformed List type definition"
-                sub_kls = m.group(1)
-                return [self.__deserialize(sub_data, sub_kls)
-                        for sub_data in data]
-
-            if klass.startswith('Dict['):
-                m = re.match(r'Dict\[([^,]*), (.*)]', klass)
-                assert m is not None, "Malformed Dict type definition"
-                sub_kls = m.group(2)
-                return {k: self.__deserialize(v, sub_kls)
-                        for k, v in data.items()}
-
-            # convert str to class
-            if klass in self.NATIVE_TYPES_MAPPING:
-                klass = self.NATIVE_TYPES_MAPPING[klass]
-            else:
-                klass = getattr(petstore_client.models, klass)
-
-        if klass in self.PRIMITIVE_TYPES:
-            return self.__deserialize_primitive(data, klass)
-        elif klass == object:
-            return self.__deserialize_object(data)
-        elif klass == datetime.date:
-            return self.__deserialize_date(data)
-        elif klass == datetime.datetime:
-            return self.__deserialize_datetime(data)
-        elif klass == decimal.Decimal:
-            return decimal.Decimal(data)
-        elif issubclass(klass, Enum):
-            return self.__deserialize_enum(data, klass)
-        else:
-            return self.__deserialize_model(data, klass)
+        return self._object_serializer._deserialize(data, klass)
 
     def parameters_to_tuples(self, params, collection_formats):
         """Get parameters as list of tuples, formatting collections.
@@ -713,89 +628,3 @@ class ApiClient:
 
         return path
 
-    def __deserialize_primitive(self, data, klass):
-        """Deserializes string to primitive type.
-
-        :param data: str.
-        :param klass: class literal.
-
-        :return: int, long, float, str, bool.
-        """
-        try:
-            return klass(data)
-        except UnicodeEncodeError:
-            return str(data)
-        except TypeError:
-            return data
-
-    def __deserialize_object(self, value):
-        """Return an original value.
-
-        :return: object.
-        """
-        return value
-
-    def __deserialize_date(self, string):
-        """Deserializes string to date.
-
-        :param string: str.
-        :return: date.
-        """
-        try:
-            return parse(string).date()
-        except ImportError:
-            return string
-        except ValueError:
-            raise rest.ApiException(
-                status=0,
-                reason="Failed to parse `{0}` as date object".format(string)
-            )
-
-    def __deserialize_datetime(self, string):
-        """Deserializes string to datetime.
-
-        The string should be in iso8601 datetime format.
-
-        :param string: str.
-        :return: datetime.
-        """
-        try:
-            return parse(string)
-        except ImportError:
-            return string
-        except ValueError:
-            raise rest.ApiException(
-                status=0,
-                reason=(
-                    "Failed to parse `{0}` as datetime object"
-                    .format(string)
-                )
-            )
-
-    def __deserialize_enum(self, data, klass):
-        """Deserializes primitive type to enum.
-
-        :param data: primitive type.
-        :param klass: class literal.
-        :return: enum value.
-        """
-        try:
-            return klass(data)
-        except ValueError:
-            raise rest.ApiException(
-                status=0,
-                reason=(
-                    "Failed to parse `{0}` as `{1}`"
-                    .format(data, klass)
-                )
-            )
-
-    def __deserialize_model(self, data, klass):
-        """Deserializes list or dict to model.
-
-        :param data: dict, list.
-        :param klass: class literal.
-        :return: model object.
-        """
-
-        return klass.from_dict(data)

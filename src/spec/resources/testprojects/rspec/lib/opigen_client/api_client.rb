@@ -16,6 +16,7 @@ require 'logger'
 require 'tempfile'
 require 'time'
 require 'typhoeus'
+require 'opigen_client/object_serializer'
 
 
 module OpigenClient
@@ -28,10 +29,16 @@ module OpigenClient
     # @return [Hash]
     attr_accessor :default_headers
 
+    # The ObjectSerializer instance used for JSON serialization/deserialization.
+    #
+    # @return [ObjectSerializer]
+    attr_reader :object_serializer
+
     # Initializes the ApiClient
     # @option config [Configuration] Configuration for initializing the object, default to Configuration.default
     def initialize(config = Configuration.default)
       @config = config
+      @object_serializer = ObjectSerializer.new
       @user_agent = "OpenAPI-Generator/#{VERSION}/ruby"
       @default_headers = {
         'Content-Type' => 'application/json',
@@ -134,6 +141,8 @@ module OpigenClient
 
     # Builds the HTTP request body
     #
+    # Delegates to ObjectSerializer for consistent serialization behavior.
+    #
     # @param [Hash] header_params Header parameters
     # @param [Hash] form_params Query parameters
     # @param [Object] body HTTP body (JSON/XML)
@@ -153,7 +162,7 @@ module OpigenClient
           end
         end
       elsif body
-        data = body.is_a?(String) ? body : body.to_json
+        data = body.is_a?(String) ? body : @object_serializer.serialize(body)
       else
         data = nil
       end
@@ -215,6 +224,8 @@ module OpigenClient
 
     # Deserialize the response to the given return type.
     #
+    # Delegates to ObjectSerializer for consistent deserialization behavior.
+    #
     # @param [Response] response HTTP response
     # @param [String] return_type some examples: "User", "Array<User>", "Hash<String, Integer>"
     def deserialize(response, return_type)
@@ -229,58 +240,7 @@ module OpigenClient
 
       fail "Content-Type is not supported: #{content_type}" unless json_mime?(content_type)
 
-      begin
-        data = JSON.parse("[#{body}]", :symbolize_names => true)[0]
-      rescue JSON::ParserError => e
-        if %w(String Date Time).include?(return_type)
-          data = body
-        else
-          raise e
-        end
-      end
-
-      convert_to_type data, return_type
-    end
-
-    # Convert data to the given return type.
-    # @param [Object] data Data to be converted
-    # @param [String] return_type Return type
-    # @return [Mixed] Data in a particular type
-    def convert_to_type(data, return_type)
-      return nil if data.nil?
-      case return_type
-      when 'String'
-        data.to_s
-      when 'Integer'
-        data.to_i
-      when 'Float'
-        data.to_f
-      when 'Boolean'
-        data == true
-      when 'Time'
-        # parse date time (expecting ISO 8601 format)
-        Time.parse data
-      when 'Date'
-        # parse date time (expecting ISO 8601 format)
-        Date.parse data
-      when 'Object'
-        # generic object (usually a Hash), return directly
-        data
-      when /\AArray<(.+)>\z/
-        # e.g. Array<Pet>
-        sub_type = $1
-        data.map { |item| convert_to_type(item, sub_type) }
-      when /\AHash\<String, (.+)\>\z/
-        # e.g. Hash<String, Integer>
-        sub_type = $1
-        {}.tap do |hash|
-          data.each { |k, v| hash[k] = convert_to_type(v, sub_type) }
-        end
-      else
-        # models (e.g. Pet) or oneOf
-        klass = OpigenClient.const_get(return_type)
-        klass.respond_to?(:openapi_one_of) ? klass.build(data) : klass.build_from_hash(data)
-      end
+      @object_serializer.deserialize(body, return_type)
     end
 
     # Sanitize filename by removing path.
@@ -345,28 +305,14 @@ module OpigenClient
     end
 
     # Convert object (array, hash, object, etc) to JSON string.
+    #
+    # Delegates to ObjectSerializer for consistent serialization behavior.
+    #
     # @param [Object] model object to be converted into JSON string
     # @return [String] JSON string representation of the object
     def object_to_http_body(model)
       return model if model.nil? || model.is_a?(String)
-      local_body = nil
-      if model.is_a?(Array)
-        local_body = model.map { |m| object_to_hash(m) }
-      else
-        local_body = object_to_hash(model)
-      end
-      local_body.to_json
-    end
-
-    # Convert object(non-array) to hash.
-    # @param [Object] obj object to be converted into JSON string
-    # @return [String] JSON string representation of the object
-    def object_to_hash(obj)
-      if obj.respond_to?(:to_hash)
-        obj.to_hash
-      else
-        obj
-      end
+      @object_serializer.serialize(model)
     end
 
     # Build parameter value according to the given collection format.

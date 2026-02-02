@@ -30,9 +30,24 @@ namespace PetstoreClient;
 
 use GuzzleHttp\Psr7\Utils;
 use PetstoreClient\Model\ModelInterface;
+use Symfony\Component\Serializer\Serializer;
+use Symfony\Component\Serializer\Encoder\JsonEncoder;
+use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
+use Symfony\Component\Serializer\Normalizer\DateTimeNormalizer;
+use Symfony\Component\Serializer\Normalizer\ArrayDenormalizer;
+use Symfony\Component\PropertyAccess\PropertyAccess;
 
 /**
- * ObjectSerializer Class Doc Comment
+ * Handles JSON serialization and deserialization for API requests and responses.
+ *
+ * This class provides both instance methods using Symfony Serializer and static methods
+ * for backward compatibility with the OpenAPI Generator conventions.
+ *
+ * The instance methods provide a consistent API:
+ * - serialize(object) -> string: Convert objects to JSON
+ * - deserialize(json, class) -> object: Convert JSON to typed objects
+ *
+ * DateTime values are formatted using ISO8601/ATOM format by default.
  *
  * @category Class
  * @package  PetstoreClient
@@ -43,6 +58,140 @@ class ObjectSerializer
 {
     /** @var string */
     private static $dateTimeFormat = \DateTime::ATOM;
+
+    /** @var Serializer */
+    private Serializer $serializer;
+
+    /** @var string */
+    private string $instanceDateTimeFormat;
+
+    /**
+     * Creates a new ObjectSerializer with default configuration.
+     *
+     * The Symfony Serializer is configured with:
+     * - JSON encoding/decoding
+     * - DateTime normalization using ISO8601/ATOM format
+     * - Object normalization with property access
+     * - Array denormalization support
+     *
+     * @param string $dateTimeFormat The format for DateTime serialization (default: DateTime::ATOM)
+     */
+    public function __construct(string $dateTimeFormat = \DateTime::ATOM)
+    {
+        $this->instanceDateTimeFormat = $dateTimeFormat;
+        $this->serializer = $this->createDefaultSerializer();
+    }
+
+    /**
+     * Creates the default Symfony Serializer with standard configuration.
+     *
+     * @return Serializer A configured Serializer instance
+     */
+    private function createDefaultSerializer(): Serializer
+    {
+        $normalizers = [
+            new DateTimeNormalizer([
+                DateTimeNormalizer::FORMAT_KEY => $this->instanceDateTimeFormat,
+            ]),
+            new ArrayDenormalizer(),
+            new ObjectNormalizer(
+                null,
+                null,
+                PropertyAccess::createPropertyAccessor()
+            ),
+        ];
+
+        $encoders = [new JsonEncoder()];
+
+        return new Serializer($normalizers, $encoders);
+    }
+
+    /**
+     * Serializes an object to a JSON string.
+     *
+     * Handles all types including:
+     * - Model objects (implementing ModelInterface)
+     * - DateTime objects (formatted using configured format)
+     * - Arrays and nested objects
+     * - Scalar values
+     *
+     * @param mixed $object The object to serialize (may be null)
+     * @return string JSON string representation, or "null" if object is null
+     * @throws SerializationException If serialization fails
+     */
+    public function serialize(mixed $object): string
+    {
+        try {
+            if ($object === null) {
+                return 'null';
+            }
+
+            // For ModelInterface objects, use the static method which handles
+            // the model's metadata (attribute maps, nullable fields, etc.)
+            if ($object instanceof ModelInterface) {
+                $sanitized = self::sanitizeForSerialization($object);
+                return json_encode($sanitized, JSON_THROW_ON_ERROR);
+            }
+
+            return $this->serializer->serialize($object, 'json');
+        } catch (\Throwable $e) {
+            throw new SerializationException('Failed to serialize object to JSON: ' . $e->getMessage(), 0, $e);
+        }
+    }
+
+    /**
+     * Deserializes a JSON string to an object of the specified type.
+     *
+     * Handles all types including:
+     * - Model classes (implementing ModelInterface)
+     * - DateTime objects
+     * - Arrays of objects (use "ClassName[]" syntax)
+     * - Associative arrays (use "array<string,ClassName>" syntax)
+     * - Scalar types
+     *
+     * @param string|null $jsonString The JSON string to deserialize (may be null or empty)
+     * @param string $targetClass The fully qualified class name or type
+     * @return mixed The deserialized object, or null if jsonString is null or empty
+     * @throws SerializationException If deserialization fails
+     */
+    public function deserializeJson(?string $jsonString, string $targetClass): mixed
+    {
+        try {
+            if ($jsonString === null || $jsonString === '') {
+                return null;
+            }
+
+            // Delegate to the static deserialize method which handles all the
+            // OpenAPI-specific type resolution (arrays, maps, models, etc.)
+            $data = json_decode($jsonString, false, 512, JSON_THROW_ON_ERROR);
+            return self::deserialize($data, $targetClass);
+        } catch (\Throwable $e) {
+            throw new SerializationException('Failed to deserialize JSON to ' . $targetClass . ': ' . $e->getMessage(), 0, $e);
+        }
+    }
+
+    /**
+     * Gets the Symfony Serializer instance.
+     *
+     * Use this method when you need direct access to the Serializer for
+     * advanced operations not covered by the serialize/deserialize methods.
+     *
+     * @return Serializer The Serializer instance (never null)
+     */
+    public function getSerializer(): Serializer
+    {
+        return $this->serializer;
+    }
+
+    /**
+     * Gets the configured DateTime format.
+     *
+     * @return string The DateTime format string
+     */
+    public function getDateTimeFormat(): string
+    {
+        return $this->instanceDateTimeFormat;
+    }
 
     /**
      * Change the date format
@@ -595,5 +744,25 @@ class ObjectSerializer
         }
 
         return $qs ? (string) substr($qs, 0, -1) : '';
+    }
+}
+
+/**
+ * Exception thrown when serialization or deserialization fails.
+ *
+ * @package PetstoreClient
+ */
+class SerializationException extends \RuntimeException
+{
+    /**
+     * Creates a new SerializationException with the specified message and cause.
+     *
+     * @param string $message The detail message
+     * @param int $code The exception code (default: 0)
+     * @param \Throwable|null $previous The underlying cause
+     */
+    public function __construct(string $message, int $code = 0, ?\Throwable $previous = null)
+    {
+        parent::__construct($message, $code, $previous);
     }
 }

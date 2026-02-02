@@ -77,10 +77,11 @@ import java.net.URI;
 
 import java.text.DateFormat;
 
+import com.fasterxml.jackson.databind.util.StdDateFormat;
 import com.example.petstore.auth.Authentication;
 
 @javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-02-02T04:01:34.118571345Z[Etc/UTC]", comments = "Generator version: 7.14.0")
-public class ApiClient extends JavaTimeFormatter {
+public class ApiClient {
   protected Map<String, String> defaultHeaderMap = new HashMap<String, String>();
   protected Map<String, String> defaultCookieMap = new HashMap<String, String>();
   protected String basePath = "/api/v3";
@@ -98,6 +99,7 @@ public class ApiClient extends JavaTimeFormatter {
 
   protected CloseableHttpClient httpClient;
   protected ObjectMapper objectMapper;
+  protected ObjectSerializer objectSerializer;
   protected String tempFolderPath = null;
 
   protected Map<String, Authentication> authentications;
@@ -111,17 +113,9 @@ public class ApiClient extends JavaTimeFormatter {
   protected static List<String> bodyMethods = Arrays.asList("POST", "PUT", "DELETE", "PATCH");
 
   public ApiClient(CloseableHttpClient httpClient) {
-    objectMapper = new ObjectMapper();
-    objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-    objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    objectMapper.configure(DeserializationFeature.FAIL_ON_INVALID_SUBTYPE, false);
-    objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-    objectMapper.enable(SerializationFeature.WRITE_ENUMS_USING_TO_STRING);
-    objectMapper.enable(DeserializationFeature.READ_ENUMS_USING_TO_STRING);
-    objectMapper.registerModule(new JavaTimeModule());
-    objectMapper.registerModule(new JsonNullableModule());
-    objectMapper.registerModule(new RFC3339JavaTimeModule());
-    objectMapper.setDateFormat(ApiClient.buildDefaultDateFormat());
+    // Initialize the ObjectSerializer which manages all JSON serialization
+    objectSerializer = new ObjectSerializer();
+    objectMapper = objectSerializer.getObjectMapper();
 
     dateFormat = ApiClient.buildDefaultDateFormat();
 
@@ -141,7 +135,16 @@ public class ApiClient extends JavaTimeFormatter {
   }
 
   public static DateFormat buildDefaultDateFormat() {
-    return new RFC3339DateFormat();
+    return new StdDateFormat().withColonInTimeZone(true);
+  }
+
+  /**
+   * Returns the ObjectSerializer used for JSON serialization/deserialization.
+   *
+   * @return ObjectSerializer instance
+   */
+  public ObjectSerializer getObjectSerializer() {
+    return objectSerializer;
   }
 
   /**
@@ -164,6 +167,7 @@ public class ApiClient extends JavaTimeFormatter {
    */
   public ApiClient setObjectMapper(ObjectMapper objectMapper) {
     this.objectMapper = objectMapper;
+    this.objectSerializer = new ObjectSerializer(objectMapper);
     return this;
   }
 
@@ -432,7 +436,7 @@ public class ApiClient extends JavaTimeFormatter {
     } else if (param instanceof Date) {
       return formatDate((Date) param);
     } else if (param instanceof OffsetDateTime) {
-      return formatOffsetDateTime((OffsetDateTime) param);
+      return ((OffsetDateTime) param).toString();
     } else if (param instanceof Collection) {
       StringBuilder b = new StringBuilder();
       for(Object o : (Collection<?>)param) {
@@ -644,8 +648,8 @@ public class ApiClient extends JavaTimeFormatter {
     String mimeType = contentType.getMimeType();
     if (isJsonMime(mimeType)) {
       try {
-        return new StringEntity(objectMapper.writeValueAsString(obj), contentType.withCharset(StandardCharsets.UTF_8));
-      } catch (JsonProcessingException e) {
+        return new StringEntity(objectSerializer.serialize(obj), contentType.withCharset(StandardCharsets.UTF_8));
+      } catch (ObjectSerializer.SerializationException e) {
         throw new ApiException(e);
       }
     } else if (mimeType.equals(ContentType.MULTIPART_FORM_DATA.getMimeType())) {
@@ -717,7 +721,7 @@ public class ApiClient extends JavaTimeFormatter {
         return null;
       }
 
-      return objectMapper.readValue(content, valueType);
+      return objectSerializer.deserialize(content, valueType);
     } else if (mimeType.toLowerCase().startsWith("text/")) {
       // convert input stream to string
       return (T) EntityUtils.toString(entity);
