@@ -24,6 +24,7 @@ from {{packageName}}.api_response import ApiResponse, T as ApiResponseT
 import {{modelPackage}}
 from {{packageName}} import rest
 from {{packageName}}.object_serializer import ObjectSerializer
+from {{packageName}}.header_selector import HeaderSelector
 from {{packageName}}.exceptions import (
     ApiValueError,
     ApiException,
@@ -69,6 +70,7 @@ class ApiClient:
         self.rest_client = rest.RESTClientObject(configuration)
         self.default_headers = {}
         self._object_serializer = ObjectSerializer()
+        self._header_selector = HeaderSelector()
         if header_name is not None:
             self.default_headers[header_name] = header_value
         self.cookie = cookie
@@ -502,33 +504,25 @@ class ApiClient:
 
     def select_header_accept(self, accepts: List[str]) -> Optional[str]:
         """Returns `Accept` based on an array of accepts provided.
+        Delegates to HeaderSelector for RFC 9110 compliant content negotiation.
 
         :param accepts: List of headers.
         :return: Accept (e.g. application/json).
         """
-        if not accepts:
-            return None
-
-        for accept in accepts:
-            if re.search('json', accept, re.IGNORECASE):
-                return accept
-
-        return accepts[0]
+        headers = self._header_selector.select_headers(accepts, None, False)
+        return headers.get('Accept')
 
     def select_header_content_type(self, content_types):
         """Returns `Content-Type` based on an array of content_types provided.
+        Delegates to HeaderSelector for RFC 9110 compliant content negotiation.
 
         :param content_types: List of content-types.
         :return: Content-Type (e.g. application/json).
         """
         if not content_types:
             return None
-
-        for content_type in content_types:
-            if re.search('json', content_type, re.IGNORECASE):
-                return content_type
-
-        return content_types[0]
+        headers = self._header_selector.select_headers([], content_types[0], False)
+        return headers.get('Content-Type')
 
     def update_params_for_auth(
         self,

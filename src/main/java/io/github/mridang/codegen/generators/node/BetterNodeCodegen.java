@@ -83,6 +83,7 @@ public class BetterNodeCodegen extends TypeScriptFetchClientCodegen implements U
         super.processOpts();
         this.supportingFiles.clear();
         supportingFiles.add(new SupportingFile("object_serializer.mustache", "", "ObjectSerializer.ts"));
+        supportingFiles.add(new SupportingFile("HeaderSelector.mustache", "", "HeaderSelector.ts"));
     }
 
     /**

@@ -30,8 +30,9 @@ module OpigenClient
 
       update_params_for_auth!(header_params, query_params, auth_names)
 
-      header_params['Content-Type'] ||= @header_selector.select_header_content_type(['application/json'])
-      header_params['Accept'] ||= @header_selector.select_header_accept(['application/json'])
+      selected = @header_selector.select_headers(['application/json'], 'application/json', false)
+      header_params['Content-Type'] ||= selected['Content-Type'] if selected['Content-Type']
+      header_params['Accept'] ||= selected['Accept'] if selected['Accept']
       header_params['User-Agent'] = "OpenAPI-Generator/#{VERSION}/ruby"
 
       url = build_request_url(path)
@@ -102,11 +103,13 @@ module OpigenClient
     end
 
     def select_header_accept(accepts)
-      @header_selector.select_header_accept(accepts)
+      headers = @header_selector.select_headers(accepts, nil, false)
+      headers['Accept']
     end
 
     def select_header_content_type(content_types)
-      @header_selector.select_header_content_type(content_types)
+      headers = @header_selector.select_headers([], content_types&.first || '', false)
+      headers['Content-Type']
     end
 
     def object_to_http_body(model)

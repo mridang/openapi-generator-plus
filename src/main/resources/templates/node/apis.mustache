@@ -4,6 +4,7 @@
 
 import * as runtime from '../runtime{{importFileExtension}}';
 import { ObjectSerializer, SerializationError } from '../ObjectSerializer{{importFileExtension}}';
+import { HeaderSelector } from '../HeaderSelector{{importFileExtension}}';
 {{#imports.0}}
 import type {
   {{#imports}}
@@ -76,6 +77,8 @@ export class {{classname}} extends runtime.BaseAPI implements {{classname}}Inter
 export class {{classname}} extends runtime.BaseAPI {
 {{/withInterfaces}}
 
+    private headerSelector = new HeaderSelector();
+
     {{#operation}}
     /**
      {{#notes}}
@@ -123,6 +126,21 @@ export class {{classname}} extends runtime.BaseAPI {
         {{/queryParams}}
         const headerParameters: runtime.HTTPHeaders = {};
 
+        {{#hasProduces}}
+        const selectedHeaders = this.headerSelector.selectHeaders(
+            [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
+            {{#bodyParam}}{{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}}{{/bodyParam}}{{^bodyParam}}''{{/bodyParam}},
+            false
+        );
+        if (selectedHeaders['Accept']) {
+            headerParameters['Accept'] = selectedHeaders['Accept'];
+        }
+        if (selectedHeaders['Content-Type']) {
+            headerParameters['Content-Type'] = selectedHeaders['Content-Type'];
+        }
+
+        {{/hasProduces}}
+        {{^hasProduces}}
         {{#bodyParam}}
         {{^consumes}}
         headerParameters['Content-Type'] = 'application/json';
@@ -133,6 +151,7 @@ export class {{classname}} extends runtime.BaseAPI {
 
         {{/consumes.0}}
         {{/bodyParam}}
+        {{/hasProduces}}
         {{#headerParams}}
         {{#isArray}}
         if (requestParameters['{{paramName}}'] != null) {

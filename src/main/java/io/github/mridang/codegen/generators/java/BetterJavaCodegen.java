@@ -92,6 +92,11 @@ public class BetterJavaCodegen extends JavaClientCodegen implements UnsupportedF
             invokerFolder,
             "ObjectSerializer.java"
         ));
+        supportingFiles.add(new SupportingFile(
+            "header_selector.mustache",
+            invokerFolder,
+            "HeaderSelector.java"
+        ));
     }
 
     @Override
