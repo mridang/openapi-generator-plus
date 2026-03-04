@@ -16,7 +16,7 @@ import decimal
 import json
 import re
 from enum import Enum
-from typing import Any, Dict, List, Optional, Type, TypeVar, Union, get_origin, get_args
+from typing import Any, Dict, List, Optional, Type, TypeVar, Union
 
 from dateutil.parser import parse
 from pydantic import BaseModel, SecretStr
@@ -28,49 +28,19 @@ T = TypeVar('T')
 
 
 class SerializationError(Exception):
-    """Exception raised when serialization or deserialization fails.
-
-    Attributes:
-        message: The error message describing what went wrong.
-        cause: The underlying exception that caused this error, if any.
-    """
+    """Exception raised when serialization or deserialization fails."""
 
     def __init__(self, message: str, cause: Optional[Exception] = None):
-        """Create a new SerializationError.
-
-        Args:
-            message: The error message describing what went wrong.
-            cause: The underlying exception that caused this error, if any.
-        """
         super().__init__(message)
         self.message = message
         self.cause = cause
 
 
 class ObjectSerializer:
-    """Handles JSON serialization and deserialization for API requests and responses.
+    """Handles JSON serialization and deserialization using Pydantic."""
 
-    This class provides a consistent interface for converting between Python objects
-    and JSON strings. It uses Pydantic for model serialization and handles all OpenAPI
-    types including primitives, datetime, enums, and nested models.
-
-    The serializer is configured with the following default settings:
-        - DateTime values are serialized in ISO8601 format
-        - Null/None values are omitted from serialized output
-        - Decimal values are serialized as strings
-        - Enum values are serialized using their value attribute
-
-    Example:
-        >>> serializer = ObjectSerializer()
-        >>> pet = Pet(id=1, name="Fido", status="available")
-        >>> json_str = serializer.serialize(pet)
-        >>> restored_pet = serializer.deserialize(json_str, Pet)
-    """
-
-    # Primitive types that can be serialized directly
     PRIMITIVE_TYPES = (float, bool, bytes, str, int)
 
-    # Mapping of type names to Python types
     NATIVE_TYPES_MAPPING = {
         'int': int,
         'long': int,
@@ -84,73 +54,29 @@ class ObjectSerializer:
     }
 
     def __init__(self, datetime_format: str = '%Y-%m-%dT%H:%M:%S%z'):
-        """Create a new ObjectSerializer with the specified configuration.
-
-        Args:
-            datetime_format: The format string for datetime serialization.
-                Defaults to ISO8601 format with timezone offset.
-        """
         self._datetime_format = datetime_format
 
     @property
     def datetime_format(self) -> str:
-        """Get the datetime format string used for serialization.
-
-        Returns:
-            The datetime format string.
-        """
         return self._datetime_format
 
     def serialize(self, obj: Any) -> str:
         """Serialize an object to a JSON string.
 
-        Handles all types supported by the OpenAPI specification including:
-            - Primitive types (str, int, float, bool, bytes)
-            - DateTime and Date objects (formatted using configured format)
-            - Decimal values (serialized as strings)
-            - Enum values (serialized using their value)
-            - Pydantic models (using to_dict method)
-            - Lists and dictionaries (recursively serialized)
-
-        Args:
-            obj: The object to serialize. Can be None.
-
-        Returns:
-            A JSON string representation of the object, or "null" if obj is None.
-
-        Raises:
-            SerializationError: If serialization fails due to an unsupported type
-                or JSON encoding error.
+        For Pydantic models, delegates to model_dump_json().
+        For other types, sanitizes and uses json.dumps().
         """
         try:
-            sanitized = self._sanitize_for_serialization(obj)
-            return json.dumps(sanitized)
+            if isinstance(obj, BaseModel):
+                return obj.model_dump_json(by_alias=True, exclude_none=True)
+            return json.dumps(self._sanitize_for_serialization(obj), default=str)
         except Exception as e:
             raise SerializationError(f"Failed to serialize object to JSON: {e}", e)
 
     def deserialize(self, json_string: Optional[str], target_type: Union[str, Type[T]]) -> Optional[T]:
-        """Deserialize a JSON string to an object of the specified type.
+        """Deserialize a JSON string to the target type.
 
-        Handles all types supported by the OpenAPI specification including:
-            - Primitive types (str, int, float, bool)
-            - DateTime and Date objects
-            - Decimal values
-            - Enum types
-            - Pydantic models (using from_dict method)
-            - Lists (use "List[ClassName]" syntax)
-            - Dictionaries (use "Dict[str, ClassName]" syntax)
-
-        Args:
-            json_string: The JSON string to deserialize. Can be None or empty.
-            target_type: The target type as either a class or type string.
-                Use "List[Pet]" for lists, "Dict[str, Pet]" for dictionaries.
-
-        Returns:
-            The deserialized object, or None if json_string is None or empty.
-
-        Raises:
-            SerializationError: If deserialization fails due to invalid JSON,
-                type mismatch, or unsupported type.
+        For Pydantic models, delegates to model_validate_json() or model_validate().
         """
         try:
             if json_string is None or json_string == '':
@@ -164,19 +90,14 @@ class ObjectSerializer:
             raise SerializationError(f"Failed to deserialize JSON to {target_type}: {e}", e)
 
     def _sanitize_for_serialization(self, obj: Any) -> Any:
-        """Convert an object to a JSON-serializable form.
+        """Convert an object to a JSON-safe dict/list/primitive.
 
-        This method recursively processes objects to convert them to primitive
-        types that can be serialized by the json module.
-
-        Args:
-            obj: The object to sanitize.
-
-        Returns:
-            A JSON-serializable representation of the object.
+        For Pydantic models, delegates to model_dump().
         """
         if obj is None:
             return None
+        elif isinstance(obj, BaseModel):
+            return obj.model_dump(by_alias=True, exclude_none=True)
         elif isinstance(obj, Enum):
             return obj.value
         elif isinstance(obj, SecretStr):
@@ -196,130 +117,99 @@ class ObjectSerializer:
                 key: self._sanitize_for_serialization(val)
                 for key, val in obj.items()
             }
-        elif hasattr(obj, 'to_dict') and callable(getattr(obj, 'to_dict')):
-            obj_dict = obj.to_dict()
-            if isinstance(obj_dict, list):
-                return self._sanitize_for_serialization(obj_dict)
-            return {
-                key: self._sanitize_for_serialization(val)
-                for key, val in obj_dict.items()
-            }
-        elif hasattr(obj, '__dict__'):
-            return {
-                key: self._sanitize_for_serialization(val)
-                for key, val in obj.__dict__.items()
-            }
         else:
             return str(obj)
 
     def _deserialize(self, data: Any, klass: Union[str, Type[T]]) -> Optional[T]:
-        """Deserialize data to the specified type.
+        """Deserialize parsed data to the target type.
 
-        Args:
-            data: The data to deserialize (dict, list, or primitive).
-            klass: The target type as either a class or type string.
-
-        Returns:
-            The deserialized object.
+        For Pydantic models, delegates to model_validate().
         """
         if data is None:
             return None
 
         if isinstance(klass, str):
-            # Handle List[...] type
             if klass.startswith('List['):
                 m = re.match(r'List\[(.*)]', klass)
                 assert m is not None, "Malformed List type definition"
                 sub_kls = m.group(1)
                 return [self._deserialize(item, sub_kls) for item in data]
 
-            # Handle Dict[...] type
             if klass.startswith('Dict['):
                 m = re.match(r'Dict\[([^,]*), (.*)]', klass)
                 assert m is not None, "Malformed Dict type definition"
                 sub_kls = m.group(2)
                 return {k: self._deserialize(v, sub_kls) for k, v in data.items()}
 
-            # Convert string to class
             if klass in self.NATIVE_TYPES_MAPPING:
                 klass = self.NATIVE_TYPES_MAPPING[klass]
             else:
                 klass = getattr(petstore_client.models, klass)
 
-        if klass in self.PRIMITIVE_TYPES:
-            return self._deserialize_primitive(data, klass)
+        if isinstance(klass, type) and issubclass(klass, BaseModel):
+            return klass.model_validate(data)
+        elif klass in self.PRIMITIVE_TYPES:
+            try:
+                return klass(data)
+            except (UnicodeEncodeError, TypeError):
+                return data
         elif klass == object:
             return data
         elif klass == datetime.date:
-            return self._deserialize_date(data)
+            return parse(data).date()
         elif klass == datetime.datetime:
-            return self._deserialize_datetime(data)
+            return parse(data)
         elif klass == decimal.Decimal:
             return decimal.Decimal(data)
         elif isinstance(klass, type) and issubclass(klass, Enum):
             return klass(data)
         else:
-            return self._deserialize_model(data, klass)
-
-    def _deserialize_primitive(self, data: Any, klass: type) -> Any:
-        """Deserialize data to a primitive type.
-
-        Args:
-            data: The data to deserialize.
-            klass: The target primitive type.
-
-        Returns:
-            The deserialized primitive value.
-        """
-        try:
-            return klass(data)
-        except (UnicodeEncodeError, TypeError):
             return data
 
-    def _deserialize_date(self, string: str) -> datetime.date:
-        """Deserialize a string to a date object.
+    def to_path_value(self, value: Any) -> str:
+        """Convert a value to a string suitable for use as a path parameter."""
+        if value is None:
+            return ''
+        return str(self._sanitize_for_serialization(value))
 
-        Args:
-            string: The ISO8601 date string.
+    def to_query_value(self, value: Any, collection_format: Optional[str] = None) -> Any:
+        """Convert a value to a representation suitable for use as a query parameter."""
+        if value is None:
+            return None
 
-        Returns:
-            The parsed date object.
+        if isinstance(value, list):
+            sanitized = [str(self._sanitize_for_serialization(v)) for v in value]
+            if collection_format == 'csv':
+                return ','.join(sanitized)
+            elif collection_format == 'ssv':
+                return ' '.join(sanitized)
+            elif collection_format == 'tsv':
+                return '\t'.join(sanitized)
+            elif collection_format == 'pipes':
+                return '|'.join(sanitized)
+            elif collection_format == 'multi':
+                return sanitized
+            else:
+                return ','.join(sanitized)
 
-        Raises:
-            SerializationError: If the string cannot be parsed as a date.
-        """
-        try:
-            return parse(string).date()
-        except (ValueError, TypeError) as e:
-            raise SerializationError(f"Failed to parse '{string}' as date", e)
+        return str(self._sanitize_for_serialization(value))
 
-    def _deserialize_datetime(self, string: str) -> datetime.datetime:
-        """Deserialize a string to a datetime object.
+    def to_header_value(self, value: Any) -> str:
+        """Convert a value to a string suitable for use as a header parameter."""
+        if value is None:
+            return ''
 
-        Args:
-            string: The ISO8601 datetime string.
+        if isinstance(value, list):
+            return ','.join(str(self._sanitize_for_serialization(v)) for v in value)
 
-        Returns:
-            The parsed datetime object.
+        return str(self._sanitize_for_serialization(value))
 
-        Raises:
-            SerializationError: If the string cannot be parsed as a datetime.
-        """
-        try:
-            return parse(string)
-        except (ValueError, TypeError) as e:
-            raise SerializationError(f"Failed to parse '{string}' as datetime", e)
+    def to_form_value(self, value: Any) -> Any:
+        """Convert a value to a representation suitable for use as a form parameter."""
+        if value is None:
+            return ''
 
-    def _deserialize_model(self, data: Any, klass: type) -> Any:
-        """Deserialize data to a model object.
+        if isinstance(value, (bytes, bytearray)):
+            return value
 
-        Args:
-            data: The dictionary data to deserialize.
-            klass: The target model class.
-
-        Returns:
-            The deserialized model instance.
-        """
-        if hasattr(klass, 'from_dict') and callable(getattr(klass, 'from_dict')):
-            return klass.from_dict(data)
-        return klass(**data)
+        return str(self._sanitize_for_serialization(value))

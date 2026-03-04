@@ -1,6 +1,5 @@
 =begin
 #Swagger Petstore - OpenAPI 3.0
-
 #A simplified Pet Store API for integration testing.
 
 The version of the OpenAPI document: 1.0.0

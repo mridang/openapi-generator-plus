@@ -27,19 +27,11 @@
 
 namespace PetstoreClient\Api;
 
-use GuzzleHttp\Client;
-use GuzzleHttp\ClientInterface;
-use GuzzleHttp\Exception\ConnectException;
-use GuzzleHttp\Exception\RequestException;
-use GuzzleHttp\Psr7\MultipartStream;
-use GuzzleHttp\Psr7\Request;
-use GuzzleHttp\RequestOptions;
-use Psr\Http\Message\RequestInterface;
-use Psr\Http\Message\ResponseInterface;
+use PetstoreClient\ApiClient;
 use PetstoreClient\ApiException;
+use PetstoreClient\BaseApi;
 use PetstoreClient\Configuration;
-use PetstoreClient\FormDataProcessor;
-use PetstoreClient\HeaderSelector;
+use PetstoreClient\DefaultApiClient;
 use PetstoreClient\ObjectSerializer;
 
 /**
@@ -50,91 +42,17 @@ use PetstoreClient\ObjectSerializer;
  * @author   OpenAPI Generator team
  * @link     https://openapi-generator.tech
  */
-class PetApi
+class PetApi extends BaseApi
 {
     /**
-     * @var ClientInterface
-     */
-    protected $client;
-
-    /**
-     * @var Configuration
-     */
-    protected $config;
-
-    /**
-     * @var HeaderSelector
-     */
-    protected $headerSelector;
-
-    /**
-     * @var int Host index
-     */
-    protected $hostIndex;
-
-    /** @var string[] $contentTypes **/
-    public const contentTypes = [
-        'addPet' => [
-            'application/json',
-        ],
-        'deletePet' => [
-            'application/json',
-        ],
-        'findPetsByStatus' => [
-            'application/json',
-        ],
-        'getPetById' => [
-            'application/json',
-        ],
-        'updatePet' => [
-            'application/json',
-        ],
-    ];
-
-    /**
-     * @param ClientInterface $client
-     * @param Configuration   $config
-     * @param HeaderSelector  $selector
-     * @param int             $hostIndex (Optional) host index to select the list of hosts if defined in the OpenAPI spec
+     * @param ApiClient|null     $apiClient API client instance
+     * @param Configuration|null $config    Configuration instance
      */
     public function __construct(
-        ?ClientInterface $client = null,
-        ?Configuration $config = null,
-        ?HeaderSelector $selector = null,
-        int $hostIndex = 0
+        ?ApiClient $apiClient = null,
+        ?Configuration $config = null
     ) {
-        $this->client = $client ?: new Client();
-        $this->config = $config ?: Configuration::getDefaultConfiguration();
-        $this->headerSelector = $selector ?: new HeaderSelector();
-        $this->hostIndex = $hostIndex;
-    }
-
-    /**
-     * Set the host index
-     *
-     * @param int $hostIndex Host index (required)
-     */
-    public function setHostIndex($hostIndex): void
-    {
-        $this->hostIndex = $hostIndex;
-    }
-
-    /**
-     * Get the host index
-     *
-     * @return int Host index
-     */
-    public function getHostIndex()
-    {
-        return $this->hostIndex;
-    }
-
-    /**
-     * @return Configuration
-     */
-    public function getConfig()
-    {
-        return $this->config;
+        parent::__construct($apiClient, $config);
     }
 
     /**
@@ -143,264 +61,36 @@ class PetApi
      * Add a new pet to the store
      *
      * @param  \PetstoreClient\Model\Pet $pet Create a new pet in the store (required)
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['addPet'] to see the possible values for this operation
      *
-     * @throws \PetstoreClient\ApiException on non-2xx response or if the response body is not in the expected format
-     * @throws \InvalidArgumentException
      * @return \PetstoreClient\Model\Pet
+     * @throws ApiException
      */
-    public function addPet($pet, string $contentType = self::contentTypes['addPet'][0])
+    public function addPet($pet, )
     {
-        list($response) = $this->addPetWithHttpInfo($pet, $contentType);
-        return $response;
-    }
-
-    /**
-     * Operation addPetWithHttpInfo
-     *
-     * Add a new pet to the store
-     *
-     * @param  \PetstoreClient\Model\Pet $pet Create a new pet in the store (required)
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['addPet'] to see the possible values for this operation
-     *
-     * @throws \PetstoreClient\ApiException on non-2xx response or if the response body is not in the expected format
-     * @throws \InvalidArgumentException
-     * @return array of \PetstoreClient\Model\Pet, HTTP status code, HTTP response headers (array of strings)
-     */
-    public function addPetWithHttpInfo($pet, string $contentType = self::contentTypes['addPet'][0])
-    {
-        $request = $this->addPetRequest($pet, $contentType);
-
-        try {
-            $options = $this->createHttpClientOption();
-            try {
-                $response = $this->client->send($request, $options);
-            } catch (RequestException $e) {
-                throw new ApiException(
-                    "[{$e->getCode()}] {$e->getMessage()}",
-                    (int) $e->getCode(),
-                    $e->getResponse() ? $e->getResponse()->getHeaders() : null,
-                    $e->getResponse() ? (string) $e->getResponse()->getBody() : null
-                );
-            } catch (ConnectException $e) {
-                throw new ApiException(
-                    "[{$e->getCode()}] {$e->getMessage()}",
-                    (int) $e->getCode(),
-                    null,
-                    null
-                );
-            }
-
-            $statusCode = $response->getStatusCode();
-
-
-            switch($statusCode) {
-                case 200:
-                    return $this->handleResponseWithDataType(
-                        '\PetstoreClient\Model\Pet',
-                        $request,
-                        $response,
-                    );
-            }
-
-            
-
-            if ($statusCode < 200 || $statusCode > 299) {
-                throw new ApiException(
-                    sprintf(
-                        '[%d] Error connecting to the API (%s)',
-                        $statusCode,
-                        (string) $request->getUri()
-                    ),
-                    $statusCode,
-                    $response->getHeaders(),
-                    (string) $response->getBody()
-                );
-            }
-
-            return $this->handleResponseWithDataType(
-                '\PetstoreClient\Model\Pet',
-                $request,
-                $response,
-            );
-        } catch (ApiException $e) {
-            switch ($e->getCode()) {
-                case 200:
-                    $data = ObjectSerializer::deserialize(
-                        $e->getResponseBody(),
-                        '\PetstoreClient\Model\Pet',
-                        $e->getResponseHeaders()
-                    );
-                    $e->setResponseObject($data);
-                    throw $e;
-            }
-        
-
-            throw $e;
-        }
-    }
-
-    /**
-     * Operation addPetAsync
-     *
-     * Add a new pet to the store
-     *
-     * @param  \PetstoreClient\Model\Pet $pet Create a new pet in the store (required)
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['addPet'] to see the possible values for this operation
-     *
-     * @throws \InvalidArgumentException
-     * @return \GuzzleHttp\Promise\PromiseInterface
-     */
-    public function addPetAsync($pet, string $contentType = self::contentTypes['addPet'][0])
-    {
-        return $this->addPetAsyncWithHttpInfo($pet, $contentType)
-            ->then(
-                function ($response) {
-                    return $response[0];
-                }
-            );
-    }
-
-    /**
-     * Operation addPetAsyncWithHttpInfo
-     *
-     * Add a new pet to the store
-     *
-     * @param  \PetstoreClient\Model\Pet $pet Create a new pet in the store (required)
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['addPet'] to see the possible values for this operation
-     *
-     * @throws \InvalidArgumentException
-     * @return \GuzzleHttp\Promise\PromiseInterface
-     */
-    public function addPetAsyncWithHttpInfo($pet, string $contentType = self::contentTypes['addPet'][0])
-    {
-        $returnType = '\PetstoreClient\Model\Pet';
-        $request = $this->addPetRequest($pet, $contentType);
-
-        return $this->client
-            ->sendAsync($request, $this->createHttpClientOption())
-            ->then(
-                function ($response) use ($returnType) {
-                    if ($returnType === '\SplFileObject') {
-                        $content = $response->getBody(); //stream goes to serializer
-                    } else {
-                        $content = (string) $response->getBody();
-                        if ($returnType !== 'string') {
-                            $content = json_decode($content);
-                        }
-                    }
-
-                    return [
-                        ObjectSerializer::deserialize($content, $returnType, []),
-                        $response->getStatusCode(),
-                        $response->getHeaders()
-                    ];
-                },
-                function ($exception) {
-                    $response = $exception->getResponse();
-                    $statusCode = $response->getStatusCode();
-                    throw new ApiException(
-                        sprintf(
-                            '[%d] Error connecting to the API (%s)',
-                            $statusCode,
-                            $exception->getRequest()->getUri()
-                        ),
-                        $statusCode,
-                        $response->getHeaders(),
-                        (string) $response->getBody()
-                    );
-                }
-            );
-    }
-
-    /**
-     * Create request for operation 'addPet'
-     *
-     * @param  \PetstoreClient\Model\Pet $pet Create a new pet in the store (required)
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['addPet'] to see the possible values for this operation
-     *
-     * @throws \InvalidArgumentException
-     * @return \GuzzleHttp\Psr7\Request
-     */
-    public function addPetRequest($pet, string $contentType = self::contentTypes['addPet'][0])
-    {
-
-        // verify the required parameter 'pet' is set
         if ($pet === null || (is_array($pet) && count($pet) === 0)) {
             throw new \InvalidArgumentException(
                 'Missing the required parameter $pet when calling addPet'
             );
         }
 
+        $path = '/pet';
 
-        $resourcePath = '/pet';
-        $formParams = [];
         $queryParams = [];
+
         $headerParams = [];
-        $httpBody = '';
-        $multipart = false;
 
+        $body = $pet;
 
-
-
-
-        $headers = $this->headerSelector->selectHeaders(
-            ['application/json', ],
-            $contentType,
-            $multipart
-        );
-
-        // for model (json/xml)
-        if (isset($pet)) {
-            if (stripos($headers['Content-Type'], 'application/json') !== false) {
-                # if Content-Type contains "application/json", json_encode the body
-                $httpBody = \GuzzleHttp\Utils::jsonEncode(ObjectSerializer::sanitizeForSerialization($pet));
-            } else {
-                $httpBody = $pet;
-            }
-        } elseif (count($formParams) > 0) {
-            if ($multipart) {
-                $multipartContents = [];
-                foreach ($formParams as $formParamName => $formParamValue) {
-                    $formParamValueItems = is_array($formParamValue) ? $formParamValue : [$formParamValue];
-                    foreach ($formParamValueItems as $formParamValueItem) {
-                        $multipartContents[] = [
-                            'name' => $formParamName,
-                            'contents' => $formParamValueItem
-                        ];
-                    }
-                }
-                // for HTTP post (form)
-                $httpBody = new MultipartStream($multipartContents);
-
-            } elseif (stripos($headers['Content-Type'], 'application/json') !== false) {
-                # if Content-Type contains "application/json", json_encode the form parameters
-                $httpBody = \GuzzleHttp\Utils::jsonEncode($formParams);
-            } else {
-                // for HTTP post (form)
-                $httpBody = ObjectSerializer::buildQuery($formParams);
-            }
-        }
-
-
-        $defaultHeaders = [];
-        if ($this->config->getUserAgent()) {
-            $defaultHeaders['User-Agent'] = $this->config->getUserAgent();
-        }
-
-        $headers = array_merge(
-            $defaultHeaders,
-            $headerParams,
-            $headers
-        );
-
-        $operationHost = $this->config->getHost();
-        $query = ObjectSerializer::buildQuery($queryParams);
-        return new Request(
+        return $this->invokeApi(
             'POST',
-            $operationHost . $resourcePath . ($query ? "?{$query}" : ''),
-            $headers,
-            $httpBody
+            $path,
+            $queryParams,
+            $headerParams,
+            $body,
+            ['application/json', ],
+            'application/json',
+            [],
+            '\PetstoreClient\Model\Pet'
         );
     }
 
@@ -409,216 +99,44 @@ class PetApi
      *
      * Deletes a pet
      *
-     * @param  int $pet_id Pet id to delete (required)
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['deletePet'] to see the possible values for this operation
+     * @param  int $petId Pet id to delete (required)
      *
-     * @throws \PetstoreClient\ApiException on non-2xx response or if the response body is not in the expected format
-     * @throws \InvalidArgumentException
-     * @return void
+     * @return null
+     * @throws ApiException
      */
-    public function deletePet($pet_id, string $contentType = self::contentTypes['deletePet'][0])
+    public function deletePet($petId, )
     {
-        $this->deletePetWithHttpInfo($pet_id, $contentType);
-    }
-
-    /**
-     * Operation deletePetWithHttpInfo
-     *
-     * Deletes a pet
-     *
-     * @param  int $pet_id Pet id to delete (required)
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['deletePet'] to see the possible values for this operation
-     *
-     * @throws \PetstoreClient\ApiException on non-2xx response or if the response body is not in the expected format
-     * @throws \InvalidArgumentException
-     * @return array of null, HTTP status code, HTTP response headers (array of strings)
-     */
-    public function deletePetWithHttpInfo($pet_id, string $contentType = self::contentTypes['deletePet'][0])
-    {
-        $request = $this->deletePetRequest($pet_id, $contentType);
-
-        try {
-            $options = $this->createHttpClientOption();
-            try {
-                $response = $this->client->send($request, $options);
-            } catch (RequestException $e) {
-                throw new ApiException(
-                    "[{$e->getCode()}] {$e->getMessage()}",
-                    (int) $e->getCode(),
-                    $e->getResponse() ? $e->getResponse()->getHeaders() : null,
-                    $e->getResponse() ? (string) $e->getResponse()->getBody() : null
-                );
-            } catch (ConnectException $e) {
-                throw new ApiException(
-                    "[{$e->getCode()}] {$e->getMessage()}",
-                    (int) $e->getCode(),
-                    null,
-                    null
-                );
-            }
-
-            $statusCode = $response->getStatusCode();
-
-
-            return [null, $statusCode, $response->getHeaders()];
-        } catch (ApiException $e) {
-            switch ($e->getCode()) {
-            }
-        
-
-            throw $e;
-        }
-    }
-
-    /**
-     * Operation deletePetAsync
-     *
-     * Deletes a pet
-     *
-     * @param  int $pet_id Pet id to delete (required)
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['deletePet'] to see the possible values for this operation
-     *
-     * @throws \InvalidArgumentException
-     * @return \GuzzleHttp\Promise\PromiseInterface
-     */
-    public function deletePetAsync($pet_id, string $contentType = self::contentTypes['deletePet'][0])
-    {
-        return $this->deletePetAsyncWithHttpInfo($pet_id, $contentType)
-            ->then(
-                function ($response) {
-                    return $response[0];
-                }
-            );
-    }
-
-    /**
-     * Operation deletePetAsyncWithHttpInfo
-     *
-     * Deletes a pet
-     *
-     * @param  int $pet_id Pet id to delete (required)
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['deletePet'] to see the possible values for this operation
-     *
-     * @throws \InvalidArgumentException
-     * @return \GuzzleHttp\Promise\PromiseInterface
-     */
-    public function deletePetAsyncWithHttpInfo($pet_id, string $contentType = self::contentTypes['deletePet'][0])
-    {
-        $returnType = '';
-        $request = $this->deletePetRequest($pet_id, $contentType);
-
-        return $this->client
-            ->sendAsync($request, $this->createHttpClientOption())
-            ->then(
-                function ($response) use ($returnType) {
-                    return [null, $response->getStatusCode(), $response->getHeaders()];
-                },
-                function ($exception) {
-                    $response = $exception->getResponse();
-                    $statusCode = $response->getStatusCode();
-                    throw new ApiException(
-                        sprintf(
-                            '[%d] Error connecting to the API (%s)',
-                            $statusCode,
-                            $exception->getRequest()->getUri()
-                        ),
-                        $statusCode,
-                        $response->getHeaders(),
-                        (string) $response->getBody()
-                    );
-                }
-            );
-    }
-
-    /**
-     * Create request for operation 'deletePet'
-     *
-     * @param  int $pet_id Pet id to delete (required)
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['deletePet'] to see the possible values for this operation
-     *
-     * @throws \InvalidArgumentException
-     * @return \GuzzleHttp\Psr7\Request
-     */
-    public function deletePetRequest($pet_id, string $contentType = self::contentTypes['deletePet'][0])
-    {
-
-        // verify the required parameter 'pet_id' is set
-        if ($pet_id === null || (is_array($pet_id) && count($pet_id) === 0)) {
+        if ($petId === null || (is_array($petId) && count($petId) === 0)) {
             throw new \InvalidArgumentException(
-                'Missing the required parameter $pet_id when calling deletePet'
+                'Missing the required parameter $petId when calling deletePet'
             );
         }
 
-
-        $resourcePath = '/pet/{petId}';
-        $formParams = [];
-        $queryParams = [];
-        $headerParams = [];
-        $httpBody = '';
-        $multipart = false;
-
-
-
-        // path params
-        if ($pet_id !== null) {
-            $resourcePath = str_replace(
+        $path = '/pet/{petId}';
+        if ($petId !== null) {
+            $path = str_replace(
                 '{' . 'petId' . '}',
-                ObjectSerializer::toPathValue($pet_id),
-                $resourcePath
+                ObjectSerializer::toPathValue($petId),
+                $path
             );
         }
 
+        $queryParams = [];
 
-        $headers = $this->headerSelector->selectHeaders(
-            [],
-            $contentType,
-            $multipart
-        );
+        $headerParams = [];
 
-        // for model (json/xml)
-        if (count($formParams) > 0) {
-            if ($multipart) {
-                $multipartContents = [];
-                foreach ($formParams as $formParamName => $formParamValue) {
-                    $formParamValueItems = is_array($formParamValue) ? $formParamValue : [$formParamValue];
-                    foreach ($formParamValueItems as $formParamValueItem) {
-                        $multipartContents[] = [
-                            'name' => $formParamName,
-                            'contents' => $formParamValueItem
-                        ];
-                    }
-                }
-                // for HTTP post (form)
-                $httpBody = new MultipartStream($multipartContents);
+        $body = null;
 
-            } elseif (stripos($headers['Content-Type'], 'application/json') !== false) {
-                # if Content-Type contains "application/json", json_encode the form parameters
-                $httpBody = \GuzzleHttp\Utils::jsonEncode($formParams);
-            } else {
-                // for HTTP post (form)
-                $httpBody = ObjectSerializer::buildQuery($formParams);
-            }
-        }
-
-
-        $defaultHeaders = [];
-        if ($this->config->getUserAgent()) {
-            $defaultHeaders['User-Agent'] = $this->config->getUserAgent();
-        }
-
-        $headers = array_merge(
-            $defaultHeaders,
-            $headerParams,
-            $headers
-        );
-
-        $operationHost = $this->config->getHost();
-        $query = ObjectSerializer::buildQuery($queryParams);
-        return new Request(
+        return $this->invokeApi(
             'DELETE',
-            $operationHost . $resourcePath . ($query ? "?{$query}" : ''),
-            $headers,
-            $httpBody
+            $path,
+            $queryParams,
+            $headerParams,
+            $body,
+            [],
+            null,
+            [],
+            null
         );
     }
 
@@ -628,260 +146,39 @@ class PetApi
      * Finds Pets by status
      *
      * @param  string|null $status Status values that need to be considered for filter (optional, default to 'available')
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['findPetsByStatus'] to see the possible values for this operation
      *
-     * @throws \PetstoreClient\ApiException on non-2xx response or if the response body is not in the expected format
-     * @throws \InvalidArgumentException
      * @return \PetstoreClient\Model\Pet[]
+     * @throws ApiException
      */
-    public function findPetsByStatus($status = 'available', string $contentType = self::contentTypes['findPetsByStatus'][0])
-    {
-        list($response) = $this->findPetsByStatusWithHttpInfo($status, $contentType);
-        return $response;
-    }
-
-    /**
-     * Operation findPetsByStatusWithHttpInfo
-     *
-     * Finds Pets by status
-     *
-     * @param  string|null $status Status values that need to be considered for filter (optional, default to 'available')
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['findPetsByStatus'] to see the possible values for this operation
-     *
-     * @throws \PetstoreClient\ApiException on non-2xx response or if the response body is not in the expected format
-     * @throws \InvalidArgumentException
-     * @return array of \PetstoreClient\Model\Pet[], HTTP status code, HTTP response headers (array of strings)
-     */
-    public function findPetsByStatusWithHttpInfo($status = 'available', string $contentType = self::contentTypes['findPetsByStatus'][0])
-    {
-        $request = $this->findPetsByStatusRequest($status, $contentType);
-
-        try {
-            $options = $this->createHttpClientOption();
-            try {
-                $response = $this->client->send($request, $options);
-            } catch (RequestException $e) {
-                throw new ApiException(
-                    "[{$e->getCode()}] {$e->getMessage()}",
-                    (int) $e->getCode(),
-                    $e->getResponse() ? $e->getResponse()->getHeaders() : null,
-                    $e->getResponse() ? (string) $e->getResponse()->getBody() : null
-                );
-            } catch (ConnectException $e) {
-                throw new ApiException(
-                    "[{$e->getCode()}] {$e->getMessage()}",
-                    (int) $e->getCode(),
-                    null,
-                    null
-                );
-            }
-
-            $statusCode = $response->getStatusCode();
-
-
-            switch($statusCode) {
-                case 200:
-                    return $this->handleResponseWithDataType(
-                        '\PetstoreClient\Model\Pet[]',
-                        $request,
-                        $response,
-                    );
-            }
-
-            
-
-            if ($statusCode < 200 || $statusCode > 299) {
-                throw new ApiException(
-                    sprintf(
-                        '[%d] Error connecting to the API (%s)',
-                        $statusCode,
-                        (string) $request->getUri()
-                    ),
-                    $statusCode,
-                    $response->getHeaders(),
-                    (string) $response->getBody()
-                );
-            }
-
-            return $this->handleResponseWithDataType(
-                '\PetstoreClient\Model\Pet[]',
-                $request,
-                $response,
-            );
-        } catch (ApiException $e) {
-            switch ($e->getCode()) {
-                case 200:
-                    $data = ObjectSerializer::deserialize(
-                        $e->getResponseBody(),
-                        '\PetstoreClient\Model\Pet[]',
-                        $e->getResponseHeaders()
-                    );
-                    $e->setResponseObject($data);
-                    throw $e;
-            }
-        
-
-            throw $e;
-        }
-    }
-
-    /**
-     * Operation findPetsByStatusAsync
-     *
-     * Finds Pets by status
-     *
-     * @param  string|null $status Status values that need to be considered for filter (optional, default to 'available')
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['findPetsByStatus'] to see the possible values for this operation
-     *
-     * @throws \InvalidArgumentException
-     * @return \GuzzleHttp\Promise\PromiseInterface
-     */
-    public function findPetsByStatusAsync($status = 'available', string $contentType = self::contentTypes['findPetsByStatus'][0])
-    {
-        return $this->findPetsByStatusAsyncWithHttpInfo($status, $contentType)
-            ->then(
-                function ($response) {
-                    return $response[0];
-                }
-            );
-    }
-
-    /**
-     * Operation findPetsByStatusAsyncWithHttpInfo
-     *
-     * Finds Pets by status
-     *
-     * @param  string|null $status Status values that need to be considered for filter (optional, default to 'available')
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['findPetsByStatus'] to see the possible values for this operation
-     *
-     * @throws \InvalidArgumentException
-     * @return \GuzzleHttp\Promise\PromiseInterface
-     */
-    public function findPetsByStatusAsyncWithHttpInfo($status = 'available', string $contentType = self::contentTypes['findPetsByStatus'][0])
-    {
-        $returnType = '\PetstoreClient\Model\Pet[]';
-        $request = $this->findPetsByStatusRequest($status, $contentType);
-
-        return $this->client
-            ->sendAsync($request, $this->createHttpClientOption())
-            ->then(
-                function ($response) use ($returnType) {
-                    if ($returnType === '\SplFileObject') {
-                        $content = $response->getBody(); //stream goes to serializer
-                    } else {
-                        $content = (string) $response->getBody();
-                        if ($returnType !== 'string') {
-                            $content = json_decode($content);
-                        }
-                    }
-
-                    return [
-                        ObjectSerializer::deserialize($content, $returnType, []),
-                        $response->getStatusCode(),
-                        $response->getHeaders()
-                    ];
-                },
-                function ($exception) {
-                    $response = $exception->getResponse();
-                    $statusCode = $response->getStatusCode();
-                    throw new ApiException(
-                        sprintf(
-                            '[%d] Error connecting to the API (%s)',
-                            $statusCode,
-                            $exception->getRequest()->getUri()
-                        ),
-                        $statusCode,
-                        $response->getHeaders(),
-                        (string) $response->getBody()
-                    );
-                }
-            );
-    }
-
-    /**
-     * Create request for operation 'findPetsByStatus'
-     *
-     * @param  string|null $status Status values that need to be considered for filter (optional, default to 'available')
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['findPetsByStatus'] to see the possible values for this operation
-     *
-     * @throws \InvalidArgumentException
-     * @return \GuzzleHttp\Psr7\Request
-     */
-    public function findPetsByStatusRequest($status = 'available', string $contentType = self::contentTypes['findPetsByStatus'][0])
+    public function findPetsByStatus($status = 'available', )
     {
 
+        $path = '/pet/findByStatus';
 
-
-        $resourcePath = '/pet/findByStatus';
-        $formParams = [];
         $queryParams = [];
-        $headerParams = [];
-        $httpBody = '';
-        $multipart = false;
-
-        // query params
         $queryParams = array_merge($queryParams, ObjectSerializer::toQueryValue(
             $status,
-            'status', // param base name
-            'string', // openApiType
-            'form', // style
-            true, // explode
-            false // required
+            'status',
+            'string',
+            'form',
+            true,
+            false
         ) ?? []);
 
+        $headerParams = [];
 
+        $body = null;
 
-
-        $headers = $this->headerSelector->selectHeaders(
-            ['application/json', ],
-            $contentType,
-            $multipart
-        );
-
-        // for model (json/xml)
-        if (count($formParams) > 0) {
-            if ($multipart) {
-                $multipartContents = [];
-                foreach ($formParams as $formParamName => $formParamValue) {
-                    $formParamValueItems = is_array($formParamValue) ? $formParamValue : [$formParamValue];
-                    foreach ($formParamValueItems as $formParamValueItem) {
-                        $multipartContents[] = [
-                            'name' => $formParamName,
-                            'contents' => $formParamValueItem
-                        ];
-                    }
-                }
-                // for HTTP post (form)
-                $httpBody = new MultipartStream($multipartContents);
-
-            } elseif (stripos($headers['Content-Type'], 'application/json') !== false) {
-                # if Content-Type contains "application/json", json_encode the form parameters
-                $httpBody = \GuzzleHttp\Utils::jsonEncode($formParams);
-            } else {
-                // for HTTP post (form)
-                $httpBody = ObjectSerializer::buildQuery($formParams);
-            }
-        }
-
-
-        $defaultHeaders = [];
-        if ($this->config->getUserAgent()) {
-            $defaultHeaders['User-Agent'] = $this->config->getUserAgent();
-        }
-
-        $headers = array_merge(
-            $defaultHeaders,
-            $headerParams,
-            $headers
-        );
-
-        $operationHost = $this->config->getHost();
-        $query = ObjectSerializer::buildQuery($queryParams);
-        return new Request(
+        return $this->invokeApi(
             'GET',
-            $operationHost . $resourcePath . ($query ? "?{$query}" : ''),
-            $headers,
-            $httpBody
+            $path,
+            $queryParams,
+            $headerParams,
+            $body,
+            ['application/json', ],
+            null,
+            [],
+            '\PetstoreClient\Model\Pet[]'
         );
     }
 
@@ -890,266 +187,44 @@ class PetApi
      *
      * Find pet by ID
      *
-     * @param  int $pet_id ID of pet to return (required)
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['getPetById'] to see the possible values for this operation
+     * @param  int $petId ID of pet to return (required)
      *
-     * @throws \PetstoreClient\ApiException on non-2xx response or if the response body is not in the expected format
-     * @throws \InvalidArgumentException
      * @return \PetstoreClient\Model\Pet
+     * @throws ApiException
      */
-    public function getPetById($pet_id, string $contentType = self::contentTypes['getPetById'][0])
+    public function getPetById($petId, )
     {
-        list($response) = $this->getPetByIdWithHttpInfo($pet_id, $contentType);
-        return $response;
-    }
-
-    /**
-     * Operation getPetByIdWithHttpInfo
-     *
-     * Find pet by ID
-     *
-     * @param  int $pet_id ID of pet to return (required)
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['getPetById'] to see the possible values for this operation
-     *
-     * @throws \PetstoreClient\ApiException on non-2xx response or if the response body is not in the expected format
-     * @throws \InvalidArgumentException
-     * @return array of \PetstoreClient\Model\Pet, HTTP status code, HTTP response headers (array of strings)
-     */
-    public function getPetByIdWithHttpInfo($pet_id, string $contentType = self::contentTypes['getPetById'][0])
-    {
-        $request = $this->getPetByIdRequest($pet_id, $contentType);
-
-        try {
-            $options = $this->createHttpClientOption();
-            try {
-                $response = $this->client->send($request, $options);
-            } catch (RequestException $e) {
-                throw new ApiException(
-                    "[{$e->getCode()}] {$e->getMessage()}",
-                    (int) $e->getCode(),
-                    $e->getResponse() ? $e->getResponse()->getHeaders() : null,
-                    $e->getResponse() ? (string) $e->getResponse()->getBody() : null
-                );
-            } catch (ConnectException $e) {
-                throw new ApiException(
-                    "[{$e->getCode()}] {$e->getMessage()}",
-                    (int) $e->getCode(),
-                    null,
-                    null
-                );
-            }
-
-            $statusCode = $response->getStatusCode();
-
-
-            switch($statusCode) {
-                case 200:
-                    return $this->handleResponseWithDataType(
-                        '\PetstoreClient\Model\Pet',
-                        $request,
-                        $response,
-                    );
-            }
-
-            
-
-            if ($statusCode < 200 || $statusCode > 299) {
-                throw new ApiException(
-                    sprintf(
-                        '[%d] Error connecting to the API (%s)',
-                        $statusCode,
-                        (string) $request->getUri()
-                    ),
-                    $statusCode,
-                    $response->getHeaders(),
-                    (string) $response->getBody()
-                );
-            }
-
-            return $this->handleResponseWithDataType(
-                '\PetstoreClient\Model\Pet',
-                $request,
-                $response,
-            );
-        } catch (ApiException $e) {
-            switch ($e->getCode()) {
-                case 200:
-                    $data = ObjectSerializer::deserialize(
-                        $e->getResponseBody(),
-                        '\PetstoreClient\Model\Pet',
-                        $e->getResponseHeaders()
-                    );
-                    $e->setResponseObject($data);
-                    throw $e;
-            }
-        
-
-            throw $e;
-        }
-    }
-
-    /**
-     * Operation getPetByIdAsync
-     *
-     * Find pet by ID
-     *
-     * @param  int $pet_id ID of pet to return (required)
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['getPetById'] to see the possible values for this operation
-     *
-     * @throws \InvalidArgumentException
-     * @return \GuzzleHttp\Promise\PromiseInterface
-     */
-    public function getPetByIdAsync($pet_id, string $contentType = self::contentTypes['getPetById'][0])
-    {
-        return $this->getPetByIdAsyncWithHttpInfo($pet_id, $contentType)
-            ->then(
-                function ($response) {
-                    return $response[0];
-                }
-            );
-    }
-
-    /**
-     * Operation getPetByIdAsyncWithHttpInfo
-     *
-     * Find pet by ID
-     *
-     * @param  int $pet_id ID of pet to return (required)
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['getPetById'] to see the possible values for this operation
-     *
-     * @throws \InvalidArgumentException
-     * @return \GuzzleHttp\Promise\PromiseInterface
-     */
-    public function getPetByIdAsyncWithHttpInfo($pet_id, string $contentType = self::contentTypes['getPetById'][0])
-    {
-        $returnType = '\PetstoreClient\Model\Pet';
-        $request = $this->getPetByIdRequest($pet_id, $contentType);
-
-        return $this->client
-            ->sendAsync($request, $this->createHttpClientOption())
-            ->then(
-                function ($response) use ($returnType) {
-                    if ($returnType === '\SplFileObject') {
-                        $content = $response->getBody(); //stream goes to serializer
-                    } else {
-                        $content = (string) $response->getBody();
-                        if ($returnType !== 'string') {
-                            $content = json_decode($content);
-                        }
-                    }
-
-                    return [
-                        ObjectSerializer::deserialize($content, $returnType, []),
-                        $response->getStatusCode(),
-                        $response->getHeaders()
-                    ];
-                },
-                function ($exception) {
-                    $response = $exception->getResponse();
-                    $statusCode = $response->getStatusCode();
-                    throw new ApiException(
-                        sprintf(
-                            '[%d] Error connecting to the API (%s)',
-                            $statusCode,
-                            $exception->getRequest()->getUri()
-                        ),
-                        $statusCode,
-                        $response->getHeaders(),
-                        (string) $response->getBody()
-                    );
-                }
-            );
-    }
-
-    /**
-     * Create request for operation 'getPetById'
-     *
-     * @param  int $pet_id ID of pet to return (required)
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['getPetById'] to see the possible values for this operation
-     *
-     * @throws \InvalidArgumentException
-     * @return \GuzzleHttp\Psr7\Request
-     */
-    public function getPetByIdRequest($pet_id, string $contentType = self::contentTypes['getPetById'][0])
-    {
-
-        // verify the required parameter 'pet_id' is set
-        if ($pet_id === null || (is_array($pet_id) && count($pet_id) === 0)) {
+        if ($petId === null || (is_array($petId) && count($petId) === 0)) {
             throw new \InvalidArgumentException(
-                'Missing the required parameter $pet_id when calling getPetById'
+                'Missing the required parameter $petId when calling getPetById'
             );
         }
 
-
-        $resourcePath = '/pet/{petId}';
-        $formParams = [];
-        $queryParams = [];
-        $headerParams = [];
-        $httpBody = '';
-        $multipart = false;
-
-
-
-        // path params
-        if ($pet_id !== null) {
-            $resourcePath = str_replace(
+        $path = '/pet/{petId}';
+        if ($petId !== null) {
+            $path = str_replace(
                 '{' . 'petId' . '}',
-                ObjectSerializer::toPathValue($pet_id),
-                $resourcePath
+                ObjectSerializer::toPathValue($petId),
+                $path
             );
         }
 
+        $queryParams = [];
 
-        $headers = $this->headerSelector->selectHeaders(
-            ['application/json', ],
-            $contentType,
-            $multipart
-        );
+        $headerParams = [];
 
-        // for model (json/xml)
-        if (count($formParams) > 0) {
-            if ($multipart) {
-                $multipartContents = [];
-                foreach ($formParams as $formParamName => $formParamValue) {
-                    $formParamValueItems = is_array($formParamValue) ? $formParamValue : [$formParamValue];
-                    foreach ($formParamValueItems as $formParamValueItem) {
-                        $multipartContents[] = [
-                            'name' => $formParamName,
-                            'contents' => $formParamValueItem
-                        ];
-                    }
-                }
-                // for HTTP post (form)
-                $httpBody = new MultipartStream($multipartContents);
+        $body = null;
 
-            } elseif (stripos($headers['Content-Type'], 'application/json') !== false) {
-                # if Content-Type contains "application/json", json_encode the form parameters
-                $httpBody = \GuzzleHttp\Utils::jsonEncode($formParams);
-            } else {
-                // for HTTP post (form)
-                $httpBody = ObjectSerializer::buildQuery($formParams);
-            }
-        }
-
-
-        $defaultHeaders = [];
-        if ($this->config->getUserAgent()) {
-            $defaultHeaders['User-Agent'] = $this->config->getUserAgent();
-        }
-
-        $headers = array_merge(
-            $defaultHeaders,
-            $headerParams,
-            $headers
-        );
-
-        $operationHost = $this->config->getHost();
-        $query = ObjectSerializer::buildQuery($queryParams);
-        return new Request(
+        return $this->invokeApi(
             'GET',
-            $operationHost . $resourcePath . ($query ? "?{$query}" : ''),
-            $headers,
-            $httpBody
+            $path,
+            $queryParams,
+            $headerParams,
+            $body,
+            ['application/json', ],
+            null,
+            [],
+            '\PetstoreClient\Model\Pet'
         );
     }
 
@@ -1158,347 +233,51 @@ class PetApi
      *
      * Update an existing pet
      *
-     * @param  int $pet_id ID of pet to update (required)
+     * @param  int $petId ID of pet to update (required)
      * @param  \PetstoreClient\Model\Pet $pet Pet object that needs to be updated (required)
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['updatePet'] to see the possible values for this operation
      *
-     * @throws \PetstoreClient\ApiException on non-2xx response or if the response body is not in the expected format
-     * @throws \InvalidArgumentException
      * @return \PetstoreClient\Model\Pet
+     * @throws ApiException
      */
-    public function updatePet($pet_id, $pet, string $contentType = self::contentTypes['updatePet'][0])
+    public function updatePet($petId, $pet, )
     {
-        list($response) = $this->updatePetWithHttpInfo($pet_id, $pet, $contentType);
-        return $response;
-    }
-
-    /**
-     * Operation updatePetWithHttpInfo
-     *
-     * Update an existing pet
-     *
-     * @param  int $pet_id ID of pet to update (required)
-     * @param  \PetstoreClient\Model\Pet $pet Pet object that needs to be updated (required)
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['updatePet'] to see the possible values for this operation
-     *
-     * @throws \PetstoreClient\ApiException on non-2xx response or if the response body is not in the expected format
-     * @throws \InvalidArgumentException
-     * @return array of \PetstoreClient\Model\Pet, HTTP status code, HTTP response headers (array of strings)
-     */
-    public function updatePetWithHttpInfo($pet_id, $pet, string $contentType = self::contentTypes['updatePet'][0])
-    {
-        $request = $this->updatePetRequest($pet_id, $pet, $contentType);
-
-        try {
-            $options = $this->createHttpClientOption();
-            try {
-                $response = $this->client->send($request, $options);
-            } catch (RequestException $e) {
-                throw new ApiException(
-                    "[{$e->getCode()}] {$e->getMessage()}",
-                    (int) $e->getCode(),
-                    $e->getResponse() ? $e->getResponse()->getHeaders() : null,
-                    $e->getResponse() ? (string) $e->getResponse()->getBody() : null
-                );
-            } catch (ConnectException $e) {
-                throw new ApiException(
-                    "[{$e->getCode()}] {$e->getMessage()}",
-                    (int) $e->getCode(),
-                    null,
-                    null
-                );
-            }
-
-            $statusCode = $response->getStatusCode();
-
-
-            switch($statusCode) {
-                case 200:
-                    return $this->handleResponseWithDataType(
-                        '\PetstoreClient\Model\Pet',
-                        $request,
-                        $response,
-                    );
-            }
-
-            
-
-            if ($statusCode < 200 || $statusCode > 299) {
-                throw new ApiException(
-                    sprintf(
-                        '[%d] Error connecting to the API (%s)',
-                        $statusCode,
-                        (string) $request->getUri()
-                    ),
-                    $statusCode,
-                    $response->getHeaders(),
-                    (string) $response->getBody()
-                );
-            }
-
-            return $this->handleResponseWithDataType(
-                '\PetstoreClient\Model\Pet',
-                $request,
-                $response,
-            );
-        } catch (ApiException $e) {
-            switch ($e->getCode()) {
-                case 200:
-                    $data = ObjectSerializer::deserialize(
-                        $e->getResponseBody(),
-                        '\PetstoreClient\Model\Pet',
-                        $e->getResponseHeaders()
-                    );
-                    $e->setResponseObject($data);
-                    throw $e;
-            }
-        
-
-            throw $e;
-        }
-    }
-
-    /**
-     * Operation updatePetAsync
-     *
-     * Update an existing pet
-     *
-     * @param  int $pet_id ID of pet to update (required)
-     * @param  \PetstoreClient\Model\Pet $pet Pet object that needs to be updated (required)
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['updatePet'] to see the possible values for this operation
-     *
-     * @throws \InvalidArgumentException
-     * @return \GuzzleHttp\Promise\PromiseInterface
-     */
-    public function updatePetAsync($pet_id, $pet, string $contentType = self::contentTypes['updatePet'][0])
-    {
-        return $this->updatePetAsyncWithHttpInfo($pet_id, $pet, $contentType)
-            ->then(
-                function ($response) {
-                    return $response[0];
-                }
-            );
-    }
-
-    /**
-     * Operation updatePetAsyncWithHttpInfo
-     *
-     * Update an existing pet
-     *
-     * @param  int $pet_id ID of pet to update (required)
-     * @param  \PetstoreClient\Model\Pet $pet Pet object that needs to be updated (required)
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['updatePet'] to see the possible values for this operation
-     *
-     * @throws \InvalidArgumentException
-     * @return \GuzzleHttp\Promise\PromiseInterface
-     */
-    public function updatePetAsyncWithHttpInfo($pet_id, $pet, string $contentType = self::contentTypes['updatePet'][0])
-    {
-        $returnType = '\PetstoreClient\Model\Pet';
-        $request = $this->updatePetRequest($pet_id, $pet, $contentType);
-
-        return $this->client
-            ->sendAsync($request, $this->createHttpClientOption())
-            ->then(
-                function ($response) use ($returnType) {
-                    if ($returnType === '\SplFileObject') {
-                        $content = $response->getBody(); //stream goes to serializer
-                    } else {
-                        $content = (string) $response->getBody();
-                        if ($returnType !== 'string') {
-                            $content = json_decode($content);
-                        }
-                    }
-
-                    return [
-                        ObjectSerializer::deserialize($content, $returnType, []),
-                        $response->getStatusCode(),
-                        $response->getHeaders()
-                    ];
-                },
-                function ($exception) {
-                    $response = $exception->getResponse();
-                    $statusCode = $response->getStatusCode();
-                    throw new ApiException(
-                        sprintf(
-                            '[%d] Error connecting to the API (%s)',
-                            $statusCode,
-                            $exception->getRequest()->getUri()
-                        ),
-                        $statusCode,
-                        $response->getHeaders(),
-                        (string) $response->getBody()
-                    );
-                }
-            );
-    }
-
-    /**
-     * Create request for operation 'updatePet'
-     *
-     * @param  int $pet_id ID of pet to update (required)
-     * @param  \PetstoreClient\Model\Pet $pet Pet object that needs to be updated (required)
-     * @param  string $contentType The value for the Content-Type header. Check self::contentTypes['updatePet'] to see the possible values for this operation
-     *
-     * @throws \InvalidArgumentException
-     * @return \GuzzleHttp\Psr7\Request
-     */
-    public function updatePetRequest($pet_id, $pet, string $contentType = self::contentTypes['updatePet'][0])
-    {
-
-        // verify the required parameter 'pet_id' is set
-        if ($pet_id === null || (is_array($pet_id) && count($pet_id) === 0)) {
+        if ($petId === null || (is_array($petId) && count($petId) === 0)) {
             throw new \InvalidArgumentException(
-                'Missing the required parameter $pet_id when calling updatePet'
+                'Missing the required parameter $petId when calling updatePet'
             );
         }
-
-        // verify the required parameter 'pet' is set
         if ($pet === null || (is_array($pet) && count($pet) === 0)) {
             throw new \InvalidArgumentException(
                 'Missing the required parameter $pet when calling updatePet'
             );
         }
 
-
-        $resourcePath = '/pet/{petId}';
-        $formParams = [];
-        $queryParams = [];
-        $headerParams = [];
-        $httpBody = '';
-        $multipart = false;
-
-
-
-        // path params
-        if ($pet_id !== null) {
-            $resourcePath = str_replace(
+        $path = '/pet/{petId}';
+        if ($petId !== null) {
+            $path = str_replace(
                 '{' . 'petId' . '}',
-                ObjectSerializer::toPathValue($pet_id),
-                $resourcePath
+                ObjectSerializer::toPathValue($petId),
+                $path
             );
         }
 
+        $queryParams = [];
 
-        $headers = $this->headerSelector->selectHeaders(
-            ['application/json', ],
-            $contentType,
-            $multipart
-        );
+        $headerParams = [];
 
-        // for model (json/xml)
-        if (isset($pet)) {
-            if (stripos($headers['Content-Type'], 'application/json') !== false) {
-                # if Content-Type contains "application/json", json_encode the body
-                $httpBody = \GuzzleHttp\Utils::jsonEncode(ObjectSerializer::sanitizeForSerialization($pet));
-            } else {
-                $httpBody = $pet;
-            }
-        } elseif (count($formParams) > 0) {
-            if ($multipart) {
-                $multipartContents = [];
-                foreach ($formParams as $formParamName => $formParamValue) {
-                    $formParamValueItems = is_array($formParamValue) ? $formParamValue : [$formParamValue];
-                    foreach ($formParamValueItems as $formParamValueItem) {
-                        $multipartContents[] = [
-                            'name' => $formParamName,
-                            'contents' => $formParamValueItem
-                        ];
-                    }
-                }
-                // for HTTP post (form)
-                $httpBody = new MultipartStream($multipartContents);
+        $body = $pet;
 
-            } elseif (stripos($headers['Content-Type'], 'application/json') !== false) {
-                # if Content-Type contains "application/json", json_encode the form parameters
-                $httpBody = \GuzzleHttp\Utils::jsonEncode($formParams);
-            } else {
-                // for HTTP post (form)
-                $httpBody = ObjectSerializer::buildQuery($formParams);
-            }
-        }
-
-
-        $defaultHeaders = [];
-        if ($this->config->getUserAgent()) {
-            $defaultHeaders['User-Agent'] = $this->config->getUserAgent();
-        }
-
-        $headers = array_merge(
-            $defaultHeaders,
-            $headerParams,
-            $headers
-        );
-
-        $operationHost = $this->config->getHost();
-        $query = ObjectSerializer::buildQuery($queryParams);
-        return new Request(
+        return $this->invokeApi(
             'PUT',
-            $operationHost . $resourcePath . ($query ? "?{$query}" : ''),
-            $headers,
-            $httpBody
+            $path,
+            $queryParams,
+            $headerParams,
+            $body,
+            ['application/json', ],
+            'application/json',
+            [],
+            '\PetstoreClient\Model\Pet'
         );
     }
 
-    /**
-     * Create http client option
-     *
-     * @throws \RuntimeException on file opening failure
-     * @return array of http client options
-     */
-    protected function createHttpClientOption()
-    {
-        $options = [];
-        if ($this->config->getDebug()) {
-            $options[RequestOptions::DEBUG] = fopen($this->config->getDebugFile(), 'a');
-            if (!$options[RequestOptions::DEBUG]) {
-                throw new \RuntimeException('Failed to open the debug file: ' . $this->config->getDebugFile());
-            }
-        }
-
-        return $options;
-    }
-
-    private function handleResponseWithDataType(
-        string $dataType,
-        RequestInterface $request,
-        ResponseInterface $response
-    ): array {
-        if ($dataType === '\SplFileObject') {
-            $content = $response->getBody(); //stream goes to serializer
-        } else {
-            $content = (string) $response->getBody();
-            if ($dataType !== 'string') {
-                try {
-                    $content = json_decode($content, false, 512, JSON_THROW_ON_ERROR);
-                } catch (\JsonException $exception) {
-                    throw new ApiException(
-                        sprintf(
-                            'Error JSON decoding server response (%s)',
-                            $request->getUri()
-                        ),
-                        $response->getStatusCode(),
-                        $response->getHeaders(),
-                        $content
-                    );
-                }
-            }
-        }
-
-        return [
-            ObjectSerializer::deserialize($content, $dataType, []),
-            $response->getStatusCode(),
-            $response->getHeaders()
-        ];
-    }
-
-    private function responseWithinRangeCode(
-        string $rangeCode,
-        int $statusCode
-    ): bool {
-        $left = (int) ($rangeCode[0].'00');
-        $right = (int) ($rangeCode[0].'99');
-
-        return $statusCode >= $left && $statusCode <= $right;
-    }
 }

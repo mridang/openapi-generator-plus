@@ -14,108 +14,150 @@ package com.example.petstore;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 
-import java.util.Collections;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.StringJoiner;
 
-@javax.annotation.Generated(value = "org.openapitools.codegen.languages.JavaClientCodegen", date = "2026-02-02T04:01:34.118571345Z[Etc/UTC]", comments = "Generator version: 7.14.0")
+/**
+ * Base class for all API classes. Provides the {@code invokeApi} method that
+ * handles URL construction, header selection, authentication, body
+ * serialization, request dispatch, and response deserialization.
+ */
+@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T20:27:25.232612+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
 public abstract class BaseApi {
 
-  protected ApiClient apiClient;
+    protected ApiClient apiClient;
+    protected final ObjectSerializer objectSerializer;
+    protected final HeaderSelector headerSelector;
 
-  public BaseApi() {
-    this(Configuration.getDefaultApiClient());
-  }
+    public BaseApi() {
+        this(new DefaultApiClient());
+    }
 
-  public BaseApi(ApiClient apiClient) {
-    this.apiClient = apiClient;
-  }
+    public BaseApi(ApiClient apiClient) {
+        this.apiClient = apiClient;
+        this.objectSerializer = new ObjectSerializer();
+        this.headerSelector = new HeaderSelector();
+    }
 
-  public ApiClient getApiClient() {
-    return apiClient;
-  }
+    public ApiClient getApiClient() {
+        return apiClient;
+    }
 
-  public void setApiClient(ApiClient apiClient) {
-    this.apiClient = apiClient;
-  }
+    public void setApiClient(ApiClient apiClient) {
+        this.apiClient = apiClient;
+    }
 
-  /**
-   * Directly invoke the API for the given URL. Useful if the API returns direct links/URLs for subsequent requests.
-   * @param url The URL for the request, either full URL or only the path.
-   * @param method The HTTP method for the request.
-   * @throws ApiException if fails to make API call.
-   */
-  public void invokeAPI(String url, String method) throws ApiException {
-    invokeAPI(url, method, null, null, Collections.emptyMap());
-  }
+    /**
+     * Invoke an API operation.
+     *
+     * @param <T>          the return type
+     * @param method       HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param path         URL path (with path params already substituted)
+     * @param queryParams  query parameters
+     * @param headerParams custom header parameters
+     * @param body         request body (model object or null)
+     * @param accepts      acceptable response content types
+     * @param contentType  request content type
+     * @param authNames    authentication scheme names
+     * @param returnType   return type for deserialization (null for void)
+     * @return deserialized response or null
+     * @throws ApiException if the API call fails
+     */
+    protected <T> T invokeApi(
+            String method,
+            String path,
+            Map<String, Object> queryParams,
+            Map<String, String> headerParams,
+            Object body,
+            String[] accepts,
+            String contentType,
+            String[] authNames,
+            TypeReference<T> returnType) throws ApiException {
 
-  /**
-   * Directly invoke the API for the given URL. Useful if the API returns direct links/URLs for subsequent requests.
-   * @param url The URL for the request, either full URL or only the path.
-   * @param method The HTTP method for the request.
-   * @param additionalHeaders Additional headers for the request.
-   * @throws ApiException if fails to make API call.
-   */
-  public void invokeAPI(String url, String method, Map<String, String> additionalHeaders) throws ApiException {
-    invokeAPI(url, method, null, null, additionalHeaders);
-  }
+        // Build URL
+        String url = apiClient.getBasePath() + path;
+        String query = buildQueryString(queryParams);
+        if (!query.isEmpty()) {
+            url += "?" + query;
+        }
 
-  /**
-   * Directly invoke the API for the given URL. Useful if the API returns direct links/URLs for subsequent requests.
-   * @param url The URL for the request, either full URL or only the path.
-   * @param method The HTTP method for the request.
-   * @param request The request object.
-   * @throws ApiException if fails to make API call.
-   */
-  public void invokeAPI(String url, String method, Object request) throws ApiException {
-    invokeAPI(url, method, request, null, Collections.emptyMap());
-  }
+        // Select headers
+        boolean isMultipart = "multipart/form-data".equals(contentType);
+        Map<String, String> headers = headerSelector.selectHeaders(accepts, contentType, isMultipart);
 
-  /**
-   * Directly invoke the API for the given URL. Useful if the API returns direct links/URLs for subsequent requests.
-   * @param url The URL for the request, either full URL or only the path.
-   * @param method The HTTP method for the request.
-   * @param request The request object.
-   * @param additionalHeaders Additional headers for the request.
-   * @throws ApiException if fails to make API call.
-   */
-  public void invokeAPI(String url, String method, Object request, Map<String, String> additionalHeaders) throws ApiException {
-    invokeAPI(url, method, request, null, additionalHeaders);
-  }
+        // Merge custom headers
+        if (headerParams != null) {
+            headers.putAll(headerParams);
+        }
 
-  /**
-   * Directly invoke the API for the given URL. Useful if the API returns direct links/URLs for subsequent requests.
-   * @param url The URL for the request, either full URL or only the path.
-   * @param method The HTTP method for the request.
-   * @param returnType The return type.
-   * @return The API response in the specified type.
-   * @throws ApiException if fails to make API call.
-   */
-  public <T> T invokeAPI(String url, String method, TypeReference<T> returnType) throws ApiException {
-    return invokeAPI(url, method, null, returnType, Collections.emptyMap());
-  }
+        // Apply auth
+        applyAuth(headers, authNames);
 
-  /**
-   * Directly invoke the API for the given URL. Useful if the API returns direct links/URLs for subsequent requests.
-   * @param url The URL for the request, either full URL or only the path.
-   * @param method The HTTP method for the request.
-   * @param request The request object.
-   * @param returnType The return type.
-   * @return The API response in the specified type.
-   * @throws ApiException if fails to make API call.
-   */
-  public <T> T invokeAPI(String url, String method, Object request, TypeReference<T> returnType) throws ApiException {
-    return invokeAPI(url, method, request, returnType, Collections.emptyMap());
-  }
+        // Serialize body
+        String serializedBody = null;
+        if (body != null) {
+            serializedBody = objectSerializer.serialize(body);
+        }
 
-  /**
-   * Directly invoke the API for the given URL. Useful if the API returns direct links/URLs for subsequent requests.
-   * @param url The URL for the request, either full URL or only the path.
-   * @param method The HTTP method for the request.
-   * @param request The request object.
-   * @param returnType The return type.
-   * @param additionalHeaders Additional headers for the request.
-   * @return The API response in the specified type.
-   * @throws ApiException if fails to make API call.
-   */
-  public abstract <T> T invokeAPI(String url, String method, Object request, TypeReference<T> returnType, Map<String, String> additionalHeaders) throws ApiException;
+        // Send request
+        ApiResponse response = apiClient.sendRequest(method, url, headers, serializedBody);
+
+        // Check status
+        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+            throw new ApiException(
+                response.getStatusCode(),
+                "API returned status code " + response.getStatusCode(),
+                null,
+                response.getBody()
+            );
+        }
+
+        // Deserialize response
+        if (returnType != null && response.getBody() != null && !response.getBody().isEmpty()) {
+            return objectSerializer.deserialize(response.getBody(), returnType);
+        }
+        return null;
+    }
+
+    /**
+     * Build a query string from query parameters.
+     *
+     * @param queryParams the query parameters
+     * @return encoded query string
+     */
+    private String buildQueryString(Map<String, Object> queryParams) {
+        if (queryParams == null || queryParams.isEmpty()) {
+            return "";
+        }
+        StringJoiner joiner = new StringJoiner("&");
+        for (Map.Entry<String, Object> entry : queryParams.entrySet()) {
+            if (entry.getValue() != null) {
+                joiner.add(encode(entry.getKey()) + "=" + encode(String.valueOf(entry.getValue())));
+            }
+        }
+        return joiner.toString();
+    }
+
+    /**
+     * URL-encode a string.
+     *
+     * @param value the string to encode
+     * @return URL-encoded string
+     */
+    protected String encode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Apply authentication to headers.
+     *
+     * @param headers   headers map (modified in-place)
+     * @param authNames authentication scheme names
+     */
+    private void applyAuth(Map<String, String> headers, String[] authNames) {
+        // Authentication is handled by the generated subclasses via Configuration
+    }
 }

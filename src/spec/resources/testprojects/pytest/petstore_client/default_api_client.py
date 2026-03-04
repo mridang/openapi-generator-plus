@@ -12,18 +12,19 @@
 """  # noqa: E501
 
 
-from typing import Dict, Optional, Protocol, runtime_checkable
+from typing import Dict, Optional
 
+import urllib3
+
+from petstore_client.api_client import ApiClient
 from petstore_client.api_response import ApiResponse
 
 
-@runtime_checkable
-class ApiClient(Protocol):
-    """Interface for API HTTP transport.
+class DefaultApiClient:
+    """Default implementation of ApiClient using urllib3."""
 
-    Implementations handle the actual HTTP request/response cycle.
-    The default implementation uses urllib3.
-    """
+    def __init__(self, pool_manager: Optional[urllib3.PoolManager] = None):
+        self._pool_manager = pool_manager or urllib3.PoolManager()
 
     def send_request(
         self,
@@ -40,4 +41,18 @@ class ApiClient(Protocol):
         :param body: Request body (serialized JSON string, or None)
         :return: ApiResponse containing status code, body, and headers
         """
-        ...
+        response = self._pool_manager.request(
+            method,
+            url,
+            headers=headers,
+            body=body.encode('utf-8') if body else None
+        )
+
+        response_body = response.data.decode('utf-8') if response.data else ''
+        response_headers = dict(response.headers) if response.headers else {}
+
+        return ApiResponse(
+            status_code=response.status,
+            body=response_body,
+            headers=response_headers
+        )

@@ -17,6 +17,9 @@ require 'opigen_client/version'
 require 'opigen_client/configuration'
 require 'opigen_client/header_selector'
 require 'opigen_client/object_serializer'
+require 'opigen_client/api_response'
+require 'opigen_client/api_client'
+require 'opigen_client/default_api_client'
 require 'opigen_client/base_api'
 
 # Models

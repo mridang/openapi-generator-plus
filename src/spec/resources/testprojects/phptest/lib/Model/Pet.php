@@ -28,246 +28,44 @@
 
 namespace PetstoreClient\Model;
 
-use \ArrayAccess;
+use Symfony\Component\Serializer\Attribute\SerializedName;
 use \PetstoreClient\ObjectSerializer;
 
-/**
- * Pet Class Doc Comment
- *
- * @category Class
- * @package  PetstoreClient
- * @author   OpenAPI Generator team
- * @link     https://openapi-generator.tech
- * @implements \ArrayAccess<string, mixed>
- */
-class Pet implements ModelInterface, ArrayAccess, \JsonSerializable
+class Pet
 {
-    public const DISCRIMINATOR = null;
-
-    /**
-      * The original name of the model.
-      *
-      * @var string
-      */
-    protected static $openAPIModelName = 'Pet';
-
-    /**
-      * Array of property to type mappings. Used for (de)serialization
-      *
-      * @var string[]
-      */
-    protected static $openAPITypes = [
-        'id' => 'int',
-        'name' => 'string',
-        'category' => '\PetstoreClient\Model\Category',
-        'photo_urls' => 'string[]',
-        'tags' => '\PetstoreClient\Model\Tag[]',
-        'status' => 'string'
-    ];
-
-    /**
-      * Array of property to format mappings. Used for (de)serialization
-      *
-      * @var string[]
-      * @phpstan-var array<string, string|null>
-      * @psalm-var array<string, string|null>
-      */
-    protected static $openAPIFormats = [
-        'id' => 'int64',
-        'name' => null,
-        'category' => null,
-        'photo_urls' => null,
-        'tags' => null,
-        'status' => null
-    ];
-
-    /**
-      * Array of nullable properties. Used for (de)serialization
-      *
-      * @var boolean[]
-      */
-    protected static array $openAPINullables = [
-        'id' => false,
-        'name' => false,
-        'category' => false,
-        'photo_urls' => false,
-        'tags' => false,
-        'status' => false
-    ];
-
-    /**
-      * If a nullable field gets set to null, insert it here
-      *
-      * @var boolean[]
-      */
-    protected array $openAPINullablesSetToNull = [];
-
-    /**
-     * Array of property to type mappings. Used for (de)serialization
-     *
-     * @return array
-     */
-    public static function openAPITypes()
-    {
-        return self::$openAPITypes;
-    }
-
-    /**
-     * Array of property to format mappings. Used for (de)serialization
-     *
-     * @return array
-     */
-    public static function openAPIFormats()
-    {
-        return self::$openAPIFormats;
-    }
-
-    /**
-     * Array of nullable properties
-     *
-     * @return array
-     */
-    protected static function openAPINullables(): array
-    {
-        return self::$openAPINullables;
-    }
-
-    /**
-     * Array of nullable field names deliberately set to null
-     *
-     * @return boolean[]
-     */
-    private function getOpenAPINullablesSetToNull(): array
-    {
-        return $this->openAPINullablesSetToNull;
-    }
-
-    /**
-     * Setter - Array of nullable field names deliberately set to null
-     *
-     * @param boolean[] $openAPINullablesSetToNull
-     */
-    private function setOpenAPINullablesSetToNull(array $openAPINullablesSetToNull): void
-    {
-        $this->openAPINullablesSetToNull = $openAPINullablesSetToNull;
-    }
-
-    /**
-     * Checks if a property is nullable
-     *
-     * @param string $property
-     * @return bool
-     */
-    public static function isNullable(string $property): bool
-    {
-        return self::openAPINullables()[$property] ?? false;
-    }
-
-    /**
-     * Checks if a nullable property is set to null.
-     *
-     * @param string $property
-     * @return bool
-     */
-    public function isNullableSetToNull(string $property): bool
-    {
-        return in_array($property, $this->getOpenAPINullablesSetToNull(), true);
-    }
-
-    /**
-     * Array of attributes where the key is the local name,
-     * and the value is the original name
-     *
-     * @var string[]
-     */
-    protected static $attributeMap = [
-        'id' => 'id',
-        'name' => 'name',
-        'category' => 'category',
-        'photo_urls' => 'photoUrls',
-        'tags' => 'tags',
-        'status' => 'status'
-    ];
-
-    /**
-     * Array of attributes to setter functions (for deserialization of responses)
-     *
-     * @var string[]
-     */
-    protected static $setters = [
-        'id' => 'setId',
-        'name' => 'setName',
-        'category' => 'setCategory',
-        'photo_urls' => 'setPhotoUrls',
-        'tags' => 'setTags',
-        'status' => 'setStatus'
-    ];
-
-    /**
-     * Array of attributes to getter functions (for serialization of requests)
-     *
-     * @var string[]
-     */
-    protected static $getters = [
-        'id' => 'getId',
-        'name' => 'getName',
-        'category' => 'getCategory',
-        'photo_urls' => 'getPhotoUrls',
-        'tags' => 'getTags',
-        'status' => 'getStatus'
-    ];
-
-    /**
-     * Array of attributes where the key is the local name,
-     * and the value is the original name
-     *
-     * @return array
-     */
-    public static function attributeMap()
-    {
-        return self::$attributeMap;
-    }
-
-    /**
-     * Array of attributes to setter functions (for deserialization of responses)
-     *
-     * @return array
-     */
-    public static function setters()
-    {
-        return self::$setters;
-    }
-
-    /**
-     * Array of attributes to getter functions (for serialization of requests)
-     *
-     * @return array
-     */
-    public static function getters()
-    {
-        return self::$getters;
-    }
-
-    /**
-     * The original name of the model.
-     *
-     * @return string
-     */
-    public function getModelName()
-    {
-        return self::$openAPIModelName;
-    }
-
     public const STATUS_AVAILABLE = 'available';
     public const STATUS_PENDING = 'pending';
     public const STATUS_SOLD = 'sold';
+
+    #[SerializedName('id')]
+    private ?int $id = null;
+
+    #[SerializedName('name')]
+    private ?string $name = null;
+
+    #[SerializedName('category')]
+    private ?\PetstoreClient\Model\Category $category = null;
+
+    /** @var string[]|null */
+    #[SerializedName('photoUrls')]
+    private ?array $photoUrls = null;
+
+    /** @var \PetstoreClient\Model\Tag[]|null */
+    #[SerializedName('tags')]
+    private ?array $tags = null;
+
+    /**
+     * pet status in the store
+     */
+    #[SerializedName('status')]
+    private ?string $status = null;
 
     /**
      * Gets allowable values of the enum
      *
      * @return string[]
      */
-    public function getStatusAllowableValues()
+    public function getStatusAllowableValues(): array
     {
         return [
             self::STATUS_AVAILABLE,
@@ -277,66 +75,25 @@ class Pet implements ModelInterface, ArrayAccess, \JsonSerializable
     }
 
     /**
-     * Associative array for storing property values
-     *
-     * @var mixed[]
-     */
-    protected $container = [];
-
-    /**
-     * Constructor
-     *
-     * @param mixed[]|null $data Associated array of property values
-     *                      initializing the model
-     */
-    public function __construct(?array $data = null)
-    {
-        $this->setIfExists('id', $data ?? [], null);
-        $this->setIfExists('name', $data ?? [], null);
-        $this->setIfExists('category', $data ?? [], null);
-        $this->setIfExists('photo_urls', $data ?? [], null);
-        $this->setIfExists('tags', $data ?? [], null);
-        $this->setIfExists('status', $data ?? [], null);
-    }
-
-    /**
-    * Sets $this->container[$variableName] to the given data or to the given default Value; if $variableName
-    * is nullable and its value is set to null in the $fields array, then mark it as "set to null" in the
-    * $this->openAPINullablesSetToNull array
-    *
-    * @param string $variableName
-    * @param array  $fields
-    * @param mixed  $defaultValue
-    */
-    private function setIfExists(string $variableName, array $fields, $defaultValue): void
-    {
-        if (self::isNullable($variableName) && array_key_exists($variableName, $fields) && is_null($fields[$variableName])) {
-            $this->openAPINullablesSetToNull[] = $variableName;
-        }
-
-        $this->container[$variableName] = $fields[$variableName] ?? $defaultValue;
-    }
-
-    /**
      * Show all the invalid properties with reasons.
      *
      * @return array invalid properties with reasons
      */
-    public function listInvalidProperties()
+    public function listInvalidProperties(): array
     {
         $invalidProperties = [];
 
-        if ($this->container['name'] === null) {
+        if ($this->name === null) {
             $invalidProperties[] = "'name' can't be null";
         }
-        if ($this->container['photo_urls'] === null) {
-            $invalidProperties[] = "'photo_urls' can't be null";
+        if ($this->photoUrls === null) {
+            $invalidProperties[] = "'photoUrls' can't be null";
         }
         $allowedValues = $this->getStatusAllowableValues();
-        if (!is_null($this->container['status']) && !in_array($this->container['status'], $allowedValues, true)) {
+        if (!is_null($this->status) && !in_array($this->status, $allowedValues, true)) {
             $invalidProperties[] = sprintf(
                 "invalid value '%s' for 'status', must be one of '%s'",
-                $this->container['status'],
+                $this->status,
                 implode("', '", $allowedValues)
             );
         }
@@ -350,7 +107,7 @@ class Pet implements ModelInterface, ArrayAccess, \JsonSerializable
      *
      * @return bool True if all properties are valid
      */
-    public function valid()
+    public function valid(): bool
     {
         return count($this->listInvalidProperties()) === 0;
     }
@@ -361,24 +118,21 @@ class Pet implements ModelInterface, ArrayAccess, \JsonSerializable
      *
      * @return int|null
      */
-    public function getId()
+    public function getId(): ?int
     {
-        return $this->container['id'];
+        return $this->id;
     }
 
     /**
      * Sets id
      *
-     * @param int|null $id id
+     * @param int|null $id
      *
      * @return self
      */
-    public function setId($id)
+    public function setId(?int $id): self
     {
-        if (is_null($id)) {
-            throw new \InvalidArgumentException('non-nullable id cannot be null');
-        }
-        $this->container['id'] = $id;
+        $this->id = $id;
 
         return $this;
     }
@@ -386,26 +140,23 @@ class Pet implements ModelInterface, ArrayAccess, \JsonSerializable
     /**
      * Gets name
      *
-     * @return string
+     * @return string|null
      */
-    public function getName()
+    public function getName(): ?string
     {
-        return $this->container['name'];
+        return $this->name;
     }
 
     /**
      * Sets name
      *
-     * @param string $name name
+     * @param string|null $name
      *
      * @return self
      */
-    public function setName($name)
+    public function setName(?string $name): self
     {
-        if (is_null($name)) {
-            throw new \InvalidArgumentException('non-nullable name cannot be null');
-        }
-        $this->container['name'] = $name;
+        $this->name = $name;
 
         return $this;
     }
@@ -415,51 +166,45 @@ class Pet implements ModelInterface, ArrayAccess, \JsonSerializable
      *
      * @return \PetstoreClient\Model\Category|null
      */
-    public function getCategory()
+    public function getCategory(): ?\PetstoreClient\Model\Category
     {
-        return $this->container['category'];
+        return $this->category;
     }
 
     /**
      * Sets category
      *
-     * @param \PetstoreClient\Model\Category|null $category category
+     * @param \PetstoreClient\Model\Category|null $category
      *
      * @return self
      */
-    public function setCategory($category)
+    public function setCategory(?\PetstoreClient\Model\Category $category): self
     {
-        if (is_null($category)) {
-            throw new \InvalidArgumentException('non-nullable category cannot be null');
-        }
-        $this->container['category'] = $category;
+        $this->category = $category;
 
         return $this;
     }
 
     /**
-     * Gets photo_urls
+     * Gets photoUrls
      *
-     * @return string[]
+     * @return string[]|null
      */
-    public function getPhotoUrls()
+    public function getPhotoUrls(): ?array
     {
-        return $this->container['photo_urls'];
+        return $this->photoUrls;
     }
 
     /**
-     * Sets photo_urls
+     * Sets photoUrls
      *
-     * @param string[] $photo_urls photo_urls
+     * @param string[]|null $photoUrls
      *
      * @return self
      */
-    public function setPhotoUrls($photo_urls)
+    public function setPhotoUrls(?array $photoUrls): self
     {
-        if (is_null($photo_urls)) {
-            throw new \InvalidArgumentException('non-nullable photo_urls cannot be null');
-        }
-        $this->container['photo_urls'] = $photo_urls;
+        $this->photoUrls = $photoUrls;
 
         return $this;
     }
@@ -469,24 +214,21 @@ class Pet implements ModelInterface, ArrayAccess, \JsonSerializable
      *
      * @return \PetstoreClient\Model\Tag[]|null
      */
-    public function getTags()
+    public function getTags(): ?array
     {
-        return $this->container['tags'];
+        return $this->tags;
     }
 
     /**
      * Sets tags
      *
-     * @param \PetstoreClient\Model\Tag[]|null $tags tags
+     * @param \PetstoreClient\Model\Tag[]|null $tags
      *
      * @return self
      */
-    public function setTags($tags)
+    public function setTags(?array $tags): self
     {
-        if (is_null($tags)) {
-            throw new \InvalidArgumentException('non-nullable tags cannot be null');
-        }
-        $this->container['tags'] = $tags;
+        $this->tags = $tags;
 
         return $this;
     }
@@ -496,9 +238,9 @@ class Pet implements ModelInterface, ArrayAccess, \JsonSerializable
      *
      * @return string|null
      */
-    public function getStatus()
+    public function getStatus(): ?string
     {
-        return $this->container['status'];
+        return $this->status;
     }
 
     /**
@@ -508,13 +250,10 @@ class Pet implements ModelInterface, ArrayAccess, \JsonSerializable
      *
      * @return self
      */
-    public function setStatus($status)
+    public function setStatus(?string $status): self
     {
-        if (is_null($status)) {
-            throw new \InvalidArgumentException('non-nullable status cannot be null');
-        }
         $allowedValues = $this->getStatusAllowableValues();
-        if (!in_array($status, $allowedValues, true)) {
+        if (!is_null($status) && !in_array($status, $allowedValues, true)) {
             throw new \InvalidArgumentException(
                 sprintf(
                     "Invalid value '%s' for 'status', must be one of '%s'",
@@ -523,75 +262,9 @@ class Pet implements ModelInterface, ArrayAccess, \JsonSerializable
                 )
             );
         }
-        $this->container['status'] = $status;
+        $this->status = $status;
 
         return $this;
-    }
-    /**
-     * Returns true if offset exists. False otherwise.
-     *
-     * @param integer $offset Offset
-     *
-     * @return boolean
-     */
-    public function offsetExists($offset): bool
-    {
-        return isset($this->container[$offset]);
-    }
-
-    /**
-     * Gets offset.
-     *
-     * @param integer $offset Offset
-     *
-     * @return mixed|null
-     */
-    #[\ReturnTypeWillChange]
-    public function offsetGet($offset)
-    {
-        return $this->container[$offset] ?? null;
-    }
-
-    /**
-     * Sets value based on offset.
-     *
-     * @param int|null $offset Offset
-     * @param mixed    $value  Value to be set
-     *
-     * @return void
-     */
-    public function offsetSet($offset, $value): void
-    {
-        if (is_null($offset)) {
-            $this->container[] = $value;
-        } else {
-            $this->container[$offset] = $value;
-        }
-    }
-
-    /**
-     * Unsets offset.
-     *
-     * @param integer $offset Offset
-     *
-     * @return void
-     */
-    public function offsetUnset($offset): void
-    {
-        unset($this->container[$offset]);
-    }
-
-    /**
-     * Serializes the object to a value that can be serialized natively by json_encode().
-     * @link https://www.php.net/manual/en/jsonserializable.jsonserialize.php
-     *
-     * @return mixed Returns data which can be serialized by json_encode(), which is a value
-     * of any type other than a resource.
-     */
-    #[\ReturnTypeWillChange]
-    public function jsonSerialize()
-    {
-       return ObjectSerializer::sanitizeForSerialization($this);
     }
 
     /**
@@ -599,7 +272,7 @@ class Pet implements ModelInterface, ArrayAccess, \JsonSerializable
      *
      * @return string
      */
-    public function __toString()
+    public function __toString(): string
     {
         return json_encode(
             ObjectSerializer::sanitizeForSerialization($this),
@@ -612,7 +285,7 @@ class Pet implements ModelInterface, ArrayAccess, \JsonSerializable
      *
      * @return string
      */
-    public function toHeaderValue()
+    public function toHeaderValue(): string
     {
         return json_encode(ObjectSerializer::sanitizeForSerialization($this));
     }
