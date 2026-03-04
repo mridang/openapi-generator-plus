@@ -1,0 +1,25 @@
+<?php
+{{>partial_header}}
+
+namespace {{invokerPackage}};
+
+/**
+ * ApiClient Interface
+ *
+ * @category Interface
+ * @package  {{invokerPackage}}
+ */
+interface ApiClient
+{
+    /**
+     * Send an HTTP request and return the response.
+     *
+     * @param string $method HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param string $url    Fully qualified URL
+     * @param array  $headers HTTP headers
+     * @param mixed  $body   Request body
+     *
+     * @return ApiResponse
+     */
+    public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse;
+}

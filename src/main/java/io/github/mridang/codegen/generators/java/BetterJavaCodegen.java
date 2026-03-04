@@ -69,34 +69,28 @@ public class BetterJavaCodegen extends JavaClientCodegen implements UnsupportedF
     @Override
     public void processOpts() {
         super.processOpts();
-        // Keep all supporting files from parent - just remove build files
-        supportingFiles.removeIf(f ->
-            f.getDestinationFilename().equals("pom.xml") ||
-            f.getDestinationFilename().equals("build.gradle") ||
-            f.getDestinationFilename().equals("build.sbt") ||
-            f.getDestinationFilename().equals("settings.gradle") ||
-            f.getDestinationFilename().equals("gradle.properties") ||
-            f.getDestinationFilename().equals("gradlew") ||
-            f.getDestinationFilename().equals("gradlew.bat") ||
-            f.getDestinationFilename().equals("README.md") ||
-            f.getDestinationFilename().equals(".travis.yml") ||
-            f.getDestinationFilename().equals(".gitignore") ||
-            f.getDestinationFilename().equals("git_push.sh") ||
-            f.getDestinationFilename().endsWith(".sbt")
-        );
+
+        // Clear all parent supporting files — we provide our own minimal set
+        supportingFiles.clear();
 
         String invokerFolder = sourceFolder + File.separator
             + invokerPackage.replace(".", File.separator);
         supportingFiles.add(new SupportingFile(
-            "object_serializer.mustache",
-            invokerFolder,
-            "ObjectSerializer.java"
-        ));
+            "apiException.mustache", invokerFolder, "ApiException.java"));
         supportingFiles.add(new SupportingFile(
-            "header_selector.mustache",
-            invokerFolder,
-            "HeaderSelector.java"
-        ));
+            "ApiClient.mustache", invokerFolder, "ApiClient.java"));
+        supportingFiles.add(new SupportingFile(
+            "DefaultApiClient.mustache", invokerFolder, "DefaultApiClient.java"));
+        supportingFiles.add(new SupportingFile(
+            "ApiResponse.mustache", invokerFolder, "ApiResponse.java"));
+        supportingFiles.add(new SupportingFile(
+            "BaseApi.mustache", invokerFolder, "BaseApi.java"));
+        supportingFiles.add(new SupportingFile(
+            "Configuration.mustache", invokerFolder, "Configuration.java"));
+        supportingFiles.add(new SupportingFile(
+            "object_serializer.mustache", invokerFolder, "ObjectSerializer.java"));
+        supportingFiles.add(new SupportingFile(
+            "header_selector.mustache", invokerFolder, "HeaderSelector.java"));
     }
 
     @Override

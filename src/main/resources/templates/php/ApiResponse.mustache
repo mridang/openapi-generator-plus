@@ -1,0 +1,25 @@
+<?php
+{{>partial_header}}
+
+namespace {{invokerPackage}};
+
+/**
+ * ApiResponse Class
+ *
+ * @category Class
+ * @package  {{invokerPackage}}
+ */
+class ApiResponse
+{
+    /**
+     * @param int    $statusCode HTTP status code
+     * @param string $body       Response body
+     * @param array  $headers    Response headers
+     */
+    public function __construct(
+        public readonly int $statusCode,
+        public readonly string $body,
+        public readonly array $headers
+    ) {
+    }
+}

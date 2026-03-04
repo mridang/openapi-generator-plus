@@ -1,0 +1,152 @@
+{{>licenseInfo}}
+package {{invokerPackage}};
+
+import com.fasterxml.jackson.core.type.TypeReference;
+
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.StringJoiner;
+
+/**
+ * Base class for all API classes. Provides the {@code invokeApi} method that
+ * handles URL construction, header selection, authentication, body
+ * serialization, request dispatch, and response deserialization.
+ */
+{{>generatedAnnotation}}
+public abstract class BaseApi {
+
+    protected ApiClient apiClient;
+    protected final ObjectSerializer objectSerializer;
+    protected final HeaderSelector headerSelector;
+
+    public BaseApi() {
+        this(new DefaultApiClient());
+    }
+
+    public BaseApi(ApiClient apiClient) {
+        this.apiClient = apiClient;
+        this.objectSerializer = new ObjectSerializer();
+        this.headerSelector = new HeaderSelector();
+    }
+
+    public ApiClient getApiClient() {
+        return apiClient;
+    }
+
+    public void setApiClient(ApiClient apiClient) {
+        this.apiClient = apiClient;
+    }
+
+    /**
+     * Invoke an API operation.
+     *
+     * @param <T>          the return type
+     * @param method       HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param path         URL path (with path params already substituted)
+     * @param queryParams  query parameters
+     * @param headerParams custom header parameters
+     * @param body         request body (model object or null)
+     * @param accepts      acceptable response content types
+     * @param contentType  request content type
+     * @param authNames    authentication scheme names
+     * @param returnType   return type for deserialization (null for void)
+     * @return deserialized response or null
+     * @throws ApiException if the API call fails
+     */
+    protected <T> T invokeApi(
+            String method,
+            String path,
+            Map<String, Object> queryParams,
+            Map<String, String> headerParams,
+            Object body,
+            String[] accepts,
+            String contentType,
+            String[] authNames,
+            TypeReference<T> returnType) throws ApiException {
+
+        // Build URL
+        String url = apiClient.getBasePath() + path;
+        String query = buildQueryString(queryParams);
+        if (!query.isEmpty()) {
+            url += "?" + query;
+        }
+
+        // Select headers
+        boolean isMultipart = "multipart/form-data".equals(contentType);
+        Map<String, String> headers = headerSelector.selectHeaders(accepts, contentType, isMultipart);
+
+        // Merge custom headers
+        if (headerParams != null) {
+            headers.putAll(headerParams);
+        }
+
+        // Apply auth
+        applyAuth(headers, authNames);
+
+        // Serialize body
+        String serializedBody = null;
+        if (body != null) {
+            serializedBody = objectSerializer.serialize(body);
+        }
+
+        // Send request
+        ApiResponse response = apiClient.sendRequest(method, url, headers, serializedBody);
+
+        // Check status
+        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+            throw new ApiException(
+                response.getStatusCode(),
+                "API returned status code " + response.getStatusCode(),
+                null,
+                response.getBody()
+            );
+        }
+
+        // Deserialize response
+        if (returnType != null && response.getBody() != null && !response.getBody().isEmpty()) {
+            return objectSerializer.deserialize(response.getBody(), returnType);
+        }
+        return null;
+    }
+
+    /**
+     * Build a query string from query parameters.
+     *
+     * @param queryParams the query parameters
+     * @return encoded query string
+     */
+    private String buildQueryString(Map<String, Object> queryParams) {
+        if (queryParams == null || queryParams.isEmpty()) {
+            return "";
+        }
+        StringJoiner joiner = new StringJoiner("&");
+        for (Map.Entry<String, Object> entry : queryParams.entrySet()) {
+            if (entry.getValue() != null) {
+                joiner.add(encode(entry.getKey()) + "=" + encode(String.valueOf(entry.getValue())));
+            }
+        }
+        return joiner.toString();
+    }
+
+    /**
+     * URL-encode a string.
+     *
+     * @param value the string to encode
+     * @return URL-encoded string
+     */
+    protected String encode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Apply authentication to headers.
+     *
+     * @param headers   headers map (modified in-place)
+     * @param authNames authentication scheme names
+     */
+    private void applyAuth(Map<String, String> headers, String[] authNames) {
+        // Authentication is handled by the generated subclasses via Configuration
+    }
+}

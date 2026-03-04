@@ -75,6 +75,10 @@ public class BetterPHPCodegen extends PhpClientCodegen implements UnsupportedFea
         supportingFiles.add(new SupportingFile("ObjectSerializer.mustache", toSrcPath(invokerPackage, srcBasePath), "ObjectSerializer.php"));
         supportingFiles.add(new SupportingFile("ApiException.mustache", toSrcPath(invokerPackage, srcBasePath), "ApiException.php"));
         supportingFiles.add(new SupportingFile("HeaderSelector.mustache", toSrcPath(invokerPackage, srcBasePath), "HeaderSelector.php"));
+        supportingFiles.add(new SupportingFile("ApiResponse.mustache", toSrcPath(invokerPackage, srcBasePath), "ApiResponse.php"));
+        supportingFiles.add(new SupportingFile("ApiClient.mustache", toSrcPath(invokerPackage, srcBasePath), "ApiClient.php"));
+        supportingFiles.add(new SupportingFile("DefaultApiClient.mustache", toSrcPath(invokerPackage, srcBasePath), "DefaultApiClient.php"));
+        supportingFiles.add(new SupportingFile("BaseApi.mustache", toSrcPath(invokerPackage, srcBasePath), "BaseApi.php"));
     }
 
     @Override

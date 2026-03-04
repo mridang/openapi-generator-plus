@@ -1,0 +1,118 @@
+# coding: utf-8
+
+{{>partial_header}}
+
+from typing import Any, Dict, List, Optional, Type, TypeVar
+from urllib.parse import quote, urlencode
+
+from {{packageName}}.api_client import ApiClient
+from {{packageName}}.api_response import ApiResponse
+from {{packageName}}.default_api_client import DefaultApiClient
+from {{packageName}}.configuration import Configuration
+from {{packageName}}.object_serializer import ObjectSerializer
+from {{packageName}}.header_selector import HeaderSelector
+from {{packageName}}.exceptions import ApiException
+
+T = TypeVar('T')
+
+
+class BaseApi:
+    """Base class for all API classes.
+
+    Provides the invoke_api method that handles URL construction, header
+    selection, authentication, body serialization, request dispatch, and
+    response deserialization.
+    """
+
+    def __init__(
+        self,
+        api_client: Optional[ApiClient] = None,
+        config: Optional[Configuration] = None
+    ):
+        self.api_client = api_client or DefaultApiClient()
+        self.config = config or Configuration.get_default()
+        self._object_serializer = ObjectSerializer()
+        self._header_selector = HeaderSelector()
+
+    def invoke_api(
+        self,
+        method: str,
+        path: str,
+        query_params: Dict[str, Any],
+        header_params: Dict[str, str],
+        body: Any,
+        accepts: List[str],
+        content_type: Optional[str],
+        auth_names: List[str],
+        return_type: Optional[str]
+    ) -> Any:
+        """Invoke an API operation.
+
+        :param method: HTTP method (GET, POST, PUT, DELETE, etc.)
+        :param path: URL path (with path params already substituted)
+        :param query_params: query parameters
+        :param header_params: custom header parameters
+        :param body: request body (model object or None)
+        :param accepts: acceptable response content types
+        :param content_type: request content type
+        :param auth_names: authentication scheme names
+        :param return_type: return type for deserialization (None for void)
+        :return: deserialized response or None
+        :raises ApiException: if the API call fails
+        """
+        # Build URL
+        url = self.config.host + path
+        if query_params:
+            filtered = {k: v for k, v in query_params.items() if v is not None}
+            if filtered:
+                url += '?' + urlencode(filtered)
+
+        # Select headers
+        is_multipart = content_type == 'multipart/form-data'
+        headers = self._header_selector.select_headers(accepts, content_type or '', is_multipart)
+
+        # Merge custom headers
+        if header_params:
+            headers.update(header_params)
+
+        # Apply auth
+        self._apply_auth(headers, auth_names)
+
+        # Serialize body
+        serialized_body = None
+        if body is not None:
+            serialized_body = self._object_serializer.serialize(body)
+
+        # Send request
+        response = self.api_client.send_request(method, url, headers, serialized_body)
+
+        # Check status
+        if response.status_code < 200 or response.status_code >= 300:
+            raise ApiException(
+                status=response.status_code,
+                reason=f'API returned status code {response.status_code}',
+                body=response.body
+            )
+
+        # Deserialize response
+        if return_type is not None and response.body:
+            return self._object_serializer.deserialize(response.body, return_type)
+
+        return None
+
+    def _apply_auth(self, headers: Dict[str, str], auth_names: List[str]) -> None:
+        """Apply authentication to headers.
+
+        :param headers: headers dict (modified in-place)
+        :param auth_names: authentication scheme names
+        """
+        if not auth_names:
+            return
+
+        for auth_name in auth_names:
+            auth_setting = self.config.auth_settings().get(auth_name)
+            if auth_setting:
+                if auth_setting['in'] == 'header':
+                    headers[auth_setting['key']] = auth_setting['value']
+                elif auth_setting['in'] == 'query':
+                    pass  # query auth handled at URL construction

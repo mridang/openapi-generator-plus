@@ -138,51 +138,41 @@ public class HeaderSelectorComplianceTest {
   // --- 2. API entry points reference HeaderSelector ---
 
   @Test
-  void pythonApiClientDelegatesToHeaderSelector() throws IOException {
+  void pythonBaseApiDelegatesToHeaderSelector() throws IOException {
     String content =
-        Files.readString(OUTPUT_DIR.resolve("python/petstore_client/api_client.py"));
+        Files.readString(OUTPUT_DIR.resolve("python/petstore_client/base_api.py"));
     assertTrue(
         content.contains("from petstore_client.header_selector import HeaderSelector"),
-        "Python api_client.py must import HeaderSelector");
+        "Python base_api.py must import HeaderSelector");
     assertTrue(
         content.contains("_header_selector"),
-        "Python api_client.py must use _header_selector");
+        "Python base_api.py must use _header_selector");
   }
 
   @Test
-  void javaApiClientDelegatesToHeaderSelector() throws IOException {
+  void javaBaseApiDelegatesToHeaderSelector() throws IOException {
     String content =
         Files.readString(
             OUTPUT_DIR.resolve(
-                "java/src/main/java/com/example/petstore/ApiClient.java"));
+                "java/src/main/java/com/example/petstore/BaseApi.java"));
     assertTrue(
         content.contains("HeaderSelector"),
-        "Java ApiClient must reference HeaderSelector");
+        "Java BaseApi must reference HeaderSelector");
     assertTrue(
         content.contains("headerSelector"),
-        "Java ApiClient must use headerSelector field");
+        "Java BaseApi must use headerSelector field");
   }
 
   @Test
-  void phpApiFilesDelegateToHeaderSelector() throws IOException {
-    Path apiDir = OUTPUT_DIR.resolve("php/lib/Api");
-    if (Files.exists(apiDir)) {
-      try (Stream<Path> files = Files.walk(apiDir)) {
-        files
-            .filter(p -> p.getFileName().toString().endsWith("Api.php"))
-            .forEach(
-                p -> {
-                  try {
-                    String content = Files.readString(p);
-                    assertTrue(
-                        content.contains("headerSelector"),
-                        "PHP " + p.getFileName() + " must reference headerSelector");
-                  } catch (IOException e) {
-                    fail("Could not read " + p);
-                  }
-                });
-      }
-    }
+  void phpBaseApiDelegatesToHeaderSelector() throws IOException {
+    String content =
+        Files.readString(OUTPUT_DIR.resolve("php/lib/BaseApi.php"));
+    assertTrue(
+        content.contains("HeaderSelector"),
+        "PHP BaseApi.php must reference HeaderSelector");
+    assertTrue(
+        content.contains("headerSelector"),
+        "PHP BaseApi.php must use headerSelector field");
   }
 
   @Test
@@ -195,23 +185,15 @@ public class HeaderSelectorComplianceTest {
   }
 
   @Test
-  void nodeApiFilesDelegateToHeaderSelector() throws IOException {
-    Path apiDir = OUTPUT_DIR.resolve("node");
-    try (Stream<Path> files = Files.walk(apiDir)) {
-      files
-          .filter(p -> p.getFileName().toString().endsWith("-api.ts"))
-          .forEach(
-              p -> {
-                try {
-                  String content = Files.readString(p);
-                  assertTrue(
-                      content.contains("HeaderSelector"),
-                      "Node " + p.getFileName() + " must reference HeaderSelector");
-                } catch (IOException e) {
-                  fail("Could not read " + p);
-                }
-              });
-    }
+  void nodeBaseApiDelegatesToHeaderSelector() throws IOException {
+    String content =
+        Files.readString(OUTPUT_DIR.resolve("node/BaseApi.ts"));
+    assertTrue(
+        content.contains("HeaderSelector"),
+        "Node BaseApi.ts must reference HeaderSelector");
+    assertTrue(
+        content.contains("headerSelector"),
+        "Node BaseApi.ts must use headerSelector field");
   }
 
   // --- 3. API files don't have inline header selection logic ---

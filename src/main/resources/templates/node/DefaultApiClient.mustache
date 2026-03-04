@@ -1,0 +1,36 @@
+/* tslint:disable */
+/* eslint-disable */
+{{>licenseInfo}}
+
+import type { ApiClient } from './ApiClient{{importFileExtension}}';
+import type { ApiResponse } from './ApiResponse{{importFileExtension}}';
+
+/**
+ * Default implementation of ApiClient using the Fetch API.
+ */
+export class DefaultApiClient implements ApiClient {
+  async sendRequest(
+    method: string,
+    url: string,
+    headers: Record<string, string>,
+    body: string | null
+  ): Promise<ApiResponse> {
+    const response = await fetch(url, {
+      method,
+      headers,
+      body: body ?? undefined,
+    });
+
+    const responseBody = await response.text();
+    const responseHeaders: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      responseHeaders[key] = value;
+    });
+
+    return {
+      statusCode: response.status,
+      body: responseBody,
+      headers: responseHeaders,
+    };
+  }
+}

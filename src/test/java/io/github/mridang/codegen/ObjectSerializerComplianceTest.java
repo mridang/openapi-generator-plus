@@ -137,35 +137,29 @@ public class ObjectSerializerComplianceTest {
   // --- 2. Serde entry points reference ObjectSerializer ---
 
   @Test
-  void pythonApiClientDelegatesToObjectSerializer() throws IOException {
+  void pythonBaseApiDelegatesToObjectSerializer() throws IOException {
     String content =
-        Files.readString(OUTPUT_DIR.resolve("python/petstore_client/api_client.py"));
+        Files.readString(OUTPUT_DIR.resolve("python/petstore_client/base_api.py"));
     assertTrue(
         content.contains("from petstore_client.object_serializer import ObjectSerializer"),
-        "Python api_client.py must import ObjectSerializer");
+        "Python base_api.py must import ObjectSerializer");
     assertTrue(
         content.contains("_object_serializer"),
-        "Python api_client.py must use _object_serializer");
+        "Python base_api.py must use _object_serializer");
   }
 
   @Test
-  void javaApiClientDelegatesToObjectSerializer() throws IOException {
+  void javaBaseApiDelegatesToObjectSerializer() throws IOException {
     String content =
         Files.readString(
             OUTPUT_DIR.resolve(
-                "java/src/main/java/com/example/petstore/ApiClient.java"));
+                "java/src/main/java/com/example/petstore/BaseApi.java"));
     assertTrue(
         content.contains("objectSerializer.serialize"),
-        "Java ApiClient must use objectSerializer.serialize()");
+        "Java BaseApi must use objectSerializer.serialize()");
     assertTrue(
         content.contains("objectSerializer.deserialize"),
-        "Java ApiClient must use objectSerializer.deserialize()");
-    assertFalse(
-        content.contains("objectMapper.writeValueAsString"),
-        "Java ApiClient must NOT use objectMapper.writeValueAsString() directly");
-    assertFalse(
-        content.contains("objectMapper.readValue"),
-        "Java ApiClient must NOT use objectMapper.readValue() directly");
+        "Java BaseApi must use objectSerializer.deserialize()");
   }
 
   @Test
@@ -294,10 +288,10 @@ public class ObjectSerializerComplianceTest {
 
   @Test
   void nodeApiFilesNoInlineSerde() throws IOException {
-    Path apiDir = OUTPUT_DIR.resolve("node");
+    Path apiDir = OUTPUT_DIR.resolve("node/apis");
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
-          .filter(p -> p.getFileName().toString().endsWith("Api.ts"))
+          .filter(p -> p.getFileName().toString().endsWith("-api.ts"))
           .forEach(
               p -> {
                 try {

@@ -1,0 +1,65 @@
+<?php
+{{>partial_header}}
+
+namespace {{invokerPackage}};
+
+use GuzzleHttp\Client;
+use GuzzleHttp\ClientInterface;
+use GuzzleHttp\Exception\GuzzleException;
+use RuntimeException;
+
+/**
+ * DefaultApiClient Class
+ *
+ * Default implementation of ApiClient using Guzzle HTTP client.
+ *
+ * @category Class
+ * @package  {{invokerPackage}}
+ */
+class DefaultApiClient implements ApiClient
+{
+    /**
+     * @var ClientInterface
+     */
+    private ClientInterface $client;
+
+    /**
+     * @param ClientInterface|null $client Guzzle client instance
+     */
+    public function __construct(?ClientInterface $client = null)
+    {
+        $this->client = $client ?: new Client([
+            'http_errors' => false,
+        ]);
+    }
+
+    /**
+     * @inheritDoc
+     */
+    public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
+    {
+        $options = [
+            'headers' => $headers,
+        ];
+
+        if ($body !== null) {
+            $options['body'] = $body;
+        }
+
+        try {
+            $response = $this->client->request($method, $url, $options);
+        } catch (GuzzleException $e) {
+            throw new RuntimeException(
+                "API Request failed: [{$e->getCode()}] {$e->getMessage()}",
+                (int) $e->getCode(),
+                $e
+            );
+        }
+
+        return new ApiResponse(
+            statusCode: $response->getStatusCode(),
+            body: (string) $response->getBody(),
+            headers: $response->getHeaders()
+        );
+    }
+}
