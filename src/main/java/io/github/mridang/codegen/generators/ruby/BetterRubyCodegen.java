@@ -85,10 +85,12 @@ public class BetterRubyCodegen extends RubyClientCodegen implements UnsupportedF
         supportingFiles.add(new SupportingFile("gem.mustache", libFolder, gemName + ".rb"));
 
         // Essential supporting files for API functionality
-        supportingFiles.add(new SupportingFile("api_client.mustache", libPath, "api_client.rb"));
         supportingFiles.add(new SupportingFile("configuration.mustache", libPath, "configuration.rb"));
         supportingFiles.add(new SupportingFile("api_error.mustache", libPath, "api_error.rb"));
         supportingFiles.add(new SupportingFile("version.mustache", libPath, "version.rb"));
+        supportingFiles.add(new SupportingFile("header_selector.mustache", libPath, "header_selector.rb"));
+        supportingFiles.add(new SupportingFile("object_serializer.mustache", libPath, "object_serializer.rb"));
+        supportingFiles.add(new SupportingFile("base_api.mustache", libPath, "base_api.rb"));
     }
 
     /**

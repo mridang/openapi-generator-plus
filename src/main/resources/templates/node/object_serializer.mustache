@@ -1,0 +1,129 @@
+/* tslint:disable */
+/* eslint-disable */
+{{>licenseInfo}}
+
+export class SerializationError extends Error {
+  public readonly cause?: Error;
+
+  constructor(message: string, cause?: Error) {
+    super(message);
+    this.name = 'SerializationError';
+    this.cause = cause;
+  }
+}
+
+/**
+ * Centralized serialization and deserialization for all API requests and responses.
+ *
+ * All serde operations in the generated client route through this class, which
+ * delegates to the per-model ToJSON/FromJSON functions for type-safe conversion.
+ */
+export class ObjectSerializer {
+  /**
+   * Serialize a single object using the provided ToJSON function.
+   */
+  static serialize<T>(obj: T | null | undefined, toJSON: (obj: T) => any): any {
+    if (obj === null || obj === undefined) {
+      return undefined;
+    }
+    try {
+      return toJSON(obj);
+    } catch (e) {
+      throw new SerializationError(`Failed to serialize object: ${e instanceof Error ? e.message : String(e)}`, e instanceof Error ? e : undefined);
+    }
+  }
+
+  /**
+   * Serialize an array of objects using the provided ToJSON function.
+   */
+  static serializeArray<T>(arr: T[], toJSON: (obj: T) => any): any[] {
+    return arr.map(item => ObjectSerializer.serialize(item, toJSON)!);
+  }
+
+  /**
+   * Deserialize a single object using the provided FromJSON function.
+   */
+  static deserialize<T>(json: any, fromJSON: (json: any) => T): T {
+    try {
+      return fromJSON(json);
+    } catch (e) {
+      throw new SerializationError(`Failed to deserialize object: ${e instanceof Error ? e.message : String(e)}`, e instanceof Error ? e : undefined);
+    }
+  }
+
+  /**
+   * Deserialize an array of objects using the provided FromJSON function.
+   */
+  static deserializeArray<T>(json: any[], fromJSON: (json: any) => T): T[] {
+    return json.map(item => ObjectSerializer.deserialize(item, fromJSON));
+  }
+
+  /**
+   * Deserialize a map (Record) of objects using the provided FromJSON function.
+   */
+  static deserializeMap<T>(json: Record<string, any>, fromJSON: (json: any) => T): Record<string, T> {
+    const result: Record<string, T> = {};
+    for (const [key, value] of Object.entries(json)) {
+      result[key] = ObjectSerializer.deserialize(value, fromJSON);
+    }
+    return result;
+  }
+
+  /**
+   * Convert a value to a string suitable for use as a path parameter.
+   */
+  static toPathValue(value: any): string {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    return String(value);
+  }
+
+  /**
+   * Convert a value to a string suitable for use as a query parameter.
+   */
+  static toQueryValue(value: any): string | undefined {
+    if (value === null || value === undefined) {
+      return undefined;
+    }
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    return String(value);
+  }
+
+  /**
+   * Convert a value to a string suitable for use as a header parameter.
+   */
+  static toHeaderValue(value: any): string {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    return String(value);
+  }
+
+  /**
+   * Convert a value to a string suitable for use as a form parameter.
+   */
+  static toFormValue(value: any): string | Blob {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    if (value instanceof Blob) {
+      return value;
+    }
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    if (typeof value === 'object') {
+      return new Blob([JSON.stringify(value)], { type: 'application/json' });
+    }
+    return String(value);
+  }
+}

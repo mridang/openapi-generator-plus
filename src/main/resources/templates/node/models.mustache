@@ -1,0 +1,141 @@
+/* tslint:disable */
+/* eslint-disable */
+{{>licenseInfo}}
+
+import { z } from 'zod';
+{{#models}}
+{{#model}}
+{{#hasImports}}
+{{#tsImports}}
+import { {{classname}}Schema } from './{{filename}}{{importFileExtension}}';
+{{/tsImports}}
+{{/hasImports}}
+{{#isEnum}}
+
+/**
+ * @export
+ */
+export const {{classname}} = {
+{{#allowableValues}}
+    {{#enumVars}}
+    {{{name}}}: {{{value}}}{{^-last}},{{/-last}}
+    {{/enumVars}}
+{{/allowableValues}}
+} as const;
+export type {{classname}} = typeof {{classname}}[keyof typeof {{classname}}];
+
+export const {{classname}}Schema = z.enum([{{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}]);
+
+export function instanceOf{{classname}}(value: any): boolean {
+    for (const key in {{classname}}) {
+        if (Object.prototype.hasOwnProperty.call({{classname}}, key)) {
+            if ({{classname}}[key as keyof typeof {{classname}}] === value) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+export function {{classname}}FromJSON(json: any): {{classname}} {
+    return {{classname}}FromJSONTyped(json, false);
+}
+
+export function {{classname}}FromJSONTyped(json: any, ignoreDiscriminator: boolean): {{classname}} {
+    return json as {{classname}};
+}
+
+export function {{classname}}ToJSON(value?: {{classname}} | null): any {
+    return value as any;
+}
+
+export function {{classname}}ToJSONTyped(value: any, ignoreDiscriminator: boolean): {{classname}} {
+    return value as {{classname}};
+}
+{{/isEnum}}
+{{^isEnum}}
+{{#oneOf}}
+{{#-first}}
+
+export const {{classname}}Schema = z.any();
+export type {{classname}} = any;
+
+export function {{classname}}FromJSON(json: any): {{classname}} {
+    return json;
+}
+
+export function {{classname}}FromJSONTyped(json: any, ignoreDiscriminator: boolean): {{classname}} {
+    return json;
+}
+
+export function {{classname}}ToJSON(value?: {{classname}} | null): any {
+    return value;
+}
+
+export function {{classname}}ToJSONTyped(value: any, ignoreDiscriminator: boolean): any {
+    return value;
+}
+{{/-first}}
+{{/oneOf}}
+{{^oneOf}}
+
+export const {{classname}}Schema = z.object({
+{{#vars}}
+    '{{baseName}}': {{{vendorExtensions.x-zod-type}}},
+{{/vars}}
+}).passthrough();
+
+export type {{classname}} = z.infer<typeof {{classname}}Schema>;
+{{#hasEnums}}
+
+{{#vars}}
+{{#isEnum}}
+/**
+ * @export
+ */
+export const {{classname}}{{enumName}} = {
+{{#allowableValues}}
+    {{#enumVars}}
+    {{{name}}}: {{{value}}}{{^-last}},{{/-last}}
+    {{/enumVars}}
+{{/allowableValues}}
+} as const;
+export type {{classname}}{{enumName}} = typeof {{classname}}{{enumName}}[keyof typeof {{classname}}{{enumName}}];
+{{/isEnum}}
+{{/vars}}
+{{/hasEnums}}
+
+export function instanceOf{{classname}}(value: object): value is {{classname}} {
+    {{#vars}}
+    {{#required}}
+    if (!('{{name}}' in value) || value['{{name}}'] === undefined) return false;
+    {{/required}}
+    {{/vars}}
+    return true;
+}
+
+export function {{classname}}FromJSON(json: any): {{classname}} {
+    return {{classname}}FromJSONTyped(json, false);
+}
+
+export function {{classname}}FromJSONTyped(json: any, ignoreDiscriminator: boolean): {{classname}} {
+    if (json == null) {
+        return json;
+    }
+    return {{classname}}Schema.parse(json);
+}
+
+export function {{classname}}ToJSON(json: any): {{classname}} {
+    return {{classname}}ToJSONTyped(json, false);
+}
+
+export function {{classname}}ToJSONTyped(value?: {{classname}} | null, ignoreDiscriminator: boolean = false): any {
+    if (value == null) {
+        return value;
+    }
+    return value;
+}
+{{/oneOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}

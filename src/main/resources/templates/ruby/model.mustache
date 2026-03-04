@@ -4,6 +4,11 @@
 
 require 'date'
 require 'time'
+require 'dry-struct'
+
+module Types
+  include Dry.Types()
+end
 
 module {{moduleName}}::Models
 {{#models}}

@@ -34,6 +34,10 @@ public class GenerateClientsTest {
         generate("ruby-plus", spec, tempDir.resolve("ruby").toString(),
             Map.of("gemName", "petstore_client", "moduleName", "PetstoreClient"));
 
+        // Node/TypeScript
+        generate("node-plus", spec, tempDir.resolve("node").toString(),
+            Map.of());
+
         // Copy to /tmp for viewing
         Path dest = Paths.get("/tmp/generated-clients");
         if (Files.exists(dest)) {

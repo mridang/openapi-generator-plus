@@ -3,6 +3,7 @@
 {{>licenseInfo}}
 
 import * as runtime from '../runtime{{importFileExtension}}';
+import { ObjectSerializer, SerializationError } from '../ObjectSerializer{{importFileExtension}}';
 {{#imports.0}}
 import type {
   {{#imports}}
@@ -115,17 +116,7 @@ export class {{classname}} extends runtime.BaseAPI {
         {{/isArray}}
         {{^isArray}}
         if (requestParameters['{{paramName}}'] != null) {
-            {{#isDateTimeType}}
-            queryParameters['{{baseName}}'] = (requestParameters['{{paramName}}'] as any).toISOString();
-            {{/isDateTimeType}}
-            {{^isDateTimeType}}
-            {{#isDateType}}
-            queryParameters['{{baseName}}'] = (requestParameters['{{paramName}}'] as any).toISOString().substring(0,10);
-            {{/isDateType}}
-            {{^isDateType}}
-            queryParameters['{{baseName}}'] = requestParameters['{{paramName}}'];
-            {{/isDateType}}
-            {{/isDateTimeType}}
+            queryParameters['{{baseName}}'] = ObjectSerializer.toQueryValue(requestParameters['{{paramName}}']);
         }
 
         {{/isArray}}
@@ -151,7 +142,7 @@ export class {{classname}} extends runtime.BaseAPI {
         {{/isArray}}
         {{^isArray}}
         if (requestParameters['{{paramName}}'] != null) {
-            headerParameters['{{baseName}}'] = String(requestParameters['{{paramName}}']);
+            headerParameters['{{baseName}}'] = ObjectSerializer.toHeaderValue(requestParameters['{{paramName}}']);
         }
 
         {{/isArray}}
@@ -235,33 +226,28 @@ export class {{classname}} extends runtime.BaseAPI {
         {{/isArray}}
         {{^isArray}}
         if (requestParameters['{{paramName}}'] != null) {
-            {{#isDateTimeType}}
-            formParams.append('{{baseName}}', (requestParameters['{{paramName}}'] as any).toISOString());
-            {{/isDateTimeType}}
-            {{^isDateTimeType}}
             {{#isPrimitiveType}}
-            formParams.append('{{baseName}}', requestParameters['{{paramName}}'] as any);
+            formParams.append('{{baseName}}', ObjectSerializer.toFormValue(requestParameters['{{paramName}}']) as any);
             {{/isPrimitiveType}}
             {{^isPrimitiveType}}
             {{#isEnumRef}}
-            formParams.append('{{baseName}}', requestParameters['{{paramName}}'] as any);
+            formParams.append('{{baseName}}', ObjectSerializer.toFormValue(requestParameters['{{paramName}}']) as any);
             {{/isEnumRef}}
             {{^isEnumRef}}
             {{^withoutRuntimeChecks}}
-            formParams.append('{{baseName}}', new Blob([JSON.stringify({{{dataType}}}ToJSON(requestParameters['{{paramName}}']))], { type: "application/json", }));
+            formParams.append('{{baseName}}', new Blob([JSON.stringify(ObjectSerializer.serialize(requestParameters['{{paramName}}'], {{{dataType}}}ToJSON))], { type: "application/json", }));
             {{/withoutRuntimeChecks}}{{#withoutRuntimeChecks}}
             formParams.append('{{baseName}}', new Blob([JSON.stringify(requestParameters['{{paramName}}'])], { type: "application/json", }));
             {{/withoutRuntimeChecks}}
             {{/isEnumRef}}
             {{/isPrimitiveType}}
-            {{/isDateTimeType}}
         }
 
         {{/isArray}}
         {{/formParams}}
         {{/hasFormParams}}
         const response = await this.request({
-            path: `{{{path}}}`{{#pathParams}}.replace(`{${"{{baseName}}"}}`, encodeURIComponent(String(requestParameters['{{paramName}}']))){{/pathParams}},
+            path: `{{{path}}}`{{#pathParams}}.replace(`{${"{{baseName}}"}}`, encodeURIComponent(ObjectSerializer.toPathValue(requestParameters['{{paramName}}']))){{/pathParams}},
             method: '{{httpMethod}}',
             headers: headerParameters,
             query: queryParameters,
@@ -269,7 +255,7 @@ export class {{classname}} extends runtime.BaseAPI {
             {{#bodyParam}}
             {{#isContainer}}
             {{^withoutRuntimeChecks}}
-            body: requestParameters['{{paramName}}']{{#isArray}}{{#items}}{{^isPrimitiveType}}!.map({{datatype}}ToJSON){{/isPrimitiveType}}{{/items}}{{/isArray}},
+            body: requestParameters['{{paramName}}']{{#isArray}}{{#items}}{{^isPrimitiveType}} ? ObjectSerializer.serializeArray(requestParameters['{{paramName}}']!, {{datatype}}ToJSON) : undefined{{/isPrimitiveType}}{{/items}}{{/isArray}},
             {{/withoutRuntimeChecks}}
             {{#withoutRuntimeChecks}}
             body: requestParameters['{{paramName}}'],
@@ -278,7 +264,7 @@ export class {{classname}} extends runtime.BaseAPI {
             {{^isContainer}}
             {{^isPrimitiveType}}
             {{^withoutRuntimeChecks}}
-            body: {{dataType}}ToJSON(requestParameters['{{paramName}}']),
+            body: ObjectSerializer.serialize(requestParameters['{{paramName}}'], {{dataType}}ToJSON),
             {{/withoutRuntimeChecks}}
             {{#withoutRuntimeChecks}}
             body: requestParameters['{{paramName}}'],
@@ -317,14 +303,14 @@ export class {{classname}} extends runtime.BaseAPI {
         {{/returnTypeIsPrimitive}}
         {{^returnTypeIsPrimitive}}
         {{#isArray}}
-        return new runtime.JSONApiResponse(response{{^withoutRuntimeChecks}}, (jsonValue) => {{#uniqueItems}}new Set({{/uniqueItems}}jsonValue.map({{returnBaseType}}FromJSON){{/withoutRuntimeChecks}}){{#uniqueItems}}){{/uniqueItems}};
+        return new runtime.JSONApiResponse(response{{^withoutRuntimeChecks}}, (jsonValue) => {{#uniqueItems}}new Set({{/uniqueItems}}ObjectSerializer.deserializeArray(jsonValue, {{returnBaseType}}FromJSON){{/withoutRuntimeChecks}}){{#uniqueItems}}){{/uniqueItems}};
         {{/isArray}}
         {{^isArray}}
         {{#isMap}}
-        return new runtime.JSONApiResponse(response{{^withoutRuntimeChecks}}, (jsonValue) => runtime.mapValues(jsonValue, {{returnBaseType}}FromJSON){{/withoutRuntimeChecks}});
+        return new runtime.JSONApiResponse(response{{^withoutRuntimeChecks}}, (jsonValue) => ObjectSerializer.deserializeMap(jsonValue, {{returnBaseType}}FromJSON){{/withoutRuntimeChecks}});
         {{/isMap}}
         {{^isMap}}
-        return new runtime.JSONApiResponse(response{{^withoutRuntimeChecks}}, (jsonValue) => {{returnBaseType}}FromJSON(jsonValue){{/withoutRuntimeChecks}});
+        return new runtime.JSONApiResponse(response{{^withoutRuntimeChecks}}, (jsonValue) => ObjectSerializer.deserialize(jsonValue, {{returnBaseType}}FromJSON){{/withoutRuntimeChecks}});
         {{/isMap}}
         {{/isArray}}
         {{/returnTypeIsPrimitive}}

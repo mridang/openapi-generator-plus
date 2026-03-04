@@ -4,9 +4,15 @@ import io.github.mridang.codegen.generators.UnsupportedFeaturesValidator;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.servers.Server;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenModel;
+import org.openapitools.codegen.CodegenProperty;
+import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.languages.TypeScriptFetchClientCodegen;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * A custom TypeScript code generator that provides sane defaults for generating
@@ -76,6 +82,67 @@ public class BetterNodeCodegen extends TypeScriptFetchClientCodegen implements U
     public void processOpts() {
         super.processOpts();
         this.supportingFiles.clear();
+        supportingFiles.add(new SupportingFile("object_serializer.mustache", "", "ObjectSerializer.ts"));
+    }
+
+    /**
+     * Post-processes all models to add {@code x-zod-type} vendor extensions to each
+     * property, enabling the Mustache template to generate Zod schemas.
+     */
+    @Override
+    public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
+        Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        for (ModelsMap models : result.values()) {
+            for (ModelMap model : models.getModels()) {
+                CodegenModel cm = model.getModel();
+                for (CodegenProperty prop : cm.vars) {
+                    String zodType = computeZodType(prop);
+                    if (!prop.required) {
+                        zodType += ".optional()";
+                    }
+                    if (prop.isNullable) {
+                        zodType += ".nullable()";
+                    }
+                    prop.vendorExtensions.put("x-zod-type", zodType);
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Computes the Zod type expression for a given CodegenProperty.
+     * This maps OpenAPI types to their Zod equivalents, handling primitives,
+     * arrays, maps, and model references.
+     */
+    private String computeZodType(CodegenProperty prop) {
+        if (prop.isArray) {
+            String inner = prop.items != null ? computeZodType(prop.items) : "z.any()";
+            return "z.array(" + inner + ")";
+        }
+        if (prop.isMap) {
+            String inner = prop.items != null ? computeZodType(prop.items) : "z.any()";
+            return "z.record(z.string(), " + inner + ")";
+        }
+        if (prop.isString || prop.isDate || prop.isDateTime) {
+            return "z.string()";
+        }
+        if (prop.isInteger || prop.isLong) {
+            return "z.number()";
+        }
+        if (prop.isFloat || prop.isDouble || prop.isNumber) {
+            return "z.number()";
+        }
+        if (prop.isBoolean) {
+            return "z.boolean()";
+        }
+        if (prop.isFreeFormObject) {
+            return "z.record(z.string(), z.any())";
+        }
+        if (!prop.isPrimitiveType && prop.complexType != null) {
+            return "z.lazy(() => " + prop.complexType + "Schema)";
+        }
+        return "z.any()";
     }
 
     @Override

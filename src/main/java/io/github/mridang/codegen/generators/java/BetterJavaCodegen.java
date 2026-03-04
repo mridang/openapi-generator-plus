@@ -7,6 +7,7 @@ import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.languages.JavaClientCodegen;
 
+import java.io.File;
 import java.util.List;
 
 /**
@@ -83,6 +84,14 @@ public class BetterJavaCodegen extends JavaClientCodegen implements UnsupportedF
             f.getDestinationFilename().equals("git_push.sh") ||
             f.getDestinationFilename().endsWith(".sbt")
         );
+
+        String invokerFolder = sourceFolder + File.separator
+            + invokerPackage.replace(".", File.separator);
+        supportingFiles.add(new SupportingFile(
+            "object_serializer.mustache",
+            invokerFolder,
+            "ObjectSerializer.java"
+        ));
     }
 
     @Override
