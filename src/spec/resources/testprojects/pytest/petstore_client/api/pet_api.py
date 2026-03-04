@@ -20,11 +20,11 @@ from typing import List, Optional
 from typing_extensions import Annotated
 from petstore_client.models.pet import Pet
 
-from petstore_client.api_client import ApiClient
-from petstore_client.default_api_client import DefaultApiClient
-from petstore_client.configuration import Configuration
-from petstore_client.base_api import BaseApi
-from petstore_client.object_serializer import ObjectSerializer
+from ..api_client import ApiClient
+from ..default_api_client import DefaultApiClient
+from ..configuration import Configuration
+from .base_api import BaseApi
+from ..object_serializer import ObjectSerializer
 
 
 class PetApi(BaseApi):

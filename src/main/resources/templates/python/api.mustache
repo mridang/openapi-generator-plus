@@ -9,11 +9,11 @@ from urllib.parse import quote
 {{import}}
 {{/imports}}
 
-from {{packageName}}.api_client import ApiClient
-from {{packageName}}.default_api_client import DefaultApiClient
-from {{packageName}}.configuration import Configuration
-from {{packageName}}.base_api import BaseApi
-from {{packageName}}.object_serializer import ObjectSerializer
+from ..api_client import ApiClient
+from ..default_api_client import DefaultApiClient
+from ..configuration import Configuration
+from .base_api import BaseApi
+from ..object_serializer import ObjectSerializer
 
 
 {{#operations}}

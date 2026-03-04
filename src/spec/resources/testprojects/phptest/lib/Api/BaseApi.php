@@ -10,8 +10,15 @@
  */
 
 
-namespace PetstoreClient;
+namespace PetstoreClient\Api;
 
+use PetstoreClient\ApiClient;
+use PetstoreClient\ApiException;
+use PetstoreClient\ApiResponse;
+use PetstoreClient\Configuration;
+use PetstoreClient\DefaultApiClient;
+use PetstoreClient\HeaderSelector;
+use PetstoreClient\ObjectSerializer;
 use GuzzleHttp\Psr7\MultipartStream;
 use GuzzleHttp\Utils;
 

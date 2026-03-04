@@ -41,7 +41,7 @@ public class BaseApiComplianceTest {
         spec,
         OUTPUT_DIR.resolve("java").toString(),
         Map.of(
-            "modelPackage", "com.example.petstore.model",
+            "modelPackage", "com.example.petstore.models",
             "apiPackage", "com.example.petstore.api",
             "invokerPackage", "com.example.petstore"));
 
@@ -101,7 +101,7 @@ public class BaseApiComplianceTest {
   @Test
   void javaFilesExist() {
     String base = "java/src/main/java/com/example/petstore/";
-    assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "BaseApi.java")));
+    assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "api/BaseApi.java")));
     assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "ApiClient.java")));
     assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "DefaultApiClient.java")));
     assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "ApiResponse.java")));
@@ -110,7 +110,7 @@ public class BaseApiComplianceTest {
   @Test
   void pythonFilesExist() {
     String base = "python/petstore_client/";
-    assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "base_api.py")));
+    assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "api/base_api.py")));
     assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "api_client.py")));
     assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "default_api_client.py")));
     assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "api_response.py")));
@@ -119,7 +119,7 @@ public class BaseApiComplianceTest {
   @Test
   void phpFilesExist() {
     String base = "php/lib/";
-    assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "BaseApi.php")));
+    assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "Api/BaseApi.php")));
     assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "ApiClient.php")));
     assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "DefaultApiClient.php")));
     assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "ApiResponse.php")));
@@ -128,7 +128,7 @@ public class BaseApiComplianceTest {
   @Test
   void rubyFilesExist() {
     String base = "ruby/lib/petstore_client/";
-    assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "base_api.rb")));
+    assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "api/base_api.rb")));
     assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "api_client.rb")));
     assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "default_api_client.rb")));
     assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "api_response.rb")));
@@ -136,7 +136,7 @@ public class BaseApiComplianceTest {
 
   @Test
   void nodeFilesExist() {
-    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/BaseApi.ts")));
+    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/api/BaseApi.ts")));
     assertTrue(Files.exists(OUTPUT_DIR.resolve("node/ApiClient.ts")));
     assertTrue(Files.exists(OUTPUT_DIR.resolve("node/DefaultApiClient.ts")));
     assertTrue(Files.exists(OUTPUT_DIR.resolve("node/ApiResponse.ts")));
@@ -150,6 +150,7 @@ public class BaseApiComplianceTest {
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("Api.java"))
+          .filter(p -> !p.getFileName().toString().equals("BaseApi.java"))
           .forEach(
               p -> {
                 try {
@@ -170,6 +171,7 @@ public class BaseApiComplianceTest {
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("_api.py"))
+          .filter(p -> !p.getFileName().toString().equals("base_api.py"))
           .forEach(
               p -> {
                 try {
@@ -190,6 +192,7 @@ public class BaseApiComplianceTest {
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("Api.php"))
+          .filter(p -> !p.getFileName().toString().equals("BaseApi.php"))
           .forEach(
               p -> {
                 try {
@@ -226,7 +229,7 @@ public class BaseApiComplianceTest {
 
   @Test
   void nodeApiClassesExtendBaseApi() throws IOException {
-    Path apiDir = OUTPUT_DIR.resolve("node/apis");
+    Path apiDir = OUTPUT_DIR.resolve("node/api");
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("-api.ts"))
@@ -328,7 +331,7 @@ public class BaseApiComplianceTest {
 
   @Test
   void nodeApiClassesUseInvokeApi() throws IOException {
-    Path apiDir = OUTPUT_DIR.resolve("node/apis");
+    Path apiDir = OUTPUT_DIR.resolve("node/api");
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("-api.ts"))
@@ -354,6 +357,7 @@ public class BaseApiComplianceTest {
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("Api.java"))
+          .filter(p -> !p.getFileName().toString().equals("BaseApi.java"))
           .forEach(
               p -> {
                 try {
@@ -377,6 +381,7 @@ public class BaseApiComplianceTest {
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("_api.py"))
+          .filter(p -> !p.getFileName().toString().equals("base_api.py"))
           .forEach(
               p -> {
                 try {
@@ -400,6 +405,7 @@ public class BaseApiComplianceTest {
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("Api.php"))
+          .filter(p -> !p.getFileName().toString().equals("BaseApi.php"))
           .forEach(
               p -> {
                 try {
@@ -423,6 +429,7 @@ public class BaseApiComplianceTest {
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("_api.rb"))
+          .filter(p -> !p.getFileName().toString().equals("base_api.rb"))
           .forEach(
               p -> {
                 try {
@@ -442,7 +449,7 @@ public class BaseApiComplianceTest {
 
   @Test
   void nodeApiClassesNoInlineHttp() throws IOException {
-    Path apiDir = OUTPUT_DIR.resolve("node/apis");
+    Path apiDir = OUTPUT_DIR.resolve("node/api");
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("-api.ts"))
@@ -468,7 +475,7 @@ public class BaseApiComplianceTest {
   @Test
   void javaStructuralChecks() throws IOException {
     String base = "java/src/main/java/com/example/petstore/";
-    String baseApi = Files.readString(OUTPUT_DIR.resolve(base + "BaseApi.java"));
+    String baseApi = Files.readString(OUTPUT_DIR.resolve(base + "api/BaseApi.java"));
     assertTrue(baseApi.contains("invokeApi("), "BaseApi must have invokeApi method");
 
     String apiClient = Files.readString(OUTPUT_DIR.resolve(base + "ApiClient.java"));
@@ -481,7 +488,7 @@ public class BaseApiComplianceTest {
   @Test
   void pythonStructuralChecks() throws IOException {
     String base = "python/petstore_client/";
-    String baseApi = Files.readString(OUTPUT_DIR.resolve(base + "base_api.py"));
+    String baseApi = Files.readString(OUTPUT_DIR.resolve(base + "api/base_api.py"));
     assertTrue(baseApi.contains("invoke_api("), "base_api must have invoke_api method");
 
     String apiClient = Files.readString(OUTPUT_DIR.resolve(base + "api_client.py"));
@@ -494,7 +501,7 @@ public class BaseApiComplianceTest {
   @Test
   void phpStructuralChecks() throws IOException {
     String base = "php/lib/";
-    String baseApi = Files.readString(OUTPUT_DIR.resolve(base + "BaseApi.php"));
+    String baseApi = Files.readString(OUTPUT_DIR.resolve(base + "Api/BaseApi.php"));
     assertTrue(baseApi.contains("invokeApi("), "BaseApi must have invokeApi method");
 
     String apiClient = Files.readString(OUTPUT_DIR.resolve(base + "ApiClient.php"));
@@ -507,7 +514,7 @@ public class BaseApiComplianceTest {
   @Test
   void rubyStructuralChecks() throws IOException {
     String base = "ruby/lib/petstore_client/";
-    String baseApi = Files.readString(OUTPUT_DIR.resolve(base + "base_api.rb"));
+    String baseApi = Files.readString(OUTPUT_DIR.resolve(base + "api/base_api.rb"));
     assertTrue(baseApi.contains("invoke_api("), "base_api must have invoke_api method");
 
     String apiClient = Files.readString(OUTPUT_DIR.resolve(base + "api_client.rb"));
@@ -519,7 +526,7 @@ public class BaseApiComplianceTest {
 
   @Test
   void nodeStructuralChecks() throws IOException {
-    String baseApi = Files.readString(OUTPUT_DIR.resolve("node/BaseApi.ts"));
+    String baseApi = Files.readString(OUTPUT_DIR.resolve("node/api/BaseApi.ts"));
     assertTrue(baseApi.contains("invokeApi"), "BaseApi must have invokeApi method");
 
     String apiClient = Files.readString(OUTPUT_DIR.resolve("node/ApiClient.ts"));

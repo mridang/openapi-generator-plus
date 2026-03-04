@@ -4,18 +4,17 @@ import com.fasterxml.jackson.core.type.TypeReference;
 
 import com.example.petstore.ApiException;
 import com.example.petstore.ApiClient;
-import com.example.petstore.BaseApi;
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
 import com.example.petstore.ObjectSerializer;
 
-import com.example.petstore.model.Order;
+import com.example.petstore.models.Order;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T20:58:24.663594+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
+@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T21:45:53.747469+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
 public class StoreApi extends BaseApi {
 
   public StoreApi() {

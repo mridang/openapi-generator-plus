@@ -11,12 +11,12 @@
  */
 
 
-package com.example.petstore.model;
+package com.example.petstore.models;
 
 import java.util.Objects;
 import java.util.Arrays;
-import com.example.petstore.model.Category;
-import com.example.petstore.model.Tag;
+import com.example.petstore.models.Category;
+import com.example.petstore.models.Tag;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -42,7 +42,7 @@ import java.util.StringJoiner;
   Pet.JSON_PROPERTY_TAGS,
   Pet.JSON_PROPERTY_STATUS
 })
-@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T20:58:24.663594+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
+@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T21:45:53.747469+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
 public class Pet {
   public static final String JSON_PROPERTY_ID = "id";
   @javax.annotation.Nullable

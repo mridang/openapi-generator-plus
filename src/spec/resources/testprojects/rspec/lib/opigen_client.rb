@@ -20,7 +20,7 @@ require 'opigen_client/object_serializer'
 require 'opigen_client/api_response'
 require 'opigen_client/api_client'
 require 'opigen_client/default_api_client'
-require 'opigen_client/base_api'
+require 'opigen_client/api/base_api'
 
 # Models
 require 'opigen_client/models/api_response'

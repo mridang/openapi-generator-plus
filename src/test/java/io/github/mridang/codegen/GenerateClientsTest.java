@@ -22,7 +22,7 @@ public class GenerateClientsTest {
 
         // Java
         generate("java-plus", spec, tempDir.resolve("java").toString(),
-            Map.of("modelPackage", "com.example.petstore.model",
+            Map.of("modelPackage", "com.example.petstore.models",
                    "apiPackage", "com.example.petstore.api",
                    "invokerPackage", "com.example.petstore"));
 

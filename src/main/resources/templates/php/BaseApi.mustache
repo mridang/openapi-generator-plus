@@ -1,8 +1,15 @@
 <?php
 {{>partial_header}}
 
-namespace {{invokerPackage}};
+namespace {{apiPackage}};
 
+use {{invokerPackage}}\ApiClient;
+use {{invokerPackage}}\ApiException;
+use {{invokerPackage}}\ApiResponse;
+use {{invokerPackage}}\Configuration;
+use {{invokerPackage}}\DefaultApiClient;
+use {{invokerPackage}}\HeaderSelector;
+use {{invokerPackage}}\ObjectSerializer;
 use GuzzleHttp\Psr7\MultipartStream;
 use GuzzleHttp\Utils;
 

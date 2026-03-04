@@ -31,6 +31,8 @@ public class BetterPHPCodegen extends PhpClientCodegen implements UnsupportedFea
     public BetterPHPCodegen() {
         super();
 
+        this.modelDirName = "Models";
+
         this.setLibrary(GUZZLE);
         this.setParameterNamingConvention("camelCase");
         this.setDisallowAdditionalPropertiesIfNotPresent(false);
@@ -78,7 +80,7 @@ public class BetterPHPCodegen extends PhpClientCodegen implements UnsupportedFea
         supportingFiles.add(new SupportingFile("ApiResponse.mustache", toSrcPath(invokerPackage, srcBasePath), "ApiResponse.php"));
         supportingFiles.add(new SupportingFile("ApiClient.mustache", toSrcPath(invokerPackage, srcBasePath), "ApiClient.php"));
         supportingFiles.add(new SupportingFile("DefaultApiClient.mustache", toSrcPath(invokerPackage, srcBasePath), "DefaultApiClient.php"));
-        supportingFiles.add(new SupportingFile("BaseApi.mustache", toSrcPath(invokerPackage, srcBasePath), "BaseApi.php"));
+        supportingFiles.add(new SupportingFile("BaseApi.mustache", toSrcPath(apiPackage, srcBasePath), "BaseApi.php"));
     }
 
     @Override

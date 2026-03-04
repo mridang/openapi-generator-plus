@@ -40,7 +40,7 @@ public class ObjectSerializerComplianceTest {
         spec,
         OUTPUT_DIR.resolve("java").toString(),
         Map.of(
-            "modelPackage", "com.example.petstore.model",
+            "modelPackage", "com.example.petstore.models",
             "apiPackage", "com.example.petstore.api",
             "invokerPackage", "com.example.petstore"));
 
@@ -139,9 +139,9 @@ public class ObjectSerializerComplianceTest {
   @Test
   void pythonBaseApiDelegatesToObjectSerializer() throws IOException {
     String content =
-        Files.readString(OUTPUT_DIR.resolve("python/petstore_client/base_api.py"));
+        Files.readString(OUTPUT_DIR.resolve("python/petstore_client/api/base_api.py"));
     assertTrue(
-        content.contains("from petstore_client.object_serializer import ObjectSerializer"),
+        content.contains("from ..object_serializer import ObjectSerializer"),
         "Python base_api.py must import ObjectSerializer");
     assertTrue(
         content.contains("_object_serializer"),
@@ -153,7 +153,7 @@ public class ObjectSerializerComplianceTest {
     String content =
         Files.readString(
             OUTPUT_DIR.resolve(
-                "java/src/main/java/com/example/petstore/BaseApi.java"));
+                "java/src/main/java/com/example/petstore/api/BaseApi.java"));
     assertTrue(
         content.contains("objectSerializer.serialize"),
         "Java BaseApi must use objectSerializer.serialize()");
@@ -165,7 +165,7 @@ public class ObjectSerializerComplianceTest {
   @Test
   void rubyBaseApiReferencesObjectSerializer() throws IOException {
     String content =
-        Files.readString(OUTPUT_DIR.resolve("ruby/lib/petstore_client/base_api.rb"));
+        Files.readString(OUTPUT_DIR.resolve("ruby/lib/petstore_client/api/base_api.rb"));
     assertTrue(
         content.contains("ObjectSerializer."),
         "Ruby base_api.rb must reference ObjectSerializer");
@@ -198,6 +198,7 @@ public class ObjectSerializerComplianceTest {
       try (Stream<Path> files = Files.walk(apiDir)) {
         files
             .filter(p -> p.getFileName().toString().endsWith("Api.php"))
+            .filter(p -> !p.getFileName().toString().equals("BaseApi.php"))
             .forEach(
                 p -> {
                   try {
@@ -221,6 +222,7 @@ public class ObjectSerializerComplianceTest {
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("Api.java"))
+          .filter(p -> !p.getFileName().toString().equals("BaseApi.java"))
           .forEach(
               p -> {
                 try {
@@ -245,6 +247,7 @@ public class ObjectSerializerComplianceTest {
       try (Stream<Path> files = Files.walk(apiDir)) {
         files
             .filter(p -> p.getFileName().toString().endsWith("_api.py"))
+            .filter(p -> !p.getFileName().toString().equals("base_api.py"))
             .forEach(
                 p -> {
                   try {
@@ -269,6 +272,7 @@ public class ObjectSerializerComplianceTest {
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("_api.rb"))
+          .filter(p -> !p.getFileName().toString().equals("base_api.rb"))
           .forEach(
               p -> {
                 try {
@@ -288,7 +292,7 @@ public class ObjectSerializerComplianceTest {
 
   @Test
   void nodeApiFilesNoInlineSerde() throws IOException {
-    Path apiDir = OUTPUT_DIR.resolve("node/apis");
+    Path apiDir = OUTPUT_DIR.resolve("node/api");
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("-api.ts"))

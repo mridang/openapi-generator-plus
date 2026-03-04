@@ -26,7 +26,7 @@
  * Do not edit the class manually.
  */
 
-namespace PetstoreClient\Model;
+namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
 use \PetstoreClient\ObjectSerializer;

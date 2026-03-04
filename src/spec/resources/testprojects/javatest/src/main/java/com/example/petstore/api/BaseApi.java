@@ -10,7 +10,7 @@
  * Do not edit the class manually.
  */
 
-package com.example.petstore;
+package com.example.petstore.api;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 
@@ -25,7 +25,7 @@ import java.util.StringJoiner;
  * handles URL construction, header selection, authentication, body
  * serialization, request dispatch, and response deserialization.
  */
-@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T20:58:24.663594+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
+@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T21:45:53.747469+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
 public abstract class BaseApi {
 
     protected ApiClient apiClient;

@@ -29,7 +29,6 @@ namespace PetstoreClient\Api;
 
 use PetstoreClient\ApiClient;
 use PetstoreClient\ApiException;
-use PetstoreClient\BaseApi;
 use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\ObjectSerializer;
@@ -58,9 +57,9 @@ class PetApi extends BaseApi
     /**
      * Add a new pet to the store
      *
-     * @param  \PetstoreClient\Model\Pet $pet Create a new pet in the store (required)
+     * @param  \PetstoreClient\Models\Pet $pet Create a new pet in the store (required)
      *
-     * @return \PetstoreClient\Model\Pet
+     * @return \PetstoreClient\Models\Pet
      * @throws ApiException
      */
     public function addPet($pet)
@@ -88,7 +87,7 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             [],
-            '\PetstoreClient\Model\Pet'
+            '\PetstoreClient\Models\Pet'
         );
     }
 
@@ -139,7 +138,7 @@ class PetApi extends BaseApi
      *
      * @param  string|null $status Status values that need to be considered for filter (optional, default to 'available')
      *
-     * @return \PetstoreClient\Model\Pet[]
+     * @return \PetstoreClient\Models\Pet[]
      * @throws ApiException
      */
     public function findPetsByStatus($status = 'available')
@@ -165,7 +164,7 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             [],
-            '\PetstoreClient\Model\Pet[]'
+            '\PetstoreClient\Models\Pet[]'
         );
     }
 
@@ -174,7 +173,7 @@ class PetApi extends BaseApi
      *
      * @param  int $petId ID of pet to return (required)
      *
-     * @return \PetstoreClient\Model\Pet
+     * @return \PetstoreClient\Models\Pet
      * @throws ApiException
      */
     public function getPetById($petId)
@@ -207,7 +206,7 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             [],
-            '\PetstoreClient\Model\Pet'
+            '\PetstoreClient\Models\Pet'
         );
     }
 
@@ -215,9 +214,9 @@ class PetApi extends BaseApi
      * Update an existing pet
      *
      * @param  int $petId ID of pet to update (required)
-     * @param  \PetstoreClient\Model\Pet $pet Pet object that needs to be updated (required)
+     * @param  \PetstoreClient\Models\Pet $pet Pet object that needs to be updated (required)
      *
-     * @return \PetstoreClient\Model\Pet
+     * @return \PetstoreClient\Models\Pet
      * @throws ApiException
      */
     public function updatePet($petId, $pet)
@@ -255,7 +254,7 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             [],
-            '\PetstoreClient\Model\Pet'
+            '\PetstoreClient\Models\Pet'
         );
     }
 

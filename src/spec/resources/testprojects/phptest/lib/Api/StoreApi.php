@@ -29,7 +29,6 @@ namespace PetstoreClient\Api;
 
 use PetstoreClient\ApiClient;
 use PetstoreClient\ApiException;
-use PetstoreClient\BaseApi;
 use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\ObjectSerializer;
@@ -133,7 +132,7 @@ class StoreApi extends BaseApi
      *
      * @param  int $orderId ID of order to return (required)
      *
-     * @return \PetstoreClient\Model\Order
+     * @return \PetstoreClient\Models\Order
      * @throws ApiException
      */
     public function getOrderById($orderId)
@@ -166,16 +165,16 @@ class StoreApi extends BaseApi
             ['application/json'],
             'application/json',
             [],
-            '\PetstoreClient\Model\Order'
+            '\PetstoreClient\Models\Order'
         );
     }
 
     /**
      * Place an order for a pet
      *
-     * @param  \PetstoreClient\Model\Order|null $order (optional)
+     * @param  \PetstoreClient\Models\Order|null $order (optional)
      *
-     * @return \PetstoreClient\Model\Order
+     * @return \PetstoreClient\Models\Order
      * @throws ApiException
      */
     public function placeOrder($order = null)
@@ -198,7 +197,7 @@ class StoreApi extends BaseApi
             ['application/json'],
             'application/json',
             [],
-            '\PetstoreClient\Model\Order'
+            '\PetstoreClient\Models\Order'
         );
     }
 

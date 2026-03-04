@@ -85,7 +85,7 @@ public class BetterPythonCodegen extends PythonClientCodegen implements Unsuppor
         supportingFiles.add(new SupportingFile("api_client.mustache", packagePath, "api_client.py"));
         supportingFiles.add(new SupportingFile("default_api_client.mustache", packagePath, "default_api_client.py"));
         supportingFiles.add(new SupportingFile("api_response.mustache", packagePath, "api_response.py"));
-        supportingFiles.add(new SupportingFile("base_api.mustache", packagePath, "base_api.py"));
+        supportingFiles.add(new SupportingFile("base_api.mustache", apiPath, "base_api.py"));
         supportingFiles.add(new SupportingFile("configuration.mustache", packagePath, "configuration.py"));
         supportingFiles.add(new SupportingFile("exceptions.mustache", packagePath, "exceptions.py"));
         supportingFiles.add(new SupportingFile("object_serializer.mustache", packagePath, "object_serializer.py"));

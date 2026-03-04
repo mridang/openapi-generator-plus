@@ -6,7 +6,7 @@ require 'cgi'
 
 module {{moduleName}}::Api
 {{#operations}}
-  class {{classname}} < {{moduleName}}::BaseApi
+  class {{classname}} < BaseApi
 
     def initialize(api_client = {{moduleName}}::DefaultApiClient.new, config = {{moduleName}}::Configuration.default)
       super(api_client, config)

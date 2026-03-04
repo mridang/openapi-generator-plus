@@ -13,7 +13,7 @@ Generator version: 7.14.0
 require 'cgi'
 
 module OpigenClient::Api
-  class PetApi < OpigenClient::BaseApi
+  class PetApi < BaseApi
 
     def initialize(api_client = OpigenClient::DefaultApiClient.new, config = OpigenClient::Configuration.default)
       super(api_client, config)

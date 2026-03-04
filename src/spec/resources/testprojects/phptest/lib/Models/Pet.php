@@ -1,6 +1,6 @@
 <?php
 /**
- * Order
+ * Pet
  *
  * PHP version 8.1
  *
@@ -26,37 +26,39 @@
  * Do not edit the class manually.
  */
 
-namespace PetstoreClient\Model;
+namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
 use \PetstoreClient\ObjectSerializer;
 
-class Order
+class Pet
 {
-    public const STATUS_PLACED = 'placed';
-    public const STATUS_APPROVED = 'approved';
-    public const STATUS_DELIVERED = 'delivered';
+    public const STATUS_AVAILABLE = 'available';
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_SOLD = 'sold';
 
     #[SerializedName('id')]
     private ?int $id = null;
 
-    #[SerializedName('petId')]
-    private ?int $petId = null;
+    #[SerializedName('name')]
+    private ?string $name = null;
 
-    #[SerializedName('quantity')]
-    private ?int $quantity = null;
+    #[SerializedName('category')]
+    private ?\PetstoreClient\Models\Category $category = null;
 
-    #[SerializedName('shipDate')]
-    private ?\DateTime $shipDate = null;
+    /** @var string[]|null */
+    #[SerializedName('photoUrls')]
+    private ?array $photoUrls = null;
+
+    /** @var \PetstoreClient\Models\Tag[]|null */
+    #[SerializedName('tags')]
+    private ?array $tags = null;
 
     /**
-     * Order Status
+     * pet status in the store
      */
     #[SerializedName('status')]
     private ?string $status = null;
-
-    #[SerializedName('complete')]
-    private ?bool $complete = null;
 
     /**
      * Gets allowable values of the enum
@@ -66,9 +68,9 @@ class Order
     public function getStatusAllowableValues(): array
     {
         return [
-            self::STATUS_PLACED,
-            self::STATUS_APPROVED,
-            self::STATUS_DELIVERED,
+            self::STATUS_AVAILABLE,
+            self::STATUS_PENDING,
+            self::STATUS_SOLD,
         ];
     }
 
@@ -81,6 +83,12 @@ class Order
     {
         $invalidProperties = [];
 
+        if ($this->name === null) {
+            $invalidProperties[] = "'name' can't be null";
+        }
+        if ($this->photoUrls === null) {
+            $invalidProperties[] = "'photoUrls' can't be null";
+        }
         $allowedValues = $this->getStatusAllowableValues();
         if (!is_null($this->status) && !in_array($this->status, $allowedValues, true)) {
             $invalidProperties[] = sprintf(
@@ -130,73 +138,97 @@ class Order
     }
 
     /**
-     * Gets petId
+     * Gets name
      *
-     * @return int|null
+     * @return string|null
      */
-    public function getPetId(): ?int
+    public function getName(): ?string
     {
-        return $this->petId;
+        return $this->name;
     }
 
     /**
-     * Sets petId
+     * Sets name
      *
-     * @param int|null $petId
+     * @param string|null $name
      *
      * @return self
      */
-    public function setPetId(?int $petId): self
+    public function setName(?string $name): self
     {
-        $this->petId = $petId;
+        $this->name = $name;
 
         return $this;
     }
 
     /**
-     * Gets quantity
+     * Gets category
      *
-     * @return int|null
+     * @return \PetstoreClient\Models\Category|null
      */
-    public function getQuantity(): ?int
+    public function getCategory(): ?\PetstoreClient\Models\Category
     {
-        return $this->quantity;
+        return $this->category;
     }
 
     /**
-     * Sets quantity
+     * Sets category
      *
-     * @param int|null $quantity
+     * @param \PetstoreClient\Models\Category|null $category
      *
      * @return self
      */
-    public function setQuantity(?int $quantity): self
+    public function setCategory(?\PetstoreClient\Models\Category $category): self
     {
-        $this->quantity = $quantity;
+        $this->category = $category;
 
         return $this;
     }
 
     /**
-     * Gets shipDate
+     * Gets photoUrls
      *
-     * @return \DateTime|null
+     * @return string[]|null
      */
-    public function getShipDate(): ?\DateTime
+    public function getPhotoUrls(): ?array
     {
-        return $this->shipDate;
+        return $this->photoUrls;
     }
 
     /**
-     * Sets shipDate
+     * Sets photoUrls
      *
-     * @param \DateTime|null $shipDate
+     * @param string[]|null $photoUrls
      *
      * @return self
      */
-    public function setShipDate(?\DateTime $shipDate): self
+    public function setPhotoUrls(?array $photoUrls): self
     {
-        $this->shipDate = $shipDate;
+        $this->photoUrls = $photoUrls;
+
+        return $this;
+    }
+
+    /**
+     * Gets tags
+     *
+     * @return \PetstoreClient\Models\Tag[]|null
+     */
+    public function getTags(): ?array
+    {
+        return $this->tags;
+    }
+
+    /**
+     * Sets tags
+     *
+     * @param \PetstoreClient\Models\Tag[]|null $tags
+     *
+     * @return self
+     */
+    public function setTags(?array $tags): self
+    {
+        $this->tags = $tags;
 
         return $this;
     }
@@ -214,7 +246,7 @@ class Order
     /**
      * Sets status
      *
-     * @param string|null $status Order Status
+     * @param string|null $status pet status in the store
      *
      * @return self
      */
@@ -231,30 +263,6 @@ class Order
             );
         }
         $this->status = $status;
-
-        return $this;
-    }
-
-    /**
-     * Gets complete
-     *
-     * @return bool|null
-     */
-    public function getComplete(): ?bool
-    {
-        return $this->complete;
-    }
-
-    /**
-     * Sets complete
-     *
-     * @param bool|null $complete
-     *
-     * @return self
-     */
-    public function setComplete(?bool $complete): self
-    {
-        $this->complete = $complete;
 
         return $this;
     }

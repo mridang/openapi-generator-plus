@@ -15,13 +15,13 @@
 from typing import Any, Dict, List, Optional, Type, TypeVar
 from urllib.parse import quote, urlencode
 
-from petstore_client.api_client import ApiClient
-from petstore_client.api_response import ApiResponse
-from petstore_client.default_api_client import DefaultApiClient
-from petstore_client.configuration import Configuration
-from petstore_client.object_serializer import ObjectSerializer
-from petstore_client.header_selector import HeaderSelector
-from petstore_client.exceptions import ApiException
+from ..api_client import ApiClient
+from ..api_response import ApiResponse
+from ..default_api_client import DefaultApiClient
+from ..configuration import Configuration
+from ..object_serializer import ObjectSerializer
+from ..header_selector import HeaderSelector
+from ..exceptions import ApiException
 
 T = TypeVar('T')
 

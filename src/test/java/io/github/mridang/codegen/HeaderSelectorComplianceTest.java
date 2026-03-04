@@ -41,7 +41,7 @@ public class HeaderSelectorComplianceTest {
         spec,
         OUTPUT_DIR.resolve("java").toString(),
         Map.of(
-            "modelPackage", "com.example.petstore.model",
+            "modelPackage", "com.example.petstore.models",
             "apiPackage", "com.example.petstore.api",
             "invokerPackage", "com.example.petstore"));
 
@@ -140,9 +140,9 @@ public class HeaderSelectorComplianceTest {
   @Test
   void pythonBaseApiDelegatesToHeaderSelector() throws IOException {
     String content =
-        Files.readString(OUTPUT_DIR.resolve("python/petstore_client/base_api.py"));
+        Files.readString(OUTPUT_DIR.resolve("python/petstore_client/api/base_api.py"));
     assertTrue(
-        content.contains("from petstore_client.header_selector import HeaderSelector"),
+        content.contains("from ..header_selector import HeaderSelector"),
         "Python base_api.py must import HeaderSelector");
     assertTrue(
         content.contains("_header_selector"),
@@ -154,7 +154,7 @@ public class HeaderSelectorComplianceTest {
     String content =
         Files.readString(
             OUTPUT_DIR.resolve(
-                "java/src/main/java/com/example/petstore/BaseApi.java"));
+                "java/src/main/java/com/example/petstore/api/BaseApi.java"));
     assertTrue(
         content.contains("HeaderSelector"),
         "Java BaseApi must reference HeaderSelector");
@@ -166,7 +166,7 @@ public class HeaderSelectorComplianceTest {
   @Test
   void phpBaseApiDelegatesToHeaderSelector() throws IOException {
     String content =
-        Files.readString(OUTPUT_DIR.resolve("php/lib/BaseApi.php"));
+        Files.readString(OUTPUT_DIR.resolve("php/lib/Api/BaseApi.php"));
     assertTrue(
         content.contains("HeaderSelector"),
         "PHP BaseApi.php must reference HeaderSelector");
@@ -178,7 +178,7 @@ public class HeaderSelectorComplianceTest {
   @Test
   void rubyBaseApiDelegatesToHeaderSelector() throws IOException {
     String content =
-        Files.readString(OUTPUT_DIR.resolve("ruby/lib/petstore_client/base_api.rb"));
+        Files.readString(OUTPUT_DIR.resolve("ruby/lib/petstore_client/api/base_api.rb"));
     assertTrue(
         content.contains("HeaderSelector"),
         "Ruby base_api.rb must reference HeaderSelector");
@@ -187,7 +187,7 @@ public class HeaderSelectorComplianceTest {
   @Test
   void nodeBaseApiDelegatesToHeaderSelector() throws IOException {
     String content =
-        Files.readString(OUTPUT_DIR.resolve("node/BaseApi.ts"));
+        Files.readString(OUTPUT_DIR.resolve("node/api/BaseApi.ts"));
     assertTrue(
         content.contains("HeaderSelector"),
         "Node BaseApi.ts must reference HeaderSelector");
