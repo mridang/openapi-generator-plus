@@ -1,11 +1,8 @@
-=begin
-{{> api_info}}
-=end
-
 require 'cgi'
 
 module {{moduleName}}::Api
 {{#operations}}
+  # {{classname}} provides methods for the {{baseName}} API group.
   class {{classname}} < BaseApi
 
     def initialize(api_client = {{moduleName}}::DefaultApiClient.new, config = {{moduleName}}::Configuration.default)
@@ -14,88 +11,86 @@ module {{moduleName}}::Api
   {{#operation}}
 
     # {{summary}}
-    {{#notes}}
+{{#notes}}
     # {{.}}
-    {{/notes}}
-    {{#allParams}}
-    {{#required}}
+{{/notes}}
+{{#allParams}}
+{{#required}}
     # @param {{paramName}} [{{{dataType}}}] {{description}}
-    {{/required}}
-    {{/allParams}}
+{{/required}}
+{{/allParams}}
     # @param [Hash] opts the optional parameters
-    {{#allParams}}
-    {{^required}}
+{{#allParams}}
+{{^required}}
     # @option opts [{{{dataType}}}] :{{paramName}} {{description}}{{#defaultValue}} (default to {{{.}}}){{/defaultValue}}
-    {{/required}}
-    {{/allParams}}
+{{/required}}
+{{/allParams}}
     # @return [{{{returnType}}}{{^returnType}}nil{{/returnType}}]
-    {{#isDeprecated}}
+{{#isDeprecated}}
     # @deprecated
-    {{/isDeprecated}}
+{{/isDeprecated}}
     def {{operationId}}({{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}opts = {})
-      {{#allParams}}
-      {{#required}}
+{{#allParams}}
+{{#required}}
       if {{{paramName}}}.nil?
         fail ArgumentError, "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
       end
-      {{/required}}
-      {{/allParams}}
-
+{{/required}}
+{{/allParams}}
       path = '{{{path}}}'{{#pathParams}}.sub('{' + '{{baseName}}' + '}', CGI.escape({{moduleName}}::ObjectSerializer.to_path_value({{paramName}}))){{/pathParams}}
 
       query_params = {}
-      {{#queryParams}}
-      {{#required}}
+{{#queryParams}}
+{{#required}}
       query_params[:'{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_query_value({{paramName}}{{#collectionFormat}}, :{{collectionFormat}}{{/collectionFormat}})
-      {{/required}}
-      {{^required}}
+{{/required}}
+{{^required}}
       query_params[:'{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_query_value(opts[:'{{paramName}}']{{#collectionFormat}}, :{{collectionFormat}}{{/collectionFormat}}) unless opts[:'{{paramName}}'].nil?
-      {{/required}}
-      {{/queryParams}}
+{{/required}}
+{{/queryParams}}
 
       header_params = {}
-      {{#headerParams}}
-      {{#required}}
+{{#headerParams}}
+{{#required}}
       header_params['{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_header_value({{paramName}})
-      {{/required}}
-      {{^required}}
+{{/required}}
+{{^required}}
       header_params['{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_header_value(opts[:'{{paramName}}']) unless opts[:'{{paramName}}'].nil?
-      {{/required}}
-      {{/headerParams}}
+{{/required}}
+{{/headerParams}}
 
-      {{#hasFormParams}}
+{{#hasFormParams}}
       body = {}
-      {{#formParams}}
-      {{#required}}
+{{#formParams}}
+{{#required}}
       body['{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_form_value({{paramName}})
-      {{/required}}
-      {{^required}}
+{{/required}}
+{{^required}}
       body['{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_form_value(opts[:'{{paramName}}']) unless opts[:'{{paramName}}'].nil?
-      {{/required}}
-      {{/formParams}}
-      {{/hasFormParams}}
-      {{^hasFormParams}}
-      {{#bodyParam}}
-      {{#required}}
+{{/required}}
+{{/formParams}}
+{{/hasFormParams}}
+{{^hasFormParams}}
+{{#bodyParam}}
+{{#required}}
       body = {{{paramName}}}
-      {{/required}}
-      {{^required}}
+{{/required}}
+{{^required}}
       body = opts[:'{{{paramName}}}']
-      {{/required}}
-      {{/bodyParam}}
-      {{^bodyParam}}
+{{/required}}
+{{/bodyParam}}
+{{^bodyParam}}
       body = nil
-      {{/bodyParam}}
-      {{/hasFormParams}}
+{{/bodyParam}}
+{{/hasFormParams}}
 
       invoke_api(:{{httpMethod}}, path, query_params, header_params, body,
         [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
         {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
         {{#returnType}}'{{{.}}}'{{/returnType}}{{^returnType}}nil{{/returnType}})
     end
-    {{^-last}}
-
-    {{/-last}}
+{{^-last}}
+{{/-last}}
   {{/operation}}
   end
 {{/operations}}

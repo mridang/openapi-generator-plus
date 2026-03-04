@@ -18,8 +18,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-{{>generatedAnnotation}}
 {{#operations}}
+/**
+ * {{classname}} provides methods for the {{baseName}} API group.
+{{#description}}
+ * {{.}}
+{{/description}}
+ */
 public class {{classname}} extends BaseApi {
 
   public {{classname}}() {
@@ -33,57 +38,61 @@ public class {{classname}} extends BaseApi {
 
   /**
    * {{summary}}
-   * {{notes}}
-   {{#allParams}}
+{{#notes}}
+   * {{.}}
+{{/notes}}
+{{#allParams}}
    * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional{{^isContainer}}{{#defaultValue}}, default to {{.}}{{/defaultValue}}{{/isContainer}}){{/required}}
-   {{/allParams}}
-   {{#returnType}}
+{{/allParams}}
+{{#returnType}}
    * @return {{returnType}}
-   {{/returnType}}
+{{/returnType}}
    * @throws ApiException if fails to make API call
-   {{#isDeprecated}}
+{{#isDeprecated}}
    * @deprecated
-   {{/isDeprecated}}
-   {{#externalDocs}}
+{{/isDeprecated}}
+{{#externalDocs}}
    * {{description}}
    * @see <a href="{{url}}">{{summary}} Documentation</a>
-   {{/externalDocs}}
+{{/externalDocs}}
    */
-  {{#isDeprecated}}
+{{#isDeprecated}}
   @Deprecated
-  {{/isDeprecated}}
+{{/isDeprecated}}
   public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#allParams}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/allParams}}) throws ApiException {
-    {{#allParams}}{{#required}}
+{{#allParams}}
+{{#required}}
     if ({{paramName}} == null) {
       throw new IllegalArgumentException("Missing the required parameter '{{paramName}}' when calling {{operationId}}");
     }
-    {{/required}}{{/allParams}}
+{{/required}}
+{{/allParams}}
     String path = "{{{path}}}"{{#pathParams}}
       .replace("{" + "{{baseName}}" + "}", encode(ObjectSerializer.toPathValue({{{paramName}}}))){{/pathParams}};
 
     Map<String, Object> queryParams = new HashMap<>();
-    {{#queryParams}}
+{{#queryParams}}
     if ({{paramName}} != null) {
       queryParams.put("{{baseName}}", ObjectSerializer.toQueryValue({{paramName}}{{#collectionFormat}}, "{{collectionFormat}}"{{/collectionFormat}}));
     }
-    {{/queryParams}}
+{{/queryParams}}
 
     Map<String, String> headerParams = new HashMap<>();
-    {{#headerParams}}
+{{#headerParams}}
     if ({{paramName}} != null) {
       headerParams.put("{{baseName}}", ObjectSerializer.toHeaderValue({{paramName}}));
     }
-    {{/headerParams}}
+{{/headerParams}}
 
-    {{#hasFormParams}}
+{{#hasFormParams}}
     Map<String, Object> formBody = new HashMap<>();
-    {{#formParams}}
+{{#formParams}}
     if ({{paramName}} != null) {
       formBody.put("{{baseName}}", ObjectSerializer.toFormValue({{paramName}}));
     }
-    {{/formParams}}
-    {{/hasFormParams}}
+{{/formParams}}
 
+{{/hasFormParams}}
     {{#returnType}}return {{/returnType}}invokeApi(
       "{{httpMethod}}",
       path,

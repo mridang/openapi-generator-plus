@@ -14,7 +14,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T22:28:53.916353+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
+/**
+ * StoreApi provides methods for the Store API group.
+ */
 public class StoreApi extends BaseApi {
 
   public StoreApi() {
@@ -27,23 +29,19 @@ public class StoreApi extends BaseApi {
 
   /**
    * Delete purchase order by ID
-   * 
    * @param orderId ID of the order to delete (required)
    * @throws ApiException if fails to make API call
    */
   public void deleteOrder(Long orderId) throws ApiException {
-    
     if (orderId == null) {
       throw new IllegalArgumentException("Missing the required parameter 'orderId' when calling deleteOrder");
     }
-    
     String path = "/store/order/{orderId}"
       .replace("{" + "orderId" + "}", encode(ObjectSerializer.toPathValue(orderId)));
 
     Map<String, Object> queryParams = new HashMap<>();
 
     Map<String, String> headerParams = new HashMap<>();
-
 
     invokeApi(
       "DELETE",
@@ -59,18 +57,15 @@ public class StoreApi extends BaseApi {
 
   /**
    * Returns pet inventories by status
-   * 
    * @return Map&lt;String, Integer&gt;
    * @throws ApiException if fails to make API call
    */
   public Map<String, Integer> getInventory() throws ApiException {
-    
     String path = "/store/inventory";
 
     Map<String, Object> queryParams = new HashMap<>();
 
     Map<String, String> headerParams = new HashMap<>();
-
 
     return invokeApi(
       "GET",
@@ -86,24 +81,20 @@ public class StoreApi extends BaseApi {
 
   /**
    * Find purchase order by ID
-   * 
    * @param orderId ID of order to return (required)
    * @return Order
    * @throws ApiException if fails to make API call
    */
   public Order getOrderById(Long orderId) throws ApiException {
-    
     if (orderId == null) {
       throw new IllegalArgumentException("Missing the required parameter 'orderId' when calling getOrderById");
     }
-    
     String path = "/store/order/{orderId}"
       .replace("{" + "orderId" + "}", encode(ObjectSerializer.toPathValue(orderId)));
 
     Map<String, Object> queryParams = new HashMap<>();
 
     Map<String, String> headerParams = new HashMap<>();
-
 
     return invokeApi(
       "GET",
@@ -119,19 +110,16 @@ public class StoreApi extends BaseApi {
 
   /**
    * Place an order for a pet
-   * 
    * @param order  (optional)
    * @return Order
    * @throws ApiException if fails to make API call
    */
   public Order placeOrder(Order order) throws ApiException {
-    
     String path = "/store/order";
 
     Map<String, Object> queryParams = new HashMap<>();
 
     Map<String, String> headerParams = new HashMap<>();
-
 
     return invokeApi(
       "POST",

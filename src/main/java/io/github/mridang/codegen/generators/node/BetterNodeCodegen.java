@@ -83,13 +83,13 @@ public class BetterNodeCodegen extends TypeScriptFetchClientCodegen implements U
         super.processOpts();
         this.supportingFiles.clear();
         this.apiPackage = "api";
-        supportingFiles.add(new SupportingFile("ApiClient.mustache", "", "ApiClient.ts"));
-        supportingFiles.add(new SupportingFile("DefaultApiClient.mustache", "", "DefaultApiClient.ts"));
-        supportingFiles.add(new SupportingFile("ApiResponse.mustache", "", "ApiResponse.ts"));
-        supportingFiles.add(new SupportingFile("Configuration.mustache", "", "Configuration.ts"));
-        supportingFiles.add(new SupportingFile("BaseApi.mustache", "api", "BaseApi.ts"));
+        supportingFiles.add(new SupportingFile("api_client.mustache", "", "ApiClient.ts"));
+        supportingFiles.add(new SupportingFile("default_api_client.mustache", "", "DefaultApiClient.ts"));
+        supportingFiles.add(new SupportingFile("api_response.mustache", "", "ApiResponse.ts"));
+        supportingFiles.add(new SupportingFile("configuration.mustache", "", "Configuration.ts"));
+        supportingFiles.add(new SupportingFile("base_api.mustache", "api", "BaseApi.ts"));
         supportingFiles.add(new SupportingFile("object_serializer.mustache", "", "ObjectSerializer.ts"));
-        supportingFiles.add(new SupportingFile("HeaderSelector.mustache", "", "HeaderSelector.ts"));
+        supportingFiles.add(new SupportingFile("header_selector.mustache", "", "HeaderSelector.ts"));
     }
 
     /**

@@ -1,7 +1,3 @@
-/* tslint:disable */
-/* eslint-disable */
-{{>licenseInfo}}
-
 import type { ApiClient } from '../ApiClient{{importFileExtension}}';
 import { BaseApi } from './BaseApi{{importFileExtension}}';
 import { Configuration } from '../Configuration{{importFileExtension}}';
@@ -24,7 +20,10 @@ import {
 
 {{#operations}}
 /**
- * {{#lambda.indented_star_1}}{{{unescapedDescription}}}{{/lambda.indented_star_1}}
+ * {{classname}} provides methods for the {{baseName}} API group.
+{{#description}}
+ * {{.}}
+{{/description}}
  */
 export class {{classname}} extends BaseApi {
 
@@ -34,56 +33,55 @@ export class {{classname}} extends BaseApi {
     {{#operation}}
 
     /**
-     {{#notes}}
+{{#notes}}
      * {{&notes}}
-     {{/notes}}
-     {{#summary}}
+{{/notes}}
+{{#summary}}
      * {{&summary}}
-     {{/summary}}
-     {{#allParams}}
+{{/summary}}
+{{#allParams}}
      * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}
-     {{/allParams}}
-     {{#returnType}}
+{{/allParams}}
+{{#returnType}}
      * @return {{{returnType}}}
-     {{/returnType}}
-     {{#isDeprecated}}
+{{/returnType}}
+{{#isDeprecated}}
      * @deprecated
-     {{/isDeprecated}}
+{{/isDeprecated}}
      */
     async {{nickname}}({{#allParams}}{{paramName}}{{^required}}?{{/required}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isEnum}}{{^-last}}, {{/-last}}{{/allParams}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}> {
-        {{#allParams}}
-        {{#required}}
+{{#allParams}}
+{{#required}}
         if ({{paramName}} == null) {
             throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
         }
-        {{/required}}
-        {{/allParams}}
-
+{{/required}}
+{{/allParams}}
         const path = `{{{path}}}`{{#pathParams}}.replace(`{${"{{baseName}}"}}`, encodeURIComponent(ObjectSerializer.toPathValue({{paramName}}))){{/pathParams}};
 
         const queryParams: Record<string, any> = {};
-        {{#queryParams}}
+{{#queryParams}}
         if ({{paramName}} != null) {
             queryParams['{{baseName}}'] = ObjectSerializer.toQueryValue({{paramName}}{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}});
         }
-        {{/queryParams}}
+{{/queryParams}}
 
         const headerParams: Record<string, string> = {};
-        {{#headerParams}}
+{{#headerParams}}
         if ({{paramName}} != null) {
             headerParams['{{baseName}}'] = ObjectSerializer.toHeaderValue({{paramName}});
         }
-        {{/headerParams}}
+{{/headerParams}}
 
-        {{#hasFormParams}}
+{{#hasFormParams}}
         const formBody: Record<string, any> = {};
-        {{#formParams}}
+{{#formParams}}
         if ({{paramName}} != null) {
             formBody['{{baseName}}'] = ObjectSerializer.toFormValue({{paramName}});
         }
-        {{/formParams}}
-        {{/hasFormParams}}
+{{/formParams}}
 
+{{/hasFormParams}}
         {{#returnType}}return {{/returnType}}{{^returnType}}await {{/returnType}}this.invokeApi(
             '{{httpMethod}}',
             path,

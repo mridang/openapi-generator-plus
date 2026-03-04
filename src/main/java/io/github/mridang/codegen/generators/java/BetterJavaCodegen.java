@@ -78,15 +78,15 @@ public class BetterJavaCodegen extends JavaClientCodegen implements UnsupportedF
         supportingFiles.add(new SupportingFile(
             "apiException.mustache", invokerFolder, "ApiException.java"));
         supportingFiles.add(new SupportingFile(
-            "ApiClient.mustache", invokerFolder, "ApiClient.java"));
+            "api_client.mustache", invokerFolder, "ApiClient.java"));
         supportingFiles.add(new SupportingFile(
-            "DefaultApiClient.mustache", invokerFolder, "DefaultApiClient.java"));
+            "default_api_client.mustache", invokerFolder, "DefaultApiClient.java"));
         supportingFiles.add(new SupportingFile(
-            "ApiResponse.mustache", invokerFolder, "ApiResponse.java"));
+            "api_response.mustache", invokerFolder, "ApiResponse.java"));
         supportingFiles.add(new SupportingFile(
-            "BaseApi.mustache", invokerFolder + File.separator + "api", "BaseApi.java"));
+            "base_api.mustache", invokerFolder + File.separator + "api", "BaseApi.java"));
         supportingFiles.add(new SupportingFile(
-            "Configuration.mustache", invokerFolder, "Configuration.java"));
+            "configuration.mustache", invokerFolder, "Configuration.java"));
         supportingFiles.add(new SupportingFile(
             "object_serializer.mustache", invokerFolder, "ObjectSerializer.java"));
         supportingFiles.add(new SupportingFile(

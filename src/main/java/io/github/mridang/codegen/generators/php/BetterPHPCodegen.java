@@ -73,14 +73,14 @@ public class BetterPHPCodegen extends PhpClientCodegen implements UnsupportedFea
         this.supportingFiles.clear();
 
         // Essential supporting files for API functionality
-        supportingFiles.add(new SupportingFile("Configuration.mustache", toSrcPath(invokerPackage, srcBasePath), "Configuration.php"));
-        supportingFiles.add(new SupportingFile("ObjectSerializer.mustache", toSrcPath(invokerPackage, srcBasePath), "ObjectSerializer.php"));
+        supportingFiles.add(new SupportingFile("configuration.mustache", toSrcPath(invokerPackage, srcBasePath), "Configuration.php"));
+        supportingFiles.add(new SupportingFile("object_serializer.mustache", toSrcPath(invokerPackage, srcBasePath), "ObjectSerializer.php"));
         supportingFiles.add(new SupportingFile("ApiException.mustache", toSrcPath(invokerPackage, srcBasePath), "ApiException.php"));
-        supportingFiles.add(new SupportingFile("HeaderSelector.mustache", toSrcPath(invokerPackage, srcBasePath), "HeaderSelector.php"));
-        supportingFiles.add(new SupportingFile("ApiResponse.mustache", toSrcPath(invokerPackage, srcBasePath), "ApiResponse.php"));
-        supportingFiles.add(new SupportingFile("ApiClient.mustache", toSrcPath(invokerPackage, srcBasePath), "ApiClient.php"));
-        supportingFiles.add(new SupportingFile("DefaultApiClient.mustache", toSrcPath(invokerPackage, srcBasePath), "DefaultApiClient.php"));
-        supportingFiles.add(new SupportingFile("BaseApi.mustache", toSrcPath(apiPackage, srcBasePath), "BaseApi.php"));
+        supportingFiles.add(new SupportingFile("header_selector.mustache", toSrcPath(invokerPackage, srcBasePath), "HeaderSelector.php"));
+        supportingFiles.add(new SupportingFile("api_response.mustache", toSrcPath(invokerPackage, srcBasePath), "ApiResponse.php"));
+        supportingFiles.add(new SupportingFile("api_client.mustache", toSrcPath(invokerPackage, srcBasePath), "ApiClient.php"));
+        supportingFiles.add(new SupportingFile("default_api_client.mustache", toSrcPath(invokerPackage, srcBasePath), "DefaultApiClient.php"));
+        supportingFiles.add(new SupportingFile("base_api.mustache", toSrcPath(apiPackage, srcBasePath), "BaseApi.php"));
     }
 
     @Override

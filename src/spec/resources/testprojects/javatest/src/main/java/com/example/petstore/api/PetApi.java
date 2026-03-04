@@ -14,7 +14,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T22:28:53.916353+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
+/**
+ * PetApi provides methods for the Pet API group.
+ */
 public class PetApi extends BaseApi {
 
   public PetApi() {
@@ -27,23 +29,19 @@ public class PetApi extends BaseApi {
 
   /**
    * Add a new pet to the store
-   * 
    * @param pet Create a new pet in the store (required)
    * @return Pet
    * @throws ApiException if fails to make API call
    */
   public Pet addPet(Pet pet) throws ApiException {
-    
     if (pet == null) {
       throw new IllegalArgumentException("Missing the required parameter 'pet' when calling addPet");
     }
-    
     String path = "/pet";
 
     Map<String, Object> queryParams = new HashMap<>();
 
     Map<String, String> headerParams = new HashMap<>();
-
 
     return invokeApi(
       "POST",
@@ -59,23 +57,19 @@ public class PetApi extends BaseApi {
 
   /**
    * Deletes a pet
-   * 
    * @param petId Pet id to delete (required)
    * @throws ApiException if fails to make API call
    */
   public void deletePet(Long petId) throws ApiException {
-    
     if (petId == null) {
       throw new IllegalArgumentException("Missing the required parameter 'petId' when calling deletePet");
     }
-    
     String path = "/pet/{petId}"
       .replace("{" + "petId" + "}", encode(ObjectSerializer.toPathValue(petId)));
 
     Map<String, Object> queryParams = new HashMap<>();
 
     Map<String, String> headerParams = new HashMap<>();
-
 
     invokeApi(
       "DELETE",
@@ -91,13 +85,11 @@ public class PetApi extends BaseApi {
 
   /**
    * Finds Pets by status
-   * 
    * @param status Status values that need to be considered for filter (optional, default to available)
    * @return List&lt;Pet&gt;
    * @throws ApiException if fails to make API call
    */
   public List<Pet> findPetsByStatus(String status) throws ApiException {
-    
     String path = "/pet/findByStatus";
 
     Map<String, Object> queryParams = new HashMap<>();
@@ -106,7 +98,6 @@ public class PetApi extends BaseApi {
     }
 
     Map<String, String> headerParams = new HashMap<>();
-
 
     return invokeApi(
       "GET",
@@ -128,18 +119,15 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    */
   public Pet getPetById(Long petId) throws ApiException {
-    
     if (petId == null) {
       throw new IllegalArgumentException("Missing the required parameter 'petId' when calling getPetById");
     }
-    
     String path = "/pet/{petId}"
       .replace("{" + "petId" + "}", encode(ObjectSerializer.toPathValue(petId)));
 
     Map<String, Object> queryParams = new HashMap<>();
 
     Map<String, String> headerParams = new HashMap<>();
-
 
     return invokeApi(
       "GET",
@@ -155,29 +143,24 @@ public class PetApi extends BaseApi {
 
   /**
    * Update an existing pet
-   * 
    * @param petId ID of pet to update (required)
    * @param pet Pet object that needs to be updated (required)
    * @return Pet
    * @throws ApiException if fails to make API call
    */
   public Pet updatePet(Long petId, Pet pet) throws ApiException {
-    
     if (petId == null) {
       throw new IllegalArgumentException("Missing the required parameter 'petId' when calling updatePet");
     }
-    
     if (pet == null) {
       throw new IllegalArgumentException("Missing the required parameter 'pet' when calling updatePet");
     }
-    
     String path = "/pet/{petId}"
       .replace("{" + "petId" + "}", encode(ObjectSerializer.toPathValue(petId)));
 
     Map<String, Object> queryParams = new HashMap<>();
 
     Map<String, String> headerParams = new HashMap<>();
-
 
     return invokeApi(
       "PUT",
