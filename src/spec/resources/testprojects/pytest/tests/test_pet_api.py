@@ -2,7 +2,6 @@
 
 import pytest
 from petstore_client.api.pet_api import PetApi
-from petstore_client.api_client import ApiClient
 from petstore_client.configuration import Configuration
 from petstore_client.models.pet import Pet
 
@@ -12,9 +11,8 @@ class TestPetApi:
 
     @pytest.fixture(autouse=True)
     def setup(self, api_base_url):
-        config = Configuration(host=api_base_url)
-        client = ApiClient(config)
-        self.api = PetApi(client)
+        config = Configuration(base_url=api_base_url)
+        self.api = PetApi(config=config)
 
     def test_add_pet(self):
         pet = Pet(

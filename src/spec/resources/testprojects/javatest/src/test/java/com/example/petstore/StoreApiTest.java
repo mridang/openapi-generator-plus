@@ -1,8 +1,7 @@
 package com.example.petstore;
 
 import com.example.petstore.api.StoreApi;
-import com.example.petstore.model.Order;
-import com.example.petstore.ApiClient;
+import com.example.petstore.models.Order;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -24,9 +23,9 @@ class StoreApiTest {
         if (baseUrl == null || baseUrl.isEmpty()) {
             baseUrl = "http://localhost:4010";
         }
-        ApiClient client = new ApiClient();
-        client.setBasePath(baseUrl);
-        api = new StoreApi(client);
+        Configuration config = new Configuration();
+        config.setBaseUrl(baseUrl);
+        api = new StoreApi(new DefaultApiClient(), config);
     }
 
     @Test

@@ -2,11 +2,10 @@
 
 namespace PetstoreClient\Test\Api;
 
-use GuzzleHttp\Client;
 use PHPUnit\Framework\TestCase;
 use PetstoreClient\Api\StoreApi;
 use PetstoreClient\Configuration;
-use PetstoreClient\Model\Order;
+use PetstoreClient\Models\Order;
 
 /**
  * Integration tests for the Store API endpoints.
@@ -18,8 +17,8 @@ class StoreApiTest extends TestCase
     protected function setUp(): void
     {
         $config = Configuration::getDefaultConfiguration()
-            ->setHost(getenv('API_BASE_URL') ?: 'http://localhost:4010');
-        $this->api = new StoreApi(new Client(), $config);
+            ->setBaseUrl(getenv('API_BASE_URL') ?: 'http://localhost:4010');
+        $this->api = new StoreApi(config: $config);
     }
 
     public function testGetInventory(): void
@@ -31,14 +30,13 @@ class StoreApiTest extends TestCase
 
     public function testPlaceOrder(): void
     {
-        $order = new Order([
-            'id' => 1,
-            'petId' => 12345,
-            'quantity' => 1,
-            'shipDate' => new \DateTime(),
-            'status' => 'placed',
-            'complete' => false
-        ]);
+        $order = new Order();
+        $order->setId(1);
+        $order->setPetId(12345);
+        $order->setQuantity(1);
+        $order->setShipDate(new \DateTime());
+        $order->setStatus('placed');
+        $order->setComplete(false);
 
         $result = $this->api->placeOrder($order);
 

@@ -2,11 +2,10 @@
 
 namespace PetstoreClient\Test\Api;
 
-use GuzzleHttp\Client;
 use PHPUnit\Framework\TestCase;
 use PetstoreClient\Api\PetApi;
 use PetstoreClient\Configuration;
-use PetstoreClient\Model\Pet;
+use PetstoreClient\Models\Pet;
 
 /**
  * Integration tests for the Pet API endpoints.
@@ -18,18 +17,17 @@ class PetApiTest extends TestCase
     protected function setUp(): void
     {
         $config = Configuration::getDefaultConfiguration()
-            ->setHost(getenv('API_BASE_URL') ?: 'http://localhost:4010');
-        $this->api = new PetApi(new Client(), $config);
+            ->setBaseUrl(getenv('API_BASE_URL') ?: 'http://localhost:4010');
+        $this->api = new PetApi(config: $config);
     }
 
     public function testAddPet(): void
     {
-        $pet = new Pet([
-            'id' => 12345,
-            'name' => 'TestDog',
-            'photoUrls' => ['http://example.com/photo.jpg'],
-            'status' => 'available'
-        ]);
+        $pet = new Pet();
+        $pet->setId(12345);
+        $pet->setName('TestDog');
+        $pet->setPhotoUrls(['http://example.com/photo.jpg']);
+        $pet->setStatus('available');
 
         $result = $this->api->addPet($pet);
 
@@ -57,12 +55,11 @@ class PetApiTest extends TestCase
 
     public function testUpdatePet(): void
     {
-        $pet = new Pet([
-            'id' => 1,
-            'name' => 'UpdatedDog',
-            'photoUrls' => ['http://example.com/updated.jpg'],
-            'status' => 'pending'
-        ]);
+        $pet = new Pet();
+        $pet->setId(1);
+        $pet->setName('UpdatedDog');
+        $pet->setPhotoUrls(['http://example.com/updated.jpg']);
+        $pet->setStatus('pending');
 
         $result = $this->api->updatePet(1, $pet);
 

@@ -13,39 +13,39 @@ require 'opigen_client/header_selector'
 RSpec.describe OpigenClient::HeaderSelector do
   let(:header_selector) { described_class.new }
 
-  describe '#is_json_mime' do
+  describe '#json_mime?' do
     it 'returns true for application/json' do
-      expect(header_selector.is_json_mime('application/json')).to be true
+      expect(header_selector.json_mime?('application/json')).to be true
     end
 
     it 'returns true for application/json with charset' do
-      expect(header_selector.is_json_mime('application/json; charset=UTF-8')).to be true
+      expect(header_selector.json_mime?('application/json; charset=UTF-8')).to be true
     end
 
     it 'returns true for uppercase APPLICATION/JSON (case insensitive)' do
-      expect(header_selector.is_json_mime('APPLICATION/JSON')).to be true
+      expect(header_selector.json_mime?('APPLICATION/JSON')).to be true
     end
 
     it 'returns true for vendor JSON types' do
-      expect(header_selector.is_json_mime('application/vnd.api+json')).to be true
-      expect(header_selector.is_json_mime('application/vnd.company+json')).to be true
-      expect(header_selector.is_json_mime('application/hal+json')).to be true
+      expect(header_selector.json_mime?('application/vnd.api+json')).to be true
+      expect(header_selector.json_mime?('application/vnd.company+json')).to be true
+      expect(header_selector.json_mime?('application/hal+json')).to be true
     end
 
     it 'returns false for text/html' do
-      expect(header_selector.is_json_mime('text/html')).to be false
+      expect(header_selector.json_mime?('text/html')).to be false
     end
 
     it 'returns false for application/xml' do
-      expect(header_selector.is_json_mime('application/xml')).to be false
+      expect(header_selector.json_mime?('application/xml')).to be false
     end
 
     it 'returns false for nil' do
-      expect(header_selector.is_json_mime(nil)).to be false
+      expect(header_selector.json_mime?(nil)).to be false
     end
 
     it 'returns false for empty string' do
-      expect(header_selector.is_json_mime('')).to be false
+      expect(header_selector.json_mime?('')).to be false
     end
   end
 

@@ -1,4 +1,4 @@
-package io.github.mridang.codegen.spec.php;
+package io.github.mridang.codegen.spec.node;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -16,38 +16,36 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
-import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 @Testcontainers
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-public class PhpClientSpec extends AbstractIntegrationSpec {
+public class NodeClientSpec extends AbstractIntegrationSpec {
 
-  private static final String INVOKER_PACKAGE = "PetstoreClient";
-  private static final Path TEST_PROJECT_PATH = Paths.get("src/spec/resources/testprojects/phptest");
+  private static final Path TEST_PROJECT_PATH = Paths.get("src/spec/resources/testprojects/nodetest");
 
   @Override
   protected String getGeneratorName() {
-    return "php-plus";
+    return "node-plus";
   }
 
   @Override
   protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("composer:2");
+    return DockerImageName.parse("node:20-slim");
   }
 
   @Override
   protected String[] getBuildCommands() {
     return new String[] {
-      "composer install --no-interaction --prefer-dist",
-      "API_BASE_URL=http://prism:4010 vendor/bin/phpunit --testdox"
+      "npm install",
+      "API_BASE_URL=http://prism:4010 npx jest --verbose"
     };
   }
 
   @Override
   protected String getTestScript(String prismBaseUrl) {
-    // Not used - we run phpunit directly
+    // Not used - we run jest directly
     return "";
   }
 
@@ -58,7 +56,7 @@ public class PhpClientSpec extends AbstractIntegrationSpec {
     }
 
     copyDirectory(TEST_PROJECT_PATH, tempOutputDir);
-    logger.info("Copied PHP test project from {} to {}", TEST_PROJECT_PATH, tempOutputDir);
+    logger.info("Copied Node test project from {} to {}", TEST_PROJECT_PATH, tempOutputDir);
   }
 
   private void copyDirectory(Path source, Path target) throws IOException {
@@ -81,30 +79,24 @@ public class PhpClientSpec extends AbstractIntegrationSpec {
 
   @Test
   @Order(1)
-  void shouldGeneratePhpClient() {
-    // Generate client - generator creates its own lib/PetstoreClient/ structure
-    generateClientToDirectory(
-        Map.of(CodegenConstants.INVOKER_PACKAGE, INVOKER_PACKAGE),
-        tempOutputDir);
+  void shouldGenerateNodeClient() {
+    generateClientToDirectory(Map.of(), tempOutputDir);
 
-    assertThat(tempOutputDir.resolve("lib/Api")).exists();
-    assertThat(tempOutputDir.resolve("lib/Models")).exists();
+    assertThat(tempOutputDir.resolve("api")).exists();
+    assertThat(tempOutputDir.resolve("models")).exists();
   }
 
   @Test
   @Order(2)
-  void shouldRunPhpTests() {
+  void shouldRunNodeTests() {
     String prismUrl = startPrismServer();
 
-    // Generate client - generator creates its own lib/PetstoreClient/ structure
-    generateClientToDirectory(
-        Map.of(CodegenConstants.INVOKER_PACKAGE, INVOKER_PACKAGE),
-        tempOutputDir);
+    generateClientToDirectory(Map.of(), tempOutputDir);
 
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 
     assertThat(result.isSuccess())
-        .withFailMessage("PHPUnit tests failed:\n%s", result.output())
+        .withFailMessage("Jest tests failed:\n%s", result.output())
         .isTrue();
   }
 

@@ -85,13 +85,13 @@ public class JavaClientSpec extends AbstractIntegrationSpec {
     // Generate client into the src/main/java directory
     generateClientToDirectory(
         Map.of(
-            CodegenConstants.MODEL_PACKAGE, PACKAGE_NAME + ".model",
+            CodegenConstants.MODEL_PACKAGE, PACKAGE_NAME + ".models",
             CodegenConstants.API_PACKAGE, PACKAGE_NAME + ".api",
             CodegenConstants.INVOKER_PACKAGE, PACKAGE_NAME),
         tempOutputDir);
 
     assertThat(tempOutputDir.resolve("src/main/java/com/example/petstore/api")).exists();
-    assertThat(tempOutputDir.resolve("src/main/java/com/example/petstore/model")).exists();
+    assertThat(tempOutputDir.resolve("src/main/java/com/example/petstore/models")).exists();
   }
 
   @Test
@@ -102,7 +102,7 @@ public class JavaClientSpec extends AbstractIntegrationSpec {
     // Generate client into the temp directory
     generateClientToDirectory(
         Map.of(
-            CodegenConstants.MODEL_PACKAGE, PACKAGE_NAME + ".model",
+            CodegenConstants.MODEL_PACKAGE, PACKAGE_NAME + ".models",
             CodegenConstants.API_PACKAGE, PACKAGE_NAME + ".api",
             CodegenConstants.INVOKER_PACKAGE, PACKAGE_NAME),
         tempOutputDir);

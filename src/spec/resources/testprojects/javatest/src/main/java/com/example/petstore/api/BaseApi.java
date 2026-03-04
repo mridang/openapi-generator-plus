@@ -14,6 +14,14 @@ package com.example.petstore.api;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 
+import com.example.petstore.ApiClient;
+import com.example.petstore.ApiException;
+import com.example.petstore.ApiResponse;
+import com.example.petstore.Configuration;
+import com.example.petstore.DefaultApiClient;
+import com.example.petstore.HeaderSelector;
+import com.example.petstore.ObjectSerializer;
+
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;

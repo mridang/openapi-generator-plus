@@ -3,7 +3,6 @@
 import pytest
 from datetime import datetime, timezone
 from petstore_client.api.store_api import StoreApi
-from petstore_client.api_client import ApiClient
 from petstore_client.configuration import Configuration
 from petstore_client.models.order import Order
 
@@ -13,9 +12,8 @@ class TestStoreApi:
 
     @pytest.fixture(autouse=True)
     def setup(self, api_base_url):
-        config = Configuration(host=api_base_url)
-        client = ApiClient(config)
-        self.api = StoreApi(client)
+        config = Configuration(base_url=api_base_url)
+        self.api = StoreApi(config=config)
 
     def test_get_inventory(self):
         result = self.api.get_inventory()
