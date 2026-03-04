@@ -7,6 +7,7 @@ import com.example.petstore.ApiClient;
 import com.example.petstore.BaseApi;
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
+import com.example.petstore.ObjectSerializer;
 
 import com.example.petstore.model.Order;
 
@@ -14,7 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T20:27:25.232612+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
+@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T20:58:24.663594+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
 public class StoreApi extends BaseApi {
 
   public StoreApi() {
@@ -38,11 +39,12 @@ public class StoreApi extends BaseApi {
     }
     
     String path = "/store/order/{orderId}"
-      .replace("{" + "orderId" + "}", encode(String.valueOf(orderId)));
+      .replace("{" + "orderId" + "}", encode(ObjectSerializer.toPathValue(orderId)));
 
     Map<String, Object> queryParams = new HashMap<>();
 
     Map<String, String> headerParams = new HashMap<>();
+
 
     invokeApi(
       "DELETE",
@@ -71,6 +73,7 @@ public class StoreApi extends BaseApi {
 
     Map<String, String> headerParams = new HashMap<>();
 
+
     return invokeApi(
       "GET",
       path,
@@ -98,11 +101,12 @@ public class StoreApi extends BaseApi {
     }
     
     String path = "/store/order/{orderId}"
-      .replace("{" + "orderId" + "}", encode(String.valueOf(orderId)));
+      .replace("{" + "orderId" + "}", encode(ObjectSerializer.toPathValue(orderId)));
 
     Map<String, Object> queryParams = new HashMap<>();
 
     Map<String, String> headerParams = new HashMap<>();
+
 
     return invokeApi(
       "GET",
@@ -131,6 +135,7 @@ public class StoreApi extends BaseApi {
     Map<String, Object> queryParams = new HashMap<>();
 
     Map<String, String> headerParams = new HashMap<>();
+
 
     return invokeApi(
       "POST",

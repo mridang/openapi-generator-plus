@@ -48,11 +48,7 @@ use {{invokerPackage}}\ObjectSerializer;
 
 {{#operation}}
     /**
-     * Operation {{{operationId}}}
-{{#summary}}
-     *
-     * {{.}}
-{{/summary}}
+     * {{summary}}
      *
 {{#description}}
      * {{.}}
@@ -62,14 +58,17 @@ use {{invokerPackage}}\ObjectSerializer;
      * @param  {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}{{#description}} {{.}}{{/description}} {{#required}}(required){{/required}}{{^required}}(optional{{#defaultValue}}, default to {{{.}}}{{/defaultValue}}){{/required}}
 {{/allParams}}
      *
-     * @return {{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}null{{/returnType}}
+     * @return {{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}void{{/returnType}}
      * @throws ApiException
+{{#isDeprecated}}
+     * @deprecated
+{{/isDeprecated}}
      */
-    public function {{operationId}}({{#allParams}}{{^vendorExtensions.x-is-empty-body}}${{paramName}}{{^required}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/required}}{{/vendorExtensions.x-is-empty-body}}{{#vendorExtensions.x-is-empty-body}}${{paramName}} = new \stdClass(){{/vendorExtensions.x-is-empty-body}}, {{/allParams}})
+    public function {{operationId}}({{#allParams}}{{^vendorExtensions.x-is-empty-body}}${{paramName}}{{^required}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/required}}{{/vendorExtensions.x-is-empty-body}}{{#vendorExtensions.x-is-empty-body}}${{paramName}} = new \stdClass(){{/vendorExtensions.x-is-empty-body}}{{^-last}}, {{/-last}}{{/allParams}})
     {
         {{#allParams}}
         {{#required}}
-        if (${{paramName}} === null || (is_array(${{paramName}}) && count(${{paramName}}) === 0)) {
+        if (${{paramName}} === null) {
             throw new \InvalidArgumentException(
                 'Missing the required parameter ${{paramName}} when calling {{operationId}}'
             );
@@ -79,25 +78,18 @@ use {{invokerPackage}}\ObjectSerializer;
 
         $path = '{{{path}}}';
         {{#pathParams}}
-        if (${{paramName}} !== null) {
-            $path = str_replace(
-                '{' . '{{baseName}}' . '}',
-                ObjectSerializer::toPathValue(${{paramName}}),
-                $path
-            );
-        }
+        $path = str_replace(
+            '{' . '{{baseName}}' . '}',
+            ObjectSerializer::toPathValue(${{paramName}}),
+            $path
+        );
         {{/pathParams}}
 
         $queryParams = [];
         {{#queryParams}}
-        $queryParams = array_merge($queryParams, ObjectSerializer::toQueryValue(
-            ${{paramName}},
-            '{{baseName}}',
-            '{{#schema}}{{openApiType}}{{/schema}}',
-            '{{style}}',
-            {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}},
-            {{required}}
-        ) ?? []);
+        if (${{paramName}} !== null) {
+            $queryParams['{{baseName}}'] = ObjectSerializer::toQueryValue(${{paramName}}{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}});
+        }
         {{/queryParams}}
 
         $headerParams = [];
@@ -111,19 +103,7 @@ use {{invokerPackage}}\ObjectSerializer;
         $body = [];
         {{#formParams}}
         if (${{paramName}} !== null) {
-            {{#isFile}}
-            $paramFiles = is_array(${{paramName}}) ? ${{paramName}} : [${{paramName}}];
-            $body['{{baseName}}'] = [];
-            foreach ($paramFiles as $paramFile) {
-                $body['{{baseName}}'][] = \GuzzleHttp\Psr7\Utils::tryFopen(
-                    ObjectSerializer::toFormValue($paramFile),
-                    'rb'
-                );
-            }
-            {{/isFile}}
-            {{^isFile}}
             $body['{{baseName}}'] = ObjectSerializer::toFormValue(${{paramName}});
-            {{/isFile}}
         }
         {{/formParams}}
         {{/hasFormParams}}
@@ -142,9 +122,9 @@ use {{invokerPackage}}\ObjectSerializer;
             $queryParams,
             $headerParams,
             $body,
-            [{{#produces}}'{{mediaType}}', {{/produces}}],
-            {{#hasConsumes}}'{{#consumes}}{{#-first}}{{mediaType}}{{/-first}}{{/consumes}}'{{/hasConsumes}}{{^hasConsumes}}null{{/hasConsumes}},
-            [{{#authMethods}}'{{name}}', {{/authMethods}}],
+            [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
+            {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
+            [{{#authMethods}}'{{name}}'{{^-last}}, {{/-last}}{{/authMethods}}],
             {{#returnType}}'{{{returnType}}}'{{/returnType}}{{^returnType}}null{{/returnType}}
         );
     }

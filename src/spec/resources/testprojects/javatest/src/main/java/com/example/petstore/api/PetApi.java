@@ -7,6 +7,7 @@ import com.example.petstore.ApiClient;
 import com.example.petstore.BaseApi;
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
+import com.example.petstore.ObjectSerializer;
 
 import com.example.petstore.model.Pet;
 
@@ -14,7 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T20:27:25.232612+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
+@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T20:58:24.663594+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
 public class PetApi extends BaseApi {
 
   public PetApi() {
@@ -44,6 +45,7 @@ public class PetApi extends BaseApi {
 
     Map<String, String> headerParams = new HashMap<>();
 
+
     return invokeApi(
       "POST",
       path,
@@ -70,11 +72,12 @@ public class PetApi extends BaseApi {
     }
     
     String path = "/pet/{petId}"
-      .replace("{" + "petId" + "}", encode(String.valueOf(petId)));
+      .replace("{" + "petId" + "}", encode(ObjectSerializer.toPathValue(petId)));
 
     Map<String, Object> queryParams = new HashMap<>();
 
     Map<String, String> headerParams = new HashMap<>();
+
 
     invokeApi(
       "DELETE",
@@ -102,10 +105,11 @@ public class PetApi extends BaseApi {
 
     Map<String, Object> queryParams = new HashMap<>();
     if (status != null) {
-      queryParams.put("status", status);
+      queryParams.put("status", ObjectSerializer.toQueryValue(status));
     }
 
     Map<String, String> headerParams = new HashMap<>();
+
 
     return invokeApi(
       "GET",
@@ -134,11 +138,12 @@ public class PetApi extends BaseApi {
     }
     
     String path = "/pet/{petId}"
-      .replace("{" + "petId" + "}", encode(String.valueOf(petId)));
+      .replace("{" + "petId" + "}", encode(ObjectSerializer.toPathValue(petId)));
 
     Map<String, Object> queryParams = new HashMap<>();
 
     Map<String, String> headerParams = new HashMap<>();
+
 
     return invokeApi(
       "GET",
@@ -172,11 +177,12 @@ public class PetApi extends BaseApi {
     }
     
     String path = "/pet/{petId}"
-      .replace("{" + "petId" + "}", encode(String.valueOf(petId)));
+      .replace("{" + "petId" + "}", encode(ObjectSerializer.toPathValue(petId)));
 
     Map<String, Object> queryParams = new HashMap<>();
 
     Map<String, String> headerParams = new HashMap<>();
+
 
     return invokeApi(
       "PUT",

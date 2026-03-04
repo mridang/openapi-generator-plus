@@ -69,7 +69,7 @@ class ObjectSerializer:
         try:
             if isinstance(obj, BaseModel):
                 return obj.model_dump_json(by_alias=True, exclude_none=True)
-            return json.dumps(self._sanitize_for_serialization(obj), default=str)
+            return json.dumps(ObjectSerializer._sanitize_for_serialization(obj), default=str)
         except Exception as e:
             raise SerializationError(f"Failed to serialize object to JSON: {e}", e)
 
@@ -89,7 +89,8 @@ class ObjectSerializer:
         except Exception as e:
             raise SerializationError(f"Failed to deserialize JSON to {target_type}: {e}", e)
 
-    def _sanitize_for_serialization(self, obj: Any) -> Any:
+    @classmethod
+    def _sanitize_for_serialization(cls, obj: Any) -> Any:
         """Convert an object to a JSON-safe dict/list/primitive.
 
         For Pydantic models, delegates to model_dump().
@@ -102,19 +103,19 @@ class ObjectSerializer:
             return obj.value
         elif isinstance(obj, SecretStr):
             return obj.get_secret_value()
-        elif isinstance(obj, self.PRIMITIVE_TYPES):
+        elif isinstance(obj, cls.PRIMITIVE_TYPES):
             return obj
         elif isinstance(obj, list):
-            return [self._sanitize_for_serialization(item) for item in obj]
+            return [cls._sanitize_for_serialization(item) for item in obj]
         elif isinstance(obj, tuple):
-            return tuple(self._sanitize_for_serialization(item) for item in obj)
+            return tuple(cls._sanitize_for_serialization(item) for item in obj)
         elif isinstance(obj, (datetime.datetime, datetime.date)):
             return obj.isoformat()
         elif isinstance(obj, decimal.Decimal):
             return str(obj)
         elif isinstance(obj, dict):
             return {
-                key: self._sanitize_for_serialization(val)
+                key: cls._sanitize_for_serialization(val)
                 for key, val in obj.items()
             }
         else:
@@ -166,19 +167,21 @@ class ObjectSerializer:
         else:
             return data
 
-    def to_path_value(self, value: Any) -> str:
+    @classmethod
+    def to_path_value(cls, value: Any) -> str:
         """Convert a value to a string suitable for use as a path parameter."""
         if value is None:
             return ''
-        return str(self._sanitize_for_serialization(value))
+        return str(cls._sanitize_for_serialization(value))
 
-    def to_query_value(self, value: Any, collection_format: Optional[str] = None) -> Any:
+    @classmethod
+    def to_query_value(cls, value: Any, collection_format: Optional[str] = None) -> Any:
         """Convert a value to a representation suitable for use as a query parameter."""
         if value is None:
             return None
 
         if isinstance(value, list):
-            sanitized = [str(self._sanitize_for_serialization(v)) for v in value]
+            sanitized = [str(cls._sanitize_for_serialization(v)) for v in value]
             if collection_format == 'csv':
                 return ','.join(sanitized)
             elif collection_format == 'ssv':
@@ -192,19 +195,21 @@ class ObjectSerializer:
             else:
                 return ','.join(sanitized)
 
-        return str(self._sanitize_for_serialization(value))
+        return str(cls._sanitize_for_serialization(value))
 
-    def to_header_value(self, value: Any) -> str:
+    @classmethod
+    def to_header_value(cls, value: Any) -> str:
         """Convert a value to a string suitable for use as a header parameter."""
         if value is None:
             return ''
 
         if isinstance(value, list):
-            return ','.join(str(self._sanitize_for_serialization(v)) for v in value)
+            return ','.join(str(cls._sanitize_for_serialization(v)) for v in value)
 
-        return str(self._sanitize_for_serialization(value))
+        return str(cls._sanitize_for_serialization(value))
 
-    def to_form_value(self, value: Any) -> Any:
+    @classmethod
+    def to_form_value(cls, value: Any) -> Any:
         """Convert a value to a representation suitable for use as a form parameter."""
         if value is None:
             return ''
@@ -212,4 +217,4 @@ class ObjectSerializer:
         if isinstance(value, (bytes, bytearray)):
             return value
 
-        return str(self._sanitize_for_serialization(value))
+        return str(cls._sanitize_for_serialization(value))

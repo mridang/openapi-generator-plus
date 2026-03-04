@@ -13,6 +13,7 @@ from {{packageName}}.api_client import ApiClient
 from {{packageName}}.default_api_client import DefaultApiClient
 from {{packageName}}.configuration import Configuration
 from {{packageName}}.base_api import BaseApi
+from {{packageName}}.object_serializer import ObjectSerializer
 
 
 {{#operations}}
@@ -46,6 +47,9 @@ class {{classname}}(BaseApi):
         {{#returnType}}
         :return: {{{returnType}}}
         {{/returnType}}
+        {{#isDeprecated}}
+        .. deprecated::
+        {{/isDeprecated}}
         """
         {{#allParams}}
         {{#required}}
@@ -54,26 +58,37 @@ class {{classname}}(BaseApi):
         {{/required}}
         {{/allParams}}
 
-        path = '{{{path}}}'{{#pathParams}}.replace('{' + '{{baseName}}' + '}', quote(str({{paramName}}), safe='')){{/pathParams}}
+        path = '{{{path}}}'{{#pathParams}}.replace('{' + '{{baseName}}' + '}', quote(ObjectSerializer.to_path_value({{paramName}}), safe='')){{/pathParams}}
 
         query_params: Dict[str, Any] = {}
         {{#queryParams}}
         if {{paramName}} is not None:
-            query_params['{{baseName}}'] = {{paramName}}
+            query_params['{{baseName}}'] = ObjectSerializer.to_query_value({{paramName}}{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}})
         {{/queryParams}}
 
         header_params: Dict[str, str] = {}
         {{#headerParams}}
         if {{paramName}} is not None:
-            header_params['{{baseName}}'] = str({{paramName}})
+            header_params['{{baseName}}'] = ObjectSerializer.to_header_value({{paramName}})
         {{/headerParams}}
+
+        {{#hasFormParams}}
+        body: Dict[str, Any] = {}
+        {{#formParams}}
+        if {{paramName}} is not None:
+            body['{{baseName}}'] = ObjectSerializer.to_form_value({{paramName}})
+        {{/formParams}}
+        {{/hasFormParams}}
+        {{^hasFormParams}}
+        body = {{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}None{{/bodyParam}}
+        {{/hasFormParams}}
 
         return self.invoke_api(
             '{{httpMethod}}',
             path,
             query_params,
             header_params,
-            {{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}None{{/bodyParam}},
+            body,
             [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
             {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
             [{{#authMethods}}'{{name}}'{{^-last}}, {{/-last}}{{/authMethods}}],

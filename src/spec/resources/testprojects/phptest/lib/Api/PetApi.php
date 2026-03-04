@@ -56,8 +56,6 @@ class PetApi extends BaseApi
     }
 
     /**
-     * Operation addPet
-     *
      * Add a new pet to the store
      *
      * @param  \PetstoreClient\Model\Pet $pet Create a new pet in the store (required)
@@ -65,9 +63,9 @@ class PetApi extends BaseApi
      * @return \PetstoreClient\Model\Pet
      * @throws ApiException
      */
-    public function addPet($pet, )
+    public function addPet($pet)
     {
-        if ($pet === null || (is_array($pet) && count($pet) === 0)) {
+        if ($pet === null) {
             throw new \InvalidArgumentException(
                 'Missing the required parameter $pet when calling addPet'
             );
@@ -87,7 +85,7 @@ class PetApi extends BaseApi
             $queryParams,
             $headerParams,
             $body,
-            ['application/json', ],
+            ['application/json'],
             'application/json',
             [],
             '\PetstoreClient\Model\Pet'
@@ -95,31 +93,27 @@ class PetApi extends BaseApi
     }
 
     /**
-     * Operation deletePet
-     *
      * Deletes a pet
      *
      * @param  int $petId Pet id to delete (required)
      *
-     * @return null
+     * @return void
      * @throws ApiException
      */
-    public function deletePet($petId, )
+    public function deletePet($petId)
     {
-        if ($petId === null || (is_array($petId) && count($petId) === 0)) {
+        if ($petId === null) {
             throw new \InvalidArgumentException(
                 'Missing the required parameter $petId when calling deletePet'
             );
         }
 
         $path = '/pet/{petId}';
-        if ($petId !== null) {
-            $path = str_replace(
-                '{' . 'petId' . '}',
-                ObjectSerializer::toPathValue($petId),
-                $path
-            );
-        }
+        $path = str_replace(
+            '{' . 'petId' . '}',
+            ObjectSerializer::toPathValue($petId),
+            $path
+        );
 
         $queryParams = [];
 
@@ -134,15 +128,13 @@ class PetApi extends BaseApi
             $headerParams,
             $body,
             [],
-            null,
+            'application/json',
             [],
             null
         );
     }
 
     /**
-     * Operation findPetsByStatus
-     *
      * Finds Pets by status
      *
      * @param  string|null $status Status values that need to be considered for filter (optional, default to 'available')
@@ -150,20 +142,15 @@ class PetApi extends BaseApi
      * @return \PetstoreClient\Model\Pet[]
      * @throws ApiException
      */
-    public function findPetsByStatus($status = 'available', )
+    public function findPetsByStatus($status = 'available')
     {
 
         $path = '/pet/findByStatus';
 
         $queryParams = [];
-        $queryParams = array_merge($queryParams, ObjectSerializer::toQueryValue(
-            $status,
-            'status',
-            'string',
-            'form',
-            true,
-            false
-        ) ?? []);
+        if ($status !== null) {
+            $queryParams['status'] = ObjectSerializer::toQueryValue($status);
+        }
 
         $headerParams = [];
 
@@ -175,16 +162,14 @@ class PetApi extends BaseApi
             $queryParams,
             $headerParams,
             $body,
-            ['application/json', ],
-            null,
+            ['application/json'],
+            'application/json',
             [],
             '\PetstoreClient\Model\Pet[]'
         );
     }
 
     /**
-     * Operation getPetById
-     *
      * Find pet by ID
      *
      * @param  int $petId ID of pet to return (required)
@@ -192,22 +177,20 @@ class PetApi extends BaseApi
      * @return \PetstoreClient\Model\Pet
      * @throws ApiException
      */
-    public function getPetById($petId, )
+    public function getPetById($petId)
     {
-        if ($petId === null || (is_array($petId) && count($petId) === 0)) {
+        if ($petId === null) {
             throw new \InvalidArgumentException(
                 'Missing the required parameter $petId when calling getPetById'
             );
         }
 
         $path = '/pet/{petId}';
-        if ($petId !== null) {
-            $path = str_replace(
-                '{' . 'petId' . '}',
-                ObjectSerializer::toPathValue($petId),
-                $path
-            );
-        }
+        $path = str_replace(
+            '{' . 'petId' . '}',
+            ObjectSerializer::toPathValue($petId),
+            $path
+        );
 
         $queryParams = [];
 
@@ -221,16 +204,14 @@ class PetApi extends BaseApi
             $queryParams,
             $headerParams,
             $body,
-            ['application/json', ],
-            null,
+            ['application/json'],
+            'application/json',
             [],
             '\PetstoreClient\Model\Pet'
         );
     }
 
     /**
-     * Operation updatePet
-     *
      * Update an existing pet
      *
      * @param  int $petId ID of pet to update (required)
@@ -239,27 +220,25 @@ class PetApi extends BaseApi
      * @return \PetstoreClient\Model\Pet
      * @throws ApiException
      */
-    public function updatePet($petId, $pet, )
+    public function updatePet($petId, $pet)
     {
-        if ($petId === null || (is_array($petId) && count($petId) === 0)) {
+        if ($petId === null) {
             throw new \InvalidArgumentException(
                 'Missing the required parameter $petId when calling updatePet'
             );
         }
-        if ($pet === null || (is_array($pet) && count($pet) === 0)) {
+        if ($pet === null) {
             throw new \InvalidArgumentException(
                 'Missing the required parameter $pet when calling updatePet'
             );
         }
 
         $path = '/pet/{petId}';
-        if ($petId !== null) {
-            $path = str_replace(
-                '{' . 'petId' . '}',
-                ObjectSerializer::toPathValue($petId),
-                $path
-            );
-        }
+        $path = str_replace(
+            '{' . 'petId' . '}',
+            ObjectSerializer::toPathValue($petId),
+            $path
+        );
 
         $queryParams = [];
 
@@ -273,7 +252,7 @@ class PetApi extends BaseApi
             $queryParams,
             $headerParams,
             $body,
-            ['application/json', ],
+            ['application/json'],
             'application/json',
             [],
             '\PetstoreClient\Model\Pet'

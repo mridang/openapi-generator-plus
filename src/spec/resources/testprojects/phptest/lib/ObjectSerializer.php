@@ -284,127 +284,32 @@ class ObjectSerializer
     }
 
     /**
-     * Take query parameter properties and turn it into an array suitable for
-     * native http_build_query or GuzzleHttp\Psr7\Query::build.
+     * Convert a value to a representation suitable for use as a query parameter.
+     * For arrays, joins using the specified collection format delimiter.
      *
-     * @param mixed  $value       Parameter value
-     * @param string $paramName   Parameter name
-     * @param string $openApiType OpenAPIType eg. array or object
-     * @param string $style       Parameter serialization style
-     * @param bool   $explode     Parameter explode option
-     * @param bool   $required    Whether query param is required or not
+     * @param mixed       $value            the value to convert
+     * @param string|null $collectionFormat  the format: csv, ssv, tsv, pipes, or multi
      *
-     * @return array
+     * @return mixed the query value
      */
-    public static function toQueryValue(
-        mixed $value,
-        string $paramName,
-        string $openApiType = 'string',
-        string $style = 'form',
-        bool $explode = true,
-        bool $required = true
-    ): array {
-        if (self::isEmptyValue($value, $openApiType)) {
-            if ($required) {
-                return ["{$paramName}" => ''];
-            } else {
-                return [];
-            }
-        }
-
-        if ($openApiType === '\\DateTime' && $value instanceof \DateTime) {
-            return ["{$paramName}" => $value->format(self::$dateTimeFormat)];
-        }
-
-        $query = [];
-        $value = (in_array($openApiType, ['object', 'array'], true)) ? (array) $value : $value;
-
-        $flattenArray = function ($arr, $name, &$result = []) use (&$flattenArray, $style, $explode) {
-            if (!is_array($arr)) return $arr;
-
-            foreach ($arr as $k => $v) {
-                $prop = ($style === 'deepObject') ? "{$name}[{$k}]" : $k;
-
-                if (is_array($v)) {
-                    $flattenArray($v, $prop, $result);
-                } else {
-                    if ($style !== 'deepObject' && !$explode) {
-                        $result[] = $prop;
-                    }
-                    $result[$prop] = $v;
-                }
-            }
-            return $result;
-        };
-
-        $value = $flattenArray($value, $paramName);
-
-        if ($openApiType === 'array' && $style === 'deepObject' && $explode) {
-            return $value;
-        }
-
-        if ($openApiType === 'object' && ($style === 'deepObject' || $explode)) {
-            return $value;
-        }
-
-        if ('boolean' === $openApiType && is_bool($value)) {
-            $value = self::convertBoolToQueryStringFormat($value);
-        }
-
-        $query[$paramName] = ($explode) ? $value : self::serializeCollection((array) $value, $style);
-
-        return $query;
-    }
-
-    /**
-     * Convert boolean value to format for query string.
-     *
-     * @param bool $value Boolean value
-     *
-     * @return int|string Boolean value in format
-     */
-    public static function convertBoolToQueryStringFormat(bool $value): int|string
+    public static function toQueryValue(mixed $value, ?string $collectionFormat = null): mixed
     {
-        if (Configuration::BOOLEAN_FORMAT_STRING == Configuration::getDefaultConfiguration()->getBooleanFormatForQueryString()) {
-            return $value ? 'true' : 'false';
-        }
-
-        return (int) $value;
-    }
-
-    /**
-     * Checks if a value is empty, based on its OpenAPI type.
-     *
-     * @param mixed  $value
-     * @param string $openApiType
-     *
-     * @return bool true if $value is empty
-     */
-    private static function isEmptyValue(mixed $value, string $openApiType): bool
-    {
-        if (!empty($value)) {
-            return false;
-        }
-
         if ($value === null) {
-            return true;
+            return null;
         }
 
-        switch ($openApiType) {
-            case 'int':
-            case 'integer':
-                return $value !== 0;
-            case 'number':
-            case 'float':
-                return $value !== 0 && $value !== 0.0;
-            case 'bool':
-            case 'boolean':
-                return !in_array($value, [false, 0], true);
-            case 'string':
-                return $value === '';
-            default:
-                return true;
+        if (is_array($value)) {
+            $items = array_map([self::class, 'toString'], $value);
+            return match ($collectionFormat) {
+                'ssv' => implode(' ', $items),
+                'tsv' => implode("\t", $items),
+                'pipes' => implode('|', $items),
+                'multi' => $items,
+                default => implode(',', $items), // csv or default
+            };
         }
+
+        return self::toString($value);
     }
 
     /**

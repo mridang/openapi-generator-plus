@@ -7,6 +7,7 @@ import {{invokerPackage}}.ApiClient;
 import {{invokerPackage}}.BaseApi;
 import {{invokerPackage}}.Configuration;
 import {{invokerPackage}}.DefaultApiClient;
+import {{invokerPackage}}.ObjectSerializer;
 {{#models.0}}
 import {{modelPackage}}.*;
 {{/models.0}}
@@ -59,28 +60,37 @@ public class {{classname}} extends BaseApi {
     }
     {{/required}}{{/allParams}}
     String path = "{{{path}}}"{{#pathParams}}
-      .replace("{" + "{{baseName}}" + "}", encode(String.valueOf({{{paramName}}}))){{/pathParams}};
+      .replace("{" + "{{baseName}}" + "}", encode(ObjectSerializer.toPathValue({{{paramName}}}))){{/pathParams}};
 
     Map<String, Object> queryParams = new HashMap<>();
     {{#queryParams}}
     if ({{paramName}} != null) {
-      queryParams.put("{{baseName}}", {{paramName}});
+      queryParams.put("{{baseName}}", ObjectSerializer.toQueryValue({{paramName}}{{#collectionFormat}}, "{{collectionFormat}}"{{/collectionFormat}}));
     }
     {{/queryParams}}
 
     Map<String, String> headerParams = new HashMap<>();
     {{#headerParams}}
     if ({{paramName}} != null) {
-      headerParams.put("{{baseName}}", String.valueOf({{paramName}}));
+      headerParams.put("{{baseName}}", ObjectSerializer.toHeaderValue({{paramName}}));
     }
     {{/headerParams}}
+
+    {{#hasFormParams}}
+    Map<String, Object> formBody = new HashMap<>();
+    {{#formParams}}
+    if ({{paramName}} != null) {
+      formBody.put("{{baseName}}", ObjectSerializer.toFormValue({{paramName}}));
+    }
+    {{/formParams}}
+    {{/hasFormParams}}
 
     {{#returnType}}return {{/returnType}}invokeApi(
       "{{httpMethod}}",
       path,
       queryParams,
       headerParams,
-      {{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}},
+      {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
       new String[]{ {{#produces}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/produces}} },
       {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
       new String[]{ {{#authMethods}}"{{name}}"{{^-last}}, {{/-last}}{{/authMethods}} },

@@ -15,134 +15,135 @@ require 'cgi'
 module OpigenClient::Api
   class PetApi < OpigenClient::BaseApi
 
-  def initialize(api_client = OpigenClient::DefaultApiClient.new, config = OpigenClient::Configuration.default)
-    super(api_client, config)
-  end
-      # Add a new pet to the store
-          # @param pet [Pet] Create a new pet in the store
-      # @param [Hash] opts the optional parameters
+    def initialize(api_client = OpigenClient::DefaultApiClient.new, config = OpigenClient::Configuration.default)
+      super(api_client, config)
+    end
+
+    # Add a new pet to the store
+    # @param pet [Pet] Create a new pet in the store
+    # @param [Hash] opts the optional parameters
     # @return [Pet]
     def add_pet(pet, opts = {})
-          # verify the required parameter 'pet' is set
-          if config.client_side_validation && pet.nil?
-          fail ArgumentError, "Missing the required parameter 'pet' when calling Api::PetApi.add_pet"
-          end
-    path = '/pet'
+      if pet.nil?
+        fail ArgumentError, "Missing the required parameter 'pet' when calling PetApi.add_pet"
+      end
 
-    query_params = {}
+      path = '/pet'
 
-    header_params = {}
+      query_params = {}
 
-    body = pet
+      header_params = {}
 
-    invoke_api(:POST, path, query_params, header_params, body,
-      ['application/json'],
-      'application/json',
-      [],
-      'Pet')
+      body = pet
+
+      invoke_api(:POST, path, query_params, header_params, body,
+        ['application/json'],
+        'application/json',
+        [],
+        'Pet')
     end
 
-      # Deletes a pet
-          # @param pet_id [Integer] Pet id to delete
-      # @param [Hash] opts the optional parameters
+
+    # Deletes a pet
+    # @param pet_id [Integer] Pet id to delete
+    # @param [Hash] opts the optional parameters
     # @return [nil]
     def delete_pet(pet_id, opts = {})
-          # verify the required parameter 'pet_id' is set
-          if config.client_side_validation && pet_id.nil?
-          fail ArgumentError, "Missing the required parameter 'pet_id' when calling Api::PetApi.delete_pet"
-          end
-    path = '/pet/{petId}'.sub('{' + 'petId' + '}', CGI.escape(OpigenClient::ObjectSerializer.to_path_value(pet_id)))
+      if pet_id.nil?
+        fail ArgumentError, "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
+      end
 
-    query_params = {}
+      path = '/pet/{petId}'.sub('{' + 'petId' + '}', CGI.escape(OpigenClient::ObjectSerializer.to_path_value(pet_id)))
 
-    header_params = {}
+      query_params = {}
 
-    body = nil
+      header_params = {}
 
-    invoke_api(:DELETE, path, query_params, header_params, body,
-      [],
-      nil,
-      [],
-      nil)
+      body = nil
+
+      invoke_api(:DELETE, path, query_params, header_params, body,
+        [],
+        'application/json',
+        [],
+        nil)
     end
 
-      # Finds Pets by status
-      # @param [Hash] opts the optional parameters
-        # @option opts [String] :status Status values that need to be considered for filter (default to 'available')
+
+    # Finds Pets by status
+    # @param [Hash] opts the optional parameters
+    # @option opts [String] :status Status values that need to be considered for filter (default to 'available')
     # @return [Array<Pet>]
     def find_pets_by_status(opts = {})
-            allowable_values = ["available", "pending", "sold"]
-            if config.client_side_validation && opts[:'status'] && !allowable_values.include?(opts[:'status'])
-            fail ArgumentError, "invalid value for \"status\", must be one of #{allowable_values}"
-            end
-    path = '/pet/findByStatus'
 
-    query_params = {}
-        query_params[:'status'] = OpigenClient::ObjectSerializer.to_query_value(opts[:'status']) if !opts[:'status'].nil?
+      path = '/pet/findByStatus'
 
-    header_params = {}
+      query_params = {}
+      query_params[:'status'] = OpigenClient::ObjectSerializer.to_query_value(opts[:'status']) unless opts[:'status'].nil?
 
-    body = nil
+      header_params = {}
 
-    invoke_api(:GET, path, query_params, header_params, body,
-      ['application/json'],
-      nil,
-      [],
-      'Array<Pet>')
+      body = nil
+
+      invoke_api(:GET, path, query_params, header_params, body,
+        ['application/json'],
+        'application/json',
+        [],
+        'Array<Pet>')
     end
 
-      # Find pet by ID
-      # Returns a single pet
-          # @param pet_id [Integer] ID of pet to return
-      # @param [Hash] opts the optional parameters
+
+    # Find pet by ID
+    # Returns a single pet
+    # @param pet_id [Integer] ID of pet to return
+    # @param [Hash] opts the optional parameters
     # @return [Pet]
     def get_pet_by_id(pet_id, opts = {})
-          # verify the required parameter 'pet_id' is set
-          if config.client_side_validation && pet_id.nil?
-          fail ArgumentError, "Missing the required parameter 'pet_id' when calling Api::PetApi.get_pet_by_id"
-          end
-    path = '/pet/{petId}'.sub('{' + 'petId' + '}', CGI.escape(OpigenClient::ObjectSerializer.to_path_value(pet_id)))
+      if pet_id.nil?
+        fail ArgumentError, "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
+      end
 
-    query_params = {}
+      path = '/pet/{petId}'.sub('{' + 'petId' + '}', CGI.escape(OpigenClient::ObjectSerializer.to_path_value(pet_id)))
 
-    header_params = {}
+      query_params = {}
 
-    body = nil
+      header_params = {}
 
-    invoke_api(:GET, path, query_params, header_params, body,
-      ['application/json'],
-      nil,
-      [],
-      'Pet')
+      body = nil
+
+      invoke_api(:GET, path, query_params, header_params, body,
+        ['application/json'],
+        'application/json',
+        [],
+        'Pet')
     end
 
-      # Update an existing pet
-          # @param pet_id [Integer] ID of pet to update
-          # @param pet [Pet] Pet object that needs to be updated
-      # @param [Hash] opts the optional parameters
+
+    # Update an existing pet
+    # @param pet_id [Integer] ID of pet to update
+    # @param pet [Pet] Pet object that needs to be updated
+    # @param [Hash] opts the optional parameters
     # @return [Pet]
     def update_pet(pet_id, pet, opts = {})
-          # verify the required parameter 'pet_id' is set
-          if config.client_side_validation && pet_id.nil?
-          fail ArgumentError, "Missing the required parameter 'pet_id' when calling Api::PetApi.update_pet"
-          end
-          # verify the required parameter 'pet' is set
-          if config.client_side_validation && pet.nil?
-          fail ArgumentError, "Missing the required parameter 'pet' when calling Api::PetApi.update_pet"
-          end
-    path = '/pet/{petId}'.sub('{' + 'petId' + '}', CGI.escape(OpigenClient::ObjectSerializer.to_path_value(pet_id)))
+      if pet_id.nil?
+        fail ArgumentError, "Missing the required parameter 'pet_id' when calling PetApi.update_pet"
+      end
+      if pet.nil?
+        fail ArgumentError, "Missing the required parameter 'pet' when calling PetApi.update_pet"
+      end
 
-    query_params = {}
+      path = '/pet/{petId}'.sub('{' + 'petId' + '}', CGI.escape(OpigenClient::ObjectSerializer.to_path_value(pet_id)))
 
-    header_params = {}
+      query_params = {}
 
-    body = pet
+      header_params = {}
 
-    invoke_api(:PUT, path, query_params, header_params, body,
-      ['application/json'],
-      'application/json',
-      [],
-      'Pet')
+      body = pet
+
+      invoke_api(:PUT, path, query_params, header_params, body,
+        ['application/json'],
+        'application/json',
+        [],
+        'Pet')
     end
   end
 end

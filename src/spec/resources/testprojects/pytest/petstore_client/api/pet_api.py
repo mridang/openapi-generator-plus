@@ -24,6 +24,7 @@ from petstore_client.api_client import ApiClient
 from petstore_client.default_api_client import DefaultApiClient
 from petstore_client.configuration import Configuration
 from petstore_client.base_api import BaseApi
+from petstore_client.object_serializer import ObjectSerializer
 
 
 class PetApi(BaseApi):
@@ -59,12 +60,14 @@ class PetApi(BaseApi):
 
         header_params: Dict[str, str] = {}
 
+        body = pet
+
         return self.invoke_api(
             'POST',
             path,
             query_params,
             header_params,
-            pet,
+            body,
             ['application/json'],
             'application/json',
             [],
@@ -83,18 +86,20 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id' when calling delete_pet")
 
-        path = '/pet/{petId}'.replace('{' + 'petId' + '}', quote(str(pet_id), safe=''))
+        path = '/pet/{petId}'.replace('{' + 'petId' + '}', quote(ObjectSerializer.to_path_value(pet_id), safe=''))
 
         query_params: Dict[str, Any] = {}
 
         header_params: Dict[str, str] = {}
+
+        body = None
 
         return self.invoke_api(
             'DELETE',
             path,
             query_params,
             header_params,
-            None,
+            body,
             [],
             'application/json',
             [],
@@ -116,16 +121,18 @@ class PetApi(BaseApi):
 
         query_params: Dict[str, Any] = {}
         if status is not None:
-            query_params['status'] = status
+            query_params['status'] = ObjectSerializer.to_query_value(status)
 
         header_params: Dict[str, str] = {}
+
+        body = None
 
         return self.invoke_api(
             'GET',
             path,
             query_params,
             header_params,
-            None,
+            body,
             ['application/json'],
             'application/json',
             [],
@@ -145,18 +152,20 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id' when calling get_pet_by_id")
 
-        path = '/pet/{petId}'.replace('{' + 'petId' + '}', quote(str(pet_id), safe=''))
+        path = '/pet/{petId}'.replace('{' + 'petId' + '}', quote(ObjectSerializer.to_path_value(pet_id), safe=''))
 
         query_params: Dict[str, Any] = {}
 
         header_params: Dict[str, str] = {}
+
+        body = None
 
         return self.invoke_api(
             'GET',
             path,
             query_params,
             header_params,
-            None,
+            body,
             ['application/json'],
             'application/json',
             [],
@@ -180,18 +189,20 @@ class PetApi(BaseApi):
         if pet is None:
             raise ValueError("Missing the required parameter 'pet' when calling update_pet")
 
-        path = '/pet/{petId}'.replace('{' + 'petId' + '}', quote(str(pet_id), safe=''))
+        path = '/pet/{petId}'.replace('{' + 'petId' + '}', quote(ObjectSerializer.to_path_value(pet_id), safe=''))
 
         query_params: Dict[str, Any] = {}
 
         header_params: Dict[str, str] = {}
+
+        body = pet
 
         return self.invoke_api(
             'PUT',
             path,
             query_params,
             header_params,
-            pet,
+            body,
             ['application/json'],
             'application/json',
             [],

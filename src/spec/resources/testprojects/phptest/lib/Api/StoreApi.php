@@ -56,31 +56,27 @@ class StoreApi extends BaseApi
     }
 
     /**
-     * Operation deleteOrder
-     *
      * Delete purchase order by ID
      *
      * @param  int $orderId ID of the order to delete (required)
      *
-     * @return null
+     * @return void
      * @throws ApiException
      */
-    public function deleteOrder($orderId, )
+    public function deleteOrder($orderId)
     {
-        if ($orderId === null || (is_array($orderId) && count($orderId) === 0)) {
+        if ($orderId === null) {
             throw new \InvalidArgumentException(
                 'Missing the required parameter $orderId when calling deleteOrder'
             );
         }
 
         $path = '/store/order/{orderId}';
-        if ($orderId !== null) {
-            $path = str_replace(
-                '{' . 'orderId' . '}',
-                ObjectSerializer::toPathValue($orderId),
-                $path
-            );
-        }
+        $path = str_replace(
+            '{' . 'orderId' . '}',
+            ObjectSerializer::toPathValue($orderId),
+            $path
+        );
 
         $queryParams = [];
 
@@ -95,15 +91,13 @@ class StoreApi extends BaseApi
             $headerParams,
             $body,
             [],
-            null,
+            'application/json',
             [],
             null
         );
     }
 
     /**
-     * Operation getInventory
-     *
      * Returns pet inventories by status
      *
      *
@@ -127,16 +121,14 @@ class StoreApi extends BaseApi
             $queryParams,
             $headerParams,
             $body,
-            ['application/json', ],
-            null,
+            ['application/json'],
+            'application/json',
             [],
             'array<string,int>'
         );
     }
 
     /**
-     * Operation getOrderById
-     *
      * Find purchase order by ID
      *
      * @param  int $orderId ID of order to return (required)
@@ -144,22 +136,20 @@ class StoreApi extends BaseApi
      * @return \PetstoreClient\Model\Order
      * @throws ApiException
      */
-    public function getOrderById($orderId, )
+    public function getOrderById($orderId)
     {
-        if ($orderId === null || (is_array($orderId) && count($orderId) === 0)) {
+        if ($orderId === null) {
             throw new \InvalidArgumentException(
                 'Missing the required parameter $orderId when calling getOrderById'
             );
         }
 
         $path = '/store/order/{orderId}';
-        if ($orderId !== null) {
-            $path = str_replace(
-                '{' . 'orderId' . '}',
-                ObjectSerializer::toPathValue($orderId),
-                $path
-            );
-        }
+        $path = str_replace(
+            '{' . 'orderId' . '}',
+            ObjectSerializer::toPathValue($orderId),
+            $path
+        );
 
         $queryParams = [];
 
@@ -173,16 +163,14 @@ class StoreApi extends BaseApi
             $queryParams,
             $headerParams,
             $body,
-            ['application/json', ],
-            null,
+            ['application/json'],
+            'application/json',
             [],
             '\PetstoreClient\Model\Order'
         );
     }
 
     /**
-     * Operation placeOrder
-     *
      * Place an order for a pet
      *
      * @param  \PetstoreClient\Model\Order|null $order (optional)
@@ -190,7 +178,7 @@ class StoreApi extends BaseApi
      * @return \PetstoreClient\Model\Order
      * @throws ApiException
      */
-    public function placeOrder($order = null, )
+    public function placeOrder($order = null)
     {
 
         $path = '/store/order';
@@ -207,7 +195,7 @@ class StoreApi extends BaseApi
             $queryParams,
             $headerParams,
             $body,
-            ['application/json', ],
+            ['application/json'],
             'application/json',
             [],
             '\PetstoreClient\Model\Order'

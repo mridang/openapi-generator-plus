@@ -30,7 +30,7 @@ import java.util.Map;
 /**
  * Default implementation of {@link ApiClient} using Apache HttpClient 5.
  */
-@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T20:27:25.232612+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
+@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T20:58:24.663594+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
 public class DefaultApiClient implements ApiClient {
 
     private String basePath;

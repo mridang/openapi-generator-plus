@@ -24,6 +24,7 @@ from petstore_client.api_client import ApiClient
 from petstore_client.default_api_client import DefaultApiClient
 from petstore_client.configuration import Configuration
 from petstore_client.base_api import BaseApi
+from petstore_client.object_serializer import ObjectSerializer
 
 
 class StoreApi(BaseApi):
@@ -52,18 +53,20 @@ class StoreApi(BaseApi):
         if order_id is None:
             raise ValueError("Missing the required parameter 'order_id' when calling delete_order")
 
-        path = '/store/order/{orderId}'.replace('{' + 'orderId' + '}', quote(str(order_id), safe=''))
+        path = '/store/order/{orderId}'.replace('{' + 'orderId' + '}', quote(ObjectSerializer.to_path_value(order_id), safe=''))
 
         query_params: Dict[str, Any] = {}
 
         header_params: Dict[str, str] = {}
+
+        body = None
 
         return self.invoke_api(
             'DELETE',
             path,
             query_params,
             header_params,
-            None,
+            body,
             [],
             'application/json',
             [],
@@ -85,12 +88,14 @@ class StoreApi(BaseApi):
 
         header_params: Dict[str, str] = {}
 
+        body = None
+
         return self.invoke_api(
             'GET',
             path,
             query_params,
             header_params,
-            None,
+            body,
             ['application/json'],
             'application/json',
             [],
@@ -110,18 +115,20 @@ class StoreApi(BaseApi):
         if order_id is None:
             raise ValueError("Missing the required parameter 'order_id' when calling get_order_by_id")
 
-        path = '/store/order/{orderId}'.replace('{' + 'orderId' + '}', quote(str(order_id), safe=''))
+        path = '/store/order/{orderId}'.replace('{' + 'orderId' + '}', quote(ObjectSerializer.to_path_value(order_id), safe=''))
 
         query_params: Dict[str, Any] = {}
 
         header_params: Dict[str, str] = {}
+
+        body = None
 
         return self.invoke_api(
             'GET',
             path,
             query_params,
             header_params,
-            None,
+            body,
             ['application/json'],
             'application/json',
             [],
@@ -145,12 +152,14 @@ class StoreApi(BaseApi):
 
         header_params: Dict[str, str] = {}
 
+        body = order
+
         return self.invoke_api(
             'POST',
             path,
             query_params,
             header_params,
-            order,
+            body,
             ['application/json'],
             'application/json',
             [],

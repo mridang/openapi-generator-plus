@@ -39,6 +39,12 @@ export class {{classname}} extends BaseApi {
      {{#summary}}
      * {{&summary}}
      {{/summary}}
+     {{#allParams}}
+     * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}
+     {{/allParams}}
+     {{#returnType}}
+     * @return {{{returnType}}}
+     {{/returnType}}
      {{#isDeprecated}}
      * @deprecated
      {{/isDeprecated}}
@@ -57,7 +63,7 @@ export class {{classname}} extends BaseApi {
         const queryParams: Record<string, any> = {};
         {{#queryParams}}
         if ({{paramName}} != null) {
-            queryParams['{{baseName}}'] = {{paramName}};
+            queryParams['{{baseName}}'] = ObjectSerializer.toQueryValue({{paramName}}{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}});
         }
         {{/queryParams}}
 
@@ -68,12 +74,21 @@ export class {{classname}} extends BaseApi {
         }
         {{/headerParams}}
 
+        {{#hasFormParams}}
+        const formBody: Record<string, any> = {};
+        {{#formParams}}
+        if ({{paramName}} != null) {
+            formBody['{{baseName}}'] = ObjectSerializer.toFormValue({{paramName}});
+        }
+        {{/formParams}}
+        {{/hasFormParams}}
+
         {{#returnType}}return {{/returnType}}{{^returnType}}await {{/returnType}}this.invokeApi(
             '{{httpMethod}}',
             path,
             queryParams,
             headerParams,
-            {{#bodyParam}}{{^withoutRuntimeChecks}}ObjectSerializer.serialize({{paramName}}, {{dataType}}ToJSON){{/withoutRuntimeChecks}}{{#withoutRuntimeChecks}}{{paramName}}{{/withoutRuntimeChecks}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}},
+            {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{^withoutRuntimeChecks}}ObjectSerializer.serialize({{paramName}}, {{dataType}}ToJSON){{/withoutRuntimeChecks}}{{#withoutRuntimeChecks}}{{paramName}}{{/withoutRuntimeChecks}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
             [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
             {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
             [{{#authMethods}}'{{name}}'{{^-last}}, {{/-last}}{{/authMethods}}],

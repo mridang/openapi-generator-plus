@@ -38,7 +38,7 @@ import org.openapitools.jackson.nullable.JsonNullableModule;
  *
  * @see ObjectMapper
  */
-@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T20:27:25.232612+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
+@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T20:58:24.663594+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
 public class ObjectSerializer {
 
     private final ObjectMapper objectMapper;
@@ -182,6 +182,70 @@ public class ObjectSerializer {
         mapper.setDateFormat(new StdDateFormat().withColonInTimeZone(true));
 
         return mapper;
+    }
+
+    /**
+     * Convert a value to a string suitable for use as a path parameter.
+     */
+    public static String toPathValue(Object value) {
+        if (value == null) return "";
+        return String.valueOf(value);
+    }
+
+    /**
+     * Convert a value to a representation suitable for use as a query parameter.
+     * For collections, joins using the specified collection format delimiter.
+     *
+     * @param value            the value to convert
+     * @param collectionFormat the format: csv, ssv, tsv, pipes, or multi (may be null)
+     * @return the query value string, or a List for multi format
+     */
+    public static Object toQueryValue(Object value, String collectionFormat) {
+        if (value == null) return null;
+        if (value instanceof java.util.Collection<?> col) {
+            java.util.List<String> items = new java.util.ArrayList<>();
+            for (Object item : col) {
+                items.add(String.valueOf(item));
+            }
+            if ("multi".equals(collectionFormat)) return items;
+            String sep;
+            if ("ssv".equals(collectionFormat)) sep = " ";
+            else if ("tsv".equals(collectionFormat)) sep = "\t";
+            else if ("pipes".equals(collectionFormat)) sep = "|";
+            else sep = ",";
+            return String.join(sep, items);
+        }
+        return String.valueOf(value);
+    }
+
+    /**
+     * Convert a value to a string suitable for use as a query parameter (no collection format).
+     */
+    public static Object toQueryValue(Object value) {
+        return toQueryValue(value, null);
+    }
+
+    /**
+     * Convert a value to a string suitable for use as a header parameter.
+     */
+    public static String toHeaderValue(Object value) {
+        if (value == null) return "";
+        if (value instanceof java.util.Collection<?> col) {
+            java.util.List<String> items = new java.util.ArrayList<>();
+            for (Object item : col) {
+                items.add(String.valueOf(item));
+            }
+            return String.join(",", items);
+        }
+        return String.valueOf(value);
+    }
+
+    /**
+     * Convert a value to a string suitable for use as a form parameter.
+     */
+    public static String toFormValue(Object value) {
+        if (value == null) return "";
+        return String.valueOf(value);
     }
 
     /**
