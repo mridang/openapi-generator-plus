@@ -11,6 +11,9 @@ require 'cgi'
 require 'json'
 
 module OpigenClient::Api
+  # Base class for all API classes. Provides the invoke_api method that
+  # handles URL construction, header selection, body serialization, request
+  # dispatch, and response deserialization.
   class BaseApi
     attr_reader :api_client, :config, :header_selector
 
@@ -20,9 +23,9 @@ module OpigenClient::Api
       @header_selector = OpigenClient::HeaderSelector.new
     end
 
-    def invoke_api(method, path, query_params, header_params, body, accepts, content_type, auth_names, return_type)
+    def invoke_api(method, path, query_params, header_params, body, accepts, content_type, return_type)
       # Build URL
-      url = build_request_url(path)
+      url = "#{@config.base_url}#{path}"
       query_string = build_query_string(query_params)
       url = "#{url}?#{query_string}" unless query_string.empty?
 
@@ -32,11 +35,12 @@ module OpigenClient::Api
       headers = {}
       headers['Accept'] = selected['Accept'] if selected['Accept']
       headers['Content-Type'] = selected['Content-Type'] if selected['Content-Type']
-      headers['User-Agent'] = "OpenAPI-Generator/1.0.0/ruby"
-      headers.merge!(header_params)
 
-      # Apply auth
-      update_params_for_auth!(headers, query_params, auth_names)
+      # Apply default headers from configuration
+      headers.merge!(@config.default_headers)
+
+      # Merge custom headers
+      headers.merge!(header_params)
 
       # Serialize body
       serialized_body = serialize_body(body, content_type)
@@ -72,11 +76,6 @@ module OpigenClient::Api
 
     private
 
-    def build_request_url(path)
-      url = "#{@config.base_url}#{path}"
-      url.gsub(/\/+/, '/').sub('http:/', 'http://').sub('https:/', 'https://')
-    end
-
     def build_query_string(query_params)
       query_params.reject { |_, v| v.nil? }.map { |k, v|
         encoded_key = CGI.escape(k.to_s)
@@ -101,17 +100,6 @@ module OpigenClient::Api
         end.then { |sanitized| build_query_string(sanitized) }
       else
         OpigenClient::ObjectSerializer.to_json(body)
-      end
-    end
-
-    def update_params_for_auth!(header_params, query_params, auth_names)
-      auth_names.each do |auth_name|
-        auth_setting = @config.auth_settings[auth_name]
-        next unless auth_setting
-        case auth_setting[:in]
-        when 'header' then header_params[auth_setting[:key]] = auth_setting[:value]
-        when 'query' then query_params[auth_setting[:key]] = auth_setting[:value]
-        end
       end
     end
   end

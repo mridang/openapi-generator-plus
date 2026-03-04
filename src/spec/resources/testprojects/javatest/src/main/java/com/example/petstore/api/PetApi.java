@@ -14,15 +14,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T21:45:53.747469+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
+@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T22:28:53.916353+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
 public class PetApi extends BaseApi {
 
   public PetApi() {
-    super(Configuration.getDefaultApiClient());
+    super();
   }
 
-  public PetApi(ApiClient apiClient) {
-    super(apiClient);
+  public PetApi(ApiClient apiClient, Configuration config) {
+    super(apiClient, config);
   }
 
   /**
@@ -53,7 +53,6 @@ public class PetApi extends BaseApi {
       pet,
       new String[]{ "application/json" },
       "application/json",
-      new String[]{  },
       new TypeReference<Pet>(){}
     );
   }
@@ -86,7 +85,6 @@ public class PetApi extends BaseApi {
       null,
       new String[]{  },
       "application/json",
-      new String[]{  },
       null
     );
   }
@@ -118,7 +116,6 @@ public class PetApi extends BaseApi {
       null,
       new String[]{ "application/json" },
       "application/json",
-      new String[]{  },
       new TypeReference<List<Pet>>(){}
     );
   }
@@ -152,7 +149,6 @@ public class PetApi extends BaseApi {
       null,
       new String[]{ "application/json" },
       "application/json",
-      new String[]{  },
       new TypeReference<Pet>(){}
     );
   }
@@ -191,7 +187,6 @@ public class PetApi extends BaseApi {
       pet,
       new String[]{ "application/json" },
       "application/json",
-      new String[]{  },
       new TypeReference<Pet>(){}
     );
   }

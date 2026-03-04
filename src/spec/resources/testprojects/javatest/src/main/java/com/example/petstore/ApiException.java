@@ -16,7 +16,7 @@ package com.example.petstore;
 import java.util.Map;
 import java.util.List;
 
-@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T21:45:53.747469+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
+@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T22:28:53.916353+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
 public class ApiException extends Exception {
     private static final long serialVersionUID = 1L;
 

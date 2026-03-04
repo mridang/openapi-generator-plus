@@ -14,15 +14,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T21:45:53.747469+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
+@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T22:28:53.916353+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
 public class StoreApi extends BaseApi {
 
   public StoreApi() {
-    super(Configuration.getDefaultApiClient());
+    super();
   }
 
-  public StoreApi(ApiClient apiClient) {
-    super(apiClient);
+  public StoreApi(ApiClient apiClient, Configuration config) {
+    super(apiClient, config);
   }
 
   /**
@@ -53,7 +53,6 @@ public class StoreApi extends BaseApi {
       null,
       new String[]{  },
       "application/json",
-      new String[]{  },
       null
     );
   }
@@ -81,7 +80,6 @@ public class StoreApi extends BaseApi {
       null,
       new String[]{ "application/json" },
       "application/json",
-      new String[]{  },
       new TypeReference<Map<String, Integer>>(){}
     );
   }
@@ -115,7 +113,6 @@ public class StoreApi extends BaseApi {
       null,
       new String[]{ "application/json" },
       "application/json",
-      new String[]{  },
       new TypeReference<Order>(){}
     );
   }
@@ -144,7 +141,6 @@ public class StoreApi extends BaseApi {
       order,
       new String[]{ "application/json" },
       "application/json",
-      new String[]{  },
       new TypeReference<Order>(){}
     );
   }

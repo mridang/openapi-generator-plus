@@ -91,7 +91,6 @@ module {{moduleName}}::Api
       invoke_api(:{{httpMethod}}, path, query_params, header_params, body,
         [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
         {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
-        [{{#authMethods}}'{{name}}'{{^-last}}, {{/-last}}{{/authMethods}}],
         {{#returnType}}'{{{.}}}'{{/returnType}}{{^returnType}}nil{{/returnType}})
     end
     {{^-last}}

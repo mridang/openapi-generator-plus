@@ -86,7 +86,6 @@ class PetApi extends BaseApi
             $body,
             ['application/json'],
             'application/json',
-            [],
             '\PetstoreClient\Models\Pet'
         );
     }
@@ -128,7 +127,6 @@ class PetApi extends BaseApi
             $body,
             [],
             'application/json',
-            [],
             null
         );
     }
@@ -163,7 +161,6 @@ class PetApi extends BaseApi
             $body,
             ['application/json'],
             'application/json',
-            [],
             '\PetstoreClient\Models\Pet[]'
         );
     }
@@ -205,7 +202,6 @@ class PetApi extends BaseApi
             $body,
             ['application/json'],
             'application/json',
-            [],
             '\PetstoreClient\Models\Pet'
         );
     }
@@ -253,7 +249,6 @@ class PetApi extends BaseApi
             $body,
             ['application/json'],
             'application/json',
-            [],
             '\PetstoreClient\Models\Pet'
         );
     }

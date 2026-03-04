@@ -1,51 +1,169 @@
 {{>licenseInfo}}
 package {{invokerPackage}};
 
-import java.util.Objects;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
+import java.util.HashMap;
+import java.util.Map;
 
+/**
+ * Configuration for API clients.
+ *
+ * <p>Holds settings that apply to all API requests such as the base URL,
+ * default headers, TLS options, proxy, timeout, and retry policy.</p>
+ */
 {{>generatedAnnotation}}
 public class Configuration {
-  public static final String VERSION = "{{artifactVersion}}";
 
-  private static final AtomicReference<ApiClient> defaultApiClient = new AtomicReference<>();
-  private static volatile Supplier<ApiClient> apiClientFactory = DefaultApiClient::new;
+    private static volatile Configuration defaultInstance;
 
-  /**
-   * Get the default API client, which would be used when creating API instances without providing an API client.
-   *
-   * @return Default API client
-   */
-  public static ApiClient getDefaultApiClient() {
-    ApiClient client = defaultApiClient.get();
-    if (client == null) {
-      client = defaultApiClient.updateAndGet(val -> {
-        if (val != null) { // changed by another thread
-          return val;
+    /**
+     * Base URL for all API requests.
+     */
+    private String baseUrl = "{{{basePath}}}";
+
+    /**
+     * Headers to include in every API request. Use this for authentication
+     * (e.g. Authorization header) and other custom headers.
+     */
+    private final Map<String, String> defaultHeaders = new HashMap<>();
+
+    /**
+     * Enable debug logging of HTTP requests and responses.
+     */
+    private boolean debug = false;
+
+    /**
+     * Enable SSL/TLS certificate verification.
+     */
+    private boolean verifySsl = true;
+
+    /**
+     * Path to a CA certificate file for SSL/TLS verification.
+     */
+    private String sslCaCert = null;
+
+    /**
+     * Path to a client certificate file for mutual TLS authentication.
+     */
+    private String certFile = null;
+
+    /**
+     * Path to a client private key file for mutual TLS authentication.
+     */
+    private String keyFile = null;
+
+    /**
+     * Proxy URL for all API requests.
+     */
+    private String proxy = null;
+
+    /**
+     * Request timeout in seconds. null means no timeout.
+     */
+    private Integer timeout = null;
+
+    /**
+     * Number of retry attempts for failed requests. null means no retries.
+     */
+    private Integer retries = null;
+
+    /**
+     * Return the default configuration instance, creating it lazily if needed.
+     *
+     * @return the default configuration
+     */
+    public static Configuration getDefault() {
+        if (defaultInstance == null) {
+            synchronized (Configuration.class) {
+                if (defaultInstance == null) {
+                    defaultInstance = new Configuration();
+                }
+            }
         }
-        return apiClientFactory.get();
-      });
+        return defaultInstance;
     }
-    return client;
-  }
 
-  /**
-   * Set the default API client, which would be used when creating API instances without providing an API client.
-   *
-   * @param apiClient API client
-   */
-  public static void setDefaultApiClient(ApiClient apiClient) {
-    defaultApiClient.set(apiClient);
-  }
+    /**
+     * Set the default configuration instance.
+     *
+     * @param configuration the configuration to use as default
+     */
+    public static void setDefault(Configuration configuration) {
+        defaultInstance = configuration;
+    }
 
-  /**
-   * set the callback used to create new ApiClient objects
-   */
-  public static void setApiClientFactory(Supplier<ApiClient> factory) {
-    apiClientFactory = Objects.requireNonNull(factory);
-  }
+    public String getBaseUrl() {
+        return baseUrl;
+    }
 
-  private Configuration() {
-  }
+    public void setBaseUrl(String baseUrl) {
+        this.baseUrl = baseUrl;
+    }
+
+    public Map<String, String> getDefaultHeaders() {
+        return defaultHeaders;
+    }
+
+    public boolean isDebug() {
+        return debug;
+    }
+
+    public void setDebug(boolean debug) {
+        this.debug = debug;
+    }
+
+    public boolean isVerifySsl() {
+        return verifySsl;
+    }
+
+    public void setVerifySsl(boolean verifySsl) {
+        this.verifySsl = verifySsl;
+    }
+
+    public String getSslCaCert() {
+        return sslCaCert;
+    }
+
+    public void setSslCaCert(String sslCaCert) {
+        this.sslCaCert = sslCaCert;
+    }
+
+    public String getCertFile() {
+        return certFile;
+    }
+
+    public void setCertFile(String certFile) {
+        this.certFile = certFile;
+    }
+
+    public String getKeyFile() {
+        return keyFile;
+    }
+
+    public void setKeyFile(String keyFile) {
+        this.keyFile = keyFile;
+    }
+
+    public String getProxy() {
+        return proxy;
+    }
+
+    public void setProxy(String proxy) {
+        this.proxy = proxy;
+    }
+
+    public Integer getTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(Integer timeout) {
+        this.timeout = timeout;
+    }
+
+    public Integer getRetries() {
+        return retries;
+    }
+
+    public void setRetries(Integer retries) {
+        this.retries = retries;
+    }
 }

@@ -69,7 +69,6 @@ class StoreApi(BaseApi):
             body,
             [],
             'application/json',
-            [],
             None
         )
 
@@ -98,7 +97,6 @@ class StoreApi(BaseApi):
             body,
             ['application/json'],
             'application/json',
-            [],
             'Dict[str, int]'
         )
 
@@ -131,7 +129,6 @@ class StoreApi(BaseApi):
             body,
             ['application/json'],
             'application/json',
-            [],
             'Order'
         )
 
@@ -162,6 +159,5 @@ class StoreApi(BaseApi):
             body,
             ['application/json'],
             'application/json',
-            [],
             'Order'
         )

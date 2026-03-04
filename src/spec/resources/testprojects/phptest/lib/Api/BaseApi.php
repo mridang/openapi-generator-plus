@@ -23,11 +23,9 @@ use GuzzleHttp\Psr7\MultipartStream;
 use GuzzleHttp\Utils;
 
 /**
- * BaseApi Class
- *
  * Base class for all API classes. Provides the invokeApi method that
- * handles URL construction, header selection, authentication, body
- * serialization, request dispatch, and response deserialization.
+ * handles URL construction, header selection, body serialization, request
+ * dispatch, and response deserialization.
  *
  * @category Class
  * @package  PetstoreClient
@@ -80,7 +78,6 @@ class BaseApi
      * @param mixed       $body        Request body (model object or form params array)
      * @param array       $accepts     Acceptable response content types
      * @param string|null $contentType Request content type
-     * @param array       $authNames   Authentication scheme names
      * @param string|null $returnType  Return type for deserialization
      *
      * @return mixed Deserialized response or null
@@ -94,11 +91,10 @@ class BaseApi
         mixed $body,
         array $accepts,
         ?string $contentType,
-        array $authNames,
         ?string $returnType
     ): mixed {
         // Build URL
-        $url = $this->config->getHost() . $path;
+        $url = $this->config->getBaseUrl() . $path;
         $query = ObjectSerializer::buildQuery($queryParams);
         if (!empty($query)) {
             $url .= '?' . $query;
@@ -108,14 +104,11 @@ class BaseApi
         $isMultipart = $contentType === 'multipart/form-data';
         $headers = $this->headerSelector->selectHeaders($accepts, $contentType ?? '', $isMultipart);
 
-        if ($this->config->getUserAgent()) {
-            $headers['User-Agent'] = $this->config->getUserAgent();
-        }
+        // Apply default headers from configuration
+        $headers = array_merge($headers, $this->config->getDefaultHeaders());
 
+        // Merge custom headers
         $headers = array_merge($headers, $headerParams);
-
-        // Apply auth
-        $this->applyAuth($headers, $queryParams, $authNames);
 
         // Serialize body
         $serializedBody = $this->serializeBody($body, $contentType, $isMultipart);
@@ -172,19 +165,6 @@ class BaseApi
             return ObjectSerializer::buildQuery($body);
         } else {
             return Utils::jsonEncode(ObjectSerializer::sanitizeForSerialization($body));
-        }
-    }
-
-    /**
-     * Apply authentication to headers and query params.
-     *
-     * @param array $headers    Headers (modified in-place)
-     * @param array $queryParams Query params (modified in-place)
-     * @param array $authNames  Authentication scheme names
-     */
-    private function applyAuth(array &$headers, array &$queryParams, array $authNames): void
-    {
-        foreach ($authNames as $authName) {
         }
     }
 }

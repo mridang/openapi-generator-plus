@@ -3,6 +3,7 @@
 {{>licenseInfo}}
 
 import type { ApiClient } from '../ApiClient{{importFileExtension}}';
+import { Configuration } from '../Configuration{{importFileExtension}}';
 import { DefaultApiClient } from '../DefaultApiClient{{importFileExtension}}';
 import { HeaderSelector } from '../HeaderSelector{{importFileExtension}}';
 import { ObjectSerializer } from '../ObjectSerializer{{importFileExtension}}';
@@ -14,14 +15,14 @@ import { ObjectSerializer } from '../ObjectSerializer{{importFileExtension}}';
  */
 export abstract class BaseApi {
   protected apiClient: ApiClient;
-  protected basePath: string;
+  protected config: Configuration;
   protected headerSelector: HeaderSelector;
 
   constructor(
-    basePath: string = '{{{basePath}}}',
+    config?: Configuration,
     apiClient?: ApiClient
   ) {
-    this.basePath = basePath;
+    this.config = config ?? Configuration.getDefault();
     this.apiClient = apiClient ?? new DefaultApiClient();
     this.headerSelector = new HeaderSelector();
   }
@@ -36,7 +37,6 @@ export abstract class BaseApi {
    * @param body request body (pre-serialized to plain JS object, or null)
    * @param accepts acceptable response content types
    * @param contentType request content type
-   * @param authNames authentication scheme names
    * @param returnType deserialization function (or null for void)
    * @returns deserialized response or void
    */
@@ -48,11 +48,10 @@ export abstract class BaseApi {
     body: any,
     accepts: string[],
     contentType: string,
-    authNames: string[],
     returnType: ((json: any) => T) | null
   ): Promise<T | void> {
     // Build URL
-    let url = this.basePath + path;
+    let url = this.config.baseUrl + path;
     const filteredParams = Object.entries(queryParams)
       .filter(([, v]) => v != null)
       .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
@@ -64,6 +63,9 @@ export abstract class BaseApi {
     // Select headers
     const isMultipart = contentType === 'multipart/form-data';
     const headers = this.headerSelector.selectHeaders(accepts, contentType, isMultipart);
+
+    // Apply default headers from configuration
+    Object.assign(headers, this.config.defaultHeaders);
 
     // Merge custom headers
     Object.assign(headers, headerParams);

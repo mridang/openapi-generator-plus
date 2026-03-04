@@ -23,11 +23,4 @@ public interface ApiClient {
      * @throws ApiException if the request fails
      */
     ApiResponse sendRequest(String method, String url, Map<String, String> headers, String body) throws ApiException;
-
-    /**
-     * Get the base path for API requests.
-     *
-     * @return Base URL (e.g. "http://localhost/api/v3")
-     */
-    String getBasePath();
 }

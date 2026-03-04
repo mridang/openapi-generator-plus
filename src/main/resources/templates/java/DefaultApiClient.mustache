@@ -22,30 +22,14 @@ import java.util.Map;
 {{>generatedAnnotation}}
 public class DefaultApiClient implements ApiClient {
 
-    private String basePath;
     private final CloseableHttpClient httpClient;
 
     public DefaultApiClient() {
-        this("{{{basePath}}}");
+        this(HttpClients.createDefault());
     }
 
-    public DefaultApiClient(String basePath) {
-        this.basePath = basePath;
-        this.httpClient = HttpClients.createDefault();
-    }
-
-    public DefaultApiClient(String basePath, CloseableHttpClient httpClient) {
-        this.basePath = basePath;
+    public DefaultApiClient(CloseableHttpClient httpClient) {
         this.httpClient = httpClient;
-    }
-
-    @Override
-    public String getBasePath() {
-        return basePath;
-    }
-
-    public void setBasePath(String basePath) {
-        this.basePath = basePath;
     }
 
     @Override

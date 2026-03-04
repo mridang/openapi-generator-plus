@@ -39,7 +39,6 @@ module OpigenClient::Api
       invoke_api(:DELETE, path, query_params, header_params, body,
         [],
         'application/json',
-        [],
         nil)
     end
 
@@ -60,7 +59,6 @@ module OpigenClient::Api
       invoke_api(:GET, path, query_params, header_params, body,
         ['application/json'],
         'application/json',
-        [],
         'Hash<String, Integer>')
     end
 
@@ -85,7 +83,6 @@ module OpigenClient::Api
       invoke_api(:GET, path, query_params, header_params, body,
         ['application/json'],
         'application/json',
-        [],
         'Order')
     end
 
@@ -107,7 +104,6 @@ module OpigenClient::Api
       invoke_api(:POST, path, query_params, header_params, body,
         ['application/json'],
         'application/json',
-        [],
         'Order')
     end
   end

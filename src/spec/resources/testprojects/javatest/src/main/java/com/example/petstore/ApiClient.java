@@ -20,7 +20,7 @@ import java.util.Map;
  * <p>Implementations handle the actual HTTP request/response cycle.
  * The default implementation uses Apache HttpClient 5.</p>
  */
-@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T21:45:53.747469+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
+@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T22:28:53.916353+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
 public interface ApiClient {
 
     /**
@@ -34,11 +34,4 @@ public interface ApiClient {
      * @throws ApiException if the request fails
      */
     ApiResponse sendRequest(String method, String url, Map<String, String> headers, String body) throws ApiException;
-
-    /**
-     * Get the base path for API requests.
-     *
-     * @return Base URL (e.g. "http://localhost/api/v3")
-     */
-    String getBasePath();
 }

@@ -1,0 +1,74 @@
+/* tslint:disable */
+/* eslint-disable */
+{{>licenseInfo}}
+
+/**
+ * Configuration for API clients.
+ *
+ * Holds settings that apply to all API requests such as the base URL,
+ * default headers, TLS options, proxy, timeout, and retry policy.
+ */
+export class Configuration {
+  private static defaultInstance: Configuration | null = null;
+
+  /** Base URL for all API requests. */
+  public baseUrl: string;
+
+  /** Headers to include in every API request. Use this for authentication
+   * (e.g. Authorization header) and other custom headers. */
+  public defaultHeaders: Record<string, string>;
+
+  /** Enable debug logging of HTTP requests and responses. */
+  public debug: boolean;
+
+  /** Enable SSL/TLS certificate verification. */
+  public verifySsl: boolean;
+
+  /** Path to a CA certificate file for SSL/TLS verification. */
+  public sslCaCert: string | null;
+
+  /** Path to a client certificate file for mutual TLS authentication. */
+  public certFile: string | null;
+
+  /** Path to a client private key file for mutual TLS authentication. */
+  public keyFile: string | null;
+
+  /** Proxy URL for all API requests. */
+  public proxy: string | null;
+
+  /** Request timeout in seconds. null means no timeout. */
+  public timeout: number | null;
+
+  /** Number of retry attempts for failed requests. null means no retries. */
+  public retries: number | null;
+
+  constructor(options?: Partial<Configuration>) {
+    this.baseUrl = options?.baseUrl ?? '{{{basePath}}}';
+    this.defaultHeaders = options?.defaultHeaders ?? {};
+    this.debug = options?.debug ?? false;
+    this.verifySsl = options?.verifySsl ?? true;
+    this.sslCaCert = options?.sslCaCert ?? null;
+    this.certFile = options?.certFile ?? null;
+    this.keyFile = options?.keyFile ?? null;
+    this.proxy = options?.proxy ?? null;
+    this.timeout = options?.timeout ?? null;
+    this.retries = options?.retries ?? null;
+  }
+
+  /**
+   * Return the default configuration instance, creating it lazily if needed.
+   */
+  public static getDefault(): Configuration {
+    if (Configuration.defaultInstance === null) {
+      Configuration.defaultInstance = new Configuration();
+    }
+    return Configuration.defaultInstance;
+  }
+
+  /**
+   * Set the default configuration instance.
+   */
+  public static setDefault(configuration: Configuration | null): void {
+    Configuration.defaultInstance = configuration;
+  }
+}

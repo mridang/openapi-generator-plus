@@ -22,22 +22,24 @@ import java.util.StringJoiner;
 
 /**
  * Base class for all API classes. Provides the {@code invokeApi} method that
- * handles URL construction, header selection, authentication, body
- * serialization, request dispatch, and response deserialization.
+ * handles URL construction, header selection, body serialization, request
+ * dispatch, and response deserialization.
  */
-@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T21:45:53.747469+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
+@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T22:28:53.916353+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
 public abstract class BaseApi {
 
     protected ApiClient apiClient;
+    protected final Configuration config;
     protected final ObjectSerializer objectSerializer;
     protected final HeaderSelector headerSelector;
 
     public BaseApi() {
-        this(new DefaultApiClient());
+        this(new DefaultApiClient(), Configuration.getDefault());
     }
 
-    public BaseApi(ApiClient apiClient) {
+    public BaseApi(ApiClient apiClient, Configuration config) {
         this.apiClient = apiClient;
+        this.config = config;
         this.objectSerializer = new ObjectSerializer();
         this.headerSelector = new HeaderSelector();
     }
@@ -48,6 +50,10 @@ public abstract class BaseApi {
 
     public void setApiClient(ApiClient apiClient) {
         this.apiClient = apiClient;
+    }
+
+    public Configuration getConfig() {
+        return config;
     }
 
     /**
@@ -61,7 +67,6 @@ public abstract class BaseApi {
      * @param body         request body (model object or null)
      * @param accepts      acceptable response content types
      * @param contentType  request content type
-     * @param authNames    authentication scheme names
      * @param returnType   return type for deserialization (null for void)
      * @return deserialized response or null
      * @throws ApiException if the API call fails
@@ -74,11 +79,10 @@ public abstract class BaseApi {
             Object body,
             String[] accepts,
             String contentType,
-            String[] authNames,
             TypeReference<T> returnType) throws ApiException {
 
         // Build URL
-        String url = apiClient.getBasePath() + path;
+        String url = config.getBaseUrl() + path;
         String query = buildQueryString(queryParams);
         if (!query.isEmpty()) {
             url += "?" + query;
@@ -88,13 +92,13 @@ public abstract class BaseApi {
         boolean isMultipart = "multipart/form-data".equals(contentType);
         Map<String, String> headers = headerSelector.selectHeaders(accepts, contentType, isMultipart);
 
+        // Apply default headers from configuration
+        headers.putAll(config.getDefaultHeaders());
+
         // Merge custom headers
         if (headerParams != null) {
             headers.putAll(headerParams);
         }
-
-        // Apply auth
-        applyAuth(headers, authNames);
 
         // Serialize body
         String serializedBody = null;
@@ -149,15 +153,5 @@ public abstract class BaseApi {
      */
     protected String encode(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
-    }
-
-    /**
-     * Apply authentication to headers.
-     *
-     * @param headers   headers map (modified in-place)
-     * @param authNames authentication scheme names
-     */
-    private void applyAuth(Map<String, String> headers, String[] authNames) {
-        // Authentication is handled by the generated subclasses via Configuration
     }
 }

@@ -38,7 +38,7 @@ import org.openapitools.jackson.nullable.JsonNullableModule;
  *
  * @see ObjectMapper
  */
-@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T21:45:53.747469+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
+@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T22:28:53.916353+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
 public class ObjectSerializer {
 
     private final ObjectMapper objectMapper;

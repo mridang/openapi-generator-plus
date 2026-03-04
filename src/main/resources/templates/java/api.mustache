@@ -23,11 +23,11 @@ import java.util.Map;
 public class {{classname}} extends BaseApi {
 
   public {{classname}}() {
-    super(Configuration.getDefaultApiClient());
+    super();
   }
 
-  public {{classname}}(ApiClient apiClient) {
-    super(apiClient);
+  public {{classname}}(ApiClient apiClient, Configuration config) {
+    super(apiClient, config);
   }
   {{#operation}}
 
@@ -92,7 +92,6 @@ public class {{classname}} extends BaseApi {
       {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
       new String[]{ {{#produces}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/produces}} },
       {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
-      new String[]{ {{#authMethods}}"{{name}}"{{^-last}}, {{/-last}}{{/authMethods}} },
       {{#returnType}}new TypeReference<{{{returnType}}}>(){}{{/returnType}}{{^returnType}}null{{/returnType}}
     );
   }

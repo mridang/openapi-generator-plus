@@ -70,7 +70,6 @@ class PetApi(BaseApi):
             body,
             ['application/json'],
             'application/json',
-            [],
             'Pet'
         )
 
@@ -102,7 +101,6 @@ class PetApi(BaseApi):
             body,
             [],
             'application/json',
-            [],
             None
         )
 
@@ -135,7 +133,6 @@ class PetApi(BaseApi):
             body,
             ['application/json'],
             'application/json',
-            [],
             'List[Pet]'
         )
 
@@ -168,7 +165,6 @@ class PetApi(BaseApi):
             body,
             ['application/json'],
             'application/json',
-            [],
             'Pet'
         )
 
@@ -205,6 +201,5 @@ class PetApi(BaseApi):
             body,
             ['application/json'],
             'application/json',
-            [],
             'Pet'
         )

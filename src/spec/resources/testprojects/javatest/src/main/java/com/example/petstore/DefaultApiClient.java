@@ -30,33 +30,17 @@ import java.util.Map;
 /**
  * Default implementation of {@link ApiClient} using Apache HttpClient 5.
  */
-@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T21:45:53.747469+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
+@javax.annotation.Generated(value = "io.github.mridang.codegen.generators.java.BetterJavaCodegen", date = "2026-03-04T22:28:53.916353+11:00[Australia/Sydney]", comments = "Generator version: 7.14.0")
 public class DefaultApiClient implements ApiClient {
 
-    private String basePath;
     private final CloseableHttpClient httpClient;
 
     public DefaultApiClient() {
-        this("/api/v3");
+        this(HttpClients.createDefault());
     }
 
-    public DefaultApiClient(String basePath) {
-        this.basePath = basePath;
-        this.httpClient = HttpClients.createDefault();
-    }
-
-    public DefaultApiClient(String basePath, CloseableHttpClient httpClient) {
-        this.basePath = basePath;
+    public DefaultApiClient(CloseableHttpClient httpClient) {
         this.httpClient = httpClient;
-    }
-
-    @Override
-    public String getBasePath() {
-        return basePath;
-    }
-
-    public void setBasePath(String basePath) {
-        this.basePath = basePath;
     }
 
     @Override

@@ -4,6 +4,7 @@
 
 import type { ApiClient } from '../ApiClient{{importFileExtension}}';
 import { BaseApi } from './BaseApi{{importFileExtension}}';
+import { Configuration } from '../Configuration{{importFileExtension}}';
 import { ObjectSerializer } from '../ObjectSerializer{{importFileExtension}}';
 {{#imports.0}}
 import type {
@@ -27,8 +28,8 @@ import {
  */
 export class {{classname}} extends BaseApi {
 
-    constructor(basePath?: string, apiClient?: ApiClient) {
-        super(basePath, apiClient);
+    constructor(config?: Configuration, apiClient?: ApiClient) {
+        super(config, apiClient);
     }
     {{#operation}}
 
@@ -91,7 +92,6 @@ export class {{classname}} extends BaseApi {
             {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{^withoutRuntimeChecks}}ObjectSerializer.serialize({{paramName}}, {{dataType}}ToJSON){{/withoutRuntimeChecks}}{{#withoutRuntimeChecks}}{{paramName}}{{/withoutRuntimeChecks}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
             [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
             {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
-            [{{#authMethods}}'{{name}}'{{^-last}}, {{/-last}}{{/authMethods}}],
             {{#returnType}}{{#isArray}}(json: any) => ObjectSerializer.deserializeArray(json, {{returnBaseType}}FromJSON){{/isArray}}{{#isMap}}(json: any) => ObjectSerializer.deserializeMap(json, {{returnBaseType}}FromJSON){{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}(json: any) => json as {{{returnType}}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}(json: any) => ObjectSerializer.deserialize(json, {{returnBaseType}}FromJSON){{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}}{{/returnType}}{{^returnType}}null{{/returnType}}
         ) as {{{returnType}}}{{^returnType}}void{{/returnType}};
     }
