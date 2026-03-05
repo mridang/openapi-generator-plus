@@ -4,13 +4,28 @@ import urllib3
 
 from {{packageName}}.api_client import ApiClient
 from {{packageName}}.api_response import ApiResponse
+from {{packageName}}.configuration import Configuration
 
 
 class DefaultApiClient:
     """Default implementation of ApiClient using urllib3."""
 
-    def __init__(self, pool_manager: Optional[urllib3.PoolManager] = None):
-        self._pool_manager = pool_manager or urllib3.PoolManager()
+    def __init__(self, config=None, pool_manager=None):
+        if pool_manager is not None:
+            self._pool_manager = pool_manager
+        elif config is not None:
+            kwargs = {}
+            if not config.verify_ssl:
+                kwargs['cert_reqs'] = 'CERT_NONE'
+            elif config.ssl_ca_cert:
+                kwargs['ca_certs'] = config.ssl_ca_cert
+                kwargs['cert_reqs'] = 'CERT_REQUIRED'
+            if config.proxy:
+                self._pool_manager = urllib3.ProxyManager(config.proxy, **kwargs)
+            else:
+                self._pool_manager = urllib3.PoolManager(**kwargs)
+        else:
+            self._pool_manager = urllib3.PoolManager()
 
     def send_request(self, method: str, url: str, headers: Dict[str, str], body: Optional[str]) -> ApiResponse:
         """Send an HTTP request and return the response.

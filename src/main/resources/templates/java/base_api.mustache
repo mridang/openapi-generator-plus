@@ -26,7 +26,11 @@ public abstract class BaseApi {
     protected final HeaderSelector headerSelector;
 
     public BaseApi() {
-        this(new DefaultApiClient(), Configuration.getDefault());
+        this(Configuration.getDefault());
+    }
+
+    public BaseApi(Configuration config) {
+        this(new DefaultApiClient(config), config);
     }
 
     public BaseApi(ApiClient apiClient, Configuration config) {

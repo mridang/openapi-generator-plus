@@ -4,7 +4,7 @@ module {{moduleName}}::Api
 {{#operations}}
   # {{classname}} provides methods for the {{baseName}} API group.
   class {{classname}} < BaseApi
-    def initialize(api_client = {{moduleName}}::DefaultApiClient.new, config = {{moduleName}}::Configuration.default)
+    def initialize(api_client = nil, config = {{moduleName}}::Configuration.default)
       super(api_client, config)
     end
   {{#operation}}

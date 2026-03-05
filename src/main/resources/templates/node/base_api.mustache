@@ -16,7 +16,7 @@ export abstract class BaseApi {
 
   constructor(config?: Configuration, apiClient?: ApiClient) {
     this.config = config ?? Configuration.getDefault();
-    this.apiClient = apiClient ?? new DefaultApiClient();
+    this.apiClient = apiClient ?? new DefaultApiClient(this.config);
     this.headerSelector = new HeaderSelector();
   }
 

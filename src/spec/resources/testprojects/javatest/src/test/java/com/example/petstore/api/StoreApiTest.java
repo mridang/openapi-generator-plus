@@ -1,6 +1,7 @@
-package com.example.petstore;
+package com.example.petstore.api;
 
-import com.example.petstore.api.StoreApi;
+import com.example.petstore.Configuration;
+import com.example.petstore.DefaultApiClient;
 import com.example.petstore.models.Order;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

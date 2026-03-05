@@ -21,9 +21,9 @@ module {{moduleName}}::Api
   class BaseApi
     attr_reader :api_client, :config, :header_selector
 
-    def initialize(api_client = {{moduleName}}::DefaultApiClient.new, config = {{moduleName}}::Configuration.default)
-      @api_client = api_client
+    def initialize(api_client = nil, config = {{moduleName}}::Configuration.default)
       @config = config
+      @api_client = api_client || {{moduleName}}::DefaultApiClient.new(@config)
       @header_selector = {{moduleName}}::HeaderSelector.new
     end
 

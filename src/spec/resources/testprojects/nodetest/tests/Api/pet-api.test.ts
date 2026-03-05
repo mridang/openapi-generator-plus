@@ -1,6 +1,6 @@
-import { PetApi } from '../api/pet-api';
-import { Configuration } from '../Configuration';
-import type { Pet } from '../models';
+import { PetApi } from '../../api/pet-api';
+import { Configuration } from '../../Configuration';
+import type { Pet } from '../../models';
 
 const config = new Configuration({
   baseUrl: process.env.API_BASE_URL || 'http://localhost:4010',

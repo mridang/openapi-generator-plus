@@ -25,8 +25,8 @@ class BaseApi:
         api_client: Optional[ApiClient] = None,
         config: Optional[Configuration] = None,
     ):
-        self.api_client = api_client or DefaultApiClient()
         self.config = config or Configuration.get_default()
+        self.api_client = api_client or DefaultApiClient(self.config)
         self._object_serializer = ObjectSerializer()
         self._header_selector = HeaderSelector()
 

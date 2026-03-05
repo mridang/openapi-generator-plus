@@ -6,6 +6,7 @@ namespace {{invokerPackage}};
 use GuzzleHttp\Client;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
+use {{invokerPackage}}\Configuration;
 use RuntimeException;
 
 /**
@@ -24,13 +25,32 @@ class DefaultApiClient implements ApiClient
     private ClientInterface $client;
 
     /**
+     * @param Configuration|null   $config Configuration instance
      * @param ClientInterface|null $client Guzzle client instance
      */
-    public function __construct(?ClientInterface $client = null)
+    public function __construct(?Configuration $config = null, ?ClientInterface $client = null)
     {
-        $this->client = $client ?: new Client([
-            'http_errors' => false,
-        ]);
+        if ($client !== null) {
+            $this->client = $client;
+        } else {
+            $options = [
+                'http_errors' => false,
+            ];
+
+            if ($config !== null) {
+                if (!$config->isVerifySsl()) {
+                    $options['verify'] = false;
+                } elseif ($config->getSslCaCert() !== null) {
+                    $options['verify'] = $config->getSslCaCert();
+                }
+
+                if ($config->getProxy() !== null) {
+                    $options['proxy'] = $config->getProxy();
+                }
+            }
+
+            $this->client = new Client($options);
+        }
     }
 
     /**
