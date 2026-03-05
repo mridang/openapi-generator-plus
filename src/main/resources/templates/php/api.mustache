@@ -57,7 +57,7 @@ use {{invokerPackage}}\ObjectSerializer;
 {{#pathParams}}
         $path = str_replace(
             '{' . '{{baseName}}' . '}',
-            ObjectSerializer::toPathValue(${{paramName}}),
+            rawurlencode(ObjectSerializer::toPathValue(${{paramName}})),
             $path
         );
 {{/pathParams}}

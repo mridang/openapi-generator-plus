@@ -16,6 +16,7 @@ require 'json'
 require 'time'
 
 module {{moduleName}}
+  # Exception raised when serialization or deserialization fails.
   class SerializationError < StandardError
     attr_reader :cause
 
@@ -25,9 +26,15 @@ module {{moduleName}}
     end
   end
 
+  # Handles JSON serialization and deserialization for API requests and responses.
+  #
+  # All serde operations in the generated client route through this class.
+  # The parameter encoding methods provide consistent value conversion for
+  # URL path, query string, header, and form parameters.
   class ObjectSerializer
     DEFAULT_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S%z'.freeze
 
+    # Serialize an object to a JSON string.
     def self.serialize(object)
       sanitized = sanitize_for_serialization(object)
       JSON.generate(sanitized)
@@ -35,10 +42,7 @@ module {{moduleName}}
       raise SerializationError.new("Failed to serialize object to JSON: #{e.message}", e)
     end
 
-    def self.to_json(object)
-      serialize(object)
-    end
-
+    # Deserialize a JSON string to an object of the specified type.
     def self.deserialize(json_string, target_type)
       return nil if json_string.nil? || (json_string.is_a?(String) && json_string.empty?)
 
@@ -55,6 +59,73 @@ module {{moduleName}}
       raise e if e.is_a?(SerializationError)
 
       raise SerializationError.new("Failed to deserialize JSON to #{target_type}: #{e.message}", e)
+    end
+
+    # Convert a value to a string suitable for use as a URL path parameter.
+    def self.to_path_value(value)
+      return '' if value.nil?
+      return value ? 'true' : 'false' if value.is_a?(TrueClass) || value.is_a?(FalseClass)
+      return value.strftime(DEFAULT_DATETIME_FORMAT) if value.is_a?(Time) || value.is_a?(DateTime)
+      return value.to_s if value.is_a?(Date)
+
+      value.to_s
+    end
+
+    # Convert a value to a representation suitable for use as a query parameter.
+    # For collections, joins using the specified collection format delimiter.
+    def self.to_query_value(value, collection_format = nil)
+      return nil if value.nil?
+
+      if value.is_a?(Array)
+        items = value.map(&:to_s)
+        case collection_format
+        when :ssv then items.join(' ')
+        when :tsv then items.join("\t")
+        when :pipes then items.join('|')
+        when :multi then items
+        else items.join(',')
+        end
+      elsif value.is_a?(TrueClass) || value.is_a?(FalseClass)
+        value ? 'true' : 'false'
+      elsif value.is_a?(Time) || value.is_a?(DateTime)
+        value.strftime(DEFAULT_DATETIME_FORMAT)
+      elsif value.is_a?(Date)
+        value.to_s
+      else
+        value.to_s
+      end
+    end
+
+    # Convert a value to a string suitable for use as an HTTP header value.
+    def self.to_header_value(value)
+      return '' if value.nil?
+
+      if value.is_a?(Array)
+        value.map(&:to_s).join(',')
+      elsif value.is_a?(TrueClass) || value.is_a?(FalseClass)
+        value ? 'true' : 'false'
+      elsif value.is_a?(Time) || value.is_a?(DateTime)
+        value.strftime(DEFAULT_DATETIME_FORMAT)
+      elsif value.is_a?(Date)
+        value.to_s
+      else
+        value.to_s
+      end
+    end
+
+    # Convert a value to a representation suitable for use as a form parameter.
+    def self.to_form_value(value)
+      return '' if value.nil?
+
+      if value.is_a?(TrueClass) || value.is_a?(FalseClass)
+        value ? 'true' : 'false'
+      elsif value.is_a?(Time) || value.is_a?(DateTime)
+        value.strftime(DEFAULT_DATETIME_FORMAT)
+      elsif value.is_a?(Date)
+        value.to_s
+      else
+        value.to_s
+      end
     end
 
     def self.sanitize_for_serialization(object)
@@ -90,49 +161,6 @@ module {{moduleName}}
         else
           object.to_s
         end
-      end
-    end
-
-    def self.to_path_value(value)
-      return '' if value.nil?
-
-      sanitize_for_serialization(value).to_s
-    end
-
-    def self.to_query_value(value, collection_format = nil)
-      return nil if value.nil?
-
-      if value.is_a?(Array)
-        case collection_format
-        when :csv then value.map { |v| sanitize_for_serialization(v).to_s }.join(',')
-        when :ssv then value.map { |v| sanitize_for_serialization(v).to_s }.join(' ')
-        when :tsv then value.map { |v| sanitize_for_serialization(v).to_s }.join("\t")
-        when :pipes then value.map { |v| sanitize_for_serialization(v).to_s }.join('|')
-        when :multi then value.map { |v| sanitize_for_serialization(v).to_s }
-        else value.map { |v| sanitize_for_serialization(v).to_s }.join(',')
-        end
-      else
-        sanitize_for_serialization(value).to_s
-      end
-    end
-
-    def self.to_header_value(value)
-      return '' if value.nil?
-
-      if value.is_a?(Array)
-        value.map { |v| sanitize_for_serialization(v).to_s }.join(',')
-      else
-        sanitize_for_serialization(value).to_s
-      end
-    end
-
-    def self.to_form_value(value)
-      return '' if value.nil?
-
-      if value.is_a?(File) || value.respond_to?(:read)
-        value
-      else
-        sanitize_for_serialization(value).to_s
       end
     end
 
@@ -177,5 +205,7 @@ module {{moduleName}}
         end
       end
     end
+
+    private_class_method :sanitize_for_serialization
   end
 end

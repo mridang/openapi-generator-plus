@@ -73,7 +73,7 @@ public class {{classname}} extends BaseApi {
         Map<String, Object> queryParams = new HashMap<>();
 {{#queryParams}}
         if ({{paramName}} != null) {
-            queryParams.put("{{baseName}}", ObjectSerializer.toQueryValue({{paramName}}{{#collectionFormat}}, "{{collectionFormat}}"{{/collectionFormat}}));
+            queryParams.put("{{baseName}}", ObjectSerializer.toQueryValue({{paramName}}, {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}));
         }
 {{/queryParams}}
 

@@ -59,7 +59,7 @@ module {{moduleName}}::Api
 
       # Deserialize response
       if return_type && response.body && !response.body.empty?
-        {{moduleName}}::ObjectSerializer.deserialize(JSON.parse(response.body, symbolize_names: true), return_type)
+        {{moduleName}}::ObjectSerializer.deserialize(response.body, return_type)
       else
         nil
       end
@@ -103,7 +103,7 @@ module {{moduleName}}::Api
           hash[k] = {{moduleName}}::ObjectSerializer.to_form_value(v)
         end.then { |sanitized| build_query_string(sanitized) }
       else
-        {{moduleName}}::ObjectSerializer.to_json(body)
+        {{moduleName}}::ObjectSerializer.serialize(body)
       end
     end
   end

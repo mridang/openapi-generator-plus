@@ -11,7 +11,6 @@ use {{invokerPackage}}\DefaultApiClient;
 use {{invokerPackage}}\HeaderSelector;
 use {{invokerPackage}}\ObjectSerializer;
 use GuzzleHttp\Psr7\MultipartStream;
-use GuzzleHttp\Utils;
 
 /**
  * Base class for all API classes. Provides the invokeApi method that
@@ -86,7 +85,7 @@ class BaseApi
     ): mixed {
         // Build URL
         $url = $this->config->getBaseUrl() . $path;
-        $query = ObjectSerializer::buildQuery($queryParams);
+        $query = $this->buildQuery($queryParams);
         if (!empty($query)) {
             $url .= '?' . $query;
         }
@@ -126,6 +125,44 @@ class BaseApi
     }
 
     /**
+     * Build a query string from an array of key value pairs.
+     *
+     * @param array $params Query string parameters
+     *
+     * @return string
+     */
+    private function buildQuery(array $params): string
+    {
+        if (!$params) {
+            return '';
+        }
+
+        $qs = '';
+        foreach ($params as $k => $v) {
+            $k = rawurlencode((string) $k);
+            if (!is_array($v)) {
+                $qs .= $k;
+                $v = is_bool($v) ? ($v ? 'true' : 'false') : $v;
+                if ($v !== null) {
+                    $qs .= '=' . rawurlencode((string) $v);
+                }
+                $qs .= '&';
+            } else {
+                foreach ($v as $vv) {
+                    $qs .= $k;
+                    $vv = is_bool($vv) ? ($vv ? 'true' : 'false') : $vv;
+                    if ($vv !== null) {
+                        $qs .= '=' . rawurlencode((string) $vv);
+                    }
+                    $qs .= '&';
+                }
+            }
+        }
+
+        return $qs ? (string) substr($qs, 0, -1) : '';
+    }
+
+    /**
      * Serialize the request body based on content type.
      *
      * @param mixed       $body        Request body
@@ -153,9 +190,9 @@ class BaseApi
             }
             return new MultipartStream($multipartContents);
         } elseif ($contentType === 'application/x-www-form-urlencoded') {
-            return ObjectSerializer::buildQuery($body);
+            return $this->buildQuery($body);
         } else {
-            return Utils::jsonEncode(ObjectSerializer::sanitizeForSerialization($body));
+            return ObjectSerializer::serialize($body);
         }
     }
 }
