@@ -77,7 +77,6 @@ export class DefaultApiClient implements ApiClient {
       if (this.config?.proxy) {
         const proxyUrl = new URL(this.config.proxy);
         if (isHttps) {
-          // HTTPS through HTTP proxy: use CONNECT tunnel
           const connectReq = http.request({
             host: proxyUrl.hostname,
             port: Number(proxyUrl.port) || 3128,
@@ -105,7 +104,6 @@ export class DefaultApiClient implements ApiClient {
           connectReq.end();
           return;
         } else {
-          // HTTP through HTTP proxy: send full URL as path
           requestOptions = {
             host: proxyUrl.hostname,
             port: Number(proxyUrl.port) || 3128,
@@ -115,7 +113,6 @@ export class DefaultApiClient implements ApiClient {
           };
         }
       } else {
-        // Direct request with custom TLS agent
         requestOptions = {
           hostname: parsed.hostname,
           port: parsed.port ? Number(parsed.port) : undefined,

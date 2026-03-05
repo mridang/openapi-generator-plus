@@ -19,13 +19,13 @@ class PetApi(BaseApi):
     def __init__(
         self,
         api_client: Optional[ApiClient] = None,
-        config: Optional[Configuration] = None
+        config: Optional[Configuration] = None,
     ):
         super().__init__(api_client, config)
 
     def add_pet(
         self,
-        pet: Annotated[Pet, Field(description="Create a new pet in the store")],
+        pet: Annotated[Pet, Field(description='Create a new pet in the store')],
     ) -> Pet:
         """Add a new pet to the store
         :param pet: Create a new pet in the store (required)
@@ -34,11 +34,8 @@ class PetApi(BaseApi):
         if pet is None:
             raise ValueError("Missing the required parameter 'pet' when calling add_pet")
         path = '/pet'
-
         query_params: Dict[str, Any] = {}
-
         header_params: Dict[str, str] = {}
-
         body = pet
 
         return self.invoke_api(
@@ -49,24 +46,22 @@ class PetApi(BaseApi):
             body,
             ['application/json'],
             'application/json',
-            'Pet'
+            'Pet',
         )
 
     def delete_pet(
         self,
-        pet_id: Annotated[StrictInt, Field(description="Pet id to delete")],
+        pet_id: Annotated[StrictInt, Field(description='Pet id to delete')],
     ) -> None:
         """Deletes a pet
         :param pet_id: Pet id to delete (required)
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id' when calling delete_pet")
-        path = '/pet/{petId}'.replace('{' + 'petId' + '}', quote(ObjectSerializer.to_path_value(pet_id), safe=''))
-
+        path = '/pet/{petId}'
+        path = path.replace('{' + 'petId' + '}', quote(ObjectSerializer.to_path_value(pet_id), safe=''))
         query_params: Dict[str, Any] = {}
-
         header_params: Dict[str, str] = {}
-
         body = None
 
         return self.invoke_api(
@@ -77,25 +72,24 @@ class PetApi(BaseApi):
             body,
             [],
             'application/json',
-            None
+            None,
         )
 
     def find_pets_by_status(
         self,
-        status: Annotated[Optional[StrictStr], Field(description="Status values that need to be considered for filter")] = None,
+        status: Annotated[
+            Optional[StrictStr], Field(description='Status values that need to be considered for filter')
+        ] = None,
     ) -> List[Pet]:
         """Finds Pets by status
         :param status: Status values that need to be considered for filter (optional, default to available)
         :return: List[Pet]
         """
         path = '/pet/findByStatus'
-
         query_params: Dict[str, Any] = {}
         if status is not None:
             query_params['status'] = ObjectSerializer.to_query_value(status)
-
         header_params: Dict[str, str] = {}
-
         body = None
 
         return self.invoke_api(
@@ -106,12 +100,12 @@ class PetApi(BaseApi):
             body,
             ['application/json'],
             'application/json',
-            'List[Pet]'
+            'List[Pet]',
         )
 
     def get_pet_by_id(
         self,
-        pet_id: Annotated[StrictInt, Field(description="ID of pet to return")],
+        pet_id: Annotated[StrictInt, Field(description='ID of pet to return')],
     ) -> Pet:
         """Find pet by ID
         Returns a single pet
@@ -120,12 +114,10 @@ class PetApi(BaseApi):
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id' when calling get_pet_by_id")
-        path = '/pet/{petId}'.replace('{' + 'petId' + '}', quote(ObjectSerializer.to_path_value(pet_id), safe=''))
-
+        path = '/pet/{petId}'
+        path = path.replace('{' + 'petId' + '}', quote(ObjectSerializer.to_path_value(pet_id), safe=''))
         query_params: Dict[str, Any] = {}
-
         header_params: Dict[str, str] = {}
-
         body = None
 
         return self.invoke_api(
@@ -136,13 +128,13 @@ class PetApi(BaseApi):
             body,
             ['application/json'],
             'application/json',
-            'Pet'
+            'Pet',
         )
 
     def update_pet(
         self,
-        pet_id: Annotated[StrictInt, Field(description="ID of pet to update")],
-        pet: Annotated[Pet, Field(description="Pet object that needs to be updated")],
+        pet_id: Annotated[StrictInt, Field(description='ID of pet to update')],
+        pet: Annotated[Pet, Field(description='Pet object that needs to be updated')],
     ) -> Pet:
         """Update an existing pet
         :param pet_id: ID of pet to update (required)
@@ -153,12 +145,10 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id' when calling update_pet")
         if pet is None:
             raise ValueError("Missing the required parameter 'pet' when calling update_pet")
-        path = '/pet/{petId}'.replace('{' + 'petId' + '}', quote(ObjectSerializer.to_path_value(pet_id), safe=''))
-
+        path = '/pet/{petId}'
+        path = path.replace('{' + 'petId' + '}', quote(ObjectSerializer.to_path_value(pet_id), safe=''))
         query_params: Dict[str, Any] = {}
-
         header_params: Dict[str, str] = {}
-
         body = pet
 
         return self.invoke_api(
@@ -169,5 +159,5 @@ class PetApi(BaseApi):
             body,
             ['application/json'],
             'application/json',
-            'Pet'
+            'Pet',
         )

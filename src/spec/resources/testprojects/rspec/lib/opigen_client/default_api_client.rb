@@ -11,14 +11,25 @@ require 'typhoeus'
 
 module OpigenClient
   class DefaultApiClient < ApiClient
+    def initialize(config = nil)
+      @config = config
+    end
+
     def send_request(method, url, headers, body)
-      request = Typhoeus::Request.new(
-        url,
+      options = {
         method: method,
         headers: headers,
         body: body
-      )
+      }
 
+      if @config
+        options[:proxy] = @config.proxy if @config.proxy
+        options[:ssl_verifypeer] = @config.verify_ssl
+        options[:ssl_verifyhost] = @config.verify_ssl ? 2 : 0
+        options[:cainfo] = @config.ssl_ca_cert if @config.ssl_ca_cert
+      end
+
+      request = Typhoeus::Request.new(url, options)
       response = request.run
 
       ApiResponse.new(

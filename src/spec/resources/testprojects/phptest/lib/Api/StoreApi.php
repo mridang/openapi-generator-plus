@@ -40,14 +40,11 @@ class StoreApi extends BaseApi
         $path = '/store/order/{orderId}';
         $path = str_replace(
             '{' . 'orderId' . '}',
-            ObjectSerializer::toPathValue($orderId),
+            rawurlencode(ObjectSerializer::toPathValue($orderId)),
             $path
         );
-
         $queryParams = [];
-
         $headerParams = [];
-
         $body = null;
 
         return $this->invokeApi(
@@ -70,11 +67,8 @@ class StoreApi extends BaseApi
     public function getInventory()
     {
         $path = '/store/inventory';
-
         $queryParams = [];
-
         $headerParams = [];
-
         $body = null;
 
         return $this->invokeApi(
@@ -105,14 +99,11 @@ class StoreApi extends BaseApi
         $path = '/store/order/{orderId}';
         $path = str_replace(
             '{' . 'orderId' . '}',
-            ObjectSerializer::toPathValue($orderId),
+            rawurlencode(ObjectSerializer::toPathValue($orderId)),
             $path
         );
-
         $queryParams = [];
-
         $headerParams = [];
-
         $body = null;
 
         return $this->invokeApi(
@@ -136,11 +127,8 @@ class StoreApi extends BaseApi
     public function placeOrder($order = null)
     {
         $path = '/store/order';
-
         $queryParams = [];
-
         $headerParams = [];
-
         $body = $order;
 
         return $this->invokeApi(

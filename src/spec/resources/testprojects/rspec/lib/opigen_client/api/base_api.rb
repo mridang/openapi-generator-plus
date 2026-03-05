@@ -17,45 +17,35 @@ module OpigenClient::Api
   class BaseApi
     attr_reader :api_client, :config, :header_selector
 
-    def initialize(api_client = OpigenClient::DefaultApiClient.new, config = OpigenClient::Configuration.default)
-      @api_client = api_client
+    def initialize(api_client = nil, config = OpigenClient::Configuration.default)
       @config = config
+      @api_client = api_client || OpigenClient::DefaultApiClient.new(@config)
       @header_selector = OpigenClient::HeaderSelector.new
     end
 
     def invoke_api(method, path, query_params, header_params, body, accepts, content_type, return_type)
-      # Build URL
       url = "#{@config.base_url}#{path}"
       query_string = build_query_string(query_params)
       url = "#{url}?#{query_string}" unless query_string.empty?
 
-      # Select headers
       is_multipart = content_type == 'multipart/form-data'
       selected = @header_selector.select_headers(accepts, content_type || '', is_multipart)
       headers = {}
       headers['Accept'] = selected['Accept'] if selected['Accept']
       headers['Content-Type'] = selected['Content-Type'] if selected['Content-Type']
-
-      # Apply default headers from configuration
       headers.merge!(@config.default_headers)
-
-      # Merge custom headers
       headers.merge!(header_params)
 
-      # Serialize body
       serialized_body = serialize_body(body, content_type)
 
-      # Send request
       response = @api_client.send_request(method, url, headers, serialized_body)
 
-      # Check status
       if response.status_code < 200 || response.status_code >= 300
         raise OpigenClient::ApiError.new(code: response.status_code, response_body: response.body)
       end
 
-      # Deserialize response
       if return_type && response.body && !response.body.empty?
-        OpigenClient::ObjectSerializer.deserialize(JSON.parse(response.body, symbolize_names: true), return_type)
+        OpigenClient::ObjectSerializer.deserialize(response.body, return_type)
       else
         nil
       end
@@ -99,7 +89,7 @@ module OpigenClient::Api
           hash[k] = OpigenClient::ObjectSerializer.to_form_value(v)
         end.then { |sanitized| build_query_string(sanitized) }
       else
-        OpigenClient::ObjectSerializer.to_json(body)
+        OpigenClient::ObjectSerializer.serialize(body)
       end
     end
   end

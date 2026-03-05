@@ -43,6 +43,7 @@ module OpigenClient
     # @return [Boolean] true if the string represents a JSON MIME type
     def json_mime?(search_string)
       return false if search_string.nil?
+
       JSON_MIME_PATTERN.match?(search_string)
     end
 
@@ -73,7 +74,7 @@ module OpigenClient
         return current_weight - 1
       end
 
-      current_weight - (10 ** Math.log10(current_weight - 1).floor)
+      current_weight - (10**Math.log10(current_weight - 1).floor)
     end
 
     private
@@ -85,20 +86,15 @@ module OpigenClient
     def select_accept_header(accept)
       return nil if accept.nil?
 
-      # filter out empty entries
       filtered_accept = accept.select { |s| !s.nil? && !s.empty? }
 
       return nil if filtered_accept.empty?
 
-      # If there's only one Accept header, just use it
       return filtered_accept[0] if filtered_accept.size == 1
 
-      # If none of the available Accept headers is of type "json", then just use all them
       headers_with_json = select_json_mime_list(filtered_accept)
       return filtered_accept.join(',') if headers_with_json.empty?
 
-      # If we got here, then we need add quality values (weight), as described in IETF RFC 9110, Items 12.4.2/12.5.1,
-      # to give the highest priority to json-like headers - recalculating the existing ones, if needed
       get_accept_header_with_adjusted_weight(filtered_accept, headers_with_json)
     end
 
@@ -155,7 +151,6 @@ module OpigenClient
     # @param header [String] "Accept" Header
     # @return [HeaderData] with the header and its weight
     def get_header_and_weight(header)
-      # matches headers with weight, splitting the header and the weight
       match = WEIGHT_PATTERN.match(header)
       if match
         header_value = match[1]

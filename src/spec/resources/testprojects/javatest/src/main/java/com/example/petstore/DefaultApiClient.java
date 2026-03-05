@@ -20,10 +20,14 @@ import org.apache.hc.core5.ssl.SSLContexts;
 
 import javax.net.ssl.SSLContext;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.security.KeyStore;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -48,21 +52,24 @@ public class DefaultApiClient implements ApiClient {
     try {
       HttpClientBuilder builder = HttpClients.custom();
 
-      // Proxy
       if (config.getProxy() != null) {
         builder.setProxy(HttpHost.create(config.getProxy()));
       }
 
-      // SSL/TLS
       SSLContext sslContext;
       if (!config.isVerifySsl()) {
         sslContext =
             SSLContextBuilder.create().loadTrustMaterial(TrustAllStrategy.INSTANCE).build();
       } else if (config.getSslCaCert() != null) {
-        sslContext =
-            SSLContextBuilder.create()
-                .loadTrustMaterial(new File(config.getSslCaCert()), null)
-                .build();
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        X509Certificate caCert;
+        try (FileInputStream fis = new FileInputStream(config.getSslCaCert())) {
+          caCert = (X509Certificate) cf.generateCertificate(fis);
+        }
+        KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+        trustStore.load(null, null);
+        trustStore.setCertificateEntry("ca", caCert);
+        sslContext = SSLContextBuilder.create().loadTrustMaterial(trustStore, null).build();
       } else {
         sslContext = SSLContexts.createDefault();
       }

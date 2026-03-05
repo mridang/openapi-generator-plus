@@ -19,7 +19,7 @@ module Types
 end
 
 module OpigenClient::Models
-        class Tag < Dry::Struct
+  class Tag < Dry::Struct
     # Attribute mapping from ruby-style variable name to JSON key.
     ATTRIBUTE_MAP = {
       id: :'id',
@@ -54,11 +54,13 @@ module OpigenClient::Models
     # @return [Tag] Deserialized object
     def self.build_from_hash(attributes)
       return nil unless attributes.is_a?(Hash)
+
       attributes = attributes.transform_keys(&:to_sym)
       transformed = {}
       openapi_types.each do |attr, type|
         json_key = ATTRIBUTE_MAP[attr]
         next unless attributes.key?(json_key)
+
         value = attributes[json_key]
         if value.nil?
           transformed[attr] = nil
@@ -69,5 +71,4 @@ module OpigenClient::Models
       new(transformed)
     end
   end
-
 end

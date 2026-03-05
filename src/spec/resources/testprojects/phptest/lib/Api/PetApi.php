@@ -38,11 +38,8 @@ class PetApi extends BaseApi
             );
         }
         $path = '/pet';
-
         $queryParams = [];
-
         $headerParams = [];
-
         $body = $pet;
 
         return $this->invokeApi(
@@ -73,14 +70,11 @@ class PetApi extends BaseApi
         $path = '/pet/{petId}';
         $path = str_replace(
             '{' . 'petId' . '}',
-            ObjectSerializer::toPathValue($petId),
+            rawurlencode(ObjectSerializer::toPathValue($petId)),
             $path
         );
-
         $queryParams = [];
-
         $headerParams = [];
-
         $body = null;
 
         return $this->invokeApi(
@@ -104,14 +98,11 @@ class PetApi extends BaseApi
     public function findPetsByStatus($status = 'available')
     {
         $path = '/pet/findByStatus';
-
         $queryParams = [];
         if ($status !== null) {
             $queryParams['status'] = ObjectSerializer::toQueryValue($status);
         }
-
         $headerParams = [];
-
         $body = null;
 
         return $this->invokeApi(
@@ -142,14 +133,11 @@ class PetApi extends BaseApi
         $path = '/pet/{petId}';
         $path = str_replace(
             '{' . 'petId' . '}',
-            ObjectSerializer::toPathValue($petId),
+            rawurlencode(ObjectSerializer::toPathValue($petId)),
             $path
         );
-
         $queryParams = [];
-
         $headerParams = [];
-
         $body = null;
 
         return $this->invokeApi(
@@ -186,14 +174,11 @@ class PetApi extends BaseApi
         $path = '/pet/{petId}';
         $path = str_replace(
             '{' . 'petId' . '}',
-            ObjectSerializer::toPathValue($petId),
+            rawurlencode(ObjectSerializer::toPathValue($petId)),
             $path
         );
-
         $queryParams = [];
-
         $headerParams = [];
-
         $body = $pet;
 
         return $this->invokeApi(

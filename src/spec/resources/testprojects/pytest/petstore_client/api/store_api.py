@@ -19,25 +19,23 @@ class StoreApi(BaseApi):
     def __init__(
         self,
         api_client: Optional[ApiClient] = None,
-        config: Optional[Configuration] = None
+        config: Optional[Configuration] = None,
     ):
         super().__init__(api_client, config)
 
     def delete_order(
         self,
-        order_id: Annotated[StrictInt, Field(description="ID of the order to delete")],
+        order_id: Annotated[StrictInt, Field(description='ID of the order to delete')],
     ) -> None:
         """Delete purchase order by ID
         :param order_id: ID of the order to delete (required)
         """
         if order_id is None:
             raise ValueError("Missing the required parameter 'order_id' when calling delete_order")
-        path = '/store/order/{orderId}'.replace('{' + 'orderId' + '}', quote(ObjectSerializer.to_path_value(order_id), safe=''))
-
+        path = '/store/order/{orderId}'
+        path = path.replace('{' + 'orderId' + '}', quote(ObjectSerializer.to_path_value(order_id), safe=''))
         query_params: Dict[str, Any] = {}
-
         header_params: Dict[str, str] = {}
-
         body = None
 
         return self.invoke_api(
@@ -48,7 +46,7 @@ class StoreApi(BaseApi):
             body,
             [],
             'application/json',
-            None
+            None,
         )
 
     def get_inventory(
@@ -58,11 +56,8 @@ class StoreApi(BaseApi):
         :return: Dict[str, int]
         """
         path = '/store/inventory'
-
         query_params: Dict[str, Any] = {}
-
         header_params: Dict[str, str] = {}
-
         body = None
 
         return self.invoke_api(
@@ -73,12 +68,12 @@ class StoreApi(BaseApi):
             body,
             ['application/json'],
             'application/json',
-            'Dict[str, int]'
+            'Dict[str, int]',
         )
 
     def get_order_by_id(
         self,
-        order_id: Annotated[StrictInt, Field(description="ID of order to return")],
+        order_id: Annotated[StrictInt, Field(description='ID of order to return')],
     ) -> Order:
         """Find purchase order by ID
         :param order_id: ID of order to return (required)
@@ -86,12 +81,10 @@ class StoreApi(BaseApi):
         """
         if order_id is None:
             raise ValueError("Missing the required parameter 'order_id' when calling get_order_by_id")
-        path = '/store/order/{orderId}'.replace('{' + 'orderId' + '}', quote(ObjectSerializer.to_path_value(order_id), safe=''))
-
+        path = '/store/order/{orderId}'
+        path = path.replace('{' + 'orderId' + '}', quote(ObjectSerializer.to_path_value(order_id), safe=''))
         query_params: Dict[str, Any] = {}
-
         header_params: Dict[str, str] = {}
-
         body = None
 
         return self.invoke_api(
@@ -102,7 +95,7 @@ class StoreApi(BaseApi):
             body,
             ['application/json'],
             'application/json',
-            'Order'
+            'Order',
         )
 
     def place_order(
@@ -114,11 +107,8 @@ class StoreApi(BaseApi):
         :return: Order
         """
         path = '/store/order'
-
         query_params: Dict[str, Any] = {}
-
         header_params: Dict[str, str] = {}
-
         body = order
 
         return self.invoke_api(
@@ -129,5 +119,5 @@ class StoreApi(BaseApi):
             body,
             ['application/json'],
             'application/json',
-            'Order'
+            'Order',
         )
