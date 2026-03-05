@@ -43,23 +43,18 @@ class HeaderSelector:
         if accept is None:
             return None
 
-        # filter out empty entries
         filtered_accept = [s for s in accept if s is not None and s]
 
         if not filtered_accept:
             return None
 
-        # If there's only one Accept header, just use it
         if len(filtered_accept) == 1:
             return filtered_accept[0]
 
-        # If none of the available Accept headers is of type "json", then just use all them
         headers_with_json = self._select_json_mime_list(filtered_accept)
         if not headers_with_json:
             return ','.join(filtered_accept)
 
-        # If we got here, then we need add quality values (weight), as described in IETF RFC 9110, Items 12.4.2/12.5.1,
-        # to give the highest priority to json-like headers - recalculating the existing ones, if needed
         return self._get_accept_header_with_adjusted_weight(filtered_accept, headers_with_json)
 
     def is_json_mime(self, search_string: str) -> bool:
@@ -121,7 +116,6 @@ class HeaderSelector:
         :param header: "Accept" Header
         :return: HeaderData with the header and its weight
         """
-        # matches headers with weight, splitting the header and the weight
         matcher = self._WEIGHT_PATTERN.match(header)
         if matcher:
             header_value = matcher.group(1)

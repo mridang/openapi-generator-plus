@@ -43,7 +43,6 @@ export abstract class BaseApi {
     contentType: string,
     returnType: ((json: any) => T) | null
   ): Promise<T | void> {
-    // Build URL
     let url = this.config.baseUrl + path;
     const filteredParams = Object.entries(queryParams)
       .filter(([, v]) => v != null)
@@ -53,28 +52,19 @@ export abstract class BaseApi {
       url += '?' + filteredParams;
     }
 
-    // Select headers
     const isMultipart = contentType === 'multipart/form-data';
     const headers = this.headerSelector.selectHeaders(accepts, contentType, isMultipart);
-
-    // Apply default headers from configuration
     Object.assign(headers, this.config.defaultHeaders);
-
-    // Merge custom headers
     Object.assign(headers, headerParams);
 
-    // Serialize body
     const serializedBody = body != null ? JSON.stringify(body) : null;
 
-    // Send request
     const response = await this.apiClient.sendRequest(method, url, headers, serializedBody);
 
-    // Check status
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw new Error(`API returned status code ${response.statusCode}: ${response.body}`);
     }
 
-    // Deserialize response
     if (returnType != null && response.body) {
       const json = JSON.parse(response.body);
       return returnType(json);

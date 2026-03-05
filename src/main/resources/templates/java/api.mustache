@@ -41,7 +41,7 @@ public class {{classname}} extends BaseApi {
      * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional{{^isContainer}}{{#defaultValue}}, default to {{.}}{{/defaultValue}}{{/isContainer}}){{/required}}
 {{/allParams}}
 {{#returnType}}
-     * @return {{returnType}}
+     * @return {{{returnType}}}
 {{/returnType}}
      * @throws ApiException if fails to make API call
 {{#isDeprecated}}
@@ -69,14 +69,12 @@ public class {{classname}} extends BaseApi {
                         .replace(
                                 "{" + "{{baseName}}" + "}",
                                 encode(ObjectSerializer.toPathValue({{{paramName}}}))){{/pathParams}}{{#pathParams}}{{#-last}};{{/-last}}{{/pathParams}}
-
         Map<String, Object> queryParams = new HashMap<>();
 {{#queryParams}}
         if ({{paramName}} != null) {
             queryParams.put("{{baseName}}", ObjectSerializer.toQueryValue({{paramName}}, {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}));
         }
 {{/queryParams}}
-
         Map<String, String> headerParams = new HashMap<>();
 {{#headerParams}}
         if ({{paramName}} != null) {
@@ -84,7 +82,6 @@ public class {{classname}} extends BaseApi {
                     "{{baseName}}", ObjectSerializer.toHeaderValue({{paramName}}));
         }
 {{/headerParams}}
-
 {{#hasFormParams}}
         Map<String, Object> formBody = new HashMap<>();
 {{#formParams}}

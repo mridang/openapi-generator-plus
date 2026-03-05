@@ -54,33 +54,24 @@ class BaseApi:
         :return: deserialized response or None
         :raises ApiException: if the API call fails
         """
-        # Build URL
         url = self.config.base_url + path
         if query_params:
             filtered = {k: v for k, v in query_params.items() if v is not None}
             if filtered:
                 url += '?' + urlencode(filtered)
 
-        # Select headers
         is_multipart = content_type == 'multipart/form-data'
         headers = self._header_selector.select_headers(accepts, content_type or '', is_multipart)
-
-        # Apply default headers from configuration
         headers.update(self.config.default_headers)
-
-        # Merge custom headers
         if header_params:
             headers.update(header_params)
 
-        # Serialize body
         serialized_body = None
         if body is not None:
             serialized_body = self._object_serializer.serialize(body)
 
-        # Send request
         response = self.api_client.send_request(method, url, headers, serialized_body)
 
-        # Check status
         if response.status_code < 200 or response.status_code >= 300:
             raise ApiException(
                 status=response.status_code,
@@ -88,7 +79,6 @@ class BaseApi:
                 body=response.body,
             )
 
-        # Deserialize response
         if return_type is not None and response.body:
             return self._object_serializer.deserialize(response.body, return_type)
 

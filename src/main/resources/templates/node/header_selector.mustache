@@ -48,26 +48,21 @@ export class HeaderSelector {
       return null;
     }
 
-    // filter out empty entries
     const filteredAccept = accept.filter((s) => s !== null && s !== '');
 
     if (filteredAccept.length === 0) {
       return null;
     }
 
-    // If there's only one Accept header, just use it
     if (filteredAccept.length === 1) {
       return filteredAccept[0];
     }
 
-    // If none of the available Accept headers is of type "json", then just use all them
     const headersWithJson = this.selectJsonMimeList(filteredAccept);
     if (headersWithJson.length === 0) {
       return filteredAccept.join(',');
     }
 
-    // If we got here, then we need add quality values (weight), as described in IETF RFC 9110, Items 12.4.2/12.5.1,
-    // to give the highest priority to json-like headers - recalculating the existing ones, if needed
     return this.getAcceptHeaderWithAdjustedWeight(filteredAccept, headersWithJson);
   }
 
@@ -143,7 +138,6 @@ export class HeaderSelector {
    * @returns HeaderData with the header and its weight
    */
   private getHeaderAndWeight(header: string): HeaderData {
-    // matches headers with weight, splitting the header and the weight
     const match = HeaderSelector.WEIGHT_PATTERN.exec(header);
     if (match) {
       const headerValue = match[1];

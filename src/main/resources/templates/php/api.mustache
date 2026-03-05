@@ -61,21 +61,18 @@ use {{invokerPackage}}\ObjectSerializer;
             $path
         );
 {{/pathParams}}
-
         $queryParams = [];
 {{#queryParams}}
         if (${{paramName}} !== null) {
             $queryParams['{{baseName}}'] = ObjectSerializer::toQueryValue(${{paramName}}{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}});
         }
 {{/queryParams}}
-
         $headerParams = [];
 {{#headerParams}}
         if (${{paramName}} !== null) {
             $headerParams['{{baseName}}'] = ObjectSerializer::toHeaderValue(${{paramName}});
         }
 {{/headerParams}}
-
 {{#hasFormParams}}
         $body = [];
 {{#formParams}}

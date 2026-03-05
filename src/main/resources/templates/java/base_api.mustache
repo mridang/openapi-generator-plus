@@ -78,36 +78,27 @@ public abstract class BaseApi {
             TypeReference<T> returnType)
             throws ApiException {
 
-        // Build URL
         String url = config.getBaseUrl() + path;
         String query = buildQueryString(queryParams);
         if (!query.isEmpty()) {
             url += "?" + query;
         }
 
-        // Select headers
         boolean isMultipart = "multipart/form-data".equals(contentType);
         Map<String, String> headers =
                 headerSelector.selectHeaders(accepts, contentType, isMultipart);
-
-        // Apply default headers from configuration
         headers.putAll(config.getDefaultHeaders());
-
-        // Merge custom headers
         if (headerParams != null) {
             headers.putAll(headerParams);
         }
 
-        // Serialize body
         String serializedBody = null;
         if (body != null) {
             serializedBody = objectSerializer.serialize(body);
         }
 
-        // Send request
         ApiResponse response = apiClient.sendRequest(method, url, headers, serializedBody);
 
-        // Check status
         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
             throw new ApiException(
                     response.getStatusCode(),
@@ -116,7 +107,6 @@ public abstract class BaseApi {
                     response.getBody());
         }
 
-        // Deserialize response
         if (returnType != null && response.getBody() != null && !response.getBody().isEmpty()) {
             return objectSerializer.deserialize(response.getBody(), returnType);
         }

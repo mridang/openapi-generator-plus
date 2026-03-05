@@ -38,7 +38,6 @@ module {{moduleName}}::Api
 {{/required}}
 {{/allParams}}
       path = '{{{path}}}'{{#pathParams}}.sub('{' + '{{baseName}}' + '}', CGI.escape({{moduleName}}::ObjectSerializer.to_path_value({{paramName}}))){{/pathParams}}
-
       query_params = {}
 {{#queryParams}}
 {{#required}}
@@ -48,7 +47,6 @@ module {{moduleName}}::Api
       query_params[:'{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_query_value(opts[:'{{paramName}}']{{#collectionFormat}}, :{{collectionFormat}}{{/collectionFormat}}) unless opts[:'{{paramName}}'].nil?
 {{/required}}
 {{/queryParams}}
-
       header_params = {}
 {{#headerParams}}
 {{#required}}
@@ -58,7 +56,6 @@ module {{moduleName}}::Api
       header_params['{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_header_value(opts[:'{{paramName}}']) unless opts[:'{{paramName}}'].nil?
 {{/required}}
 {{/headerParams}}
-
 {{#hasFormParams}}
       body = {}
 {{#formParams}}

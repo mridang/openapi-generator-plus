@@ -48,21 +48,18 @@ export class {{classname}} extends BaseApi {
 {{/required}}
 {{/allParams}}
     const path = `{{{path}}}`{{#pathParams}}.replace(`{${'{{baseName}}'}}`, encodeURIComponent(ObjectSerializer.toPathValue({{paramName}}))){{/pathParams}};
-
     const queryParams: Record<string, any> = {};
 {{#queryParams}}
     if ({{paramName}} != null) {
       queryParams['{{baseName}}'] = ObjectSerializer.toQueryValue({{paramName}}{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}});
     }
 {{/queryParams}}
-
     const headerParams: Record<string, string> = {};
 {{#headerParams}}
     if ({{paramName}} != null) {
       headerParams['{{baseName}}'] = ObjectSerializer.toHeaderValue({{paramName}});
     }
 {{/headerParams}}
-
 {{#hasFormParams}}
     const formBody: Record<string, any> = {};
 {{#formParams}}

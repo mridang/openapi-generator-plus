@@ -56,12 +56,10 @@ public class DefaultApiClient implements ApiClient {
         try {
             HttpClientBuilder builder = HttpClients.custom();
 
-            // Proxy
             if (config.getProxy() != null) {
                 builder.setProxy(HttpHost.create(config.getProxy()));
             }
 
-            // SSL/TLS
             SSLContext sslContext;
             if (!config.isVerifySsl()) {
                 sslContext =

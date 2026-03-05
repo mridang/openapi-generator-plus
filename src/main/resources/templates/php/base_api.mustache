@@ -83,30 +83,21 @@ class BaseApi
         ?string $contentType,
         ?string $returnType
     ): mixed {
-        // Build URL
         $url = $this->config->getBaseUrl() . $path;
         $query = $this->buildQuery($queryParams);
         if (!empty($query)) {
             $url .= '?' . $query;
         }
 
-        // Select headers
         $isMultipart = $contentType === 'multipart/form-data';
         $headers = $this->headerSelector->selectHeaders($accepts, $contentType ?? '', $isMultipart);
-
-        // Apply default headers from configuration
         $headers = array_merge($headers, $this->config->getDefaultHeaders());
-
-        // Merge custom headers
         $headers = array_merge($headers, $headerParams);
 
-        // Serialize body
         $serializedBody = $this->serializeBody($body, $contentType, $isMultipart);
 
-        // Send request
         $response = $this->apiClient->sendRequest($method, $url, $headers, $serializedBody);
 
-        // Check status
         if ($response->statusCode < 200 || $response->statusCode >= 300) {
             throw new ApiException(
                 sprintf('[%d] Error', $response->statusCode),
@@ -116,7 +107,6 @@ class BaseApi
             );
         }
 
-        // Deserialize response
         if ($returnType !== null && !empty(trim($response->body))) {
             return ObjectSerializer::deserialize($response->body, $returnType, []);
         }

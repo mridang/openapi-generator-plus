@@ -60,7 +60,6 @@ public class HeaderSelector {
             return null;
         }
 
-        // filter out empty entries
         List<String> filteredAccept =
                 Arrays.stream(accept)
                         .filter(s -> s != null && !s.isEmpty())
@@ -70,21 +69,15 @@ public class HeaderSelector {
             return null;
         }
 
-        // If there's only one Accept header, just use it
         if (filteredAccept.size() == 1) {
             return filteredAccept.get(0);
         }
 
-        // If none of the available Accept headers is of type "json", then just use all them
         List<String> headersWithJson = selectJsonMimeList(filteredAccept);
         if (headersWithJson.isEmpty()) {
             return String.join(",", filteredAccept);
         }
 
-        // If we got here, then we need add quality values (weight), as described in IETF RFC 9110,
-        // Items 12.4.2/12.5.1,
-        // to give the highest priority to json-like headers - recalculating the existing ones, if
-        // needed
         return getAcceptHeaderWithAdjustedWeight(filteredAccept, headersWithJson);
     }
 
@@ -162,7 +155,6 @@ public class HeaderSelector {
      * @return HeaderData with the header and its weight
      */
     private HeaderData getHeaderAndWeight(String header) {
-        // matches headers with weight, splitting the header and the weight
         Matcher matcher = WEIGHT_PATTERN.matcher(header);
         if (matcher.matches()) {
             String headerValue = matcher.group(1);

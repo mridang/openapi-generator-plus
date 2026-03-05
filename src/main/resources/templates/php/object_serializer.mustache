@@ -140,7 +140,6 @@ class ObjectSerializer
 
         $class = ltrim($class, '\\');
 
-        // Handle array types like 'string[]' or 'Model\Pet[]'
         if (str_ends_with($class, '[]')) {
             $data = is_string($data) ? json_decode($data, true) : $data;
 
@@ -156,7 +155,6 @@ class ObjectSerializer
             return $values;
         }
 
-        // Handle map types like 'array<string,int>'
         if (preg_match('/^(array<|map\[)/', $class)) {
             $data = is_string($data) ? json_decode($data, true) : $data;
             settype($data, 'array');
@@ -172,7 +170,6 @@ class ObjectSerializer
             return $deserialized;
         }
 
-        // Handle primitive types
         if (in_array($class, ['string', 'int', 'integer', 'float', 'number', 'bool', 'boolean', 'mixed', 'void', 'byte'], true)) {
             $data = is_string($data) ? json_decode($data, true) : $data;
             settype($data, $class);
@@ -185,21 +182,18 @@ class ObjectSerializer
             return $data;
         }
 
-        // Handle DateTime
         if ($class === 'DateTime') {
             $data = is_string($data) ? json_decode($data, true) : $data;
             if (!empty($data)) {
                 try {
                     return new \DateTime($data);
                 } catch (\Exception $exception) {
-                    // Shorten timestamp microseconds to 6 digits length
                     return new \DateTime(preg_replace('/(:\d{2}.\d{6})\d*/', '$1', $data));
                 }
             }
             return null;
         }
 
-        // Handle SplFileObject (file downloads)
         if ($class === 'SplFileObject') {
             $data = \GuzzleHttp\Psr7\Utils::streamFor($data);
 
@@ -208,7 +202,6 @@ class ObjectSerializer
                 && array_key_exists('Content-Disposition', $httpHeaders)
                 && preg_match('/inline; filename=[\'"]?([^\'"\s]+)[\'"]?$/i', $httpHeaders['Content-Disposition'], $match)
             ) {
-                // Sanitize filename by removing path
                 $sanitizedFilename = $match[1];
                 if (preg_match("/.*[\/\\\\](.*)$/", $sanitizedFilename, $pathMatch)) {
                     $sanitizedFilename = $pathMatch[1];
@@ -227,13 +220,11 @@ class ObjectSerializer
             return new \SplFileObject($filename, 'r');
         }
 
-        // Handle backed enums
         if (enum_exists($class)) {
             $data = is_string($data) ? json_decode($data, true) : $data;
             return self::getSerializer()->denormalize($data, $class);
         }
 
-        // For model types, use Symfony deserializer
         if (is_string($data)) {
             return self::getSerializer()->deserialize($data, $class, 'json');
         }

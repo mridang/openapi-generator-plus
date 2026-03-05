@@ -28,36 +28,26 @@ module {{moduleName}}::Api
     end
 
     def invoke_api(method, path, query_params, header_params, body, accepts, content_type, return_type)
-      # Build URL
       url = "#{@config.base_url}#{path}"
       query_string = build_query_string(query_params)
       url = "#{url}?#{query_string}" unless query_string.empty?
 
-      # Select headers
       is_multipart = content_type == 'multipart/form-data'
       selected = @header_selector.select_headers(accepts, content_type || '', is_multipart)
       headers = {}
       headers['Accept'] = selected['Accept'] if selected['Accept']
       headers['Content-Type'] = selected['Content-Type'] if selected['Content-Type']
-
-      # Apply default headers from configuration
       headers.merge!(@config.default_headers)
-
-      # Merge custom headers
       headers.merge!(header_params)
 
-      # Serialize body
       serialized_body = serialize_body(body, content_type)
 
-      # Send request
       response = @api_client.send_request(method, url, headers, serialized_body)
 
-      # Check status
       if response.status_code < 200 || response.status_code >= 300
         raise {{moduleName}}::ApiError.new(code: response.status_code, response_body: response.body)
       end
 
-      # Deserialize response
       if return_type && response.body && !response.body.empty?
         {{moduleName}}::ObjectSerializer.deserialize(response.body, return_type)
       else
