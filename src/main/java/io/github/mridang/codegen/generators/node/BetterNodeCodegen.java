@@ -212,6 +212,10 @@ public class BetterNodeCodegen extends TypeScriptFetchClientCodegen implements U
             boolean changed = false;
 
             for (String line : lines) {
+                if (line.equals("/* tslint:disable */") || line.equals("/* eslint-disable */")) {
+                    changed = true;
+                    continue;
+                }
                 if (line.length() >= PRINT_WIDTH) {
                     String wrapped = wrapLongLine(line);
                     if (!wrapped.equals(line)) {

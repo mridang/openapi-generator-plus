@@ -1,5 +1,3 @@
-/* tslint:disable */
-/* eslint-disable */
 export * from './category.js';
 export * from './model-api-response.js';
 export * from './order.js';
