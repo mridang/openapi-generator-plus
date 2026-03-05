@@ -1,19 +1,15 @@
 package {{package}};
 
-import com.fasterxml.jackson.core.type.TypeReference;
-
-import {{invokerPackage}}.ApiException;
 import {{invokerPackage}}.ApiClient;
+import {{invokerPackage}}.ApiException;
 import {{invokerPackage}}.Configuration;
-import {{invokerPackage}}.DefaultApiClient;
 import {{invokerPackage}}.ObjectSerializer;
 {{#models.0}}
 import {{modelPackage}}.*;
 {{/models.0}}
-
 {{#imports}}import {{import}};
 {{/imports}}
-
+import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,83 +23,88 @@ import java.util.Map;
  */
 public class {{classname}} extends BaseApi {
 
-  public {{classname}}() {
-    super();
-  }
+    public {{classname}}() {
+        super();
+    }
 
-  public {{classname}}(ApiClient apiClient, Configuration config) {
-    super(apiClient, config);
-  }
-  {{#operation}}
+    public {{classname}}(ApiClient apiClient, Configuration config) {
+        super(apiClient, config);
+    }
+    {{#operation}}
 
-  /**
-   * {{summary}}
+    /**
+     * {{summary}}
 {{#notes}}
-   * {{.}}
+     * {{.}}
 {{/notes}}
 {{#allParams}}
-   * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional{{^isContainer}}{{#defaultValue}}, default to {{.}}{{/defaultValue}}{{/isContainer}}){{/required}}
+     * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional{{^isContainer}}{{#defaultValue}}, default to {{.}}{{/defaultValue}}{{/isContainer}}){{/required}}
 {{/allParams}}
 {{#returnType}}
-   * @return {{returnType}}
+     * @return {{returnType}}
 {{/returnType}}
-   * @throws ApiException if fails to make API call
+     * @throws ApiException if fails to make API call
 {{#isDeprecated}}
-   * @deprecated
+     * @deprecated
 {{/isDeprecated}}
 {{#externalDocs}}
-   * {{description}}
-   * @see <a href="{{url}}">{{summary}} Documentation</a>
+     * {{description}}
+     * @see <a href="{{url}}">{{summary}} Documentation</a>
 {{/externalDocs}}
-   */
+     */
 {{#isDeprecated}}
-  @Deprecated
+    @Deprecated
 {{/isDeprecated}}
-  public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#allParams}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/allParams}}) throws ApiException {
+    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#allParams}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/allParams}}) throws ApiException {
 {{#allParams}}
 {{#required}}
-    if ({{paramName}} == null) {
-      throw new IllegalArgumentException("Missing the required parameter '{{paramName}}' when calling {{operationId}}");
-    }
+        if ({{paramName}} == null) {
+            throw new IllegalArgumentException(
+                    "Missing the required parameter '{{paramName}}' when calling {{operationId}}");
+        }
 {{/required}}
 {{/allParams}}
-    String path = "{{{path}}}"{{#pathParams}}
-      .replace("{" + "{{baseName}}" + "}", encode(ObjectSerializer.toPathValue({{{paramName}}}))){{/pathParams}};
+        String path{{^pathParams}} = "{{{path}}}";{{/pathParams}}{{#pathParams}}{{#-first}} =
+                "{{{path}}}"{{/-first}}
+                        .replace(
+                                "{" + "{{baseName}}" + "}",
+                                encode(ObjectSerializer.toPathValue({{{paramName}}}))){{/pathParams}}{{#pathParams}}{{#-last}};{{/-last}}{{/pathParams}}
 
-    Map<String, Object> queryParams = new HashMap<>();
+        Map<String, Object> queryParams = new HashMap<>();
 {{#queryParams}}
-    if ({{paramName}} != null) {
-      queryParams.put("{{baseName}}", ObjectSerializer.toQueryValue({{paramName}}{{#collectionFormat}}, "{{collectionFormat}}"{{/collectionFormat}}));
-    }
+        if ({{paramName}} != null) {
+            queryParams.put("{{baseName}}", ObjectSerializer.toQueryValue({{paramName}}{{#collectionFormat}}, "{{collectionFormat}}"{{/collectionFormat}}));
+        }
 {{/queryParams}}
 
-    Map<String, String> headerParams = new HashMap<>();
+        Map<String, String> headerParams = new HashMap<>();
 {{#headerParams}}
-    if ({{paramName}} != null) {
-      headerParams.put("{{baseName}}", ObjectSerializer.toHeaderValue({{paramName}}));
-    }
+        if ({{paramName}} != null) {
+            headerParams.put(
+                    "{{baseName}}", ObjectSerializer.toHeaderValue({{paramName}}));
+        }
 {{/headerParams}}
 
 {{#hasFormParams}}
-    Map<String, Object> formBody = new HashMap<>();
+        Map<String, Object> formBody = new HashMap<>();
 {{#formParams}}
-    if ({{paramName}} != null) {
-      formBody.put("{{baseName}}", ObjectSerializer.toFormValue({{paramName}}));
-    }
+        if ({{paramName}} != null) {
+            formBody.put(
+                    "{{baseName}}", ObjectSerializer.toFormValue({{paramName}}));
+        }
 {{/formParams}}
 
 {{/hasFormParams}}
-    {{#returnType}}return {{/returnType}}invokeApi(
-      "{{httpMethod}}",
-      path,
-      queryParams,
-      headerParams,
-      {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
-      new String[]{ {{#produces}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/produces}} },
-      {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
-      {{#returnType}}new TypeReference<{{{returnType}}}>(){}{{/returnType}}{{^returnType}}null{{/returnType}}
-    );
-  }
-  {{/operation}}
+        {{#returnType}}return {{/returnType}}invokeApi(
+                "{{httpMethod}}",
+                path,
+                queryParams,
+                headerParams,
+                {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
+                new String[] { {{#produces}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/produces}}},
+                {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
+                {{#returnType}}new TypeReference<{{{returnType}}}>() {}{{/returnType}}{{^returnType}}null{{/returnType}});
+    }
+    {{/operation}}
 }
 {{/operations}}

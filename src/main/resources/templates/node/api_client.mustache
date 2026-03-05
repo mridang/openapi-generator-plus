@@ -1,7 +1,3 @@
-/* tslint:disable */
-/* eslint-disable */
-{{>licenseInfo}}
-
 import type { ApiResponse } from './ApiResponse{{importFileExtension}}';
 
 /**
@@ -20,10 +16,5 @@ export interface ApiClient {
    * @param body Request body (serialized JSON string, or null)
    * @returns ApiResponse containing status code, body, and headers
    */
-  sendRequest(
-    method: string,
-    url: string,
-    headers: Record<string, string>,
-    body: string | null
-  ): Promise<ApiResponse>;
+  sendRequest(method: string, url: string, headers: Record<string, string>, body: string | null): Promise<ApiResponse>;
 }

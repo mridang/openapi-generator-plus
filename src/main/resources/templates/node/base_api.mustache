@@ -1,7 +1,3 @@
-/* tslint:disable */
-/* eslint-disable */
-{{>licenseInfo}}
-
 import type { ApiClient } from '../ApiClient{{importFileExtension}}';
 import { Configuration } from '../Configuration{{importFileExtension}}';
 import { DefaultApiClient } from '../DefaultApiClient{{importFileExtension}}';
@@ -18,10 +14,7 @@ export abstract class BaseApi {
   protected config: Configuration;
   protected headerSelector: HeaderSelector;
 
-  constructor(
-    config?: Configuration,
-    apiClient?: ApiClient
-  ) {
+  constructor(config?: Configuration, apiClient?: ApiClient) {
     this.config = config ?? Configuration.getDefault();
     this.apiClient = apiClient ?? new DefaultApiClient();
     this.headerSelector = new HeaderSelector();

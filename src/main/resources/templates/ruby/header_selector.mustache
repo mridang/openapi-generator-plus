@@ -47,6 +47,7 @@ module {{moduleName}}
     # @return [Boolean] true if the string represents a JSON MIME type
     def json_mime?(search_string)
       return false if search_string.nil?
+
       JSON_MIME_PATTERN.match?(search_string)
     end
 
@@ -77,7 +78,7 @@ module {{moduleName}}
         return current_weight - 1
       end
 
-      current_weight - (10 ** Math.log10(current_weight - 1).floor)
+      current_weight - (10**Math.log10(current_weight - 1).floor)
     end
 
     private

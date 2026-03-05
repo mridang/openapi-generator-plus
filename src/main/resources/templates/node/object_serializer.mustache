@@ -1,7 +1,3 @@
-/* tslint:disable */
-/* eslint-disable */
-{{>licenseInfo}}
-
 export class SerializationError extends Error {
   public readonly cause?: Error;
 
@@ -29,7 +25,10 @@ export class ObjectSerializer {
     try {
       return toJSON(obj);
     } catch (e) {
-      throw new SerializationError(`Failed to serialize object: ${e instanceof Error ? e.message : String(e)}`, e instanceof Error ? e : undefined);
+      throw new SerializationError(
+        `Failed to serialize object: ${e instanceof Error ? e.message : String(e)}`,
+        e instanceof Error ? e : undefined
+      );
     }
   }
 
@@ -37,7 +36,7 @@ export class ObjectSerializer {
    * Serialize an array of objects using the provided ToJSON function.
    */
   static serializeArray<T>(arr: T[], toJSON: (obj: T) => any): any[] {
-    return arr.map(item => ObjectSerializer.serialize(item, toJSON)!);
+    return arr.map((item) => ObjectSerializer.serialize(item, toJSON)!);
   }
 
   /**
@@ -47,7 +46,10 @@ export class ObjectSerializer {
     try {
       return fromJSON(json);
     } catch (e) {
-      throw new SerializationError(`Failed to deserialize object: ${e instanceof Error ? e.message : String(e)}`, e instanceof Error ? e : undefined);
+      throw new SerializationError(
+        `Failed to deserialize object: ${e instanceof Error ? e.message : String(e)}`,
+        e instanceof Error ? e : undefined
+      );
     }
   }
 
@@ -55,7 +57,7 @@ export class ObjectSerializer {
    * Deserialize an array of objects using the provided FromJSON function.
    */
   static deserializeArray<T>(json: any[], fromJSON: (json: any) => T): T[] {
-    return json.map(item => ObjectSerializer.deserialize(item, fromJSON));
+    return json.map((item) => ObjectSerializer.deserialize(item, fromJSON));
   }
 
   /**
@@ -91,7 +93,7 @@ export class ObjectSerializer {
       return undefined;
     }
     if (Array.isArray(value)) {
-      const items = value.map(v => v instanceof Date ? v.toISOString() : String(v));
+      const items = value.map((v) => (v instanceof Date ? v.toISOString() : String(v)));
       if (collectionFormat === 'multi') return items;
       if (collectionFormat === 'ssv') return items.join(' ');
       if (collectionFormat === 'tsv') return items.join('\t');

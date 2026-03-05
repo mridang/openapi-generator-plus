@@ -1,7 +1,3 @@
-/* tslint:disable */
-/* eslint-disable */
-{{>licenseInfo}}
-
 import { z } from 'zod';
 {{#models}}
 {{#model}}
@@ -17,40 +13,40 @@ import { {{classname}}Schema } from './{{filename}}{{importFileExtension}}';
  */
 export const {{classname}} = {
 {{#allowableValues}}
-    {{#enumVars}}
-    {{{name}}}: {{{value}}}{{^-last}},{{/-last}}
-    {{/enumVars}}
+  {{#enumVars}}
+  {{{name}}}: {{{value}}}{{^-last}},{{/-last}}
+  {{/enumVars}}
 {{/allowableValues}}
 } as const;
-export type {{classname}} = typeof {{classname}}[keyof typeof {{classname}}];
+export type {{classname}} = (typeof {{classname}})[keyof typeof {{classname}}];
 
 export const {{classname}}Schema = z.enum([{{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}]);
 
 export function instanceOf{{classname}}(value: any): boolean {
-    for (const key in {{classname}}) {
-        if (Object.prototype.hasOwnProperty.call({{classname}}, key)) {
-            if ({{classname}}[key as keyof typeof {{classname}}] === value) {
-                return true;
-            }
-        }
+  for (const key in {{classname}}) {
+    if (Object.prototype.hasOwnProperty.call({{classname}}, key)) {
+      if ({{classname}}[key as keyof typeof {{classname}}] === value) {
+        return true;
+      }
     }
-    return false;
+  }
+  return false;
 }
 
 export function {{classname}}FromJSON(json: any): {{classname}} {
-    return {{classname}}FromJSONTyped(json, false);
+  return {{classname}}FromJSONTyped(json, false);
 }
 
 export function {{classname}}FromJSONTyped(json: any, ignoreDiscriminator: boolean): {{classname}} {
-    return json as {{classname}};
+  return json as {{classname}};
 }
 
 export function {{classname}}ToJSON(value?: {{classname}} | null): any {
-    return value as any;
+  return value as any;
 }
 
 export function {{classname}}ToJSONTyped(value: any, ignoreDiscriminator: boolean): {{classname}} {
-    return value as {{classname}};
+  return value as {{classname}};
 }
 {{/isEnum}}
 {{^isEnum}}
@@ -61,29 +57,31 @@ export const {{classname}}Schema = z.any();
 export type {{classname}} = any;
 
 export function {{classname}}FromJSON(json: any): {{classname}} {
-    return json;
+  return json;
 }
 
 export function {{classname}}FromJSONTyped(json: any, ignoreDiscriminator: boolean): {{classname}} {
-    return json;
+  return json;
 }
 
 export function {{classname}}ToJSON(value?: {{classname}} | null): any {
-    return value;
+  return value;
 }
 
 export function {{classname}}ToJSONTyped(value: any, ignoreDiscriminator: boolean): any {
-    return value;
+  return value;
 }
 {{/-first}}
 {{/oneOf}}
 {{^oneOf}}
 
-export const {{classname}}Schema = z.object({
+export const {{classname}}Schema = z
+  .object({
 {{#vars}}
-    '{{baseName}}': {{{vendorExtensions.x-zod-type}}},
+    {{baseName}}: {{{vendorExtensions.x-zod-type}}}{{^-last}},{{/-last}}
 {{/vars}}
-}).passthrough();
+  })
+  .passthrough();
 
 export type {{classname}} = z.infer<typeof {{classname}}Schema>;
 {{#hasEnums}}
@@ -95,45 +93,45 @@ export type {{classname}} = z.infer<typeof {{classname}}Schema>;
  */
 export const {{classname}}{{enumName}} = {
 {{#allowableValues}}
-    {{#enumVars}}
-    {{{name}}}: {{{value}}}{{^-last}},{{/-last}}
-    {{/enumVars}}
+  {{#enumVars}}
+  {{{name}}}: {{{value}}}{{^-last}},{{/-last}}
+  {{/enumVars}}
 {{/allowableValues}}
 } as const;
-export type {{classname}}{{enumName}} = typeof {{classname}}{{enumName}}[keyof typeof {{classname}}{{enumName}}];
+export type {{classname}}{{enumName}} = (typeof {{classname}}{{enumName}})[keyof typeof {{classname}}{{enumName}}];
 {{/isEnum}}
 {{/vars}}
 {{/hasEnums}}
 
 export function instanceOf{{classname}}(value: object): value is {{classname}} {
-    {{#vars}}
-    {{#required}}
-    if (!('{{name}}' in value) || value['{{name}}'] === undefined) return false;
-    {{/required}}
-    {{/vars}}
-    return true;
+  {{#vars}}
+  {{#required}}
+  if (!('{{name}}' in value) || value['{{name}}'] === undefined) return false;
+  {{/required}}
+  {{/vars}}
+  return true;
 }
 
 export function {{classname}}FromJSON(json: any): {{classname}} {
-    return {{classname}}FromJSONTyped(json, false);
+  return {{classname}}FromJSONTyped(json, false);
 }
 
 export function {{classname}}FromJSONTyped(json: any, ignoreDiscriminator: boolean): {{classname}} {
-    if (json == null) {
-        return json;
-    }
-    return {{classname}}Schema.parse(json);
+  if (json == null) {
+    return json;
+  }
+  return {{classname}}Schema.parse(json);
 }
 
 export function {{classname}}ToJSON(json: any): {{classname}} {
-    return {{classname}}ToJSONTyped(json, false);
+  return {{classname}}ToJSONTyped(json, false);
 }
 
 export function {{classname}}ToJSONTyped(value?: {{classname}} | null, ignoreDiscriminator: boolean = false): any {
-    if (value == null) {
-        return value;
-    }
+  if (value == null) {
     return value;
+  }
+  return value;
 }
 {{/oneOf}}
 {{/isEnum}}

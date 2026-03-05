@@ -1,7 +1,4 @@
-{{>licenseInfo}}
 package {{apiPackage}};
-
-import com.fasterxml.jackson.core.type.TypeReference;
 
 import {{invokerPackage}}.ApiClient;
 import {{invokerPackage}}.ApiException;
@@ -10,8 +7,7 @@ import {{invokerPackage}}.Configuration;
 import {{invokerPackage}}.DefaultApiClient;
 import {{invokerPackage}}.HeaderSelector;
 import {{invokerPackage}}.ObjectSerializer;
-
-import java.io.UnsupportedEncodingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -22,7 +18,6 @@ import java.util.StringJoiner;
  * handles URL construction, header selection, body serialization, request
  * dispatch, and response deserialization.
  */
-{{>generatedAnnotation}}
 public abstract class BaseApi {
 
     protected ApiClient apiClient;
@@ -56,15 +51,15 @@ public abstract class BaseApi {
     /**
      * Invoke an API operation.
      *
-     * @param <T>          the return type
-     * @param method       HTTP method (GET, POST, PUT, DELETE, etc.)
-     * @param path         URL path (with path params already substituted)
-     * @param queryParams  query parameters
+     * @param <T> the return type
+     * @param method HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param path URL path (with path params already substituted)
+     * @param queryParams query parameters
      * @param headerParams custom header parameters
-     * @param body         request body (model object or null)
-     * @param accepts      acceptable response content types
-     * @param contentType  request content type
-     * @param returnType   return type for deserialization (null for void)
+     * @param body request body (model object or null)
+     * @param accepts acceptable response content types
+     * @param contentType request content type
+     * @param returnType return type for deserialization (null for void)
      * @return deserialized response or null
      * @throws ApiException if the API call fails
      */
@@ -76,7 +71,8 @@ public abstract class BaseApi {
             Object body,
             String[] accepts,
             String contentType,
-            TypeReference<T> returnType) throws ApiException {
+            TypeReference<T> returnType)
+            throws ApiException {
 
         // Build URL
         String url = config.getBaseUrl() + path;
@@ -87,7 +83,8 @@ public abstract class BaseApi {
 
         // Select headers
         boolean isMultipart = "multipart/form-data".equals(contentType);
-        Map<String, String> headers = headerSelector.selectHeaders(accepts, contentType, isMultipart);
+        Map<String, String> headers =
+                headerSelector.selectHeaders(accepts, contentType, isMultipart);
 
         // Apply default headers from configuration
         headers.putAll(config.getDefaultHeaders());
@@ -109,11 +106,10 @@ public abstract class BaseApi {
         // Check status
         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
             throw new ApiException(
-                response.getStatusCode(),
-                "API returned status code " + response.getStatusCode(),
-                null,
-                response.getBody()
-            );
+                    response.getStatusCode(),
+                    "API returned status code " + response.getStatusCode(),
+                    null,
+                    response.getBody());
         }
 
         // Deserialize response

@@ -53,6 +53,7 @@ module {{moduleName}}
       raise SerializationError.new("Failed to parse JSON: #{e.message}", e)
     rescue => e
       raise e if e.is_a?(SerializationError)
+
       raise SerializationError.new("Failed to deserialize JSON to #{target_type}: #{e.message}", e)
     end
 
@@ -78,6 +79,7 @@ module {{moduleName}}
           object.class.attribute_map.each do |attr, json_key|
             value = object.send(attr)
             next if value.nil?
+
             hash[json_key] = sanitize_for_serialization(value)
           end
           hash
@@ -93,6 +95,7 @@ module {{moduleName}}
 
     def self.to_path_value(value)
       return '' if value.nil?
+
       sanitize_for_serialization(value).to_s
     end
 

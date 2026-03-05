@@ -10,9 +10,18 @@ import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.languages.TypeScriptFetchClientCodegen;
 import org.openapitools.codegen.model.ModelMap;
 import org.openapitools.codegen.model.ModelsMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * A custom TypeScript code generator that provides sane defaults for generating
@@ -31,6 +40,8 @@ import java.util.Map;
  */
 @SuppressWarnings("unused")
 public class BetterNodeCodegen extends TypeScriptFetchClientCodegen implements UnsupportedFeaturesValidator {
+
+    private static final Logger log = LoggerFactory.getLogger(BetterNodeCodegen.class);
 
     /**
      * Initializes a new instance of the {@code BetterNodeCodegen} class,
@@ -81,6 +92,7 @@ public class BetterNodeCodegen extends TypeScriptFetchClientCodegen implements U
     @Override
     public void processOpts() {
         super.processOpts();
+        setEnablePostProcessFile(true);
         this.supportingFiles.clear();
         this.apiPackage = "api";
         supportingFiles.add(new SupportingFile("api_client.mustache", "", "ApiClient.ts"));
@@ -150,6 +162,120 @@ public class BetterNodeCodegen extends TypeScriptFetchClientCodegen implements U
             return "z.lazy(() => " + prop.complexType + "Schema)";
         }
         return "z.any()";
+    }
+
+    /**
+     * Overrides the type declaration to remove semicolons from index signatures
+     * in map types, producing {@code { [key: string]: T }} instead of
+     * {@code { [key: string]: T; }} for prettier compatibility.
+     */
+    @Override
+    public String getTypeDeclaration(io.swagger.v3.oas.models.media.Schema p) {
+        String type = super.getTypeDeclaration(p);
+        // Remove trailing semicolons inside index signature types: { [key: string]: T; } -> { [key: string]: T }
+        return type.replaceAll(";\\s*}", " }");
+    }
+
+    private static final int PRINT_WIDTH = 120;
+
+    /**
+     * Pattern to match a TypeScript function declaration whose signature exceeds
+     * the print width. Captures the indent, function prefix (including name and
+     * opening paren), the parameters, the closing paren with return type, and
+     * the opening brace.
+     */
+    private static final Pattern FUNC_SIG_PATTERN =
+        Pattern.compile("^(\\s*)(export function \\w+\\()(.+)(\\): \\w+ \\{)$");
+
+    /**
+     * Pattern to match a chained .replace() call that exceeds the print width.
+     * Captures the prefix up to .replace(, the first argument, comma, and the
+     * second argument followed by closing paren and semicolon.
+     */
+    private static final Pattern REPLACE_PATTERN =
+        Pattern.compile("^(\\s*const path = .+)\\.replace\\((.+), (.+)\\);$");
+
+    /**
+     * Post-processes each generated TypeScript file to wrap lines that exceed
+     * the 120-character print width. This handles function signatures and
+     * chained .replace() calls that may exceed the limit depending on the
+     * lengths of generated class names and URL paths.
+     */
+    @Override
+    public void postProcessFile(File file, String fileType) {
+        if (file == null || !file.getName().endsWith(".ts")) {
+            return;
+        }
+        try {
+            List<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
+            List<String> result = new ArrayList<>(lines.size());
+            boolean changed = false;
+
+            for (String line : lines) {
+                if (line.length() >= PRINT_WIDTH) {
+                    String wrapped = wrapLongLine(line);
+                    if (!wrapped.equals(line)) {
+                        changed = true;
+                        // Split the wrapped result into multiple lines to add to result
+                        for (String wrappedLine : wrapped.split("\n")) {
+                            result.add(wrappedLine);
+                        }
+                        continue;
+                    }
+                }
+                result.add(line);
+            }
+
+            if (changed) {
+                Files.write(file.toPath(), result, StandardCharsets.UTF_8);
+            }
+        } catch (IOException e) {
+            log.debug("Failed to post-process {}: {}", file.getName(), e.getMessage());
+        }
+    }
+
+    /**
+     * Attempt to wrap a long line according to prettier conventions.
+     * Handles function signatures and .replace() chains.
+     *
+     * @param line the line to potentially wrap
+     * @return the wrapped line (with embedded newlines) or the original line
+     */
+    private String wrapLongLine(String line) {
+        // Try to wrap a function signature: export function Foo(param1: T, param2: U): R {
+        Matcher funcMatcher = FUNC_SIG_PATTERN.matcher(line);
+        if (funcMatcher.matches()) {
+            String indent = funcMatcher.group(1);
+            String funcPrefix = funcMatcher.group(2);
+            String params = funcMatcher.group(3);
+            String suffix = funcMatcher.group(4);
+            String paramIndent = indent + "  ";
+            String[] paramList = params.split(", ");
+            StringBuilder sb = new StringBuilder();
+            sb.append(indent).append(funcPrefix).append("\n");
+            for (int i = 0; i < paramList.length; i++) {
+                sb.append(paramIndent).append(paramList[i].trim());
+                if (i < paramList.length - 1) {
+                    sb.append(",");
+                }
+                sb.append("\n");
+            }
+            sb.append(indent).append(suffix);
+            return sb.toString();
+        }
+
+        // Try to wrap a .replace() chain
+        Matcher replaceMatcher = REPLACE_PATTERN.matcher(line);
+        if (replaceMatcher.matches()) {
+            String prefix = replaceMatcher.group(1);
+            String arg1 = replaceMatcher.group(2);
+            String arg2 = replaceMatcher.group(3);
+            String indent = line.substring(0, line.indexOf(line.trim()));
+            String argIndent = indent + "  ";
+            return prefix + ".replace(\n" + argIndent + arg1.trim() + ",\n" + argIndent + arg2.trim() + "\n" + indent + ");";
+        }
+
+        return line;
     }
 
     @Override

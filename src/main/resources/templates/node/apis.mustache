@@ -3,18 +3,9 @@ import { BaseApi } from './BaseApi{{importFileExtension}}';
 import { Configuration } from '../Configuration{{importFileExtension}}';
 import { ObjectSerializer } from '../ObjectSerializer{{importFileExtension}}';
 {{#imports.0}}
-import type {
-  {{#imports}}
-  {{className}},
-  {{/imports}}
-} from '../models/index{{importFileExtension}}';
+import type { {{#imports}}{{className}}{{^-last}}, {{/-last}}{{/imports}} } from '../models/index{{importFileExtension}}';
 {{^withoutRuntimeChecks}}
-import {
-    {{#imports}}
-    {{className}}FromJSON,
-    {{className}}ToJSON,
-    {{/imports}}
-} from '../models/index{{importFileExtension}}';
+import { {{#imports}}{{className}}FromJSON, {{className}}ToJSON{{^-last}}, {{/-last}}{{/imports}} } from '../models/index{{importFileExtension}}';
 {{/withoutRuntimeChecks}}
 {{/imports.0}}
 
@@ -26,74 +17,78 @@ import {
 {{/description}}
  */
 export class {{classname}} extends BaseApi {
+  constructor(config?: Configuration, apiClient?: ApiClient) {
+    super(config, apiClient);
+  }
+  {{#operation}}
 
-    constructor(config?: Configuration, apiClient?: ApiClient) {
-        super(config, apiClient);
-    }
-    {{#operation}}
-
-    /**
+  /**
 {{#notes}}
-     * {{&notes}}
+   * {{&notes}}
 {{/notes}}
 {{#summary}}
-     * {{&summary}}
+   * {{&summary}}
 {{/summary}}
 {{#allParams}}
-     * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}
+   * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}
 {{/allParams}}
 {{#returnType}}
-     * @return {{{returnType}}}
+   * @return {{{returnType}}}
 {{/returnType}}
 {{#isDeprecated}}
-     * @deprecated
+   * @deprecated
 {{/isDeprecated}}
-     */
-    async {{nickname}}({{#allParams}}{{paramName}}{{^required}}?{{/required}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isEnum}}{{^-last}}, {{/-last}}{{/allParams}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}> {
+   */
+  async {{nickname}}({{#allParams}}{{paramName}}{{^required}}?{{/required}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isEnum}}{{^-last}}, {{/-last}}{{/allParams}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}> {
 {{#allParams}}
 {{#required}}
-        if ({{paramName}} == null) {
-            throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
-        }
+    if ({{paramName}} == null) {
+      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+    }
 {{/required}}
 {{/allParams}}
-        const path = `{{{path}}}`{{#pathParams}}.replace(`{${"{{baseName}}"}}`, encodeURIComponent(ObjectSerializer.toPathValue({{paramName}}))){{/pathParams}};
+    const path = `{{{path}}}`{{#pathParams}}.replace(`{${'{{baseName}}'}}`, encodeURIComponent(ObjectSerializer.toPathValue({{paramName}}))){{/pathParams}};
 
-        const queryParams: Record<string, any> = {};
+    const queryParams: Record<string, any> = {};
 {{#queryParams}}
-        if ({{paramName}} != null) {
-            queryParams['{{baseName}}'] = ObjectSerializer.toQueryValue({{paramName}}{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}});
-        }
+    if ({{paramName}} != null) {
+      queryParams['{{baseName}}'] = ObjectSerializer.toQueryValue({{paramName}}{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}});
+    }
 {{/queryParams}}
 
-        const headerParams: Record<string, string> = {};
+    const headerParams: Record<string, string> = {};
 {{#headerParams}}
-        if ({{paramName}} != null) {
-            headerParams['{{baseName}}'] = ObjectSerializer.toHeaderValue({{paramName}});
-        }
+    if ({{paramName}} != null) {
+      headerParams['{{baseName}}'] = ObjectSerializer.toHeaderValue({{paramName}});
+    }
 {{/headerParams}}
 
 {{#hasFormParams}}
-        const formBody: Record<string, any> = {};
+    const formBody: Record<string, any> = {};
 {{#formParams}}
-        if ({{paramName}} != null) {
-            formBody['{{baseName}}'] = ObjectSerializer.toFormValue({{paramName}});
-        }
+    if ({{paramName}} != null) {
+      formBody['{{baseName}}'] = ObjectSerializer.toFormValue({{paramName}});
+    }
 {{/formParams}}
 
 {{/hasFormParams}}
-        {{#returnType}}return {{/returnType}}{{^returnType}}await {{/returnType}}this.invokeApi(
-            '{{httpMethod}}',
-            path,
-            queryParams,
-            headerParams,
-            {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{^withoutRuntimeChecks}}ObjectSerializer.serialize({{paramName}}, {{dataType}}ToJSON){{/withoutRuntimeChecks}}{{#withoutRuntimeChecks}}{{paramName}}{{/withoutRuntimeChecks}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
-            [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
-            {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
-            {{#returnType}}{{#isArray}}(json: any) => ObjectSerializer.deserializeArray(json, {{returnBaseType}}FromJSON){{/isArray}}{{#isMap}}(json: any) => json as {{{returnType}}}{{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}(json: any) => json as {{{returnType}}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}(json: any) => ObjectSerializer.deserialize(json, {{returnBaseType}}FromJSON){{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}}{{/returnType}}{{^returnType}}null{{/returnType}}
-        ) as {{{returnType}}}{{^returnType}}void{{/returnType}};
-    }
-    {{/operation}}
+{{#returnType}}
+    return this.invokeApi(
+      '{{httpMethod}}',
+      path,
+      queryParams,
+      headerParams,
+      {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{^withoutRuntimeChecks}}ObjectSerializer.serialize({{paramName}}, {{dataType}}ToJSON){{/withoutRuntimeChecks}}{{#withoutRuntimeChecks}}{{paramName}}{{/withoutRuntimeChecks}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
+      [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
+      {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
+      {{#isArray}}(json: any) => ObjectSerializer.deserializeArray(json, {{returnBaseType}}FromJSON){{/isArray}}{{#isMap}}(json: any) => json as {{{returnType}}}{{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}(json: any) => json as {{{returnType}}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}(json: any) => ObjectSerializer.deserialize(json, {{returnBaseType}}FromJSON){{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}}
+    ) as {{{returnType}}};
+{{/returnType}}
+{{^returnType}}
+    (await this.invokeApi('{{httpMethod}}', path, queryParams, headerParams, {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{^withoutRuntimeChecks}}ObjectSerializer.serialize({{paramName}}, {{dataType}}ToJSON){{/withoutRuntimeChecks}}{{#withoutRuntimeChecks}}{{paramName}}{{/withoutRuntimeChecks}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}}, [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}], {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}}, null)) as void;
+{{/returnType}}
+  }
+  {{/operation}}
 }
 {{/operations}}
 {{#hasEnums}}
@@ -108,23 +103,23 @@ export class {{classname}} extends BaseApi {
  */
 export const {{operationIdCamelCase}}{{enumName}} = {
 {{#allowableValues}}
-    {{#enumVars}}
-    {{{name}}}: {{{value}}}{{^-last}},{{/-last}}
-    {{/enumVars}}
+  {{#enumVars}}
+  {{{name}}}: {{{value}}}{{^-last}},{{/-last}}
+  {{/enumVars}}
 {{/allowableValues}}
 } as const;
-export type {{operationIdCamelCase}}{{enumName}} = typeof {{operationIdCamelCase}}{{enumName}}[keyof typeof {{operationIdCamelCase}}{{enumName}}];
+export type {{operationIdCamelCase}}{{enumName}} = (typeof {{operationIdCamelCase}}{{enumName}})[keyof typeof {{operationIdCamelCase}}{{enumName}}];
 {{/stringEnums}}
 {{#stringEnums}}
 /**
-  * @export
-  * @enum {string}
-  */
+ * @export
+ * @enum {string}
+ */
 export enum {{operationIdCamelCase}}{{enumName}} {
 {{#allowableValues}}
-    {{#enumVars}}
-    {{{name}}} = {{{value}}}{{^-last}},{{/-last}}
-    {{/enumVars}}
+  {{#enumVars}}
+  {{{name}}} = {{{value}}}{{^-last}},{{/-last}}
+  {{/enumVars}}
 {{/allowableValues}}
 }
 {{/stringEnums}}

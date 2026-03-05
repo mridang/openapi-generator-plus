@@ -19,7 +19,7 @@ class {{classname}}(BaseApi):
     def __init__(
         self,
         api_client: Optional[ApiClient] = None,
-        config: Optional[Configuration] = None
+        config: Optional[Configuration] = None,
     ):
         super().__init__(api_client, config)
 {{#operation}}
@@ -50,7 +50,8 @@ class {{classname}}(BaseApi):
             raise ValueError("Missing the required parameter '{{paramName}}' when calling {{operationId}}")
 {{/required}}
 {{/allParams}}
-        path = '{{{path}}}'{{#pathParams}}.replace('{' + '{{baseName}}' + '}', quote(ObjectSerializer.to_path_value({{paramName}}), safe='')){{/pathParams}}
+        path = '{{{path}}}'{{#pathParams}}
+        path = path.replace('{' + '{{baseName}}' + '}', quote(ObjectSerializer.to_path_value({{paramName}}), safe='')){{/pathParams}}
 
         query_params: Dict[str, Any] = {}
 {{#queryParams}}
@@ -83,7 +84,7 @@ class {{classname}}(BaseApi):
             body,
             [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
             {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
-            {{#returnType}}'{{{returnType}}}'{{/returnType}}{{^returnType}}None{{/returnType}}
+            {{#returnType}}'{{{returnType}}}'{{/returnType}}{{^returnType}}None{{/returnType}},
         )
 {{/operation}}
 {{/operations}}

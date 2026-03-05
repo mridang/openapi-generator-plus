@@ -20,6 +20,7 @@ import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+@SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class RubyClientSpec extends AbstractIntegrationSpec {
@@ -63,7 +64,7 @@ public class RubyClientSpec extends AbstractIntegrationSpec {
     logger.info("Copied Ruby test project from {} to {}", TEST_PROJECT_PATH, tempOutputDir);
   }
 
-  private void copyDirectory(Path source, Path target) throws IOException {
+  private void copyDirectory(@SuppressWarnings("SameParameterValue") Path source, Path target) throws IOException {
     try (Stream<Path> stream = Files.walk(source)) {
       stream.forEach(
           sourcePath -> {

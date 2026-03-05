@@ -38,6 +38,7 @@ public abstract class AbstractIntegrationSpec {
 
   @TempDir protected Path tempOutputDir;
 
+  @SuppressWarnings("SameReturnValue")
   protected String getSpecResourcePath() {
     return "specs/petstore/openapi.yaml";
   }
@@ -48,6 +49,7 @@ public abstract class AbstractIntegrationSpec {
 
   protected abstract String[] getBuildCommands();
 
+  @SuppressWarnings("SameReturnValue")
   protected abstract String getTestScript(String prismBaseUrl);
 
   @BeforeAll
@@ -103,7 +105,7 @@ public abstract class AbstractIntegrationSpec {
 
     prismContainer.start();
 
-    String hostBaseUrl =
+    @SuppressWarnings("HttpUrlsUsage") String hostBaseUrl =
         String.format("http://%s:%d", prismContainer.getHost(), prismContainer.getMappedPort(4010));
     String networkBaseUrl = "http://prism:4010";
 

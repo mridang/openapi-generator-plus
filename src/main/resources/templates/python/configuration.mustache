@@ -1,7 +1,3 @@
-# coding: utf-8
-
-{{>partial_header}}
-
 from typing import ClassVar, Dict, Optional
 from typing_extensions import Self
 
@@ -17,7 +13,7 @@ class Configuration:
 
     def __init__(
         self,
-        base_url: str = "{{{basePath}}}",
+        base_url: str = '{{{basePath}}}',
         *,
         debug: bool = False,
         verify_ssl: bool = True,

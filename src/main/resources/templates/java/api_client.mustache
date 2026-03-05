@@ -1,4 +1,3 @@
-{{>licenseInfo}}
 package {{invokerPackage}};
 
 import java.util.Map;
@@ -9,7 +8,6 @@ import java.util.Map;
  * <p>Implementations handle the actual HTTP request/response cycle.
  * The default implementation uses Apache HttpClient 5.</p>
  */
-{{>generatedAnnotation}}
 public interface ApiClient {
 
     /**
@@ -22,5 +20,6 @@ public interface ApiClient {
      * @return ApiResponse containing status code, body, and headers
      * @throws ApiException if the request fails
      */
-    ApiResponse sendRequest(String method, String url, Map<String, String> headers, String body) throws ApiException;
+    ApiResponse sendRequest(String method, String url, Map<String, String> headers, String body)
+            throws ApiException;
 }

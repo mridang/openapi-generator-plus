@@ -1,7 +1,3 @@
-# coding: utf-8
-
-{{>partial_header}}
-
 from typing import Any, Dict, List, Optional, Type, TypeVar
 from urllib.parse import quote, urlencode
 
@@ -27,7 +23,7 @@ class BaseApi:
     def __init__(
         self,
         api_client: Optional[ApiClient] = None,
-        config: Optional[Configuration] = None
+        config: Optional[Configuration] = None,
     ):
         self.api_client = api_client or DefaultApiClient()
         self.config = config or Configuration.get_default()
@@ -43,7 +39,7 @@ class BaseApi:
         body: Any,
         accepts: List[str],
         content_type: Optional[str],
-        return_type: Optional[str]
+        return_type: Optional[str],
     ) -> Any:
         """Invoke an API operation.
 
@@ -89,7 +85,7 @@ class BaseApi:
             raise ApiException(
                 status=response.status_code,
                 reason=f'API returned status code {response.status_code}',
-                body=response.body
+                body=response.body,
             )
 
         # Deserialize response

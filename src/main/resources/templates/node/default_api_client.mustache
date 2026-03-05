@@ -1,7 +1,3 @@
-/* tslint:disable */
-/* eslint-disable */
-{{>licenseInfo}}
-
 import type { ApiClient } from './ApiClient{{importFileExtension}}';
 import type { ApiResponse } from './ApiResponse{{importFileExtension}}';
 
@@ -18,7 +14,7 @@ export class DefaultApiClient implements ApiClient {
     const response = await fetch(url, {
       method,
       headers,
-      body: body ?? undefined,
+      body: body ?? undefined
     });
 
     const responseBody = await response.text();
@@ -30,7 +26,7 @@ export class DefaultApiClient implements ApiClient {
     return {
       statusCode: response.status,
       body: responseBody,
-      headers: responseHeaders,
+      headers: responseHeaders
     };
   }
 }
