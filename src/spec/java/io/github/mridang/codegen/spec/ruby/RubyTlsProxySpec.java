@@ -30,7 +30,7 @@ public class RubyTlsProxySpec extends AbstractTlsProxySpec {
 
   @Override
   protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("ruby:3.2-slim");
+    return DockerImageName.parse("ruby:3.4-slim");
   }
 
   @Override

@@ -27,7 +27,7 @@ public class PythonTlsProxySpec extends AbstractTlsProxySpec {
 
   @Override
   protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("python:3.11-slim");
+    return DockerImageName.parse("python:3-slim");
   }
 
   @Override

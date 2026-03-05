@@ -35,7 +35,7 @@ public class JavaClientSpec extends AbstractIntegrationSpec {
 
   @Override
   protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("maven:3.9-eclipse-temurin-17");
+    return DockerImageName.parse("maven:3.9-eclipse-temurin-21");
   }
 
   @Override

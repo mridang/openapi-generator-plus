@@ -27,7 +27,7 @@ public class NodeFormattingSpec extends AbstractIntegrationSpec {
 
   @Override
   protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("node:20-slim");
+    return DockerImageName.parse("node:24-slim");
   }
 
   @Override

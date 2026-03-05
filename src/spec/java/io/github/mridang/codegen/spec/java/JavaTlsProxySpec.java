@@ -29,7 +29,7 @@ public class JavaTlsProxySpec extends AbstractTlsProxySpec {
 
   @Override
   protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("maven:3.9-eclipse-temurin-17");
+    return DockerImageName.parse("maven:3.9-eclipse-temurin-21");
   }
 
   @Override

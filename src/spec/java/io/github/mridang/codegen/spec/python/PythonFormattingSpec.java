@@ -28,7 +28,7 @@ public class PythonFormattingSpec extends AbstractIntegrationSpec {
 
   @Override
   protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("python:3.11-slim");
+    return DockerImageName.parse("python:3-slim");
   }
 
   @Override
