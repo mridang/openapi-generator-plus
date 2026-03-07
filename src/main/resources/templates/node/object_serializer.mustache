@@ -1,3 +1,6 @@
+import 'reflect-metadata';
+import { plainToInstance } from 'class-transformer';
+
 /**
  * Exception raised when serialization or deserialization fails.
  */
@@ -20,36 +23,28 @@ export class SerializationError extends Error {
  */
 export class ObjectSerializer {
   /**
-   * Serialize an object to a JSON string.
+   * Serialize an object to a plain JS object suitable for JSON.stringify.
    *
    * @param obj the object to serialize
-   * @param toJSON function that converts the object to a plain JS object
-   * @returns plain JS object suitable for JSON.stringify, or undefined if null
+   * @returns the object as-is (JSON.stringify handles the conversion)
    */
-  static serialize<T>(obj: T | null | undefined, toJSON: (obj: T) => any): any {
+  static serialize(obj: any): any {
     if (obj === null || obj === undefined) {
       return undefined;
     }
-    try {
-      return toJSON(obj);
-    } catch (e) {
-      throw new SerializationError(
-        `Failed to serialize object: ${e instanceof Error ? e.message : String(e)}`,
-        e instanceof Error ? e : undefined
-      );
-    }
+    return obj;
   }
 
   /**
-   * Deserialize a JSON string to an object of the specified type.
+   * Deserialize a plain JS object to an instance of the specified class.
    *
    * @param json the parsed JSON value
-   * @param fromJSON function that converts a plain JS object to the target type
+   * @param cls the class constructor to instantiate
    * @returns the deserialized object
    */
-  static deserialize<T>(json: any, fromJSON: (json: any) => T): T {
+  static deserialize<T>(json: any, cls: new (...args: any[]) => T): T {
     try {
-      return fromJSON(json);
+      return plainToInstance(cls, json, { excludeExtraneousValues: true });
     } catch (e) {
       throw new SerializationError(
         `Failed to deserialize object: ${e instanceof Error ? e.message : String(e)}`,
@@ -59,14 +54,14 @@ export class ObjectSerializer {
   }
 
   /**
-   * Deserialize an array of objects using the provided FromJSON function.
+   * Deserialize an array of objects using the provided class constructor.
    *
    * @param json the parsed JSON array
-   * @param fromJSON function that converts a plain JS object to the target type
+   * @param cls the class constructor to instantiate for each element
    * @returns array of deserialized objects
    */
-  static deserializeArray<T>(json: any[], fromJSON: (json: any) => T): T[] {
-    return json.map((item) => ObjectSerializer.deserialize(item, fromJSON));
+  static deserializeArray<T>(json: any[], cls: new (...args: any[]) => T): T[] {
+    return json.map((item) => ObjectSerializer.deserialize(item, cls));
   }
 
   /**

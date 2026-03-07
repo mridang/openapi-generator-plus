@@ -10,7 +10,7 @@ Generator version: 7.14.0
 
 =end
 
-module OpigenClient
+module PetstoreClient
   class ApiError < StandardError
     attr_reader :code, :response_headers, :response_body
 

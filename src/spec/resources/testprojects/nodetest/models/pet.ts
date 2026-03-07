@@ -1,19 +1,27 @@
-import { z } from 'zod';
-import { CategorySchema } from './category.js';
-import { TagSchema } from './tag.js';
+import { Expose, Type } from 'class-transformer';
+import { Category } from './category.js';
+import { Tag } from './tag.js';
 
-export const PetSchema = z
-  .object({
-    id: z.number().optional(),
-    name: z.string(),
-    category: z.lazy(() => CategorySchema).optional(),
-    photoUrls: z.array(z.string()),
-    tags: z.array(z.lazy(() => TagSchema)).optional(),
-    status: z.string().optional()
-  })
-  .passthrough();
+export class Pet {
+  @Expose({ name: 'id' })
+  id?: number;
+  @Expose({ name: 'name' })
+  name!: string;
+  @Expose({ name: 'category' })
+  @Type(() => Category)
+  category?: Category;
+  @Expose({ name: 'photoUrls' })
+  photoUrls!: Array<string>;
+  @Expose({ name: 'tags' })
+  @Type(() => Tag)
+  tags?: Array<Tag>;
+  @Expose({ name: 'status' })
+  status?: string;
 
-export type Pet = z.infer<typeof PetSchema>;
+  constructor(data?: Partial<Pet>) {
+    Object.assign(this, data);
+  }
+}
 
 /**
  * @export
@@ -25,31 +33,3 @@ export const PetStatusEnum = {
   UnknownDefaultOpenApi: '11184809'
 } as const;
 export type PetStatusEnum = (typeof PetStatusEnum)[keyof typeof PetStatusEnum];
-
-export function instanceOfPet(value: object): value is Pet {
-  if (!('name' in value) || value['name'] === undefined) return false;
-  if (!('photoUrls' in value) || value['photoUrls'] === undefined) return false;
-  return true;
-}
-
-export function PetFromJSON(json: any): Pet {
-  return PetFromJSONTyped(json, false);
-}
-
-export function PetFromJSONTyped(json: any, ignoreDiscriminator: boolean): Pet {
-  if (json == null) {
-    return json;
-  }
-  return PetSchema.parse(json);
-}
-
-export function PetToJSON(json: any): Pet {
-  return PetToJSONTyped(json, false);
-}
-
-export function PetToJSONTyped(value?: Pet | null, ignoreDiscriminator: boolean = false): any {
-  if (value == null) {
-    return value;
-  }
-  return value;
-}

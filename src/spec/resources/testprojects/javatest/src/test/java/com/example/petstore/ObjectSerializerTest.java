@@ -191,8 +191,8 @@ class ObjectSerializerTest {
         @DisplayName("serializes a model to valid JSON")
         void serializesModelToValidJson() {
             com.example.petstore.models.Category category = new com.example.petstore.models.Category();
-            category.setId(1L);
-            category.setName("Dogs");
+            category.id = 1L;
+            category.name = "Dogs";
             String json = serializer.serialize(category);
             assertTrue(json.contains("\"id\":1"));
             assertTrue(json.contains("\"name\":\"Dogs\""));
@@ -220,8 +220,8 @@ class ObjectSerializerTest {
                             new com.fasterxml.jackson.core.type.TypeReference<
                                     com.example.petstore.models.Category>() {});
             assertNotNull(category);
-            assertEquals(1L, category.getId());
-            assertEquals("Dogs", category.getName());
+            assertEquals(1L, category.id);
+            assertEquals("Dogs", category.name);
         }
 
         @Test

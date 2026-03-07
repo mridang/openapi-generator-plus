@@ -42,7 +42,7 @@ use {{invokerPackage}}\ObjectSerializer;
      * @deprecated
 {{/isDeprecated}}
      */
-    public function {{operationId}}({{#allParams}}{{^vendorExtensions.x-is-empty-body}}${{paramName}}{{^required}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/required}}{{/vendorExtensions.x-is-empty-body}}{{#vendorExtensions.x-is-empty-body}}${{paramName}} = new \stdClass(){{/vendorExtensions.x-is-empty-body}}{{^-last}}, {{/-last}}{{/allParams}})
+    public function {{operationId}}({{#allParams}}${{paramName}}{{^required}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/required}}{{^-last}}, {{/-last}}{{/allParams}})
     {
 {{#allParams}}
 {{#required}}

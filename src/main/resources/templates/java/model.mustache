@@ -1,0 +1,163 @@
+package {{modelPackage}};
+
+{{#imports}}
+import {{import}};
+{{/imports}}
+
+{{#models}}
+{{#model}}
+{{#isEnum}}
+{{#description}}
+/** {{{.}}} */
+{{/description}}
+public enum {{classname}} {
+  {{#allowableValues}}
+  {{#enumVars}}
+  {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+  {{/enumVars}}
+  {{/allowableValues}}
+
+  private final String value;
+
+  {{classname}}(String value) {
+    this.value = value;
+  }
+
+  @JsonValue
+  public String getValue() {
+    return value;
+  }
+
+  @JsonCreator
+  public static {{classname}} fromValue(String value) {
+    for ({{classname}} b : values()) {
+      if (b.value.equals(value)) {
+        return b;
+      }
+    }
+    throw new IllegalArgumentException("Unexpected value '" + value + "'");
+  }
+}
+{{/isEnum}}
+{{^isEnum}}
+{{#oneOf}}
+{{#-first}}
+{{#description}}
+/** {{{.}}} */
+{{/description}}
+{{#discriminator}}
+@JsonTypeInfo(
+    use = JsonTypeInfo.Id.NAME,
+    include = JsonTypeInfo.As.EXISTING_PROPERTY,
+    property = "{{discriminator.propertyBaseName}}",
+    visible = true)
+@JsonSubTypes({
+{{#mappedModels}}
+  @JsonSubTypes.Type(value = {{modelName}}.class, name = "{{mappingName}}"){{^-last}},{{/-last}}
+{{/mappedModels}}
+})
+public abstract class {{classname}} {}
+{{/discriminator}}
+{{^discriminator}}
+public class {{classname}} {
+
+  private Object actualInstance;
+
+  @JsonCreator
+  public {{classname}}(Object value) {
+    this.actualInstance = value;
+  }
+
+  @JsonValue
+  public Object getActualInstance() {
+    return actualInstance;
+  }
+}
+{{/discriminator}}
+{{/-first}}
+{{/oneOf}}
+{{^oneOf}}
+{{#anyOf}}
+{{#-first}}
+{{#description}}
+/** {{{.}}} */
+{{/description}}
+public class {{classname}} {
+
+  private Object actualInstance;
+
+  @JsonCreator
+  public {{classname}}(Object value) {
+    this.actualInstance = value;
+  }
+
+  @JsonValue
+  public Object getActualInstance() {
+    return actualInstance;
+  }
+}
+{{/-first}}
+{{/anyOf}}
+{{^anyOf}}
+{{#description}}
+/** {{{.}}} */
+{{/description}}
+public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
+{{#vars}}
+{{#isEnum}}
+
+  public enum {{enumName}} {
+    {{#allowableValues}}
+    {{#enumVars}}
+    {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+    {{/enumVars}}
+    {{/allowableValues}}
+
+    private final String value;
+
+    {{enumName}}(String value) {
+      this.value = value;
+    }
+
+    @JsonValue
+    public String getValue() {
+      return value;
+    }
+
+    @JsonCreator
+    public static {{enumName}} fromValue(String value) {
+      for ({{enumName}} b : values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    }
+  }
+{{/isEnum}}
+{{/vars}}
+
+{{#vars}}
+  {{#description}}
+  /** {{{.}}} */
+  {{/description}}
+  @JsonProperty("{{baseName}}")
+  public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
+
+{{/vars}}
+{{#hasRequired}}
+
+  public {{classname}}() {}
+
+  public {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{^-last}}, {{/-last}}{{/requiredVars}}) {
+{{#requiredVars}}
+    this.{{name}} = {{name}};
+{{/requiredVars}}
+  }
+{{/hasRequired}}
+}
+{{/anyOf}}
+{{/oneOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}

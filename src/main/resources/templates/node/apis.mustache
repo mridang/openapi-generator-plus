@@ -3,10 +3,7 @@ import { BaseApi } from './BaseApi{{importFileExtension}}';
 import { Configuration } from '../Configuration{{importFileExtension}}';
 import { ObjectSerializer } from '../ObjectSerializer{{importFileExtension}}';
 {{#imports.0}}
-import type { {{#imports}}{{className}}{{^-last}}, {{/-last}}{{/imports}} } from '../models/index{{importFileExtension}}';
-{{^withoutRuntimeChecks}}
-import { {{#imports}}{{className}}FromJSON, {{className}}ToJSON{{^-last}}, {{/-last}}{{/imports}} } from '../models/index{{importFileExtension}}';
-{{/withoutRuntimeChecks}}
+import { {{#imports}}{{className}}{{^-last}}, {{/-last}}{{/imports}} } from '../models/index{{importFileExtension}}';
 {{/imports.0}}
 
 {{#operations}}
@@ -75,14 +72,14 @@ export class {{classname}} extends BaseApi {
       path,
       queryParams,
       headerParams,
-      {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{^withoutRuntimeChecks}}ObjectSerializer.serialize({{paramName}}, {{dataType}}ToJSON){{/withoutRuntimeChecks}}{{#withoutRuntimeChecks}}{{paramName}}{{/withoutRuntimeChecks}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
+      {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
       [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
       {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
-      {{#isArray}}(json: any) => ObjectSerializer.deserializeArray(json, {{returnBaseType}}FromJSON){{/isArray}}{{#isMap}}(json: any) => json as {{{returnType}}}{{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}(json: any) => json as {{{returnType}}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}(json: any) => ObjectSerializer.deserialize(json, {{returnBaseType}}FromJSON){{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}}
+      {{#isArray}}(json: any) => ObjectSerializer.deserializeArray(json, {{returnBaseType}}){{/isArray}}{{#isMap}}(json: any) => json as {{{returnType}}}{{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}(json: any) => json as {{{returnType}}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}(json: any) => ObjectSerializer.deserialize(json, {{returnBaseType}}){{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}}
     ) as {{{returnType}}};
 {{/returnType}}
 {{^returnType}}
-    (await this.invokeApi('{{httpMethod}}', path, queryParams, headerParams, {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{^withoutRuntimeChecks}}ObjectSerializer.serialize({{paramName}}, {{dataType}}ToJSON){{/withoutRuntimeChecks}}{{#withoutRuntimeChecks}}{{paramName}}{{/withoutRuntimeChecks}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}}, [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}], {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}}, null)) as void;
+    (await this.invokeApi('{{httpMethod}}', path, queryParams, headerParams, {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}}, [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}], {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}}, null)) as void;
 {{/returnType}}
   }
   {{/operation}}

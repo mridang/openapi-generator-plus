@@ -13,108 +13,20 @@
 namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
-use PetstoreClient\ObjectSerializer;
 
 class Tag
 {
     #[SerializedName('id')]
-    private ?int $id = null;
+    public ?int $id = null;
 
     #[SerializedName('name')]
-    private ?string $name = null;
+    public ?string $name = null;
 
-    /**
-     * Show all the invalid properties with reasons.
-     *
-     * @return array invalid properties with reasons
-     */
-    public function listInvalidProperties(): array
-    {
-        $invalidProperties = [];
-
-        return $invalidProperties;
-    }
-
-    /**
-     * Validate all the properties in the model
-     * return true if all passed
-     *
-     * @return bool True if all properties are valid
-     */
-    public function valid(): bool
-    {
-        return count($this->listInvalidProperties()) === 0;
-    }
-
-
-    /**
-     * Gets id
-     *
-     * @return int|null
-     */
-    public function getId(): ?int
-    {
-        return $this->id;
-    }
-
-    /**
-     * Sets id
-     *
-     * @param int|null $id
-     *
-     * @return self
-     */
-    public function setId(?int $id): self
-    {
+    public function __construct(
+        ?int $id = null,
+        ?string $name = null,
+    ) {
         $this->id = $id;
-
-        return $this;
-    }
-
-    /**
-     * Gets name
-     *
-     * @return string|null
-     */
-    public function getName(): ?string
-    {
-        return $this->name;
-    }
-
-    /**
-     * Sets name
-     *
-     * @param string|null $name
-     *
-     * @return self
-     */
-    public function setName(?string $name): self
-    {
         $this->name = $name;
-
-        return $this;
-    }
-
-    /**
-     * Gets the string presentation of the object
-     *
-     * @return string
-     */
-    public function __toString(): string
-    {
-        return json_encode(
-            ObjectSerializer::sanitizeForSerialization($this),
-            JSON_PRETTY_PRINT
-        );
-    }
-
-    /**
-     * Gets a header-safe presentation of the object
-     *
-     * @return string
-     */
-    public function toHeaderValue(): string
-    {
-        return json_encode(ObjectSerializer::sanitizeForSerialization($this));
     }
 }

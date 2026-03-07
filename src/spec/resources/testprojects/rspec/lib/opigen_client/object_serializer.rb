@@ -11,7 +11,7 @@ require 'date'
 require 'json'
 require 'time'
 
-module OpigenClient
+module PetstoreClient
   # Exception raised when serialization or deserialization fails.
   class SerializationError < StandardError
     attr_reader :cause
@@ -141,9 +141,9 @@ module OpigenClient
       when Time, DateTime
         object.strftime(DEFAULT_DATETIME_FORMAT)
       else
-        if object.class.respond_to?(:attribute_map)
+        if object.class.const_defined?(:ATTRIBUTE_MAP)
           hash = {}
-          object.class.attribute_map.each do |attr, json_key|
+          object.class::ATTRIBUTE_MAP.each do |attr, json_key|
             value = object.send(attr)
             next if value.nil?
 
@@ -188,20 +188,85 @@ module OpigenClient
         end
       else
         klass = begin
-          OpigenClient::Models.const_get(return_type)
+          PetstoreClient::Models.const_get(return_type)
         rescue NameError
-          OpigenClient.const_get(return_type)
+          PetstoreClient.const_get(return_type)
         end
         if klass.respond_to?(:openapi_one_of)
           klass.build(data)
-        elsif klass.respond_to?(:build_from_hash)
-          klass.build_from_hash(data)
+        elsif klass.respond_to?(:openapi_any_of)
+          klass.build(data)
+        elsif klass.const_defined?(:OPENAPI_TYPES)
+          deserialize_model(data, klass)
         else
           klass.new(data)
         end
       end
     end
 
-    private_class_method :sanitize_for_serialization
+    def self.deserialize_model(data, klass)
+      return nil unless data.is_a?(Hash)
+
+      data = data.transform_keys(&:to_sym)
+      transformed = {}
+      klass::OPENAPI_TYPES.each do |attr, type|
+        json_key = klass::ATTRIBUTE_MAP[attr]
+        next unless data.key?(json_key)
+
+        value = data[json_key]
+        transformed[attr] = value.nil? ? nil : convert_to_type(value, type.to_s)
+      end
+      klass.new(transformed)
+    end
+
+    # Exception raised when data does not match a schema during oneOf/anyOf resolution.
+    SchemaMismatchError = Class.new(StandardError)
+
+    # Attempt to match data against a specific type for oneOf/anyOf resolution.
+    def self.find_and_cast_into_type(klass_name, data)
+      return if data.nil?
+
+      case klass_name.to_s
+      when 'Boolean'
+        return data if data.instance_of?(TrueClass) || data.instance_of?(FalseClass)
+      when 'Float'
+        return data if data.instance_of?(Float)
+      when 'Integer'
+        return data if data.instance_of?(Integer)
+      when 'Time'
+        return Time.parse(data)
+      when 'Date'
+        return Date.parse(data)
+      when 'String'
+        return data if data.instance_of?(String)
+      when 'Object'
+        return data if data.instance_of?(Hash)
+      when /\AArray<(?<sub_type>.+)>\z/
+        if data.instance_of?(Array)
+          sub_type = Regexp.last_match[:sub_type]
+          return data.map { |item| find_and_cast_into_type(sub_type.to_sym, item) }
+        end
+      when /\AHash<String, (?<sub_type>.+)>\z/
+        if data.instance_of?(Hash) && data.keys.all? { |k| k.instance_of?(Symbol) || k.instance_of?(String) }
+          sub_type = Regexp.last_match[:sub_type]
+          return data.each_with_object({}) { |(k, v), hsh| hsh[k] = find_and_cast_into_type(sub_type.to_sym, v) }
+        end
+      else
+        const = PetstoreClient::Models.const_get(klass_name)
+        if const
+          if const.respond_to?(:openapi_one_of) || const.respond_to?(:openapi_any_of)
+            model = const.build(data)
+            return model if model
+          else
+            model = convert_to_type(data, klass_name.to_s)
+            return model if model
+          end
+        end
+      end
+
+      raise SchemaMismatchError, "#{data.inspect} doesn't match the #{klass_name} type"
+    end
+
+    private_class_method :sanitize_for_serialization, :deserialize_model
   end
 end

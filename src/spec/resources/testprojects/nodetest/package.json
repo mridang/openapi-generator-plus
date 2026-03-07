@@ -4,7 +4,8 @@
     "test": "jest --verbose"
   },
   "dependencies": {
-    "zod": "^3.22"
+    "class-transformer": "^0.5",
+    "reflect-metadata": "^0.2"
   },
   "devDependencies": {
     "typescript": "^5.0",

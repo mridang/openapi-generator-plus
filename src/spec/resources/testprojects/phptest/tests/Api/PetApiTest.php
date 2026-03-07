@@ -23,16 +23,14 @@ class PetApiTest extends TestCase
 
     public function testAddPet(): void
     {
-        $pet = new Pet();
-        $pet->setId(12345);
-        $pet->setName('TestDog');
-        $pet->setPhotoUrls(['http://example.com/photo.jpg']);
-        $pet->setStatus('available');
+        $pet = new Pet(name: 'TestDog', photoUrls: ['http://example.com/photo.jpg']);
+        $pet->id = 12345;
+        $pet->status = 'available';
 
         $result = $this->api->addPet($pet);
 
         $this->assertInstanceOf(Pet::class, $result);
-        $this->assertNotNull($result->getName());
+        $this->assertNotNull($result->name);
     }
 
     public function testFindPetsByStatus(): void
@@ -49,17 +47,15 @@ class PetApiTest extends TestCase
         $result = $this->api->getPetById(1);
 
         $this->assertInstanceOf(Pet::class, $result);
-        $this->assertNotNull($result->getId());
-        $this->assertNotNull($result->getName());
+        $this->assertNotNull($result->id);
+        $this->assertNotNull($result->name);
     }
 
     public function testUpdatePet(): void
     {
-        $pet = new Pet();
-        $pet->setId(1);
-        $pet->setName('UpdatedDog');
-        $pet->setPhotoUrls(['http://example.com/updated.jpg']);
-        $pet->setStatus('pending');
+        $pet = new Pet(name: 'UpdatedDog', photoUrls: ['http://example.com/updated.jpg']);
+        $pet->id = 1;
+        $pet->status = 'pending';
 
         $result = $this->api->updatePet(1, $pet);
 

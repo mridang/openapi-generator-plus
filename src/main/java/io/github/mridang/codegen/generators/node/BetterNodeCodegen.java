@@ -4,12 +4,8 @@ import io.github.mridang.codegen.generators.UnsupportedFeaturesValidator;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.servers.Server;
 import org.openapitools.codegen.CodegenConstants;
-import org.openapitools.codegen.CodegenModel;
-import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.languages.TypeScriptFetchClientCodegen;
-import org.openapitools.codegen.model.ModelMap;
-import org.openapitools.codegen.model.ModelsMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +15,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -93,6 +88,8 @@ public class BetterNodeCodegen extends TypeScriptFetchClientCodegen implements U
     public void processOpts() {
         super.processOpts();
         setEnablePostProcessFile(true);
+        this.modelTemplateFiles.clear();
+        this.modelTemplateFiles.put("model.mustache", ".ts");
         this.supportingFiles.clear();
         this.apiPackage = "api";
         supportingFiles.add(new SupportingFile("api_client.mustache", "", "ApiClient.ts"));
@@ -104,65 +101,6 @@ public class BetterNodeCodegen extends TypeScriptFetchClientCodegen implements U
         supportingFiles.add(new SupportingFile("header_selector.mustache", "", "HeaderSelector.ts"));
     }
 
-    /**
-     * Post-processes all models to add {@code x-zod-type} vendor extensions to each
-     * property, enabling the Mustache template to generate Zod schemas.
-     */
-    @Override
-    public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
-        Map<String, ModelsMap> result = super.postProcessAllModels(objs);
-        for (ModelsMap models : result.values()) {
-            for (ModelMap model : models.getModels()) {
-                CodegenModel cm = model.getModel();
-                for (CodegenProperty prop : cm.vars) {
-                    String zodType = computeZodType(prop);
-                    if (!prop.required) {
-                        zodType += ".optional()";
-                    }
-                    if (prop.isNullable) {
-                        zodType += ".nullable()";
-                    }
-                    prop.vendorExtensions.put("x-zod-type", zodType);
-                }
-            }
-        }
-        return result;
-    }
-
-    /**
-     * Computes the Zod type expression for a given CodegenProperty.
-     * This maps OpenAPI types to their Zod equivalents, handling primitives,
-     * arrays, maps, and model references.
-     */
-    private String computeZodType(CodegenProperty prop) {
-        if (prop.isArray) {
-            String inner = prop.items != null ? computeZodType(prop.items) : "z.any()";
-            return "z.array(" + inner + ")";
-        }
-        if (prop.isMap) {
-            String inner = prop.items != null ? computeZodType(prop.items) : "z.any()";
-            return "z.record(z.string(), " + inner + ")";
-        }
-        if (prop.isString || prop.isDate || prop.isDateTime) {
-            return "z.string()";
-        }
-        if (prop.isInteger || prop.isLong) {
-            return "z.number()";
-        }
-        if (prop.isFloat || prop.isDouble || prop.isNumber) {
-            return "z.number()";
-        }
-        if (prop.isBoolean) {
-            return "z.boolean()";
-        }
-        if (prop.isFreeFormObject) {
-            return "z.record(z.string(), z.any())";
-        }
-        if (!prop.isPrimitiveType && prop.complexType != null) {
-            return "z.lazy(() => " + prop.complexType + "Schema)";
-        }
-        return "z.any()";
-    }
 
     /**
      * Overrides the type declaration to remove semicolons from index signatures
@@ -216,6 +154,14 @@ public class BetterNodeCodegen extends TypeScriptFetchClientCodegen implements U
                     changed = true;
                     continue;
                 }
+                // Remove blank lines between decorators and properties
+                if (line.trim().isEmpty() && !result.isEmpty()) {
+                    String prevLine = result.get(result.size() - 1).trim();
+                    if (prevLine.startsWith("@Expose") || prevLine.startsWith("@Type")) {
+                        changed = true;
+                        continue;
+                    }
+                }
                 if (line.length() >= PRINT_WIDTH) {
                     String wrapped = wrapLongLine(line);
                     if (!wrapped.equals(line)) {
@@ -228,6 +174,12 @@ public class BetterNodeCodegen extends TypeScriptFetchClientCodegen implements U
                     }
                 }
                 result.add(line);
+            }
+
+            // Remove trailing blank lines
+            while (!result.isEmpty() && result.get(result.size() - 1).trim().isEmpty()) {
+                result.remove(result.size() - 1);
+                changed = true;
             }
 
             if (changed) {

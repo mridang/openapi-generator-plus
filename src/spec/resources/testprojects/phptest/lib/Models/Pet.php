@@ -13,263 +13,49 @@
 namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
-use PetstoreClient\ObjectSerializer;
 
 class Pet
 {
     public const STATUS_AVAILABLE = 'available';
     public const STATUS_PENDING = 'pending';
     public const STATUS_SOLD = 'sold';
+
     #[SerializedName('id')]
-    private ?int $id = null;
+    public ?int $id = null;
 
     #[SerializedName('name')]
-    private ?string $name = null;
+    public string $name;
 
     #[SerializedName('category')]
-    private ?\PetstoreClient\Models\Category $category = null;
+    public ?\PetstoreClient\Models\Category $category = null;
 
-    /** @var string[]|null */
+    /** @var string[] */
     #[SerializedName('photoUrls')]
-    private ?array $photoUrls = null;
+    public array $photoUrls;
 
     /** @var \PetstoreClient\Models\Tag[]|null */
     #[SerializedName('tags')]
-    private ?array $tags = null;
+    public ?array $tags = null;
 
     /**
      * pet status in the store
      */
     #[SerializedName('status')]
-    private ?string $status = null;
+    public ?string $status = null;
 
-    /**
-     * Gets allowable values of the enum
-     *
-     * @return string[]
-     */
-    public function getStatusAllowableValues(): array
-    {
-        return [
-            self::STATUS_AVAILABLE,
-            self::STATUS_PENDING,
-            self::STATUS_SOLD,
-        ];
-    }
-
-    /**
-     * Show all the invalid properties with reasons.
-     *
-     * @return array invalid properties with reasons
-     */
-    public function listInvalidProperties(): array
-    {
-        $invalidProperties = [];
-
-        if ($this->name === null) {
-            $invalidProperties[] = "'name' can't be null";
-        }
-        if ($this->photoUrls === null) {
-            $invalidProperties[] = "'photoUrls' can't be null";
-        }
-        $allowedValues = $this->getStatusAllowableValues();
-        if (!is_null($this->status) && !in_array($this->status, $allowedValues, true)) {
-            $invalidProperties[] = sprintf(
-                "invalid value '%s' for 'status', must be one of '%s'",
-                $this->status,
-                implode("', '", $allowedValues)
-            );
-        }
-
-        return $invalidProperties;
-    }
-
-    /**
-     * Validate all the properties in the model
-     * return true if all passed
-     *
-     * @return bool True if all properties are valid
-     */
-    public function valid(): bool
-    {
-        return count($this->listInvalidProperties()) === 0;
-    }
-
-
-    /**
-     * Gets id
-     *
-     * @return int|null
-     */
-    public function getId(): ?int
-    {
-        return $this->id;
-    }
-
-    /**
-     * Sets id
-     *
-     * @param int|null $id
-     *
-     * @return self
-     */
-    public function setId(?int $id): self
-    {
+    public function __construct(
+        string $name,
+        array $photoUrls,
+        ?int $id = null,
+        ?\PetstoreClient\Models\Category $category = null,
+        ?array $tags = null,
+        ?string $status = null,
+    ) {
         $this->id = $id;
-
-        return $this;
-    }
-
-    /**
-     * Gets name
-     *
-     * @return string|null
-     */
-    public function getName(): ?string
-    {
-        return $this->name;
-    }
-
-    /**
-     * Sets name
-     *
-     * @param string|null $name
-     *
-     * @return self
-     */
-    public function setName(?string $name): self
-    {
         $this->name = $name;
-
-        return $this;
-    }
-
-    /**
-     * Gets category
-     *
-     * @return \PetstoreClient\Models\Category|null
-     */
-    public function getCategory(): ?\PetstoreClient\Models\Category
-    {
-        return $this->category;
-    }
-
-    /**
-     * Sets category
-     *
-     * @param \PetstoreClient\Models\Category|null $category
-     *
-     * @return self
-     */
-    public function setCategory(?\PetstoreClient\Models\Category $category): self
-    {
         $this->category = $category;
-
-        return $this;
-    }
-
-    /**
-     * Gets photoUrls
-     *
-     * @return string[]|null
-     */
-    public function getPhotoUrls(): ?array
-    {
-        return $this->photoUrls;
-    }
-
-    /**
-     * Sets photoUrls
-     *
-     * @param string[]|null $photoUrls
-     *
-     * @return self
-     */
-    public function setPhotoUrls(?array $photoUrls): self
-    {
         $this->photoUrls = $photoUrls;
-
-        return $this;
-    }
-
-    /**
-     * Gets tags
-     *
-     * @return \PetstoreClient\Models\Tag[]|null
-     */
-    public function getTags(): ?array
-    {
-        return $this->tags;
-    }
-
-    /**
-     * Sets tags
-     *
-     * @param \PetstoreClient\Models\Tag[]|null $tags
-     *
-     * @return self
-     */
-    public function setTags(?array $tags): self
-    {
         $this->tags = $tags;
-
-        return $this;
-    }
-
-    /**
-     * Gets status
-     *
-     * @return string|null
-     */
-    public function getStatus(): ?string
-    {
-        return $this->status;
-    }
-
-    /**
-     * Sets status
-     *
-     * @param string|null $status pet status in the store
-     *
-     * @return self
-     */
-    public function setStatus(?string $status): self
-    {
-        $allowedValues = $this->getStatusAllowableValues();
-        if (!is_null($status) && !in_array($status, $allowedValues, true)) {
-            throw new \InvalidArgumentException(
-                sprintf(
-                    "Invalid value '%s' for 'status', must be one of '%s'",
-                    $status,
-                    implode("', '", $allowedValues)
-                )
-            );
-        }
         $this->status = $status;
-
-        return $this;
-    }
-
-    /**
-     * Gets the string presentation of the object
-     *
-     * @return string
-     */
-    public function __toString(): string
-    {
-        return json_encode(
-            ObjectSerializer::sanitizeForSerialization($this),
-            JSON_PRETTY_PRINT
-        );
-    }
-
-    /**
-     * Gets a header-safe presentation of the object
-     *
-     * @return string
-     */
-    public function toHeaderValue(): string
-    {
-        return json_encode(ObjectSerializer::sanitizeForSerialization($this));
     }
 }

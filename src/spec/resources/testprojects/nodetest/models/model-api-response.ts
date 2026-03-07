@@ -1,40 +1,14 @@
-import { z } from 'zod';
+import { Expose, Type } from 'class-transformer';
 
-export const ModelApiResponseSchema = z
-  .object({
-    code: z.number().optional(),
-    type: z.string().optional(),
-    message: z.string().optional()
-  })
-  .passthrough();
+export class ModelApiResponse {
+  @Expose({ name: 'code' })
+  code?: number;
+  @Expose({ name: 'type' })
+  type?: string;
+  @Expose({ name: 'message' })
+  message?: string;
 
-export type ModelApiResponse = z.infer<typeof ModelApiResponseSchema>;
-
-export function instanceOfModelApiResponse(value: object): value is ModelApiResponse {
-  return true;
-}
-
-export function ModelApiResponseFromJSON(json: any): ModelApiResponse {
-  return ModelApiResponseFromJSONTyped(json, false);
-}
-
-export function ModelApiResponseFromJSONTyped(json: any, ignoreDiscriminator: boolean): ModelApiResponse {
-  if (json == null) {
-    return json;
+  constructor(data?: Partial<ModelApiResponse>) {
+    Object.assign(this, data);
   }
-  return ModelApiResponseSchema.parse(json);
-}
-
-export function ModelApiResponseToJSON(json: any): ModelApiResponse {
-  return ModelApiResponseToJSONTyped(json, false);
-}
-
-export function ModelApiResponseToJSONTyped(
-  value?: ModelApiResponse | null,
-  ignoreDiscriminator: boolean = false
-): any {
-  if (value == null) {
-    return value;
-  }
-  return value;
 }

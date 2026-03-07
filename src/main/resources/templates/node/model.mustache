@@ -1,0 +1,120 @@
+import { Expose, Type } from 'class-transformer';
+{{#models}}
+{{#model}}
+{{#hasImports}}
+{{#tsImports}}
+import { {{classname}} } from './{{filename}}{{importFileExtension}}';
+{{/tsImports}}
+{{/hasImports}}
+{{#isEnum}}
+
+/**
+ * @export
+ */
+export const {{classname}} = {
+{{#allowableValues}}
+  {{#enumVars}}
+  {{{name}}}: {{{value}}}{{^-last}},{{/-last}}
+  {{/enumVars}}
+{{/allowableValues}}
+} as const;
+export type {{classname}} = (typeof {{classname}})[keyof typeof {{classname}}];
+
+{{/isEnum}}
+{{^isEnum}}
+{{#oneOf}}
+{{#-first}}
+
+{{#description}}
+/**
+ * {{{.}}}
+ */
+{{/description}}
+{{#discriminator}}
+export type {{classname}}Type = {{#oneOf}}{{{.}}}{{^-last}} | {{/-last}}{{/oneOf}};
+
+export class {{classname}} {
+  static readonly ONE_OF_SCHEMAS: string[] = [{{#oneOf}}'{{{.}}}'{{^-last}}, {{/-last}}{{/oneOf}}];
+  static readonly DISCRIMINATOR_PROPERTY = '{{discriminator.propertyBaseName}}';
+  static readonly DISCRIMINATOR_MAPPING: Record<string, string> = {
+{{#mappedModels}}
+    {{mappingName}}: '{{modelName}}'{{^-last}},{{/-last}}
+{{/mappedModels}}
+  };
+
+  private actualInstance: {{classname}}Type;
+
+  constructor(instance: {{classname}}Type) {
+    this.actualInstance = instance;
+  }
+
+  getActualInstance(): {{classname}}Type {
+    return this.actualInstance;
+  }
+}
+{{/discriminator}}
+{{^discriminator}}
+export type {{classname}} = {{#oneOf}}{{{.}}}{{^-last}} | {{/-last}}{{/oneOf}};
+{{/discriminator}}
+
+{{/-first}}
+{{/oneOf}}
+{{^oneOf}}
+{{#anyOf}}
+{{#-first}}
+
+{{#description}}
+/**
+ * {{{.}}}
+ */
+{{/description}}
+export type {{classname}} = {{#anyOf}}{{{.}}}{{^-last}} | {{/-last}}{{/anyOf}};
+
+{{/-first}}
+{{/anyOf}}
+{{^anyOf}}
+
+{{#description}}
+/**
+ * {{{.}}}
+ */
+{{/description}}
+export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
+{{#vars}}
+  @Expose({ name: '{{baseName}}' })
+{{^isPrimitiveType}}{{^isArray}}{{#complexType}}{{^isEnum}}{{^isFreeFormObject}}  @Type(() => {{complexType}})
+{{/isFreeFormObject}}{{/isEnum}}{{/complexType}}{{/isArray}}{{/isPrimitiveType}}
+{{#isArray}}{{#items}}{{^isPrimitiveType}}{{#complexType}}{{^isEnum}}{{^isFreeFormObject}}  @Type(() => {{complexType}})
+{{/isFreeFormObject}}{{/isEnum}}{{/complexType}}{{/isPrimitiveType}}{{/items}}{{/isArray}}
+  {{name}}{{^required}}?{{/required}}{{#required}}!{{/required}}: {{{dataType}}};
+{{^-last}}
+{{/-last}}
+{{/vars}}
+
+  constructor(data?: Partial<{{classname}}>) {
+    Object.assign(this, data);
+  }
+}
+{{#hasEnums}}
+
+{{#vars}}
+{{#isEnum}}
+/**
+ * @export
+ */
+export const {{classname}}{{enumName}} = {
+{{#allowableValues}}
+  {{#enumVars}}
+  {{{name}}}: {{{value}}}{{^-last}},{{/-last}}
+  {{/enumVars}}
+{{/allowableValues}}
+} as const;
+export type {{classname}}{{enumName}} = (typeof {{classname}}{{enumName}})[keyof typeof {{classname}}{{enumName}}];
+{{/isEnum}}
+{{/vars}}
+{{/hasEnums}}
+{{/anyOf}}
+{{/oneOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}

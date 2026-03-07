@@ -1,5 +1,5 @@
 import { ObjectSerializer } from '../ObjectSerializer';
-import { CategoryFromJSON, CategoryToJSON, type Category } from '../models';
+import { Category } from '../models';
 
 describe('ObjectSerializer', () => {
   describe('toPathValue', () => {
@@ -108,15 +108,17 @@ describe('ObjectSerializer', () => {
 
   describe('serialize', () => {
     test('serializes a model to plain object', () => {
-      const category: Category = { id: 1, name: 'Dogs' };
-      const result = ObjectSerializer.serialize(category, CategoryToJSON);
+      const category = new Category();
+      category.id = 1;
+      category.name = 'Dogs';
+      const result = ObjectSerializer.serialize(category);
       expect(result).toBeDefined();
       expect(result.id).toBe(1);
       expect(result.name).toBe('Dogs');
     });
 
     test('handles null', () => {
-      const result = ObjectSerializer.serialize(null, CategoryToJSON);
+      const result = ObjectSerializer.serialize(null);
       expect(result).toBeUndefined();
     });
   });
@@ -124,7 +126,7 @@ describe('ObjectSerializer', () => {
   describe('deserialize', () => {
     test('deserializes JSON to typed model', () => {
       const json = { id: 1, name: 'Dogs' };
-      const category = ObjectSerializer.deserialize(json, CategoryFromJSON);
+      const category = ObjectSerializer.deserialize(json, Category);
       expect(category).toBeDefined();
       expect(category.id).toBe(1);
       expect(category.name).toBe('Dogs');

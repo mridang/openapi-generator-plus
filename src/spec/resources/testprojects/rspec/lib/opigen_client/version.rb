@@ -10,6 +10,6 @@ Generator version: 7.14.0
 
 =end
 
-module OpigenClient
+module PetstoreClient
   VERSION = '1.0.0'
 end

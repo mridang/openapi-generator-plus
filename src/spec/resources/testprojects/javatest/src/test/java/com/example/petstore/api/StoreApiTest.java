@@ -39,17 +39,17 @@ class StoreApiTest {
     @Test
     void testPlaceOrder() throws Exception {
         Order order = new Order();
-        order.setId(1L);
-        order.setPetId(12345L);
-        order.setQuantity(1);
-        order.setShipDate(OffsetDateTime.now());
-        order.setStatus(Order.StatusEnum.PLACED);
-        order.setComplete(false);
+        order.id = 1L;
+        order.petId = 12345L;
+        order.quantity = 1;
+        order.shipDate = OffsetDateTime.now();
+        order.status = Order.StatusEnum.PLACED;
+        order.complete = false;
 
         Order result = api.placeOrder(order);
 
         assertThat(result).isNotNull();
-        assertThat(result.getId()).isNotNull();
+        assertThat(result.id).isNotNull();
     }
 
     @Test
@@ -57,7 +57,7 @@ class StoreApiTest {
         Order result = api.getOrderById(1L);
 
         assertThat(result).isNotNull();
-        assertThat(result.getId()).isNotNull();
+        assertThat(result.id).isNotNull();
     }
 
     @Test

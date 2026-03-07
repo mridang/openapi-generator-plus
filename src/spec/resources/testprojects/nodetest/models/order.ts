@@ -1,17 +1,23 @@
-import { z } from 'zod';
+import { Expose, Type } from 'class-transformer';
 
-export const OrderSchema = z
-  .object({
-    id: z.number().optional(),
-    petId: z.number().optional(),
-    quantity: z.number().optional(),
-    shipDate: z.string().optional(),
-    status: z.string().optional(),
-    complete: z.boolean().optional()
-  })
-  .passthrough();
+export class Order {
+  @Expose({ name: 'id' })
+  id?: number;
+  @Expose({ name: 'petId' })
+  petId?: number;
+  @Expose({ name: 'quantity' })
+  quantity?: number;
+  @Expose({ name: 'shipDate' })
+  shipDate?: Date;
+  @Expose({ name: 'status' })
+  status?: string;
+  @Expose({ name: 'complete' })
+  complete?: boolean;
 
-export type Order = z.infer<typeof OrderSchema>;
+  constructor(data?: Partial<Order>) {
+    Object.assign(this, data);
+  }
+}
 
 /**
  * @export
@@ -23,29 +29,3 @@ export const OrderStatusEnum = {
   UnknownDefaultOpenApi: '11184809'
 } as const;
 export type OrderStatusEnum = (typeof OrderStatusEnum)[keyof typeof OrderStatusEnum];
-
-export function instanceOfOrder(value: object): value is Order {
-  return true;
-}
-
-export function OrderFromJSON(json: any): Order {
-  return OrderFromJSONTyped(json, false);
-}
-
-export function OrderFromJSONTyped(json: any, ignoreDiscriminator: boolean): Order {
-  if (json == null) {
-    return json;
-  }
-  return OrderSchema.parse(json);
-}
-
-export function OrderToJSON(json: any): Order {
-  return OrderToJSONTyped(json, false);
-}
-
-export function OrderToJSONTyped(value?: Order | null, ignoreDiscriminator: boolean = false): any {
-  if (value == null) {
-    return value;
-  }
-  return value;
-}

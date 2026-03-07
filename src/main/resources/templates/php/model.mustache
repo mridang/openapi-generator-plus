@@ -5,9 +5,193 @@
 {{>partial_header}}
 namespace {{modelPackage}};
 
-{{^isEnum}}
-use Symfony\Component\Serializer\Attribute\SerializedName;
+{{#isEnum}}
+enum {{classname}}: string
+{
+{{#allowableValues}}
+{{#enumVars}}
+    case {{{name}}} = {{{value}}};
+{{/enumVars}}
+{{/allowableValues}}
+}
 {{/isEnum}}
-use {{invokerPackage}}\ObjectSerializer;
+{{^isEnum}}
+{{#oneOf}}
+{{#-first}}
+{{#description}}
+/**
+ * {{{.}}}
+ */
+{{/description}}
+class {{classname}}
+{
+    private const ONE_OF_SCHEMAS = [{{#oneOf}}'{{{.}}}'{{^-last}}, {{/-last}}{{/oneOf}}];
+{{#discriminator}}
 
-{{#isEnum}}{{>model_enum}}{{/isEnum}}{{^isEnum}}{{>model_generic}}{{/isEnum}}{{/model}}{{/models}}
+    private const DISCRIMINATOR_PROPERTY = '{{discriminator.propertyBaseName}}';
+
+    private const DISCRIMINATOR_MAPPING = [
+{{#mappedModels}}
+        '{{mappingName}}' => {{modelName}}::class{{^-last}},{{/-last}}
+{{/mappedModels}}
+    ];
+{{/discriminator}}
+
+    private mixed $actualInstance;
+
+    public function __construct(mixed $actualInstance = null)
+    {
+        $this->actualInstance = $actualInstance;
+    }
+
+    public function getActualInstance(): mixed
+    {
+        return $this->actualInstance;
+    }
+
+    public static function build(mixed $data): self
+    {
+{{#discriminator}}
+        if (is_array($data) && isset($data[self::DISCRIMINATOR_PROPERTY])) {
+            $class = self::DISCRIMINATOR_MAPPING[$data[self::DISCRIMINATOR_PROPERTY]] ?? null;
+            if ($class !== null) {
+                return new self(\{{invokerPackage}}\ObjectSerializer::deserialize($data, $class));
+            }
+        }
+
+        return new self($data);
+{{/discriminator}}
+{{^discriminator}}
+        return new self(\{{invokerPackage}}\ObjectSerializer::resolveOneOf($data, self::ONE_OF_SCHEMAS));
+{{/discriminator}}
+    }
+}
+{{/-first}}
+{{/oneOf}}
+{{^oneOf}}
+{{#anyOf}}
+{{#-first}}
+{{#description}}
+/**
+ * {{{.}}}
+ */
+{{/description}}
+class {{classname}}
+{
+    private const ANY_OF_SCHEMAS = [{{#anyOf}}'{{{.}}}'{{^-last}}, {{/-last}}{{/anyOf}}];
+
+    private mixed $actualInstance;
+
+    public function __construct(mixed $actualInstance = null)
+    {
+        $this->actualInstance = $actualInstance;
+    }
+
+    public function getActualInstance(): mixed
+    {
+        return $this->actualInstance;
+    }
+
+    public static function build(mixed $data): self
+    {
+        return new self(\{{invokerPackage}}\ObjectSerializer::resolveAnyOf($data, self::ANY_OF_SCHEMAS));
+    }
+}
+{{/-first}}
+{{/anyOf}}
+{{^anyOf}}
+use Symfony\Component\Serializer\Attribute\SerializedName;
+
+{{#description}}
+/**
+ * {{{.}}}
+ */
+{{/description}}
+class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
+{
+{{#hasEnums}}
+{{#vars}}
+{{#isEnum}}
+{{#allowableValues}}
+{{#enumVars}}
+    public const {{enumName}}_{{{name}}} = {{{value}}};
+{{/enumVars}}
+{{/allowableValues}}
+{{/isEnum}}
+{{/vars}}
+
+{{/hasEnums}}
+{{#vars}}
+{{#description}}
+    /**
+     * {{{.}}}
+{{#isContainer}}
+{{#required}}
+     * @var {{{dataType}}}
+{{/required}}
+{{^required}}
+     * @var {{{dataType}}}|null
+{{/required}}
+{{/isContainer}}
+     */
+{{/description}}
+{{^description}}
+{{#isContainer}}
+{{#required}}
+    /** @var {{{dataType}}} */
+{{/required}}
+{{^required}}
+    /** @var {{{dataType}}}|null */
+{{/required}}
+{{/isContainer}}
+{{/description}}
+    #[SerializedName('{{{baseName}}}')]
+{{#required}}
+{{#isContainer}}
+    public array ${{name}};
+{{/isContainer}}
+{{^isContainer}}
+    public {{{dataType}}} ${{name}};
+{{/isContainer}}
+{{/required}}
+{{^required}}
+{{#isContainer}}
+    public ?array ${{name}} = null;
+{{/isContainer}}
+{{^isContainer}}
+    public ?{{{dataType}}} ${{name}} = null;
+{{/isContainer}}
+{{/required}}
+{{^-last}}
+
+{{/-last}}
+{{/vars}}
+
+    public function __construct(
+{{#requiredVars}}
+{{#isContainer}}
+        array ${{name}},
+{{/isContainer}}
+{{^isContainer}}
+        {{{dataType}}} ${{name}},
+{{/isContainer}}
+{{/requiredVars}}
+{{#optionalVars}}
+{{#isContainer}}
+        ?array ${{name}} = null,
+{{/isContainer}}
+{{^isContainer}}
+        ?{{{dataType}}} ${{name}} = null,
+{{/isContainer}}
+{{/optionalVars}}
+    ) {
+{{#vars}}
+        $this->{{name}} = ${{name}};
+{{/vars}}
+    }
+}
+{{/anyOf}}
+{{/oneOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}

@@ -1,36 +1,12 @@
-import { z } from 'zod';
+import { Expose, Type } from 'class-transformer';
 
-export const TagSchema = z
-  .object({
-    id: z.number().optional(),
-    name: z.string().optional()
-  })
-  .passthrough();
+export class Tag {
+  @Expose({ name: 'id' })
+  id?: number;
+  @Expose({ name: 'name' })
+  name?: string;
 
-export type Tag = z.infer<typeof TagSchema>;
-
-export function instanceOfTag(value: object): value is Tag {
-  return true;
-}
-
-export function TagFromJSON(json: any): Tag {
-  return TagFromJSONTyped(json, false);
-}
-
-export function TagFromJSONTyped(json: any, ignoreDiscriminator: boolean): Tag {
-  if (json == null) {
-    return json;
+  constructor(data?: Partial<Tag>) {
+    Object.assign(this, data);
   }
-  return TagSchema.parse(json);
-}
-
-export function TagToJSON(json: any): Tag {
-  return TagToJSONTyped(json, false);
-}
-
-export function TagToJSONTyped(value?: Tag | null, ignoreDiscriminator: boolean = false): any {
-  if (value == null) {
-    return value;
-  }
-  return value;
 }

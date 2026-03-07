@@ -5,14 +5,11 @@ import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.servers.Server;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
-import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.languages.PythonClientCodegen;
 import org.openapitools.codegen.model.ModelMap;
 import org.openapitools.codegen.model.ModelsMap;
-import org.openapitools.codegen.model.OperationMap;
-import org.openapitools.codegen.model.OperationsMap;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,8 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.TreeSet;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,6 +51,16 @@ public class BetterPythonCodegen extends PythonClientCodegen implements Unsuppor
         this.setLibrary(DEFAULT_LIBRARY);
         this.setDisallowAdditionalPropertiesIfNotPresent(false);
         this.setUseOneOfDiscriminatorLookup(true);
+
+        // Use plain Python types instead of pydantic Strict* types
+        typeMapping.put("integer", "int");
+        typeMapping.put("long", "int");
+        typeMapping.put("float", "float");
+        typeMapping.put("double", "float");
+        typeMapping.put("string", "str");
+        typeMapping.put("boolean", "bool");
+        typeMapping.put("binary", "bytes");
+        typeMapping.put("ByteArray", "bytes");
 
         setTemplateDir("templates/python");
 
@@ -111,90 +117,64 @@ public class BetterPythonCodegen extends PythonClientCodegen implements Unsuppor
         supportingFiles.add(new SupportingFile("header_selector.mustache", packagePath, "header_selector.py"));
     }
 
-    @Override
-    public CodegenOperation fromOperation(String path, String httpMethod, Operation operation, List<Server> servers) {
-        validateOperation(operation);
-        return super.fromOperation(path, httpMethod, operation, servers);
-    }
-
     /**
-     * Pattern to match double-quoted string values inside Field() or other
-     * annotations in Python type expressions. Matches {@code "..."} but not
-     * already single-quoted strings.
+     * Converts each model's imports from short type names (e.g. "Category") to
+     * full Python import statements (e.g. "from package.models.category import Category").
+     * This allows the template to use {@code {{{.}}}} to output imports directly.
      */
-    private static final Pattern DOUBLE_QUOTED_IN_FIELD =
-        Pattern.compile("(?<=[(,=\\s])\"([^\"]*)\"(?=[),\\s])");
-
-    /**
-     * Replaces double-quoted string literals with single-quoted ones inside
-     * Python type annotation expressions (e.g. in {@code Field(description="...")}).
-     * This ensures the generated code conforms to ruff's single-quote style.
-     */
-    private static String singleQuoteTyping(String typing) {
-        Matcher m = DOUBLE_QUOTED_IN_FIELD.matcher(typing);
-        return m.replaceAll("'$1'");
-    }
-
-    /**
-     * Wraps an {@code Annotated[...]} type expression across multiple lines if
-     * the resulting parameter line would exceed 120 characters. The method
-     * signature indentation is 8 spaces, so the content inside the Annotated
-     * bracket is indented with 12 spaces.
-     */
-    private static String wrapAnnotatedIfNeeded(String paramName, String typing, boolean isOptional) {
-        if (!typing.startsWith("Annotated[")) {
-            return typing;
-        }
-        // Calculate total line length: "        {paramName}: {typing} = None," or "        {paramName}: {typing},"
-        int lineLength = 8 + paramName.length() + 2 + typing.length() + (isOptional ? 8 : 1);
-        if (lineLength <= 120) {
-            return typing;
-        }
-        // Extract inner content: Annotated[INNER]
-        String inner = typing.substring("Annotated[".length(), typing.length() - 1);
-        return "Annotated[\n            " + inner + "\n        ]";
-    }
-
-    @Override
-    public OperationsMap postProcessOperationsWithModels(OperationsMap objs, List<ModelMap> allModels) {
-        OperationsMap result = super.postProcessOperationsWithModels(objs, allModels);
-        OperationMap ops = result.getOperations();
-        if (ops != null) {
-            for (CodegenOperation op : ops.getOperation()) {
-                for (CodegenParameter param : op.allParams) {
-                    Object typing = param.vendorExtensions.get("x-py-typing");
-                    if (typing instanceof String) {
-                        String fixed = singleQuoteTyping((String) typing);
-                        fixed = wrapAnnotatedIfNeeded(param.paramName, fixed, !param.required);
-                        param.vendorExtensions.put("x-py-typing", fixed);
-                    }
-                }
-            }
-        }
-        return result;
-    }
-
     @Override
     public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
         Map<String, ModelsMap> result = super.postProcessAllModels(objs);
         for (ModelsMap modelsMap : result.values()) {
             for (ModelMap modelMap : modelsMap.getModels()) {
                 CodegenModel model = modelMap.getModel();
-                for (CodegenProperty prop : model.vars) {
-                    Object typing = prop.vendorExtensions.get("x-py-typing");
-                    if (typing instanceof String) {
-                        prop.vendorExtensions.put("x-py-typing", singleQuoteTyping((String) typing));
-                    }
-                }
+
+                // Build full import statements from short type names
+                TreeSet<String> fullImports = new TreeSet<>();
+
+                // Add imports for language-specific primitives (datetime, date, etc.)
+                // that the parent codegen handles via vendor extensions
                 for (CodegenProperty prop : model.allVars) {
-                    Object typing = prop.vendorExtensions.get("x-py-typing");
-                    if (typing instanceof String) {
-                        prop.vendorExtensions.put("x-py-typing", singleQuoteTyping((String) typing));
+                    addTypeImport(fullImports, prop.dataType);
+                    if (prop.items != null) {
+                        addTypeImport(fullImports, prop.items.dataType);
                     }
                 }
+
+                // Convert short model type names to full import statements
+                for (String imp : model.imports) {
+                    fullImports.add(
+                        "from " + modelPackage + "." + toModelFilename(imp) + " import " + imp);
+                }
+                model.imports.clear();
+                model.imports.addAll(fullImports);
             }
         }
         return result;
+    }
+
+    /**
+     * Maps Python type names that are language-specific primitives to their
+     * required import statements. The parent codegen handles these via
+     * vendor extensions, but we generate them directly.
+     */
+    private static final Map<String, String> TYPE_IMPORTS = Map.of(
+        "datetime", "from datetime import datetime",
+        "date", "from datetime import date",
+        "Decimal", "from decimal import Decimal"
+    );
+
+    private static void addTypeImport(TreeSet<String> imports, String dataType) {
+        String imp = TYPE_IMPORTS.get(dataType);
+        if (imp != null) {
+            imports.add(imp);
+        }
+    }
+
+    @Override
+    public CodegenOperation fromOperation(String path, String httpMethod, Operation operation, List<Server> servers) {
+        validateOperation(operation);
+        return super.fromOperation(path, httpMethod, operation, servers);
     }
 
     /**
@@ -209,7 +189,10 @@ public class BetterPythonCodegen extends PythonClientCodegen implements Unsuppor
         }
         try {
             String content = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
-            String trimmed = content.replaceAll("\\n+$", "\n");
+            // Fix set literal formatting: { 'A', 'B' } → {'A', 'B'}
+            String trimmed = content.replaceAll("\\{ ('.*?') }", "{$1}");
+            trimmed = trimmed.replaceAll("\\n{4,}", "\n\n\n");
+            trimmed = trimmed.replaceAll("\\n+$", "\n");
             if (!trimmed.equals(content)) {
                 Files.write(file.toPath(), trimmed.getBytes(StandardCharsets.UTF_8));
             }

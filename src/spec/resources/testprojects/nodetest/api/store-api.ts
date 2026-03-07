@@ -2,8 +2,7 @@ import type { ApiClient } from '../ApiClient.js';
 import { BaseApi } from './BaseApi.js';
 import { Configuration } from '../Configuration.js';
 import { ObjectSerializer } from '../ObjectSerializer.js';
-import type { Order } from '../models/index.js';
-import { OrderFromJSON, OrderToJSON } from '../models/index.js';
+import { Order } from '../models/index.js';
 
 /**
  * StoreApi provides methods for the Store API group.
@@ -73,7 +72,7 @@ export class StoreApi extends BaseApi {
       null,
       ['application/json'],
       'application/json',
-      (json: any) => ObjectSerializer.deserialize(json, OrderFromJSON)
+      (json: any) => ObjectSerializer.deserialize(json, Order)
     ) as Order;
   }
 
@@ -91,10 +90,10 @@ export class StoreApi extends BaseApi {
       path,
       queryParams,
       headerParams,
-      ObjectSerializer.serialize(order, OrderToJSON),
+      order,
       ['application/json'],
       'application/json',
-      (json: any) => ObjectSerializer.deserialize(json, OrderFromJSON)
+      (json: any) => ObjectSerializer.deserialize(json, Order)
     ) as Order;
   }
 }

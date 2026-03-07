@@ -13,255 +13,47 @@
 namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
-use PetstoreClient\ObjectSerializer;
 
 class Order
 {
     public const STATUS_PLACED = 'placed';
     public const STATUS_APPROVED = 'approved';
     public const STATUS_DELIVERED = 'delivered';
+
     #[SerializedName('id')]
-    private ?int $id = null;
+    public ?int $id = null;
 
     #[SerializedName('petId')]
-    private ?int $petId = null;
+    public ?int $petId = null;
 
     #[SerializedName('quantity')]
-    private ?int $quantity = null;
+    public ?int $quantity = null;
 
     #[SerializedName('shipDate')]
-    private ?\DateTime $shipDate = null;
+    public ?\DateTime $shipDate = null;
 
     /**
      * Order Status
      */
     #[SerializedName('status')]
-    private ?string $status = null;
+    public ?string $status = null;
 
     #[SerializedName('complete')]
-    private ?bool $complete = null;
+    public ?bool $complete = null;
 
-    /**
-     * Gets allowable values of the enum
-     *
-     * @return string[]
-     */
-    public function getStatusAllowableValues(): array
-    {
-        return [
-            self::STATUS_PLACED,
-            self::STATUS_APPROVED,
-            self::STATUS_DELIVERED,
-        ];
-    }
-
-    /**
-     * Show all the invalid properties with reasons.
-     *
-     * @return array invalid properties with reasons
-     */
-    public function listInvalidProperties(): array
-    {
-        $invalidProperties = [];
-
-        $allowedValues = $this->getStatusAllowableValues();
-        if (!is_null($this->status) && !in_array($this->status, $allowedValues, true)) {
-            $invalidProperties[] = sprintf(
-                "invalid value '%s' for 'status', must be one of '%s'",
-                $this->status,
-                implode("', '", $allowedValues)
-            );
-        }
-
-        return $invalidProperties;
-    }
-
-    /**
-     * Validate all the properties in the model
-     * return true if all passed
-     *
-     * @return bool True if all properties are valid
-     */
-    public function valid(): bool
-    {
-        return count($this->listInvalidProperties()) === 0;
-    }
-
-
-    /**
-     * Gets id
-     *
-     * @return int|null
-     */
-    public function getId(): ?int
-    {
-        return $this->id;
-    }
-
-    /**
-     * Sets id
-     *
-     * @param int|null $id
-     *
-     * @return self
-     */
-    public function setId(?int $id): self
-    {
+    public function __construct(
+        ?int $id = null,
+        ?int $petId = null,
+        ?int $quantity = null,
+        ?\DateTime $shipDate = null,
+        ?string $status = null,
+        ?bool $complete = null,
+    ) {
         $this->id = $id;
-
-        return $this;
-    }
-
-    /**
-     * Gets petId
-     *
-     * @return int|null
-     */
-    public function getPetId(): ?int
-    {
-        return $this->petId;
-    }
-
-    /**
-     * Sets petId
-     *
-     * @param int|null $petId
-     *
-     * @return self
-     */
-    public function setPetId(?int $petId): self
-    {
         $this->petId = $petId;
-
-        return $this;
-    }
-
-    /**
-     * Gets quantity
-     *
-     * @return int|null
-     */
-    public function getQuantity(): ?int
-    {
-        return $this->quantity;
-    }
-
-    /**
-     * Sets quantity
-     *
-     * @param int|null $quantity
-     *
-     * @return self
-     */
-    public function setQuantity(?int $quantity): self
-    {
         $this->quantity = $quantity;
-
-        return $this;
-    }
-
-    /**
-     * Gets shipDate
-     *
-     * @return \DateTime|null
-     */
-    public function getShipDate(): ?\DateTime
-    {
-        return $this->shipDate;
-    }
-
-    /**
-     * Sets shipDate
-     *
-     * @param \DateTime|null $shipDate
-     *
-     * @return self
-     */
-    public function setShipDate(?\DateTime $shipDate): self
-    {
         $this->shipDate = $shipDate;
-
-        return $this;
-    }
-
-    /**
-     * Gets status
-     *
-     * @return string|null
-     */
-    public function getStatus(): ?string
-    {
-        return $this->status;
-    }
-
-    /**
-     * Sets status
-     *
-     * @param string|null $status Order Status
-     *
-     * @return self
-     */
-    public function setStatus(?string $status): self
-    {
-        $allowedValues = $this->getStatusAllowableValues();
-        if (!is_null($status) && !in_array($status, $allowedValues, true)) {
-            throw new \InvalidArgumentException(
-                sprintf(
-                    "Invalid value '%s' for 'status', must be one of '%s'",
-                    $status,
-                    implode("', '", $allowedValues)
-                )
-            );
-        }
         $this->status = $status;
-
-        return $this;
-    }
-
-    /**
-     * Gets complete
-     *
-     * @return bool|null
-     */
-    public function getComplete(): ?bool
-    {
-        return $this->complete;
-    }
-
-    /**
-     * Sets complete
-     *
-     * @param bool|null $complete
-     *
-     * @return self
-     */
-    public function setComplete(?bool $complete): self
-    {
         $this->complete = $complete;
-
-        return $this;
-    }
-
-    /**
-     * Gets the string presentation of the object
-     *
-     * @return string
-     */
-    public function __toString(): string
-    {
-        return json_encode(
-            ObjectSerializer::sanitizeForSerialization($this),
-            JSON_PRETTY_PRINT
-        );
-    }
-
-    /**
-     * Gets a header-safe presentation of the object
-     *
-     * @return string
-     */
-    public function toHeaderValue(): string
-    {
-        return json_encode(ObjectSerializer::sanitizeForSerialization($this));
     }
 }

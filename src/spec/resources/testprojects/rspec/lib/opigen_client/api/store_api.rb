@@ -1,9 +1,9 @@
 require 'cgi'
 
-module OpigenClient::Api
+module PetstoreClient::Api
   # StoreApi provides methods for the Store API group.
   class StoreApi < BaseApi
-    def initialize(api_client = nil, config = OpigenClient::Configuration.default)
+    def initialize(api_client = nil, config = PetstoreClient::Configuration.default)
       super(api_client, config)
     end
 
@@ -16,7 +16,7 @@ module OpigenClient::Api
         fail ArgumentError, "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
       end
 
-      path = '/store/order/{orderId}'.sub('{' + 'orderId' + '}', CGI.escape(OpigenClient::ObjectSerializer.to_path_value(order_id)))
+      path = '/store/order/{orderId}'.sub('{' + 'orderId' + '}', CGI.escape(PetstoreClient::ObjectSerializer.to_path_value(order_id)))
       query_params = {}
       header_params = {}
       body = nil
@@ -51,7 +51,7 @@ module OpigenClient::Api
         fail ArgumentError, "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
       end
 
-      path = '/store/order/{orderId}'.sub('{' + 'orderId' + '}', CGI.escape(OpigenClient::ObjectSerializer.to_path_value(order_id)))
+      path = '/store/order/{orderId}'.sub('{' + 'orderId' + '}', CGI.escape(PetstoreClient::ObjectSerializer.to_path_value(order_id)))
       query_params = {}
       header_params = {}
       body = nil

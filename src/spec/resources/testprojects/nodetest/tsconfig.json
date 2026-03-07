@@ -5,6 +5,8 @@
     "moduleResolution": "node",
     "esModuleInterop": true,
     "strict": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "outDir": "./dist",
     "skipLibCheck": true
   },

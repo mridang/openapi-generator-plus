@@ -1,27 +1,255 @@
-# coding: utf-8
-
 {{>partial_header}}
 {{#models}}
 {{#model}}
 {{#isEnum}}
-{{>model_enum}}
+from enum import Enum
+
+
+class {{classname}}(str, Enum):
+    """
+    {{#description}}{{{description}}}{{/description}}{{^description}}{{{classname}}}{{/description}}
+    """
+
+    {{#allowableValues}}
+    {{#enumVars}}
+    {{{name}}} = {{{value}}}
+    {{/enumVars}}
+    {{/allowableValues}}
 {{/isEnum}}
 {{^isEnum}}
 {{#oneOf}}
 {{#-first}}
-{{>model_oneof}}
+from __future__ import annotations
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import Any, ClassVar, Dict, List, Optional, Set, Union
+from typing_extensions import Self
+
+
+class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}):
+    """
+    {{{description}}}{{^description}}{{{classname}}}{{/description}}
+    """
+
+{{#composedSchemas.oneOf}}
+    {{name}}: Optional[{{{dataType}}}] = None
+{{/composedSchemas.oneOf}}
+    actual_instance: Optional[Union[{{#oneOf}}{{{.}}}{{^-last}}, {{/-last}}{{/oneOf}}]] = None
+    one_of_schemas: Set[str] = { {{#oneOf}}'{{.}}'{{^-last}}, {{/-last}}{{/oneOf}} }
+
+    model_config = ConfigDict(
+        validate_assignment=True,
+        protected_namespaces=(),
+    )
+
+{{#discriminator}}
+    discriminator_value_class_map: Dict[str, str] = {
+{{#mappedModels}}
+        '{{{mappingName}}}': '{{{modelName}}}',
+{{/mappedModels}}
+    }
+{{/discriminator}}
+
+    def __init__(self, *args, **kwargs) -> None:
+        if args:
+            if len(args) > 1:
+                raise ValueError('If a position argument is used, only 1 is allowed to set `actual_instance`')
+            if kwargs:
+                raise ValueError('If a position argument is used, keyword arguments cannot be used.')
+            super().__init__(actual_instance=args[0])
+        else:
+            super().__init__(**kwargs)
+
+    @field_validator('actual_instance')
+    def actual_instance_must_validate_oneof(cls, v):
+        {{#isNullable}}
+        if v is None:
+            return v
+
+        {{/isNullable}}
+        instance = {{{classname}}}.model_construct()
+        error_messages = []
+        match = 0
+        {{#composedSchemas.oneOf}}
+        {{#isContainer}}
+        try:
+            instance.{{name}} = v
+            match += 1
+        except (ValidationError, ValueError) as e:
+            error_messages.append(str(e))
+        {{/isContainer}}
+        {{^isContainer}}
+        {{#isPrimitiveType}}
+        try:
+            instance.{{name}} = v
+            match += 1
+        except (ValidationError, ValueError) as e:
+            error_messages.append(str(e))
+        {{/isPrimitiveType}}
+        {{^isPrimitiveType}}
+        if not isinstance(v, {{{dataType}}}):
+            error_messages.append(f'Error! Input type `{type(v)}` is not `{{{dataType}}}`')
+        else:
+            match += 1
+        {{/isPrimitiveType}}
+        {{/isContainer}}
+        {{/composedSchemas.oneOf}}
+        if match > 1:
+            raise ValueError(
+                'Multiple matches found when setting `actual_instance` in {{{classname}}} with oneOf schemas: {{#oneOf}}{{{.}}}{{^-last}}, {{/-last}}{{/oneOf}}. Details: '
+                + ', '.join(error_messages)
+            )
+        elif match == 0:
+            raise ValueError(
+                'No match found when setting `actual_instance` in {{{classname}}} with oneOf schemas: {{#oneOf}}{{{.}}}{{^-last}}, {{/-last}}{{/oneOf}}. Details: '
+                + ', '.join(error_messages)
+            )
+        else:
+            return v
+
 {{/-first}}
 {{/oneOf}}
 {{^oneOf}}
 {{#anyOf}}
 {{#-first}}
-{{>model_anyof}}
+from __future__ import annotations
+
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Any, ClassVar, Dict, List, Optional, Set, Union
+from typing_extensions import Self
+
+
+class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}):
+    """
+    {{{description}}}{{^description}}{{{classname}}}{{/description}}
+    """
+
+    actual_instance: Optional[Union[{{#anyOf}}{{{.}}}{{^-last}}, {{/-last}}{{/anyOf}}]] = None
+    any_of_schemas: Set[str] = { {{#anyOf}}'{{.}}'{{^-last}}, {{/-last}}{{/anyOf}} }
+
+    model_config = ConfigDict(
+        validate_assignment=True,
+        protected_namespaces=(),
+    )
+
 {{/-first}}
 {{/anyOf}}
 {{^anyOf}}
-{{>model_generic}}
+from __future__ import annotations
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from typing import Any, ClassVar, Dict, List, Optional, Set, Union
+from typing_extensions import Self
+{{#hasChildren}}
+{{#discriminator}}
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+{{#mappedModels}}
+    from {{packageName}}.models.{{model.classFilename}} import {{modelName}}
+{{/mappedModels}}
+
+{{/discriminator}}
+{{/hasChildren}}
+
+
+class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}):
+    """
+    {{#description}}{{{description}}}{{/description}}{{^description}}{{{classname}}}{{/description}}
+    """
+
+{{#vars}}
+{{#required}}
+    {{name}}: {{{dataType}}} = Field(alias='{{{baseName}}}')
+{{/required}}
+{{^required}}
+    {{name}}: Optional[{{{dataType}}}] = Field(default=None, alias='{{{baseName}}}')
+{{/required}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    additional_properties: Dict[str, Any] = {}
+{{/isAdditionalPropertiesTrue}}
+{{#vars}}
+    {{#pattern}}
+
+    @field_validator('{{{name}}}')
+    def {{{name}}}_validate_regular_expression(cls, value):
+        """Validates the regular expression"""
+        if value is None:
+            return value
+        if not re.match(r"{{{pattern}}}", value):
+            raise ValueError(r"must validate the regular expression {{{pattern}}}")
+        return value
+    {{/pattern}}
+    {{#isEnum}}
+
+    @field_validator('{{{name}}}')
+    def {{{name}}}_validate_enum(cls, value):
+        """Validates the enum"""
+        {{^required}}
+        if value is None:
+            return value
+
+        {{/required}}
+        {{#required}}
+        {{#isNullable}}
+        if value is None:
+            return value
+
+        {{/isNullable}}
+        {{/required}}
+        {{#isContainer}}
+        {{#isArray}}
+        for i in value:
+            if i not in set([{{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}]):
+                raise ValueError("each list item must be one of ({{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}})")
+        {{/isArray}}
+        {{#isMap}}
+        for i in value.values():
+            if i not in set([{{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}]):
+                raise ValueError("dict values must be one of enum values ({{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}})")
+        {{/isMap}}
+        {{/isContainer}}
+        {{^isContainer}}
+        if value not in set([{{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}]):
+            raise ValueError("must be one of enum values ({{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}})")
+        {{/isContainer}}
+        return value
+    {{/isEnum}}
+{{/vars}}
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        validate_assignment=True,
+        protected_namespaces=(),
+    )
+
+{{#hasChildren}}
+{{#discriminator}}
+    __discriminator_property_name: ClassVar[str] = '{{discriminator.propertyBaseName}}'
+
+    __discriminator_value_class_map: ClassVar[Dict[str, str]] = {
+        {{#mappedModels}}'{{{mappingName}}}': '{{{modelName}}}',{{/mappedModels}}
+    }
+
+    @classmethod
+    def get_discriminator_value(cls, obj: Dict[str, Any]) -> Optional[str]:
+        """Returns the discriminator value (object type) of the data"""
+        discriminator_value = obj[cls.__discriminator_property_name]
+        if discriminator_value:
+            return cls.__discriminator_value_class_map.get(discriminator_value)
+        else:
+            return None
+
+{{/discriminator}}
+{{/hasChildren}}
 {{/anyOf}}
 {{/oneOf}}
+
+{{#imports}}
+{{{.}}}
+{{/imports}}
+
+{{classname}}.model_rebuild(raise_errors=False)
 {{/isEnum}}
 {{/model}}
 {{/models}}

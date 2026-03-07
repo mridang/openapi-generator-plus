@@ -31,15 +31,15 @@ class PetApiTest {
     @Test
     void testAddPet() throws Exception {
         Pet pet = new Pet();
-        pet.setId(12345L);
-        pet.setName("TestDog");
-        pet.setPhotoUrls(List.of("http://example.com/photo.jpg"));
-        pet.setStatus(Pet.StatusEnum.AVAILABLE);
+        pet.id = 12345L;
+        pet.name = "TestDog";
+        pet.photoUrls = List.of("http://example.com/photo.jpg");
+        pet.status = Pet.StatusEnum.AVAILABLE;
 
         Pet result = api.addPet(pet);
 
         assertThat(result).isNotNull();
-        assertThat(result.getName()).isNotNull();
+        assertThat(result.name).isNotNull();
     }
 
     @Test
@@ -56,17 +56,17 @@ class PetApiTest {
         Pet result = api.getPetById(1L);
 
         assertThat(result).isNotNull();
-        assertThat(result.getId()).isNotNull();
-        assertThat(result.getName()).isNotNull();
+        assertThat(result.id).isNotNull();
+        assertThat(result.name).isNotNull();
     }
 
     @Test
     void testUpdatePet() throws Exception {
         Pet pet = new Pet();
-        pet.setId(1L);
-        pet.setName("UpdatedDog");
-        pet.setPhotoUrls(List.of("http://example.com/updated.jpg"));
-        pet.setStatus(Pet.StatusEnum.PENDING);
+        pet.id = 1L;
+        pet.name = "UpdatedDog";
+        pet.photoUrls = List.of("http://example.com/updated.jpg");
+        pet.status = Pet.StatusEnum.PENDING;
 
         Pet result = api.updatePet(1L, pet);
 

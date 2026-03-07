@@ -2,8 +2,7 @@ import type { ApiClient } from '../ApiClient.js';
 import { BaseApi } from './BaseApi.js';
 import { Configuration } from '../Configuration.js';
 import { ObjectSerializer } from '../ObjectSerializer.js';
-import type { Pet } from '../models/index.js';
-import { PetFromJSON, PetToJSON } from '../models/index.js';
+import { Pet } from '../models/index.js';
 
 /**
  * PetApi provides methods for the Pet API group.
@@ -30,10 +29,10 @@ export class PetApi extends BaseApi {
       path,
       queryParams,
       headerParams,
-      ObjectSerializer.serialize(pet, PetToJSON),
+      pet,
       ['application/json'],
       'application/json',
-      (json: any) => ObjectSerializer.deserialize(json, PetFromJSON)
+      (json: any) => ObjectSerializer.deserialize(json, Pet)
     ) as Pet;
   }
 
@@ -71,7 +70,7 @@ export class PetApi extends BaseApi {
       null,
       ['application/json'],
       'application/json',
-      (json: any) => ObjectSerializer.deserializeArray(json, PetFromJSON)
+      (json: any) => ObjectSerializer.deserializeArray(json, Pet)
     ) as Array<Pet>;
   }
 
@@ -96,7 +95,7 @@ export class PetApi extends BaseApi {
       null,
       ['application/json'],
       'application/json',
-      (json: any) => ObjectSerializer.deserialize(json, PetFromJSON)
+      (json: any) => ObjectSerializer.deserialize(json, Pet)
     ) as Pet;
   }
 
@@ -121,10 +120,10 @@ export class PetApi extends BaseApi {
       path,
       queryParams,
       headerParams,
-      ObjectSerializer.serialize(pet, PetToJSON),
+      pet,
       ['application/json'],
       'application/json',
-      (json: any) => ObjectSerializer.deserialize(json, PetFromJSON)
+      (json: any) => ObjectSerializer.deserialize(json, Pet)
     ) as Pet;
   }
 }

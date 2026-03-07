@@ -31,17 +31,17 @@ class StoreApiTest extends TestCase
     public function testPlaceOrder(): void
     {
         $order = new Order();
-        $order->setId(1);
-        $order->setPetId(12345);
-        $order->setQuantity(1);
-        $order->setShipDate(new \DateTime());
-        $order->setStatus('placed');
-        $order->setComplete(false);
+        $order->id = 1;
+        $order->petId = 12345;
+        $order->quantity = 1;
+        $order->shipDate = new \DateTime();
+        $order->status = 'placed';
+        $order->complete = false;
 
         $result = $this->api->placeOrder($order);
 
         $this->assertInstanceOf(Order::class, $result);
-        $this->assertNotNull($result->getId());
+        $this->assertNotNull($result->id);
     }
 
     public function testGetOrderById(): void
@@ -49,7 +49,7 @@ class StoreApiTest extends TestCase
         $result = $this->api->getOrderById(1);
 
         $this->assertInstanceOf(Order::class, $result);
-        $this->assertNotNull($result->getId());
+        $this->assertNotNull($result->id);
     }
 
     public function testDeleteOrder(): void

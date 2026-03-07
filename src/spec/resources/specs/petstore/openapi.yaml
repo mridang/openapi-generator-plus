@@ -301,3 +301,35 @@ components:
           type: string
         message:
           type: string
+    DryFood:
+      type: object
+      required:
+        - foodType
+        - weightKg
+      properties:
+        foodType:
+          type: string
+        weightKg:
+          type: number
+          format: double
+    WetFood:
+      type: object
+      required:
+        - foodType
+        - volumeMl
+      properties:
+        foodType:
+          type: string
+        volumeMl:
+          type: integer
+          format: int32
+    PetFood:
+      description: Food for pets, discriminated by foodType
+      oneOf:
+        - $ref: '#/components/schemas/DryFood'
+        - $ref: '#/components/schemas/WetFood'
+      discriminator:
+        propertyName: foodType
+        mapping:
+          dry: '#/components/schemas/DryFood'
+          wet: '#/components/schemas/WetFood'

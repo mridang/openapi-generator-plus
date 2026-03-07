@@ -18,7 +18,7 @@ module Types
   include Dry.Types()
 end
 
-module OpigenClient::Models
+module PetstoreClient::Models
   class Category < Dry::Struct
     # Attribute mapping from ruby-style variable name to JSON key.
     ATTRIBUTE_MAP = {
@@ -30,16 +30,10 @@ module OpigenClient::Models
     JSON_KEY_MAP = ATTRIBUTE_MAP.invert.freeze
 
     # Attribute type mapping.
-    def self.openapi_types
-      {
-        :'id' => :'Integer',
-        :'name' => :'String'
-      }
-    end
-
-    def self.attribute_map
-      ATTRIBUTE_MAP
-    end
+    OPENAPI_TYPES = {
+      :'id' => :'Integer',
+      :'name' => :'String'
+    }.freeze
 
     # Transform incoming hash keys from JSON format to Ruby attribute names.
     transform_keys do |key|
@@ -48,27 +42,5 @@ module OpigenClient::Models
 
     attribute :id, Types::Any.optional.meta(omittable: true)
     attribute :name, Types::Any.optional.meta(omittable: true)
-
-    # Builds the object from a JSON-keyed hash, recursively deserializing nested types.
-    # @param [Hash] attributes JSON-keyed hash
-    # @return [Category] Deserialized object
-    def self.build_from_hash(attributes)
-      return nil unless attributes.is_a?(Hash)
-
-      attributes = attributes.transform_keys(&:to_sym)
-      transformed = {}
-      openapi_types.each do |attr, type|
-        json_key = ATTRIBUTE_MAP[attr]
-        next unless attributes.key?(json_key)
-
-        value = attributes[json_key]
-        if value.nil?
-          transformed[attr] = nil
-        else
-          transformed[attr] = OpigenClient::ObjectSerializer.convert_to_type(value, type.to_s)
-        end
-      end
-      new(transformed)
-    end
   end
 end

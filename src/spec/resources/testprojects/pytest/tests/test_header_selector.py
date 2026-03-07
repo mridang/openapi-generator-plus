@@ -1,5 +1,3 @@
-# coding: utf-8
-
 """
 Swagger Petstore - OpenAPI 3.0
 

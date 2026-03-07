@@ -25,7 +25,7 @@ class PetApi(BaseApi):
 
     def add_pet(
         self,
-        pet: Annotated[Pet, Field(description='Create a new pet in the store')],
+        pet: Pet,
     ) -> Pet:
         """Add a new pet to the store
         :param pet: Create a new pet in the store (required)
@@ -51,7 +51,7 @@ class PetApi(BaseApi):
 
     def delete_pet(
         self,
-        pet_id: Annotated[StrictInt, Field(description='Pet id to delete')],
+        pet_id: int,
     ) -> None:
         """Deletes a pet
         :param pet_id: Pet id to delete (required)
@@ -77,9 +77,7 @@ class PetApi(BaseApi):
 
     def find_pets_by_status(
         self,
-        status: Annotated[
-            Optional[StrictStr], Field(description='Status values that need to be considered for filter')
-        ] = None,
+        status: Optional[str] = None,
     ) -> List[Pet]:
         """Finds Pets by status
         :param status: Status values that need to be considered for filter (optional, default to available)
@@ -105,7 +103,7 @@ class PetApi(BaseApi):
 
     def get_pet_by_id(
         self,
-        pet_id: Annotated[StrictInt, Field(description='ID of pet to return')],
+        pet_id: int,
     ) -> Pet:
         """Find pet by ID
         Returns a single pet
@@ -133,8 +131,8 @@ class PetApi(BaseApi):
 
     def update_pet(
         self,
-        pet_id: Annotated[StrictInt, Field(description='ID of pet to update')],
-        pet: Annotated[Pet, Field(description='Pet object that needs to be updated')],
+        pet_id: int,
+        pet: Pet,
     ) -> Pet:
         """Update an existing pet
         :param pet_id: ID of pet to update (required)

@@ -13,135 +13,25 @@
 namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
-use PetstoreClient\ObjectSerializer;
 
 class ApiResponse
 {
     #[SerializedName('code')]
-    private ?int $code = null;
+    public ?int $code = null;
 
     #[SerializedName('type')]
-    private ?string $type = null;
+    public ?string $type = null;
 
     #[SerializedName('message')]
-    private ?string $message = null;
+    public ?string $message = null;
 
-    /**
-     * Show all the invalid properties with reasons.
-     *
-     * @return array invalid properties with reasons
-     */
-    public function listInvalidProperties(): array
-    {
-        $invalidProperties = [];
-
-        return $invalidProperties;
-    }
-
-    /**
-     * Validate all the properties in the model
-     * return true if all passed
-     *
-     * @return bool True if all properties are valid
-     */
-    public function valid(): bool
-    {
-        return count($this->listInvalidProperties()) === 0;
-    }
-
-
-    /**
-     * Gets code
-     *
-     * @return int|null
-     */
-    public function getCode(): ?int
-    {
-        return $this->code;
-    }
-
-    /**
-     * Sets code
-     *
-     * @param int|null $code
-     *
-     * @return self
-     */
-    public function setCode(?int $code): self
-    {
+    public function __construct(
+        ?int $code = null,
+        ?string $type = null,
+        ?string $message = null,
+    ) {
         $this->code = $code;
-
-        return $this;
-    }
-
-    /**
-     * Gets type
-     *
-     * @return string|null
-     */
-    public function getType(): ?string
-    {
-        return $this->type;
-    }
-
-    /**
-     * Sets type
-     *
-     * @param string|null $type
-     *
-     * @return self
-     */
-    public function setType(?string $type): self
-    {
         $this->type = $type;
-
-        return $this;
-    }
-
-    /**
-     * Gets message
-     *
-     * @return string|null
-     */
-    public function getMessage(): ?string
-    {
-        return $this->message;
-    }
-
-    /**
-     * Sets message
-     *
-     * @param string|null $message
-     *
-     * @return self
-     */
-    public function setMessage(?string $message): self
-    {
         $this->message = $message;
-
-        return $this;
-    }
-
-    /**
-     * Gets the string presentation of the object
-     *
-     * @return string
-     */
-    public function __toString(): string
-    {
-        return json_encode(
-            ObjectSerializer::sanitizeForSerialization($this),
-            JSON_PRETTY_PRINT
-        );
-    }
-
-    /**
-     * Gets a header-safe presentation of the object
-     *
-     * @return string
-     */
-    public function toHeaderValue(): string
-    {
-        return json_encode(ObjectSerializer::sanitizeForSerialization($this));
     }
 }

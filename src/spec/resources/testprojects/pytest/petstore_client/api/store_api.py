@@ -25,7 +25,7 @@ class StoreApi(BaseApi):
 
     def delete_order(
         self,
-        order_id: Annotated[StrictInt, Field(description='ID of the order to delete')],
+        order_id: int,
     ) -> None:
         """Delete purchase order by ID
         :param order_id: ID of the order to delete (required)
@@ -73,7 +73,7 @@ class StoreApi(BaseApi):
 
     def get_order_by_id(
         self,
-        order_id: Annotated[StrictInt, Field(description='ID of order to return')],
+        order_id: int,
     ) -> Order:
         """Find purchase order by ID
         :param order_id: ID of order to return (required)

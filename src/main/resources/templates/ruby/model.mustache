@@ -13,31 +13,187 @@ end
 module {{moduleName}}::Models
 {{#models}}
 {{#model}}
-{{#hasVars}}
-{{>partial_model_generic}}
-{{/hasVars}}
-{{^hasVars}}
 {{#isEnum}}
-{{>partial_model_enum_class}}
+  class {{classname}}{{#allowableValues}}{{#enumVars}}
+    {{{name}}} = {{{value}}}.freeze{{/enumVars}}
+
+{{/allowableValues}}
+    def self.all_vars
+      @all_vars ||= [{{#allowableValues}}{{#enumVars}}{{{name}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}].freeze
+    end
+  end
 {{/isEnum}}
 {{^isEnum}}
 {{#oneOf}}
 {{#-first}}
-{{>partial_oneof_module}}
+{{#description}}
+  # {{{.}}}
+{{/description}}
+  module {{classname}}
+    class << self
+      {{#oneOf}}
+      {{#-first}}
+      # List of class defined in oneOf (OpenAPI v3)
+      def openapi_one_of
+        [
+      {{/-first}}
+          :'{{{.}}}'{{^-last}},{{/-last}}
+      {{#-last}}
+        ]
+      end
+
+      {{/-last}}
+      {{/oneOf}}
+      {{#discriminator}}
+      {{#propertyName}}
+      # Discriminator's property name (OpenAPI v3)
+      def openapi_discriminator_name
+        :'{{{.}}}'
+      end
+
+      {{/propertyName}}
+      {{#mappedModels}}
+      {{#-first}}
+      # Discriminator's mapping (OpenAPI v3)
+      def openapi_discriminator_mapping
+        {
+      {{/-first}}
+          :'{{{mappingName}}}' => :'{{{modelName}}}'{{^-last}},{{/-last}}
+      {{#-last}}
+        }
+      end
+
+      {{/-last}}
+      {{/mappedModels}}
+      {{/discriminator}}
+      # Builds the object
+      # @param [Mixed] Data to be matched against the list of oneOf items
+      # @return [Object] Returns the model or the data itself
+      def build(data)
+      {{#discriminator}}
+        discriminator_value = data[openapi_discriminator_name]
+        return nil if discriminator_value.nil?
+      {{#mappedModels}}
+      {{#-first}}
+
+        klass_name = openapi_discriminator_mapping[discriminator_value.to_s.to_sym]
+        return nil unless klass_name
+
+        {{moduleName}}::ObjectSerializer.convert_to_type(data, klass_name.to_s)
+      {{/-first}}
+      {{/mappedModels}}
+      {{^mappedModels}}
+        {{moduleName}}::ObjectSerializer.convert_to_type(data, discriminator_value.to_s)
+      {{/mappedModels}}
+      {{/discriminator}}
+      {{^discriminator}}
+        openapi_one_of.each do |klass_name|
+          begin
+            next if klass_name == :AnyType
+            typed_data = {{moduleName}}::ObjectSerializer.find_and_cast_into_type(klass_name, data)
+            return typed_data if typed_data
+          rescue
+          end
+        end
+
+        openapi_one_of.include?(:AnyType) ? data : nil
+      {{/discriminator}}
+      end
+    end
+  end
 {{/-first}}
 {{/oneOf}}
+{{^oneOf}}
 {{#anyOf}}
 {{#-first}}
-{{>partial_anyof_module}}
+{{#description}}
+  # {{{.}}}
+{{/description}}
+  module {{classname}}
+    class << self
+      {{#anyOf}}
+      {{#-first}}
+      # List of class defined in anyOf (OpenAPI v3)
+      def openapi_any_of
+        [
+      {{/-first}}
+          :'{{{.}}}'{{^-last}},{{/-last}}
+      {{#-last}}
+        ]
+      end
+
+      {{/-last}}
+      {{/anyOf}}
+      # Builds the object
+      # @param [Mixed] Data to be matched against the list of anyOf items
+      # @return [Object] Returns the model or the data itself
+      def build(data)
+        openapi_any_of.each do |klass_name|
+          begin
+            next if klass_name == :AnyType
+            typed_data = {{moduleName}}::ObjectSerializer.find_and_cast_into_type(klass_name, data)
+            return typed_data if typed_data
+          rescue
+          end
+        end
+
+        openapi_any_of.include?(:AnyType) ? data : nil
+      end
+    end
+  end
 {{/-first}}
 {{/anyOf}}
-{{^oneOf}}
 {{^anyOf}}
-{{>partial_model_generic}}
+{{#hasVars}}
+  {{#description}}
+  # {{{.}}}
+  {{/description}}
+  class {{classname}} < {{#parent}}{{{.}}}{{/parent}}{{^parent}}Dry::Struct{{/parent}}
+    # Attribute mapping from ruby-style variable name to JSON key.
+    ATTRIBUTE_MAP = {
+      {{#vars}}
+      {{name}}: :'{{{baseName}}}'{{^-last}},{{/-last}}
+      {{/vars}}
+    }.freeze
+
+    # Inverse mapping from JSON key to ruby attribute name.
+    JSON_KEY_MAP = ATTRIBUTE_MAP.invert.freeze
+
+    # Attribute type mapping.
+    OPENAPI_TYPES = {
+      {{#vars}}
+      :'{{{name}}}' => :'{{{dataType}}}'{{^-last}},{{/-last}}
+      {{/vars}}
+    }.freeze
+
+    # Transform incoming hash keys from JSON format to Ruby attribute names.
+    transform_keys do |key|
+      JSON_KEY_MAP[key.to_sym] || key.to_sym
+    end
+
+    {{#vars}}
+    {{#required}}
+    attribute :{{name}}, Types::Any
+    {{/required}}
+    {{^required}}
+    attribute :{{name}}, Types::Any.optional.meta(omittable: true)
+    {{/required}}
+    {{/vars}}
+  end
+{{/hasVars}}
+{{^hasVars}}
+  {{#description}}
+  # {{{.}}}
+  {{/description}}
+  class {{classname}} < {{#parent}}{{{.}}}{{/parent}}{{^parent}}Dry::Struct{{/parent}}
+    ATTRIBUTE_MAP = {}.freeze
+    JSON_KEY_MAP = ATTRIBUTE_MAP.invert.freeze
+    OPENAPI_TYPES = {}.freeze
+  end
+{{/hasVars}}
 {{/anyOf}}
 {{/oneOf}}
 {{/isEnum}}
-{{/hasVars}}
 {{/model}}
 {{/models}}
 end

@@ -1,9 +1,9 @@
 require 'cgi'
 
-module OpigenClient::Api
+module PetstoreClient::Api
   # PetApi provides methods for the Pet API group.
   class PetApi < BaseApi
-    def initialize(api_client = nil, config = OpigenClient::Configuration.default)
+    def initialize(api_client = nil, config = PetstoreClient::Configuration.default)
       super(api_client, config)
     end
 
@@ -36,7 +36,7 @@ module OpigenClient::Api
         fail ArgumentError, "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
       end
 
-      path = '/pet/{petId}'.sub('{' + 'petId' + '}', CGI.escape(OpigenClient::ObjectSerializer.to_path_value(pet_id)))
+      path = '/pet/{petId}'.sub('{' + 'petId' + '}', CGI.escape(PetstoreClient::ObjectSerializer.to_path_value(pet_id)))
       query_params = {}
       header_params = {}
       body = nil
@@ -54,7 +54,7 @@ module OpigenClient::Api
     def find_pets_by_status(opts = {})
       path = '/pet/findByStatus'
       query_params = {}
-      query_params[:'status'] = OpigenClient::ObjectSerializer.to_query_value(opts[:'status']) unless opts[:'status'].nil?
+      query_params[:'status'] = PetstoreClient::ObjectSerializer.to_query_value(opts[:'status']) unless opts[:'status'].nil?
       header_params = {}
       body = nil
 
@@ -74,7 +74,7 @@ module OpigenClient::Api
         fail ArgumentError, "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
       end
 
-      path = '/pet/{petId}'.sub('{' + 'petId' + '}', CGI.escape(OpigenClient::ObjectSerializer.to_path_value(pet_id)))
+      path = '/pet/{petId}'.sub('{' + 'petId' + '}', CGI.escape(PetstoreClient::ObjectSerializer.to_path_value(pet_id)))
       query_params = {}
       header_params = {}
       body = nil
@@ -99,7 +99,7 @@ module OpigenClient::Api
         fail ArgumentError, "Missing the required parameter 'pet' when calling PetApi.update_pet"
       end
 
-      path = '/pet/{petId}'.sub('{' + 'petId' + '}', CGI.escape(OpigenClient::ObjectSerializer.to_path_value(pet_id)))
+      path = '/pet/{petId}'.sub('{' + 'petId' + '}', CGI.escape(PetstoreClient::ObjectSerializer.to_path_value(pet_id)))
       query_params = {}
       header_params = {}
       body = pet

@@ -12,28 +12,28 @@ require 'dry-struct'
 require 'dry-types'
 
 # Common files
-require 'opigen_client/api_error'
-require 'opigen_client/version'
-require 'opigen_client/configuration'
-require 'opigen_client/header_selector'
-require 'opigen_client/object_serializer'
-require 'opigen_client/api_response'
-require 'opigen_client/api_client'
-require 'opigen_client/default_api_client'
-require 'opigen_client/api/base_api'
+require 'petstore_client/api_error'
+require 'petstore_client/version'
+require 'petstore_client/configuration'
+require 'petstore_client/header_selector'
+require 'petstore_client/object_serializer'
+require 'petstore_client/api_response'
+require 'petstore_client/api_client'
+require 'petstore_client/default_api_client'
+require 'petstore_client/api/base_api'
 
 # Models
-require 'opigen_client/models/api_response'
-require 'opigen_client/models/category'
-require 'opigen_client/models/order'
-require 'opigen_client/models/pet'
-require 'opigen_client/models/tag'
+require 'petstore_client/models/api_response'
+require 'petstore_client/models/category'
+require 'petstore_client/models/order'
+require 'petstore_client/models/pet'
+require 'petstore_client/models/tag'
 
 # APIs
-require 'opigen_client/api/pet_api'
-require 'opigen_client/api/store_api'
+require 'petstore_client/api/pet_api'
+require 'petstore_client/api/store_api'
 
-module OpigenClient
+module PetstoreClient
   class << self
     def configure
       if block_given?
