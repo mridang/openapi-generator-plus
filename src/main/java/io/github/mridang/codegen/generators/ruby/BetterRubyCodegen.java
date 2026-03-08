@@ -76,6 +76,10 @@ public class BetterRubyCodegen extends RubyClientCodegen implements UnsupportedF
     @Override
     public void processOpts() {
         super.processOpts();
+        this.modelTemplateFiles.clear();
+        this.modelTemplateFiles.put("models/model.mustache", ".rb");
+        this.apiTemplateFiles.clear();
+        this.apiTemplateFiles.put("api/api.mustache", ".rb");
         this.supportingFiles.clear();
 
         String modulePath = underscore(moduleName.replaceAll("::", "/"));

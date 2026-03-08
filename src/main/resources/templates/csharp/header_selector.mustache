@@ -1,0 +1,82 @@
+using System.Text.RegularExpressions;
+
+namespace {{packageName}};
+
+/// <summary>
+/// Selects appropriate Content-Type and Accept headers for API requests.
+/// </summary>
+public class HeaderSelector
+{
+    private static readonly Regex JsonMimePattern = new(
+        @"^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)",
+        RegexOptions.IgnoreCase
+    );
+
+    /// <summary>
+    /// Select headers for an API request.
+    /// </summary>
+    public Dictionary<string, string> SelectHeaders(
+        string[] accept,
+        string contentType,
+        bool isMultipart
+    )
+    {
+        var headers = new Dictionary<string, string>();
+
+        var acceptHeader = SelectAcceptHeader(accept);
+        if (acceptHeader != null)
+        {
+            headers["Accept"] = acceptHeader;
+        }
+
+        if (!isMultipart)
+        {
+            if (string.IsNullOrEmpty(contentType))
+            {
+                contentType = "application/json";
+            }
+            headers["Content-Type"] = contentType;
+        }
+
+        return headers;
+    }
+
+    /// <summary>
+    /// Check if a MIME type is a JSON type.
+    /// </summary>
+    public bool IsJsonMime(string? mimeType)
+    {
+        if (mimeType == null)
+        {
+            return false;
+        }
+        return JsonMimePattern.IsMatch(mimeType);
+    }
+
+    private string? SelectAcceptHeader(string[]? accept)
+    {
+        if (accept == null || accept.Length == 0)
+        {
+            return null;
+        }
+
+        var filtered = accept.Where(s => !string.IsNullOrEmpty(s)).ToArray();
+        if (filtered.Length == 0)
+        {
+            return null;
+        }
+
+        if (filtered.Length == 1)
+        {
+            return filtered[0];
+        }
+
+        var jsonHeaders = filtered.Where(s => IsJsonMime(s)).ToArray();
+        if (jsonHeaders.Length > 0)
+        {
+            return jsonHeaders[0];
+        }
+
+        return string.Join(",", filtered);
+    }
+}

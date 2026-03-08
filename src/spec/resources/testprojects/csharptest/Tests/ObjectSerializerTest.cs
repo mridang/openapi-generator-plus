@@ -1,0 +1,223 @@
+using PetstoreClient;
+using PetstoreClient.Models;
+using Xunit;
+
+namespace Tests;
+
+public class ObjectSerializerTest
+{
+    private readonly ObjectSerializer _serializer = new();
+
+    public class ToPathValueTests
+    {
+        [Fact]
+        public void ReturnsEmptyStringForNull()
+        {
+            Assert.Equal("", ObjectSerializer.ToPathValue(null));
+        }
+
+        [Fact]
+        public void ReturnsStringForStringValue()
+        {
+            Assert.Equal("hello", ObjectSerializer.ToPathValue("hello"));
+        }
+
+        [Fact]
+        public void ConvertsIntegerToString()
+        {
+            Assert.Equal("42", ObjectSerializer.ToPathValue(42));
+        }
+
+        [Fact]
+        public void ConvertsTrueToString()
+        {
+            Assert.Equal("true", ObjectSerializer.ToPathValue(true));
+        }
+
+        [Fact]
+        public void ConvertsFalseToString()
+        {
+            Assert.Equal("false", ObjectSerializer.ToPathValue(false));
+        }
+    }
+
+    public class ToQueryValueTests
+    {
+        [Fact]
+        public void ReturnsNullForNull()
+        {
+            Assert.Null(ObjectSerializer.ToQueryValue(null, null));
+        }
+
+        [Fact]
+        public void ReturnsStringForStringValue()
+        {
+            Assert.Equal("hello", ObjectSerializer.ToQueryValue("hello", null));
+        }
+
+        [Fact]
+        public void ConvertsIntegerToString()
+        {
+            Assert.Equal("42", ObjectSerializer.ToQueryValue(42, null));
+        }
+
+        [Fact]
+        public void ConvertsTrueToString()
+        {
+            Assert.Equal("true", ObjectSerializer.ToQueryValue(true, null));
+        }
+
+        [Fact]
+        public void JoinsListWithCommaByDefault()
+        {
+            var list = new List<string> { "a", "b", "c" };
+            Assert.Equal("a,b,c", ObjectSerializer.ToQueryValue(list, null));
+        }
+
+        [Fact]
+        public void JoinsListWithCommaForCsv()
+        {
+            var list = new List<string> { "a", "b", "c" };
+            Assert.Equal("a,b,c", ObjectSerializer.ToQueryValue(list, "csv"));
+        }
+
+        [Fact]
+        public void JoinsListWithSpaceForSsv()
+        {
+            var list = new List<string> { "a", "b", "c" };
+            Assert.Equal("a b c", ObjectSerializer.ToQueryValue(list, "ssv"));
+        }
+
+        [Fact]
+        public void JoinsListWithTabForTsv()
+        {
+            var list = new List<string> { "a", "b", "c" };
+            Assert.Equal("a\tb\tc", ObjectSerializer.ToQueryValue(list, "tsv"));
+        }
+
+        [Fact]
+        public void JoinsListWithPipeForPipes()
+        {
+            var list = new List<string> { "a", "b", "c" };
+            Assert.Equal("a|b|c", ObjectSerializer.ToQueryValue(list, "pipes"));
+        }
+
+        [Fact]
+        public void ReturnsListForMulti()
+        {
+            var list = new List<string> { "a", "b", "c" };
+            Assert.Equal(list, ObjectSerializer.ToQueryValue(list, "multi"));
+        }
+    }
+
+    public class ToHeaderValueTests
+    {
+        [Fact]
+        public void ReturnsEmptyStringForNull()
+        {
+            Assert.Equal("", ObjectSerializer.ToHeaderValue(null));
+        }
+
+        [Fact]
+        public void ReturnsStringForStringValue()
+        {
+            Assert.Equal("hello", ObjectSerializer.ToHeaderValue("hello"));
+        }
+
+        [Fact]
+        public void ConvertsIntegerToString()
+        {
+            Assert.Equal("42", ObjectSerializer.ToHeaderValue(42));
+        }
+
+        [Fact]
+        public void JoinsListWithComma()
+        {
+            var list = new List<string> { "a", "b", "c" };
+            Assert.Equal("a,b,c", ObjectSerializer.ToHeaderValue(list));
+        }
+    }
+
+    public class ToFormValueTests
+    {
+        [Fact]
+        public void ReturnsEmptyStringForNull()
+        {
+            Assert.Equal("", ObjectSerializer.ToFormValue(null));
+        }
+
+        [Fact]
+        public void ReturnsStringForStringValue()
+        {
+            Assert.Equal("hello", ObjectSerializer.ToFormValue("hello"));
+        }
+
+        [Fact]
+        public void ConvertsIntegerToString()
+        {
+            Assert.Equal("42", ObjectSerializer.ToFormValue(42));
+        }
+
+        [Fact]
+        public void ConvertsTrueToString()
+        {
+            Assert.Equal("true", ObjectSerializer.ToFormValue(true));
+        }
+
+        [Fact]
+        public void ConvertsFalseToString()
+        {
+            Assert.Equal("false", ObjectSerializer.ToFormValue(false));
+        }
+    }
+
+    public class SerializeTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void SerializesModelToValidJson()
+        {
+            var category = new Category { Id = 1L, Name = "Dogs" };
+            var json = _serializer.Serialize(category);
+            Assert.Contains("\"id\":1", json);
+            Assert.Contains("\"name\":\"Dogs\"", json);
+        }
+
+        [Fact]
+        public void HandlesNull()
+        {
+            var json = _serializer.Serialize(null);
+            Assert.Equal("null", json);
+        }
+    }
+
+    public class DeserializeTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void DeserializesJsonToTypedModel()
+        {
+            var json = "{\"id\":1,\"name\":\"Dogs\"}";
+            var category = _serializer.Deserialize<Category>(json);
+            Assert.NotNull(category);
+            Assert.Equal(1L, category!.Id);
+            Assert.Equal("Dogs", category.Name);
+        }
+
+        [Fact]
+        public void ReturnsDefaultForEmptyInput()
+        {
+            var result = _serializer.Deserialize<Category>("");
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public void ReturnsDefaultForNullInput()
+        {
+            var result = _serializer.Deserialize<Category>(null);
+            Assert.Null(result);
+        }
+    }
+}

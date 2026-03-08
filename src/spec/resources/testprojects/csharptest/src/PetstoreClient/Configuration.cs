@@ -1,0 +1,37 @@
+namespace PetstoreClient;
+
+/// <summary>
+/// Configuration for API clients.
+/// </summary>
+public class Configuration
+{
+    private static Configuration? _default;
+
+    /// <summary>
+    /// Base URL for all API requests.
+    /// </summary>
+    public string BaseUrl { get; set; } = "/api/v3";
+
+    /// <summary>
+    /// Headers to include in every API request.
+    /// </summary>
+    public Dictionary<string, string> DefaultHeaders { get; } = new();
+
+    /// <summary>
+    /// Enable SSL/TLS certificate verification.
+    /// </summary>
+    public bool VerifySsl { get; set; } = true;
+
+    /// <summary>
+    /// Return the default configuration instance.
+    /// </summary>
+    public static Configuration Default
+    {
+        get
+        {
+            _default ??= new Configuration();
+            return _default;
+        }
+        set { _default = value; }
+    }
+}

@@ -89,7 +89,9 @@ public class BetterNodeCodegen extends TypeScriptFetchClientCodegen implements U
         super.processOpts();
         setEnablePostProcessFile(true);
         this.modelTemplateFiles.clear();
-        this.modelTemplateFiles.put("model.mustache", ".ts");
+        this.modelTemplateFiles.put("models/model.mustache", ".ts");
+        this.apiTemplateFiles.clear();
+        this.apiTemplateFiles.put("api/apis.mustache", ".ts");
         this.supportingFiles.clear();
         this.apiPackage = "api";
         supportingFiles.add(new SupportingFile("api_client.mustache", "", "ApiClient.ts"));

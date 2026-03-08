@@ -1,0 +1,140 @@
+{{#models}}
+{{#model}}
+{{#isEnum}}
+using System.Text.Json.Serialization;
+
+namespace {{packageName}}.Models;
+
+{{#description}}
+/// <summary>
+/// {{{.}}}
+/// </summary>
+{{/description}}
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum {{classname}}
+{
+    {{#allowableValues}}
+    {{#enumVars}}
+    [JsonStringEnumMemberName("{{{value}}}")]
+    {{name}},
+{{^-last}}
+
+{{/-last}}
+    {{/enumVars}}
+    {{/allowableValues}}
+}
+{{/isEnum}}
+{{^isEnum}}
+{{#oneOf}}
+{{#-first}}
+using System.Text.Json.Serialization;
+
+namespace {{packageName}}.Models;
+
+{{#description}}
+/// <summary>
+/// {{{.}}}
+/// </summary>
+{{/description}}
+{{#discriminator}}
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "{{discriminator.propertyBaseName}}")]
+{{#mappedModels}}
+[JsonDerivedType(typeof({{modelName}}), "{{mappingName}}")]
+{{/mappedModels}}
+public abstract class {{classname}} { }
+{{/discriminator}}
+{{^discriminator}}
+public class {{classname}}
+{
+    public object? ActualInstance { get; set; }
+
+    public {{classname}}(object value)
+    {
+        ActualInstance = value;
+    }
+}
+{{/discriminator}}
+{{/-first}}
+{{/oneOf}}
+{{^oneOf}}
+{{#anyOf}}
+{{#-first}}
+using System.Text.Json.Serialization;
+
+namespace {{packageName}}.Models;
+
+{{#description}}
+/// <summary>
+/// {{{.}}}
+/// </summary>
+{{/description}}
+public class {{classname}}
+{
+    public object? ActualInstance { get; set; }
+
+    public {{classname}}(object value)
+    {
+        ActualInstance = value;
+    }
+}
+{{/-first}}
+{{/anyOf}}
+{{^anyOf}}
+using System.Text.Json.Serialization;
+
+namespace {{packageName}}.Models;
+
+{{#description}}
+/// <summary>
+/// {{{.}}}
+/// </summary>
+{{/description}}
+public class {{classname}}{{#parent}} : {{{.}}}{{/parent}}
+{
+    {{#vars}}
+    {{#isEnum}}
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public enum {{enumName}}
+    {
+        {{#allowableValues}}
+        {{#enumVars}}
+        [JsonStringEnumMemberName("{{{value}}}")]
+        {{name}},
+{{^-last}}
+
+{{/-last}}
+        {{/enumVars}}
+        {{/allowableValues}}
+    }
+
+    {{/isEnum}}
+    {{/vars}}
+    {{#vars}}
+    {{#description}}
+    /// <summary>
+    /// {{{.}}}
+    /// </summary>
+    {{/description}}
+    [JsonPropertyName("{{baseName}}")]
+    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}} {{name}} { get; set; }{{#defaultValue}} = {{{.}}};{{/defaultValue}}
+{{^-last}}
+
+{{/-last}}
+    {{/vars}}
+{{#hasRequired}}
+
+    public {{classname}}() { }
+
+    public {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{^-last}}, {{/-last}}{{/requiredVars}})
+    {
+        {{#requiredVars}}
+        this.{{name}} = {{name}};
+        {{/requiredVars}}
+    }
+{{/hasRequired}}
+}
+{{/anyOf}}
+{{/oneOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}

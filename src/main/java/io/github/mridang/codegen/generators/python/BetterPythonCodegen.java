@@ -95,6 +95,10 @@ public class BetterPythonCodegen extends PythonClientCodegen implements Unsuppor
     public void processOpts() {
         super.processOpts();
         setEnablePostProcessFile(true);
+        this.modelTemplateFiles.clear();
+        this.modelTemplateFiles.put("models/model.mustache", ".py");
+        this.apiTemplateFiles.clear();
+        this.apiTemplateFiles.put("api/api.mustache", ".py");
         this.supportingFiles.clear();
 
         String modelPath = modelPackage.replace('.', File.separatorChar);
@@ -102,9 +106,9 @@ public class BetterPythonCodegen extends PythonClientCodegen implements Unsuppor
         String packagePath = packageName.replace('.', File.separatorChar);
 
         // Package __init__ files
-        supportingFiles.add(new SupportingFile("__init__model.mustache", modelPath, "__init__.py"));
-        supportingFiles.add(new SupportingFile("__init__api.mustache", apiPath, "__init__.py"));
-        supportingFiles.add(new SupportingFile("__init__package.mustache", packagePath, "__init__.py"));
+        supportingFiles.add(new SupportingFile("models/__init__.mustache", modelPath, "__init__.py"));
+        supportingFiles.add(new SupportingFile("api/__init__.mustache", apiPath, "__init__.py"));
+        supportingFiles.add(new SupportingFile("__init__.mustache", packagePath, "__init__.py"));
 
         // Essential supporting files for API functionality
         supportingFiles.add(new SupportingFile("api_client.mustache", packagePath, "api_client.py"));

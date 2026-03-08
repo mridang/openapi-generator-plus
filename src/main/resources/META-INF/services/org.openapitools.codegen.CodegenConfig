@@ -4,3 +4,4 @@ io.github.mridang.codegen.generators.node.BetterNodeCodegen
 io.github.mridang.codegen.generators.php.BetterPHPCodegen
 io.github.mridang.codegen.generators.python.BetterPythonCodegen
 io.github.mridang.codegen.generators.ruby.BetterRubyCodegen
+io.github.mridang.codegen.generators.csharp.BetterCSharpCodegen

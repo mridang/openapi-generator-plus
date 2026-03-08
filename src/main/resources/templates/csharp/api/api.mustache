@@ -1,0 +1,84 @@
+using System.Text.Json;
+using {{packageName}}.Models;
+
+namespace {{packageName}}.{{apiPackage}};
+
+{{#operations}}
+/// <summary>
+/// {{classname}} provides methods for the {{baseName}} API group.
+/// </summary>
+public class {{classname}} : BaseApi
+{
+    public {{classname}}()
+        : base() { }
+
+    public {{classname}}(IApiClient apiClient, Configuration config)
+        : base(apiClient, config) { }
+    {{#operation}}
+
+    /// <summary>
+    /// {{summary}}
+    /// </summary>
+    {{#allParams}}
+    /// <param name="{{paramName}}">{{description}}</param>
+    {{/allParams}}
+    {{#returnType}}
+    /// <returns>{{{returnType}}}</returns>
+    {{/returnType}}
+    public async Task<{{{returnType}}}{{^returnType}}object?{{/returnType}}> {{operationId}}Async({{#allParams}}{{{dataType}}}{{^required}}?{{/required}} {{paramName}}{{^required}} = default{{/required}}{{^-last}}, {{/-last}}{{/allParams}})
+    {
+        {{#allParams}}
+        {{#required}}
+        ArgumentNullException.ThrowIfNull({{paramName}}, nameof({{paramName}}));
+        {{/required}}
+        {{/allParams}}
+        var path = "{{{path}}}";
+        {{#pathParams}}
+        path = path.Replace(
+            "{" + "{{baseName}}" + "}",
+            Uri.EscapeDataString(ObjectSerializer.ToPathValue({{paramName}}))
+        );
+        {{/pathParams}}
+
+        var queryParams = new Dictionary<string, object?>();
+        {{#queryParams}}
+        if ({{paramName}} != null)
+        {
+            queryParams["{{baseName}}"] = ObjectSerializer.ToQueryValue({{paramName}}, {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}});
+        }
+        {{/queryParams}}
+
+        var headerParams = new Dictionary<string, string>();
+        {{#headerParams}}
+        if ({{paramName}} != null)
+        {
+            headerParams["{{baseName}}"] = ObjectSerializer.ToHeaderValue({{paramName}});
+        }
+        {{/headerParams}}
+
+        {{#returnType}}
+        return await InvokeApiAsync<{{{returnType}}}>(
+            "{{httpMethod}}",
+            path,
+            queryParams,
+            headerParams,
+            {{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}},
+{{^produces}}            Array.Empty<string>(),{{/produces}}{{#produces}}            new[] { {{#produces}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/produces}} },{{/produces}}
+            {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}}
+        );
+        {{/returnType}}
+        {{^returnType}}
+        return await InvokeApiAsync<object>(
+            "{{httpMethod}}",
+            path,
+            queryParams,
+            headerParams,
+            {{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}},
+{{^produces}}            Array.Empty<string>(),{{/produces}}{{#produces}}            new[] { {{#produces}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/produces}} },{{/produces}}
+            {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}}
+        );
+        {{/returnType}}
+    }
+    {{/operation}}
+}
+{{/operations}}

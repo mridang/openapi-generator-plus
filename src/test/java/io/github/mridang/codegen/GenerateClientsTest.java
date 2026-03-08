@@ -38,6 +38,10 @@ public class GenerateClientsTest {
         generate("node-plus", spec, tempDir.resolve("node").toString(),
             Map.of());
 
+        // C#
+        generate("csharp-plus", spec, tempDir.resolve("csharp").toString(),
+            Map.of("packageName", "PetstoreClient", "sourceFolder", "src"));
+
         // Copy to /tmp for viewing
         Path dest = Paths.get("/tmp/generated-clients");
         if (Files.exists(dest)) {

@@ -1,0 +1,22 @@
+namespace PetstoreClient;
+
+/// <summary>
+/// Interface for API HTTP transport.
+/// </summary>
+public interface IApiClient
+{
+    /// <summary>
+    /// Send an HTTP request and return the response.
+    /// </summary>
+    /// <param name="method">HTTP method (GET, POST, PUT, DELETE, etc.)</param>
+    /// <param name="url">Fully qualified URL</param>
+    /// <param name="headers">HTTP headers</param>
+    /// <param name="body">Request body (serialized JSON string, or null)</param>
+    /// <returns>ApiResponse containing status code, body, and headers</returns>
+    Task<ApiResponse> SendRequestAsync(
+        string method,
+        string url,
+        Dictionary<string, string> headers,
+        string? body
+    );
+}

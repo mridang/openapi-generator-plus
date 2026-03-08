@@ -90,6 +90,11 @@ public class BetterJavaCodegen extends JavaClientCodegen implements UnsupportedF
     public void processOpts() {
         super.processOpts();
 
+        this.modelTemplateFiles.clear();
+        this.modelTemplateFiles.put("models/model.mustache", ".java");
+        this.apiTemplateFiles.clear();
+        this.apiTemplateFiles.put("api/api.mustache", ".java");
+
         // Clear all parent supporting files — we provide our own minimal set
         supportingFiles.clear();
 
