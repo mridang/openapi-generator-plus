@@ -1,146 +1,359 @@
 package io.github.mridang.codegen.generators.node;
 
-import io.github.mridang.codegen.generators.UnsupportedFeaturesValidator;
-import io.swagger.v3.oas.models.Operation;
-import io.swagger.v3.oas.models.servers.Server;
-import org.openapitools.codegen.CodegenConstants;
-import org.openapitools.codegen.SupportingFile;
-import org.openapitools.codegen.languages.TypeScriptFetchClientCodegen;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static org.openapitools.codegen.utils.CamelizeOption.LOWERCASE_FIRST_LETTER;
 
+import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import io.swagger.v3.oas.models.media.Schema;
+import org.openapitools.codegen.utils.StringUtils;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Locale;
+import java.util.Map;
+import javax.annotation.Nullable;
+import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenModel;
+import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenProperty;
+import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
+import org.openapitools.codegen.model.OperationsMap;
+import org.openapitools.codegen.utils.ModelUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * A custom TypeScript code generator that provides sane defaults for generating
- * a minimal, modern TypeScript client using the Fetch API.
- * <p>
- * This generator is configured to:
- * <ul>
- * <li>Target the 'fetch' platform with ES6 support.</li>
- * <li>Preserve original model property naming.</li>
- * <li>Allow additional properties in models for forward compatibility.</li>
- * <li>Generate a single parameter object for API methods.</li>
- * <li>Use a '.js' extension for imports to support modern ESM workflows.</li>
- * <li>Generate only model and API files, excluding tests, docs, and
- * other supporting project files.</li>
- * </ul>
+ * A custom TypeScript code generator providing a minimal, modern TypeScript
+ * client using the Fetch API.
  */
 @SuppressWarnings("unused")
-public class BetterNodeCodegen extends TypeScriptFetchClientCodegen implements UnsupportedFeaturesValidator {
+public class BetterNodeCodegen extends AbstractBetterCodegen {
 
-    private static final Logger log = LoggerFactory.getLogger(BetterNodeCodegen.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BetterNodeCodegen.class);
 
-    /**
-     * Initializes a new instance of the {@code BetterNodeCodegen} class,
-     * setting up the hardcoded default configurations for a minimal client.
-     */
+    private static final HashSet<String> RESERVED_MODEL_NAMES =
+            new HashSet<>(
+                    Arrays.asList(
+                            "ApiResponse", "JSONApiResponse", "VoidApiResponse",
+                            "BlobApiResponse", "TextApiResponse"));
+
     public BetterNodeCodegen() {
-        super();
+        outputFolder = "generated-code/typescript";
+        embeddedTemplateDir = templateDir = "templates/node";
 
-        this.setSupportsES6(true);
-        this.setEnsureUniqueParams(true);
-        this.setDisallowAdditionalPropertiesIfNotPresent(false);
-        this.setEnumUnknownDefaultCase(true);
-        this.setImportFileExtension(".js");
+        modelTemplateFiles.put("models/model.mustache", ".ts");
+        apiTemplateFiles.put("api/apis.mustache", ".ts");
+
+        typeMapping.put("integer", "number");
+        typeMapping.put("long", "number");
+        typeMapping.put("float", "number");
+        typeMapping.put("double", "number");
+        typeMapping.put("number", "number");
+        typeMapping.put("short", "number");
+        typeMapping.put("boolean", "boolean");
+        typeMapping.put("string", "string");
+        typeMapping.put("decimal", "string");
+        typeMapping.put("date", "string");
+        typeMapping.put("DateTime", "string");
+        typeMapping.put("binary", "any");
+        typeMapping.put("File", "any");
+        typeMapping.put("file", "any");
+        typeMapping.put("ByteArray", "string");
+        typeMapping.put("UUID", "string");
+        typeMapping.put("URI", "string");
+        typeMapping.put("object", "object");
+        typeMapping.put("AnyType", "any");
+        typeMapping.put("array", "Array");
+        typeMapping.put("set", "Set");
+        typeMapping.put("map", "any");
+        typeMapping.put("Map", "any");
+
+        languageSpecificPrimitives =
+                new HashSet<>(
+                        Arrays.asList(
+                                "number", "boolean", "string", "object", "any", "void",
+                                "undefined", "null", "Array", "Set"));
+
+        reservedWords =
+                new HashSet<>(
+                        Arrays.asList(
+                                "break", "case", "catch", "class", "const", "continue",
+                                "debugger", "default", "delete", "do", "else", "enum",
+                                "export", "extends", "false", "finally", "for", "function",
+                                "if", "import", "in", "instanceof", "new", "null", "return",
+                                "super", "switch", "this", "throw", "true", "try", "typeof",
+                                "var", "void", "while", "with", "yield", "abstract", "as",
+                                "async", "await", "constructor", "declare", "from", "get",
+                                "is", "let", "module", "of", "package", "private", "protected",
+                                "public", "set", "static", "type", "undefined", "implements",
+                                "interface", "number", "string", "boolean", "any", "symbol"));
+
         additionalProperties.put(CodegenConstants.MODEL_PROPERTY_NAMING, "original");
-        additionalProperties.put(WITH_INTERFACES, false);
-        additionalProperties.put(USE_SINGLE_REQUEST_PARAMETER, false);
-        additionalProperties.put(FILE_NAMING, "kebab-case");
-        additionalProperties.put(USE_SQUARE_BRACKETS_IN_ARRAY_NAMES, true);
+        additionalProperties.put("importFileExtension", ".js");
 
-        setTemplateDir("templates/node");
+        setEnumUnknownDefaultCase(true);
 
-        apiDocTemplateFiles.clear();
-        modelDocTemplateFiles.clear();
-        apiTestTemplateFiles.clear();
-        modelTestTemplateFiles.clear();
     }
 
-    @Override
-    public String getLibrary() {
-        return "typescript-fetch";
-    }
-
-    /**
-     * Gets the unique name of this generator. This name is used to select the
-     * generator from the command line or other tools.
-     *
-     * @return The unique generator name, "node-plus".
-     */
     @Override
     public String getName() {
         return "node-plus";
     }
 
-    /**
-     * Processes generator options and then customizes the output by removing
-     * all supporting files, ensuring a minimal code generation.
-     */
+    @Override
+    public String getHelp() {
+        return "Generates a minimal TypeScript client using the Fetch API.";
+    }
+
     @Override
     public void processOpts() {
         super.processOpts();
         setEnablePostProcessFile(true);
-        this.modelTemplateFiles.clear();
-        this.modelTemplateFiles.put("models/model.mustache", ".ts");
-        this.apiTemplateFiles.clear();
-        this.apiTemplateFiles.put("api/apis.mustache", ".ts");
-        this.supportingFiles.clear();
+
         this.apiPackage = "api";
+
+        supportingFiles.clear();
         supportingFiles.add(new SupportingFile("api_client.mustache", "", "ApiClient.ts"));
-        supportingFiles.add(new SupportingFile("default_api_client.mustache", "", "DefaultApiClient.ts"));
+        supportingFiles.add(
+                new SupportingFile("default_api_client.mustache", "", "DefaultApiClient.ts"));
         supportingFiles.add(new SupportingFile("api_response.mustache", "", "ApiResponse.ts"));
-        supportingFiles.add(new SupportingFile("configuration.mustache", "", "Configuration.ts"));
+        supportingFiles.add(
+                new SupportingFile("configuration.mustache", "", "Configuration.ts"));
         supportingFiles.add(new SupportingFile("base_api.mustache", "api", "BaseApi.ts"));
-        supportingFiles.add(new SupportingFile("object_serializer.mustache", "", "ObjectSerializer.ts"));
-        supportingFiles.add(new SupportingFile("header_selector.mustache", "", "HeaderSelector.ts"));
+        supportingFiles.add(
+                new SupportingFile("object_serializer.mustache", "", "ObjectSerializer.ts"));
+        supportingFiles.add(
+                new SupportingFile("header_selector.mustache", "", "HeaderSelector.ts"));
+        supportingFiles.add(
+                new SupportingFile("models/index.mustache", "models", "index.ts"));
+        supportingFiles.add(
+                new SupportingFile("api/index.mustache", "api", "index.ts"));
     }
 
-
-    /**
-     * Overrides the type declaration to remove semicolons from index signatures
-     * in map types, producing {@code { [key: string]: T }} instead of
-     * {@code { [key: string]: T; }} for prettier compatibility.
-     */
     @Override
-    public String getTypeDeclaration(io.swagger.v3.oas.models.media.Schema p) {
-        String type = super.getTypeDeclaration(p);
-        // Remove trailing semicolons inside index signature types: { [key: string]: T; } -> { [key: string]: T }
-        return type.replaceAll(";\\s*}", " }");
+    public String modelFileFolder() {
+        return outputFolder + File.separator + "models";
     }
 
-    private static final int PRINT_WIDTH = 120;
+    @Override
+    public String apiFileFolder() {
+        return outputFolder + File.separator + "api";
+    }
 
-    /**
-     * Pattern to match a TypeScript function declaration whose signature exceeds
-     * the print width. Captures the indent, function prefix (including name and
-     * opening paren), the parameters, the closing paren with return type, and
-     * the opening brace.
-     */
-    private static final Pattern FUNC_SIG_PATTERN =
-        Pattern.compile("^(\\s*)(export function \\w+\\()(.+)(\\): \\w+ \\{)$");
+    @Override
+    public String getTypeDeclaration(Schema p) {
+        if (ModelUtils.isArraySchema(p)) {
+            Schema<?> inner = p.getItems();
+            return getSchemaType(p) + "<" + getTypeDeclaration(inner) + ">";
+        } else if (ModelUtils.isMapSchema(p)) {
+            Schema<?> inner = ModelUtils.getAdditionalProperties(p);
+            String valueType = inner == null ? "any" : getTypeDeclaration(inner);
+            return "{ [key: string]: " + valueType + " }";
+        }
+        return super.getTypeDeclaration(p);
+    }
 
-    /**
-     * Pattern to match a chained .replace() call that exceeds the print width.
-     * Captures the prefix up to .replace(, the first argument, comma, and the
-     * second argument followed by closing paren and semicolon.
-     */
-    private static final Pattern REPLACE_PATTERN =
-        Pattern.compile("^(\\s*const path = .+)\\.replace\\((.+), (.+)\\);$");
+    @Nullable
+    @Override
+    public String toDefaultValue(Schema schema) {
+        return null;
+    }
 
-    /**
-     * Post-processes each generated TypeScript file to wrap lines that exceed
-     * the 120-character print width. This handles function signatures and
-     * chained .replace() calls that may exceed the limit depending on the
-     * lengths of generated class names and URL paths.
-     */
+    @Override
+    public String toVarName(String name) {
+        return sanitizeName(name);
+    }
+
+    @Override
+    public String toParamName(String name) {
+        name = sanitizeName(name);
+        name = StringUtils.camelize(name, LOWERCASE_FIRST_LETTER);
+        if (isReservedWord(name) || name.matches("^\\d.*")) {
+            name = escapeReservedWord(name);
+        }
+        return name;
+    }
+
+    @Override
+    public String toModelName(String name) {
+        name = sanitizeName(name);
+        String camelized = StringUtils.camelize(name);
+        if (RESERVED_MODEL_NAMES.contains(camelized)
+                || languageSpecificPrimitives.contains(camelized)) {
+            return "Model" + camelized;
+        }
+        return camelized;
+    }
+
+    @Override
+    public String toModelFilename(String name) {
+        return toKebabCase(toModelName(name));
+    }
+
+    @Override
+    public String toApiFilename(String name) {
+        return toKebabCase(toApiName(name));
+    }
+
+    @Override
+    public String toOperationId(String operationId) {
+        if (operationId == null || operationId.isEmpty()) {
+            throw new RuntimeException("Empty method/operation name (operationId) not allowed");
+        }
+        return StringUtils.camelize(
+                sanitizeName(operationId), LOWERCASE_FIRST_LETTER);
+    }
+
+    @Override
+    public String escapeQuotationMark(String input) {
+        return input.replace("'", "\\'");
+    }
+
+    private String toKebabCase(String name) {
+        return name.replaceAll("([a-z0-9])([A-Z])", "$1-$2").toLowerCase();
+    }
+
+    @Override
+    public String toEnumVarName(String value, String datatype) {
+        if (enumNameMapping.containsKey(value)) {
+            return enumNameMapping.get(value);
+        }
+        if (value.isEmpty()) {
+            return "Empty";
+        }
+        String symbolName = getSymbolName(value);
+        if (symbolName != null) {
+            return toPascalCase(symbolName);
+        }
+        if ("number".equals(datatype) || "boolean".equals(datatype)) {
+            String varName = "number".equals(datatype) ? "NUMBER_" + value : value;
+            varName =
+                    varName.replaceAll("-", "MINUS_")
+                            .replaceAll("\\+", "PLUS_")
+                            .replaceAll("\\.", "_DOT_");
+            return varName;
+        }
+        return toPascalCase(value);
+    }
+
+    @Override
+    public String toEnumValue(String value, String datatype) {
+        if ("number".equals(datatype) || "boolean".equals(datatype)) {
+            return value;
+        }
+        return "'" + escapeText(value) + "'";
+    }
+
+    private String toPascalCase(String value) {
+        if (value.matches("[a-zA-Z0-9]+")) {
+            return value.substring(0, 1).toUpperCase(Locale.ROOT) + value.substring(1);
+        }
+        StringBuilder sb = new StringBuilder();
+        for (String word : value.split("[_\\- ]+")) {
+            if (!word.isEmpty()) {
+                sb.append(word.substring(0, 1).toUpperCase(Locale.ROOT));
+                if (word.length() > 1) {
+                    sb.append(word.substring(1));
+                }
+            }
+        }
+        return sb.length() > 0 ? sb.toString() : value;
+    }
+
+    @Override
+    public ModelsMap postProcessModels(ModelsMap objs) {
+        ModelsMap result = super.postProcessModels(objs);
+
+        for (ModelMap modelMap : result.getModels()) {
+            CodegenModel model = modelMap.getModel();
+            List<Map<String, String>> tsImports = new ArrayList<>();
+            for (String importName : model.imports) {
+                if (!languageSpecificPrimitives.contains(importName)
+                        && !typeMapping.containsValue(importName)) {
+                    Map<String, String> tsImport = new HashMap<>();
+                    tsImport.put("classname", importName);
+                    tsImport.put("filename", toModelFilename(importName));
+                    tsImports.add(tsImport);
+                }
+            }
+            modelMap.put("tsImports", tsImports);
+            modelMap.put("hasImports", !tsImports.isEmpty());
+        }
+        return result;
+    }
+
+    @Override
+    public OperationsMap postProcessOperationsWithModels(
+            OperationsMap objs, List<ModelMap> allModels) {
+        objs = super.postProcessOperationsWithModels(objs, allModels);
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        if (operations != null) {
+            String classname = (String) operations.get("classname");
+            if (classname != null) {
+                operations.put("classFilename", toKebabCase(classname));
+            }
+
+            @SuppressWarnings("unchecked")
+            List<CodegenOperation> ops =
+                    (List<CodegenOperation>) operations.get("operation");
+            if (ops != null) {
+                boolean hasEnums = false;
+                for (CodegenOperation op : ops) {
+                    for (CodegenParameter param : op.allParams) {
+                        if (param.isEnum) {
+                            hasEnums = true;
+                            String opIdCamelCase =
+                                    StringUtils.camelize(
+                                            op.operationId);
+                            param.datatypeWithEnum =
+                                    opIdCamelCase + param.enumName;
+                        }
+                    }
+                }
+                objs.put("hasEnums", hasEnums);
+            }
+        }
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, String>> imports = (List<Map<String, String>>) objs.get("imports");
+        if (imports != null) {
+            imports.removeIf(
+                    imp -> {
+                        String importName = imp.get("classname");
+                        if (importName == null) {
+                            importName = imp.get("import");
+                        }
+                        return importName == null
+                                || languageSpecificPrimitives.contains(importName)
+                                || typeMapping.containsValue(importName);
+                    });
+            for (Map<String, String> imp : imports) {
+                if (!imp.containsKey("className") && imp.containsKey("classname")) {
+                    imp.put("className", imp.get("classname"));
+                }
+                if (!imp.containsKey("className") && imp.containsKey("import")) {
+                    String fullImport = imp.get("import");
+                    String className = fullImport;
+                    if (className.contains(".")) {
+                        className = className.substring(className.lastIndexOf('.') + 1);
+                    }
+                    imp.put("className", className);
+                }
+            }
+        }
+        return objs;
+    }
+
     @Override
     public void postProcessFile(File file, String fileType) {
         if (file == null || !file.getName().endsWith(".ts")) {
@@ -156,29 +369,9 @@ public class BetterNodeCodegen extends TypeScriptFetchClientCodegen implements U
                     changed = true;
                     continue;
                 }
-                // Remove blank lines between decorators and properties
-                if (line.trim().isEmpty() && !result.isEmpty()) {
-                    String prevLine = result.get(result.size() - 1).trim();
-                    if (prevLine.startsWith("@Expose") || prevLine.startsWith("@Type")) {
-                        changed = true;
-                        continue;
-                    }
-                }
-                if (line.length() >= PRINT_WIDTH) {
-                    String wrapped = wrapLongLine(line);
-                    if (!wrapped.equals(line)) {
-                        changed = true;
-                        // Split the wrapped result into multiple lines to add to result
-                        for (String wrappedLine : wrapped.split("\n")) {
-                            result.add(wrappedLine);
-                        }
-                        continue;
-                    }
-                }
                 result.add(line);
             }
 
-            // Remove trailing blank lines
             while (!result.isEmpty() && result.get(result.size() - 1).trim().isEmpty()) {
                 result.remove(result.size() - 1);
                 changed = true;
@@ -188,57 +381,8 @@ public class BetterNodeCodegen extends TypeScriptFetchClientCodegen implements U
                 Files.write(file.toPath(), result, StandardCharsets.UTF_8);
             }
         } catch (IOException e) {
-            log.debug("Failed to post-process {}: {}", file.getName(), e.getMessage());
+            LOGGER.debug("Failed to post-process {}: {}", file.getName(), e.getMessage());
         }
     }
 
-    /**
-     * Attempt to wrap a long line according to prettier conventions.
-     * Handles function signatures and .replace() chains.
-     *
-     * @param line the line to potentially wrap
-     * @return the wrapped line (with embedded newlines) or the original line
-     */
-    private String wrapLongLine(String line) {
-        // Try to wrap a function signature: export function Foo(param1: T, param2: U): R {
-        Matcher funcMatcher = FUNC_SIG_PATTERN.matcher(line);
-        if (funcMatcher.matches()) {
-            String indent = funcMatcher.group(1);
-            String funcPrefix = funcMatcher.group(2);
-            String params = funcMatcher.group(3);
-            String suffix = funcMatcher.group(4);
-            String paramIndent = indent + "  ";
-            String[] paramList = params.split(", ");
-            StringBuilder sb = new StringBuilder();
-            sb.append(indent).append(funcPrefix).append("\n");
-            for (int i = 0; i < paramList.length; i++) {
-                sb.append(paramIndent).append(paramList[i].trim());
-                if (i < paramList.length - 1) {
-                    sb.append(",");
-                }
-                sb.append("\n");
-            }
-            sb.append(indent).append(suffix);
-            return sb.toString();
-        }
-
-        // Try to wrap a .replace() chain
-        Matcher replaceMatcher = REPLACE_PATTERN.matcher(line);
-        if (replaceMatcher.matches()) {
-            String prefix = replaceMatcher.group(1);
-            String arg1 = replaceMatcher.group(2);
-            String arg2 = replaceMatcher.group(3);
-            String indent = line.substring(0, line.indexOf(line.trim()));
-            String argIndent = indent + "  ";
-            return prefix + ".replace(\n" + argIndent + arg1.trim() + ",\n" + argIndent + arg2.trim() + "\n" + indent + ");";
-        }
-
-        return line;
-    }
-
-    @Override
-    public ExtendedCodegenOperation fromOperation(String path, String httpMethod, Operation operation, List<Server> servers) {
-        validateOperation(operation);
-        return super.fromOperation(path, httpMethod, operation, servers);
-    }
 }

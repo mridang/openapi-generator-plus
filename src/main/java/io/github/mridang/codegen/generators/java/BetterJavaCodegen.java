@@ -1,63 +1,123 @@
 package io.github.mridang.codegen.generators.java;
 
+import static org.openapitools.codegen.utils.CamelizeOption.LOWERCASE_FIRST_LETTER;
+
 import com.google.googlejavaformat.java.Formatter;
 import com.google.googlejavaformat.java.FormatterException;
 import com.google.googlejavaformat.java.JavaFormatterOptions;
-import io.github.mridang.codegen.generators.UnsupportedFeaturesValidator;
-import io.swagger.v3.oas.models.Operation;
-import io.swagger.v3.oas.models.servers.Server;
+import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import io.swagger.v3.oas.models.media.Schema;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.List;
-import org.openapitools.codegen.CodegenOperation;
+import java.util.Arrays;
+import java.util.HashSet;
+import javax.annotation.Nullable;
+import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenModel;
+import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.SupportingFile;
-import org.openapitools.codegen.languages.JavaClientCodegen;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
+import org.openapitools.codegen.utils.ModelUtils;
+import org.openapitools.codegen.utils.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A custom Java code generator that provides sane defaults for generating a
- * minimal, modern Java client.
- * <p>
- * This generator is configured to:
- * <ul>
- * <li>Use the Apache HttpClient library for HTTP requests.</li>
- * <li>Use Jackson for JSON serialization.</li>
- * <li>Use the Java 8 Date/Time library (java.time.*).</li>
- * <li>Generate only model and API files, excluding tests, docs, and
- * other supporting project files.</li>
- * </ul>
+ * A custom Java code generator providing a minimal, modern Java client
+ * with Jackson and Apache HttpClient.
  */
 @SuppressWarnings("unused")
-public class BetterJavaCodegen extends JavaClientCodegen implements UnsupportedFeaturesValidator {
+public class BetterJavaCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterJavaCodegen.class);
 
     private final Formatter formatter;
+    protected String sourceFolder = "src" + File.separator + "main" + File.separator + "java";
+    protected String invokerPackage = "org.openapitools";
 
-    /**
-     * Initializes a new instance of the {@code BetterJavaCodegen} class,
-     * setting up the hardcoded default configurations for a minimal client.
-     */
     public BetterJavaCodegen() {
-        super();
+        outputFolder = "generated-code/java";
+        embeddedTemplateDir = templateDir = "templates/java";
 
-        this.setLibrary(APACHE);
-        this.setSerializationLibrary(SERIALIZATION_LIBRARY_JACKSON);
-        this.setDateLibrary("java8");
+        modelTemplateFiles.put("models/model.mustache", ".java");
+        apiTemplateFiles.put("api/api.mustache", ".java");
 
-        setTemplateDir("templates/java");
+        typeMapping.put("array", "List");
+        typeMapping.put("map", "Map");
+        typeMapping.put("set", "Set");
+        typeMapping.put("boolean", "Boolean");
+        typeMapping.put("string", "String");
+        typeMapping.put("int", "Integer");
+        typeMapping.put("integer", "Integer");
+        typeMapping.put("long", "Long");
+        typeMapping.put("short", "Short");
+        typeMapping.put("float", "Float");
+        typeMapping.put("double", "Double");
+        typeMapping.put("number", "BigDecimal");
+        typeMapping.put("decimal", "BigDecimal");
+        typeMapping.put("char", "String");
+        typeMapping.put("object", "Object");
+        typeMapping.put("AnyType", "Object");
+        typeMapping.put("binary", "byte[]");
+        typeMapping.put("ByteArray", "byte[]");
+        typeMapping.put("byte", "byte[]");
+        typeMapping.put("file", "File");
+        typeMapping.put("File", "File");
+        typeMapping.put("date", "LocalDate");
+        typeMapping.put("DateTime", "OffsetDateTime");
+        typeMapping.put("date-time", "OffsetDateTime");
+        typeMapping.put("UUID", "UUID");
+        typeMapping.put("URI", "URI");
+        typeMapping.put("BigDecimal", "BigDecimal");
 
-        apiDocTemplateFiles.clear();
-        modelDocTemplateFiles.clear();
-        apiTestTemplateFiles.clear();
-        modelTestTemplateFiles.clear();
+        importMapping.put("List", "java.util.List");
+        importMapping.put("Set", "java.util.Set");
+        importMapping.put("Map", "java.util.Map");
+        importMapping.put("ArrayList", "java.util.ArrayList");
+        importMapping.put("Arrays", "java.util.Arrays");
+        importMapping.put("LinkedHashSet", "java.util.LinkedHashSet");
+        importMapping.put("HashMap", "java.util.HashMap");
+        importMapping.put("LocalDate", "java.time.LocalDate");
+        importMapping.put("OffsetDateTime", "java.time.OffsetDateTime");
+        importMapping.put("BigDecimal", "java.math.BigDecimal");
+        importMapping.put("UUID", "java.util.UUID");
+        importMapping.put("URI", "java.net.URI");
+        importMapping.put("File", "java.io.File");
+        importMapping.put("JsonProperty", "com.fasterxml.jackson.annotation.JsonProperty");
+        importMapping.put("JsonValue", "com.fasterxml.jackson.annotation.JsonValue");
+        importMapping.put("JsonCreator", "com.fasterxml.jackson.annotation.JsonCreator");
+        importMapping.put("JsonInclude", "com.fasterxml.jackson.annotation.JsonInclude");
+        importMapping.put("JsonTypeName", "com.fasterxml.jackson.annotation.JsonTypeName");
+        importMapping.put("JsonTypeInfo", "com.fasterxml.jackson.annotation.JsonTypeInfo");
+        importMapping.put("JsonSubTypes", "com.fasterxml.jackson.annotation.JsonSubTypes");
 
-        // Enable post-processing so that postProcessFile is called for each generated file
+        languageSpecificPrimitives =
+                new HashSet<>(
+                        Arrays.asList(
+                                "int", "long", "float", "double", "boolean", "byte", "short",
+                                "char", "Integer", "Long", "Float", "Double", "Boolean", "String",
+                                "Object", "byte[]", "void"));
+
+        instantiationTypes.put("array", "ArrayList");
+        instantiationTypes.put("set", "LinkedHashSet");
+        instantiationTypes.put("map", "HashMap");
+
+        reservedWords =
+                new HashSet<>(
+                        Arrays.asList(
+                                "abstract", "assert", "boolean", "break", "byte", "case", "catch",
+                                "char", "class", "const", "continue", "default", "do", "double",
+                                "else", "enum", "extends", "final", "finally", "float", "for",
+                                "goto", "if", "implements", "import", "instanceof", "int",
+                                "interface", "long", "native", "new", "package", "private",
+                                "protected", "public", "return", "short", "static", "strictfp",
+                                "super", "switch", "synchronized", "this", "throw", "throws",
+                                "transient", "try", "void", "volatile", "while"));
+
         setEnablePostProcessFile(true);
-
         formatter =
                 new Formatter(
                         JavaFormatterOptions.builder()
@@ -66,39 +126,29 @@ public class BetterJavaCodegen extends JavaClientCodegen implements UnsupportedF
     }
 
     @Override
-    public String getLibrary() {
-        return APACHE;
-    }
-
-    /**
-     * Gets the unique name of this generator. This name is used to select the
-     * generator from the command line or other tools.
-     *
-     * @return The unique generator name, "java-plus".
-     */
-    @Override
     public String getName() {
         return "java-plus";
     }
 
-    /**
-     * Processes generator options and then customizes the output by removing
-     * non-essential supporting files while keeping the core infrastructure
-     * needed for the API classes to function.
-     */
+    @Override
+    public String getHelp() {
+        return "Generates a minimal Java client with Jackson and Apache HttpClient.";
+    }
+
     @Override
     public void processOpts() {
         super.processOpts();
 
-        this.modelTemplateFiles.clear();
-        this.modelTemplateFiles.put("models/model.mustache", ".java");
-        this.apiTemplateFiles.clear();
-        this.apiTemplateFiles.put("api/api.mustache", ".java");
+        if (additionalProperties.containsKey(CodegenConstants.SOURCE_FOLDER)) {
+            sourceFolder = (String) additionalProperties.get(CodegenConstants.SOURCE_FOLDER);
+        }
+        if (additionalProperties.containsKey(CodegenConstants.INVOKER_PACKAGE)) {
+            invokerPackage = (String) additionalProperties.get(CodegenConstants.INVOKER_PACKAGE);
+        }
+        additionalProperties.put(CodegenConstants.INVOKER_PACKAGE, invokerPackage);
+        additionalProperties.put("invokerPackage", invokerPackage);
 
-        // Clear all parent supporting files — we provide our own minimal set
         supportingFiles.clear();
-
-        // Re-enable post-processing after super.processOpts() may have reset it
         setEnablePostProcessFile(true);
 
         String invokerFolder =
@@ -128,6 +178,117 @@ public class BetterJavaCodegen extends JavaClientCodegen implements UnsupportedF
     }
 
     @Override
+    public String modelFileFolder() {
+        return outputFolder
+                + File.separator
+                + sourceFolder
+                + File.separator
+                + modelPackage().replace('.', File.separatorChar);
+    }
+
+    @Override
+    public String apiFileFolder() {
+        return outputFolder
+                + File.separator
+                + sourceFolder
+                + File.separator
+                + apiPackage().replace('.', File.separatorChar);
+    }
+
+    @Override
+    public String toVarName(String name) {
+        name = sanitizeName(name);
+        if (name.matches("^[A-Z0-9_]*$")) {
+            return name;
+        }
+        name = StringUtils.camelize(name, LOWERCASE_FIRST_LETTER);
+        if (isReservedWord(name) || name.matches("^\\d.*")) {
+            name = escapeReservedWord(name);
+        }
+        return name;
+    }
+
+    @Override
+    public String toOperationId(String operationId) {
+        if (operationId == null || operationId.isEmpty()) {
+            throw new RuntimeException("Empty method/operation name (operationId) not allowed");
+        }
+        return StringUtils.camelize(sanitizeName(operationId), LOWERCASE_FIRST_LETTER);
+    }
+
+    @Override
+    public String getTypeDeclaration(Schema p) {
+        if (ModelUtils.isArraySchema(p)) {
+            Schema<?> inner = p.getItems();
+            return getSchemaType(p) + "<" + getTypeDeclaration(inner) + ">";
+        } else if (ModelUtils.isMapSchema(p)) {
+            Schema<?> inner = ModelUtils.getAdditionalProperties(p);
+            if (inner == null) {
+                return "Map<String, Object>";
+            }
+            return getSchemaType(p) + "<String, " + getTypeDeclaration(inner) + ">";
+        }
+        return super.getTypeDeclaration(p);
+    }
+
+    @Nullable
+    @Override
+    public String toDefaultValue(Schema schema) {
+        schema = ModelUtils.unaliasSchema(this.openAPI, schema);
+        if (ModelUtils.isArraySchema(schema)) {
+            if (Boolean.TRUE.equals(schema.getUniqueItems())) {
+                return "new LinkedHashSet<>()";
+            }
+            return "new ArrayList<>()";
+        } else if (ModelUtils.isMapSchema(schema)) {
+            return "new HashMap<>()";
+        }
+        return null;
+    }
+
+    @Override
+    public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
+        super.postProcessModelProperty(model, property);
+        if (!model.isEnum) {
+            model.imports.add("JsonProperty");
+            model.imports.add("JsonInclude");
+            model.imports.add("JsonTypeName");
+            if (property.isEnum) {
+                model.imports.add("JsonValue");
+                model.imports.add("JsonCreator");
+            }
+            if (property.isContainer) {
+                if (property.isArray) {
+                    model.imports.add("ArrayList");
+                    model.imports.add("Arrays");
+                }
+                if (property.isMap) {
+                    model.imports.add("HashMap");
+                }
+            }
+        }
+    }
+
+    @Override
+    public ModelsMap postProcessModelsEnum(ModelsMap objs) {
+        objs = super.postProcessModelsEnum(objs);
+        for (ModelMap modelMap : objs.getModels()) {
+            CodegenModel model = modelMap.getModel();
+            if (model.isEnum) {
+                model.imports.add("JsonValue");
+                model.imports.add("JsonCreator");
+            }
+            for (CodegenProperty property : model.vars) {
+                if (property.isEnum) {
+                    model.imports.add("JsonValue");
+                    model.imports.add("JsonCreator");
+                }
+            }
+        }
+        return objs;
+    }
+
+    @Override
     public void postProcessFile(File file, String fileType) {
         super.postProcessFile(file, fileType);
         if (file == null || !file.getName().endsWith(".java")) {
@@ -145,9 +306,16 @@ public class BetterJavaCodegen extends JavaClientCodegen implements UnsupportedF
     }
 
     @Override
-    public CodegenOperation fromOperation(
-            String path, String httpMethod, Operation operation, List<Server> servers) {
-        validateOperation(operation);
-        return super.fromOperation(path, httpMethod, operation, servers);
+    public CodegenModel fromModel(String name, Schema schema) {
+        CodegenModel model = super.fromModel(name, schema);
+        if (model.discriminator != null) {
+            model.imports.add("JsonTypeInfo");
+            model.imports.add("JsonSubTypes");
+        }
+        if (!model.oneOf.isEmpty() || !model.anyOf.isEmpty()) {
+            model.imports.add("JsonValue");
+            model.imports.add("JsonCreator");
+        }
+        return model;
     }
 }

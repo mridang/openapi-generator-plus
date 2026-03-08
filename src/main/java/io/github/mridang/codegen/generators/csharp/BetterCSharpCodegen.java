@@ -1,85 +1,109 @@
 package io.github.mridang.codegen.generators.csharp;
 
-import io.github.mridang.codegen.generators.UnsupportedFeaturesValidator;
-import io.swagger.v3.oas.models.Operation;
-import io.swagger.v3.oas.models.servers.Server;
+import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import io.swagger.v3.oas.models.media.Schema;
 import java.io.File;
-import java.util.List;
-import org.openapitools.codegen.CodegenOperation;
+import java.util.Arrays;
+import java.util.HashSet;
+import javax.annotation.Nullable;
+import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.SupportingFile;
-import org.openapitools.codegen.languages.CSharpClientCodegen;
+import org.openapitools.codegen.utils.ModelUtils;
+import org.openapitools.codegen.utils.StringUtils;
 
 /**
- * A custom C# code generator that provides sane defaults for generating a
- * minimal, modern C# client.
- * <p>
- * This generator is configured to:
- * <ul>
- * <li>Use System.Text.Json for JSON serialization.</li>
- * <li>Use HttpClient for HTTP requests.</li>
- * <li>Target .NET 9.0.</li>
- * <li>Generate only model and API files, excluding tests, docs, and
- * other supporting project files.</li>
- * </ul>
+ * A custom C# code generator providing a minimal, modern C# client
+ * with System.Text.Json.
  */
 @SuppressWarnings("unused")
-public class BetterCSharpCodegen extends CSharpClientCodegen implements UnsupportedFeaturesValidator {
+public class BetterCSharpCodegen extends AbstractBetterCodegen {
 
-    /**
-     * Initializes a new instance of the {@code BetterCSharpCodegen} class,
-     * setting up the hardcoded default configurations for a minimal client.
-     */
+    protected String sourceFolder = "src";
+    protected String packageName = "OpenApi";
+
     public BetterCSharpCodegen() {
-        super();
+        outputFolder = "generated-code/csharp";
+        embeddedTemplateDir = templateDir = "templates/csharp";
 
-        this.setLibrary(GENERICHOST);
-        this.setDisallowAdditionalPropertiesIfNotPresent(false);
+        modelTemplateFiles.put("models/model.mustache", ".cs");
+        apiTemplateFiles.put("api/api.mustache", ".cs");
 
-        setTemplateDir("templates/csharp");
+        typeMapping.put("integer", "int");
+        typeMapping.put("long", "long");
+        typeMapping.put("float", "float");
+        typeMapping.put("double", "double");
+        typeMapping.put("number", "decimal");
+        typeMapping.put("decimal", "decimal");
+        typeMapping.put("boolean", "bool");
+        typeMapping.put("string", "string");
+        typeMapping.put("byte", "byte[]");
+        typeMapping.put("binary", "byte[]");
+        typeMapping.put("ByteArray", "byte[]");
+        typeMapping.put("date", "DateOnly");
+        typeMapping.put("DateTime", "DateTimeOffset");
+        typeMapping.put("date-time", "DateTimeOffset");
+        typeMapping.put("UUID", "Guid");
+        typeMapping.put("URI", "string");
+        typeMapping.put("object", "Object");
+        typeMapping.put("AnyType", "Object");
+        typeMapping.put("array", "List");
+        typeMapping.put("map", "Dictionary");
+        typeMapping.put("File", "System.IO.Stream");
+        typeMapping.put("file", "System.IO.Stream");
 
-        apiDocTemplateFiles.clear();
-        modelDocTemplateFiles.clear();
-        apiTestTemplateFiles.clear();
-        modelTestTemplateFiles.clear();
+        languageSpecificPrimitives =
+                new HashSet<>(
+                        Arrays.asList(
+                                "int", "long", "float", "double", "decimal", "bool", "string",
+                                "byte[]", "void", "Object", "DateOnly", "DateTimeOffset", "Guid"));
+
+        instantiationTypes.put("array", "List");
+        instantiationTypes.put("map", "Dictionary");
+
+        reservedWords =
+                new HashSet<>(
+                        Arrays.asList(
+                                "abstract", "as", "base", "bool", "break", "byte", "case", "catch",
+                                "char", "checked", "class", "const", "continue", "decimal",
+                                "default", "delegate", "do", "double", "else", "enum", "event",
+                                "explicit", "extern", "false", "finally", "fixed", "float", "for",
+                                "foreach", "goto", "if", "implicit", "in", "int", "interface",
+                                "internal", "is", "lock", "long", "namespace", "new", "null",
+                                "object", "operator", "out", "override", "params", "private",
+                                "protected", "public", "readonly", "record", "ref", "return",
+                                "sbyte", "sealed", "short", "sizeof", "stackalloc", "static",
+                                "string", "struct", "switch", "this", "throw", "true", "try",
+                                "typeof", "uint", "ulong", "unchecked", "unsafe", "ushort", "using",
+                                "virtual", "void", "volatile", "while"));
     }
 
-    @Override
-    public String getLibrary() {
-        return GENERICHOST;
-    }
-
-    /**
-     * Gets the unique name of this generator. This name is used to select the
-     * generator from the command line or other tools.
-     *
-     * @return The unique generator name, "csharp-plus".
-     */
     @Override
     public String getName() {
         return "csharp-plus";
     }
 
-    /**
-     * Processes generator options and then customizes the output by removing
-     * non-essential supporting files while keeping the core infrastructure
-     * needed for the API classes to function.
-     */
+    @Override
+    public String getHelp() {
+        return "Generates a minimal C# client with System.Text.Json.";
+    }
+
     @Override
     public void processOpts() {
         super.processOpts();
 
-        this.modelTemplateFiles.clear();
-        this.modelTemplateFiles.put("models/model.mustache", ".cs");
-        this.apiTemplateFiles.clear();
-        this.apiTemplateFiles.put("api/api.mustache", ".cs");
-        this.apiTestTemplateFiles.clear();
-        this.modelTestTemplateFiles.clear();
-        this.apiDocTemplateFiles.clear();
-        this.modelDocTemplateFiles.clear();
-        this.supportingFiles.clear();
+        if (additionalProperties.containsKey(CodegenConstants.SOURCE_FOLDER)) {
+            sourceFolder = (String) additionalProperties.get(CodegenConstants.SOURCE_FOLDER);
+        }
+        if (additionalProperties.containsKey(CodegenConstants.PACKAGE_NAME)) {
+            packageName = (String) additionalProperties.get(CodegenConstants.PACKAGE_NAME);
+        }
+        additionalProperties.put(CodegenConstants.PACKAGE_NAME, packageName);
+        additionalProperties.put("packageName", packageName);
 
-        // Override model package from "Model" to "Models" for consistency
-        this.setModelPackage("Models");
+        modelPackage = "Models";
+        apiPackage = "Api";
+
+        supportingFiles.clear();
 
         String invokerFolder =
                 sourceFolder + File.separator + packageName.replace(".", File.separator);
@@ -109,9 +133,130 @@ public class BetterCSharpCodegen extends CSharpClientCodegen implements Unsuppor
     }
 
     @Override
-    public CodegenOperation fromOperation(
-            String path, String httpMethod, Operation operation, List<Server> servers) {
-        validateOperation(operation);
-        return super.fromOperation(path, httpMethod, operation, servers);
+    public String modelFileFolder() {
+        return outputFolder
+                + File.separator
+                + sourceFolder
+                + File.separator
+                + packageName.replace(".", File.separator)
+                + File.separator
+                + modelPackage;
+    }
+
+    @Override
+    public String apiFileFolder() {
+        return outputFolder
+                + File.separator
+                + sourceFolder
+                + File.separator
+                + packageName.replace(".", File.separator)
+                + File.separator
+                + apiPackage;
+    }
+
+    @Override
+    public String toVarName(String name) {
+        name = sanitizeName(name);
+        name = StringUtils.camelize(name);
+        if (isReservedWord(name) || name.matches("^\\d.*")) {
+            name = escapeReservedWord(name);
+        }
+        return name;
+    }
+
+    @Override
+    public String toParamName(String name) {
+        name = sanitizeName(name);
+        name = StringUtils.camelize(name);
+        if (isReservedWord(name) || name.matches("^\\d.*")) {
+            name = escapeReservedWord(name);
+        }
+        if (!name.isEmpty()) {
+            name = Character.toLowerCase(name.charAt(0)) + name.substring(1);
+        }
+        return name;
+    }
+
+    @Override
+    public String toOperationId(String operationId) {
+        if (operationId == null || operationId.isEmpty()) {
+            throw new RuntimeException("Empty method/operation name (operationId) not allowed");
+        }
+        return StringUtils.camelize(sanitizeName(operationId));
+    }
+
+    @Override
+    public String getTypeDeclaration(Schema p) {
+        if (ModelUtils.isArraySchema(p)) {
+            Schema<?> inner = p.getItems();
+            return getSchemaType(p) + "<" + getTypeDeclaration(inner) + ">";
+        } else if (ModelUtils.isMapSchema(p)) {
+            Schema<?> inner = ModelUtils.getAdditionalProperties(p);
+            if (inner == null) {
+                return "Dictionary<string, Object>";
+            }
+            return getSchemaType(p) + "<string, " + getTypeDeclaration(inner) + ">";
+        }
+        return super.getTypeDeclaration(p);
+    }
+
+    @Nullable
+    @Override
+    public String toDefaultValue(Schema schema) {
+        return null;
+    }
+
+    @Override
+    public String toEnumVarName(String value, String datatype) {
+        if (value.isEmpty()) {
+            return "Empty";
+        }
+
+        if (datatype.startsWith("int")
+                || datatype.startsWith("uint")
+                || datatype.startsWith("long")
+                || datatype.startsWith("ulong")
+                || datatype.startsWith("double")
+                || datatype.startsWith("float")) {
+            String varName = "NUMBER_" + value;
+            varName = varName.replaceAll("-", "MINUS_");
+            varName = varName.replaceAll("\\+", "PLUS_");
+            varName = varName.replaceAll("\\.", "_DOT_");
+            return varName;
+        }
+
+        String var = value.replaceAll(" ", "_");
+        var = StringUtils.camelize(var);
+        var = var.replaceAll("\\W+", "");
+
+        if (var.matches("\\d.*")) {
+            return "_" + var;
+        }
+        return var;
+    }
+
+    @Override
+    public String toEnumValue(String value, String datatype) {
+        if (datatype.startsWith("int")
+                || datatype.startsWith("uint")
+                || datatype.startsWith("long")
+                || datatype.startsWith("ulong")
+                || datatype.startsWith("byte")) {
+            return value;
+        }
+        return value.replace("\n", "\\n")
+                .replace("\t", "\\t")
+                .replace("\r", "\\r")
+                .replaceAll("(?<!\\\\)\"", "\\\\\"");
+    }
+
+    @Override
+    public String escapeUnsafeCharacters(String input) {
+        return input;
+    }
+
+    @Override
+    public String escapeQuotationMark(String input) {
+        return input.replace("\"", "\\\"");
     }
 }

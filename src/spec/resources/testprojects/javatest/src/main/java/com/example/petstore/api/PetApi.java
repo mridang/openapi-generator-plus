@@ -4,6 +4,7 @@ import com.example.petstore.ApiClient;
 import com.example.petstore.ApiException;
 import com.example.petstore.Configuration;
 import com.example.petstore.ObjectSerializer;
+import java.util.List;
 import com.example.petstore.models.Pet;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.HashMap;
@@ -69,8 +70,7 @@ public class PetApi extends BaseApi {
   /**
    * Finds Pets by status
    *
-   * @param status Status values that need to be considered for filter (optional, default to
-   *     available)
+   * @param status Status values that need to be considered for filter (optional)
    * @return List<Pet>
    * @throws ApiException if fails to make API call
    */

@@ -4,6 +4,7 @@ import com.example.petstore.ApiClient;
 import com.example.petstore.ApiException;
 import com.example.petstore.Configuration;
 import com.example.petstore.ObjectSerializer;
+import java.util.Map;
 import com.example.petstore.models.Order;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.HashMap;

@@ -1,4 +1,3 @@
-io.github.mridang.codegen.CustomRubyClientCodegen
 io.github.mridang.codegen.generators.java.BetterJavaCodegen
 io.github.mridang.codegen.generators.node.BetterNodeCodegen
 io.github.mridang.codegen.generators.php.BetterPHPCodegen
