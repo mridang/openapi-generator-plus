@@ -8,7 +8,6 @@ import javax.annotation.Nullable;
 import org.junit.jupiter.api.Test;
 import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 /**
  * Verifies that generated Python code is already properly formatted according to
@@ -16,19 +15,9 @@ import org.testcontainers.utility.DockerImageName;
  */
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
-public class PythonFormattingSpec extends AbstractFormattingSpec {
+public class PythonFormattingSpec extends AbstractFormattingSpec implements PythonSpec {
 
   private static final String PACKAGE_NAME = "petstore_client";
-
-  @Override
-  protected String getGeneratorName() {
-    return "python-plus";
-  }
-
-  @Override
-  protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("python:3-slim");
-  }
 
   @Override
   protected String[] getBuildCommands() {

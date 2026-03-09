@@ -12,7 +12,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 /**
  * Verifies that generated Java code passes SpotBugs static analysis. If this test fails, the Java
@@ -20,21 +19,11 @@ import org.testcontainers.utility.DockerImageName;
  */
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
-public class JavaStaticAnalysisSpec extends AbstractIntegrationSpec {
+public class JavaStaticAnalysisSpec extends AbstractIntegrationSpec implements JavaSpec {
 
   private static final String PACKAGE_NAME = "com.example.petstore";
   private static final Path TEST_PROJECT_PATH =
       Paths.get("src/spec/resources/testprojects/javatest");
-
-  @Override
-  protected String getGeneratorName() {
-    return "java-plus";
-  }
-
-  @Override
-  protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("maven:3.9-eclipse-temurin-21");
-  }
 
   @Override
   protected String[] getBuildCommands() {

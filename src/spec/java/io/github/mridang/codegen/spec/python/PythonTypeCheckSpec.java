@@ -8,7 +8,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 /**
  * Verifies that generated Python code passes mypy type checking.
@@ -16,19 +15,9 @@ import org.testcontainers.utility.DockerImageName;
  */
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
-public class PythonTypeCheckSpec extends AbstractIntegrationSpec {
+public class PythonTypeCheckSpec extends AbstractIntegrationSpec implements PythonSpec {
 
   private static final String PACKAGE_NAME = "petstore_client";
-
-  @Override
-  protected String getGeneratorName() {
-    return "python-plus";
-  }
-
-  @Override
-  protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("python:3-slim");
-  }
 
   @Override
   protected String[] getBuildCommands() {

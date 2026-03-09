@@ -8,21 +8,10 @@ import java.nio.file.Paths;
 import java.util.Map;
 import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
-public class PhpClientSpec extends AbstractClientSpec {
-
-  @Override
-  protected String getGeneratorName() {
-    return "php-plus";
-  }
-
-  @Override
-  protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("composer:2");
-  }
+public class PhpClientSpec extends AbstractClientSpec implements PhpSpec {
 
   @Override
   protected String[] getBuildCommands() {

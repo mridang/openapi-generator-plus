@@ -6,21 +6,10 @@ import java.nio.file.Paths;
 import java.util.Map;
 import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
-public class PythonTlsProxySpec extends AbstractTlsProxySpec {
-
-  @Override
-  protected String getGeneratorName() {
-    return "python-plus";
-  }
-
-  @Override
-  protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("python:3-slim");
-  }
+public class PythonTlsProxySpec extends AbstractTlsProxySpec implements PythonSpec {
 
   @Override
   protected String[] getBuildCommands() {

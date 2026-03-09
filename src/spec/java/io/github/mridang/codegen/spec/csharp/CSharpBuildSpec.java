@@ -7,7 +7,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 /**
  * Verifies that generated C# code compiles cleanly with the strictest .NET SDK settings. Uses
@@ -16,17 +15,7 @@ import org.testcontainers.utility.DockerImageName;
  */
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
-public class CSharpBuildSpec extends AbstractIntegrationSpec {
-
-  @Override
-  protected String getGeneratorName() {
-    return "csharp-plus";
-  }
-
-  @Override
-  protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("mcr.microsoft.com/dotnet/sdk:9.0");
-  }
+public class CSharpBuildSpec extends AbstractIntegrationSpec implements CSharpSpec {
 
   @Override
   protected String[] getBuildCommands() {

@@ -29,7 +29,7 @@ import org.testcontainers.utility.MountableFile;
 import javax.annotation.Nullable;
 
 @SuppressWarnings("NullAway.Init")
-public abstract class AbstractIntegrationSpec {
+public abstract class AbstractIntegrationSpec implements LanguageSpec {
 
   protected static final Logger logger = LoggerFactory.getLogger(AbstractIntegrationSpec.class);
 
@@ -43,10 +43,6 @@ public abstract class AbstractIntegrationSpec {
   protected String getSpecResourcePath() {
     return "specs/petstore/openapi.yaml";
   }
-
-  protected abstract String getGeneratorName();
-
-  protected abstract DockerImageName getRuntimeImage();
 
   protected abstract String[] getBuildCommands();
 

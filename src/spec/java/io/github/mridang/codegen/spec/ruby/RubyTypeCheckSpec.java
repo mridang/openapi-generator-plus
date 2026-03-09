@@ -6,7 +6,6 @@ import io.github.mridang.codegen.spec.AbstractIntegrationSpec;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 /**
  * Verifies that generated Ruby code passes Steep type checking with RBS signatures. If this test
@@ -14,17 +13,7 @@ import org.testcontainers.utility.DockerImageName;
  */
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
-public class RubyTypeCheckSpec extends AbstractIntegrationSpec {
-
-  @Override
-  protected String getGeneratorName() {
-    return "ruby-plus";
-  }
-
-  @Override
-  protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("ruby:3.4");
-  }
+public class RubyTypeCheckSpec extends AbstractIntegrationSpec implements RubySpec {
 
   @Override
   protected String[] getBuildCommands() {

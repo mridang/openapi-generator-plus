@@ -8,7 +8,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 /**
  * Verifies that generated PHP code is already properly formatted according to phpcs with PSR-12
@@ -16,17 +15,7 @@ import org.testcontainers.utility.DockerImageName;
  */
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
-public class PhpFormattingSpec extends AbstractFormattingSpec {
-
-  @Override
-  protected String getGeneratorName() {
-    return "php-plus";
-  }
-
-  @Override
-  protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("composer:2");
-  }
+public class PhpFormattingSpec extends AbstractFormattingSpec implements PhpSpec {
 
   @Override
   protected String[] getBuildCommands() {

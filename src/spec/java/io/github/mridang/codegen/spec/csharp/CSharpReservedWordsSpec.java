@@ -3,12 +3,7 @@ package io.github.mridang.codegen.spec.csharp;
 import io.github.mridang.codegen.spec.AbstractReservedWordsSpec;
 
 @SuppressWarnings("NewClassNamingConvention")
-class CSharpReservedWordsSpec extends AbstractReservedWordsSpec {
-
-  @Override
-  protected String getDockerImage() {
-    return "mcr.microsoft.com/dotnet/sdk:9.0";
-  }
+class CSharpReservedWordsSpec extends AbstractReservedWordsSpec implements CSharpSpec {
 
   @Override
   protected String getDumpScriptResource() {

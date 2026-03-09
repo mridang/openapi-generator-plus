@@ -3,12 +3,7 @@ package io.github.mridang.codegen.spec.python;
 import io.github.mridang.codegen.spec.AbstractReservedWordsSpec;
 
 @SuppressWarnings("NewClassNamingConvention")
-class PythonReservedWordsSpec extends AbstractReservedWordsSpec {
-
-  @Override
-  protected String getDockerImage() {
-    return "python:3-slim";
-  }
+class PythonReservedWordsSpec extends AbstractReservedWordsSpec implements PythonSpec {
 
   @Override
   protected String getDumpScriptResource() {

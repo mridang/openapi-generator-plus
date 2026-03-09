@@ -6,23 +6,12 @@ import java.nio.file.Paths;
 import java.util.Map;
 import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
-public class JavaTlsProxySpec extends AbstractTlsProxySpec {
+public class JavaTlsProxySpec extends AbstractTlsProxySpec implements JavaSpec {
 
   private static final String PACKAGE_NAME = "com.example.petstore";
-
-  @Override
-  protected String getGeneratorName() {
-    return "java-plus";
-  }
-
-  @Override
-  protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("maven:3.9-eclipse-temurin-21");
-  }
 
   @Override
   protected String[] getBuildCommands() {

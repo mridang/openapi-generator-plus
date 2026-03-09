@@ -6,7 +6,6 @@ import io.github.mridang.codegen.spec.AbstractIntegrationSpec;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 /**
  * Verifies that generated TypeScript code passes ESLint linting with recommended rules. If this
@@ -14,17 +13,7 @@ import org.testcontainers.utility.DockerImageName;
  */
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
-public class NodeLintingSpec extends AbstractIntegrationSpec {
-
-  @Override
-  protected String getGeneratorName() {
-    return "node-plus";
-  }
-
-  @Override
-  protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("node:24-slim");
-  }
+public class NodeLintingSpec extends AbstractIntegrationSpec implements NodeSpec {
 
   @Override
   protected String[] getBuildCommands() {

@@ -6,21 +6,10 @@ import java.nio.file.Paths;
 import java.util.Map;
 import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
-public class RubyTlsProxySpec extends AbstractTlsProxySpec {
-
-  @Override
-  protected String getGeneratorName() {
-    return "ruby-plus";
-  }
-
-  @Override
-  protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("ruby:3.4");
-  }
+public class RubyTlsProxySpec extends AbstractTlsProxySpec implements RubySpec {
 
   @Override
   protected String[] getBuildCommands() {

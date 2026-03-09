@@ -7,7 +7,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 /**
  * Verifies that generated PHP code passes PHPStan static analysis at level 9. If this test fails,
@@ -15,17 +14,7 @@ import org.testcontainers.utility.DockerImageName;
  */
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
-public class PhpStaticAnalysisSpec extends AbstractIntegrationSpec {
-
-  @Override
-  protected String getGeneratorName() {
-    return "php-plus";
-  }
-
-  @Override
-  protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("composer:2");
-  }
+public class PhpStaticAnalysisSpec extends AbstractIntegrationSpec implements PhpSpec {
 
   @Override
   protected String[] getBuildCommands() {

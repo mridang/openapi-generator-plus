@@ -6,7 +6,6 @@ import io.github.mridang.codegen.spec.AbstractFormattingSpec;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 /**
  * Verifies that generated TypeScript code is already properly formatted according to prettier. If
@@ -14,17 +13,7 @@ import org.testcontainers.utility.DockerImageName;
  */
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
-public class NodeFormattingSpec extends AbstractFormattingSpec {
-
-  @Override
-  protected String getGeneratorName() {
-    return "node-plus";
-  }
-
-  @Override
-  protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("node:24-slim");
-  }
+public class NodeFormattingSpec extends AbstractFormattingSpec implements NodeSpec {
 
   @Override
   protected String[] getBuildCommands() {

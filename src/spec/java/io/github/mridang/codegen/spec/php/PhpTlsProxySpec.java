@@ -6,21 +6,10 @@ import java.nio.file.Paths;
 import java.util.Map;
 import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
-public class PhpTlsProxySpec extends AbstractTlsProxySpec {
-
-  @Override
-  protected String getGeneratorName() {
-    return "php-plus";
-  }
-
-  @Override
-  protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("composer:2");
-  }
+public class PhpTlsProxySpec extends AbstractTlsProxySpec implements PhpSpec {
 
   @Override
   protected String[] getBuildCommands() {

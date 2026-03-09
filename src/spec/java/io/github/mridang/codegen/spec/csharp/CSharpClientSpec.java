@@ -8,21 +8,10 @@ import java.nio.file.Paths;
 import java.util.Map;
 import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
-public class CSharpClientSpec extends AbstractClientSpec {
-
-  @Override
-  protected String getGeneratorName() {
-    return "csharp-plus";
-  }
-
-  @Override
-  protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("mcr.microsoft.com/dotnet/sdk:9.0");
-  }
+public class CSharpClientSpec extends AbstractClientSpec implements CSharpSpec {
 
   @Override
   protected String[] getBuildCommands() {

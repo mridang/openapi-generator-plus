@@ -3,12 +3,7 @@ package io.github.mridang.codegen.spec.java;
 import io.github.mridang.codegen.spec.AbstractReservedWordsSpec;
 
 @SuppressWarnings("NewClassNamingConvention")
-class JavaReservedWordsSpec extends AbstractReservedWordsSpec {
-
-  @Override
-  protected String getDockerImage() {
-    return "eclipse-temurin:17-jdk-jammy";
-  }
+class JavaReservedWordsSpec extends AbstractReservedWordsSpec implements JavaSpec {
 
   @Override
   protected String getDumpScriptResource() {

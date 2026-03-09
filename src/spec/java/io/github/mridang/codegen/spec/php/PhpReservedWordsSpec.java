@@ -3,12 +3,7 @@ package io.github.mridang.codegen.spec.php;
 import io.github.mridang.codegen.spec.AbstractReservedWordsSpec;
 
 @SuppressWarnings("NewClassNamingConvention")
-class PhpReservedWordsSpec extends AbstractReservedWordsSpec {
-
-  @Override
-  protected String getDockerImage() {
-    return "php:8.3-cli";
-  }
+class PhpReservedWordsSpec extends AbstractReservedWordsSpec implements PhpSpec {
 
   @Override
   protected String getDumpScriptResource() {

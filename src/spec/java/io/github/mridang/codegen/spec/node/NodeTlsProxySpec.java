@@ -5,21 +5,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
-public class NodeTlsProxySpec extends AbstractTlsProxySpec {
-
-  @Override
-  protected String getGeneratorName() {
-    return "node-plus";
-  }
-
-  @Override
-  protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("node:24-slim");
-  }
+public class NodeTlsProxySpec extends AbstractTlsProxySpec implements NodeSpec {
 
   @Override
   protected String[] getBuildCommands() {

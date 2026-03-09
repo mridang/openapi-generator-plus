@@ -3,12 +3,7 @@ package io.github.mridang.codegen.spec.ruby;
 import io.github.mridang.codegen.spec.AbstractReservedWordsSpec;
 
 @SuppressWarnings("NewClassNamingConvention")
-class RubyReservedWordsSpec extends AbstractReservedWordsSpec {
-
-  @Override
-  protected String getDockerImage() {
-    return "ruby:3.4-slim";
-  }
+class RubyReservedWordsSpec extends AbstractReservedWordsSpec implements RubySpec {
 
   @Override
   protected String getDumpScriptResource() {

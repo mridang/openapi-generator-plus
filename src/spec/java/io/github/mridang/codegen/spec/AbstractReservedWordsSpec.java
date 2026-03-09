@@ -18,9 +18,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.MountableFile;
 
 @Testcontainers
-public abstract class AbstractReservedWordsSpec {
-
-  protected abstract String getDockerImage();
+public abstract class AbstractReservedWordsSpec implements DockerImageSpec {
 
   protected abstract String getDumpScriptResource();
 
