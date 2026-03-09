@@ -167,6 +167,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile(
                         "header_selector.mustache", invokerFolder, "HeaderSelector.java"));
+        supportingFiles.add(new SupportingFile("pom.mustache", "", "pom.xml"));
     }
 
     @Override

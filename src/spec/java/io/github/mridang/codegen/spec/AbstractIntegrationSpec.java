@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -50,7 +51,9 @@ public abstract class AbstractIntegrationSpec {
   protected abstract String[] getBuildCommands();
 
   @SuppressWarnings("SameReturnValue")
-  protected abstract String getTestScript(String prismBaseUrl);
+  protected String getTestScript(String prismBaseUrl) {
+    return "";
+  }
 
   @BeforeAll
   static void setupSharedInfrastructure() {
@@ -141,6 +144,49 @@ public abstract class AbstractIntegrationSpec {
 
     logger.info("Code generation complete. Files in output directory:");
     logDirectoryContents(tempOutputDir, 0);
+  }
+
+  protected void generateClientToDirectory(
+      Map<String, Object> additionalProperties, Path outputDir) {
+    URL specUrl = getClass().getClassLoader().getResource(getSpecResourcePath());
+    if (specUrl == null) {
+      throw new IllegalStateException("Could not find spec resource: " + getSpecResourcePath());
+    }
+
+    String specPath = specUrl.getPath();
+    logger.info("Generating {} client from spec: {}", getGeneratorName(), specPath);
+
+    CodegenConfigurator configurator =
+        new CodegenConfigurator()
+            .setGeneratorName(getGeneratorName())
+            .setInputSpec(specPath)
+            .setOutputDir(outputDir.toString().replace("\\", "/"))
+            .setAdditionalProperties(additionalProperties);
+
+    DefaultGenerator generator = new DefaultGenerator();
+    generator.setGenerateMetadata(false);
+    generator.opts(configurator.toClientOptInput()).generate();
+
+    logger.info("Code generation complete.");
+  }
+
+  protected static void copyDirectory(Path source, Path target) throws IOException {
+    try (Stream<Path> stream = Files.walk(source)) {
+      stream.forEach(
+          sourcePath -> {
+            try {
+              Path targetPath = target.resolve(source.relativize(sourcePath));
+              if (Files.isDirectory(sourcePath)) {
+                Files.createDirectories(targetPath);
+              } else {
+                Files.copy(sourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING);
+              }
+            } catch (IOException e) {
+              throw new RuntimeException("Failed to copy " + sourcePath, e);
+            }
+          });
+    }
+    logger.info("Copied directory from {} to {}", source, target);
   }
 
   protected ExecResult executeInRuntimeContainer(String[] commands) {

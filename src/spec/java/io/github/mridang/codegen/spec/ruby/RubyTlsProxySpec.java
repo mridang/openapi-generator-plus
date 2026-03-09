@@ -1,27 +1,16 @@
 package io.github.mridang.codegen.spec.ruby;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import io.github.mridang.codegen.spec.AbstractTlsProxySpec;
-import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
 import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class RubyTlsProxySpec extends AbstractTlsProxySpec {
-
-  private static final String MODULE_NAME = "OpigenClient";
-  private static final String GEM_NAME = "opigen_client";
 
   @Override
   protected String getGeneratorName() {
@@ -42,28 +31,15 @@ public class RubyTlsProxySpec extends AbstractTlsProxySpec {
     };
   }
 
-  @BeforeEach
-  void setup() throws IOException {
-    copyTestProject(Paths.get("src/spec/resources/testprojects/rspec"));
+  @Override
+  protected Path getTestProjectPath() {
+    return Paths.get("src/spec/resources/testprojects/rspec");
   }
 
-  @Test
-  @Order(1)
-  void shouldPassTlsProxyTests() throws IOException {
-    startWireMockServer();
-    startProxyServer();
-    copyCaCertToOutput();
-
-    generateClientToDirectory(
-        Map.of(
-            CodegenConstants.GEM_NAME, GEM_NAME,
-            CodegenConstants.MODULE_NAME, MODULE_NAME),
-        tempOutputDir);
-
-    ExecResult result = executeInRuntimeContainer(getBuildCommands());
-
-    assertThat(result.isSuccess())
-        .withFailMessage("Ruby TLS/proxy tests failed:\n%s", result.output())
-        .isTrue();
+  @Override
+  protected Map<String, Object> getCodegenProperties() {
+    return Map.of(
+        CodegenConstants.GEM_NAME, "opigen_client",
+        CodegenConstants.MODULE_NAME, "OpigenClient");
   }
 }

@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractIntegrationSpec;
 import java.io.IOException;
-import java.net.URL;
 import java.nio.file.Files;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -33,23 +32,9 @@ public class PhpStaticAnalysisSpec extends AbstractIntegrationSpec {
   @Override
   protected String[] getBuildCommands() {
     return new String[] {
-      "cd /app"
-          + " && composer require --quiet --no-interaction"
-          + " guzzlehttp/guzzle:^7.3"
-          + " guzzlehttp/psr7:^2.0"
-          + " symfony/serializer:^7.0"
-          + " symfony/property-access:^7.0"
-          + " symfony/property-info:^7.0"
-          + " phpdocumentor/reflection-docblock:^5.3"
-          + " && composer require --dev --quiet --no-interaction phpstan/phpstan"
-          + " && composer dump-autoload",
+      "composer install --no-interaction --prefer-dist",
       "vendor/bin/phpstan analyse lib/ --level=9 --no-progress"
     };
-  }
-
-  @Override
-  protected String getTestScript(String prismBaseUrl) {
-    return "";
   }
 
   @Test
@@ -88,27 +73,5 @@ public class PhpStaticAnalysisSpec extends AbstractIntegrationSpec {
         .withFailMessage(
             "Generated PHP code has static analysis errors:\n%s", result.output())
         .isTrue();
-  }
-
-  private void generateClientToDirectory(
-      Map<String, Object> additionalProperties, java.nio.file.Path outputDir) {
-    URL specUrl = getClass().getClassLoader().getResource(getSpecResourcePath());
-    if (specUrl == null) {
-      throw new IllegalStateException("Could not find spec resource: " + getSpecResourcePath());
-    }
-
-    String specPath = specUrl.getPath();
-
-    org.openapitools.codegen.config.CodegenConfigurator configurator =
-        new org.openapitools.codegen.config.CodegenConfigurator()
-            .setGeneratorName(getGeneratorName())
-            .setInputSpec(specPath)
-            .setOutputDir(outputDir.toString().replace("\\", "/"))
-            .setAdditionalProperties(additionalProperties);
-
-    org.openapitools.codegen.DefaultGenerator generator =
-        new org.openapitools.codegen.DefaultGenerator();
-    generator.setGenerateMetadata(false);
-    generator.opts(configurator.toClientOptInput()).generate();
   }
 }

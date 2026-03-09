@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractIntegrationSpec;
 import java.io.IOException;
-import java.net.URL;
 import java.nio.file.Files;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -32,16 +31,9 @@ public class NodeLintingSpec extends AbstractIntegrationSpec {
   @Override
   protected String[] getBuildCommands() {
     return new String[] {
-      "npm init -y"
-          + " && npm install --save-dev eslint @eslint/js typescript-eslint typescript"
-          + " class-transformer reflect-metadata",
+      "npm install",
       "npx eslint '**/*.ts' --ignore-pattern node_modules"
     };
-  }
-
-  @Override
-  protected String getTestScript(String prismBaseUrl) {
-    return "";
   }
 
   @Test
@@ -69,25 +61,4 @@ public class NodeLintingSpec extends AbstractIntegrationSpec {
         .isTrue();
   }
 
-  private void generateClientToDirectory(
-      Map<String, Object> additionalProperties, java.nio.file.Path outputDir) {
-    URL specUrl = getClass().getClassLoader().getResource(getSpecResourcePath());
-    if (specUrl == null) {
-      throw new IllegalStateException("Could not find spec resource: " + getSpecResourcePath());
-    }
-
-    String specPath = specUrl.getPath();
-
-    org.openapitools.codegen.config.CodegenConfigurator configurator =
-        new org.openapitools.codegen.config.CodegenConfigurator()
-            .setGeneratorName(getGeneratorName())
-            .setInputSpec(specPath)
-            .setOutputDir(outputDir.toString().replace("\\", "/"))
-            .setAdditionalProperties(additionalProperties);
-
-    org.openapitools.codegen.DefaultGenerator generator =
-        new org.openapitools.codegen.DefaultGenerator();
-    generator.setGenerateMetadata(false);
-    generator.opts(configurator.toClientOptInput()).generate();
-  }
 }

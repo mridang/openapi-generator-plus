@@ -1,13 +1,19 @@
 package io.github.mridang.codegen.spec;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.io.IOException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
-import java.util.stream.Stream;
-import org.junit.jupiter.api.AfterEach;
+import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -21,18 +27,40 @@ import javax.annotation.Nullable;
  * with WireMock (HTTPS) and Squid (HTTP proxy) container management.
  */
 @SuppressWarnings("NullAway.Init")
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public abstract class AbstractTlsProxySpec extends AbstractIntegrationSpec {
 
   @Nullable protected GenericContainer<?> wiremockContainer;
   @Nullable protected GenericContainer<?> proxyContainer;
 
-  @Override
-  protected String getTestScript(String prismBaseUrl) {
-    return "";
+  protected abstract Path getTestProjectPath();
+
+  protected abstract Map<String, Object> getCodegenProperties();
+
+  @BeforeEach
+  void setupTlsProxy() throws IOException {
+    copyDirectory(getTestProjectPath(), tempOutputDir);
   }
 
-  @AfterEach
-  void cleanupTlsProxy() {
+  @Test
+  @Order(1)
+  void shouldPassTlsProxyTests() throws IOException {
+    startWireMockServer();
+    startProxyServer();
+    copyCaCertToOutput();
+
+    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
+
+    ExecResult result = executeInRuntimeContainer(getBuildCommands());
+
+    assertThat(result.isSuccess())
+        .withFailMessage("TLS/proxy tests failed:\n%s", result.output())
+        .isTrue();
+  }
+
+  @Override
+  void cleanup() {
+    super.cleanup();
     if (wiremockContainer != null && wiremockContainer.isRunning()) {
       wiremockContainer.stop();
       logger.info("Stopped WireMock container");
@@ -115,59 +143,5 @@ public abstract class AbstractTlsProxySpec extends AbstractIntegrationSpec {
     Files.copy(Path.of(caCertUrl.getPath()), tempOutputDir.resolve("ca.pem"),
         StandardCopyOption.REPLACE_EXISTING);
     logger.info("Copied CA certificate to {}", tempOutputDir.resolve("ca.pem"));
-  }
-
-  /**
-   * Copy test project directory to temp output directory.
-   */
-  protected void copyTestProject(Path testProjectPath) throws IOException {
-    if (!Files.exists(testProjectPath)) {
-      throw new IllegalStateException(
-          "Could not find test project at: " + testProjectPath.toAbsolutePath());
-    }
-    try (Stream<Path> stream = Files.walk(testProjectPath)) {
-      stream.forEach(
-          sourcePath -> {
-            try {
-              Path targetPath = tempOutputDir.resolve(testProjectPath.relativize(sourcePath));
-              if (Files.isDirectory(sourcePath)) {
-                Files.createDirectories(targetPath);
-              } else {
-                Files.copy(sourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING);
-              }
-            } catch (IOException e) {
-              throw new RuntimeException("Failed to copy " + sourcePath, e);
-            }
-          });
-    }
-    logger.info("Copied test project from {} to {}", testProjectPath, tempOutputDir);
-  }
-
-  /**
-   * Generate client code into the temp output directory.
-   */
-  protected void generateClientToDirectory(
-      java.util.Map<String, Object> additionalProperties, Path outputDir) {
-    URL specUrl = getClass().getClassLoader().getResource(getSpecResourcePath());
-    if (specUrl == null) {
-      throw new IllegalStateException("Could not find spec resource: " + getSpecResourcePath());
-    }
-
-    String specPath = specUrl.getPath();
-    logger.info("Generating {} client from spec: {}", getGeneratorName(), specPath);
-
-    org.openapitools.codegen.config.CodegenConfigurator configurator =
-        new org.openapitools.codegen.config.CodegenConfigurator()
-            .setGeneratorName(getGeneratorName())
-            .setInputSpec(specPath)
-            .setOutputDir(outputDir.toString().replace("\\", "/"))
-            .setAdditionalProperties(additionalProperties);
-
-    org.openapitools.codegen.DefaultGenerator generator =
-        new org.openapitools.codegen.DefaultGenerator();
-    generator.setGenerateMetadata(false);
-    generator.opts(configurator.toClientOptInput()).generate();
-
-    logger.info("Code generation complete.");
   }
 }

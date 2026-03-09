@@ -1,23 +1,15 @@
 package io.github.mridang.codegen.spec.java;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import io.github.mridang.codegen.spec.AbstractTlsProxySpec;
-import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
 import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class JavaTlsProxySpec extends AbstractTlsProxySpec {
 
   private static final String PACKAGE_NAME = "com.example.petstore";
@@ -40,29 +32,16 @@ public class JavaTlsProxySpec extends AbstractTlsProxySpec {
     };
   }
 
-  @BeforeEach
-  void setup() throws IOException {
-    copyTestProject(Paths.get("src/spec/resources/testprojects/javatest"));
+  @Override
+  protected Path getTestProjectPath() {
+    return Paths.get("src/spec/resources/testprojects/javatest");
   }
 
-  @Test
-  @Order(1)
-  void shouldPassTlsProxyTests() throws IOException {
-    startWireMockServer();
-    startProxyServer();
-    copyCaCertToOutput();
-
-    generateClientToDirectory(
-        Map.of(
-            CodegenConstants.MODEL_PACKAGE, PACKAGE_NAME + ".models",
-            CodegenConstants.API_PACKAGE, PACKAGE_NAME + ".api",
-            CodegenConstants.INVOKER_PACKAGE, PACKAGE_NAME),
-        tempOutputDir);
-
-    ExecResult result = executeInRuntimeContainer(getBuildCommands());
-
-    assertThat(result.isSuccess())
-        .withFailMessage("Java TLS/proxy tests failed:\n%s", result.output())
-        .isTrue();
+  @Override
+  protected Map<String, Object> getCodegenProperties() {
+    return Map.of(
+        CodegenConstants.MODEL_PACKAGE, PACKAGE_NAME + ".models",
+        CodegenConstants.API_PACKAGE, PACKAGE_NAME + ".api",
+        CodegenConstants.INVOKER_PACKAGE, PACKAGE_NAME);
   }
 }

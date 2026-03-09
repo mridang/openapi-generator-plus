@@ -5,7 +5,7 @@ namespace {{packageName}};
 /// <summary>
 /// Selects appropriate Content-Type and Accept headers for API requests.
 /// </summary>
-public partial class HeaderSelector
+public static partial class HeaderSelector
 {
     [GeneratedRegex(@"^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)", RegexOptions.IgnoreCase)]
     private static partial Regex JsonMimeRegex();

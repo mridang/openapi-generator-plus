@@ -1,67 +1,32 @@
 package io.github.mridang.codegen.spec.java;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import io.github.mridang.codegen.spec.AbstractReservedWordsSpec;
 
-import io.github.mridang.codegen.generators.AbstractBetterCodegen;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Set;
-import java.util.stream.Collectors;
-import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.Container;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.MountableFile;
+@SuppressWarnings("NewClassNamingConvention")
+class JavaReservedWordsSpec extends AbstractReservedWordsSpec {
 
-@Testcontainers
-class JavaReservedWordsSpec {
-
-  @Test
-  void reservedWordsShouldContainAllRuntimeKeywords() throws Exception {
-    try (GenericContainer<?> container =
-        new GenericContainer<>("eclipse-temurin:17-jdk-jammy")
-            .withCommand("tail", "-f", "/dev/null")) {
-      container.start();
-      container.copyFileToContainer(
-          MountableFile.forClasspathResource("scripts/dump-java-keywords.sh"),
-          "/scripts/dump.sh");
-      container.copyFileToContainer(
-          MountableFile.forClasspathResource("scripts/JavaKeywords.java"),
-          "/scripts/JavaKeywords.java");
-
-      Container.ExecResult result = container.execInContainer("sh", "/scripts/dump.sh");
-      assertThat(result.getExitCode())
-          .as("Script stderr: %s", result.getStderr())
-          .isZero();
-
-      Set<String> runtimeKeywords = parseLines(result.getStdout());
-      Set<String> resourceKeywords = loadResourceFile("/reserved-words/java.txt");
-
-      assertThat(resourceKeywords)
-          .as("Resource file should contain all runtime keywords")
-          .containsAll(runtimeKeywords);
-    }
+  @Override
+  protected String getDockerImage() {
+    return "eclipse-temurin:17-jdk-jammy";
   }
 
-  private static Set<String> parseLines(String output) {
-    return Arrays.stream(output.split("\n"))
-        .map(String::trim)
-        .filter(line -> !line.isEmpty())
-        .collect(Collectors.toSet());
+  @Override
+  protected String getDumpScriptResource() {
+    return "scripts/dump-java-keywords.sh";
   }
 
-  private static Set<String> loadResourceFile(String resourcePath) throws IOException {
-    try (InputStream is = AbstractBetterCodegen.class.getResourceAsStream(resourcePath)) {
-      assertThat(is).as("Resource file %s should exist", resourcePath).isNotNull();
-      return new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))
-          .lines()
-          .map(String::trim)
-          .filter(line -> !line.isEmpty() && !line.startsWith("#"))
-          .collect(Collectors.toSet());
-    }
+  @Override
+  protected String getKeywordsSourceResource() {
+    return "scripts/JavaKeywords.java";
+  }
+
+  @Override
+  protected String getKeywordsSourceContainerPath() {
+    return "/scripts/JavaKeywords.java";
+  }
+
+  @Override
+  protected String getReservedWordsResource() {
+    return "/reserved-words/java.txt";
   }
 }

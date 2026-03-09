@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractIntegrationSpec;
 import java.io.IOException;
-import java.net.URL;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.openapitools.codegen.CodegenConstants;
@@ -34,14 +33,9 @@ public class PythonTypeCheckSpec extends AbstractIntegrationSpec {
   @Override
   protected String[] getBuildCommands() {
     return new String[] {
-      "pip install --quiet mypy pydantic typing_extensions types-python-dateutil types-requests types-urllib3",
+      "pip install --quiet -r requirements.txt",
       "mypy " + PACKAGE_NAME + "/"
     };
-  }
-
-  @Override
-  protected String getTestScript(String prismBaseUrl) {
-    return "";
   }
 
   @Test
@@ -57,27 +51,5 @@ public class PythonTypeCheckSpec extends AbstractIntegrationSpec {
     assertThat(result.isSuccess())
         .withFailMessage("Generated Python code has type checking errors:\n%s", result.output())
         .isTrue();
-  }
-
-  private void generateClientToDirectory(
-      Map<String, Object> additionalProperties, java.nio.file.Path outputDir) {
-    URL specUrl = getClass().getClassLoader().getResource(getSpecResourcePath());
-    if (specUrl == null) {
-      throw new IllegalStateException("Could not find spec resource: " + getSpecResourcePath());
-    }
-
-    String specPath = specUrl.getPath();
-
-    org.openapitools.codegen.config.CodegenConfigurator configurator =
-        new org.openapitools.codegen.config.CodegenConfigurator()
-            .setGeneratorName(getGeneratorName())
-            .setInputSpec(specPath)
-            .setOutputDir(outputDir.toString().replace("\\", "/"))
-            .setAdditionalProperties(additionalProperties);
-
-    org.openapitools.codegen.DefaultGenerator generator =
-        new org.openapitools.codegen.DefaultGenerator();
-    generator.setGenerateMetadata(false);
-    generator.opts(configurator.toClientOptInput()).generate();
   }
 }

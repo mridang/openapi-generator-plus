@@ -4,9 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractIntegrationSpec;
 import java.io.IOException;
-import java.net.URL;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.openapitools.codegen.CodegenConstants;
@@ -41,11 +39,6 @@ public class CSharpStaticAnalysisSpec extends AbstractIntegrationSpec {
     };
   }
 
-  @Override
-  protected String getTestScript(String prismBaseUrl) {
-    return "";
-  }
-
   @Test
   void generatedCodeShouldPassStaticAnalysis() throws IOException {
     generateClientToDirectory(
@@ -53,19 +46,6 @@ public class CSharpStaticAnalysisSpec extends AbstractIntegrationSpec {
             CodegenConstants.PACKAGE_NAME, "PetstoreClient",
             CodegenConstants.SOURCE_FOLDER, "src"),
         tempOutputDir);
-
-    Files.writeString(
-        tempOutputDir.resolve("src/PetstoreClient/PetstoreClient.csproj"),
-        String.join(
-            "\n",
-            "<Project Sdk=\"Microsoft.NET.Sdk\">",
-            "  <PropertyGroup>",
-            "    <TargetFramework>net9.0</TargetFramework>",
-            "    <Nullable>enable</Nullable>",
-            "    <ImplicitUsings>enable</ImplicitUsings>",
-            "  </PropertyGroup>",
-            "</Project>",
-            ""));
 
     Files.writeString(
         tempOutputDir.resolve(".editorconfig"),
@@ -85,27 +65,5 @@ public class CSharpStaticAnalysisSpec extends AbstractIntegrationSpec {
         .withFailMessage(
             "Generated C# code has static analysis violations:\n%s", result.output())
         .isTrue();
-  }
-
-  private void generateClientToDirectory(
-      Map<String, Object> additionalProperties, Path outputDir) {
-    URL specUrl = getClass().getClassLoader().getResource(getSpecResourcePath());
-    if (specUrl == null) {
-      throw new IllegalStateException("Could not find spec resource: " + getSpecResourcePath());
-    }
-
-    String specPath = specUrl.getPath();
-
-    org.openapitools.codegen.config.CodegenConfigurator configurator =
-        new org.openapitools.codegen.config.CodegenConfigurator()
-            .setGeneratorName(getGeneratorName())
-            .setInputSpec(specPath)
-            .setOutputDir(outputDir.toString().replace("\\", "/"))
-            .setAdditionalProperties(additionalProperties);
-
-    org.openapitools.codegen.DefaultGenerator generator =
-        new org.openapitools.codegen.DefaultGenerator();
-    generator.setGenerateMetadata(false);
-    generator.opts(configurator.toClientOptInput()).generate();
   }
 }

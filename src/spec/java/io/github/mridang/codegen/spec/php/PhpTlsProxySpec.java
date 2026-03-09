@@ -1,23 +1,15 @@
 package io.github.mridang.codegen.spec.php;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import io.github.mridang.codegen.spec.AbstractTlsProxySpec;
-import java.io.IOException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.Order;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
 import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public class PhpTlsProxySpec extends AbstractTlsProxySpec {
 
   @Override
@@ -38,26 +30,13 @@ public class PhpTlsProxySpec extends AbstractTlsProxySpec {
     };
   }
 
-  @BeforeEach
-  void setup() throws IOException {
-    copyTestProject(Paths.get("src/spec/resources/testprojects/phptest"));
+  @Override
+  protected Path getTestProjectPath() {
+    return Paths.get("src/spec/resources/testprojects/phptest");
   }
 
-  @Test
-  @Order(1)
-  void shouldPassTlsProxyTests() throws IOException {
-    startWireMockServer();
-    startProxyServer();
-    copyCaCertToOutput();
-
-    generateClientToDirectory(
-        Map.of(CodegenConstants.INVOKER_PACKAGE, "PetstoreClient"),
-        tempOutputDir);
-
-    ExecResult result = executeInRuntimeContainer(getBuildCommands());
-
-    assertThat(result.isSuccess())
-        .withFailMessage("PHP TLS/proxy tests failed:\n%s", result.output())
-        .isTrue();
+  @Override
+  protected Map<String, Object> getCodegenProperties() {
+    return Map.of(CodegenConstants.INVOKER_PACKAGE, "PetstoreClient");
   }
 }

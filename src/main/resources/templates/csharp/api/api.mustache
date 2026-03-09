@@ -32,7 +32,8 @@ public class {{classname}} : BaseApi
         {{#pathParams}}
         path = path.Replace(
             "{" + "{{baseName}}" + "}",
-            Uri.EscapeDataString(ObjectSerializer.ToPathValue({{paramName}}))
+            Uri.EscapeDataString(ObjectSerializer.ToPathValue({{paramName}})),
+            StringComparison.Ordinal
         );
         {{/pathParams}}
 
@@ -61,7 +62,7 @@ public class {{classname}} : BaseApi
             {{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}},
 {{^produces}}            Array.Empty<string>(),{{/produces}}{{#produces}}{{#-first}}            {{operationId}}Accepts,{{/-first}}{{/produces}}
             {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}}
-        );
+        ).ConfigureAwait(false);
         return result ?? throw new InvalidOperationException("Expected non-null response body");
         {{/returnType}}
         {{^returnType}}
@@ -73,7 +74,7 @@ public class {{classname}} : BaseApi
             {{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}},
 {{^produces}}            Array.Empty<string>(),{{/produces}}{{#produces}}{{#-first}}            {{operationId}}Accepts,{{/-first}}{{/produces}}
             {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}}
-        );
+        ).ConfigureAwait(false);
         {{/returnType}}
     }
     {{/operation}}

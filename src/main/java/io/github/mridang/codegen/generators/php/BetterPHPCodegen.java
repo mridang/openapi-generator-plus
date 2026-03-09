@@ -149,6 +149,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                         "default_api_client.mustache", invokerFolder, "DefaultApiClient.php"));
         supportingFiles.add(
                 new SupportingFile("base_api.mustache", apiFolder, "BaseApi.php"));
+        supportingFiles.add(new SupportingFile("composer.mustache", "", "composer.json"));
     }
 
     private String toSrcPath(String packageName) {

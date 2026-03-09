@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractIntegrationSpec;
 import java.io.IOException;
-import java.net.URL;
 import java.nio.file.Files;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -34,14 +33,9 @@ public class RubyLintingSpec extends AbstractIntegrationSpec {
   protected String[] getBuildCommands() {
     return new String[] {
       "apt-get update && apt-get install -y build-essential --no-install-recommends 2>/dev/null",
-      "gem install rubocop --no-document",
-      "rubocop --except Layout --format simple"
+      "bundle install --quiet",
+      "bundle exec rubocop --except Layout --format simple"
     };
-  }
-
-  @Override
-  protected String getTestScript(String prismBaseUrl) {
-    return "";
   }
 
   @Test
@@ -73,27 +67,5 @@ public class RubyLintingSpec extends AbstractIntegrationSpec {
     assertThat(result.isSuccess())
         .withFailMessage("Generated Ruby code has linting violations:\n%s", result.output())
         .isTrue();
-  }
-
-  private void generateClientToDirectory(
-      Map<String, Object> additionalProperties, java.nio.file.Path outputDir) {
-    URL specUrl = getClass().getClassLoader().getResource(getSpecResourcePath());
-    if (specUrl == null) {
-      throw new IllegalStateException("Could not find spec resource: " + getSpecResourcePath());
-    }
-
-    String specPath = specUrl.getPath();
-
-    org.openapitools.codegen.config.CodegenConfigurator configurator =
-        new org.openapitools.codegen.config.CodegenConfigurator()
-            .setGeneratorName(getGeneratorName())
-            .setInputSpec(specPath)
-            .setOutputDir(outputDir.toString().replace("\\", "/"))
-            .setAdditionalProperties(additionalProperties);
-
-    org.openapitools.codegen.DefaultGenerator generator =
-        new org.openapitools.codegen.DefaultGenerator();
-    generator.setGenerateMetadata(false);
-    generator.opts(configurator.toClientOptInput()).generate();
   }
 }

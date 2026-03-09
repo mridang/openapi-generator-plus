@@ -125,6 +125,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                 new SupportingFile("models/index.mustache", "models", "index.ts"));
         supportingFiles.add(
                 new SupportingFile("api/index.mustache", "api", "index.ts"));
+        supportingFiles.add(new SupportingFile("package.mustache", "", "package.json"));
     }
 
     @Override

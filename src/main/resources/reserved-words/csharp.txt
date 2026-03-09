@@ -1,4 +1,8 @@
 # C# reserved words and keywords
+__arglist
+__makeref
+__reftype
+__refvalue
 abstract
 as
 base

@@ -145,6 +145,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile(
                         "header_selector.mustache", packagePath, "header_selector.py"));
+        supportingFiles.add(new SupportingFile("requirements.mustache", "", "requirements.txt"));
     }
 
     @Override
