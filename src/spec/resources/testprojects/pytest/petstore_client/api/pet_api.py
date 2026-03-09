@@ -1,9 +1,6 @@
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote
 
-from pydantic import Field, StrictInt, StrictStr, field_validator
-from typing import List, Optional
-from typing_extensions import Annotated
 from petstore_client.models.pet import Pet
 
 from ..api_client import ApiClient

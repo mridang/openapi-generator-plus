@@ -14,35 +14,20 @@ use PetstoreClient\ObjectSerializer;
 class PetApi extends BaseApi
 {
     /**
-     * @param ApiClient|null     $apiClient API client instance
-     * @param Configuration|null $config    Configuration instance
-     */
-    public function __construct(
-        ?ApiClient $apiClient = null,
-        ?Configuration $config = null
-    ) {
-        parent::__construct($apiClient, $config);
-    }
-
-    /**
      * Add a new pet to the store
-     * @param  \PetstoreClient\Models\Pet $pet Create a new pet in the store (required)
+     * @param \PetstoreClient\Models\Pet $pet Create a new pet in the store
      * @return \PetstoreClient\Models\Pet
      * @throws ApiException
      */
     public function addPet($pet)
     {
-        if ($pet === null) {
-            throw new \InvalidArgumentException(
-                'Missing the required parameter $pet when calling addPet'
-            );
-        }
         $path = '/pet';
         $queryParams = [];
         $headerParams = [];
         $body = $pet;
 
-        return $this->invokeApi(
+        /** @var \PetstoreClient\Models\Pet $result */
+        $result = $this->invokeApi(
             'POST',
             $path,
             $queryParams,
@@ -52,21 +37,16 @@ class PetApi extends BaseApi
             'application/json',
             '\PetstoreClient\Models\Pet'
         );
+        return $result;
     }
 
     /**
      * Deletes a pet
-     * @param  int $petId Pet id to delete (required)
-     * @return void
+     * @param int $petId Pet id to delete
      * @throws ApiException
      */
-    public function deletePet($petId)
+    public function deletePet($petId): void
     {
-        if ($petId === null) {
-            throw new \InvalidArgumentException(
-                'Missing the required parameter $petId when calling deletePet'
-            );
-        }
         $path = '/pet/{petId}';
         $path = str_replace(
             '{' . 'petId' . '}',
@@ -77,7 +57,7 @@ class PetApi extends BaseApi
         $headerParams = [];
         $body = null;
 
-        return $this->invokeApi(
+        $this->invokeApi(
             'DELETE',
             $path,
             $queryParams,
@@ -91,7 +71,7 @@ class PetApi extends BaseApi
 
     /**
      * Finds Pets by status
-     * @param  string|null $status Status values that need to be considered for filter (optional, default to 'available')
+     * @param string|null $status Status values that need to be considered for filter
      * @return \PetstoreClient\Models\Pet[]
      * @throws ApiException
      */
@@ -105,7 +85,8 @@ class PetApi extends BaseApi
         $headerParams = [];
         $body = null;
 
-        return $this->invokeApi(
+        /** @var \PetstoreClient\Models\Pet[] $result */
+        $result = $this->invokeApi(
             'GET',
             $path,
             $queryParams,
@@ -115,21 +96,17 @@ class PetApi extends BaseApi
             'application/json',
             '\PetstoreClient\Models\Pet[]'
         );
+        return $result;
     }
 
     /**
      * Find pet by ID
-     * @param  int $petId ID of pet to return (required)
+     * @param int $petId ID of pet to return
      * @return \PetstoreClient\Models\Pet
      * @throws ApiException
      */
     public function getPetById($petId)
     {
-        if ($petId === null) {
-            throw new \InvalidArgumentException(
-                'Missing the required parameter $petId when calling getPetById'
-            );
-        }
         $path = '/pet/{petId}';
         $path = str_replace(
             '{' . 'petId' . '}',
@@ -140,7 +117,8 @@ class PetApi extends BaseApi
         $headerParams = [];
         $body = null;
 
-        return $this->invokeApi(
+        /** @var \PetstoreClient\Models\Pet $result */
+        $result = $this->invokeApi(
             'GET',
             $path,
             $queryParams,
@@ -150,27 +128,18 @@ class PetApi extends BaseApi
             'application/json',
             '\PetstoreClient\Models\Pet'
         );
+        return $result;
     }
 
     /**
      * Update an existing pet
-     * @param  int $petId ID of pet to update (required)
-     * @param  \PetstoreClient\Models\Pet $pet Pet object that needs to be updated (required)
+     * @param int $petId ID of pet to update
+     * @param \PetstoreClient\Models\Pet $pet Pet object that needs to be updated
      * @return \PetstoreClient\Models\Pet
      * @throws ApiException
      */
     public function updatePet($petId, $pet)
     {
-        if ($petId === null) {
-            throw new \InvalidArgumentException(
-                'Missing the required parameter $petId when calling updatePet'
-            );
-        }
-        if ($pet === null) {
-            throw new \InvalidArgumentException(
-                'Missing the required parameter $pet when calling updatePet'
-            );
-        }
         $path = '/pet/{petId}';
         $path = str_replace(
             '{' . 'petId' . '}',
@@ -181,7 +150,8 @@ class PetApi extends BaseApi
         $headerParams = [];
         $body = $pet;
 
-        return $this->invokeApi(
+        /** @var \PetstoreClient\Models\Pet $result */
+        $result = $this->invokeApi(
             'PUT',
             $path,
             $queryParams,
@@ -191,5 +161,6 @@ class PetApi extends BaseApi
             'application/json',
             '\PetstoreClient\Models\Pet'
         );
+        return $result;
     }
 }

@@ -1,11 +1,10 @@
 package com.example.petstore.models;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.time.OffsetDateTime;
+import javax.annotation.Nullable;
 
 public class Order {
 
@@ -37,21 +36,27 @@ public class Order {
   }
 
   @JsonProperty("id")
+  @Nullable
   public Long id;
 
   @JsonProperty("petId")
+  @Nullable
   public Long petId;
 
   @JsonProperty("quantity")
+  @Nullable
   public Integer quantity;
 
   @JsonProperty("shipDate")
+  @Nullable
   public OffsetDateTime shipDate;
 
   /** Order Status */
   @JsonProperty("status")
+  @Nullable
   public StatusEnum status;
 
   @JsonProperty("complete")
+  @Nullable
   public Boolean complete;
 }

@@ -4,12 +4,12 @@ import com.example.petstore.ApiClient;
 import com.example.petstore.ApiException;
 import com.example.petstore.Configuration;
 import com.example.petstore.ObjectSerializer;
-import java.util.List;
 import com.example.petstore.models.Pet;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 /** PetApi provides methods for the Pet API group. */
 public class PetApi extends BaseApi {
@@ -29,6 +29,7 @@ public class PetApi extends BaseApi {
    * @return Pet
    * @throws ApiException if fails to make API call
    */
+  @Nullable
   public Pet addPet(Pet pet) throws ApiException {
     if (pet == null) {
       throw new IllegalArgumentException(
@@ -74,6 +75,7 @@ public class PetApi extends BaseApi {
    * @return List<Pet>
    * @throws ApiException if fails to make API call
    */
+  @Nullable
   public List<Pet> findPetsByStatus(String status) throws ApiException {
     String path = "/pet/findByStatus";
     Map<String, Object> queryParams = new HashMap<>();
@@ -99,6 +101,7 @@ public class PetApi extends BaseApi {
    * @return Pet
    * @throws ApiException if fails to make API call
    */
+  @Nullable
   public Pet getPetById(Long petId) throws ApiException {
     if (petId == null) {
       throw new IllegalArgumentException(
@@ -127,6 +130,7 @@ public class PetApi extends BaseApi {
    * @return Pet
    * @throws ApiException if fails to make API call
    */
+  @Nullable
   public Pet updatePet(Long petId, Pet pet) throws ApiException {
     if (petId == null) {
       throw new IllegalArgumentException(

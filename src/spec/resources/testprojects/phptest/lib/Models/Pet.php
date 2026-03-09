@@ -43,6 +43,10 @@ class Pet
     #[SerializedName('status')]
     public ?string $status = null;
 
+    /**
+     * @param string[] $photoUrls
+     * @param \PetstoreClient\Models\Tag[]|null $tags
+     */
     public function __construct(
         string $name,
         array $photoUrls,

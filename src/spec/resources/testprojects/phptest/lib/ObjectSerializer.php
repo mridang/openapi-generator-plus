@@ -34,17 +34,14 @@ class ObjectSerializer
     /** @var string */
     private const DATE_TIME_FORMAT = \DateTime::ATOM;
 
-    /** @var Serializer|null */
     private static ?Serializer $serializer = null;
 
     /**
      * Gets the Symfony Serializer instance.
-     *
-     * @return Serializer
      */
     private static function getSerializer(): Serializer
     {
-        if (self::$serializer === null) {
+        if (!self::$serializer instanceof Serializer) {
             $phpDocExtractor = new PhpDocExtractor();
             $reflectionExtractor = new ReflectionExtractor();
 
@@ -74,7 +71,7 @@ class ObjectSerializer
      *
      * @param mixed $data the data to sanitize
      *
-     * @return scalar|object|array|null sanitized form of $data
+     * @return scalar|array<string, mixed>|null sanitized form of $data
      */
     private static function sanitizeForSerialization(mixed $data): mixed
     {
@@ -94,52 +91,60 @@ class ObjectSerializer
         }
 
         if (is_object($data)) {
-            return self::getSerializer()->normalize($data, null, [
+            /** @var array<string, mixed> $normalized */
+            $normalized = self::getSerializer()->normalize($data, null, [
                 AbstractObjectNormalizer::SKIP_NULL_VALUES => true,
             ]);
+            return $normalized;
         }
 
-        return (string) $data;
+        throw new \InvalidArgumentException('Cannot serialize value of type ' . get_debug_type($data));
     }
 
     /**
      * Convert a value to its string representation.
-     *
-     * @param mixed $value the value to convert
-     *
-     * @return string the string representation
      */
     private static function toString(mixed $value): string
     {
         if ($value instanceof \DateTime) {
             return $value->format(self::DATE_TIME_FORMAT);
-        } elseif (is_bool($value)) {
+        }
+
+        if (is_bool($value)) {
             return $value ? 'true' : 'false';
-        } else {
+        }
+
+        if (is_string($value)) {
+            return $value;
+        }
+
+        if (is_int($value) || is_float($value)) {
             return (string) $value;
         }
+
+        return '';
     }
 
     /**
      * Serialize an object to a JSON string.
-     *
-     * @param mixed $data the data to serialize
-     *
-     * @return string the JSON string
      */
     public static function serialize(mixed $data): string
     {
-        return json_encode(self::sanitizeForSerialization($data));
+        $json = json_encode(self::sanitizeForSerialization($data));
+        if ($json === false) {
+            throw new \RuntimeException('JSON encoding failed: ' . json_last_error_msg());
+        }
+        return $json;
     }
 
     /**
      * Deserialize a JSON string to an object of the specified type.
      *
-     * @param mixed       $data        object or primitive to be deserialized
-     * @param string      $class       class name is passed as a string
-     * @param string[]|null $httpHeaders HTTP headers
+     * @param mixed                     $data        object or primitive to be deserialized
+     * @param string                    $class       class name is passed as a string
+     * @param array<string, string>|null $httpHeaders HTTP headers
      *
-     * @return object|array|null a single or an array of $class instances
+     * @return object|array<mixed>|null a single or an array of $class instances
      */
     public static function deserialize(mixed $data, string $class, ?array $httpHeaders = null): mixed
     {
@@ -159,27 +164,33 @@ class ObjectSerializer
             $subClass = substr($class, 0, -2);
             $values = [];
             foreach ($data as $value) {
-                $values[] = self::deserialize($value, $subClass, null);
+                $values[] = self::deserialize($value, $subClass);
             }
             return $values;
         }
 
         if (preg_match('/^(array<|map\[)/', $class)) {
             $data = is_string($data) ? json_decode($data, true) : $data;
-            settype($data, 'array');
+            $data = (array) $data;
             $inner = substr($class, 4, -1);
+            /** @var array<mixed> $deserialized */
             $deserialized = [];
             if (strrpos($inner, ',') !== false) {
                 $subClassArray = explode(',', $inner, 2);
                 $subClass = trim($subClassArray[1]);
+                /** @var array<string, mixed> $data */
                 foreach ($data as $key => $value) {
-                    $deserialized[$key] = self::deserialize($value, $subClass, null);
+                    $deserialized[$key] = self::deserialize($value, $subClass);
                 }
             }
             return $deserialized;
         }
 
-        if (in_array($class, ['string', 'int', 'integer', 'float', 'number', 'bool', 'boolean', 'mixed', 'void', 'byte'], true)) {
+        $primitives = [
+            'string', 'int', 'integer', 'float', 'number',
+            'bool', 'boolean', 'mixed', 'void', 'byte',
+        ];
+        if (in_array($class, $primitives, true)) {
             $data = is_string($data) ? json_decode($data, true) : $data;
             settype($data, $class);
             return $data;
@@ -187,41 +198,57 @@ class ObjectSerializer
 
         if ($class === 'object') {
             $data = is_string($data) ? json_decode($data, true) : $data;
-            settype($data, 'array');
-            return $data;
+            return (array) $data;
         }
 
         if ($class === 'DateTime') {
-            $data = is_string($data) ? json_decode($data, true) : $data;
-            if (!empty($data)) {
+            if (is_string($data)) {
+                $decoded = json_decode($data, true);
+                if (is_string($decoded)) {
+                    $data = $decoded;
+                }
+            }
+            if (is_string($data) && $data !== '') {
                 try {
                     return new \DateTime($data);
                 } catch (\Exception $exception) {
-                    return new \DateTime(preg_replace('/(:\d{2}.\d{6})\d*/', '$1', $data));
+                    $cleaned = preg_replace('/(:\d{2}.\d{6})\d*/', '$1', $data);
+                    return new \DateTime((string) $cleaned);
                 }
             }
             return null;
         }
 
         if ($class === 'SplFileObject') {
-            $data = \GuzzleHttp\Psr7\Utils::streamFor($data);
+            assert(is_string($data) || is_resource($data));
+            $stream = \GuzzleHttp\Psr7\Utils::streamFor($data);
 
+            $tempDir = sys_get_temp_dir();
+
+            $pattern = '/inline; filename=[\'"]?([^\'"\s]+)[\'"]?$/i';
             if (
                 is_array($httpHeaders)
                 && array_key_exists('Content-Disposition', $httpHeaders)
-                && preg_match('/inline; filename=[\'"]?([^\'"\s]+)[\'"]?$/i', $httpHeaders['Content-Disposition'], $match)
+                && preg_match($pattern, $httpHeaders['Content-Disposition'], $match)
             ) {
                 $sanitizedFilename = $match[1];
-                if (preg_match("/.*[\/\\\\](.*)$/", $sanitizedFilename, $pathMatch)) {
+                $pathPattern = "/.*[\/\\\\](.*)$/";
+                if (preg_match($pathPattern, $sanitizedFilename, $pathMatch)) {
                     $sanitizedFilename = $pathMatch[1];
                 }
-                $filename = Configuration::getDefaultConfiguration()->getTempFolderPath() . DIRECTORY_SEPARATOR . $sanitizedFilename;
+                $filename = $tempDir . DIRECTORY_SEPARATOR . $sanitizedFilename;
             } else {
-                $filename = tempnam(Configuration::getDefaultConfiguration()->getTempFolderPath(), '');
+                $filename = tempnam($tempDir, '');
+                if ($filename === false) {
+                    throw new \RuntimeException('Failed to create temporary file');
+                }
             }
 
             $file = fopen($filename, 'w');
-            while ($chunk = $data->read(200)) {
+            if ($file === false) {
+                throw new \RuntimeException("Failed to open file: $filename");
+            }
+            while ($chunk = $stream->read(200)) {
                 fwrite($file, $chunk);
             }
             fclose($file);
@@ -231,22 +258,24 @@ class ObjectSerializer
 
         if (enum_exists($class)) {
             $data = is_string($data) ? json_decode($data, true) : $data;
-            return self::getSerializer()->denormalize($data, $class);
+            /** @var object $result */
+            $result = self::getSerializer()->denormalize($data, $class);
+            return $result;
         }
 
         if (is_string($data)) {
-            return self::getSerializer()->deserialize($data, $class, 'json');
+            /** @var object $result */
+            $result = self::getSerializer()->deserialize($data, $class, 'json');
+            return $result;
         }
 
-        return self::getSerializer()->denormalize($data, $class);
+        /** @var object $result */
+        $result = self::getSerializer()->denormalize($data, $class);
+        return $result;
     }
 
     /**
      * Convert a value to a string suitable for use as a URL path parameter.
-     *
-     * @param mixed $value a value to convert
-     *
-     * @return string the path value
      */
     public static function toPathValue(mixed $value): string
     {
@@ -256,9 +285,6 @@ class ObjectSerializer
     /**
      * Convert a value to a representation suitable for use as a query parameter.
      * For collections, joins using the specified collection format delimiter.
-     *
-     * @param mixed       $value            the value to convert
-     * @param string|null $collectionFormat  the format: csv, ssv, tsv, pipes, or multi
      *
      * @return mixed the query value
      */
@@ -284,10 +310,6 @@ class ObjectSerializer
 
     /**
      * Convert a value to a string suitable for use as an HTTP header value.
-     *
-     * @param mixed $value a value for the header
-     *
-     * @return string the header string
      */
     public static function toHeaderValue(mixed $value): string
     {
@@ -296,10 +318,6 @@ class ObjectSerializer
 
     /**
      * Convert a value to a representation suitable for use as a form parameter.
-     *
-     * @param mixed $value the value of the parameter
-     *
-     * @return string the form value
      */
     public static function toFormValue(mixed $value): string
     {

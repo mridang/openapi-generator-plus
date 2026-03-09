@@ -38,7 +38,7 @@ class PetFood(BaseModel):
         'WetFood': 'WetFood',
     }
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         if args:
             if len(args) > 1:
                 raise ValueError('If a position argument is used, only 1 is allowed to set `actual_instance`')
@@ -49,7 +49,7 @@ class PetFood(BaseModel):
             super().__init__(**kwargs)
 
     @field_validator('actual_instance')
-    def actual_instance_must_validate_oneof(cls, v):
+    def actual_instance_must_validate_oneof(cls, v: Any) -> Any:
         instance = PetFood.model_construct()
         error_messages = []
         match = 0

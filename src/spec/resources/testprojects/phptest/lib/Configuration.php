@@ -20,15 +20,10 @@ namespace PetstoreClient;
  */
 class Configuration
 {
-    /**
-     * @var Configuration|null
-     */
     private static ?Configuration $defaultInstance = null;
 
     /**
      * Base URL for all API requests.
-     *
-     * @var string
      */
     private string $baseUrl = '/api/v3';
 
@@ -42,68 +37,50 @@ class Configuration
 
     /**
      * Enable debug logging of HTTP requests and responses.
-     *
-     * @var bool
      */
     private bool $debug = false;
 
     /**
      * Enable SSL/TLS certificate verification.
-     *
-     * @var bool
      */
     private bool $verifySsl = true;
 
     /**
      * Path to a CA certificate file for SSL/TLS verification.
-     *
-     * @var string|null
      */
     private ?string $sslCaCert = null;
 
     /**
      * Path to a client certificate file for mutual TLS authentication.
-     *
-     * @var string|null
      */
     private ?string $certFile = null;
 
     /**
      * Path to a client private key file for mutual TLS authentication.
-     *
-     * @var string|null
      */
     private ?string $keyFile = null;
 
     /**
      * Proxy URL for all API requests.
-     *
-     * @var string|null
      */
     private ?string $proxy = null;
 
     /**
      * Request timeout in seconds. null means no timeout.
-     *
-     * @var int|null
      */
     private ?int $timeout = null;
 
     /**
      * Number of retry attempts for failed requests. null means no retries.
-     *
-     * @var int|null
      */
     private ?int $retries = null;
 
     /**
      * Return the default configuration instance, creating it lazily if needed.
-     *
-     * @return Configuration
      */
     public static function getDefaultConfiguration(): Configuration
     {
-        if (self::$defaultInstance === null) {
+        if (!self::$defaultInstance instanceof Configuration) {
             self::$defaultInstance = new Configuration();
         }
 
@@ -112,24 +89,18 @@ class Configuration
 
     /**
      * Set the default configuration instance.
-     *
-     * @param Configuration $configuration the configuration to use as default
      */
     public static function setDefaultConfiguration(Configuration $configuration): void
     {
         self::$defaultInstance = $configuration;
     }
 
-    /**
-     * @return string
-     */
     public function getBaseUrl(): string
     {
         return $this->baseUrl;
     }
 
     /**
-     * @param string $baseUrl
      * @return $this
      */
     public function setBaseUrl(string $baseUrl): static
@@ -147,8 +118,6 @@ class Configuration
     }
 
     /**
-     * @param string $name
-     * @param string $value
      * @return $this
      */
     public function setDefaultHeader(string $name, string $value): static
@@ -157,16 +126,12 @@ class Configuration
         return $this;
     }
 
-    /**
-     * @return bool
-     */
     public function isDebug(): bool
     {
         return $this->debug;
     }
 
     /**
-     * @param bool $debug
      * @return $this
      */
     public function setDebug(bool $debug): static
@@ -175,16 +140,12 @@ class Configuration
         return $this;
     }
 
-    /**
-     * @return bool
-     */
     public function isVerifySsl(): bool
     {
         return $this->verifySsl;
     }
 
     /**
-     * @param bool $verifySsl
      * @return $this
      */
     public function setVerifySsl(bool $verifySsl): static
@@ -193,16 +154,12 @@ class Configuration
         return $this;
     }
 
-    /**
-     * @return string|null
-     */
     public function getSslCaCert(): ?string
     {
         return $this->sslCaCert;
     }
 
     /**
-     * @param string|null $sslCaCert
      * @return $this
      */
     public function setSslCaCert(?string $sslCaCert): static
@@ -211,16 +168,12 @@ class Configuration
         return $this;
     }
 
-    /**
-     * @return string|null
-     */
     public function getCertFile(): ?string
     {
         return $this->certFile;
     }
 
     /**
-     * @param string|null $certFile
      * @return $this
      */
     public function setCertFile(?string $certFile): static
@@ -229,16 +182,12 @@ class Configuration
         return $this;
     }
 
-    /**
-     * @return string|null
-     */
     public function getKeyFile(): ?string
     {
         return $this->keyFile;
     }
 
     /**
-     * @param string|null $keyFile
      * @return $this
      */
     public function setKeyFile(?string $keyFile): static
@@ -247,16 +196,12 @@ class Configuration
         return $this;
     }
 
-    /**
-     * @return string|null
-     */
     public function getProxy(): ?string
     {
         return $this->proxy;
     }
 
     /**
-     * @param string|null $proxy
      * @return $this
      */
     public function setProxy(?string $proxy): static
@@ -265,16 +210,12 @@ class Configuration
         return $this;
     }
 
-    /**
-     * @return int|null
-     */
     public function getTimeout(): ?int
     {
         return $this->timeout;
     }
 
     /**
-     * @param int|null $timeout
      * @return $this
      */
     public function setTimeout(?int $timeout): static
@@ -283,16 +224,12 @@ class Configuration
         return $this;
     }
 
-    /**
-     * @return int|null
-     */
     public function getRetries(): ?int
     {
         return $this->retries;
     }
 
     /**
-     * @param int|null $retries
      * @return $this
      */
     public function setRetries(?int $retries): static

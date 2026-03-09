@@ -30,7 +30,7 @@ class Pet(BaseModel):
     additional_properties: Dict[str, Any] = {}
 
     @field_validator('status')
-    def status_validate_enum(cls, value):
+    def status_validate_enum(cls, value: Any) -> Any:
         """Validates the enum"""
         if value is None:
             return value

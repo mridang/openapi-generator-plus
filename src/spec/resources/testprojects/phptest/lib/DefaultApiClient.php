@@ -28,9 +28,6 @@ use RuntimeException;
  */
 class DefaultApiClient implements ApiClient
 {
-    /**
-     * @var ClientInterface
-     */
     private ClientInterface $client;
 
     /**
@@ -39,14 +36,14 @@ class DefaultApiClient implements ApiClient
      */
     public function __construct(?Configuration $config = null, ?ClientInterface $client = null)
     {
-        if ($client !== null) {
+        if ($client instanceof ClientInterface) {
             $this->client = $client;
         } else {
             $options = [
                 'http_errors' => false,
             ];
 
-            if ($config !== null) {
+            if ($config instanceof Configuration) {
                 if (!$config->isVerifySsl()) {
                     $options['verify'] = false;
                 } elseif ($config->getSslCaCert() !== null) {
@@ -63,7 +60,10 @@ class DefaultApiClient implements ApiClient
     }
 
     /**
-     * @inheritDoc
+     * @param string               $method  HTTP method
+     * @param string               $url     Fully qualified URL
+     * @param array<string, string> $headers HTTP headers
+     * @param mixed                $body    Request body
      */
     public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
     {

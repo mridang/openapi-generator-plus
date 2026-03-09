@@ -1,9 +1,6 @@
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote
 
-from pydantic import Field, StrictInt
-from typing import Dict, Optional
-from typing_extensions import Annotated
 from petstore_client.models.order import Order
 
 from ..api_client import ApiClient

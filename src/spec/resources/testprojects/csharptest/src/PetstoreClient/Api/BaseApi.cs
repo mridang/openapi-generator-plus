@@ -1,3 +1,5 @@
+#pragma warning disable CA2000 // Dispose objects before losing scope
+
 using System.Text.Json;
 using System.Web;
 
@@ -11,7 +13,6 @@ public abstract class BaseApi
     protected IApiClient ApiClient { get; set; }
     protected Configuration Config { get; }
     protected ObjectSerializer Serializer { get; }
-    protected HeaderSelector HeaderSelector { get; }
 
     protected BaseApi()
         : this(Configuration.Default) { }
@@ -21,10 +22,11 @@ public abstract class BaseApi
 
     protected BaseApi(IApiClient apiClient, Configuration config)
     {
+        ArgumentNullException.ThrowIfNull(apiClient);
+        ArgumentNullException.ThrowIfNull(config);
         ApiClient = apiClient;
         Config = config;
         Serializer = new ObjectSerializer();
-        HeaderSelector = new HeaderSelector();
     }
 
     /// <summary>
@@ -40,6 +42,8 @@ public abstract class BaseApi
         string contentType
     )
     {
+        ArgumentNullException.ThrowIfNull(queryParams);
+        ArgumentNullException.ThrowIfNull(headerParams);
         var url = Config.BaseUrl + path;
         var query = BuildQueryString(queryParams);
         if (!string.IsNullOrEmpty(query))
@@ -66,9 +70,9 @@ public abstract class BaseApi
             serializedBody = Serializer.Serialize(body);
         }
 
-        var response = await ApiClient.SendRequestAsync(method, url, headers, serializedBody);
+        var response = await ApiClient.SendRequestAsync(method, url, headers, serializedBody).ConfigureAwait(false);
 
-        if (response.StatusCode < 200 || response.StatusCode >= 300)
+        if (response.StatusCode is < 200 or >= 300)
         {
             throw new ApiException(
                 response.StatusCode,
@@ -78,12 +82,9 @@ public abstract class BaseApi
             );
         }
 
-        if (!string.IsNullOrEmpty(response.Body))
-        {
-            return Serializer.Deserialize<T>(response.Body);
-        }
-
-        return default;
+        return !string.IsNullOrEmpty(response.Body)
+            ? Serializer.Deserialize<T>(response.Body)
+            : default;
     }
 
     private static string BuildQueryString(Dictionary<string, object?> queryParams)

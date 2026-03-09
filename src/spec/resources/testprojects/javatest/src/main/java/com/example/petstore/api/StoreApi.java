@@ -4,12 +4,11 @@ import com.example.petstore.ApiClient;
 import com.example.petstore.ApiException;
 import com.example.petstore.Configuration;
 import com.example.petstore.ObjectSerializer;
-import java.util.Map;
 import com.example.petstore.models.Order;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 /** StoreApi provides methods for the Store API group. */
 public class StoreApi extends BaseApi {
@@ -48,6 +47,7 @@ public class StoreApi extends BaseApi {
    * @return Map<String, Integer>
    * @throws ApiException if fails to make API call
    */
+  @Nullable
   public Map<String, Integer> getInventory() throws ApiException {
     String path = "/store/inventory";
     Map<String, Object> queryParams = new HashMap<>();
@@ -70,6 +70,7 @@ public class StoreApi extends BaseApi {
    * @return Order
    * @throws ApiException if fails to make API call
    */
+  @Nullable
   public Order getOrderById(Long orderId) throws ApiException {
     if (orderId == null) {
       throw new IllegalArgumentException(
@@ -98,6 +99,7 @@ public class StoreApi extends BaseApi {
    * @return Order
    * @throws ApiException if fails to make API call
    */
+  @Nullable
   public Order placeOrder(Order order) throws ApiException {
     String path = "/store/order";
     Map<String, Object> queryParams = new HashMap<>();

@@ -1,17 +1,29 @@
-import { Expose, Type } from 'class-transformer';
+import { Expose } from 'class-transformer';
 
 export class Order {
   @Expose({ name: 'id' })
+
+
   id?: number;
   @Expose({ name: 'petId' })
+
+
   petId?: number;
   @Expose({ name: 'quantity' })
+
+
   quantity?: number;
   @Expose({ name: 'shipDate' })
-  shipDate?: Date;
+
+
+  shipDate?: string;
   @Expose({ name: 'status' })
+
+
   status?: string;
   @Expose({ name: 'complete' })
+
+
   complete?: boolean;
 
   constructor(data?: Partial<Order>) {

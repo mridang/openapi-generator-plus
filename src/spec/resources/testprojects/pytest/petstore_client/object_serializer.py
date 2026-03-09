@@ -47,7 +47,7 @@ class ObjectSerializer:
 
     _DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S%z'
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._datetime_format = self._DATETIME_FORMAT
 
     def serialize(self, obj: Any) -> str:
@@ -101,7 +101,7 @@ class ObjectSerializer:
         else:
             return str(obj)
 
-    def _deserialize(self, data: Any, klass: Union[str, Type[T]]) -> Optional[T]:
+    def _deserialize(self, data: Any, klass: Any) -> Any:
         """Deserialize parsed data to the target type.
 
         For Pydantic models, delegates to model_validate().

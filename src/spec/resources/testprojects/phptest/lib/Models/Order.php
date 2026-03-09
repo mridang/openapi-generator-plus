@@ -41,6 +41,8 @@ class Order
     #[SerializedName('complete')]
     public ?bool $complete = null;
 
+    /**
+     */
     public function __construct(
         ?int $id = null,
         ?int $petId = null,

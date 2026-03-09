@@ -1,15 +1,11 @@
 package com.example.petstore.models;
 
-import com.example.petstore.models.Category;
-import com.example.petstore.models.Tag;
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import javax.annotation.Nullable;
 
 public class Pet {
 
@@ -41,22 +37,28 @@ public class Pet {
   }
 
   @JsonProperty("id")
+  @Nullable
   public Long id;
 
   @JsonProperty("name")
+  @Nullable
   public String name;
 
   @JsonProperty("category")
+  @Nullable
   public Category category;
 
   @JsonProperty("photoUrls")
+  @Nullable
   public List<String> photoUrls = new ArrayList<>();
 
   @JsonProperty("tags")
+  @Nullable
   public List<Tag> tags = new ArrayList<>();
 
   /** pet status in the store */
   @JsonProperty("status")
+  @Nullable
   public StatusEnum status;
 
   public Pet() {}

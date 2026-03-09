@@ -30,10 +30,7 @@ public class CSharpFormattingSpec extends AbstractFormattingSpec {
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {
-      "dotnet tool install --global csharpier",
-      "/root/.dotnet/tools/csharpier check ."
-    };
+    return new String[] {"dotnet tool restore", "dotnet csharpier check ."};
   }
 
   @Override

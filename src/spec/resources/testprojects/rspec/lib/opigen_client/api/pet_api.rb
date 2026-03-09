@@ -1,23 +1,24 @@
 require 'cgi'
 
-module PetstoreClient::Api
+module OpigenClient::Api
   # PetApi provides methods for the Pet API group.
   class PetApi < BaseApi
-    def initialize(api_client = nil, config = PetstoreClient::Configuration.default)
+    def initialize(api_client = nil, config = OpigenClient::Configuration.default)
       super(api_client, config)
     end
 
     # Add a new pet to the store
     # @param pet [Pet] Create a new pet in the store
-    # @param [Hash] opts the optional parameters
     # @return [Pet]
-    def add_pet(pet, opts = {})
+    def add_pet(pet)
       if pet.nil?
         fail ArgumentError, "Missing the required parameter 'pet' when calling PetApi.add_pet"
       end
 
       path = '/pet'
+      # @type var query_params: Hash[String, untyped]
       query_params = {}
+      # @type var header_params: Hash[String, String]
       header_params = {}
       body = pet
 
@@ -29,15 +30,16 @@ module PetstoreClient::Api
 
     # Deletes a pet
     # @param pet_id [Integer] Pet id to delete
-    # @param [Hash] opts the optional parameters
     # @return [nil]
-    def delete_pet(pet_id, opts = {})
+    def delete_pet(pet_id)
       if pet_id.nil?
         fail ArgumentError, "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
       end
 
-      path = '/pet/{petId}'.sub('{' + 'petId' + '}', CGI.escape(PetstoreClient::ObjectSerializer.to_path_value(pet_id)))
+      path = '/pet/{petId}'.sub('{' + 'petId' + '}', CGI.escape(OpigenClient::ObjectSerializer.to_path_value(pet_id)))
+      # @type var query_params: Hash[String, untyped]
       query_params = {}
+      # @type var header_params: Hash[String, String]
       header_params = {}
       body = nil
 
@@ -53,8 +55,10 @@ module PetstoreClient::Api
     # @return [Array<Pet>]
     def find_pets_by_status(opts = {})
       path = '/pet/findByStatus'
+      # @type var query_params: Hash[String, untyped]
       query_params = {}
-      query_params[:'status'] = PetstoreClient::ObjectSerializer.to_query_value(opts[:'status']) unless opts[:'status'].nil?
+      query_params['status'] = OpigenClient::ObjectSerializer.to_query_value(opts[:status]) unless opts[:status].nil?
+      # @type var header_params: Hash[String, String]
       header_params = {}
       body = nil
 
@@ -67,15 +71,16 @@ module PetstoreClient::Api
     # Find pet by ID
     # Returns a single pet
     # @param pet_id [Integer] ID of pet to return
-    # @param [Hash] opts the optional parameters
     # @return [Pet]
-    def get_pet_by_id(pet_id, opts = {})
+    def get_pet_by_id(pet_id)
       if pet_id.nil?
         fail ArgumentError, "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
       end
 
-      path = '/pet/{petId}'.sub('{' + 'petId' + '}', CGI.escape(PetstoreClient::ObjectSerializer.to_path_value(pet_id)))
+      path = '/pet/{petId}'.sub('{' + 'petId' + '}', CGI.escape(OpigenClient::ObjectSerializer.to_path_value(pet_id)))
+      # @type var query_params: Hash[String, untyped]
       query_params = {}
+      # @type var header_params: Hash[String, String]
       header_params = {}
       body = nil
 
@@ -88,9 +93,8 @@ module PetstoreClient::Api
     # Update an existing pet
     # @param pet_id [Integer] ID of pet to update
     # @param pet [Pet] Pet object that needs to be updated
-    # @param [Hash] opts the optional parameters
     # @return [Pet]
-    def update_pet(pet_id, pet, opts = {})
+    def update_pet(pet_id, pet)
       if pet_id.nil?
         fail ArgumentError, "Missing the required parameter 'pet_id' when calling PetApi.update_pet"
       end
@@ -99,8 +103,10 @@ module PetstoreClient::Api
         fail ArgumentError, "Missing the required parameter 'pet' when calling PetApi.update_pet"
       end
 
-      path = '/pet/{petId}'.sub('{' + 'petId' + '}', CGI.escape(PetstoreClient::ObjectSerializer.to_path_value(pet_id)))
+      path = '/pet/{petId}'.sub('{' + 'petId' + '}', CGI.escape(OpigenClient::ObjectSerializer.to_path_value(pet_id)))
+      # @type var query_params: Hash[String, untyped]
       query_params = {}
+      # @type var header_params: Hash[String, String]
       header_params = {}
       body = pet
 

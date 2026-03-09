@@ -25,6 +25,8 @@ class ApiResponse
     #[SerializedName('message')]
     public ?string $message = null;
 
+    /**
+     */
     public function __construct(
         ?int $code = null,
         ?string $type = null,

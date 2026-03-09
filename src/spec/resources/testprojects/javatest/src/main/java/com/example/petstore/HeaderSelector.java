@@ -4,10 +4,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /** HeaderSelector */
 public class HeaderSelector {
@@ -52,7 +54,8 @@ public class HeaderSelector {
    * @param accept Array of header
    * @return Accept (e.g. application/json)
    */
-  private String selectAcceptHeader(String[] accept) {
+  @Nullable
+  private String selectAcceptHeader(@Nullable String[] accept) {
     if (accept == null) {
       return null;
     }
@@ -116,7 +119,7 @@ public class HeaderSelector {
     for (String header : accept) {
       HeaderData headerData = getHeaderAndWeight(header);
 
-      if (headerData.header.toLowerCase().startsWith("application/json")) {
+      if (headerData.header.toLowerCase(Locale.ROOT).startsWith("application/json")) {
         withApplicationJson.add(headerData);
       } else if (headersWithJson.contains(header)) {
         withJson.add(headerData);

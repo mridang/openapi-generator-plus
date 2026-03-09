@@ -10,10 +10,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.util.StdDateFormat;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
 import java.util.Date;
+import javax.annotation.Nullable;
 
 /**
  * Handles JSON serialization and deserialization for API requests and responses.
@@ -67,7 +67,8 @@ public class ObjectSerializer {
    * @return the deserialized object, or null if jsonString is null or empty
    * @throws SerializationException if deserialization fails
    */
-  public <T> T deserialize(String jsonString, TypeReference<T> typeReference)
+  @Nullable
+  public <T> T deserialize(@Nullable String jsonString, TypeReference<T> typeReference)
       throws SerializationException {
     if (jsonString == null || jsonString.isEmpty()) {
       return null;
@@ -86,18 +87,18 @@ public class ObjectSerializer {
    * @param value the value to convert (may be null)
    * @return string representation, or empty string if null
    */
-  public static String toPathValue(Object value) {
+  public static String toPathValue(@Nullable Object value) {
     if (value == null) {
       return "";
     }
-    if (value instanceof Boolean) {
-      return ((Boolean) value) ? "true" : "false";
+    if (value instanceof Boolean b) {
+      return b ? "true" : "false";
     }
-    if (value instanceof TemporalAccessor) {
-      return DateTimeFormatter.ISO_OFFSET_DATE_TIME.format((TemporalAccessor) value);
+    if (value instanceof TemporalAccessor t) {
+      return DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(t);
     }
-    if (value instanceof Date) {
-      return new StdDateFormat().format((Date) value);
+    if (value instanceof Date d) {
+      return new StdDateFormat().format(d);
     }
     return String.valueOf(value);
   }
@@ -110,7 +111,8 @@ public class ObjectSerializer {
    * @param collectionFormat the format: csv, ssv, tsv, pipes, or multi (may be null)
    * @return the query value string, or a List for multi format, or null if value is null
    */
-  public static Object toQueryValue(Object value, String collectionFormat) {
+  @Nullable
+  public static Object toQueryValue(@Nullable Object value, @Nullable String collectionFormat) {
     if (value == null) {
       return null;
     }
@@ -134,14 +136,14 @@ public class ObjectSerializer {
       }
       return String.join(sep, items);
     }
-    if (value instanceof Boolean) {
-      return ((Boolean) value) ? "true" : "false";
+    if (value instanceof Boolean b) {
+      return b ? "true" : "false";
     }
-    if (value instanceof TemporalAccessor) {
-      return DateTimeFormatter.ISO_OFFSET_DATE_TIME.format((TemporalAccessor) value);
+    if (value instanceof TemporalAccessor t) {
+      return DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(t);
     }
-    if (value instanceof Date) {
-      return new StdDateFormat().format((Date) value);
+    if (value instanceof Date d) {
+      return new StdDateFormat().format(d);
     }
     return String.valueOf(value);
   }
@@ -152,7 +154,7 @@ public class ObjectSerializer {
    * @param value the value to convert (may be null)
    * @return string representation, or empty string if null
    */
-  public static String toHeaderValue(Object value) {
+  public static String toHeaderValue(@Nullable Object value) {
     if (value == null) {
       return "";
     }
@@ -163,14 +165,14 @@ public class ObjectSerializer {
       }
       return String.join(",", items);
     }
-    if (value instanceof Boolean) {
-      return ((Boolean) value) ? "true" : "false";
+    if (value instanceof Boolean b) {
+      return b ? "true" : "false";
     }
-    if (value instanceof TemporalAccessor) {
-      return DateTimeFormatter.ISO_OFFSET_DATE_TIME.format((TemporalAccessor) value);
+    if (value instanceof TemporalAccessor t) {
+      return DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(t);
     }
-    if (value instanceof Date) {
-      return new StdDateFormat().format((Date) value);
+    if (value instanceof Date d) {
+      return new StdDateFormat().format(d);
     }
     return String.valueOf(value);
   }
@@ -181,18 +183,18 @@ public class ObjectSerializer {
    * @param value the value to convert (may be null)
    * @return string representation, or empty string if null
    */
-  public static String toFormValue(Object value) {
+  public static String toFormValue(@Nullable Object value) {
     if (value == null) {
       return "";
     }
-    if (value instanceof Boolean) {
-      return ((Boolean) value) ? "true" : "false";
+    if (value instanceof Boolean b) {
+      return b ? "true" : "false";
     }
-    if (value instanceof TemporalAccessor) {
-      return DateTimeFormatter.ISO_OFFSET_DATE_TIME.format((TemporalAccessor) value);
+    if (value instanceof TemporalAccessor t) {
+      return DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(t);
     }
-    if (value instanceof Date) {
-      return new StdDateFormat().format((Date) value);
+    if (value instanceof Date d) {
+      return new StdDateFormat().format(d);
     }
     return String.valueOf(value);
   }
@@ -215,6 +217,8 @@ public class ObjectSerializer {
 
   /** Exception raised when serialization or deserialization fails. */
   public static class SerializationException extends RuntimeException {
+
+    private static final long serialVersionUID = 1L;
 
     public SerializationException(String message, Throwable cause) {
       super(message, cause);

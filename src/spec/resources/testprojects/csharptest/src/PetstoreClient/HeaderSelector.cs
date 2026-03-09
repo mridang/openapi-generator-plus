@@ -5,17 +5,15 @@ namespace PetstoreClient;
 /// <summary>
 /// Selects appropriate Content-Type and Accept headers for API requests.
 /// </summary>
-public class HeaderSelector
+public static partial class HeaderSelector
 {
-    private static readonly Regex JsonMimePattern = new(
-        @"^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)",
-        RegexOptions.IgnoreCase
-    );
+    [GeneratedRegex(@"^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)", RegexOptions.IgnoreCase)]
+    private static partial Regex JsonMimeRegex();
 
     /// <summary>
     /// Select headers for an API request.
     /// </summary>
-    public Dictionary<string, string> SelectHeaders(
+    public static Dictionary<string, string> SelectHeaders(
         string[] accept,
         string contentType,
         bool isMultipart
@@ -44,16 +42,16 @@ public class HeaderSelector
     /// <summary>
     /// Check if a MIME type is a JSON type.
     /// </summary>
-    public bool IsJsonMime(string? mimeType)
+    public static bool IsJsonMime(string? mimeType)
     {
         if (mimeType == null)
         {
             return false;
         }
-        return JsonMimePattern.IsMatch(mimeType);
+        return JsonMimeRegex().IsMatch(mimeType);
     }
 
-    private string? SelectAcceptHeader(string[]? accept)
+    private static string? SelectAcceptHeader(string[]? accept)
     {
         if (accept == null || accept.Length == 0)
         {

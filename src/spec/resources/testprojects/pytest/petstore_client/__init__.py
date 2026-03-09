@@ -15,7 +15,6 @@ __version__ = '1.0.0'
 __all__ = [
     'PetApi',
     'StoreApi',
-    'ApiResponse',
     'ApiClient',
     'Configuration',
     'OpenApiException',
@@ -26,9 +25,12 @@ __all__ = [
     'ApiException',
     'ApiResponse',
     'Category',
+    'DryFood',
     'Order',
     'Pet',
+    'PetFood',
     'Tag',
+    'WetFood',
 ]
 
 # import apis into sdk package
@@ -36,7 +38,6 @@ from petstore_client.api.pet_api import PetApi as PetApi
 from petstore_client.api.store_api import StoreApi as StoreApi
 
 # import ApiClient
-from petstore_client.api_response import ApiResponse as ApiResponse
 from petstore_client.api_client import ApiClient as ApiClient
 from petstore_client.configuration import Configuration as Configuration
 from petstore_client.exceptions import OpenApiException as OpenApiException
@@ -49,6 +50,9 @@ from petstore_client.exceptions import ApiException as ApiException
 # import models into sdk package
 from petstore_client.models.api_response import ApiResponse as ApiResponse
 from petstore_client.models.category import Category as Category
+from petstore_client.models.dry_food import DryFood as DryFood
 from petstore_client.models.order import Order as Order
 from petstore_client.models.pet import Pet as Pet
+from petstore_client.models.pet_food import PetFood as PetFood
 from petstore_client.models.tag import Tag as Tag
+from petstore_client.models.wet_food import WetFood as WetFood

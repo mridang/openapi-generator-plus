@@ -22,6 +22,8 @@ class Category
     #[SerializedName('name')]
     public ?string $name = null;
 
+    /**
+     */
     public function __construct(
         ?int $id = null,
         ?string $name = null,

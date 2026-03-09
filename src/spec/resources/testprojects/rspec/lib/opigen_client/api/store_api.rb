@@ -1,23 +1,24 @@
 require 'cgi'
 
-module PetstoreClient::Api
+module OpigenClient::Api
   # StoreApi provides methods for the Store API group.
   class StoreApi < BaseApi
-    def initialize(api_client = nil, config = PetstoreClient::Configuration.default)
+    def initialize(api_client = nil, config = OpigenClient::Configuration.default)
       super(api_client, config)
     end
 
     # Delete purchase order by ID
     # @param order_id [Integer] ID of the order to delete
-    # @param [Hash] opts the optional parameters
     # @return [nil]
-    def delete_order(order_id, opts = {})
+    def delete_order(order_id)
       if order_id.nil?
         fail ArgumentError, "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
       end
 
-      path = '/store/order/{orderId}'.sub('{' + 'orderId' + '}', CGI.escape(PetstoreClient::ObjectSerializer.to_path_value(order_id)))
+      path = '/store/order/{orderId}'.sub('{' + 'orderId' + '}', CGI.escape(OpigenClient::ObjectSerializer.to_path_value(order_id)))
+      # @type var query_params: Hash[String, untyped]
       query_params = {}
+      # @type var header_params: Hash[String, String]
       header_params = {}
       body = nil
 
@@ -28,11 +29,12 @@ module PetstoreClient::Api
     end
 
     # Returns pet inventories by status
-    # @param [Hash] opts the optional parameters
     # @return [Hash<String, Integer>]
-    def get_inventory(opts = {})
+    def get_inventory()
       path = '/store/inventory'
+      # @type var query_params: Hash[String, untyped]
       query_params = {}
+      # @type var header_params: Hash[String, String]
       header_params = {}
       body = nil
 
@@ -44,15 +46,16 @@ module PetstoreClient::Api
 
     # Find purchase order by ID
     # @param order_id [Integer] ID of order to return
-    # @param [Hash] opts the optional parameters
     # @return [Order]
-    def get_order_by_id(order_id, opts = {})
+    def get_order_by_id(order_id)
       if order_id.nil?
         fail ArgumentError, "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
       end
 
-      path = '/store/order/{orderId}'.sub('{' + 'orderId' + '}', CGI.escape(PetstoreClient::ObjectSerializer.to_path_value(order_id)))
+      path = '/store/order/{orderId}'.sub('{' + 'orderId' + '}', CGI.escape(OpigenClient::ObjectSerializer.to_path_value(order_id)))
+      # @type var query_params: Hash[String, untyped]
       query_params = {}
+      # @type var header_params: Hash[String, String]
       header_params = {}
       body = nil
 
@@ -68,9 +71,11 @@ module PetstoreClient::Api
     # @return [Order]
     def place_order(opts = {})
       path = '/store/order'
+      # @type var query_params: Hash[String, untyped]
       query_params = {}
+      # @type var header_params: Hash[String, String]
       header_params = {}
-      body = opts[:'order']
+      body = opts[:order]
 
       invoke_api(:POST, path, query_params, header_params, body,
                  ['application/json'],

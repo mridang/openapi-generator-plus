@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { plainToInstance } from 'class-transformer';
+import { plainToInstance, type ClassConstructor } from 'class-transformer';
 
 /**
  * Exception raised when serialization or deserialization fails.
@@ -28,7 +28,7 @@ export class ObjectSerializer {
    * @param obj the object to serialize
    * @returns the object as-is (JSON.stringify handles the conversion)
    */
-  static serialize(obj: any): any {
+  static serialize(obj: unknown): unknown {
     if (obj === null || obj === undefined) {
       return undefined;
     }
@@ -42,7 +42,7 @@ export class ObjectSerializer {
    * @param cls the class constructor to instantiate
    * @returns the deserialized object
    */
-  static deserialize<T>(json: any, cls: new (...args: any[]) => T): T {
+  static deserialize<T>(json: unknown, cls: ClassConstructor<T>): T {
     try {
       return plainToInstance(cls, json, { excludeExtraneousValues: true });
     } catch (e) {
@@ -60,8 +60,11 @@ export class ObjectSerializer {
    * @param cls the class constructor to instantiate for each element
    * @returns array of deserialized objects
    */
-  static deserializeArray<T>(json: any[], cls: new (...args: any[]) => T): T[] {
-    return json.map((item) => ObjectSerializer.deserialize(item, cls));
+  static deserializeArray<T>(json: unknown, cls: ClassConstructor<T>): T[] {
+    if (!Array.isArray(json)) {
+      throw new SerializationError('Expected array but received: ' + typeof json);
+    }
+    return json.map((item: unknown) => ObjectSerializer.deserialize(item, cls));
   }
 
   /**
@@ -70,7 +73,7 @@ export class ObjectSerializer {
    * @param value the value to convert (may be null or undefined)
    * @returns string representation, or empty string if null
    */
-  static toPathValue(value: any): string {
+  static toPathValue(value: unknown): string {
     if (value === null || value === undefined) {
       return '';
     }
@@ -91,7 +94,7 @@ export class ObjectSerializer {
    * @param collectionFormat the format: csv, ssv, tsv, pipes, or multi
    * @returns the query value, or undefined if null
    */
-  static toQueryValue(value: any, collectionFormat?: string): string | string[] | undefined {
+  static toQueryValue(value: unknown, collectionFormat?: string): string | string[] | undefined {
     if (value === null || value === undefined) {
       return undefined;
     }
@@ -118,7 +121,7 @@ export class ObjectSerializer {
    * @param value the value to convert (may be null or undefined)
    * @returns string representation, or empty string if null
    */
-  static toHeaderValue(value: any): string {
+  static toHeaderValue(value: unknown): string {
     if (value === null || value === undefined) {
       return '';
     }
@@ -140,7 +143,7 @@ export class ObjectSerializer {
    * @param value the value to convert (may be null or undefined)
    * @returns string representation, or empty string if null
    */
-  static toFormValue(value: any): string {
+  static toFormValue(value: unknown): string {
     if (value === null || value === undefined) {
       return '';
     }

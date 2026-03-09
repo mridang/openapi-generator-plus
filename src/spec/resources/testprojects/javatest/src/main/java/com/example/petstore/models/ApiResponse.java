@@ -1,17 +1,19 @@
 package com.example.petstore.models;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeName;
+import javax.annotation.Nullable;
 
 public class ApiResponse {
 
   @JsonProperty("code")
+  @Nullable
   public Integer code;
 
   @JsonProperty("type")
+  @Nullable
   public String type;
 
   @JsonProperty("message")
+  @Nullable
   public String message;
 }

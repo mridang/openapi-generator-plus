@@ -5,7 +5,7 @@ namespace PetstoreClient;
 /// <summary>
 /// Default implementation of <see cref="IApiClient"/> using HttpClient.
 /// </summary>
-public class DefaultApiClient : IApiClient
+public sealed class DefaultApiClient : IApiClient, IDisposable
 {
     private readonly HttpClient _httpClient;
 
@@ -22,6 +22,8 @@ public class DefaultApiClient : IApiClient
     /// </summary>
     public DefaultApiClient(Configuration config)
     {
+        ArgumentNullException.ThrowIfNull(config);
+
         var handler = new HttpClientHandler();
 
         if (!config.VerifySsl)
@@ -29,8 +31,12 @@ public class DefaultApiClient : IApiClient
             handler.ServerCertificateCustomValidationCallback =
                 HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
         }
+        else
+        {
+            handler.CheckCertificateRevocationList = true;
+        }
 
-        _httpClient = new HttpClient(handler);
+        _httpClient = new HttpClient(handler, disposeHandler: true);
     }
 
     /// <summary>
@@ -49,7 +55,7 @@ public class DefaultApiClient : IApiClient
         string? body
     )
     {
-        var request = new HttpRequestMessage(new HttpMethod(method), url);
+        using var request = new HttpRequestMessage(new HttpMethod(method), url);
 
         foreach (var header in headers)
         {
@@ -61,8 +67,8 @@ public class DefaultApiClient : IApiClient
             request.Content = new StringContent(body, Encoding.UTF8, "application/json");
         }
 
-        var response = await _httpClient.SendAsync(request);
-        var responseBody = await response.Content.ReadAsStringAsync();
+        using var response = await _httpClient.SendAsync(request).ConfigureAwait(false);
+        var responseBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
         var responseHeaders = new Dictionary<string, string>();
 
         foreach (var header in response.Headers)
@@ -71,5 +77,11 @@ public class DefaultApiClient : IApiClient
         }
 
         return new ApiResponse((int)response.StatusCode, responseBody, responseHeaders);
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        _httpClient.Dispose();
     }
 }

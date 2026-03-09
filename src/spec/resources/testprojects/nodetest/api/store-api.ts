@@ -20,11 +20,8 @@ export class StoreApi extends BaseApi {
     if (orderId == null) {
       throw new Error('Missing required parameter "orderId" when calling deleteOrder');
     }
-    const path = `/store/order/{orderId}`.replace(
-      `{${'orderId'}}`,
-      encodeURIComponent(ObjectSerializer.toPathValue(orderId))
-    );
-    const queryParams: Record<string, any> = {};
+    const path = `/store/order/{orderId}`.replace(`{${'orderId'}}`, encodeURIComponent(ObjectSerializer.toPathValue(orderId)));
+    const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     (await this.invokeApi('DELETE', path, queryParams, headerParams, null, [], 'application/json', null)) as void;
   }
@@ -35,9 +32,9 @@ export class StoreApi extends BaseApi {
    */
   async getInventory(): Promise<{ [key: string]: number }> {
     const path = `/store/inventory`;
-    const queryParams: Record<string, any> = {};
+    const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
-    return this.invokeApi(
+    return (await this.invokeApi(
       'GET',
       path,
       queryParams,
@@ -45,8 +42,8 @@ export class StoreApi extends BaseApi {
       null,
       ['application/json'],
       'application/json',
-      (json: any) => json as { [key: string]: number }
-    ) as { [key: string]: number };
+      (json: unknown) => json as { [key: string]: number }
+    )) as { [key: string]: number };
   }
 
   /**
@@ -58,13 +55,10 @@ export class StoreApi extends BaseApi {
     if (orderId == null) {
       throw new Error('Missing required parameter "orderId" when calling getOrderById');
     }
-    const path = `/store/order/{orderId}`.replace(
-      `{${'orderId'}}`,
-      encodeURIComponent(ObjectSerializer.toPathValue(orderId))
-    );
-    const queryParams: Record<string, any> = {};
+    const path = `/store/order/{orderId}`.replace(`{${'orderId'}}`, encodeURIComponent(ObjectSerializer.toPathValue(orderId)));
+    const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
-    return this.invokeApi(
+    return (await this.invokeApi(
       'GET',
       path,
       queryParams,
@@ -72,8 +66,8 @@ export class StoreApi extends BaseApi {
       null,
       ['application/json'],
       'application/json',
-      (json: any) => ObjectSerializer.deserialize(json, Order)
-    ) as Order;
+      (json: unknown) => ObjectSerializer.deserialize(json, Order)
+    )) as Order;
   }
 
   /**
@@ -83,9 +77,9 @@ export class StoreApi extends BaseApi {
    */
   async placeOrder(order?: Order): Promise<Order> {
     const path = `/store/order`;
-    const queryParams: Record<string, any> = {};
+    const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
-    return this.invokeApi(
+    return (await this.invokeApi(
       'POST',
       path,
       queryParams,
@@ -93,7 +87,7 @@ export class StoreApi extends BaseApi {
       order,
       ['application/json'],
       'application/json',
-      (json: any) => ObjectSerializer.deserialize(json, Order)
-    ) as Order;
+      (json: unknown) => ObjectSerializer.deserialize(json, Order)
+    )) as Order;
   }
 }

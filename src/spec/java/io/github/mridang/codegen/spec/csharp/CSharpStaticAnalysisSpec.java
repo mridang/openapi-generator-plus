@@ -30,11 +30,7 @@ public class CSharpStaticAnalysisSpec extends AbstractIntegrationSpec {
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {
-      "dotnet add src/PetstoreClient/PetstoreClient.csproj"
-          + " package Microsoft.CodeAnalysis.NetAnalyzers --version 9.0.0",
-      "dotnet build src/PetstoreClient/PetstoreClient.csproj --warnaserror"
-    };
+    return new String[] {"dotnet build src/PetstoreClient/PetstoreClient.csproj --warnaserror"};
   }
 
   @Test

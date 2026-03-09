@@ -1,6 +1,7 @@
 package com.example.petstore;
 
 import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
  * Interface for API HTTP transport.
@@ -20,6 +21,7 @@ public interface ApiClient {
    * @return ApiResponse containing status code, body, and headers
    * @throws ApiException if the request fails
    */
-  ApiResponse sendRequest(String method, String url, Map<String, String> headers, String body)
+  ApiResponse sendRequest(
+      String method, String url, Map<String, String> headers, @Nullable String body)
       throws ApiException;
 }

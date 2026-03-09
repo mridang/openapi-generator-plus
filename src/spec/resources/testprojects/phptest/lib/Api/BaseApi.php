@@ -31,19 +31,10 @@ use GuzzleHttp\Psr7\MultipartStream;
  */
 class BaseApi
 {
-    /**
-     * @var ApiClient
-     */
     protected ApiClient $apiClient;
 
-    /**
-     * @var Configuration
-     */
     protected Configuration $config;
 
-    /**
-     * @var HeaderSelector
-     */
     protected HeaderSelector $headerSelector;
 
     /**
@@ -59,9 +50,6 @@ class BaseApi
         $this->headerSelector = new HeaderSelector();
     }
 
-    /**
-     * @return Configuration
-     */
     public function getConfig(): Configuration
     {
         return $this->config;
@@ -70,14 +58,14 @@ class BaseApi
     /**
      * Invoke an API operation.
      *
-     * @param string      $method      HTTP method
-     * @param string      $path        URL path (with path params already substituted)
-     * @param array       $queryParams Query parameters
-     * @param array       $headerParams Custom header parameters
-     * @param mixed       $body        Request body (model object or form params array)
-     * @param array       $accepts     Acceptable response content types
-     * @param string|null $contentType Request content type
-     * @param string|null $returnType  Return type for deserialization
+     * @param string                $method       HTTP method
+     * @param string                $path         URL path (with path params already substituted)
+     * @param array<string, mixed>  $queryParams  Query parameters
+     * @param array<string, string> $headerParams Custom header parameters
+     * @param mixed                 $body         Request body (model object or form params array)
+     * @param string[]              $accepts      Acceptable response content types
+     * @param string|null           $contentType  Request content type
+     * @param string|null           $returnType   Return type for deserialization
      *
      * @return mixed Deserialized response or null
      * @throws ApiException
@@ -94,7 +82,7 @@ class BaseApi
     ): mixed {
         $url = $this->config->getBaseUrl() . $path;
         $query = $this->buildQuery($queryParams);
-        if (!empty($query)) {
+        if ($query !== '') {
             $url .= '?' . $query;
         }
 
@@ -116,7 +104,7 @@ class BaseApi
             );
         }
 
-        if ($returnType !== null && !empty(trim($response->body))) {
+        if ($returnType !== null && trim($response->body) !== '') {
             return ObjectSerializer::deserialize($response->body, $returnType, []);
         }
 
@@ -126,39 +114,39 @@ class BaseApi
     /**
      * Build a query string from an array of key value pairs.
      *
-     * @param array $params Query string parameters
-     *
-     * @return string
+     * @param array<string, mixed> $params Query string parameters
      */
     private function buildQuery(array $params): string
     {
-        if (!$params) {
+        if ($params === []) {
             return '';
         }
 
         $qs = '';
         foreach ($params as $k => $v) {
-            $k = rawurlencode((string) $k);
-            if (!is_array($v)) {
-                $qs .= $k;
-                $v = is_bool($v) ? ($v ? 'true' : 'false') : $v;
-                if ($v !== null) {
-                    $qs .= '=' . rawurlencode((string) $v);
-                }
-                $qs .= '&';
-            } else {
+            $k = rawurlencode($k);
+            if (is_array($v)) {
                 foreach ($v as $vv) {
                     $qs .= $k;
-                    $vv = is_bool($vv) ? ($vv ? 'true' : 'false') : $vv;
-                    if ($vv !== null) {
+                    if (is_bool($vv)) {
+                        $qs .= '=' . rawurlencode($vv ? 'true' : 'false');
+                    } elseif (is_scalar($vv)) {
                         $qs .= '=' . rawurlencode((string) $vv);
                     }
                     $qs .= '&';
                 }
+            } else {
+                $qs .= $k;
+                if (is_bool($v)) {
+                    $qs .= '=' . rawurlencode($v ? 'true' : 'false');
+                } elseif (is_scalar($v)) {
+                    $qs .= '=' . rawurlencode((string) $v);
+                }
+                $qs .= '&';
             }
         }
 
-        return $qs ? (string) substr($qs, 0, -1) : '';
+        return $qs !== '' ? substr($qs, 0, -1) : '';
     }
 
     /**
@@ -177,21 +165,27 @@ class BaseApi
         }
 
         if ($isMultipart) {
+            assert(is_array($body));
             $multipartContents = [];
+            /** @var array<string, mixed> $body */
             foreach ($body as $name => $value) {
                 $values = is_array($value) ? $value : [$value];
                 foreach ($values as $v) {
                     $multipartContents[] = [
-                        'name' => $name,
+                        'name' => (string) $name,
                         'contents' => $v,
                     ];
                 }
             }
             return new MultipartStream($multipartContents);
-        } elseif ($contentType === 'application/x-www-form-urlencoded') {
-            return $this->buildQuery($body);
-        } else {
-            return ObjectSerializer::serialize($body);
         }
+
+        if ($contentType === 'application/x-www-form-urlencoded') {
+            assert(is_array($body));
+            /** @var array<string, mixed> $body */
+            return $this->buildQuery($body);
+        }
+
+        return ObjectSerializer::serialize($body);
     }
 }

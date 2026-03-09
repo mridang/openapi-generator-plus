@@ -119,6 +119,8 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile("csproj.mustache", invokerFolder, packageName + ".csproj"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
+        supportingFiles.add(
+                new SupportingFile("dotnet_tools.mustache", ".config", "dotnet-tools.json"));
     }
 
     @Override

@@ -2,7 +2,6 @@ import type { ApiClient } from '../ApiClient.js';
 import { Configuration } from '../Configuration.js';
 import { DefaultApiClient } from '../DefaultApiClient.js';
 import { HeaderSelector } from '../HeaderSelector.js';
-import { ObjectSerializer } from '../ObjectSerializer.js';
 
 /**
  * Base class for all API classes. Provides the invokeApi method that
@@ -36,12 +35,12 @@ export abstract class BaseApi {
   protected async invokeApi<T>(
     method: string,
     path: string,
-    queryParams: Record<string, any>,
+    queryParams: Record<string, unknown>,
     headerParams: Record<string, string>,
-    body: any,
+    body: unknown,
     accepts: string[],
     contentType: string,
-    returnType: ((json: any) => T) | null
+    returnType: ((json: unknown) => T) | null
   ): Promise<T | void> {
     let url = this.config.baseUrl + path;
     const filteredParams = Object.entries(queryParams)

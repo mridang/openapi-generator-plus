@@ -22,9 +22,9 @@ export class PetApi extends BaseApi {
       throw new Error('Missing required parameter "pet" when calling addPet');
     }
     const path = `/pet`;
-    const queryParams: Record<string, any> = {};
+    const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
-    return this.invokeApi(
+    return (await this.invokeApi(
       'POST',
       path,
       queryParams,
@@ -32,8 +32,8 @@ export class PetApi extends BaseApi {
       pet,
       ['application/json'],
       'application/json',
-      (json: any) => ObjectSerializer.deserialize(json, Pet)
-    ) as Pet;
+      (json: unknown) => ObjectSerializer.deserialize(json, Pet)
+    )) as Pet;
   }
 
   /**
@@ -45,7 +45,7 @@ export class PetApi extends BaseApi {
       throw new Error('Missing required parameter "petId" when calling deletePet');
     }
     const path = `/pet/{petId}`.replace(`{${'petId'}}`, encodeURIComponent(ObjectSerializer.toPathValue(petId)));
-    const queryParams: Record<string, any> = {};
+    const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     (await this.invokeApi('DELETE', path, queryParams, headerParams, null, [], 'application/json', null)) as void;
   }
@@ -57,12 +57,12 @@ export class PetApi extends BaseApi {
    */
   async findPetsByStatus(status?: FindPetsByStatusStatusEnum): Promise<Array<Pet>> {
     const path = `/pet/findByStatus`;
-    const queryParams: Record<string, any> = {};
+    const queryParams: Record<string, unknown> = {};
     if (status != null) {
       queryParams['status'] = ObjectSerializer.toQueryValue(status);
     }
     const headerParams: Record<string, string> = {};
-    return this.invokeApi(
+    return (await this.invokeApi(
       'GET',
       path,
       queryParams,
@@ -70,8 +70,8 @@ export class PetApi extends BaseApi {
       null,
       ['application/json'],
       'application/json',
-      (json: any) => ObjectSerializer.deserializeArray(json, Pet)
-    ) as Array<Pet>;
+      (json: unknown) => ObjectSerializer.deserializeArray(json, Pet)
+    )) as Array<Pet>;
   }
 
   /**
@@ -85,9 +85,9 @@ export class PetApi extends BaseApi {
       throw new Error('Missing required parameter "petId" when calling getPetById');
     }
     const path = `/pet/{petId}`.replace(`{${'petId'}}`, encodeURIComponent(ObjectSerializer.toPathValue(petId)));
-    const queryParams: Record<string, any> = {};
+    const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
-    return this.invokeApi(
+    return (await this.invokeApi(
       'GET',
       path,
       queryParams,
@@ -95,8 +95,8 @@ export class PetApi extends BaseApi {
       null,
       ['application/json'],
       'application/json',
-      (json: any) => ObjectSerializer.deserialize(json, Pet)
-    ) as Pet;
+      (json: unknown) => ObjectSerializer.deserialize(json, Pet)
+    )) as Pet;
   }
 
   /**
@@ -113,9 +113,9 @@ export class PetApi extends BaseApi {
       throw new Error('Missing required parameter "pet" when calling updatePet');
     }
     const path = `/pet/{petId}`.replace(`{${'petId'}}`, encodeURIComponent(ObjectSerializer.toPathValue(petId)));
-    const queryParams: Record<string, any> = {};
+    const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
-    return this.invokeApi(
+    return (await this.invokeApi(
       'PUT',
       path,
       queryParams,
@@ -123,8 +123,8 @@ export class PetApi extends BaseApi {
       pet,
       ['application/json'],
       'application/json',
-      (json: any) => ObjectSerializer.deserialize(json, Pet)
-    ) as Pet;
+      (json: unknown) => ObjectSerializer.deserialize(json, Pet)
+    )) as Pet;
   }
 }
 

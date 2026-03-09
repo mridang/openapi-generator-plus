@@ -1,4 +1,3 @@
-using System.Text.Json;
 using PetstoreClient.Models;
 
 namespace PetstoreClient.Api;
@@ -8,6 +7,11 @@ namespace PetstoreClient.Api;
 /// </summary>
 public class PetApi : BaseApi
 {
+    private static readonly string[] AddPetAccepts = ["application/json"];
+    private static readonly string[] FindPetsByStatusAccepts = ["application/json"];
+    private static readonly string[] GetPetByIdAccepts = ["application/json"];
+    private static readonly string[] UpdatePetAccepts = ["application/json"];
+
     public PetApi()
         : base() { }
 
@@ -21,42 +25,42 @@ public class PetApi : BaseApi
     /// <returns>Pet</returns>
     public async Task<Pet> AddPetAsync(Pet pet)
     {
-        ArgumentNullException.ThrowIfNull(pet, nameof(pet));
         var path = "/pet";
 
         var queryParams = new Dictionary<string, object?>();
 
         var headerParams = new Dictionary<string, string>();
 
-        return await InvokeApiAsync<Pet>(
+        var result = await InvokeApiAsync<Pet>(
             "POST",
             path,
             queryParams,
             headerParams,
             pet,
-            new[] { "application/json" },
+            AddPetAccepts,
             "application/json"
-        );
+        ).ConfigureAwait(false);
+        return result ?? throw new InvalidOperationException("Expected non-null response body");
     }
 
     /// <summary>
     /// Deletes a pet
     /// </summary>
     /// <param name="petId">Pet id to delete</param>
-    public async Task<object?> DeletePetAsync(long petId)
+    public async Task DeletePetAsync(long petId)
     {
-        ArgumentNullException.ThrowIfNull(petId, nameof(petId));
         var path = "/pet/{petId}";
         path = path.Replace(
             "{" + "petId" + "}",
-            Uri.EscapeDataString(ObjectSerializer.ToPathValue(petId))
+            Uri.EscapeDataString(ObjectSerializer.ToPathValue(petId)),
+            StringComparison.Ordinal
         );
 
         var queryParams = new Dictionary<string, object?>();
 
         var headerParams = new Dictionary<string, string>();
 
-        return await InvokeApiAsync<object>(
+        await InvokeApiAsync<object>(
             "DELETE",
             path,
             queryParams,
@@ -64,7 +68,7 @@ public class PetApi : BaseApi
             null,
             Array.Empty<string>(),
             "application/json"
-        );
+        ).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -84,15 +88,16 @@ public class PetApi : BaseApi
 
         var headerParams = new Dictionary<string, string>();
 
-        return await InvokeApiAsync<List<Pet>>(
+        var result = await InvokeApiAsync<List<Pet>>(
             "GET",
             path,
             queryParams,
             headerParams,
             null,
-            new[] { "application/json" },
+            FindPetsByStatusAccepts,
             "application/json"
-        );
+        ).ConfigureAwait(false);
+        return result ?? throw new InvalidOperationException("Expected non-null response body");
     }
 
     /// <summary>
@@ -102,26 +107,27 @@ public class PetApi : BaseApi
     /// <returns>Pet</returns>
     public async Task<Pet> GetPetByIdAsync(long petId)
     {
-        ArgumentNullException.ThrowIfNull(petId, nameof(petId));
         var path = "/pet/{petId}";
         path = path.Replace(
             "{" + "petId" + "}",
-            Uri.EscapeDataString(ObjectSerializer.ToPathValue(petId))
+            Uri.EscapeDataString(ObjectSerializer.ToPathValue(petId)),
+            StringComparison.Ordinal
         );
 
         var queryParams = new Dictionary<string, object?>();
 
         var headerParams = new Dictionary<string, string>();
 
-        return await InvokeApiAsync<Pet>(
+        var result = await InvokeApiAsync<Pet>(
             "GET",
             path,
             queryParams,
             headerParams,
             null,
-            new[] { "application/json" },
+            GetPetByIdAccepts,
             "application/json"
-        );
+        ).ConfigureAwait(false);
+        return result ?? throw new InvalidOperationException("Expected non-null response body");
     }
 
     /// <summary>
@@ -132,26 +138,26 @@ public class PetApi : BaseApi
     /// <returns>Pet</returns>
     public async Task<Pet> UpdatePetAsync(long petId, Pet pet)
     {
-        ArgumentNullException.ThrowIfNull(petId, nameof(petId));
-        ArgumentNullException.ThrowIfNull(pet, nameof(pet));
         var path = "/pet/{petId}";
         path = path.Replace(
             "{" + "petId" + "}",
-            Uri.EscapeDataString(ObjectSerializer.ToPathValue(petId))
+            Uri.EscapeDataString(ObjectSerializer.ToPathValue(petId)),
+            StringComparison.Ordinal
         );
 
         var queryParams = new Dictionary<string, object?>();
 
         var headerParams = new Dictionary<string, string>();
 
-        return await InvokeApiAsync<Pet>(
+        var result = await InvokeApiAsync<Pet>(
             "PUT",
             path,
             queryParams,
             headerParams,
             pet,
-            new[] { "application/json" },
+            UpdatePetAccepts,
             "application/json"
-        );
+        ).ConfigureAwait(false);
+        return result ?? throw new InvalidOperationException("Expected non-null response body");
     }
 }

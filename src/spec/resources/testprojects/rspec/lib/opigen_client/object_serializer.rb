@@ -11,7 +11,7 @@ require 'date'
 require 'json'
 require 'time'
 
-module PetstoreClient
+module OpigenClient
   # Exception raised when serialization or deserialization fails.
   class SerializationError < StandardError
     attr_reader :cause
@@ -62,7 +62,6 @@ module PetstoreClient
       return '' if value.nil?
       return value ? 'true' : 'false' if value.is_a?(TrueClass) || value.is_a?(FalseClass)
       return value.strftime(DEFAULT_DATETIME_FORMAT) if value.is_a?(Time) || value.is_a?(DateTime)
-      return value.to_s if value.is_a?(Date)
 
       value.to_s
     end
@@ -85,8 +84,6 @@ module PetstoreClient
         value ? 'true' : 'false'
       elsif value.is_a?(Time) || value.is_a?(DateTime)
         value.strftime(DEFAULT_DATETIME_FORMAT)
-      elsif value.is_a?(Date)
-        value.to_s
       else
         value.to_s
       end
@@ -102,8 +99,6 @@ module PetstoreClient
         value ? 'true' : 'false'
       elsif value.is_a?(Time) || value.is_a?(DateTime)
         value.strftime(DEFAULT_DATETIME_FORMAT)
-      elsif value.is_a?(Date)
-        value.to_s
       else
         value.to_s
       end
@@ -117,8 +112,6 @@ module PetstoreClient
         value ? 'true' : 'false'
       elsif value.is_a?(Time) || value.is_a?(DateTime)
         value.strftime(DEFAULT_DATETIME_FORMAT)
-      elsif value.is_a?(Date)
-        value.to_s
       else
         value.to_s
       end
@@ -133,7 +126,9 @@ module PetstoreClient
       when Array
         object.map { |item| sanitize_for_serialization(item) }
       when Hash
-        object.each_with_object({}) do |(key, value), hash|
+        # @type var sanitized: Hash[untyped, untyped]
+        sanitized = {}
+        object.each_with_object(sanitized) do |(key, value), hash|
           hash[key] = sanitize_for_serialization(value)
         end
       when Date
@@ -142,6 +137,7 @@ module PetstoreClient
         object.strftime(DEFAULT_DATETIME_FORMAT)
       else
         if object.class.const_defined?(:ATTRIBUTE_MAP)
+          # @type var hash: Hash[untyped, untyped]
           hash = {}
           object.class::ATTRIBUTE_MAP.each do |attr, json_key|
             value = object.send(attr)
@@ -179,22 +175,22 @@ module PetstoreClient
       when 'Object'
         data
       when /\AArray<(.+)>\z/
-        sub_type = $1
+        sub_type = $1.to_s
         data.map { |item| convert_to_type(item, sub_type) }
       when /\AHash<String,\s*(.+)>\z/
-        sub_type = $1
-        data.each_with_object({}) do |(key, value), hash|
+        sub_type = $1.to_s
+        # @type var converted: Hash[untyped, untyped]
+        converted = {}
+        data.each_with_object(converted) do |(key, value), hash|
           hash[key] = convert_to_type(value, sub_type)
         end
       else
         klass = begin
-          PetstoreClient::Models.const_get(return_type)
+          OpigenClient::Models.const_get(return_type)
         rescue NameError
-          PetstoreClient.const_get(return_type)
+          OpigenClient.const_get(return_type)
         end
-        if klass.respond_to?(:openapi_one_of)
-          klass.build(data)
-        elsif klass.respond_to?(:openapi_any_of)
+        if klass.respond_to?(:openapi_one_of) || klass.respond_to?(:openapi_any_of)
           klass.build(data)
         elsif klass.const_defined?(:OPENAPI_TYPES)
           deserialize_model(data, klass)
@@ -207,7 +203,8 @@ module PetstoreClient
     def self.deserialize_model(data, klass)
       return nil unless data.is_a?(Hash)
 
-      data = data.transform_keys(&:to_sym)
+      data = data.transform_keys(&:to_s)
+      # @type var transformed: Hash[untyped, untyped]
       transformed = {}
       klass::OPENAPI_TYPES.each do |attr, type|
         json_key = klass::ATTRIBUTE_MAP[attr]
@@ -241,18 +238,20 @@ module PetstoreClient
         return data if data.instance_of?(String)
       when 'Object'
         return data if data.instance_of?(Hash)
-      when /\AArray<(?<sub_type>.+)>\z/
+      when /\AArray<(.+)>\z/
         if data.instance_of?(Array)
-          sub_type = Regexp.last_match[:sub_type]
+          sub_type = $1.to_s
           return data.map { |item| find_and_cast_into_type(sub_type.to_sym, item) }
         end
-      when /\AHash<String, (?<sub_type>.+)>\z/
+      when /\AHash<String, (.+)>\z/
         if data.instance_of?(Hash) && data.keys.all? { |k| k.instance_of?(Symbol) || k.instance_of?(String) }
-          sub_type = Regexp.last_match[:sub_type]
-          return data.each_with_object({}) { |(k, v), hsh| hsh[k] = find_and_cast_into_type(sub_type.to_sym, v) }
+          sub_type = $1.to_s
+          # @type var result: Hash[untyped, untyped]
+          result = {}
+          return data.each_with_object(result) { |(k, v), hsh| hsh[k] = find_and_cast_into_type(sub_type.to_sym, v) }
         end
       else
-        const = PetstoreClient::Models.const_get(klass_name)
+        const = OpigenClient::Models.const_get(klass_name)
         if const
           if const.respond_to?(:openapi_one_of) || const.respond_to?(:openapi_any_of)
             model = const.build(data)

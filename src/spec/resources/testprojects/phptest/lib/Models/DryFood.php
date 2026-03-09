@@ -22,6 +22,8 @@ class DryFood
     #[SerializedName('weightKg')]
     public float $weightKg;
 
+    /**
+     */
     public function __construct(
         string $foodType,
         float $weightKg,

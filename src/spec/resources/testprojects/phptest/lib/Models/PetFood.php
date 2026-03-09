@@ -17,10 +17,9 @@ namespace PetstoreClient\Models;
  */
 class PetFood
 {
-    private const ONE_OF_SCHEMAS = ['DryFood', 'WetFood'];
-
     private const DISCRIMINATOR_PROPERTY = 'foodType';
 
+    /** @var array<string, class-string> */
     private const DISCRIMINATOR_MAPPING = [
         'dry' => DryFood::class,
         'wet' => WetFood::class
@@ -40,8 +39,13 @@ class PetFood
 
     public static function build(mixed $data): self
     {
-        if (is_array($data) && isset($data[self::DISCRIMINATOR_PROPERTY])) {
-            $class = self::DISCRIMINATOR_MAPPING[$data[self::DISCRIMINATOR_PROPERTY]] ?? null;
+        if (
+            is_array($data)
+            && isset($data[self::DISCRIMINATOR_PROPERTY])
+            && is_string($data[self::DISCRIMINATOR_PROPERTY])
+        ) {
+            $discValue = $data[self::DISCRIMINATOR_PROPERTY];
+            $class = self::DISCRIMINATOR_MAPPING[$discValue] ?? null;
             if ($class !== null) {
                 return new self(\PetstoreClient\ObjectSerializer::deserialize($data, $class));
             }

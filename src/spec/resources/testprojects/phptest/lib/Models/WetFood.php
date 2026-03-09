@@ -22,6 +22,8 @@ class WetFood
     #[SerializedName('volumeMl')]
     public int $volumeMl;
 
+    /**
+     */
     public function __construct(
         string $foodType,
         int $volumeMl,

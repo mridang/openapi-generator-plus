@@ -21,9 +21,9 @@ namespace PetstoreClient;
 class ApiResponse
 {
     /**
-     * @param int    $statusCode HTTP status code
-     * @param string $body       Response body
-     * @param array  $headers    Response headers
+     * @param int                        $statusCode HTTP status code
+     * @param string                     $body       Response body
+     * @param array<string, string[]> $headers    Response headers
      */
     public function __construct(
         public readonly int $statusCode,

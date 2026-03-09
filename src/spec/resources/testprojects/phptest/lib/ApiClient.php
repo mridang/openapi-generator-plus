@@ -23,12 +23,10 @@ interface ApiClient
     /**
      * Send an HTTP request and return the response.
      *
-     * @param string $method HTTP method (GET, POST, PUT, DELETE, etc.)
-     * @param string $url    Fully qualified URL
-     * @param array  $headers HTTP headers
-     * @param mixed  $body   Request body
-     *
-     * @return ApiResponse
+     * @param string               $method  HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param string               $url     Fully qualified URL
+     * @param array<string, string> $headers HTTP headers
+     * @param mixed                $body    Request body
      */
     public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse;
 }

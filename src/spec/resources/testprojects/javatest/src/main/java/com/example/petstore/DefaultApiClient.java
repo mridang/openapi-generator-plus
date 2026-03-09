@@ -1,9 +1,20 @@
 package com.example.petstore;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.KeyStore;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.util.HashMap;
+import java.util.Map;
+import javax.annotation.Nullable;
+import javax.net.ssl.SSLContext;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
 import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
 import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactoryBuilder;
@@ -17,19 +28,6 @@ import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.http.io.support.ClassicRequestBuilder;
 import org.apache.hc.core5.ssl.SSLContextBuilder;
 import org.apache.hc.core5.ssl.SSLContexts;
-
-import javax.net.ssl.SSLContext;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
-import java.security.KeyStore;
-import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
-import java.util.HashMap;
-import java.util.Map;
 
 /** Default implementation of {@link ApiClient} using Apache HttpClient 5. */
 public class DefaultApiClient implements ApiClient {
@@ -103,7 +101,8 @@ public class DefaultApiClient implements ApiClient {
 
   @Override
   public ApiResponse sendRequest(
-      String method, String url, Map<String, String> headers, String body) throws ApiException {
+      String method, String url, Map<String, String> headers, @Nullable String body)
+      throws ApiException {
     ClassicRequestBuilder builder = ClassicRequestBuilder.create(method).setUri(url);
 
     for (Map.Entry<String, String> header : headers.entrySet()) {
@@ -115,16 +114,26 @@ public class DefaultApiClient implements ApiClient {
           new StringEntity(body, ContentType.APPLICATION_JSON.withCharset(StandardCharsets.UTF_8)));
     }
 
-    try (CloseableHttpResponse response = httpClient.execute(builder.build())) {
-      int statusCode = response.getCode();
-      String responseBody =
-          response.getEntity() != null ? EntityUtils.toString(response.getEntity()) : "";
-      Map<String, String> responseHeaders = new HashMap<>();
-      for (Header h : response.getHeaders()) {
-        responseHeaders.put(h.getName(), h.getValue());
-      }
-      return new ApiResponse(statusCode, responseBody != null ? responseBody : "", responseHeaders);
-    } catch (IOException | ParseException e) {
+    try {
+      return httpClient.execute(
+          builder.build(),
+          response -> {
+            int statusCode = response.getCode();
+            String responseBody;
+            try {
+              responseBody =
+                  response.getEntity() != null ? EntityUtils.toString(response.getEntity()) : "";
+            } catch (ParseException e) {
+              throw new IOException("Failed to parse response entity", e);
+            }
+            Map<String, String> responseHeaders = new HashMap<>();
+            for (Header h : response.getHeaders()) {
+              responseHeaders.put(h.getName(), h.getValue());
+            }
+            return new ApiResponse(
+                statusCode, responseBody != null ? responseBody : "", responseHeaders);
+          });
+    } catch (IOException e) {
       throw new ApiException(e);
     }
   }

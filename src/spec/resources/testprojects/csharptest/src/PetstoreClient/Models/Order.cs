@@ -1,3 +1,7 @@
+#pragma warning disable CA1002 // Do not expose generic lists
+#pragma warning disable CA1711 // Identifiers should not have incorrect suffix
+#pragma warning disable CA2227 // Collection properties should be read only
+
 using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
@@ -27,7 +31,7 @@ public class Order
     public int? Quantity { get; set; }
 
     [JsonPropertyName("shipDate")]
-    public DateTime? ShipDate { get; set; }
+    public DateTimeOffset? ShipDate { get; set; }
 
     /// <summary>
     /// Order Status
