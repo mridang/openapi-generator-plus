@@ -1,0 +1,18 @@
+{{>partial_header}}
+from abc import ABC, abstractmethod
+from typing import Dict
+
+
+class Authenticator(ABC):
+    """Base class for providing authentication credentials to the API client.
+
+    Subclasses supply the API host URL and authorization headers.
+    """
+
+    @abstractmethod
+    def get_host(self) -> str:
+        """Returns the base URL of the API."""
+
+    @abstractmethod
+    def get_auth_headers(self) -> Dict[str, str]:
+        """Returns the authentication headers to include in every request."""

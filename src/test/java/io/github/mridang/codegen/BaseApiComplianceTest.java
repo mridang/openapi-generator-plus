@@ -538,4 +538,81 @@ public class BaseApiComplianceTest {
     String defaultApiClient = Files.readString(OUTPUT_DIR.resolve("node/default-api-client.ts"));
     assertTrue(defaultApiClient.contains("sendRequest("), "DefaultApiClient must have sendRequest method");
   }
+
+  // --- 6. Authenticator and Client entrypoint files ---
+
+  @Test
+  void javaAuthenticatorAndClientExist() {
+    String base = "java/src/main/java/com/example/petstore/";
+    assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "auth/Authenticator.java")));
+    assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "Client.java")));
+  }
+
+  @Test
+  void pythonAuthenticatorAndClientExist() {
+    String base = "python/petstore_client/";
+    assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "auth/authenticator.py")));
+    assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "client.py")));
+  }
+
+  @Test
+  void phpAuthenticatorAndClientExist() {
+    String base = "php/lib/";
+    assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "Auth/Authenticator.php")));
+    assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "Client.php")));
+  }
+
+  @Test
+  void rubyAuthenticatorAndClientExist() {
+    String base = "ruby/lib/petstore_client/";
+    assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "auth/authenticator.rb")));
+    assertTrue(Files.exists(OUTPUT_DIR.resolve(base + "client.rb")));
+  }
+
+  @Test
+  void nodeAuthenticatorAndClientExist() {
+    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/auth/authenticator.ts")));
+    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/client.ts")));
+  }
+
+  @Test
+  void javaClientReferencesApis() throws IOException {
+    String base = "java/src/main/java/com/example/petstore/";
+    String content = Files.readString(OUTPUT_DIR.resolve(base + "Client.java"));
+    assertTrue(content.contains("PetApi"), "Client must reference PetApi");
+    assertTrue(content.contains("StoreApi"), "Client must reference StoreApi");
+    assertTrue(content.contains("Authenticator"), "Client must reference Authenticator");
+  }
+
+  @Test
+  void pythonClientReferencesApis() throws IOException {
+    String content = Files.readString(OUTPUT_DIR.resolve("python/petstore_client/client.py"));
+    assertTrue(content.contains("PetApi"), "Client must reference PetApi");
+    assertTrue(content.contains("StoreApi"), "Client must reference StoreApi");
+    assertTrue(content.contains("Authenticator"), "Client must reference Authenticator");
+  }
+
+  @Test
+  void phpClientReferencesApis() throws IOException {
+    String content = Files.readString(OUTPUT_DIR.resolve("php/lib/Client.php"));
+    assertTrue(content.contains("PetApi"), "Client must reference PetApi");
+    assertTrue(content.contains("StoreApi"), "Client must reference StoreApi");
+    assertTrue(content.contains("Authenticator"), "Client must reference Authenticator");
+  }
+
+  @Test
+  void rubyClientReferencesApis() throws IOException {
+    String content = Files.readString(OUTPUT_DIR.resolve("ruby/lib/petstore_client/client.rb"));
+    assertTrue(content.contains("PetApi"), "Client must reference PetApi");
+    assertTrue(content.contains("StoreApi"), "Client must reference StoreApi");
+    assertTrue(content.contains("Authenticator"), "Client must reference Authenticator");
+  }
+
+  @Test
+  void nodeClientReferencesApis() throws IOException {
+    String content = Files.readString(OUTPUT_DIR.resolve("node/client.ts"));
+    assertTrue(content.contains("PetApi"), "Client must reference PetApi");
+    assertTrue(content.contains("StoreApi"), "Client must reference StoreApi");
+    assertTrue(content.contains("Authenticator"), "Client must reference Authenticator");
+  }
 }

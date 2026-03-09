@@ -11,12 +11,15 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenType;
 import org.openapitools.codegen.DefaultCodegen;
+import org.openapitools.codegen.model.ModelMap;
 import org.openapitools.codegen.model.ModelsMap;
+import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.openapitools.codegen.utils.StringUtils;
 
@@ -198,6 +201,29 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     @Override
     public String escapeUnsafeCharacters(String input) {
         return input.replace("*/", "*_/").replace("/*", "/_*");
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public OperationsMap postProcessOperationsWithModels(
+            OperationsMap objs, List<ModelMap> allModels) {
+        objs = super.postProcessOperationsWithModels(objs, allModels);
+        Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        if (operations != null) {
+            String classname = (String) operations.get("classname");
+            if (classname != null) {
+                operations.put("clientPropertyName", deriveClientPropertyName(classname));
+            }
+        }
+        return objs;
+    }
+
+    protected String deriveClientPropertyName(String apiClassName) {
+        String name = apiClassName.replaceAll("Api$", "");
+        if (name.isEmpty()) {
+            return "api";
+        }
+        return Character.toLowerCase(name.charAt(0)) + name.substring(1);
     }
 
     @Override

@@ -141,6 +141,13 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                         "default_api_client.mustache", invokerFolder, "DefaultApiClient.php"));
         supportingFiles.add(
                 new SupportingFile("base_api.mustache", apiFolder, "BaseApi.php"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "authenticator.mustache",
+                        invokerFolder + File.separator + "Auth",
+                        "Authenticator.php"));
+        supportingFiles.add(
+                new SupportingFile("client.mustache", invokerFolder, "Client.php"));
         supportingFiles.add(new SupportingFile("composer.mustache", "", "composer.json"));
         supportingFiles.add(new SupportingFile("phpstan_neon.mustache", "", "phpstan.neon"));
         supportingFiles.add(new SupportingFile("rector.mustache", "", "rector.php"));

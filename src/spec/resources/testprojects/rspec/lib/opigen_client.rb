@@ -21,6 +21,8 @@ require 'opigen_client/api_response'
 require 'opigen_client/api_client'
 require 'opigen_client/default_api_client'
 require 'opigen_client/api/base_api'
+require 'opigen_client/auth/authenticator'
+require 'opigen_client/client'
 
 # Models
 require 'opigen_client/models/api_response'

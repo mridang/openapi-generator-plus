@@ -23,6 +23,8 @@ __all__ = [
     'ApiKeyError',
     'ApiAttributeError',
     'ApiException',
+    'Authenticator',
+    'Client',
     'ApiResponse',
     'Category',
     'DryFood',
@@ -46,6 +48,8 @@ from petstore_client.exceptions import ApiValueError as ApiValueError
 from petstore_client.exceptions import ApiKeyError as ApiKeyError
 from petstore_client.exceptions import ApiAttributeError as ApiAttributeError
 from petstore_client.exceptions import ApiException as ApiException
+from petstore_client.auth.authenticator import Authenticator as Authenticator
+from petstore_client.client import Client as Client
 
 # import models into sdk package
 from petstore_client.models.api_response import ApiResponse as ApiResponse

@@ -1,0 +1,82 @@
+<?php
+
+{{>partial_header}}
+namespace {{invokerPackage}};
+
+use {{invokerPackage}}\Auth\Authenticator;
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+use {{apiPackage}}\{{classname}};
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+/**
+ * Unified entry point for all API services. Takes an Authenticator
+ * and exposes each API group as a typed property.
+ *
+ * @category Class
+ * @package  {{invokerPackage}}
+ */
+class Client
+{
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    public {{classname}} ${{clientPropertyName}};
+
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    /**
+     * Creates a new client with the given authenticator.
+     *
+     * @param Authenticator $authenticator Provides host URL and auth headers.
+     */
+    public function __construct(Authenticator $authenticator)
+    {
+        $config = new Configuration();
+        $config->setBaseUrl($authenticator->getHost());
+        foreach ($authenticator->getAuthHeaders() as $key => $value) {
+            $config->setDefaultHeader($key, $value);
+        }
+        $apiClient = new DefaultApiClient($config);
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        $this->{{clientPropertyName}} = new {{classname}}($apiClient, $config);
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    /**
+     * Creates a client authenticated with a static Bearer token.
+     *
+     * @param string $host        API base URL.
+     * @param string $accessToken Bearer token.
+     * @return self Configured client instance.
+     */
+    public static function withToken(string $host, string $accessToken): self
+    {
+        return new self(new class($host, $accessToken) implements Authenticator {
+            public function __construct(
+                private readonly string $host,
+                private readonly string $accessToken,
+            ) {
+            }
+
+            public function getHost(): string
+            {
+                return $this->host;
+            }
+
+            public function getAuthHeaders(): array
+            {
+                return ['Authorization' => 'Bearer ' . $this->accessToken];
+            }
+        });
+    }
+}

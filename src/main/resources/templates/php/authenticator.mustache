@@ -1,0 +1,28 @@
+<?php
+
+{{>partial_header}}
+namespace {{invokerPackage}}\Auth;
+
+/**
+ * Interface for providing authentication credentials to the API client.
+ * Implementations supply the API host URL and authorization headers.
+ *
+ * @category Interface
+ * @package  {{invokerPackage}}
+ */
+interface Authenticator
+{
+    /**
+     * Returns the base URL of the API.
+     *
+     * @return string
+     */
+    public function getHost(): string;
+
+    /**
+     * Returns the authentication headers to include in every request.
+     *
+     * @return array<string, string>
+     */
+    public function getAuthHeaders(): array;
+}

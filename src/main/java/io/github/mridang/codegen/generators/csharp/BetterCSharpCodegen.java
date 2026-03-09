@@ -106,6 +106,13 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 new SupportingFile(
                         "header_selector.mustache", invokerFolder, "HeaderSelector.cs"));
         supportingFiles.add(
+                new SupportingFile(
+                        "authenticator.mustache",
+                        invokerFolder + File.separator + "Auth",
+                        "IAuthenticator.cs"));
+        supportingFiles.add(
+                new SupportingFile("client.mustache", invokerFolder, "Client.cs"));
+        supportingFiles.add(
                 new SupportingFile("csproj.mustache", invokerFolder, packageName + ".csproj"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
         supportingFiles.add(
@@ -143,6 +150,16 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     protected String formatOperationId(String sanitizedOperationId) {
         return StringUtils.camelize(sanitizedOperationId);
     }
+
+    @Override
+    protected String deriveClientPropertyName(String apiClassName) {
+        String name = apiClassName.replaceAll("Api$", "");
+        if (name.isEmpty()) {
+            return "Api";
+        }
+        return StringUtils.camelize(name);
+    }
+
 
     @Override
     protected String getMapKeyType() {

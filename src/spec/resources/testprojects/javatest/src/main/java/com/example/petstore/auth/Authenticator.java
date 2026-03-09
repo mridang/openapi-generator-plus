@@ -1,0 +1,16 @@
+package com.example.petstore.auth;
+
+import java.util.Map;
+
+/**
+ * Interface for providing authentication credentials to the API client. Implementations supply the
+ * API host URL and authorization headers.
+ */
+public interface Authenticator {
+
+  /** Returns the base URL of the API. */
+  String getHost();
+
+  /** Returns the authentication headers to include in every request. */
+  Map<String, String> getAuthHeaders();
+}

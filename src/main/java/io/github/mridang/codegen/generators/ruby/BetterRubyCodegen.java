@@ -142,6 +142,12 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile(
                         "base_api.mustache", libPath + File.separator + "api", "base_api.rb"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "authenticator.mustache",
+                        libPath + File.separator + "auth",
+                        "authenticator.rb"));
+        supportingFiles.add(new SupportingFile("client.mustache", libPath, "client.rb"));
         supportingFiles.add(new SupportingFile("gemfile.mustache", "", "Gemfile"));
         supportingFiles.add(new SupportingFile("rubocop.mustache", "", ".rubocop.yml"));
         supportingFiles.add(new SupportingFile("steepfile.mustache", "", "Steepfile"));
@@ -187,6 +193,15 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     @Override
     protected boolean isNumericEnumDatatype(String datatype) {
         return "Integer".equals(datatype) || "Float".equals(datatype);
+    }
+
+    @Override
+    protected String deriveClientPropertyName(String apiClassName) {
+        String name = apiClassName.replaceAll("Api$", "");
+        if (name.isEmpty()) {
+            return "api";
+        }
+        return underscore(name);
     }
 
     @Override

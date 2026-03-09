@@ -130,6 +130,13 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile(
                         "header_selector.mustache", packagePath, "header_selector.py"));
+        String authPath = packagePath + File.separator + "auth";
+        supportingFiles.add(
+                new SupportingFile("auth/__init__.mustache", authPath, "__init__.py"));
+        supportingFiles.add(
+                new SupportingFile("authenticator.mustache", authPath, "authenticator.py"));
+        supportingFiles.add(
+                new SupportingFile("client.mustache", packagePath, "client.py"));
         supportingFiles.add(new SupportingFile("requirements.mustache", "", "requirements.txt"));
     }
 
@@ -268,6 +275,15 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         if (imp != null) {
             imports.add(imp);
         }
+    }
+
+    @Override
+    protected String deriveClientPropertyName(String apiClassName) {
+        String name = apiClassName.replaceAll("Api$", "");
+        if (name.isEmpty()) {
+            return "api";
+        }
+        return org.openapitools.codegen.utils.StringUtils.underscore(name);
     }
 
     @Override

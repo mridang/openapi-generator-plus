@@ -1,0 +1,60 @@
+{{>partial_header}}
+from typing import Optional
+
+from {{packageName}}.auth.authenticator import Authenticator
+from {{packageName}}.configuration import Configuration
+from {{packageName}}.default_api_client import DefaultApiClient
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+from {{apiPackage}}.{{classFilename}} import {{classname}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+
+class Client:
+    """Unified entry point for all API services.
+
+    Takes an :class:`Authenticator` and exposes each API group as a typed
+    property.
+    """
+
+    def __init__(self, authenticator: Authenticator) -> None:
+        """Creates a new client with the given authenticator.
+
+        Args:
+            authenticator: Provides host URL and auth headers.
+        """
+        config = Configuration()
+        config.base_url = authenticator.get_host()
+        config.default_headers.update(authenticator.get_auth_headers())
+        api_client = DefaultApiClient(config)
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        self.{{clientPropertyName}}: {{classname}} = {{classname}}(api_client, config)
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    @staticmethod
+    def with_token(host: str, access_token: str) -> "Client":
+        """Creates a client authenticated with a static Bearer token.
+
+        Args:
+            host: API base URL.
+            access_token: Bearer token.
+
+        Returns:
+            Configured client instance.
+        """
+
+        class _TokenAuth(Authenticator):
+            def get_host(self) -> str:
+                return host
+
+            def get_auth_headers(self):
+                return {"Authorization": f"Bearer {access_token}"}
+
+        return Client(_TokenAuth())

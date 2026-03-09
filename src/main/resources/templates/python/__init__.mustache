@@ -4,7 +4,9 @@ __version__ = '{{packageVersion}}'
 # Define package exports
 __all__ = [
     {{#apiInfo}}{{#apis}}'{{classname}}',
-    {{/apis}}{{/apiInfo}}'ApiClient',
+    {{/apis}}{{/apiInfo}}'Authenticator',
+    'Client',
+    'ApiClient',
     'Configuration',
     'OpenApiException',
     'ApiTypeError',
@@ -22,6 +24,8 @@ __all__ = [
 {{/apis}}{{/apiInfo}}
 # import ApiClient
 from {{packageName}}.api_client import ApiClient as ApiClient
+from {{packageName}}.auth.authenticator import Authenticator as Authenticator
+from {{packageName}}.client import Client as Client
 from {{packageName}}.configuration import Configuration as Configuration
 from {{packageName}}.exceptions import OpenApiException as OpenApiException
 from {{packageName}}.exceptions import ApiTypeError as ApiTypeError
