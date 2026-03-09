@@ -1,7 +1,6 @@
 package io.github.mridang.codegen.generators.ruby;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.openapitools.codegen.utils.StringUtils.camelize;
 import static org.openapitools.codegen.utils.StringUtils.underscore;
 
@@ -34,10 +33,7 @@ import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A custom Ruby code generator providing a minimal, modern Ruby client
- * using the Faraday HTTP library.
- */
+/** Generates a Ruby API client using Faraday for HTTP and Dry::Struct for models. */
 @SuppressWarnings("unused")
 public class BetterRubyCodegen extends AbstractBetterCodegen {
 
@@ -45,8 +41,8 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
 
     @Nullable protected String gemName;
     protected String moduleName = "Opigen::Client";
-    protected String gemVersion = "1.0.0";
-    protected String libFolder = "lib";
+    protected final String gemVersion = "1.0.0";
+    protected final String libFolder = "lib";
 
     public BetterRubyCodegen() {
         outputFolder = "generated-code" + File.separator + "ruby";
@@ -97,8 +93,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         instantiationTypes.put("set", "Set");
 
         reservedWords = loadReservedWords("/reserved-words/ruby.txt");
-
-        hideGenerationTimestamp = Boolean.TRUE;
     }
 
     @Override
@@ -119,27 +113,19 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     @Override
     public void processOpts() {
         super.processOpts();
-        setEnablePostProcessFile(true);
 
-        if (additionalProperties.containsKey(CodegenConstants.MODULE_NAME)) {
-            moduleName = (String) additionalProperties.get(CodegenConstants.MODULE_NAME);
-        }
+        moduleName = getPropertyOrDefault(CodegenConstants.MODULE_NAME, moduleName);
         if (additionalProperties.containsKey(CodegenConstants.GEM_NAME)) {
             gemName = (String) additionalProperties.get(CodegenConstants.GEM_NAME);
         }
-
         if (gemName == null) {
             gemName = underscore(moduleName.replaceAll("[^\\w]+", ""));
         }
-
         additionalProperties.put(CodegenConstants.GEM_NAME, gemName);
-        additionalProperties.put(CodegenConstants.MODULE_NAME, moduleName);
         additionalProperties.put("gemVersion", gemVersion);
 
         setModelPackage("models");
         setApiPackage("api");
-
-        supportingFiles.clear();
 
         String modulePath = underscore(moduleName.replaceAll("::", "/"));
         String libPath = libFolder + File.separator + modulePath;
@@ -164,21 +150,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                 new SupportingFile("infrastructure_rbs.mustache", "sig", "infrastructure.rbs"));
     }
 
-    @Override
-    public String getTypeDeclaration(Schema schema) {
-        if (ModelUtils.isArraySchema(schema)) {
-            Schema<?> inner = ModelUtils.getSchemaItems(schema);
-            return getSchemaType(schema) + "<" + getTypeDeclaration(inner) + ">";
-        } else if (ModelUtils.isMapSchema(schema)) {
-            Schema<?> inner = ModelUtils.getAdditionalProperties(schema);
-            if (inner == null) {
-                return "Hash<String, Object>";
-            }
-            return getSchemaType(schema) + "<String, " + getTypeDeclaration(inner) + ">";
-        }
-        return super.getTypeDeclaration(schema);
-    }
-
     @Nullable
     @Override
     public String toDefaultValue(Schema schema) {
@@ -198,16 +169,24 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     }
 
     @Override
-    public String toVarName(String name) {
-        String varName = sanitizeName(name);
+    protected String applyVarNameCasing(String name) {
         if (name.matches("^[A-Z_]*$")) {
-            varName = varName.toLowerCase(Locale.ROOT);
+            name = name.toLowerCase(Locale.ROOT);
         }
-        varName = underscore(varName);
-        if (isReservedWord(varName) || varName.matches("^\\d.*")) {
-            varName = escapeReservedWord(varName);
+        return underscore(name);
+    }
+
+    @Override
+    protected String formatOperationId(String sanitizedOperationId) {
+        if (isReservedWord(sanitizedOperationId)) {
+            return underscore("call_" + sanitizedOperationId);
         }
-        return varName;
+        return underscore(sanitizedOperationId);
+    }
+
+    @Override
+    protected boolean isNumericEnumDatatype(String datatype) {
+        return "Integer".equals(datatype) || "Float".equals(datatype);
     }
 
     @Override
@@ -233,17 +212,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     }
 
     @Override
-    public String toOperationId(String operationId) {
-        if (isEmpty(operationId)) {
-            throw new RuntimeException("Empty method/operation name (operationId) not allowed");
-        }
-        if (isReservedWord(operationId)) {
-            return underscore("call_" + operationId);
-        }
-        return underscore(sanitizeName(operationId));
-    }
-
-    @Override
     public String escapeQuotationMark(String input) {
         return input.replace("'", "");
     }
@@ -251,14 +219,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     @Override
     public String escapeUnsafeCharacters(String input) {
         return input.replace("=end", "=_end").replace("=begin", "=_begin").replace("#{", "\\#{");
-    }
-
-    @Override
-    public String toEnumValue(String value, String datatype) {
-        if ("Integer".equals(datatype) || "Float".equals(datatype)) {
-            return value;
-        }
-        return "\"" + escapeText(value) + "\"";
     }
 
     @Override

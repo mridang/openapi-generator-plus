@@ -8,13 +8,9 @@ import java.util.HashSet;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.SupportingFile;
-import org.openapitools.codegen.utils.ModelUtils;
 import org.openapitools.codegen.utils.StringUtils;
 
-/**
- * A custom C# code generator providing a minimal, modern C# client
- * with System.Text.Json.
- */
+/** Generates a C# API client using HttpClient and System.Text.Json for serialization. */
 @SuppressWarnings("unused")
 public class BetterCSharpCodegen extends AbstractBetterCodegen {
 
@@ -77,19 +73,12 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     public void processOpts() {
         super.processOpts();
 
-        if (additionalProperties.containsKey(CodegenConstants.SOURCE_FOLDER)) {
-            sourceFolder = (String) additionalProperties.get(CodegenConstants.SOURCE_FOLDER);
-        }
-        if (additionalProperties.containsKey(CodegenConstants.PACKAGE_NAME)) {
-            packageName = (String) additionalProperties.get(CodegenConstants.PACKAGE_NAME);
-        }
-        additionalProperties.put(CodegenConstants.PACKAGE_NAME, packageName);
+        sourceFolder = getPropertyOrDefault(CodegenConstants.SOURCE_FOLDER, sourceFolder);
+        packageName = getPropertyOrDefault(CodegenConstants.PACKAGE_NAME, packageName);
         additionalProperties.put("packageName", packageName);
 
         modelPackage = "Models";
         apiPackage = "Api";
-
-        supportingFiles.clear();
 
         String invokerFolder =
                 sourceFolder + File.separator + packageName.replace(".", File.separator);
@@ -146,13 +135,18 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     }
 
     @Override
-    public String toVarName(String name) {
-        name = sanitizeName(name);
-        name = StringUtils.camelize(name);
-        if (isReservedWord(name) || name.matches("^\\d.*")) {
-            name = escapeReservedWord(name);
-        }
-        return name;
+    protected String applyVarNameCasing(String name) {
+        return StringUtils.camelize(name);
+    }
+
+    @Override
+    protected String formatOperationId(String sanitizedOperationId) {
+        return StringUtils.camelize(sanitizedOperationId);
+    }
+
+    @Override
+    protected String getMapKeyType() {
+        return "string";
     }
 
     @Override
@@ -166,29 +160,6 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             name = Character.toLowerCase(name.charAt(0)) + name.substring(1);
         }
         return name;
-    }
-
-    @Override
-    public String toOperationId(String operationId) {
-        if (operationId == null || operationId.isEmpty()) {
-            throw new RuntimeException("Empty method/operation name (operationId) not allowed");
-        }
-        return StringUtils.camelize(sanitizeName(operationId));
-    }
-
-    @Override
-    public String getTypeDeclaration(Schema p) {
-        if (ModelUtils.isArraySchema(p)) {
-            Schema<?> inner = p.getItems();
-            return getSchemaType(p) + "<" + getTypeDeclaration(inner) + ">";
-        } else if (ModelUtils.isMapSchema(p)) {
-            Schema<?> inner = ModelUtils.getAdditionalProperties(p);
-            if (inner == null) {
-                return "Dictionary<string, Object>";
-            }
-            return getSchemaType(p) + "<string, " + getTypeDeclaration(inner) + ">";
-        }
-        return super.getTypeDeclaration(p);
     }
 
     @Nullable

@@ -27,10 +27,7 @@ import org.openapitools.codegen.utils.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A custom Java code generator providing a minimal, modern Java client
- * with Jackson and Apache HttpClient.
- */
+/** Generates a Java API client using Apache HttpClient and Jackson for serialization. */
 @SuppressWarnings("unused")
 public class BetterJavaCodegen extends AbstractBetterCodegen {
 
@@ -109,7 +106,6 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
 
         reservedWords = loadReservedWords("/reserved-words/java.txt");
 
-        setEnablePostProcessFile(true);
         formatter =
                 new Formatter(
                         JavaFormatterOptions.builder()
@@ -131,17 +127,9 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     public void processOpts() {
         super.processOpts();
 
-        if (additionalProperties.containsKey(CodegenConstants.SOURCE_FOLDER)) {
-            sourceFolder = (String) additionalProperties.get(CodegenConstants.SOURCE_FOLDER);
-        }
-        if (additionalProperties.containsKey(CodegenConstants.INVOKER_PACKAGE)) {
-            invokerPackage = (String) additionalProperties.get(CodegenConstants.INVOKER_PACKAGE);
-        }
-        additionalProperties.put(CodegenConstants.INVOKER_PACKAGE, invokerPackage);
+        sourceFolder = getPropertyOrDefault(CodegenConstants.SOURCE_FOLDER, sourceFolder);
+        invokerPackage = getPropertyOrDefault(CodegenConstants.INVOKER_PACKAGE, invokerPackage);
         additionalProperties.put("invokerPackage", invokerPackage);
-
-        supportingFiles.clear();
-        setEnablePostProcessFile(true);
 
         String invokerFolder =
                 sourceFolder + File.separator + invokerPackage.replace(".", File.separator);
@@ -191,39 +179,16 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     }
 
     @Override
-    public String toVarName(String name) {
-        name = sanitizeName(name);
+    protected String applyVarNameCasing(String name) {
         if (name.matches("^[A-Z0-9_]*$")) {
             return name;
         }
-        name = StringUtils.camelize(name, LOWERCASE_FIRST_LETTER);
-        if (isReservedWord(name) || name.matches("^\\d.*")) {
-            name = escapeReservedWord(name);
-        }
-        return name;
+        return StringUtils.camelize(name, LOWERCASE_FIRST_LETTER);
     }
 
     @Override
-    public String toOperationId(String operationId) {
-        if (operationId == null || operationId.isEmpty()) {
-            throw new RuntimeException("Empty method/operation name (operationId) not allowed");
-        }
-        return StringUtils.camelize(sanitizeName(operationId), LOWERCASE_FIRST_LETTER);
-    }
-
-    @Override
-    public String getTypeDeclaration(Schema p) {
-        if (ModelUtils.isArraySchema(p)) {
-            Schema<?> inner = p.getItems();
-            return getSchemaType(p) + "<" + getTypeDeclaration(inner) + ">";
-        } else if (ModelUtils.isMapSchema(p)) {
-            Schema<?> inner = ModelUtils.getAdditionalProperties(p);
-            if (inner == null) {
-                return "Map<String, Object>";
-            }
-            return getSchemaType(p) + "<String, " + getTypeDeclaration(inner) + ">";
-        }
-        return super.getTypeDeclaration(p);
+    protected String formatOperationId(String sanitizedOperationId) {
+        return StringUtils.camelize(sanitizedOperationId, LOWERCASE_FIRST_LETTER);
     }
 
     @Nullable
@@ -290,7 +255,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             return;
         }
         try {
-            String source = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+            String source = Files.readString(file.toPath());
             source = RemoveUnusedImports.removeUnusedImports(source);
             source =
                     ImportOrderer.reorderImports(source, JavaFormatterOptions.Style.GOOGLE);

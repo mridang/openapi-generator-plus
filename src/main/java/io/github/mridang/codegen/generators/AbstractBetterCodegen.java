@@ -17,12 +17,18 @@ import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenType;
 import org.openapitools.codegen.DefaultCodegen;
 import org.openapitools.codegen.model.ModelsMap;
+import org.openapitools.codegen.utils.ModelUtils;
 import org.openapitools.codegen.utils.StringUtils;
 
 /**
- * Abstract base class for all custom code generators. Provides shared behavior
- * including client type tagging, reserved word escaping, type resolution through
- * typeMapping, enum post-processing, API naming, and operation validation.
+ * Abstract base class for all language-specific code generators. Provides type resolution, enum
+ * post-processing, operation validation, and template methods for language-specific naming
+ * conventions.
+ *
+ * <p>Subclasses must implement {@link #formatOperationId} and {@link #applyVarNameCasing}.
+ * Subclasses may override {@link #formatArrayType}, {@link #formatMapType}, {@link
+ * #getMapKeyType}, {@link #getMapDefaultValueType}, {@link #isNumericEnumDatatype}, and {@link
+ * #quoteEnumValue}.
  */
 public abstract class AbstractBetterCodegen extends DefaultCodegen
         implements UnsupportedFeaturesValidator {
@@ -31,6 +37,22 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         super();
         typeMapping.clear();
         importMapping.clear();
+        hideGenerationTimestamp = Boolean.TRUE;
+    }
+
+    @Override
+    public void processOpts() {
+        super.processOpts();
+        setEnablePostProcessFile(true);
+        supportingFiles.clear();
+    }
+
+    protected String getPropertyOrDefault(String key, String defaultValue) {
+        if (additionalProperties.containsKey(key)) {
+            return (String) additionalProperties.get(key);
+        }
+        additionalProperties.put(key, defaultValue);
+        return defaultValue;
     }
 
     protected static Set<String> loadReservedWords(String resourcePath) {
@@ -72,6 +94,36 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     }
 
     @Override
+    public String getTypeDeclaration(Schema schema) {
+        if (ModelUtils.isArraySchema(schema)) {
+            Schema<?> inner = ModelUtils.getSchemaItems(schema);
+            return formatArrayType(getSchemaType(schema), getTypeDeclaration(inner));
+        } else if (ModelUtils.isMapSchema(schema)) {
+            Schema<?> inner = ModelUtils.getAdditionalProperties(schema);
+            String valueType =
+                    (inner == null) ? getMapDefaultValueType() : getTypeDeclaration(inner);
+            return formatMapType(getSchemaType(schema), getMapKeyType(), valueType);
+        }
+        return super.getTypeDeclaration(schema);
+    }
+
+    protected String formatArrayType(String containerType, String innerType) {
+        return containerType + "<" + innerType + ">";
+    }
+
+    protected String formatMapType(String containerType, String keyType, String valueType) {
+        return containerType + "<" + keyType + ", " + valueType + ">";
+    }
+
+    protected String getMapKeyType() {
+        return "String";
+    }
+
+    protected String getMapDefaultValueType() {
+        return "Object";
+    }
+
+    @Override
     public ModelsMap postProcessModels(ModelsMap objs) {
         return postProcessModelsEnum(super.postProcessModels(objs));
     }
@@ -91,6 +143,18 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     }
 
     @Override
+    public String toVarName(String name) {
+        name = sanitizeName(name);
+        name = applyVarNameCasing(name);
+        if (isReservedWord(name) || name.matches("^\\d.*")) {
+            name = escapeReservedWord(name);
+        }
+        return name;
+    }
+
+    protected abstract String applyVarNameCasing(String sanitizedName);
+
+    @Override
     public String toParamName(String name) {
         return toVarName(name);
     }
@@ -103,6 +167,32 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     @Override
     public String toApiFilename(String name) {
         return toApiName(name);
+    }
+
+    @Override
+    public final String toOperationId(String operationId) {
+        if (operationId == null || operationId.isEmpty()) {
+            throw new RuntimeException("Empty method/operation name (operationId) not allowed");
+        }
+        return formatOperationId(sanitizeName(operationId));
+    }
+
+    protected abstract String formatOperationId(String sanitizedOperationId);
+
+    @Override
+    public String toEnumValue(String value, String datatype) {
+        if (isNumericEnumDatatype(datatype)) {
+            return value;
+        }
+        return quoteEnumValue(value);
+    }
+
+    protected boolean isNumericEnumDatatype(String datatype) {
+        return false;
+    }
+
+    protected String quoteEnumValue(String value) {
+        return "\"" + escapeText(value) + "\"";
     }
 
     @Override

@@ -20,14 +20,10 @@ import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
 import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.utils.ModelUtils;
-import org.openapitools.codegen.utils.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A custom Python code generator providing a minimal, modern Python client
- * with pydantic models.
- */
+/** Generates a Python API client using urllib3 for HTTP and Pydantic for models. */
 @SuppressWarnings("unused")
 public class BetterPythonCodegen extends AbstractBetterCodegen {
 
@@ -82,8 +78,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
 
         this.setDisallowAdditionalPropertiesIfNotPresent(false);
         this.setLegacyDiscriminatorBehavior(false);
-
-        setEnablePostProcessFile(true);
     }
 
     @Override
@@ -100,21 +94,12 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     public void processOpts() {
         super.processOpts();
 
-        if (additionalProperties.containsKey("packageName")) {
-            packageName = (String) additionalProperties.get("packageName");
-        }
-        additionalProperties.put("packageName", packageName);
-
-        if (additionalProperties.containsKey(CodegenConstants.PACKAGE_VERSION)) {
-            packageVersion = (String) additionalProperties.get(CodegenConstants.PACKAGE_VERSION);
-        }
-        additionalProperties.put(CodegenConstants.PACKAGE_VERSION, packageVersion);
+        packageName = getPropertyOrDefault("packageName", packageName);
+        packageVersion =
+                getPropertyOrDefault(CodegenConstants.PACKAGE_VERSION, packageVersion);
 
         modelPackage = packageName + ".models";
         apiPackage = packageName + ".api";
-
-        supportingFiles.clear();
-        setEnablePostProcessFile(true);
 
         String modelPath = modelPackage.replace('.', File.separatorChar);
         String apiPath = apiPackage.replace('.', File.separatorChar);
@@ -149,32 +134,23 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     @Override
-    public String modelFileFolder() {
-        return outputFolder
-                + File.separator
-                + modelPackage().replace('.', File.separatorChar);
+    protected String formatArrayType(String containerType, String innerType) {
+        return containerType + "[" + innerType + "]";
     }
 
     @Override
-    public String apiFileFolder() {
-        return outputFolder
-                + File.separator
-                + apiPackage().replace('.', File.separatorChar);
+    protected String formatMapType(String containerType, String keyType, String valueType) {
+        return containerType + "[" + keyType + ", " + valueType + "]";
     }
 
     @Override
-    public String getTypeDeclaration(Schema p) {
-        if (ModelUtils.isArraySchema(p)) {
-            Schema<?> inner = p.getItems();
-            return getSchemaType(p) + "[" + getTypeDeclaration(inner) + "]";
-        } else if (ModelUtils.isMapSchema(p)) {
-            Schema<?> inner = ModelUtils.getAdditionalProperties(p);
-            if (inner == null) {
-                return "Dict[str, object]";
-            }
-            return getSchemaType(p) + "[str, " + getTypeDeclaration(inner) + "]";
-        }
-        return super.getTypeDeclaration(p);
+    protected String getMapKeyType() {
+        return "str";
+    }
+
+    @Override
+    protected String getMapDefaultValueType() {
+        return "object";
     }
 
     @Override
@@ -191,13 +167,8 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     @Override
-    public String toVarName(String name) {
-        name = sanitizeName(name);
-        name = underscore(name);
-        if (isReservedWord(name) || name.matches("^\\d.*")) {
-            name = escapeReservedWord(name);
-        }
-        return name;
+    protected String applyVarNameCasing(String name) {
+        return underscore(name);
     }
 
     @Override
@@ -211,11 +182,8 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     @Override
-    public String toOperationId(String operationId) {
-        if (operationId == null || operationId.isEmpty()) {
-            throw new RuntimeException("Empty method/operation name (operationId) not allowed");
-        }
-        return underscore(sanitizeName(operationId));
+    protected String formatOperationId(String sanitizedOperationId) {
+        return underscore(sanitizedOperationId);
     }
 
     @Override
@@ -238,7 +206,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     public String toDefaultValue(Schema schema) {
         if (schema.getDefault() != null) {
             if (ModelUtils.isBooleanSchema(schema)) {
-                return Boolean.valueOf(schema.getDefault().toString()) ? "True" : "False";
+                return Boolean.parseBoolean(schema.getDefault().toString()) ? "True" : "False";
             }
             return schema.getDefault().toString();
         }
@@ -246,10 +214,12 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     @Override
-    public String toEnumValue(String value, String datatype) {
-        if ("int".equals(datatype) || "float".equals(datatype)) {
-            return value;
-        }
+    protected boolean isNumericEnumDatatype(String datatype) {
+        return "int".equals(datatype) || "float".equals(datatype);
+    }
+
+    @Override
+    protected String quoteEnumValue(String value) {
         return "'" + value.replace("'", "") + "'";
     }
 
@@ -307,7 +277,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
             return;
         }
         try {
-            String content = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+            String content = Files.readString(file.toPath());
             String trimmed = content.replaceAll("\\{ ('.*?') }", "{$1}");
             trimmed = trimmed.replaceAll("\\n{4,}", "\n\n\n");
             trimmed = trimmed.replaceAll("\\n+$", "\n");

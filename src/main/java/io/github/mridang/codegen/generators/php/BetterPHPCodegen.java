@@ -16,17 +16,14 @@ import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.openapitools.codegen.utils.StringUtils;
 
-/**
- * A custom PHP code generator providing a minimal, modern PHP client
- * with Guzzle and Symfony Serializer.
- */
+/** Generates a PHP API client using Guzzle for HTTP and Symfony Serializer for models. */
 @SuppressWarnings("unused")
 public class BetterPHPCodegen extends AbstractBetterCodegen {
 
     protected String invokerPackage = "OpenAPI\\Client";
-    protected String srcBasePath = "lib";
-    protected String apiDirName = "Api";
-    protected String modelDirName = "Models";
+    protected final String srcBasePath = "lib";
+    protected final String apiDirName = "Api";
+    protected final String modelDirName = "Models";
 
     public BetterPHPCodegen() {
         outputFolder = "generated-code/php";
@@ -98,10 +95,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     public void processOpts() {
         super.processOpts();
 
-        if (additionalProperties.containsKey(CodegenConstants.INVOKER_PACKAGE)) {
-            invokerPackage = (String) additionalProperties.get(CodegenConstants.INVOKER_PACKAGE);
-        }
-        additionalProperties.put(CodegenConstants.INVOKER_PACKAGE, invokerPackage);
+        invokerPackage = getPropertyOrDefault(CodegenConstants.INVOKER_PACKAGE, invokerPackage);
         additionalProperties.put("invokerPackage", invokerPackage);
 
         apiPackage = invokerPackage + "\\" + apiDirName;
@@ -111,7 +105,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             modelPackage =
                     invokerPackage
                             + "\\"
-                            + (String) additionalProperties.get(CodegenConstants.MODEL_PACKAGE);
+                            + additionalProperties.get(CodegenConstants.MODEL_PACKAGE);
         }
         additionalProperties.put(CodegenConstants.MODEL_PACKAGE, modelPackage);
 
@@ -119,13 +113,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             apiPackage =
                     invokerPackage
                             + "\\"
-                            + (String) additionalProperties.get(CodegenConstants.API_PACKAGE);
+                            + additionalProperties.get(CodegenConstants.API_PACKAGE);
         }
         additionalProperties.put(CodegenConstants.API_PACKAGE, apiPackage);
 
         additionalProperties.put("escapedInvokerPackage", invokerPackage.replace("\\", "\\\\"));
-
-        supportingFiles.clear();
 
         String invokerFolder = toSrcPath(invokerPackage);
         String apiFolder = toSrcPath(apiPackage);
@@ -233,17 +225,29 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     @Override
-    public String toVarName(String name) {
-        name = sanitizeName(name);
-        name =
-                StringUtils.camelize(name, LOWERCASE_FIRST_LETTER);
-        if (name.matches("^\\d.*")) {
-            name = "_" + name;
+    protected String applyVarNameCasing(String name) {
+        return StringUtils.camelize(name, LOWERCASE_FIRST_LETTER);
+    }
+
+    @Override
+    protected String formatOperationId(String sanitizedOperationId) {
+        if (isReservedWord(sanitizedOperationId)) {
+            sanitizedOperationId = "call_" + sanitizedOperationId;
         }
-        if (isReservedWord(name)) {
-            name = escapeReservedWord(name);
+        if (sanitizedOperationId.matches("^\\d.*")) {
+            sanitizedOperationId = "call_" + sanitizedOperationId;
         }
-        return name;
+        return StringUtils.camelize(sanitizedOperationId, LOWERCASE_FIRST_LETTER);
+    }
+
+    @Override
+    protected boolean isNumericEnumDatatype(String datatype) {
+        return "int".equals(datatype) || "float".equals(datatype);
+    }
+
+    @Override
+    protected String quoteEnumValue(String value) {
+        return "'" + escapeTextInSingleQuotes(value) + "'";
     }
 
     @Override
@@ -261,20 +265,6 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         }
 
         return StringUtils.camelize(name);
-    }
-
-    @Override
-    public String toOperationId(String operationId) {
-        if (operationId == null || operationId.isEmpty()) {
-            throw new RuntimeException("Empty method/operation name (operationId) not allowed");
-        }
-        if (isReservedWord(operationId)) {
-            operationId = "call_" + operationId;
-        }
-        if (operationId.matches("^\\d.*")) {
-            operationId = "call_" + operationId;
-        }
-        return StringUtils.camelize(sanitizeName(operationId), LOWERCASE_FIRST_LETTER);
     }
 
     @Nullable
@@ -299,14 +289,6 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             }
         }
         return null;
-    }
-
-    @Override
-    public String toEnumValue(String value, String datatype) {
-        if ("int".equals(datatype) || "float".equals(datatype)) {
-            return value;
-        }
-        return "'" + escapeTextInSingleQuotes(value) + "'";
     }
 
     @Override

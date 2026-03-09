@@ -30,10 +30,7 @@ import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A custom TypeScript code generator providing a minimal, modern TypeScript
- * client using the Fetch API.
- */
+/** Generates a TypeScript API client using the Fetch API. */
 @SuppressWarnings("unused")
 public class BetterNodeCodegen extends AbstractBetterCodegen {
 
@@ -98,11 +95,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     @Override
     public void processOpts() {
         super.processOpts();
-        setEnablePostProcessFile(true);
 
         this.apiPackage = "api";
 
-        supportingFiles.clear();
         supportingFiles.add(new SupportingFile("api_client.mustache", "", "api-client.ts"));
         supportingFiles.add(
                 new SupportingFile(
@@ -183,6 +178,26 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     }
 
     @Override
+    protected String applyVarNameCasing(String name) {
+        return name;
+    }
+
+    @Override
+    protected String formatOperationId(String sanitizedOperationId) {
+        return StringUtils.camelize(sanitizedOperationId, LOWERCASE_FIRST_LETTER);
+    }
+
+    @Override
+    protected boolean isNumericEnumDatatype(String datatype) {
+        return "number".equals(datatype) || "boolean".equals(datatype);
+    }
+
+    @Override
+    protected String quoteEnumValue(String value) {
+        return "'" + escapeText(value) + "'";
+    }
+
+    @Override
     public String toModelFilename(String name) {
         return toKebabCase(toModelName(name));
     }
@@ -190,15 +205,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     @Override
     public String toApiFilename(String name) {
         return toKebabCase(toApiName(name));
-    }
-
-    @Override
-    public String toOperationId(String operationId) {
-        if (operationId == null || operationId.isEmpty()) {
-            throw new RuntimeException("Empty method/operation name (operationId) not allowed");
-        }
-        return StringUtils.camelize(
-                sanitizeName(operationId), LOWERCASE_FIRST_LETTER);
     }
 
     @Override
@@ -231,14 +237,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
             return varName;
         }
         return toPascalCase(value);
-    }
-
-    @Override
-    public String toEnumValue(String value, String datatype) {
-        if ("number".equals(datatype) || "boolean".equals(datatype)) {
-            return value;
-        }
-        return "'" + escapeText(value) + "'";
     }
 
     private String toPascalCase(String value) {
@@ -296,15 +294,12 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                 && !prop.isFreeFormObject) {
             return true;
         }
-        if (prop.isArray
-                && prop.items != null
-                && !prop.items.isPrimitiveType
-                && prop.items.complexType != null
-                && !prop.items.isEnum
-                && !prop.items.isFreeFormObject) {
-            return true;
-        }
-        return false;
+        return prop.isArray
+            && prop.items != null
+            && !prop.items.isPrimitiveType
+            && prop.items.complexType != null
+            && !prop.items.isEnum
+            && !prop.items.isFreeFormObject;
     }
 
     @Override
@@ -359,8 +354,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                     imp.put("className", imp.get("classname"));
                 }
                 if (!imp.containsKey("className") && imp.containsKey("import")) {
-                    String fullImport = imp.get("import");
-                    String className = fullImport;
+                    String className = imp.get("import");
                     if (className.contains(".")) {
                         className = className.substring(className.lastIndexOf('.') + 1);
                     }
