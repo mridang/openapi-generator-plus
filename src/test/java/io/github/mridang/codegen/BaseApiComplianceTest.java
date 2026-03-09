@@ -77,7 +77,7 @@ public class BaseApiComplianceTest {
     gen.opts(configurator.toClientOptInput()).generate();
   }
 
-  static void deleteRecursively(Path path) throws IOException {
+  static void deleteRecursively(@SuppressWarnings("SameParameterValue") Path path) throws IOException {
     Files.walkFileTree(
         path,
         new SimpleFileVisitor<>() {
@@ -136,10 +136,10 @@ public class BaseApiComplianceTest {
 
   @Test
   void nodeFilesExist() {
-    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/api/BaseApi.ts")));
-    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/ApiClient.ts")));
-    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/DefaultApiClient.ts")));
-    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/ApiResponse.ts")));
+    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/api/base-api.ts")));
+    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/api-client.ts")));
+    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/default-api-client.ts")));
+    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/api-response.ts")));
   }
 
   // --- 2. API classes extend BaseApi ---
@@ -233,6 +233,7 @@ public class BaseApiComplianceTest {
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("-api.ts"))
+          .filter(p -> !p.getFileName().toString().equals("base-api.ts"))
           .forEach(
               p -> {
                 try {
@@ -335,6 +336,7 @@ public class BaseApiComplianceTest {
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("-api.ts"))
+          .filter(p -> !p.getFileName().toString().equals("base-api.ts"))
           .forEach(
               p -> {
                 try {
@@ -453,6 +455,7 @@ public class BaseApiComplianceTest {
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("-api.ts"))
+          .filter(p -> !p.getFileName().toString().equals("base-api.ts"))
           .forEach(
               p -> {
                 try {
@@ -526,13 +529,13 @@ public class BaseApiComplianceTest {
 
   @Test
   void nodeStructuralChecks() throws IOException {
-    String baseApi = Files.readString(OUTPUT_DIR.resolve("node/api/BaseApi.ts"));
+    String baseApi = Files.readString(OUTPUT_DIR.resolve("node/api/base-api.ts"));
     assertTrue(baseApi.contains("invokeApi"), "BaseApi must have invokeApi method");
 
-    String apiClient = Files.readString(OUTPUT_DIR.resolve("node/ApiClient.ts"));
+    String apiClient = Files.readString(OUTPUT_DIR.resolve("node/api-client.ts"));
     assertTrue(apiClient.contains("sendRequest("), "ApiClient must have sendRequest method");
 
-    String defaultApiClient = Files.readString(OUTPUT_DIR.resolve("node/DefaultApiClient.ts"));
+    String defaultApiClient = Files.readString(OUTPUT_DIR.resolve("node/default-api-client.ts"));
     assertTrue(defaultApiClient.contains("sendRequest("), "DefaultApiClient must have sendRequest method");
   }
 }

@@ -77,7 +77,7 @@ public class HeaderSelectorComplianceTest {
     gen.opts(configurator.toClientOptInput()).generate();
   }
 
-  static void deleteRecursively(Path path) throws IOException {
+  static void deleteRecursively(@SuppressWarnings("SameParameterValue") Path path) throws IOException {
     Files.walkFileTree(
         path,
         new SimpleFileVisitor<>() {
@@ -131,7 +131,7 @@ public class HeaderSelectorComplianceTest {
   @Test
   void nodeHeaderSelectorExists() {
     assertTrue(
-        Files.exists(OUTPUT_DIR.resolve("node/HeaderSelector.ts")),
+        Files.exists(OUTPUT_DIR.resolve("node/header-selector.ts")),
         "Node HeaderSelector must exist");
   }
 
@@ -187,7 +187,7 @@ public class HeaderSelectorComplianceTest {
   @Test
   void nodeBaseApiDelegatesToHeaderSelector() throws IOException {
     String content =
-        Files.readString(OUTPUT_DIR.resolve("node/api/BaseApi.ts"));
+        Files.readString(OUTPUT_DIR.resolve("node/api/base-api.ts"));
     assertTrue(
         content.contains("HeaderSelector"),
         "Node BaseApi.ts must reference HeaderSelector");
@@ -285,7 +285,7 @@ public class HeaderSelectorComplianceTest {
   @Test
   void nodeHeaderSelectorHasRequiredMethods() throws IOException {
     String content =
-        Files.readString(OUTPUT_DIR.resolve("node/HeaderSelector.ts"));
+        Files.readString(OUTPUT_DIR.resolve("node/header-selector.ts"));
     assertTrue(content.contains("selectHeaders("), "Node must have selectHeaders");
     assertTrue(content.contains("isJsonMime("), "Node must have isJsonMime");
     assertTrue(content.contains("getNextWeight("), "Node must have getNextWeight");

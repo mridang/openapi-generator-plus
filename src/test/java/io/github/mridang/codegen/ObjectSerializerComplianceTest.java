@@ -76,7 +76,7 @@ public class ObjectSerializerComplianceTest {
     gen.opts(configurator.toClientOptInput()).generate();
   }
 
-  static void deleteRecursively(Path path) throws IOException {
+  static void deleteRecursively(@SuppressWarnings("SameParameterValue") Path path) throws IOException {
     Files.walkFileTree(
         path,
         new SimpleFileVisitor<>() {
@@ -123,7 +123,7 @@ public class ObjectSerializerComplianceTest {
   @Test
   void nodeObjectSerializerExists() {
     assertTrue(
-        Files.exists(OUTPUT_DIR.resolve("node/ObjectSerializer.ts")),
+        Files.exists(OUTPUT_DIR.resolve("node/object-serializer.ts")),
         "Node ObjectSerializer must exist");
   }
 
@@ -176,8 +176,8 @@ public class ObjectSerializerComplianceTest {
     Path apiDir = OUTPUT_DIR.resolve("node");
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
-          .filter(p -> p.getFileName().toString().endsWith("Api.ts"))
-          .filter(p -> !p.getFileName().toString().equals("BaseApi.ts"))
+          .filter(p -> p.getFileName().toString().endsWith("-api.ts"))
+          .filter(p -> !p.getFileName().toString().equals("base-api.ts"))
           .forEach(
               p -> {
                 try {
@@ -297,6 +297,7 @@ public class ObjectSerializerComplianceTest {
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("-api.ts"))
+          .filter(p -> !p.getFileName().toString().equals("base-api.ts"))
           .forEach(
               p -> {
                 try {
