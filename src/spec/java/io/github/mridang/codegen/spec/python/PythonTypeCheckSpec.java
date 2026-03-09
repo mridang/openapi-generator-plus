@@ -3,7 +3,7 @@ package io.github.mridang.codegen.spec.python;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractIntegrationSpec;
-import java.io.IOException;
+
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.openapitools.codegen.CodegenConstants;
@@ -39,7 +39,7 @@ public class PythonTypeCheckSpec extends AbstractIntegrationSpec {
   }
 
   @Test
-  void generatedCodeShouldPassTypeChecking() throws IOException {
+  void generatedCodeShouldPassTypeChecking() {
     generateClientToDirectory(
         Map.of(
             CodegenConstants.PACKAGE_NAME, PACKAGE_NAME,

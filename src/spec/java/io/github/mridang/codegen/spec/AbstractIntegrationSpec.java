@@ -50,11 +50,6 @@ public abstract class AbstractIntegrationSpec {
 
   protected abstract String[] getBuildCommands();
 
-  @SuppressWarnings("SameReturnValue")
-  protected String getTestScript(String prismBaseUrl) {
-    return "";
-  }
-
   @BeforeAll
   static void setupSharedInfrastructure() {
     sharedNetwork = Network.newNetwork();
@@ -87,7 +82,8 @@ public abstract class AbstractIntegrationSpec {
     }
   }
 
-  protected String startPrismServer() {
+  @SuppressWarnings("LoggingSimilarMessage")
+  protected void startPrismServer() {
     URL specUrl = getClass().getClassLoader().getResource(getSpecResourcePath());
     if (specUrl == null) {
       throw new IllegalStateException("Could not find spec resource: " + getSpecResourcePath());
@@ -117,33 +113,6 @@ public abstract class AbstractIntegrationSpec {
     logger.info("  - Network URL: {}", networkBaseUrl);
     logger.info("  - Container ID: {}", prismContainer.getContainerId());
 
-    return networkBaseUrl;
-  }
-
-  protected void generateClient(Map<String, Object> additionalProperties) {
-    URL specUrl = getClass().getClassLoader().getResource(getSpecResourcePath());
-    if (specUrl == null) {
-      throw new IllegalStateException("Could not find spec resource: " + getSpecResourcePath());
-    }
-
-    String specPath = specUrl.getPath();
-
-    logger.info("Generating {} client from spec: {}", getGeneratorName(), specPath);
-    logger.info("Output directory: {}", tempOutputDir);
-
-    CodegenConfigurator configurator =
-        new CodegenConfigurator()
-            .setGeneratorName(getGeneratorName())
-            .setInputSpec(specPath)
-            .setOutputDir(tempOutputDir.toString().replace("\\", "/"))
-            .setAdditionalProperties(additionalProperties);
-
-    DefaultGenerator generator = new DefaultGenerator();
-    generator.setGenerateMetadata(false);
-    generator.opts(configurator.toClientOptInput()).generate();
-
-    logger.info("Code generation complete. Files in output directory:");
-    logDirectoryContents(tempOutputDir, 0);
   }
 
   protected void generateClientToDirectory(
@@ -271,10 +240,6 @@ public abstract class AbstractIntegrationSpec {
     public ExecResult(int exitCode, String output) {
       this.exitCode = exitCode;
       this.output = output;
-    }
-
-    public int exitCode() {
-      return exitCode;
     }
 
     public String output() {

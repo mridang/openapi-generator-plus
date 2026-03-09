@@ -3,7 +3,7 @@ package io.github.mridang.codegen.spec.node;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractIntegrationSpec;
-import java.io.IOException;
+
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -36,7 +36,7 @@ public class NodeTypeCheckSpec extends AbstractIntegrationSpec {
   }
 
   @Test
-  void generatedCodeShouldPassTypeChecking() throws IOException {
+  void generatedCodeShouldPassTypeChecking() {
     generateClientToDirectory(Map.of(), tempOutputDir);
 
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
