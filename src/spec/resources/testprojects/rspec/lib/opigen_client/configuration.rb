@@ -70,12 +70,12 @@ module PetstoreClient
 
     # Return the default configuration instance, creating it lazily if needed.
     def self.default
-      @@default ||= Configuration.new
+      @default ||= Configuration.new
     end
 
     # Set the default configuration instance.
     def self.default=(configuration)
-      @@default = configuration
+      @default = configuration
     end
   end
 end

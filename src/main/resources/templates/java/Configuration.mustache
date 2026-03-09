@@ -2,6 +2,7 @@ package {{invokerPackage}};
 
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
  * Configuration for API clients.
@@ -11,7 +12,7 @@ import java.util.Map;
  */
 public class Configuration {
 
-    private static volatile Configuration defaultInstance;
+    @Nullable private static volatile Configuration defaultInstance;
 
     /**
      * Base URL for all API requests.
@@ -37,32 +38,32 @@ public class Configuration {
     /**
      * Path to a CA certificate file for SSL/TLS verification.
      */
-    private String sslCaCert = null;
+    @Nullable private String sslCaCert = null;
 
     /**
      * Path to a client certificate file for mutual TLS authentication.
      */
-    private String certFile = null;
+    @Nullable private String certFile = null;
 
     /**
      * Path to a client private key file for mutual TLS authentication.
      */
-    private String keyFile = null;
+    @Nullable private String keyFile = null;
 
     /**
      * Proxy URL for all API requests.
      */
-    private String proxy = null;
+    @Nullable private String proxy = null;
 
     /**
      * Request timeout in seconds. null means no timeout.
      */
-    private Integer timeout = null;
+    @Nullable private Integer timeout = null;
 
     /**
      * Number of retry attempts for failed requests. null means no retries.
      */
-    private Integer retries = null;
+    @Nullable private Integer retries = null;
 
     /**
      * Return the default configuration instance, creating it lazily if needed.
@@ -70,14 +71,17 @@ public class Configuration {
      * @return the default configuration
      */
     public static Configuration getDefault() {
-        if (defaultInstance == null) {
+        Configuration instance = defaultInstance;
+        if (instance == null) {
             synchronized (Configuration.class) {
-                if (defaultInstance == null) {
-                    defaultInstance = new Configuration();
+                instance = defaultInstance;
+                if (instance == null) {
+                    instance = new Configuration();
+                    defaultInstance = instance;
                 }
             }
         }
-        return defaultInstance;
+        return instance;
     }
 
     /**
@@ -117,51 +121,57 @@ public class Configuration {
         this.verifySsl = verifySsl;
     }
 
+    @Nullable
     public String getSslCaCert() {
         return sslCaCert;
     }
 
-    public void setSslCaCert(String sslCaCert) {
+    public void setSslCaCert(@Nullable String sslCaCert) {
         this.sslCaCert = sslCaCert;
     }
 
+    @Nullable
     public String getCertFile() {
         return certFile;
     }
 
-    public void setCertFile(String certFile) {
+    public void setCertFile(@Nullable String certFile) {
         this.certFile = certFile;
     }
 
+    @Nullable
     public String getKeyFile() {
         return keyFile;
     }
 
-    public void setKeyFile(String keyFile) {
+    public void setKeyFile(@Nullable String keyFile) {
         this.keyFile = keyFile;
     }
 
+    @Nullable
     public String getProxy() {
         return proxy;
     }
 
-    public void setProxy(String proxy) {
+    public void setProxy(@Nullable String proxy) {
         this.proxy = proxy;
     }
 
+    @Nullable
     public Integer getTimeout() {
         return timeout;
     }
 
-    public void setTimeout(Integer timeout) {
+    public void setTimeout(@Nullable Integer timeout) {
         this.timeout = timeout;
     }
 
+    @Nullable
     public Integer getRetries() {
         return retries;
     }
 
-    public void setRetries(Integer retries) {
+    public void setRetries(@Nullable Integer retries) {
         this.retries = retries;
     }
 }

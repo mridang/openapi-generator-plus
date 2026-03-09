@@ -4,7 +4,9 @@ import static org.openapitools.codegen.utils.CamelizeOption.LOWERCASE_FIRST_LETT
 
 import com.google.googlejavaformat.java.Formatter;
 import com.google.googlejavaformat.java.FormatterException;
+import com.google.googlejavaformat.java.ImportOrderer;
 import com.google.googlejavaformat.java.JavaFormatterOptions;
+import com.google.googlejavaformat.java.RemoveUnusedImports;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.swagger.v3.oas.models.media.Schema;
 import java.io.File;
@@ -286,6 +288,9 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         }
         try {
             String source = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+            source = RemoveUnusedImports.removeUnusedImports(source);
+            source =
+                    ImportOrderer.reorderImports(source, JavaFormatterOptions.Style.GOOGLE);
             String formatted = formatter.formatSource(source);
             Files.write(file.toPath(), formatted.getBytes(StandardCharsets.UTF_8));
         } catch (IOException e) {

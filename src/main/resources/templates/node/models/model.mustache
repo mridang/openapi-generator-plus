@@ -1,4 +1,3 @@
-import { Expose, Type } from 'class-transformer';
 {{#models}}
 {{#model}}
 {{#hasImports}}
@@ -73,6 +72,7 @@ export type {{classname}} = {{#anyOf}}{{{.}}}{{^-last}} | {{/-last}}{{/anyOf}};
 {{/-first}}
 {{/anyOf}}
 {{^anyOf}}
+import { Expose{{#hasTypeDecorator}}, Type{{/hasTypeDecorator}} } from 'class-transformer';
 
 {{#description}}
 /**
@@ -92,6 +92,9 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/vars}}
 
   constructor(data?: Partial<{{classname}}>) {
+{{#parent}}
+    super(data);
+{{/parent}}
     Object.assign(this, data);
   }
 }

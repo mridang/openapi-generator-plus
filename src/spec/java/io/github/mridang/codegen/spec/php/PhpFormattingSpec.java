@@ -40,7 +40,7 @@ public class PhpFormattingSpec extends AbstractIntegrationSpec {
   protected String[] getBuildCommands() {
     return new String[] {
       "cd /app && echo '{}' > composer.json && composer require --dev squizlabs/php_codesniffer --quiet --no-interaction",
-      "vendor/bin/phpcs --standard=PSR12 --ignore=*/ApiException.php --warning-severity=0 lib/"
+      "vendor/bin/phpcs --standard=PSR12 lib/"
     };
   }
 

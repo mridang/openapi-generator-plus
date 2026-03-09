@@ -5,7 +5,7 @@ namespace {{packageName}};
 /// <summary>
 /// Default implementation of <see cref="IApiClient"/> using HttpClient.
 /// </summary>
-public class DefaultApiClient : IApiClient
+public sealed class DefaultApiClient : IApiClient, IDisposable
 {
     private readonly HttpClient _httpClient;
 
@@ -49,7 +49,7 @@ public class DefaultApiClient : IApiClient
         string? body
     )
     {
-        var request = new HttpRequestMessage(new HttpMethod(method), url);
+        using var request = new HttpRequestMessage(new HttpMethod(method), url);
 
         foreach (var header in headers)
         {
@@ -61,7 +61,7 @@ public class DefaultApiClient : IApiClient
             request.Content = new StringContent(body, Encoding.UTF8, "application/json");
         }
 
-        var response = await _httpClient.SendAsync(request);
+        using var response = await _httpClient.SendAsync(request);
         var responseBody = await response.Content.ReadAsStringAsync();
         var responseHeaders = new Dictionary<string, string>();
 
@@ -71,5 +71,11 @@ public class DefaultApiClient : IApiClient
         }
 
         return new ApiResponse((int)response.StatusCode, responseBody, responseHeaders);
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        _httpClient.Dispose();
     }
 }

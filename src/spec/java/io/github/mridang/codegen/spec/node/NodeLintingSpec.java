@@ -59,13 +59,6 @@ public class NodeLintingSpec extends AbstractIntegrationSpec {
             "export default [",
             "  eslint.configs.recommended,",
             "  ...tseslint.configs.recommended,",
-            "  {",
-            "    rules: {",
-            "      '@typescript-eslint/no-unused-vars': 'off',",
-            "      '@typescript-eslint/no-explicit-any': 'off',",
-            "      'no-prototype-builtins': 'off',",
-            "    }",
-            "  }",
             "];",
             ""));
 

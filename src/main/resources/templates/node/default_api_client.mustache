@@ -91,7 +91,7 @@ export class DefaultApiClient implements ApiClient {
               path: parsed.pathname + parsed.search,
               method,
               headers,
-              socket,
+              createConnection: () => socket,
               agent: this.agent ?? new https.Agent({ rejectUnauthorized: this.config?.verifySsl ?? true })
             };
             const req = https.request(tlsOptions, (res) => this.collectResponse(res, resolve));

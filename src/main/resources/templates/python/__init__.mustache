@@ -4,8 +4,7 @@ __version__ = '{{packageVersion}}'
 # Define package exports
 __all__ = [
     {{#apiInfo}}{{#apis}}'{{classname}}',
-    {{/apis}}{{/apiInfo}}'ApiResponse',
-    'ApiClient',
+    {{/apis}}{{/apiInfo}}'ApiClient',
     'Configuration',
     'OpenApiException',
     'ApiTypeError',
@@ -22,7 +21,6 @@ __all__ = [
 {{#apiInfo}}{{#apis}}from {{apiPackage}}.{{classFilename}} import {{classname}} as {{classname}}
 {{/apis}}{{/apiInfo}}
 # import ApiClient
-from {{packageName}}.api_response import ApiResponse as ApiResponse
 from {{packageName}}.api_client import ApiClient as ApiClient
 from {{packageName}}.configuration import Configuration as Configuration
 from {{packageName}}.exceptions import OpenApiException as OpenApiException

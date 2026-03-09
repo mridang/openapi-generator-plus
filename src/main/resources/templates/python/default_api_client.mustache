@@ -1,4 +1,4 @@
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 import urllib3
 
@@ -10,7 +10,7 @@ from {{packageName}}.configuration import Configuration
 class DefaultApiClient:
     """Default implementation of ApiClient using urllib3."""
 
-    def __init__(self, config=None, pool_manager=None):
+    def __init__(self, config: Optional[Configuration] = None, pool_manager: Optional[Any] = None) -> None:
         if pool_manager is not None:
             self._pool_manager = pool_manager
         elif config is not None:

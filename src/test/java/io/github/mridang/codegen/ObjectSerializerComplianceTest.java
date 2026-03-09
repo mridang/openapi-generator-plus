@@ -177,6 +177,7 @@ public class ObjectSerializerComplianceTest {
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("Api.ts"))
+          .filter(p -> !p.getFileName().toString().equals("BaseApi.ts"))
           .forEach(
               p -> {
                 try {

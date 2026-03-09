@@ -123,8 +123,7 @@ public class {{classname}}{{#parent}} : {{{.}}}{{/parent}}
     {{/vars}}
 {{#hasRequired}}
 
-    public {{classname}}() { }
-
+    [JsonConstructor]
     public {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{^-last}}, {{/-last}}{{/requiredVars}})
     {
         {{#requiredVars}}

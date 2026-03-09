@@ -18,7 +18,9 @@ module {{moduleName}}::Api
     # @param {{paramName}} [{{{dataType}}}] {{description}}
 {{/required}}
 {{/allParams}}
+{{#hasOptionalParams}}
     # @param [Hash] opts the optional parameters
+{{/hasOptionalParams}}
 {{#allParams}}
 {{^required}}
     # @option opts [{{{dataType}}}] :{{paramName}}{{#description}} {{.}}{{/description}}{{#defaultValue}} (default to {{{.}}}){{/defaultValue}}
@@ -28,7 +30,7 @@ module {{moduleName}}::Api
 {{#isDeprecated}}
     # @deprecated
 {{/isDeprecated}}
-    def {{operationId}}({{#allParams}}{{#required}}{{paramName}}, {{/required}}{{/allParams}}opts = {})
+    def {{operationId}}({{#requiredParams}}{{paramName}}{{^-last}}, {{/-last}}{{/requiredParams}}{{#hasOptionalParams}}{{#hasRequiredParams}}, {{/hasRequiredParams}}opts = {}{{/hasOptionalParams}})
 {{#allParams}}
 {{#required}}
       if {{{paramName}}}.nil?
@@ -38,32 +40,35 @@ module {{moduleName}}::Api
 {{/required}}
 {{/allParams}}
       path = '{{{path}}}'{{#pathParams}}.sub('{' + '{{baseName}}' + '}', CGI.escape({{moduleName}}::ObjectSerializer.to_path_value({{paramName}}))){{/pathParams}}
+      # @type var query_params: Hash[String, untyped]
       query_params = {}
 {{#queryParams}}
 {{#required}}
-      query_params[:'{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_query_value({{paramName}}{{#collectionFormat}}, :{{collectionFormat}}{{/collectionFormat}})
+      query_params['{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_query_value({{paramName}}{{#collectionFormat}}, :{{collectionFormat}}{{/collectionFormat}})
 {{/required}}
 {{^required}}
-      query_params[:'{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_query_value(opts[:'{{paramName}}']{{#collectionFormat}}, :{{collectionFormat}}{{/collectionFormat}}) unless opts[:'{{paramName}}'].nil?
+      query_params['{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_query_value(opts[:{{paramName}}]{{#collectionFormat}}, :{{collectionFormat}}{{/collectionFormat}}) unless opts[:{{paramName}}].nil?
 {{/required}}
 {{/queryParams}}
+      # @type var header_params: Hash[String, String]
       header_params = {}
 {{#headerParams}}
 {{#required}}
       header_params['{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_header_value({{paramName}})
 {{/required}}
 {{^required}}
-      header_params['{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_header_value(opts[:'{{paramName}}']) unless opts[:'{{paramName}}'].nil?
+      header_params['{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_header_value(opts[:{{paramName}}]) unless opts[:{{paramName}}].nil?
 {{/required}}
 {{/headerParams}}
 {{#hasFormParams}}
+      # @type var body: Hash[String, untyped]
       body = {}
 {{#formParams}}
 {{#required}}
       body['{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_form_value({{paramName}})
 {{/required}}
 {{^required}}
-      body['{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_form_value(opts[:'{{paramName}}']) unless opts[:'{{paramName}}'].nil?
+      body['{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_form_value(opts[:{{paramName}}]) unless opts[:{{paramName}}].nil?
 {{/required}}
 {{/formParams}}
 {{/hasFormParams}}
@@ -73,7 +78,7 @@ module {{moduleName}}::Api
       body = {{{paramName}}}
 {{/required}}
 {{^required}}
-      body = opts[:'{{{paramName}}}']
+      body = opts[:{{{paramName}}}]
 {{/required}}
 {{/bodyParam}}
 {{^bodyParam}}

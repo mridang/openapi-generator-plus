@@ -13,7 +13,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * Verifies that generated PHP code passes PHPStan static analysis at level 5.
+ * Verifies that generated PHP code passes PHPStan static analysis at level 9.
  * If this test fails, the PHP templates need to be fixed.
  */
 @SuppressWarnings("NewClassNamingConvention")
@@ -43,7 +43,7 @@ public class PhpStaticAnalysisSpec extends AbstractIntegrationSpec {
           + " phpdocumentor/reflection-docblock:^5.3"
           + " && composer require --dev --quiet --no-interaction phpstan/phpstan"
           + " && composer dump-autoload",
-      "vendor/bin/phpstan analyse lib/ --level=5 --no-progress"
+      "vendor/bin/phpstan analyse lib/ --level=9 --no-progress"
     };
   }
 
@@ -77,16 +77,9 @@ public class PhpStaticAnalysisSpec extends AbstractIntegrationSpec {
         String.join(
             "\n",
             "parameters:",
-            "  level: 5",
+            "  level: 9",
             "  paths:",
             "    - lib",
-            "  treatPhpDocTypesAsCertain: false",
-            "  ignoreErrors:",
-            "    - identifier: classConstant.unused",
-            "    - identifier: return.void",
-            "    - identifier: binaryOp.invalid",
-            "    - identifier: method.notFound",
-            "    - identifier: notIdentical.alwaysTrue",
             ""));
 
     ExecResult result = executeInRuntimeContainer(getBuildCommands());

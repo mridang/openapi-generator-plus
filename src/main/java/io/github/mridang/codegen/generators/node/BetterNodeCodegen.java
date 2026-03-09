@@ -63,24 +63,24 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
         typeMapping.put("decimal", "string");
         typeMapping.put("date", "string");
         typeMapping.put("DateTime", "string");
-        typeMapping.put("binary", "any");
-        typeMapping.put("File", "any");
-        typeMapping.put("file", "any");
+        typeMapping.put("binary", "Blob");
+        typeMapping.put("File", "Blob");
+        typeMapping.put("file", "Blob");
         typeMapping.put("ByteArray", "string");
         typeMapping.put("UUID", "string");
         typeMapping.put("URI", "string");
         typeMapping.put("object", "object");
-        typeMapping.put("AnyType", "any");
+        typeMapping.put("AnyType", "unknown");
         typeMapping.put("array", "Array");
         typeMapping.put("set", "Set");
-        typeMapping.put("map", "any");
-        typeMapping.put("Map", "any");
+        typeMapping.put("map", "{ [key: string]: unknown }");
+        typeMapping.put("Map", "{ [key: string]: unknown }");
 
         languageSpecificPrimitives =
                 new HashSet<>(
                         Arrays.asList(
-                                "number", "boolean", "string", "object", "any", "void",
-                                "undefined", "null", "Array", "Set"));
+                                "number", "boolean", "string", "object", "any", "unknown",
+                                "void", "undefined", "null", "Array", "Set", "Blob"));
 
         reservedWords = loadReservedWords("/reserved-words/node.txt");
 
@@ -120,6 +120,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                 new SupportingFile("object_serializer.mustache", "", "ObjectSerializer.ts"));
         supportingFiles.add(
                 new SupportingFile("header_selector.mustache", "", "HeaderSelector.ts"));
+        supportingFiles.add(new SupportingFile("tsconfig.mustache", "", "tsconfig.json"));
         supportingFiles.add(
                 new SupportingFile("models/index.mustache", "models", "index.ts"));
         supportingFiles.add(
@@ -143,7 +144,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
             return getSchemaType(p) + "<" + getTypeDeclaration(inner) + ">";
         } else if (ModelUtils.isMapSchema(p)) {
             Schema<?> inner = ModelUtils.getAdditionalProperties(p);
-            String valueType = inner == null ? "any" : getTypeDeclaration(inner);
+            String valueType = inner == null ? "unknown" : getTypeDeclaration(inner);
             return "{ [key: string]: " + valueType + " }";
         }
         return super.getTypeDeclaration(p);
@@ -274,8 +275,36 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
             }
             modelMap.put("tsImports", tsImports);
             modelMap.put("hasImports", !tsImports.isEmpty());
+
+            boolean hasTypeDecorator = false;
+            for (CodegenProperty var : model.vars) {
+                if (needsTypeDecorator(var)) {
+                    hasTypeDecorator = true;
+                    break;
+                }
+            }
+            modelMap.put("hasTypeDecorator", hasTypeDecorator);
         }
         return result;
+    }
+
+    private static boolean needsTypeDecorator(CodegenProperty prop) {
+        if (!prop.isPrimitiveType
+                && !prop.isArray
+                && prop.complexType != null
+                && !prop.isEnum
+                && !prop.isFreeFormObject) {
+            return true;
+        }
+        if (prop.isArray
+                && prop.items != null
+                && !prop.items.isPrimitiveType
+                && prop.items.complexType != null
+                && !prop.items.isEnum
+                && !prop.items.isFreeFormObject) {
+            return true;
+        }
+        return false;
     }
 
     @Override

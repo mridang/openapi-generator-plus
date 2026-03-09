@@ -3,6 +3,7 @@ package {{modelPackage}};
 {{#imports}}
 import {{import}};
 {{/imports}}
+import javax.annotation.Nullable;
 
 {{#models}}
 {{#model}}
@@ -142,6 +143,7 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   /** {{{.}}} */
   {{/description}}
   @JsonProperty("{{baseName}}")
+  @Nullable
   public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
 
 {{/vars}}

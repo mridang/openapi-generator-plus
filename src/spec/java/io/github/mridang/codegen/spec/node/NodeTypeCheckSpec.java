@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.mridang.codegen.spec.AbstractIntegrationSpec;
 import java.io.IOException;
 import java.net.URL;
-import java.nio.file.Files;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -32,7 +31,7 @@ public class NodeTypeCheckSpec extends AbstractIntegrationSpec {
   @Override
   protected String[] getBuildCommands() {
     return new String[] {
-      "npm init -y && npm install --save-dev typescript @types/node class-transformer reflect-metadata",
+      "npm init -y && npm install --save-dev typescript @types/node @tsconfig/node22 class-transformer reflect-metadata",
       "npx tsc --noEmit"
     };
   }
@@ -45,28 +44,6 @@ public class NodeTypeCheckSpec extends AbstractIntegrationSpec {
   @Test
   void generatedCodeShouldPassTypeChecking() throws IOException {
     generateClientToDirectory(Map.of(), tempOutputDir);
-
-    Files.writeString(
-        tempOutputDir.resolve("tsconfig.json"),
-        String.join(
-            "\n",
-            "{",
-            "  \"compilerOptions\": {",
-            "    \"target\": \"ES2020\",",
-            "    \"module\": \"ES2020\",",
-            "    \"moduleResolution\": \"node\",",
-            "    \"esModuleInterop\": true,",
-            "    \"strict\": true,",
-            "    \"experimentalDecorators\": true,",
-            "    \"emitDecoratorMetadata\": true,",
-            "    \"noEmit\": true,",
-            "    \"skipLibCheck\": true",
-            "  },",
-            "  \"include\": [\"models/**/*.ts\", \"ObjectSerializer.ts\", \"HeaderSelector.ts\",",
-            "    \"Configuration.ts\", \"ApiClient.ts\", \"ApiResponse.ts\"],",
-            "  \"exclude\": [\"node_modules\", \"dist\"]",
-            "}",
-            ""));
 
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 

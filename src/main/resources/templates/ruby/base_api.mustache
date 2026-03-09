@@ -34,6 +34,7 @@ module {{moduleName}}::Api
 
       is_multipart = content_type == 'multipart/form-data'
       selected = @header_selector.select_headers(accepts, content_type || '', is_multipart)
+      # @type var headers: Hash[String, String]
       headers = {}
       headers['Accept'] = selected['Accept'] if selected['Accept']
       headers['Content-Type'] = selected['Content-Type'] if selected['Content-Type']
@@ -59,7 +60,6 @@ module {{moduleName}}::Api
 
     def build_collection_param(param, format)
       case format
-      when :csv then param.join(',')
       when :ssv then param.join(' ')
       when :tsv then param.join("\t")
       when :pipes then param.join('|')
@@ -85,11 +85,15 @@ module {{moduleName}}::Api
       return nil if body.nil?
 
       if content_type == 'multipart/form-data'
-        body.each_with_object({}) do |(k, v), hash|
+        # @type var form: Hash[String, String]
+        form = {}
+        body.each_with_object(form) do |(k, v), hash|
           hash[k] = {{moduleName}}::ObjectSerializer.to_form_value(v)
         end
       elsif content_type == 'application/x-www-form-urlencoded'
-        body.each_with_object({}) do |(k, v), hash|
+        # @type var form: Hash[String, String]
+        form = {}
+        body.each_with_object(form) do |(k, v), hash|
           hash[k] = {{moduleName}}::ObjectSerializer.to_form_value(v)
         end.then { |sanitized| build_query_string(sanitized) }
       else

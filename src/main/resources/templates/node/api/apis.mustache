@@ -45,7 +45,7 @@ export class {{classname}} extends BaseApi {
 {{/required}}
 {{/allParams}}
     const path = `{{{path}}}`{{#pathParams}}.replace(`{${'{{baseName}}'}}`, encodeURIComponent(ObjectSerializer.toPathValue({{paramName}}))){{/pathParams}};
-    const queryParams: Record<string, any> = {};
+    const queryParams: Record<string, unknown> = {};
 {{#queryParams}}
     if ({{paramName}} != null) {
       queryParams['{{baseName}}'] = ObjectSerializer.toQueryValue({{paramName}}{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}});
@@ -58,7 +58,7 @@ export class {{classname}} extends BaseApi {
     }
 {{/headerParams}}
 {{#hasFormParams}}
-    const formBody: Record<string, any> = {};
+    const formBody: Record<string, unknown> = {};
 {{#formParams}}
     if ({{paramName}} != null) {
       formBody['{{baseName}}'] = ObjectSerializer.toFormValue({{paramName}});
@@ -67,7 +67,7 @@ export class {{classname}} extends BaseApi {
 
 {{/hasFormParams}}
 {{#returnType}}
-    return this.invokeApi(
+    return (await this.invokeApi(
       '{{httpMethod}}',
       path,
       queryParams,
@@ -75,8 +75,8 @@ export class {{classname}} extends BaseApi {
       {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
       [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
       {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
-      {{#isArray}}(json: any) => ObjectSerializer.deserializeArray(json, {{returnBaseType}}){{/isArray}}{{#isMap}}(json: any) => json as {{{returnType}}}{{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}(json: any) => json as {{{returnType}}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}(json: any) => ObjectSerializer.deserialize(json, {{returnBaseType}}){{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}}
-    ) as {{{returnType}}};
+      {{#isArray}}(json: unknown) => ObjectSerializer.deserializeArray(json, {{returnBaseType}}){{/isArray}}{{#isMap}}(json: unknown) => json as {{{returnType}}}{{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}(json: unknown) => json as {{{returnType}}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}(json: unknown) => ObjectSerializer.deserialize(json, {{returnBaseType}}){{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}}
+    )) as {{{returnType}}};
 {{/returnType}}
 {{^returnType}}
     (await this.invokeApi('{{httpMethod}}', path, queryParams, headerParams, {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}}, [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}], {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}}, null)) as void;

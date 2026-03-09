@@ -179,28 +179,22 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
 
     @Override
     public String getSchemaType(Schema schema) {
-        String openAPIType = super.getSchemaType(schema);
+        String type = super.getSchemaType(schema);
 
-        if (openAPIType == null) {
-            openAPIType = "UNKNOWN_OPENAPI_TYPE";
+        if (type == null) {
+            return "UNKNOWN_OPENAPI_TYPE";
         }
 
         if ((schema.getAnyOf() != null && !schema.getAnyOf().isEmpty())
                 || (schema.getOneOf() != null && !schema.getOneOf().isEmpty())) {
-            return openAPIType;
+            return type;
         }
 
-        if (typeMapping.containsKey(openAPIType)) {
-            String type = typeMapping.get(openAPIType);
-            if (languageSpecificPrimitives.contains(type)) {
-                return type;
-            } else if (instantiationTypes.containsKey(type)) {
-                return type;
-            }
-            return toModelName(type);
+        if (languageSpecificPrimitives.contains(type)) {
+            return type;
         }
 
-        return toModelName(openAPIType);
+        return toModelName(type);
     }
 
     @Override

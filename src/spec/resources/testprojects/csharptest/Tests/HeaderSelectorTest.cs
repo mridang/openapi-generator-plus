@@ -5,71 +5,65 @@ namespace Tests;
 
 public class HeaderSelectorTest
 {
-    private readonly HeaderSelector _selector = new();
-
     public class IsJsonMimeTests
     {
-        private readonly HeaderSelector _selector = new();
-
         [Fact]
         public void ShouldReturnTrueForApplicationJson()
         {
-            Assert.True(_selector.IsJsonMime("application/json"));
+            Assert.True(HeaderSelector.IsJsonMime("application/json"));
         }
 
         [Fact]
         public void ShouldReturnTrueForApplicationJsonWithCharset()
         {
-            Assert.True(_selector.IsJsonMime("application/json; charset=UTF-8"));
+            Assert.True(HeaderSelector.IsJsonMime("application/json; charset=UTF-8"));
         }
 
         [Fact]
         public void ShouldReturnTrueForUppercaseApplicationJson()
         {
-            Assert.True(_selector.IsJsonMime("APPLICATION/JSON"));
+            Assert.True(HeaderSelector.IsJsonMime("APPLICATION/JSON"));
         }
 
         [Fact]
         public void ShouldReturnTrueForVendorJsonTypes()
         {
-            Assert.True(_selector.IsJsonMime("application/vnd.api+json"));
-            Assert.True(_selector.IsJsonMime("application/vnd.company+json"));
-            Assert.True(_selector.IsJsonMime("application/hal+json"));
+            Assert.True(HeaderSelector.IsJsonMime("application/vnd.api+json"));
+            Assert.True(HeaderSelector.IsJsonMime("application/vnd.company+json"));
+            Assert.True(HeaderSelector.IsJsonMime("application/hal+json"));
         }
 
         [Fact]
         public void ShouldReturnFalseForTextHtml()
         {
-            Assert.False(_selector.IsJsonMime("text/html"));
+            Assert.False(HeaderSelector.IsJsonMime("text/html"));
         }
 
         [Fact]
         public void ShouldReturnFalseForApplicationXml()
         {
-            Assert.False(_selector.IsJsonMime("application/xml"));
+            Assert.False(HeaderSelector.IsJsonMime("application/xml"));
         }
 
         [Fact]
         public void ShouldReturnFalseForNull()
         {
-            Assert.False(_selector.IsJsonMime(null));
+            Assert.False(HeaderSelector.IsJsonMime(null));
         }
 
         [Fact]
         public void ShouldReturnFalseForEmptyString()
         {
-            Assert.False(_selector.IsJsonMime(""));
+            Assert.False(HeaderSelector.IsJsonMime(""));
         }
     }
 
     public class SelectHeadersTests
     {
-        private readonly HeaderSelector _selector = new();
-
         [Fact]
         public void ShouldSetAcceptHeaderWhenAcceptsProvided()
         {
-            var headers = _selector.SelectHeaders(
+            var headers = HeaderSelector.SelectHeaders(
                 new[] { "application/json" },
                 "application/json",
                 false
@@ -80,7 +74,7 @@ public class HeaderSelectorTest
         [Fact]
         public void ShouldNotSetAcceptHeaderWhenAcceptsEmpty()
         {
-            var headers = _selector.SelectHeaders(
+            var headers = HeaderSelector.SelectHeaders(
                 Array.Empty<string>(),
                 "application/json",
                 false
@@ -91,7 +85,7 @@ public class HeaderSelectorTest
         [Fact]
         public void ShouldSetContentTypeHeaderWhenNotMultipart()
         {
-            var headers = _selector.SelectHeaders(
+            var headers = HeaderSelector.SelectHeaders(
                 new[] { "application/json" },
                 "application/json",
                 false
@@ -102,7 +96,7 @@ public class HeaderSelectorTest
         [Fact]
         public void ShouldNotSetContentTypeHeaderWhenMultipart()
         {
-            var headers = _selector.SelectHeaders(
+            var headers = HeaderSelector.SelectHeaders(
                 new[] { "application/json" },
                 "application/json",
                 true
@@ -113,7 +107,7 @@ public class HeaderSelectorTest
         [Fact]
         public void ShouldDefaultContentTypeToApplicationJsonWhenEmpty()
         {
-            var headers = _selector.SelectHeaders(
+            var headers = HeaderSelector.SelectHeaders(
                 new[] { "application/json" },
                 "",
                 false
@@ -124,7 +118,7 @@ public class HeaderSelectorTest
         [Fact]
         public void ShouldReturnSingleAcceptAsIs()
         {
-            var headers = _selector.SelectHeaders(
+            var headers = HeaderSelector.SelectHeaders(
                 new[] { "application/json" },
                 "application/json",
                 false
@@ -135,7 +129,7 @@ public class HeaderSelectorTest
         [Fact]
         public void ShouldReturnCommaSeparatedListWhenNoJsonTypes()
         {
-            var headers = _selector.SelectHeaders(
+            var headers = HeaderSelector.SelectHeaders(
                 new[] { "text/html", "text/plain" },
                 "application/json",
                 false
@@ -146,7 +140,7 @@ public class HeaderSelectorTest
         [Fact]
         public void ShouldPreferJsonType()
         {
-            var headers = _selector.SelectHeaders(
+            var headers = HeaderSelector.SelectHeaders(
                 new[] { "text/html", "application/json" },
                 "application/json",
                 false

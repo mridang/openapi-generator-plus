@@ -37,7 +37,7 @@ module {{moduleName}}::Models
       def openapi_one_of
         [
       {{/-first}}
-          :'{{{.}}}'{{^-last}},{{/-last}}
+          :{{{.}}}{{^-last}},{{/-last}}
       {{#-last}}
         ]
       end
@@ -48,7 +48,7 @@ module {{moduleName}}::Models
       {{#propertyName}}
       # Discriminator's property name (OpenAPI v3)
       def openapi_discriminator_name
-        :'{{{.}}}'
+        :{{{.}}}
       end
 
       {{/propertyName}}
@@ -58,7 +58,7 @@ module {{moduleName}}::Models
       def openapi_discriminator_mapping
         {
       {{/-first}}
-          :'{{{mappingName}}}' => :'{{{modelName}}}'{{^-last}},{{/-last}}
+          '{{{mappingName}}}' => :{{{modelName}}}{{^-last}},{{/-last}}
       {{#-last}}
         }
       end
@@ -76,7 +76,7 @@ module {{moduleName}}::Models
       {{#mappedModels}}
       {{#-first}}
 
-        klass_name = openapi_discriminator_mapping[discriminator_value.to_s.to_sym]
+        klass_name = openapi_discriminator_mapping[discriminator_value.to_s]
         return nil unless klass_name
 
         {{moduleName}}::ObjectSerializer.convert_to_type(data, klass_name.to_s)
@@ -117,7 +117,7 @@ module {{moduleName}}::Models
       def openapi_any_of
         [
       {{/-first}}
-          :'{{{.}}}'{{^-last}},{{/-last}}
+          :{{{.}}}{{^-last}},{{/-last}}
       {{#-last}}
         ]
       end
@@ -152,7 +152,7 @@ module {{moduleName}}::Models
     # Attribute mapping from ruby-style variable name to JSON key.
     ATTRIBUTE_MAP = {
       {{#vars}}
-      {{name}}: :'{{{baseName}}}'{{^-last}},{{/-last}}
+      {{name}}: '{{{baseName}}}'{{^-last}},{{/-last}}
       {{/vars}}
     }.freeze
 
@@ -162,13 +162,13 @@ module {{moduleName}}::Models
     # Attribute type mapping.
     OPENAPI_TYPES = {
       {{#vars}}
-      :'{{{name}}}' => :'{{{dataType}}}'{{^-last}},{{/-last}}
+      {{{name}}}: '{{{dataType}}}'{{^-last}},{{/-last}}
       {{/vars}}
     }.freeze
 
     # Transform incoming hash keys from JSON format to Ruby attribute names.
     transform_keys do |key|
-      JSON_KEY_MAP[key.to_sym] || key.to_sym
+      JSON_KEY_MAP[key.to_s] || key.to_sym
     end
 
     {{#vars}}

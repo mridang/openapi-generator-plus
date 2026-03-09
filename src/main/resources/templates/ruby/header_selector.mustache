@@ -26,6 +26,7 @@ module {{moduleName}}
     # @param is_multipart [Boolean] whether this is a multipart request
     # @return [Hash<String, String>] map of header names to values
     def select_headers(accept, content_type, is_multipart)
+      # @type var headers: Hash[String, String]
       headers = {}
 
       accept_header = select_accept_header(accept)
@@ -78,7 +79,9 @@ module {{moduleName}}
         return current_weight - 1
       end
 
-      current_weight - (10**Math.log10(current_weight - 1).floor)
+      # @type var step: Integer
+      step = (10**Math.log10(current_weight - 1).floor)
+      current_weight - step
     end
 
     private
@@ -116,8 +119,11 @@ module {{moduleName}}
     # @param headers_with_json [Array<String>] Array of Accept Headers of type "json"
     # @return [String] "Accept" Header (e.g. "application/json, text/html; q=0.9")
     def get_accept_header_with_adjusted_weight(accept, headers_with_json)
+      # @type var with_application_json: Array[untyped]
       with_application_json = []
+      # @type var with_json: Array[untyped]
       with_json = []
+      # @type var without_json: Array[untyped]
       without_json = []
 
       accept.each do |header|
@@ -132,6 +138,7 @@ module {{moduleName}}
         end
       end
 
+      # @type var accept_headers: Array[String]
       accept_headers = []
       current_weight = [1000]
 
@@ -174,6 +181,7 @@ module {{moduleName}}
     def adjust_weight(headers, current_weight, has_more_than_28_headers)
       headers.sort_by! { |h| -h.weight }
 
+      # @type var accept_headers: Array[String]
       accept_headers = []
       headers.each_with_index do |header, index|
         if index > 0 && headers[index - 1].weight > header.weight

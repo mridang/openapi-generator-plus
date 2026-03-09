@@ -25,16 +25,19 @@ enum {{classname}}: string
 {{/description}}
 class {{classname}}
 {
-    private const ONE_OF_SCHEMAS = [{{#oneOf}}'{{{.}}}'{{^-last}}, {{/-last}}{{/oneOf}}];
 {{#discriminator}}
-
     private const DISCRIMINATOR_PROPERTY = '{{discriminator.propertyBaseName}}';
 
+    /** @var array<string, class-string> */
     private const DISCRIMINATOR_MAPPING = [
 {{#mappedModels}}
         '{{mappingName}}' => {{modelName}}::class{{^-last}},{{/-last}}
 {{/mappedModels}}
     ];
+{{/discriminator}}
+{{^discriminator}}
+    /** @var string[] */
+    private const ONE_OF_SCHEMAS = [{{#oneOf}}'{{{.}}}'{{^-last}}, {{/-last}}{{/oneOf}}];
 {{/discriminator}}
 
     private mixed $actualInstance;
@@ -52,8 +55,13 @@ class {{classname}}
     public static function build(mixed $data): self
     {
 {{#discriminator}}
-        if (is_array($data) && isset($data[self::DISCRIMINATOR_PROPERTY])) {
-            $class = self::DISCRIMINATOR_MAPPING[$data[self::DISCRIMINATOR_PROPERTY]] ?? null;
+        if (
+            is_array($data)
+            && isset($data[self::DISCRIMINATOR_PROPERTY])
+            && is_string($data[self::DISCRIMINATOR_PROPERTY])
+        ) {
+            $discValue = $data[self::DISCRIMINATOR_PROPERTY];
+            $class = self::DISCRIMINATOR_MAPPING[$discValue] ?? null;
             if ($class !== null) {
                 return new self(\{{invokerPackage}}\ObjectSerializer::deserialize($data, $class));
             }
@@ -78,6 +86,7 @@ class {{classname}}
 {{/description}}
 class {{classname}}
 {
+    /** @var string[] */
     private const ANY_OF_SCHEMAS = [{{#anyOf}}'{{{.}}}'{{^-last}}, {{/-last}}{{/anyOf}}];
 
     private mixed $actualInstance;
@@ -167,6 +176,18 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{/-last}}
 {{/vars}}
 
+    /**
+{{#requiredVars}}
+{{#isContainer}}
+     * @param {{{dataType}}} ${{name}}
+{{/isContainer}}
+{{/requiredVars}}
+{{#optionalVars}}
+{{#isContainer}}
+     * @param {{{dataType}}}|null ${{name}}
+{{/isContainer}}
+{{/optionalVars}}
+     */
     public function __construct(
 {{#requiredVars}}
 {{#isContainer}}

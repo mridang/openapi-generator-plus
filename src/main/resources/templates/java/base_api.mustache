@@ -12,6 +12,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.StringJoiner;
+import javax.annotation.Nullable;
 
 /**
  * Base class for all API classes. Provides the {@code invokeApi} method that
@@ -67,15 +68,16 @@ public abstract class BaseApi {
      * @return deserialized response or null
      * @throws ApiException if the API call fails
      */
+    @Nullable
     protected <T> T invokeApi(
             String method,
             String path,
             Map<String, Object> queryParams,
             Map<String, String> headerParams,
-            Object body,
+            @Nullable Object body,
             String[] accepts,
             String contentType,
-            TypeReference<T> returnType)
+            @Nullable TypeReference<T> returnType)
             throws ApiException {
 
         String url = config.getBaseUrl() + path;

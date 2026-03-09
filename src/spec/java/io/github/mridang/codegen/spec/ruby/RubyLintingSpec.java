@@ -61,18 +61,11 @@ public class RubyLintingSpec extends AbstractIntegrationSpec {
             "# Disable entire departments inappropriate for generated code",
             "Metrics:",
             "  Enabled: false",
+            "Naming:",
+            "  Enabled: false",
             "Style:",
             "  Enabled: false",
             "",
-            "# Keep Lint cops but disable ones inherent to code generation",
-            "Lint/UnusedMethodArgument:",
-            "  Enabled: false",
-            "Lint/DuplicateBranch:",
-            "  Enabled: false",
-            "Lint/MissingSuper:",
-            "  Enabled: false",
-            "Lint/SymbolConversion:",
-            "  Enabled: false",
             ""));
 
     ExecResult result = executeInRuntimeContainer(getBuildCommands());

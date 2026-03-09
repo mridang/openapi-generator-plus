@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.mridang.codegen.spec.AbstractIntegrationSpec;
 import java.io.IOException;
 import java.net.URL;
-import java.nio.file.Files;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.openapitools.codegen.CodegenConstants;
@@ -35,8 +34,8 @@ public class PythonTypeCheckSpec extends AbstractIntegrationSpec {
   @Override
   protected String[] getBuildCommands() {
     return new String[] {
-      "pip install --quiet mypy pydantic typing_extensions types-python-dateutil",
-      "mypy " + PACKAGE_NAME + "/ --ignore-missing-imports"
+      "pip install --quiet mypy pydantic typing_extensions types-python-dateutil types-requests types-urllib3",
+      "mypy " + PACKAGE_NAME + "/"
     };
   }
 
@@ -52,22 +51,6 @@ public class PythonTypeCheckSpec extends AbstractIntegrationSpec {
             CodegenConstants.PACKAGE_NAME, PACKAGE_NAME,
             CodegenConstants.PROJECT_NAME, "petstore-client"),
         tempOutputDir);
-
-    Files.writeString(
-        tempOutputDir.resolve("mypy.ini"),
-        String.join(
-            "\n",
-            "[mypy]",
-            "check_untyped_defs = True",
-            "disallow_untyped_defs = False",
-            "ignore_missing_imports = True",
-            "",
-            "[mypy-" + PACKAGE_NAME + ".object_serializer]",
-            "ignore_errors = True",
-            "",
-            "[mypy-" + PACKAGE_NAME + "]",
-            "ignore_errors = True",
-            ""));
 
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 

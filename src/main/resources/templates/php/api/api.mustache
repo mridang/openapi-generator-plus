@@ -16,43 +16,26 @@ use {{invokerPackage}}\ObjectSerializer;
  */
 {{#operations}}class {{classname}} extends BaseApi
 {
-    /**
-     * @param ApiClient|null     $apiClient API client instance
-     * @param Configuration|null $config    Configuration instance
-     */
-    public function __construct(
-        ?ApiClient $apiClient = null,
-        ?Configuration $config = null
-    ) {
-        parent::__construct($apiClient, $config);
-    }
 {{#operation}}
-
     /**
      * {{summary}}
 {{#description}}
      * {{.}}
 {{/description}}
 {{#allParams}}
-     * @param  {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}{{#description}} {{.}}{{/description}} {{#required}}(required){{/required}}{{^required}}(optional{{#defaultValue}}, default to {{{.}}}{{/defaultValue}}){{/required}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}{{#description}} {{.}}{{/description}}
 {{/allParams}}
-     * @return {{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}void{{/returnType}}
+{{#returnType}}
+     * @return {{{returnType}}}
+{{/returnType}}
      * @throws ApiException
 {{#isDeprecated}}
      * @deprecated
 {{/isDeprecated}}
      */
+{{#returnType}}
     public function {{operationId}}({{#allParams}}${{paramName}}{{^required}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/required}}{{^-last}}, {{/-last}}{{/allParams}})
     {
-{{#allParams}}
-{{#required}}
-        if (${{paramName}} === null) {
-            throw new \InvalidArgumentException(
-                'Missing the required parameter ${{paramName}} when calling {{operationId}}'
-            );
-        }
-{{/required}}
-{{/allParams}}
         $path = '{{{path}}}';
 {{#pathParams}}
         $path = str_replace(
@@ -90,7 +73,8 @@ use {{invokerPackage}}\ObjectSerializer;
 {{/bodyParam}}
 {{/hasFormParams}}
 
-        return $this->invokeApi(
+        /** @var {{{returnType}}} $result */
+        $result = $this->invokeApi(
             '{{httpMethod}}',
             $path,
             $queryParams,
@@ -98,9 +82,66 @@ use {{invokerPackage}}\ObjectSerializer;
             $body,
             [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
             {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
-            {{#returnType}}'{{{returnType}}}'{{/returnType}}{{^returnType}}null{{/returnType}}
+            '{{{returnType}}}'
+        );
+        return $result;
+    }
+{{/returnType}}
+{{^returnType}}
+    public function {{operationId}}({{#allParams}}${{paramName}}{{^required}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/required}}{{^-last}}, {{/-last}}{{/allParams}}): void
+    {
+        $path = '{{{path}}}';
+{{#pathParams}}
+        $path = str_replace(
+            '{' . '{{baseName}}' . '}',
+            rawurlencode(ObjectSerializer::toPathValue(${{paramName}})),
+            $path
+        );
+{{/pathParams}}
+        $queryParams = [];
+{{#queryParams}}
+        if (${{paramName}} !== null) {
+            $queryParams['{{baseName}}'] = ObjectSerializer::toQueryValue(${{paramName}}{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}});
+        }
+{{/queryParams}}
+        $headerParams = [];
+{{#headerParams}}
+        if (${{paramName}} !== null) {
+            $headerParams['{{baseName}}'] = ObjectSerializer::toHeaderValue(${{paramName}});
+        }
+{{/headerParams}}
+{{#hasFormParams}}
+        $body = [];
+{{#formParams}}
+        if (${{paramName}} !== null) {
+            $body['{{baseName}}'] = ObjectSerializer::toFormValue(${{paramName}});
+        }
+{{/formParams}}
+{{/hasFormParams}}
+{{^hasFormParams}}
+{{#bodyParam}}
+        $body = ${{paramName}};
+{{/bodyParam}}
+{{^bodyParam}}
+        $body = null;
+{{/bodyParam}}
+{{/hasFormParams}}
+
+        $this->invokeApi(
+            '{{httpMethod}}',
+            $path,
+            $queryParams,
+            $headerParams,
+            $body,
+            [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
+            {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
+            null
         );
     }
+{{/returnType}}
+{{^-last}}
+
+{{/-last}}
 {{/operation}}
 }
 {{/operations}}

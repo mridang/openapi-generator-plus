@@ -13,6 +13,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 {{#operations}}
 /**
@@ -55,6 +56,9 @@ public class {{classname}} extends BaseApi {
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
+{{#returnType}}
+    @Nullable
+{{/returnType}}
     public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#allParams}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/allParams}}) throws ApiException {
 {{#allParams}}
 {{#required}}

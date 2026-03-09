@@ -42,7 +42,7 @@ public class JavaFormattingSpec extends AbstractIntegrationSpec {
   protected String[] getBuildCommands() {
     return new String[] {
       "curl -sL -o /tmp/gjf.jar https://github.com/google/google-java-format/releases/download/v1.25.2/google-java-format-1.25.2-all-deps.jar",
-      "find /app -name '*.java' | xargs java -jar /tmp/gjf.jar --skip-sorting-imports --skip-removing-unused-imports --skip-javadoc-formatting --dry-run --set-exit-if-changed"
+      "find /app -name '*.java' | xargs java -jar /tmp/gjf.jar --dry-run --set-exit-if-changed"
     };
   }
 
@@ -119,7 +119,6 @@ public class JavaFormattingSpec extends AbstractIntegrationSpec {
     try (Stream<Path> files = Files.walk(tempOutputDir)) {
       files
           .filter(p -> p.toString().endsWith(".java"))
-          .filter(p -> !p.toString().contains("/models/"))
           .forEach(
               p -> {
                 try {
