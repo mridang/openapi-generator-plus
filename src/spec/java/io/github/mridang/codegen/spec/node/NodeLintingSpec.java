@@ -3,16 +3,14 @@ package io.github.mridang.codegen.spec.node;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractIntegrationSpec;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * Verifies that generated TypeScript code passes ESLint linting with recommended rules.
- * If this test fails, the Node templates need to be fixed.
+ * Verifies that generated TypeScript code passes ESLint linting with recommended rules. If this
+ * test fails, the Node templates need to be fixed.
  */
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
@@ -30,35 +28,18 @@ public class NodeLintingSpec extends AbstractIntegrationSpec {
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {
-      "npm install",
-      "npx eslint '**/*.ts' --ignore-pattern node_modules"
-    };
+    return new String[] {"npm install", "npx eslint '**/*.ts' --ignore-pattern node_modules"};
   }
 
   @Test
-  void generatedCodeShouldPassLinting() throws IOException {
+  void generatedCodeShouldPassLinting() {
     generateClientToDirectory(Map.of(), tempOutputDir);
-
-    // Write ESLint v9 flat config
-    Files.writeString(
-        tempOutputDir.resolve("eslint.config.mjs"),
-        String.join(
-            "\n",
-            "import eslint from '@eslint/js';",
-            "import tseslint from 'typescript-eslint';",
-            "",
-            "export default [",
-            "  eslint.configs.recommended,",
-            "  ...tseslint.configs.recommended,",
-            "];",
-            ""));
 
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 
     assertThat(result.isSuccess())
-        .withFailMessage("Generated TypeScript code has linting violations:\n%s", result.output())
+        .withFailMessage(
+            "Generated TypeScript code has linting violations:\n%s", result.output())
         .isTrue();
   }
-
 }

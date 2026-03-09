@@ -3,17 +3,14 @@ package io.github.mridang.codegen.spec.ruby;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractIntegrationSpec;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * Verifies that generated Ruby code passes RuboCop linting rules (excluding Layout,
- * which is checked by RubyFormattingSpec). If this test fails, the Ruby templates
- * need to be fixed.
+ * Verifies that generated Ruby code passes all RuboCop linting rules. If this test fails, the Ruby
+ * templates need to be fixed.
  */
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
@@ -34,33 +31,14 @@ public class RubyLintingSpec extends AbstractIntegrationSpec {
     return new String[] {
       "apt-get update && apt-get install -y build-essential --no-install-recommends 2>/dev/null",
       "bundle install --quiet",
-      "bundle exec rubocop --except Layout --format simple"
+      "bundle exec rubocop --format simple"
     };
   }
 
   @Test
-  void generatedCodeShouldPassLinting() throws IOException {
+  void generatedCodeShouldPassLinting() {
     generateClientToDirectory(
-        Map.of("gemName", "opigen_client", "moduleName", "OpigenClient"),
-        tempOutputDir);
-
-    Files.writeString(
-        tempOutputDir.resolve(".rubocop.yml"),
-        String.join(
-            "\n",
-            "AllCops:",
-            "  NewCops: enable",
-            "  SuggestExtensions: false",
-            "",
-            "# Disable entire departments inappropriate for generated code",
-            "Metrics:",
-            "  Enabled: false",
-            "Naming:",
-            "  Enabled: false",
-            "Style:",
-            "  Enabled: false",
-            "",
-            ""));
+        Map.of("gemName", "opigen_client", "moduleName", "OpigenClient"), tempOutputDir);
 
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 

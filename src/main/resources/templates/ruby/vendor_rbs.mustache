@@ -1,0 +1,25 @@
+module Dry
+  def self.Types: () -> Module
+
+  class Struct
+    def self.attribute: (Symbol, untyped) -> void
+    def self.transform_keys: () { (untyped) -> untyped } -> void
+  end
+end
+
+module Types
+  Any: untyped
+end
+
+module Typhoeus
+  class Request
+    def initialize: (String, Hash[Symbol, untyped]) -> void
+    def run: () -> Response
+  end
+
+  class Response
+    def code: () -> Integer
+    def body: () -> String
+    def headers: () -> (Hash[String, String] | nil)
+  end
+end

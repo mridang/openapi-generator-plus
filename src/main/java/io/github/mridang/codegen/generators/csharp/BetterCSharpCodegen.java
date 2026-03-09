@@ -118,6 +118,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                         "header_selector.mustache", invokerFolder, "HeaderSelector.cs"));
         supportingFiles.add(
                 new SupportingFile("csproj.mustache", invokerFolder, packageName + ".csproj"));
+        supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
     }
 
     @Override

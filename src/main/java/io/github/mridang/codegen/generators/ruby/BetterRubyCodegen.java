@@ -137,6 +137,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                 new SupportingFile(
                         "base_api.mustache", libPath + File.separator + "api", "base_api.rb"));
         supportingFiles.add(new SupportingFile("gemfile.mustache", "", "Gemfile"));
+        supportingFiles.add(new SupportingFile("rubocop.mustache", "", ".rubocop.yml"));
+        supportingFiles.add(new SupportingFile("steepfile.mustache", "", "Steepfile"));
+        supportingFiles.add(new SupportingFile("vendor_rbs.mustache", "sig", "vendor.rbs"));
+        supportingFiles.add(
+                new SupportingFile("infrastructure_rbs.mustache", "sig", "infrastructure.rbs"));
     }
 
     @Override

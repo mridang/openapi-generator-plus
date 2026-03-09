@@ -3,8 +3,6 @@ package io.github.mridang.codegen.spec.ruby;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractFormattingSpec;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.junit.jupiter.api.Test;
@@ -12,8 +10,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * Verifies that generated Ruby code is already properly formatted according to
- * rubocop layout rules. If this test fails, the Ruby templates need to be fixed.
+ * Verifies that generated Ruby code is already properly formatted according to rubocop layout rules.
+ * If this test fails, the Ruby templates need to be fixed.
  */
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
@@ -55,12 +53,8 @@ public class RubyFormattingSpec extends AbstractFormattingSpec {
   }
 
   @Test
-  void generatedCodeShouldBeProperlyFormatted() throws IOException {
+  void generatedCodeShouldBeProperlyFormatted() {
     generateClientToDirectory(getCodegenProperties(), tempOutputDir);
-
-    Files.writeString(
-        tempOutputDir.resolve(".rubocop.yml"),
-        "AllCops:\n  NewCops: enable\n  SuggestExtensions: false\nLayout/LineLength:\n  Max: 140\n");
 
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 

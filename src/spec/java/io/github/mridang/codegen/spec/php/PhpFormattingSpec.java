@@ -10,8 +10,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * Verifies that generated PHP code is already properly formatted according to
- * phpcs with PSR-12 standard. If this test fails, the PHP templates need to be fixed.
+ * Verifies that generated PHP code is already properly formatted according to phpcs with PSR-12
+ * standard. If this test fails, the PHP templates need to be fixed.
  */
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
@@ -31,7 +31,7 @@ public class PhpFormattingSpec extends AbstractFormattingSpec {
   protected String[] getBuildCommands() {
     return new String[] {
       "composer install --no-interaction --prefer-dist",
-      "vendor/bin/phpcs --standard=PSR12 lib/"
+      "vendor/bin/phpcs --standard=PSR12 --ignore=vendor/ ."
     };
   }
 

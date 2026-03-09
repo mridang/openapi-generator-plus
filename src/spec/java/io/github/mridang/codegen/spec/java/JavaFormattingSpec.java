@@ -10,8 +10,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * Verifies that generated Java code is already properly formatted according to
- * google-java-format. If this test fails, the Java templates need to be fixed.
+ * Verifies that generated Java code is already properly formatted according to google-java-format.
+ * If this test fails, the Java templates need to be fixed.
  */
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
@@ -31,10 +31,7 @@ public class JavaFormattingSpec extends AbstractFormattingSpec {
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {
-      "curl -sL -o /tmp/gjf.jar https://github.com/google/google-java-format/releases/download/v1.25.2/google-java-format-1.25.2-all-deps.jar",
-      "find /app -name '*.java' | xargs java -jar /tmp/gjf.jar --dry-run --set-exit-if-changed"
-    };
+    return new String[] {"mvn fmt:check -B"};
   }
 
   @Override
