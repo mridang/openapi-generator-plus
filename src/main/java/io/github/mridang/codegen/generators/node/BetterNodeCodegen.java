@@ -109,17 +109,20 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
         this.apiPackage = "api";
 
         supportingFiles.clear();
-        supportingFiles.add(new SupportingFile("api_client.mustache", "", "ApiClient.ts"));
+        supportingFiles.add(new SupportingFile("api_client.mustache", "", "api-client.ts"));
         supportingFiles.add(
-                new SupportingFile("default_api_client.mustache", "", "DefaultApiClient.ts"));
-        supportingFiles.add(new SupportingFile("api_response.mustache", "", "ApiResponse.ts"));
+                new SupportingFile(
+                        "default_api_client.mustache", "", "default-api-client.ts"));
+        supportingFiles.add(new SupportingFile("api_response.mustache", "", "api-response.ts"));
         supportingFiles.add(
-                new SupportingFile("configuration.mustache", "", "Configuration.ts"));
-        supportingFiles.add(new SupportingFile("base_api.mustache", "api", "BaseApi.ts"));
+                new SupportingFile("configuration.mustache", "", "configuration.ts"));
+        supportingFiles.add(new SupportingFile("base_api.mustache", "api", "base-api.ts"));
         supportingFiles.add(
-                new SupportingFile("object_serializer.mustache", "", "ObjectSerializer.ts"));
+                new SupportingFile(
+                        "object_serializer.mustache", "", "object-serializer.ts"));
         supportingFiles.add(
-                new SupportingFile("header_selector.mustache", "", "HeaderSelector.ts"));
+                new SupportingFile(
+                        "header_selector.mustache", "", "header-selector.ts"));
         supportingFiles.add(new SupportingFile("tsconfig.mustache", "", "tsconfig.json"));
         supportingFiles.add(
                 new SupportingFile("models/index.mustache", "models", "index.ts"));

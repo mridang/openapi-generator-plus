@@ -1,6 +1,6 @@
-import type { ApiClient } from './ApiClient.js';
-import type { ApiResponse } from './ApiResponse.js';
-import type { Configuration } from './Configuration.js';
+import type { ApiClient } from './api-client.js';
+import type { ApiResponse } from './api-response.js';
+import type { Configuration } from './configuration.js';
 import * as https from 'node:https';
 import * as http from 'node:http';
 import * as fs from 'node:fs';

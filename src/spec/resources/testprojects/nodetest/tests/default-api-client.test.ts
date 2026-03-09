@@ -1,5 +1,5 @@
-import { DefaultApiClient } from '../DefaultApiClient';
-import { Configuration } from '../Configuration';
+import { DefaultApiClient } from '../default-api-client';
+import { Configuration } from '../configuration';
 
 function getEnvOrSkip(name: string): string {
   const value = process.env[name];

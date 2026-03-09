@@ -1,5 +1,5 @@
 import { PetApi } from '../../api/pet-api';
-import { Configuration } from '../../Configuration';
+import { Configuration } from '../../configuration';
 import { Pet } from '../../models';
 
 const config = new Configuration({

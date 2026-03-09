@@ -1,7 +1,7 @@
-import type { ApiClient } from '../ApiClient.js';
-import { BaseApi } from './BaseApi.js';
-import { Configuration } from '../Configuration.js';
-import { ObjectSerializer } from '../ObjectSerializer.js';
+import type { ApiClient } from '../api-client.js';
+import { BaseApi } from './base-api.js';
+import { Configuration } from '../configuration.js';
+import { ObjectSerializer } from '../object-serializer.js';
 import { Order } from '../models/index.js';
 
 /**

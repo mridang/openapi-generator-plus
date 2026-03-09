@@ -1,4 +1,4 @@
-import { ObjectSerializer } from '../ObjectSerializer';
+import { ObjectSerializer } from '../object-serializer';
 import { Category } from '../models';
 
 describe('ObjectSerializer', () => {

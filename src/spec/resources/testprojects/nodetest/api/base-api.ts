@@ -1,7 +1,7 @@
-import type { ApiClient } from '../ApiClient.js';
-import { Configuration } from '../Configuration.js';
-import { DefaultApiClient } from '../DefaultApiClient.js';
-import { HeaderSelector } from '../HeaderSelector.js';
+import type { ApiClient } from '../api-client.js';
+import { Configuration } from '../configuration.js';
+import { DefaultApiClient } from '../default-api-client.js';
+import { HeaderSelector } from '../header-selector.js';
 
 /**
  * Base class for all API classes. Provides the invokeApi method that

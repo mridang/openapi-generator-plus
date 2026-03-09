@@ -1,5 +1,5 @@
 import { StoreApi } from '../../api/store-api';
-import { Configuration } from '../../Configuration';
+import { Configuration } from '../../configuration';
 import { Order } from '../../models';
 
 const config = new Configuration({
