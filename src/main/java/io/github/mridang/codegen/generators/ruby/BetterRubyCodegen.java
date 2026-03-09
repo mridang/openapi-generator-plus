@@ -9,7 +9,11 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.swagger.v3.oas.models.media.Schema;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -27,6 +31,8 @@ import org.openapitools.codegen.model.ModelMap;
 import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A custom Ruby code generator providing a minimal, modern Ruby client
@@ -34,6 +40,8 @@ import org.openapitools.codegen.utils.ModelUtils;
  */
 @SuppressWarnings("unused")
 public class BetterRubyCodegen extends AbstractBetterCodegen {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(BetterRubyCodegen.class);
 
     @Nullable protected String gemName;
     protected String moduleName = "Opigen::Client";
@@ -111,6 +119,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     @Override
     public void processOpts() {
         super.processOpts();
+        setEnablePostProcessFile(true);
 
         if (additionalProperties.containsKey(CodegenConstants.MODULE_NAME)) {
             moduleName = (String) additionalProperties.get(CodegenConstants.MODULE_NAME);
@@ -346,5 +355,28 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         }
         String result = name.replaceAll("([A-Z])", "_$1").replaceAll("^_", "");
         return result.toLowerCase(Locale.ROOT);
+    }
+
+    @Override
+    @SuppressFBWarnings("PATH_TRAVERSAL_IN")
+    public void postProcessFile(File file, String fileType) {
+        if (file == null || !file.getName().endsWith(".rbs")) {
+            return;
+        }
+
+        Path filePath = file.toPath();
+        Path outputDir = Paths.get(getOutputDir());
+        Path relative = outputDir.relativize(filePath);
+        String relStr = relative.toString();
+
+        if (relStr.startsWith(libFolder + File.separator)) {
+            Path sigPath = outputDir.resolve("sig").resolve(relStr.substring(libFolder.length() + 1));
+            try {
+                Files.createDirectories(sigPath.getParent());
+                Files.move(filePath, sigPath, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                LOGGER.warn("Failed to move RBS file {} to {}: {}", filePath, sigPath, e.getMessage());
+            }
+        }
     }
 }
