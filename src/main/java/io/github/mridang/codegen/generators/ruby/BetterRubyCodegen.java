@@ -30,7 +30,7 @@ import org.openapitools.codegen.utils.ModelUtils;
 
 /**
  * A custom Ruby code generator providing a minimal, modern Ruby client
- * using the Typhoeus HTTP library.
+ * using the Faraday HTTP library.
  */
 @SuppressWarnings("unused")
 public class BetterRubyCodegen extends AbstractBetterCodegen {
@@ -100,7 +100,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
 
     @Override
     public String getHelp() {
-        return "Generates a minimal Ruby client with Typhoeus.";
+        return "Generates a minimal Ruby client with Faraday.";
     }
 
     @Override

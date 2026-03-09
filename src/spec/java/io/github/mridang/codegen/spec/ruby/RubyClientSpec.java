@@ -27,7 +27,7 @@ public class RubyClientSpec extends AbstractClientSpec {
   @Override
   protected String[] getBuildCommands() {
     return new String[] {
-      "apt-get update && apt-get install -y libcurl4 build-essential --no-install-recommends 2>/dev/null",
+      "apt-get update && apt-get install -y build-essential --no-install-recommends 2>/dev/null",
       "bundle install --quiet",
       "API_BASE_URL=http://prism:4010 bundle exec rspec --format documentation"
     };

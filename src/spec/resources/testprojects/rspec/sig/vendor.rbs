@@ -11,15 +11,25 @@ module Types
   Any: untyped
 end
 
-module Typhoeus
-  class Request
-    def initialize: (String, Hash[Symbol, untyped]) -> void
-    def run: () -> Response
+module Faraday
+  def self.new: (?String?) ?{ (Connection) -> void } -> Connection
+
+  class Connection
+    attr_accessor proxy: String?
+    attr_accessor ssl: SSLOptions
+    def run_request: (Symbol, String?, String?, Hash[String, String]?) -> Response
+  end
+
+  class SSLOptions
+    attr_accessor verify: bool
+    attr_accessor ca_file: String?
+    attr_accessor client_cert: String?
+    attr_accessor client_key: String?
   end
 
   class Response
-    def code: () -> Integer
+    def status: () -> Integer
     def body: () -> String
-    def headers: () -> (Hash[String, String] | nil)
+    def headers: () -> Hash[String, String]
   end
 end
