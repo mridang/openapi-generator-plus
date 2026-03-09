@@ -12,11 +12,20 @@ import java.io.File;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenModel;
+import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
+import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 
 /**
@@ -36,7 +45,9 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         embeddedTemplateDir = templateDir = "templates/ruby";
 
         modelTemplateFiles.put("models/model.mustache", ".rb");
+        modelTemplateFiles.put("models/model_rbs.mustache", ".rbs");
         apiTemplateFiles.put("api/api.mustache", ".rb");
+        apiTemplateFiles.put("api/api_rbs.mustache", ".rbs");
 
         modelPackage = "models";
         apiPackage = "api";
@@ -284,6 +295,49 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                         underscore(path),
                         apiPackage().replace(".", File.separator))
                 .toString();
+    }
+
+    @Override
+    public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
+        Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        for (ModelsMap models : result.values()) {
+            for (ModelMap modelMap : models.getModels()) {
+                CodegenModel model = modelMap.getModel();
+                for (CodegenProperty var : model.vars) {
+                    String rbsType = toRbsType(var.dataType);
+                    var.vendorExtensions.put("x-rbs-type", var.required ? rbsType : rbsType + "?");
+                }
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public OperationsMap postProcessOperationsWithModels(
+            OperationsMap objs, List<ModelMap> allModels) {
+        OperationsMap result = super.postProcessOperationsWithModels(objs, allModels);
+        for (CodegenOperation op : result.getOperations().getOperation()) {
+            addRbsTypeToParams(op.allParams);
+            addRbsTypeToParams(op.requiredParams);
+            addRbsTypeToParams(op.optionalParams);
+        }
+        return result;
+    }
+
+    private void addRbsTypeToParams(List<CodegenParameter> params) {
+        for (CodegenParameter param : params) {
+            param.vendorExtensions.put("x-rbs-type", toRbsType(param.dataType));
+        }
+    }
+
+    private String toRbsType(@Nullable String type) {
+        if (type == null) {
+            return "void";
+        }
+        return type.replace("Boolean", "bool")
+                .replace("Object", "untyped")
+                .replace("<", "[")
+                .replace(">", "]");
     }
 
     private String toZeitwerkFilename(String name) {

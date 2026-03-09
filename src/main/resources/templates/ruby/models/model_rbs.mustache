@@ -1,0 +1,56 @@
+module {{moduleName}}::Models
+{{#models}}
+{{#model}}
+{{#isEnum}}
+  class {{classname}}
+{{#allowableValues}}
+{{#enumVars}}
+    {{{name}}}: {{{dataType}}}
+{{/enumVars}}
+{{/allowableValues}}
+    def self.all_vars: () -> Array[{{{dataType}}}]
+  end
+{{/isEnum}}
+{{^isEnum}}
+{{#oneOf}}
+{{#-first}}
+  module {{classname}}
+    def self.openapi_one_of: () -> Array[Symbol]
+{{#discriminator}}
+{{#propertyName}}
+    def self.openapi_discriminator_name: () -> Symbol
+{{/propertyName}}
+{{#mappedModels}}
+{{#-first}}
+    def self.openapi_discriminator_mapping: () -> Hash[String, Symbol]
+{{/-first}}
+{{/mappedModels}}
+{{/discriminator}}
+    def self.build: (untyped) -> untyped
+  end
+{{/-first}}
+{{/oneOf}}
+{{^oneOf}}
+{{#anyOf}}
+{{#-first}}
+  module {{classname}}
+    def self.openapi_any_of: () -> Array[Symbol]
+    def self.build: (untyped) -> untyped
+  end
+{{/-first}}
+{{/anyOf}}
+{{^anyOf}}
+  class {{classname}} < {{#parent}}{{{.}}}{{/parent}}{{^parent}}Dry::Struct{{/parent}}
+    ATTRIBUTE_MAP: Hash[Symbol, String]
+    JSON_KEY_MAP: Hash[String, Symbol]
+    OPENAPI_TYPES: Hash[Symbol, String]
+{{#vars}}
+    attr_reader {{name}}: {{{vendorExtensions.x-rbs-type}}}
+{{/vars}}
+  end
+{{/anyOf}}
+{{/oneOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}
+end

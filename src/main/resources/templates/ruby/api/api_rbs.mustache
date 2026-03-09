@@ -1,0 +1,10 @@
+module {{moduleName}}::Api
+{{#operations}}
+  class {{classname}} < BaseApi
+    def initialize: (?ApiClient? api_client, ?Configuration config) -> void
+{{#operation}}
+    def {{operationId}}: ({{#requiredParams}}{{{vendorExtensions.x-rbs-type}}} {{paramName}}{{^-last}}, {{/-last}}{{/requiredParams}}{{#hasOptionalParams}}{{#hasRequiredParams}}, {{/hasRequiredParams}}?Hash[Symbol, untyped] opts{{/hasOptionalParams}}) -> untyped
+{{/operation}}
+  end
+{{/operations}}
+end

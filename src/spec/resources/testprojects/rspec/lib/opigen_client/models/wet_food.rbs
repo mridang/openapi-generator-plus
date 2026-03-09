@@ -1,0 +1,9 @@
+module OpigenClient::Models
+  class WetFood < Dry::Struct
+    ATTRIBUTE_MAP: Hash[Symbol, String]
+    JSON_KEY_MAP: Hash[String, Symbol]
+    OPENAPI_TYPES: Hash[Symbol, String]
+    attr_reader food_type: String
+    attr_reader volume_ml: Integer
+  end
+end

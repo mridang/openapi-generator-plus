@@ -31,10 +31,6 @@ public class RubyTypeCheckSpec extends AbstractIntegrationSpec {
     return new String[] {
       "apt-get update && apt-get install -y build-essential --no-install-recommends 2>/dev/null",
       "bundle install --quiet",
-      "mkdir -p sig"
-          + " && find lib/opigen_client/models lib/opigen_client/api"
-          + " -name '*.rb' ! -name 'base_api.rb'"
-          + " -exec rbs prototype rb {} + > sig/generated.rbs",
       "bundle exec steep check"
     };
   }

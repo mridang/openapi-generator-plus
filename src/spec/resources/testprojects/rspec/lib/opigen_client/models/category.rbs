@@ -1,0 +1,9 @@
+module OpigenClient::Models
+  class Category < Dry::Struct
+    ATTRIBUTE_MAP: Hash[Symbol, String]
+    JSON_KEY_MAP: Hash[String, Symbol]
+    OPENAPI_TYPES: Hash[Symbol, String]
+    attr_reader id: Integer?
+    attr_reader name: String?
+  end
+end
