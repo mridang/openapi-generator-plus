@@ -82,19 +82,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                                 "number", "boolean", "string", "object", "any", "void",
                                 "undefined", "null", "Array", "Set"));
 
-        reservedWords =
-                new HashSet<>(
-                        Arrays.asList(
-                                "break", "case", "catch", "class", "const", "continue",
-                                "debugger", "default", "delete", "do", "else", "enum",
-                                "export", "extends", "false", "finally", "for", "function",
-                                "if", "import", "in", "instanceof", "new", "null", "return",
-                                "super", "switch", "this", "throw", "true", "try", "typeof",
-                                "var", "void", "while", "with", "yield", "abstract", "as",
-                                "async", "await", "constructor", "declare", "from", "get",
-                                "is", "let", "module", "of", "package", "private", "protected",
-                                "public", "set", "static", "type", "undefined", "implements",
-                                "interface", "number", "string", "boolean", "any", "symbol"));
+        reservedWords = loadReservedWords("/reserved-words/node.txt");
 
         additionalProperties.put(CodegenConstants.MODEL_PROPERTY_NAMING, "original");
         additionalProperties.put("importFileExtension", ".js");

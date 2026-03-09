@@ -3,7 +3,16 @@ package io.github.mridang.codegen.generators;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.servers.Server;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenType;
 import org.openapitools.codegen.DefaultCodegen;
@@ -22,6 +31,25 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         super();
         typeMapping.clear();
         importMapping.clear();
+    }
+
+    protected static Set<String> loadReservedWords(String resourcePath) {
+        try (InputStream is = AbstractBetterCodegen.class.getResourceAsStream(resourcePath);
+                BufferedReader reader =
+                        new BufferedReader(
+                                new InputStreamReader(
+                                        java.util.Objects.requireNonNull(
+                                                is,
+                                                "Reserved words resource not found: "
+                                                        + resourcePath),
+                                        StandardCharsets.UTF_8))) {
+            return reader.lines()
+                    .map(String::trim)
+                    .filter(line -> !line.isEmpty() && !line.startsWith("#"))
+                    .collect(Collectors.toCollection(HashSet::new));
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to load reserved words from " + resourcePath, e);
+        }
     }
 
     @Override

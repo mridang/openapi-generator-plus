@@ -77,14 +77,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         instantiationTypes.put("array", "Array");
         instantiationTypes.put("set", "Set");
 
-        reservedWords =
-                new HashSet<>(
-                        Arrays.asList(
-                                "__FILE__", "__LINE__", "BEGIN", "END", "alias", "and", "begin",
-                                "break", "case", "class", "def", "defined?", "do", "else", "elsif",
-                                "end", "ensure", "false", "for", "if", "in", "module", "next", "nil",
-                                "not", "or", "redo", "rescue", "retry", "return", "self", "super",
-                                "then", "true", "undef", "unless", "until", "when", "while", "yield"));
+        reservedWords = loadReservedWords("/reserved-words/ruby.txt");
 
         hideGenerationTimestamp = Boolean.TRUE;
     }

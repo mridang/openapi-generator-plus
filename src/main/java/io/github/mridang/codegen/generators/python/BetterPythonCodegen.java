@@ -78,15 +78,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                                 "date", "datetime", "file", "List", "Dict", "Set",
                                 "Tuple", "Optional"));
 
-        reservedWords =
-                new HashSet<>(
-                        Arrays.asList(
-                                "and", "as", "assert", "async", "await", "break", "class",
-                                "continue", "def", "del", "elif", "else", "except", "exec",
-                                "false", "finally", "for", "from", "global", "if", "import",
-                                "in", "is", "lambda", "none", "nonlocal", "not", "or", "pass",
-                                "print", "raise", "return", "true", "try", "while", "with",
-                                "yield"));
+        reservedWords = loadReservedWords("/reserved-words/python.txt");
 
         this.setDisallowAdditionalPropertiesIfNotPresent(false);
         this.setLegacyDiscriminatorBehavior(false);

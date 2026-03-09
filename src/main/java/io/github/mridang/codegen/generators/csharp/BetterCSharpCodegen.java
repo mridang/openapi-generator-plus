@@ -60,21 +60,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         instantiationTypes.put("array", "List");
         instantiationTypes.put("map", "Dictionary");
 
-        reservedWords =
-                new HashSet<>(
-                        Arrays.asList(
-                                "abstract", "as", "base", "bool", "break", "byte", "case", "catch",
-                                "char", "checked", "class", "const", "continue", "decimal",
-                                "default", "delegate", "do", "double", "else", "enum", "event",
-                                "explicit", "extern", "false", "finally", "fixed", "float", "for",
-                                "foreach", "goto", "if", "implicit", "in", "int", "interface",
-                                "internal", "is", "lock", "long", "namespace", "new", "null",
-                                "object", "operator", "out", "override", "params", "private",
-                                "protected", "public", "readonly", "record", "ref", "return",
-                                "sbyte", "sealed", "short", "sizeof", "stackalloc", "static",
-                                "string", "struct", "switch", "this", "throw", "true", "try",
-                                "typeof", "uint", "ulong", "unchecked", "unsafe", "ushort", "using",
-                                "virtual", "void", "volatile", "while"));
+        reservedWords = loadReservedWords("/reserved-words/csharp.txt");
     }
 
     @Override
