@@ -138,6 +138,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile("client.mustache", packagePath, "client.py"));
         supportingFiles.add(new SupportingFile("requirements.mustache", "", "requirements.txt"));
+        supportingFiles.add(new SupportingFile("pyproject_toml.mustache", "", "pyproject.toml"));
     }
 
     @Override

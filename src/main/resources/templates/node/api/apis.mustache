@@ -44,7 +44,15 @@ export class {{classname}} extends BaseApi {
     }
 {{/required}}
 {{/allParams}}
-    const path = `{{{path}}}`{{#pathParams}}.replace(`{${'{{baseName}}'}}`, encodeURIComponent(ObjectSerializer.toPathValue({{paramName}}))){{/pathParams}};
+{{^pathParams}}
+    const path = `{{{path}}}`;
+{{/pathParams}}
+{{#pathParams}}
+{{#-first}}
+    let path = `{{{path}}}`;
+{{/-first}}
+    path = path.replace(`{${'{{baseName}}'}}`, encodeURIComponent(ObjectSerializer.toPathValue({{paramName}})));
+{{/pathParams}}
     const queryParams: Record<string, unknown> = {};
 {{#queryParams}}
     if ({{paramName}} != null) {

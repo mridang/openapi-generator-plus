@@ -4,7 +4,6 @@
 namespace {{invokerPackage}};
 
 use {{invokerPackage}}\Auth\Authenticator;
-
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
@@ -61,7 +60,7 @@ class Client
      */
     public static function withToken(string $host, string $accessToken): self
     {
-        return new self(new class($host, $accessToken) implements Authenticator {
+        return new self(new class ($host, $accessToken) implements Authenticator {
             public function __construct(
                 private readonly string $host,
                 private readonly string $accessToken,

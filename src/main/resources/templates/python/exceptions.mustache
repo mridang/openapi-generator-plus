@@ -8,7 +8,13 @@ class OpenApiException(Exception):
 
 
 class ApiTypeError(OpenApiException, TypeError):
-    def __init__(self, msg: str, path_to_item: Optional[List[str]] = None, valid_classes: Optional[tuple] = None, key_type: Optional[bool] = None) -> None:
+    def __init__(
+        self,
+        msg: str,
+        path_to_item: Optional[List[str]] = None,
+        valid_classes: Optional[tuple] = None,
+        key_type: Optional[bool] = None,
+    ) -> None:
         """Raises an exception for TypeErrors
 
         Args:

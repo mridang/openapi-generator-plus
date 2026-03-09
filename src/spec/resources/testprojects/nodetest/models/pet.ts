@@ -4,30 +4,18 @@ import { Expose, Type } from 'class-transformer';
 
 export class Pet {
   @Expose({ name: 'id' })
-
-
   id?: number;
   @Expose({ name: 'name' })
-
-
   name!: string;
   @Expose({ name: 'category' })
   @Type(() => Category)
-
-
   category?: Category;
   @Expose({ name: 'photoUrls' })
-
-
   photoUrls!: Array<string>;
   @Expose({ name: 'tags' })
-
   @Type(() => Tag)
-
   tags?: Array<Tag>;
   @Expose({ name: 'status' })
-
-
   status?: string;
 
   constructor(data?: Partial<Pet>) {

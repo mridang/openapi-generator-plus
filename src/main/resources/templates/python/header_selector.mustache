@@ -110,7 +110,7 @@ class HeaderSelector:
 
         return ','.join(accept_headers)
 
-    def _get_header_and_weight(self, header: str) -> "HeaderData":
+    def _get_header_and_weight(self, header: str) -> 'HeaderData':
         """Given an Accept header, returns the header and its weight.
 
         :param header: "Accept" Header

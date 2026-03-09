@@ -82,10 +82,30 @@ import { Expose{{#hasTypeDecorator}}, Type{{/hasTypeDecorator}} } from 'class-tr
 export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#vars}}
   @Expose({ name: '{{baseName}}' })
-{{^isPrimitiveType}}{{^isArray}}{{#complexType}}{{^isEnum}}{{^isFreeFormObject}}  @Type(() => {{complexType}})
-{{/isFreeFormObject}}{{/isEnum}}{{/complexType}}{{/isArray}}{{/isPrimitiveType}}
-{{#isArray}}{{#items}}{{^isPrimitiveType}}{{#complexType}}{{^isEnum}}{{^isFreeFormObject}}  @Type(() => {{complexType}})
-{{/isFreeFormObject}}{{/isEnum}}{{/complexType}}{{/isPrimitiveType}}{{/items}}{{/isArray}}
+{{^isPrimitiveType}}
+{{^isArray}}
+{{#complexType}}
+{{^isEnum}}
+{{^isFreeFormObject}}
+  @Type(() => {{complexType}})
+{{/isFreeFormObject}}
+{{/isEnum}}
+{{/complexType}}
+{{/isArray}}
+{{/isPrimitiveType}}
+{{#isArray}}
+{{#items}}
+{{^isPrimitiveType}}
+{{#complexType}}
+{{^isEnum}}
+{{^isFreeFormObject}}
+  @Type(() => {{complexType}})
+{{/isFreeFormObject}}
+{{/isEnum}}
+{{/complexType}}
+{{/isPrimitiveType}}
+{{/items}}
+{{/isArray}}
   {{name}}{{^required}}?{{/required}}{{#required}}!{{/required}}: {{{dataType}}};
 {{^-last}}
 {{/-last}}

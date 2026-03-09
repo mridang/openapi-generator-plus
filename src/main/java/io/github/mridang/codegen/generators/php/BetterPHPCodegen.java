@@ -151,6 +151,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         supportingFiles.add(new SupportingFile("composer.mustache", "", "composer.json"));
         supportingFiles.add(new SupportingFile("phpstan_neon.mustache", "", "phpstan.neon"));
         supportingFiles.add(new SupportingFile("rector.mustache", "", "rector.php"));
+        supportingFiles.add(new SupportingFile("phpcs_xml.mustache", "", "phpcs.xml"));
     }
 
     private String toSrcPath(String packageName) {

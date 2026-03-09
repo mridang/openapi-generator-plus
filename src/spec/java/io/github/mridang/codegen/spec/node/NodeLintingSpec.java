@@ -28,7 +28,7 @@ public class NodeLintingSpec extends AbstractIntegrationSpec {
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {"npm install", "npx eslint '**/*.ts' --ignore-pattern node_modules"};
+    return new String[] {"npm install", "npx eslint ."};
   }
 
   @Test

@@ -39,7 +39,7 @@ class Client:
 {{/apiInfo}}
 
     @staticmethod
-    def with_token(host: str, access_token: str) -> "Client":
+    def with_token(host: str, access_token: str) -> 'Client':
         """Creates a client authenticated with a static Bearer token.
 
         Args:
@@ -55,6 +55,6 @@ class Client:
                 return host
 
             def get_auth_headers(self) -> Dict[str, str]:
-                return {"Authorization": f"Bearer {access_token}"}
+                return {'Authorization': f'Bearer {access_token}'}
 
         return Client(_TokenAuth())

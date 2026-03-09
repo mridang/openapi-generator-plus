@@ -19,13 +19,12 @@ public class RubyTlsProxySpec extends AbstractTlsProxySpec {
 
   @Override
   protected DockerImageName getRuntimeImage() {
-    return DockerImageName.parse("ruby:3.4-slim");
+    return DockerImageName.parse("ruby:3.4");
   }
 
   @Override
   protected String[] getBuildCommands() {
     return new String[] {
-      "apt-get update && apt-get install -y build-essential --no-install-recommends 2>/dev/null",
       "bundle install --quiet",
       "WIREMOCK_HTTPS_URL=https://wiremock:8443 WIREMOCK_HTTP_URL=http://wiremock:8080 PROXY_URL=http://proxy:3128 CA_CERT_PATH=/app/ca.pem bundle exec rspec spec/default_api_client_spec.rb --format documentation"
     };

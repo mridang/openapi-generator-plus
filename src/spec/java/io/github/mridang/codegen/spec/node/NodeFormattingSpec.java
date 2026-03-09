@@ -28,7 +28,7 @@ public class NodeFormattingSpec extends AbstractFormattingSpec {
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {"npm install", "npx prettier --check '**/*.ts'"};
+    return new String[] {"npm install", "npx prettier --check ."};
   }
 
   @Override

@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<ruleset name="PetstoreClient">
+    <rule ref="PSR12"/>
+    <file>lib/</file>
+    <exclude-pattern>vendor/</exclude-pattern>
+</ruleset>

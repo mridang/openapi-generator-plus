@@ -34,7 +34,7 @@ public class PythonFormattingSpec extends AbstractFormattingSpec {
   protected String[] getBuildCommands() {
     return new String[] {
       "pip install --quiet -r requirements.txt",
-      "ruff format --config 'line-length = 120' --config 'format.quote-style = \"single\"' --check " + PACKAGE_NAME + "/"
+      "ruff format --check ."
     };
   }
 

@@ -21,7 +21,7 @@ export class Client {
   constructor(authenticator: Authenticator) {
     const config = new Configuration({
       baseUrl: authenticator.getHost(),
-      defaultHeaders: { ...authenticator.getAuthHeaders() },
+      defaultHeaders: { ...authenticator.getAuthHeaders() }
     });
     const apiClient: ApiClient = new DefaultApiClient(config);
     this.pet = new PetApi(config, apiClient);
@@ -38,7 +38,7 @@ export class Client {
   static withToken(host: string, accessToken: string): Client {
     return new Client({
       getHost: () => host,
-      getAuthHeaders: () => ({ Authorization: `Bearer ${accessToken}` }),
+      getAuthHeaders: () => ({ Authorization: `Bearer ${accessToken}` })
     });
   }
 }

@@ -44,7 +44,8 @@ export class PetApi extends BaseApi {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling deletePet');
     }
-    const path = `/pet/{petId}`.replace(`{${'petId'}}`, encodeURIComponent(ObjectSerializer.toPathValue(petId)));
+    let path = `/pet/{petId}`;
+    path = path.replace(`{${'petId'}}`, encodeURIComponent(ObjectSerializer.toPathValue(petId)));
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     (await this.invokeApi('DELETE', path, queryParams, headerParams, null, [], 'application/json', null)) as void;
@@ -84,7 +85,8 @@ export class PetApi extends BaseApi {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getPetById');
     }
-    const path = `/pet/{petId}`.replace(`{${'petId'}}`, encodeURIComponent(ObjectSerializer.toPathValue(petId)));
+    let path = `/pet/{petId}`;
+    path = path.replace(`{${'petId'}}`, encodeURIComponent(ObjectSerializer.toPathValue(petId)));
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     return (await this.invokeApi(
@@ -112,7 +114,8 @@ export class PetApi extends BaseApi {
     if (pet == null) {
       throw new Error('Missing required parameter "pet" when calling updatePet');
     }
-    const path = `/pet/{petId}`.replace(`{${'petId'}}`, encodeURIComponent(ObjectSerializer.toPathValue(petId)));
+    let path = `/pet/{petId}`;
+    path = path.replace(`{${'petId'}}`, encodeURIComponent(ObjectSerializer.toPathValue(petId)));
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     return (await this.invokeApi(
