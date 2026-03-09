@@ -1,6 +1,6 @@
 import { Expose } from 'class-transformer';
 
-export class ModelApiResponse {
+export class ApiResponse {
   @Expose({ name: 'code' })
 
 
@@ -14,7 +14,7 @@ export class ModelApiResponse {
 
   message?: string;
 
-  constructor(data?: Partial<ModelApiResponse>) {
+  constructor(data?: Partial<ApiResponse>) {
     Object.assign(this, data);
   }
 }

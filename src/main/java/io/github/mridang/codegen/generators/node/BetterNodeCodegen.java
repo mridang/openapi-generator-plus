@@ -39,12 +39,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterNodeCodegen.class);
 
-    private static final HashSet<String> RESERVED_MODEL_NAMES =
-            new HashSet<>(
-                    Arrays.asList(
-                            "ApiResponse", "JSONApiResponse", "VoidApiResponse",
-                            "BlobApiResponse", "TextApiResponse"));
-
     public BetterNodeCodegen() {
         outputFolder = "generated-code/typescript";
         embeddedTemplateDir = templateDir = "templates/node";
@@ -182,8 +176,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     public String toModelName(String name) {
         name = sanitizeName(name);
         String camelized = StringUtils.camelize(name);
-        if (RESERVED_MODEL_NAMES.contains(camelized)
-                || languageSpecificPrimitives.contains(camelized)) {
+        if (languageSpecificPrimitives.contains(camelized)) {
             return "Model" + camelized;
         }
         return camelized;
