@@ -1,5 +1,5 @@
 {{>partial_header}}
-from typing import Optional
+from typing import Dict
 
 from {{packageName}}.auth.authenticator import Authenticator
 from {{packageName}}.configuration import Configuration
@@ -54,7 +54,7 @@ class Client:
             def get_host(self) -> str:
                 return host
 
-            def get_auth_headers(self):
+            def get_auth_headers(self) -> Dict[str, str]:
                 return {"Authorization": f"Bearer {access_token}"}
 
         return Client(_TokenAuth())
