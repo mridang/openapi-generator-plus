@@ -47,7 +47,7 @@ class HeaderSelector
      */
     private function selectAcceptHeader(array $accept): ?string
     {
-        $filteredAccept = array_values(array_filter($accept, fn ($s) => $s !== null && $s !== ''));
+        $filteredAccept = array_values(array_filter($accept, fn (string $s) => $s !== null && $s !== ''));
 
         if (count($filteredAccept) === 0) {
             return null;
@@ -84,7 +84,7 @@ class HeaderSelector
      */
     private function selectJsonMimeList(array $mimeList): array
     {
-        return array_values(array_filter($mimeList, fn ($mime) => $this->isJsonMime($mime)));
+        return array_values(array_filter($mimeList, fn (string $mime) => $this->isJsonMime($mime)));
     }
 
     /**
