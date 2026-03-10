@@ -6,4 +6,8 @@
   <Match>
     <Bug pattern="URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD" />
   </Match>
+  <Match>
+    <Class name="~.*\.TraceContextUtil" />
+    <Bug pattern="DE_MIGHT_IGNORE" />
+  </Match>
 </FindBugsFilter>

@@ -7,6 +7,7 @@ import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
 import com.example.petstore.HeaderSelector;
 import com.example.petstore.ObjectSerializer;
+import com.example.petstore.TraceContextUtil;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -92,6 +93,7 @@ public abstract class BaseApi {
     if (headerParams != null) {
       headers.putAll(headerParams);
     }
+    TraceContextUtil.injectTraceContext(headers);
 
     String serializedBody = null;
     if (body != null) {

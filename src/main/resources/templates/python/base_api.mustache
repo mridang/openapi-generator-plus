@@ -7,6 +7,7 @@ from ..default_api_client import DefaultApiClient
 from ..configuration import Configuration
 from ..object_serializer import ObjectSerializer
 from ..header_selector import HeaderSelector
+from ..trace_context_util import inject_trace_context
 from ..exceptions import ApiException
 
 T = TypeVar('T')
@@ -65,6 +66,7 @@ class BaseApi:
         headers.update(self.config.default_headers)
         if header_params:
             headers.update(header_params)
+        inject_trace_context(headers)
 
         serialized_body = None
         if body is not None:

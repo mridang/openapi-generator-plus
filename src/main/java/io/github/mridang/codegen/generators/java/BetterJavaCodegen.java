@@ -155,6 +155,9 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile(
                         "header_selector.mustache", invokerFolder, "HeaderSelector.java"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "trace_context_util.mustache", invokerFolder, "TraceContextUtil.java"));
         supportingFiles.add(new SupportingFile("pom.mustache", "", "pom.xml"));
         supportingFiles.add(
                 new SupportingFile(

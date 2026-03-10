@@ -135,6 +135,9 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 new SupportingFile(
                         "header_selector.mustache", invokerFolder, "HeaderSelector.php"));
         supportingFiles.add(
+                new SupportingFile(
+                        "trace_context_util.mustache", invokerFolder, "TraceContextUtil.php"));
+        supportingFiles.add(
                 new SupportingFile("api_response.mustache", invokerFolder, "ApiResponse.php"));
         supportingFiles.add(
                 new SupportingFile("api_client.mustache", invokerFolder, "ApiClient.php"));

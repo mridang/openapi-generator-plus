@@ -40,6 +40,7 @@ module OpigenClient
         headers['Content-Type'] = selected['Content-Type'] if selected['Content-Type']
         headers.merge!(@config.default_headers)
         headers.merge!(header_params)
+        OpigenClient::TraceContextUtil.inject_trace_context(headers)
 
         serialized_body = serialize_body(body, content_type)
 

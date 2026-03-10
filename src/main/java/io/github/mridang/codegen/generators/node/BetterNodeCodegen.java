@@ -112,6 +112,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile(
                         "header_selector.mustache", "", "header-selector.ts"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "trace_context_util.mustache", "", "trace-context-util.ts"));
         supportingFiles.add(new SupportingFile("tsconfig.mustache", "", "tsconfig.json"));
         supportingFiles.add(
                 new SupportingFile("models/index.mustache", "models", "index.ts"));

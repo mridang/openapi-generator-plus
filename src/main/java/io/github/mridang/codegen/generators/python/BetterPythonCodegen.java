@@ -130,6 +130,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile(
                         "header_selector.mustache", packagePath, "header_selector.py"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "trace_context_util.mustache", packagePath, "trace_context_util.py"));
         String authPath = packagePath + File.separator + "auth";
         supportingFiles.add(
                 new SupportingFile("auth/__init__.mustache", authPath, "__init__.py"));

@@ -10,6 +10,7 @@ use {{invokerPackage}}\Configuration;
 use {{invokerPackage}}\DefaultApiClient;
 use {{invokerPackage}}\HeaderSelector;
 use {{invokerPackage}}\ObjectSerializer;
+use {{invokerPackage}}\TraceContextUtil;
 use GuzzleHttp\Psr7\MultipartStream;
 
 /**
@@ -81,6 +82,7 @@ class BaseApi
         $headers = $this->headerSelector->selectHeaders($accepts, $contentType ?? '', $isMultipart);
         $headers = array_merge($headers, $this->config->getDefaultHeaders());
         $headers = array_merge($headers, $headerParams);
+        TraceContextUtil::injectTraceContext($headers);
 
         $serializedBody = $this->serializeBody($body, $contentType, $isMultipart);
 

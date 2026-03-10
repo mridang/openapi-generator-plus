@@ -2,6 +2,7 @@ import type { ApiClient } from '../api-client.js';
 import { Configuration } from '../configuration.js';
 import { DefaultApiClient } from '../default-api-client.js';
 import { HeaderSelector } from '../header-selector.js';
+import { injectTraceContext } from '../trace-context-util.js';
 
 /**
  * Base class for all API classes. Provides the invokeApi method that
@@ -55,6 +56,7 @@ export abstract class BaseApi {
     const headers = this.headerSelector.selectHeaders(accepts, contentType, isMultipart);
     Object.assign(headers, this.config.defaultHeaders);
     Object.assign(headers, headerParams);
+    await injectTraceContext(headers);
 
     const serializedBody = body != null ? JSON.stringify(body) : null;
 

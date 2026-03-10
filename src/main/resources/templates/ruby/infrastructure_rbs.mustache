@@ -67,6 +67,10 @@ module {{moduleName}}
     def self.deserialize_model: (untyped, untyped) -> untyped
   end
 
+  class TraceContextUtil
+    def self.inject_trace_context: (Hash[String, String]) -> void
+  end
+
   class HeaderSelector
     JSON_MIME_PATTERN: Regexp
     WEIGHT_PATTERN: Regexp

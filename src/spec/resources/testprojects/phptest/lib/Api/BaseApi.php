@@ -19,6 +19,7 @@ use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\HeaderSelector;
 use PetstoreClient\ObjectSerializer;
+use PetstoreClient\TraceContextUtil;
 use GuzzleHttp\Psr7\MultipartStream;
 
 /**
@@ -90,6 +91,7 @@ class BaseApi
         $headers = $this->headerSelector->selectHeaders($accepts, $contentType ?? '', $isMultipart);
         $headers = array_merge($headers, $this->config->getDefaultHeaders());
         $headers = array_merge($headers, $headerParams);
+        TraceContextUtil::injectTraceContext($headers);
 
         $serializedBody = $this->serializeBody($body, $contentType, $isMultipart);
 

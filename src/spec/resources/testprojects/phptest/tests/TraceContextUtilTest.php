@@ -1,0 +1,53 @@
+<?php
+/**
+ * TraceContextUtilTest
+ * PHP version 8.1
+ *
+ * @category Class
+ * @package  PetstoreClient
+ * @author   OpenAPI Generator team
+ * @link     https://openapi-generator.tech
+ */
+
+/**
+ * Swagger Petstore - OpenAPI 3.0
+ *
+ * Unit tests for TraceContextUtil.
+ */
+
+namespace PetstoreClient\Test;
+
+use PHPUnit\Framework\TestCase;
+use PetstoreClient\TraceContextUtil;
+
+/**
+ * TraceContextUtilTest Class
+ *
+ * @category Class
+ * @package  PetstoreClient
+ * @author   OpenAPI Generator team
+ * @link     https://openapi-generator.tech
+ */
+class TraceContextUtilTest extends TestCase
+{
+    /**
+     * Test that injectTraceContext does not inject traceparent when OTel is not installed.
+     */
+    public function testShouldNotInjectTraceparentWithoutOtel(): void
+    {
+        $headers = [];
+        TraceContextUtil::injectTraceContext($headers);
+        $this->assertArrayNotHasKey('traceparent', $headers);
+    }
+
+    /**
+     * Test that injectTraceContext does not throw any exception.
+     */
+    public function testShouldNotThrowAnyException(): void
+    {
+        $headers = [];
+        TraceContextUtil::injectTraceContext($headers);
+        // If we get here, no exception was thrown
+        $this->assertTrue(true);
+    }
+}
