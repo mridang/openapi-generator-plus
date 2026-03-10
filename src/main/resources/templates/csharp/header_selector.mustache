@@ -19,9 +19,9 @@ public static partial class HeaderSelector
         bool isMultipart
     )
     {
-        var headers = new Dictionary<string, string>();
+        Dictionary<string, string> headers = [];
 
-        var acceptHeader = SelectAcceptHeader(accept);
+        string? acceptHeader = SelectAcceptHeader(accept);
         if (acceptHeader != null)
         {
             headers["Accept"] = acceptHeader;
@@ -44,11 +44,7 @@ public static partial class HeaderSelector
     /// </summary>
     public static bool IsJsonMime(string? mimeType)
     {
-        if (mimeType == null)
-        {
-            return false;
-        }
-        return JsonMimeRegex().IsMatch(mimeType);
+        return mimeType != null && JsonMimeRegex().IsMatch(mimeType);
     }
 
     private static string? SelectAcceptHeader(string[]? accept)
@@ -58,7 +54,7 @@ public static partial class HeaderSelector
             return null;
         }
 
-        var filtered = accept.Where(s => !string.IsNullOrEmpty(s)).ToArray();
+        string[] filtered = [.. accept.Where(s => !string.IsNullOrEmpty(s))];
         if (filtered.Length == 0)
         {
             return null;
@@ -69,12 +65,7 @@ public static partial class HeaderSelector
             return filtered[0];
         }
 
-        var jsonHeaders = filtered.Where(s => IsJsonMime(s)).ToArray();
-        if (jsonHeaders.Length > 0)
-        {
-            return jsonHeaders[0];
-        }
-
-        return string.Join(",", filtered);
+        string[] jsonHeaders = [.. filtered.Where(IsJsonMime)];
+        return jsonHeaders.Length > 0 ? jsonHeaders[0] : string.Join(",", filtered);
     }
 }

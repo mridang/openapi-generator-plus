@@ -34,7 +34,7 @@ import javax.annotation.Nullable;
 /**
  * Default implementation of {@link ApiClient} using Apache HttpClient 5.
  */
-public class DefaultApiClient implements ApiClient {
+public final class DefaultApiClient implements ApiClient {
 
     private final CloseableHttpClient httpClient;
 

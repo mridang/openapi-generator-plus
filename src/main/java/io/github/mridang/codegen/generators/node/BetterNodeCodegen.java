@@ -123,6 +123,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                 new SupportingFile("eslint_config.mustache", "", "eslint.config.mjs"));
         supportingFiles.add(new SupportingFile("authenticator.mustache", "auth", "authenticator.ts"));
         supportingFiles.add(new SupportingFile("client.mustache", "", "client.ts"));
+        supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
     }
 
     @Override
@@ -215,7 +216,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     }
 
     private String toKebabCase(String name) {
-        return name.replaceAll("([a-z0-9])([A-Z])", "$1-$2").toLowerCase();
+        return name.replaceAll("([a-z0-9])([A-Z])", "$1-$2").toLowerCase(Locale.ROOT);
     }
 
     @Override

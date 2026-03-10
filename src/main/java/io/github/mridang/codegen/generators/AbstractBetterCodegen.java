@@ -175,7 +175,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     @Override
     public final String toOperationId(String operationId) {
         if (operationId == null || operationId.isEmpty()) {
-            throw new RuntimeException("Empty method/operation name (operationId) not allowed");
+            throw new IllegalArgumentException("Empty method/operation name (operationId) not allowed");
         }
         return formatOperationId(sanitizeName(operationId));
     }

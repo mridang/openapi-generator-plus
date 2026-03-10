@@ -50,6 +50,9 @@ module {{moduleName}}
     def initialize: (String, ?Exception?) -> void
   end
 
+  class SchemaMismatchError < StandardError
+  end
+
   class ObjectSerializer
     DEFAULT_DATETIME_FORMAT: String
     def self.serialize: (untyped) -> String
@@ -62,7 +65,6 @@ module {{moduleName}}
     def self.find_and_cast_into_type: (untyped, untyped) -> untyped
     def self.sanitize_for_serialization: (untyped) -> untyped
     def self.deserialize_model: (untyped, untyped) -> untyped
-    SchemaMismatchError: singleton(StandardError)
   end
 
   class HeaderSelector
@@ -79,6 +81,25 @@ module {{moduleName}}
     def get_header_and_weight: (String) -> untyped
     def adjust_weight: (Array[untyped], Array[Integer], bool) -> Array[String]
     def build_accept_header: (String, Integer) -> String
+  end
+
+  module Auth
+    class Authenticator
+      def host: () -> String
+      def auth_headers: () -> Hash[String, String]
+    end
+  end
+
+  class Client
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    attr_reader {{clientPropertyName}}: Api::{{classname}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    def initialize: (Auth::Authenticator) -> void
+    def self.with_token: (String, String) -> Client
   end
 
   module Models

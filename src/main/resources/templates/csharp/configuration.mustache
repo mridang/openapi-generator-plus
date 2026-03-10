@@ -19,7 +19,7 @@ public class Configuration
     /// <summary>
     /// Headers to include in every API request.
     /// </summary>
-    public Dictionary<string, string> DefaultHeaders { get; } = new();
+    public Dictionary<string, string> DefaultHeaders { get; } = [];
 
     /// <summary>
     /// Enable SSL/TLS certificate verification.
@@ -36,6 +36,6 @@ public class Configuration
             _default ??= new Configuration();
             return _default;
         }
-        set { _default = value; }
+        set => _default = value;
     }
 }

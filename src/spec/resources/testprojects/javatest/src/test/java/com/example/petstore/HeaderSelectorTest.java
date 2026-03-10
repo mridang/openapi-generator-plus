@@ -201,6 +201,7 @@ class HeaderSelectorTest {
                 false
             );
             String accept = headers.get("Accept");
+            assertNotNull(accept);
             // application/json should come first with highest weight
             assertTrue(accept.startsWith("application/json"));
             assertTrue(accept.contains("text/html"));
@@ -215,6 +216,7 @@ class HeaderSelectorTest {
                 false
             );
             String accept = headers.get("Accept");
+            assertNotNull(accept);
             // application/json should come first
             assertTrue(accept.startsWith("application/json"));
             // application/vnd.api+json should come before text/html
@@ -245,6 +247,7 @@ class HeaderSelectorTest {
                 false
             );
             String accept = headers.get("Accept");
+            assertNotNull(accept);
             // application/json should still come first (JSON priority)
             assertTrue(accept.startsWith("application/json"));
         }
@@ -317,6 +320,7 @@ class HeaderSelectorTest {
                 false
             );
             String accept = headers.get("Accept");
+            assertNotNull(accept);
             // First header should not have ;q= because it's weight 1000
             assertTrue(accept.startsWith("application/json,") || accept.equals("application/json"));
         }
@@ -330,6 +334,7 @@ class HeaderSelectorTest {
                 false
             );
             String accept = headers.get("Accept");
+            assertNotNull(accept);
             // text/html should have quality weight like ;q=0.9
             assertTrue(accept.contains("text/html;q=0.9") || accept.contains("text/html;q=0."));
         }
@@ -343,6 +348,7 @@ class HeaderSelectorTest {
                 false
             );
             String accept = headers.get("Accept");
+            assertNotNull(accept);
             // Should be ;q=0.9 not ;q=0.900
             assertFalse(accept.contains(";q=0.900"));
         }

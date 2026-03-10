@@ -24,11 +24,11 @@ public class {{classname}} : BaseApi
     /// <param name="{{paramName}}">{{description}}</param>
     {{/allParams}}
     {{#returnType}}
-    /// <returns>{{{returnType}}}</returns>
+    /// <returns><![CDATA[{{{returnType}}}]]></returns>
     {{/returnType}}
     public async {{#returnType}}Task<{{{returnType}}}>{{/returnType}}{{^returnType}}Task{{/returnType}} {{operationId}}Async({{#allParams}}{{{dataType}}}{{^required}}?{{/required}} {{paramName}}{{^required}} = default{{/required}}{{^-last}}, {{/-last}}{{/allParams}})
     {
-        var path = "{{{path}}}";
+        string path = "{{{path}}}";
         {{#pathParams}}
         path = path.Replace(
             "{" + "{{baseName}}" + "}",
@@ -37,7 +37,7 @@ public class {{classname}} : BaseApi
         );
         {{/pathParams}}
 
-        var queryParams = new Dictionary<string, object?>();
+        Dictionary<string, object?> queryParams = [];
         {{#queryParams}}
         if ({{paramName}} != null)
         {
@@ -45,7 +45,7 @@ public class {{classname}} : BaseApi
         }
         {{/queryParams}}
 
-        var headerParams = new Dictionary<string, string>();
+        Dictionary<string, string> headerParams = [];
         {{#headerParams}}
         if ({{paramName}} != null)
         {
@@ -54,27 +54,29 @@ public class {{classname}} : BaseApi
         {{/headerParams}}
 
         {{#returnType}}
-        var result = await InvokeApiAsync<{{{returnType}}}>(
-            "{{httpMethod}}",
-            path,
-            queryParams,
-            headerParams,
-            {{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}},
-{{^produces}}            Array.Empty<string>(),{{/produces}}{{#produces}}{{#-first}}            {{operationId}}Accepts,{{/-first}}{{/produces}}
-            {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}}
-        ).ConfigureAwait(false);
+        {{{returnType}}}? result = await InvokeApiAsync<{{{returnType}}}>(
+                "{{httpMethod}}",
+                path,
+                queryParams,
+                headerParams,
+                {{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}},
+{{^produces}}                [],{{/produces}}{{#produces}}{{#-first}}                {{operationId}}Accepts,{{/-first}}{{/produces}}
+                {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}}
+            )
+            .ConfigureAwait(false);
         return result ?? throw new InvalidOperationException("Expected non-null response body");
         {{/returnType}}
         {{^returnType}}
-        await InvokeApiAsync<object>(
-            "{{httpMethod}}",
-            path,
-            queryParams,
-            headerParams,
-            {{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}},
-{{^produces}}            Array.Empty<string>(),{{/produces}}{{#produces}}{{#-first}}            {{operationId}}Accepts,{{/-first}}{{/produces}}
-            {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}}
-        ).ConfigureAwait(false);
+        _ = await InvokeApiAsync<object>(
+                "{{httpMethod}}",
+                path,
+                queryParams,
+                headerParams,
+                {{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}},
+{{^produces}}                [],{{/produces}}{{#produces}}{{#-first}}                {{operationId}}Accepts,{{/-first}}{{/produces}}
+                {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}}
+            )
+            .ConfigureAwait(false);
         {{/returnType}}
     }
     {{/operation}}

@@ -93,6 +93,42 @@ namespace {{packageName}}.Models;
 /// {{{.}}}
 /// </summary>
 {{/description}}
+{{#hasRequired}}
+public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{^-last}}, {{/-last}}{{/requiredVars}}){{#parent}} : {{{.}}}{{/parent}}
+{
+    {{#vars}}
+    {{#isEnum}}
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public enum {{enumName}}
+    {
+        {{#allowableValues}}
+        {{#enumVars}}
+        [JsonStringEnumMemberName("{{{value}}}")]
+        {{name}},
+{{^-last}}
+
+{{/-last}}
+        {{/enumVars}}
+        {{/allowableValues}}
+    }
+
+    {{/isEnum}}
+    {{/vars}}
+    {{#vars}}
+    {{#description}}
+    /// <summary>
+    /// {{{.}}}
+    /// </summary>
+    {{/description}}
+    [JsonPropertyName("{{baseName}}")]
+    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}} {{name}} { get; set; }{{#required}} = {{name}};{{/required}}{{^required}}{{#defaultValue}} = {{{.}}};{{/defaultValue}}{{/required}}
+{{^-last}}
+
+{{/-last}}
+    {{/vars}}
+}
+{{/hasRequired}}
+{{^hasRequired}}
 public class {{classname}}{{#parent}} : {{{.}}}{{/parent}}
 {
     {{#vars}}
@@ -125,17 +161,8 @@ public class {{classname}}{{#parent}} : {{{.}}}{{/parent}}
 
 {{/-last}}
     {{/vars}}
-{{#hasRequired}}
-
-    [JsonConstructor]
-    public {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{^-last}}, {{/-last}}{{/requiredVars}})
-    {
-        {{#requiredVars}}
-        this.{{name}} = {{name}};
-        {{/requiredVars}}
-    }
-{{/hasRequired}}
 }
+{{/hasRequired}}
 {{/anyOf}}
 {{/oneOf}}
 {{/isEnum}}

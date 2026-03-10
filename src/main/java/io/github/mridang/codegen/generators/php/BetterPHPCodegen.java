@@ -3,6 +3,7 @@ package io.github.mridang.codegen.generators.php;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.openapitools.codegen.utils.CamelizeOption.LOWERCASE_FIRST_LETTER;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.swagger.v3.oas.models.media.Schema;
 import java.io.File;
@@ -20,10 +21,11 @@ import org.openapitools.codegen.utils.StringUtils;
 @SuppressWarnings("unused")
 public class BetterPHPCodegen extends AbstractBetterCodegen {
 
+    private static final String SRC_BASE_PATH = "lib";
+    private static final String API_DIR_NAME = "Api";
+    private static final String MODEL_DIR_NAME = "Models";
+
     protected String invokerPackage = "OpenAPI\\Client";
-    protected final String srcBasePath = "lib";
-    protected final String apiDirName = "Api";
-    protected final String modelDirName = "Models";
 
     public BetterPHPCodegen() {
         outputFolder = "generated-code/php";
@@ -98,8 +100,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         invokerPackage = getPropertyOrDefault(CodegenConstants.INVOKER_PACKAGE, invokerPackage);
         additionalProperties.put("invokerPackage", invokerPackage);
 
-        apiPackage = invokerPackage + "\\" + apiDirName;
-        modelPackage = invokerPackage + "\\" + modelDirName;
+        apiPackage = invokerPackage + "\\" + API_DIR_NAME;
+        modelPackage = invokerPackage + "\\" + MODEL_DIR_NAME;
 
         if (additionalProperties.containsKey(CodegenConstants.MODEL_PACKAGE)) {
             modelPackage =
@@ -152,6 +154,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         supportingFiles.add(new SupportingFile("phpstan_neon.mustache", "", "phpstan.neon"));
         supportingFiles.add(new SupportingFile("rector.mustache", "", "rector.php"));
         supportingFiles.add(new SupportingFile("phpcs_xml.mustache", "", "phpcs.xml"));
+        supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
     }
 
     private String toSrcPath(String packageName) {
@@ -160,8 +163,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         if (packagePath.startsWith("/")) {
             packagePath = packagePath.substring(1);
         }
-        if (srcBasePath != null && !srcBasePath.isEmpty()) {
-            String base = srcBasePath.replaceAll("[\\\\/]$", "");
+        if (SRC_BASE_PATH != null && !SRC_BASE_PATH.isEmpty()) {
+            String base = SRC_BASE_PATH.replaceAll("[\\\\/]$", "");
             if (packagePath.isEmpty()) {
                 return base;
             }
@@ -300,6 +303,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     @Override
+    @SuppressFBWarnings("IMPROPER_UNICODE")
     public String toEnumVarName(String name, String datatype) {
         if (name.isEmpty()) {
             return "EMPTY";

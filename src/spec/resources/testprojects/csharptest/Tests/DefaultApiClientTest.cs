@@ -19,7 +19,7 @@ public class DefaultApiClientTest
         var client = new DefaultApiClient(config);
         var response = await client.SendRequestAsync(
             "GET",
-            wiremockUrl + "/api/test",
+            new Uri(wiremockUrl + "/api/test"),
             new Dictionary<string, string>(),
             null
         );

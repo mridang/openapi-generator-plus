@@ -1,3 +1,5 @@
+#pragma warning disable CA2000 // Dispose objects before losing scope — handler ownership transfers to HttpClient
+
 using System.Text;
 
 namespace {{packageName}};
@@ -24,16 +26,12 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     {
         ArgumentNullException.ThrowIfNull(config);
 
-        var handler = new HttpClientHandler();
+        HttpClientHandler handler = new() { CheckCertificateRevocationList = true };
 
         if (!config.VerifySsl)
         {
             handler.ServerCertificateCustomValidationCallback =
                 HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
-        }
-        else
-        {
-            handler.CheckCertificateRevocationList = true;
         }
 
         _httpClient = new HttpClient(handler, disposeHandler: true);
@@ -50,16 +48,17 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     /// <inheritdoc/>
     public async Task<ApiResponse> SendRequestAsync(
         string method,
-        string url,
+        Uri url,
         Dictionary<string, string> headers,
         string? body
     )
     {
-        using var request = new HttpRequestMessage(new HttpMethod(method), url);
+        ArgumentNullException.ThrowIfNull(headers);
+        using HttpRequestMessage request = new(new HttpMethod(method), url);
 
-        foreach (var header in headers)
+        foreach (KeyValuePair<string, string> header in headers)
         {
-            request.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            _ = request.Headers.TryAddWithoutValidation(header.Key, header.Value);
         }
 
         if (body != null)
@@ -67,11 +66,13 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             request.Content = new StringContent(body, Encoding.UTF8, "application/json");
         }
 
-        using var response = await _httpClient.SendAsync(request).ConfigureAwait(false);
-        var responseBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-        var responseHeaders = new Dictionary<string, string>();
+        using HttpResponseMessage response = await _httpClient
+            .SendAsync(request)
+            .ConfigureAwait(false);
+        string responseBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        Dictionary<string, string> responseHeaders = [];
 
-        foreach (var header in response.Headers)
+        foreach (KeyValuePair<string, IEnumerable<string>> header in response.Headers)
         {
             responseHeaders[header.Key] = string.Join(",", header.Value);
         }

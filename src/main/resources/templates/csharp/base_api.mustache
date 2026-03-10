@@ -1,8 +1,5 @@
 #pragma warning disable CA2000 // Dispose objects before losing scope
 
-using System.Text.Json;
-using System.Web;
-
 namespace {{packageName}}.{{apiPackage}};
 
 /// <summary>
@@ -44,22 +41,26 @@ public abstract class BaseApi
     {
         ArgumentNullException.ThrowIfNull(queryParams);
         ArgumentNullException.ThrowIfNull(headerParams);
-        var url = Config.BaseUrl + path;
-        var query = BuildQueryString(queryParams);
+        string url = Config.BaseUrl + path;
+        string query = BuildQueryString(queryParams);
         if (!string.IsNullOrEmpty(query))
         {
             url += "?" + query;
         }
 
-        var isMultipart = contentType == "multipart/form-data";
-        var headers = HeaderSelector.SelectHeaders(accepts, contentType, isMultipart);
+        bool isMultipart = contentType == "multipart/form-data";
+        Dictionary<string, string> headers = HeaderSelector.SelectHeaders(
+            accepts,
+            contentType,
+            isMultipart
+        );
 
-        foreach (var header in Config.DefaultHeaders)
+        foreach (KeyValuePair<string, string> header in Config.DefaultHeaders)
         {
             headers[header.Key] = header.Value;
         }
 
-        foreach (var header in headerParams)
+        foreach (KeyValuePair<string, string> header in headerParams)
         {
             headers[header.Key] = header.Value;
         }
@@ -70,27 +71,25 @@ public abstract class BaseApi
             serializedBody = Serializer.Serialize(body);
         }
 
-        var response = await ApiClient.SendRequestAsync(method, url, headers, serializedBody).ConfigureAwait(false);
+        ApiResponse response = await ApiClient
+            .SendRequestAsync(method, new Uri(url), headers, serializedBody)
+            .ConfigureAwait(false);
 
-        if (response.StatusCode is < 200 or >= 300)
-        {
-            throw new ApiException(
-                response.StatusCode,
-                $"API returned status code {response.StatusCode}",
-                response.Headers,
-                response.Body
-            );
-        }
-
-        return !string.IsNullOrEmpty(response.Body)
-            ? Serializer.Deserialize<T>(response.Body)
+        return response.StatusCode is < 200 or >= 300
+                ? throw new ApiException(
+                    response.StatusCode,
+                    $"API returned status code {response.StatusCode}",
+                    response.Headers,
+                    response.Body
+                )
+            : !string.IsNullOrEmpty(response.Body) ? Serializer.Deserialize<T>(response.Body)
             : default;
     }
 
     private static string BuildQueryString(Dictionary<string, object?> queryParams)
     {
-        var parts = new List<string>();
-        foreach (var entry in queryParams)
+        List<string> parts = [];
+        foreach (KeyValuePair<string, object?> entry in queryParams)
         {
             if (entry.Value != null)
             {

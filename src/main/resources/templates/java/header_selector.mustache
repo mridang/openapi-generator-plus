@@ -33,7 +33,7 @@ public class HeaderSelector {
      * @return map of header names to values
      */
     public Map<String, String> selectHeaders(
-            String[] accept, String contentType, boolean isMultipart) {
+            @Nullable String[] accept, @Nullable String contentType, boolean isMultipart) {
         Map<String, String> headers = new HashMap<>();
 
         String acceptHeader = selectAcceptHeader(accept);
@@ -90,7 +90,7 @@ public class HeaderSelector {
      * @param searchString the MIME type string to check
      * @return true if the string represents a JSON MIME type
      */
-    public boolean isJsonMime(String searchString) {
+    public boolean isJsonMime(@Nullable String searchString) {
         if (searchString == null) {
             return false;
         }

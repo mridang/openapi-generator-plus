@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Integration tests for the Pet API endpoints.
@@ -37,16 +38,16 @@ class PetApiTest {
         pet.status = Pet.StatusEnum.AVAILABLE;
 
         Pet result = api.addPet(pet);
+        assertNotNull(result);
 
-        assertThat(result).isNotNull();
         assertThat(result.name).isNotNull();
     }
 
     @Test
     void testFindPetsByStatus() throws Exception {
         List<Pet> result = api.findPetsByStatus("available");
+        assertNotNull(result);
 
-        assertThat(result).isNotNull();
         assertThat(result).isNotEmpty();
         assertThat(result.get(0)).isInstanceOf(Pet.class);
     }
@@ -54,8 +55,8 @@ class PetApiTest {
     @Test
     void testGetPetById() throws Exception {
         Pet result = api.getPetById(1L);
+        assertNotNull(result);
 
-        assertThat(result).isNotNull();
         assertThat(result.id).isNotNull();
         assertThat(result.name).isNotNull();
     }
@@ -69,8 +70,7 @@ class PetApiTest {
         pet.status = Pet.StatusEnum.PENDING;
 
         Pet result = api.updatePet(1L, pet);
-
-        assertThat(result).isNotNull();
+        assertNotNull(result);
     }
 
     @Test

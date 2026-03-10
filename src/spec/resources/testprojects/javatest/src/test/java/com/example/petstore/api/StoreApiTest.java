@@ -7,9 +7,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Integration tests for the Store API endpoints.
@@ -32,8 +34,7 @@ class StoreApiTest {
     @Test
     void testGetInventory() throws Exception {
         Map<String, Integer> result = api.getInventory();
-
-        assertThat(result).isNotNull();
+        assertNotNull(result);
     }
 
     @Test
@@ -42,21 +43,21 @@ class StoreApiTest {
         order.id = 1L;
         order.petId = 12345L;
         order.quantity = 1;
-        order.shipDate = OffsetDateTime.now();
+        order.shipDate = OffsetDateTime.now(ZoneOffset.UTC);
         order.status = Order.StatusEnum.PLACED;
         order.complete = false;
 
         Order result = api.placeOrder(order);
+        assertNotNull(result);
 
-        assertThat(result).isNotNull();
         assertThat(result.id).isNotNull();
     }
 
     @Test
     void testGetOrderById() throws Exception {
         Order result = api.getOrderById(1L);
+        assertNotNull(result);
 
-        assertThat(result).isNotNull();
         assertThat(result.id).isNotNull();
     }
 

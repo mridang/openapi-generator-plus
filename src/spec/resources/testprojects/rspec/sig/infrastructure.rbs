@@ -50,6 +50,9 @@ module OpigenClient
     def initialize: (String, ?Exception?) -> void
   end
 
+  class SchemaMismatchError < StandardError
+  end
+
   class ObjectSerializer
     DEFAULT_DATETIME_FORMAT: String
     def self.serialize: (untyped) -> String
@@ -62,7 +65,6 @@ module OpigenClient
     def self.find_and_cast_into_type: (untyped, untyped) -> untyped
     def self.sanitize_for_serialization: (untyped) -> untyped
     def self.deserialize_model: (untyped, untyped) -> untyped
-    SchemaMismatchError: singleton(StandardError)
   end
 
   class HeaderSelector

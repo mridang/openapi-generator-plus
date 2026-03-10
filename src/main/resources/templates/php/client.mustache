@@ -72,6 +72,7 @@ class Client
                 return $this->host;
             }
 
+            /** @return array<string, string> */
             public function getAuthHeaders(): array
             {
                 return ['Authorization' => 'Bearer ' . $this->accessToken];

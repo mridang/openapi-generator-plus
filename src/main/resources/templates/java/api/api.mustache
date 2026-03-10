@@ -23,6 +23,13 @@ import javax.annotation.Nullable;
 {{/description}}
  */
 public class {{classname}} extends BaseApi {
+{{#operation}}
+{{#returnType}}
+
+    private static final TypeReference<{{{returnType}}}> {{operationId}}TypeRef =
+            new TypeReference<>() {};
+{{/returnType}}
+{{/operation}}
 
     public {{classname}}() {
         super();
@@ -104,7 +111,7 @@ public class {{classname}} extends BaseApi {
                 {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
                 new String[] { {{#produces}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/produces}}},
                 {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
-                {{#returnType}}new TypeReference<{{{returnType}}}>() {}{{/returnType}}{{^returnType}}null{{/returnType}});
+                {{#returnType}}{{operationId}}TypeRef{{/returnType}}{{^returnType}}null{{/returnType}});
     }
     {{/operation}}
 }

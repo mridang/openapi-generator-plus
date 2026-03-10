@@ -3,16 +3,9 @@ namespace {{packageName}};
 /// <summary>
 /// Represents an HTTP API response.
 /// </summary>
-public class ApiResponse
+public class ApiResponse(int statusCode, string body, Dictionary<string, string> headers)
 {
-    public int StatusCode { get; }
-    public string Body { get; }
-    public Dictionary<string, string> Headers { get; }
-
-    public ApiResponse(int statusCode, string body, Dictionary<string, string> headers)
-    {
-        StatusCode = statusCode;
-        Body = body;
-        Headers = headers;
-    }
+    public int StatusCode { get; } = statusCode;
+    public string Body { get; } = body;
+    public Dictionary<string, string> Headers { get; } = headers;
 }

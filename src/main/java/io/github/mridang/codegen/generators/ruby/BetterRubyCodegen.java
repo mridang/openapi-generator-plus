@@ -39,10 +39,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterRubyCodegen.class);
 
+    private static final String GEM_VERSION = "1.0.0";
+    private static final String LIB_FOLDER = "lib";
+
     @Nullable protected String gemName;
     protected String moduleName = "Opigen::Client";
-    protected final String gemVersion = "1.0.0";
-    protected final String libFolder = "lib";
 
     public BetterRubyCodegen() {
         outputFolder = "generated-code" + File.separator + "ruby";
@@ -122,15 +123,15 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
             gemName = underscore(moduleName.replaceAll("[^\\w]+", ""));
         }
         additionalProperties.put(CodegenConstants.GEM_NAME, gemName);
-        additionalProperties.put("gemVersion", gemVersion);
+        additionalProperties.put("gemVersion", GEM_VERSION);
 
         setModelPackage("models");
         setApiPackage("api");
 
         String modulePath = underscore(moduleName.replaceAll("::", "/"));
-        String libPath = libFolder + File.separator + modulePath;
+        String libPath = LIB_FOLDER + File.separator + modulePath;
 
-        supportingFiles.add(new SupportingFile("gem.mustache", libFolder, gemName + ".rb"));
+        supportingFiles.add(new SupportingFile("gem.mustache", LIB_FOLDER, gemName + ".rb"));
         supportingFiles.add(new SupportingFile("configuration.mustache", libPath, "configuration.rb"));
         supportingFiles.add(new SupportingFile("api_error.mustache", libPath, "api_error.rb"));
         supportingFiles.add(new SupportingFile("version.mustache", libPath, "version.rb"));
@@ -154,6 +155,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         supportingFiles.add(new SupportingFile("vendor_rbs.mustache", "sig", "vendor.rbs"));
         supportingFiles.add(
                 new SupportingFile("infrastructure_rbs.mustache", "sig", "infrastructure.rbs"));
+        supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
     }
 
     @Nullable
@@ -237,6 +239,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     }
 
     @Override
+    @SuppressFBWarnings("IMPROPER_UNICODE")
     public String toEnumVarName(String name, String datatype) {
         if (name.isEmpty()) {
             return "EMPTY";
@@ -263,7 +266,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         String path = moduleName.replaceAll("::", "/");
         return Paths.get(
                         getOutputDir(),
-                        libFolder,
+                        LIB_FOLDER,
                         underscore(path),
                         modelPackage().replace(".", File.separator))
                 .toString();
@@ -275,7 +278,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         String path = moduleName.replaceAll("::", "/");
         return Paths.get(
                         getOutputDir(),
-                        libFolder,
+                        LIB_FOLDER,
                         underscore(path),
                         apiPackage().replace(".", File.separator))
                 .toString();
@@ -310,8 +313,47 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
 
     private void addRbsTypeToParams(List<CodegenParameter> params) {
         for (CodegenParameter param : params) {
-            param.vendorExtensions.put("x-rbs-type", toRbsType(param.dataType));
+            param.vendorExtensions.put("x-rbs-type", toRbsApiType(param.dataType));
         }
+    }
+
+    private String toRbsApiType(@Nullable String type) {
+        if (type == null) {
+            return "void";
+        }
+        return qualifyModelTypes(type)
+                .replace("Boolean", "bool")
+                .replace("Object", "untyped")
+                .replace("<", "[")
+                .replace(">", "]");
+    }
+
+    private String qualifyModelTypes(String type) {
+        StringBuilder result = new StringBuilder();
+        StringBuilder token = new StringBuilder();
+        for (int i = 0; i < type.length(); i++) {
+            char c = type.charAt(i);
+            if (c == '<' || c == '>' || c == ',' || c == ' ') {
+                if (token.length() > 0) {
+                    result.append(qualifySingleType(token.toString()));
+                    token.setLength(0);
+                }
+                result.append(c);
+            } else {
+                token.append(c);
+            }
+        }
+        if (token.length() > 0) {
+            result.append(qualifySingleType(token.toString()));
+        }
+        return result.toString();
+    }
+
+    private String qualifySingleType(String type) {
+        if (languageSpecificPrimitives.contains(type)) {
+            return type;
+        }
+        return "Models::" + type;
     }
 
     private String toRbsType(@Nullable String type) {
@@ -344,10 +386,14 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         Path relative = outputDir.relativize(filePath);
         String relStr = relative.toString();
 
-        if (relStr.startsWith(libFolder + File.separator)) {
-            Path sigPath = outputDir.resolve("sig").resolve(relStr.substring(libFolder.length() + 1));
+        if (relStr.startsWith(LIB_FOLDER + File.separator)) {
+            Path sigPath = outputDir.resolve("sig").resolve(relStr.substring(LIB_FOLDER.length() + 1));
+            Path sigParent = sigPath.getParent();
+            if (sigParent == null) {
+                return;
+            }
             try {
-                Files.createDirectories(sigPath.getParent());
+                Files.createDirectories(sigParent);
                 Files.move(filePath, sigPath, StandardCopyOption.REPLACE_EXISTING);
             } catch (IOException e) {
                 LOGGER.warn("Failed to move RBS file {} to {}: {}", filePath, sigPath, e.getMessage());
