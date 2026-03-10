@@ -2,8 +2,12 @@ package com.example.petstore;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
+import java.net.InetSocketAddress;
+import java.net.ProxySelector;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.cert.CertificateFactory;
@@ -12,31 +16,32 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
-import org.apache.hc.client5.http.impl.classic.HttpClients;
-import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
-import org.apache.hc.client5.http.ssl.NoopHostnameVerifier;
-import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactoryBuilder;
-import org.apache.hc.client5.http.ssl.TrustAllStrategy;
-import org.apache.hc.core5.http.ContentType;
-import org.apache.hc.core5.http.Header;
-import org.apache.hc.core5.http.HttpHost;
-import org.apache.hc.core5.http.ParseException;
-import org.apache.hc.core5.http.io.entity.EntityUtils;
-import org.apache.hc.core5.http.io.entity.StringEntity;
-import org.apache.hc.core5.http.io.support.ClassicRequestBuilder;
-import org.apache.hc.core5.ssl.SSLContextBuilder;
-import org.apache.hc.core5.ssl.SSLContexts;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
 
-/** Default implementation of {@link ApiClient} using Apache HttpClient 5. */
-public class DefaultApiClient implements ApiClient {
+/** Default implementation of {@link ApiClient} using {@link java.net.http.HttpClient}. */
+public final class DefaultApiClient implements ApiClient {
 
-  private final CloseableHttpClient httpClient;
+  private static final X509TrustManager TRUST_ALL_MANAGER =
+      new X509TrustManager() {
+        @Override
+        public void checkClientTrusted(X509Certificate[] chain, String authType) {}
+
+        @Override
+        public void checkServerTrusted(X509Certificate[] chain, String authType) {}
+
+        @Override
+        public X509Certificate[] getAcceptedIssuers() {
+          return new X509Certificate[0];
+        }
+      };
+
+  private final HttpClient httpClient;
 
   /** Create a client with default settings. */
   public DefaultApiClient() {
-    this(HttpClients.createDefault());
+    this(HttpClient.newHttpClient());
   }
 
   /**
@@ -48,16 +53,21 @@ public class DefaultApiClient implements ApiClient {
    */
   public DefaultApiClient(Configuration config) {
     try {
-      HttpClientBuilder builder = HttpClients.custom();
+      HttpClient.Builder builder = HttpClient.newBuilder();
 
       if (config.getProxy() != null) {
-        builder.setProxy(HttpHost.create(config.getProxy()));
+        URI proxyUri = URI.create(config.getProxy());
+        int port = proxyUri.getPort();
+        if (port == -1) {
+          port = "https".equals(proxyUri.getScheme()) ? 443 : 8080;
+        }
+        builder.proxy(ProxySelector.of(new InetSocketAddress(proxyUri.getHost(), port)));
       }
 
-      SSLContext sslContext;
       if (!config.isVerifySsl()) {
-        sslContext =
-            SSLContextBuilder.create().loadTrustMaterial(TrustAllStrategy.INSTANCE).build();
+        SSLContext sslContext = SSLContext.getInstance("TLS");
+        sslContext.init(null, new TrustManager[] {TRUST_ALL_MANAGER}, null);
+        builder.sslContext(sslContext);
       } else if (config.getSslCaCert() != null) {
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
         X509Certificate caCert;
@@ -67,35 +77,26 @@ public class DefaultApiClient implements ApiClient {
         KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
         trustStore.load(null, null);
         trustStore.setCertificateEntry("ca", caCert);
-        sslContext = SSLContextBuilder.create().loadTrustMaterial(trustStore, null).build();
-      } else {
-        sslContext = SSLContexts.createDefault();
+        TrustManagerFactory tmf =
+            TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        tmf.init(trustStore);
+        SSLContext sslContext = SSLContext.getInstance("TLS");
+        sslContext.init(null, tmf.getTrustManagers(), null);
+        builder.sslContext(sslContext);
       }
-
-      SSLConnectionSocketFactoryBuilder sslSocketBuilder =
-          SSLConnectionSocketFactoryBuilder.create().setSslContext(sslContext);
-
-      if (!config.isVerifySsl()) {
-        sslSocketBuilder.setHostnameVerifier(NoopHostnameVerifier.INSTANCE);
-      }
-
-      builder.setConnectionManager(
-          PoolingHttpClientConnectionManagerBuilder.create()
-              .setSSLSocketFactory(sslSocketBuilder.build())
-              .build());
 
       this.httpClient = builder.build();
-    } catch (GeneralSecurityException | IOException | URISyntaxException e) {
+    } catch (GeneralSecurityException | IOException e) {
       throw new RuntimeException("Failed to configure SSL/TLS", e);
     }
   }
 
   /**
-   * Create a client with a pre-configured {@link CloseableHttpClient}.
+   * Create a client with a pre-configured {@link HttpClient}.
    *
    * @param httpClient the HTTP client to use
    */
-  public DefaultApiClient(CloseableHttpClient httpClient) {
+  public DefaultApiClient(HttpClient httpClient) {
     this.httpClient = httpClient;
   }
 
@@ -103,37 +104,39 @@ public class DefaultApiClient implements ApiClient {
   public ApiResponse sendRequest(
       String method, String url, Map<String, String> headers, @Nullable String body)
       throws ApiException {
-    ClassicRequestBuilder builder = ClassicRequestBuilder.create(method).setUri(url);
+    HttpRequest.Builder builder =
+        HttpRequest.newBuilder(URI.create(url))
+            .method(
+                method,
+                body != null
+                    ? HttpRequest.BodyPublishers.ofString(body)
+                    : HttpRequest.BodyPublishers.noBody());
 
     for (Map.Entry<String, String> header : headers.entrySet()) {
-      builder.addHeader(header.getKey(), header.getValue());
-    }
-
-    if (body != null) {
-      builder.setEntity(
-          new StringEntity(body, ContentType.APPLICATION_JSON.withCharset(StandardCharsets.UTF_8)));
+      builder.header(header.getKey(), header.getValue());
     }
 
     try {
-      return httpClient.execute(
-          builder.build(),
-          response -> {
-            int statusCode = response.getCode();
-            String responseBody;
-            try {
-              responseBody =
-                  response.getEntity() != null ? EntityUtils.toString(response.getEntity()) : "";
-            } catch (ParseException e) {
-              throw new IOException("Failed to parse response entity", e);
-            }
-            Map<String, String> responseHeaders = new HashMap<>();
-            for (Header h : response.getHeaders()) {
-              responseHeaders.put(h.getName(), h.getValue());
-            }
-            return new ApiResponse(
-                statusCode, responseBody != null ? responseBody : "", responseHeaders);
-          });
+      HttpResponse<String> response =
+          httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+
+      Map<String, String> responseHeaders = new HashMap<>();
+      response
+          .headers()
+          .map()
+          .forEach(
+              (name, values) -> {
+                if (!values.isEmpty()) {
+                  responseHeaders.put(name, values.get(0));
+                }
+              });
+
+      return new ApiResponse(
+          response.statusCode(), response.body() != null ? response.body() : "", responseHeaders);
     } catch (IOException e) {
+      throw new ApiException(e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       throw new ApiException(e);
     }
   }
