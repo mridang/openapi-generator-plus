@@ -24,11 +24,11 @@ use GuzzleHttp\Psr7\MultipartStream;
  */
 class BaseApi
 {
-    protected ApiClient $apiClient;
+    protected readonly ApiClient $apiClient;
 
-    protected Configuration $config;
+    protected readonly Configuration $config;
 
-    protected HeaderSelector $headerSelector;
+    protected readonly HeaderSelector $headerSelector;
 
     /**
      * @param ApiClient|null     $apiClient API client instance

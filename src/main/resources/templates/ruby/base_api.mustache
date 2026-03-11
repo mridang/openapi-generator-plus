@@ -21,13 +21,15 @@ module {{moduleName}}
     # handles URL construction, header selection, body serialization, request
     # dispatch, and response deserialization.
     class BaseApi
-      attr_reader :api_client, :config, :header_selector
+      attr_reader :config
 
       def initialize(api_client = nil, config = {{moduleName}}::Configuration.default)
         @config = config
         @api_client = api_client || {{moduleName}}::DefaultApiClient.new(@config)
         @header_selector = {{moduleName}}::HeaderSelector.new
       end
+
+      protected
 
       # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
       # rubocop:disable Metrics/ParameterLists, Metrics/PerceivedComplexity
@@ -70,8 +72,6 @@ module {{moduleName}}
       end
       # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
       # rubocop:enable Metrics/ParameterLists, Metrics/PerceivedComplexity
-
-      protected
 
       def build_collection_param(param, format)
         case format

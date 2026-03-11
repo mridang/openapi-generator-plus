@@ -11,9 +11,9 @@ import { injectTraceContext } from '../trace-context-util{{importFileExtension}}
  * request dispatch, and response deserialization.
  */
 export abstract class BaseApi {
-  protected apiClient: ApiClient;
-  protected config: Configuration;
-  protected headerSelector: HeaderSelector;
+  protected readonly apiClient: ApiClient;
+  protected readonly config: Configuration;
+  protected readonly headerSelector: HeaderSelector;
 
   constructor(config?: Configuration, apiClient?: ApiClient) {
     this.config = config ?? Configuration.getDefault();

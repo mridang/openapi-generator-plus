@@ -23,7 +23,7 @@ import javax.annotation.Nullable;
  */
 public abstract class BaseApi {
 
-    protected ApiClient apiClient;
+    protected final ApiClient apiClient;
     protected final Configuration config;
     protected final ObjectSerializer objectSerializer;
     protected final HeaderSelector headerSelector;
@@ -41,14 +41,6 @@ public abstract class BaseApi {
         this.config = config;
         this.objectSerializer = new ObjectSerializer();
         this.headerSelector = new HeaderSelector();
-    }
-
-    public ApiClient getApiClient() {
-        return apiClient;
-    }
-
-    public void setApiClient(ApiClient apiClient) {
-        this.apiClient = apiClient;
     }
 
     public Configuration getConfig() {
@@ -168,7 +160,7 @@ public abstract class BaseApi {
      * @param value the string to encode
      * @return URL-encoded string
      */
-    protected String encode(String value) {
+    String encode(String value) {
         return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 }

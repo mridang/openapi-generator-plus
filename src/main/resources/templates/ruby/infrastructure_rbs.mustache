@@ -177,9 +177,7 @@ module {{moduleName}}
 
   module Api
     class BaseApi
-      attr_reader api_client: ApiClient
       attr_reader config: Configuration
-      attr_reader header_selector: HeaderSelector
       def initialize: (?ApiClient?, ?Configuration) -> void
       def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, Auth::Authenticator?) -> untyped
       def build_collection_param: (Array[untyped], Symbol) -> untyped
