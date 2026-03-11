@@ -7,13 +7,13 @@ use {{invokerPackage}}\Auth\BaseAuthenticator;
 
 class OpenIdConnectAuthenticator extends BaseAuthenticator
 {
-    private string $host;
-    private string $openIdConnectUrl;
-    private string $clientId;
-    private string $clientSecret;
-    private string $redirectUri;
+    private readonly string $host;
+    private readonly string $openIdConnectUrl;
+    private readonly string $clientId;
+    private readonly string $clientSecret;
+    private readonly string $redirectUri;
     /** @var string[] */
-    private array $scopes;
+    private readonly array $scopes;
     private ?OAuth2AuthorizationCodeAuthenticator $delegate = null;
 
     /** @param string[] $scopes */

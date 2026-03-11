@@ -1,6 +1,5 @@
 export class OAuth2TokenManager {
   private accessToken: string | null = null;
-  private refreshToken: string | null = null;
   private tokenExpiry: number | null = null;
 
   async getAccessToken(tokenUrl: string, params: Record<string, string>): Promise<string> {
@@ -28,9 +27,6 @@ export class OAuth2TokenManager {
     }
     const json = (await response.json()) as Record<string, unknown>;
     this.accessToken = json.access_token as string;
-    if (json.refresh_token) {
-      this.refreshToken = json.refresh_token as string;
-    }
     if (json.expires_in) {
       this.tokenExpiry = Date.now() + ((json.expires_in as number) - 30) * 1000;
     }

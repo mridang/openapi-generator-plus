@@ -12,7 +12,7 @@ module {{moduleName}}
           super()
           @host = host
           @authorization_url = authorization_url
-          @scopes = scopes
+          @scopes = scopes.freeze
           @access_token = nil
         end
 

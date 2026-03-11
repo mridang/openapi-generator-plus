@@ -9,7 +9,7 @@ export class OAuth2ImplicitAuthenticator implements Authenticator {
   constructor(host: string, authorizationUrl: string, scopes: string[]) {
     this.host = host;
     this.authorizationUrl = authorizationUrl;
-    this.scopes = scopes;
+    this.scopes = [...scopes];
   }
 
   buildAuthorizationUrl(state?: string): string {

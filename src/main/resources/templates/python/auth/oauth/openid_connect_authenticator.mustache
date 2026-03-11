@@ -24,7 +24,7 @@ class OpenIdConnectAuthenticator(Authenticator):
         self._client_id = client_id
         self._client_secret = client_secret
         self._redirect_uri = redirect_uri
-        self._scopes = scopes
+        self._scopes = list(scopes)
         self._delegate: Optional[OAuth2AuthorizationCodeAuthenticator] = None
 
     def _get_delegate(self) -> OAuth2AuthorizationCodeAuthenticator:

@@ -7,10 +7,10 @@ use {{invokerPackage}}\Auth\BaseAuthenticator;
 
 class OAuth2ImplicitAuthenticator extends BaseAuthenticator
 {
-    private string $host;
-    private string $authorizationUrl;
+    private readonly string $host;
+    private readonly string $authorizationUrl;
     /** @var string[] */
-    private array $scopes;
+    private readonly array $scopes;
     private ?string $accessToken = null;
 
     /** @param string[] $scopes */

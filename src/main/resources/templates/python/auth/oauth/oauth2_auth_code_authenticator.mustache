@@ -25,7 +25,7 @@ class OAuth2AuthorizationCodeAuthenticator(Authenticator):
         self._authorization_url = authorization_url
         self._token_url = token_url
         self._redirect_uri = redirect_uri
-        self._scopes = scopes
+        self._scopes = list(scopes)
         self._token_manager = OAuth2TokenManager()
         self._token_exchanged = False
 

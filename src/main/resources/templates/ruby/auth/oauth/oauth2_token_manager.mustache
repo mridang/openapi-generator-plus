@@ -12,7 +12,6 @@ module {{moduleName}}
         def initialize
           @mutex = Mutex.new
           @access_token = nil
-          @refresh_token = nil
           @token_expiry = nil
         end
 
@@ -47,7 +46,6 @@ module {{moduleName}}
 
           body = JSON.parse(response.body)
           @access_token = body['access_token']
-          @refresh_token = body['refresh_token'] if body.key?('refresh_token')
           @token_expiry = Time.now.to_f + body['expires_in'].to_i - 30 if body.key?('expires_in')
         end
         # rubocop:enable Metrics/AbcSize, Metrics/MethodLength

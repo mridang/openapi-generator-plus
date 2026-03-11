@@ -11,7 +11,7 @@ class OAuth2ImplicitAuthenticator(Authenticator):
     def __init__(self, host: str, authorization_url: str, scopes: List[str]) -> None:
         self._host = host
         self._authorization_url = authorization_url
-        self._scopes = scopes
+        self._scopes = list(scopes)
         self._access_token: Optional[str] = None
 
     def build_authorization_url(self, state: Optional[str] = None) -> str:

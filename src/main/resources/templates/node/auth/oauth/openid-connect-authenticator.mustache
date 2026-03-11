@@ -23,7 +23,7 @@ export class OpenIdConnectAuthenticator implements Authenticator {
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     this.redirectUri = redirectUri;
-    this.scopes = scopes;
+    this.scopes = [...scopes];
   }
 
   private async getDelegate(): Promise<OAuth2AuthorizationCodeAuthenticator> {

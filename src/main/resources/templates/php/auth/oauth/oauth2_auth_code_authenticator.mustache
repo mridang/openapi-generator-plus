@@ -7,15 +7,15 @@ use {{invokerPackage}}\Auth\BaseAuthenticator;
 
 class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
 {
-    private string $host;
-    private string $clientId;
-    private string $clientSecret;
-    private string $authorizationUrl;
-    private string $tokenUrl;
-    private string $redirectUri;
+    private readonly string $host;
+    private readonly string $clientId;
+    private readonly string $clientSecret;
+    private readonly string $authorizationUrl;
+    private readonly string $tokenUrl;
+    private readonly string $redirectUri;
     /** @var string[] */
-    private array $scopes;
-    private OAuth2TokenManager $tokenManager;
+    private readonly array $scopes;
+    private readonly OAuth2TokenManager $tokenManager;
     private bool $tokenExchanged = false;
 
     /** @param string[] $scopes */

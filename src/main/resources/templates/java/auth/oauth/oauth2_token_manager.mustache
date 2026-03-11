@@ -19,7 +19,6 @@ public class OAuth2TokenManager {
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     @Nullable private String accessToken;
-    @Nullable private String refreshToken;
     @Nullable private Instant tokenExpiry;
 
     public OAuth2TokenManager() {
@@ -34,22 +33,6 @@ public class OAuth2TokenManager {
         fetchToken(tokenUrl, params);
         if (accessToken == null) {
             throw new IllegalStateException("Token fetch did not return an access token");
-        }
-        return accessToken;
-    }
-
-    public synchronized String refreshAccessToken(String tokenUrl, String clientId, String clientSecret) {
-        if (refreshToken == null) {
-            throw new IllegalStateException("No refresh token available");
-        }
-        Map<String, String> params = Map.of(
-                "grant_type", "refresh_token",
-                "refresh_token", refreshToken,
-                "client_id", clientId,
-                "client_secret", clientSecret);
-        fetchToken(tokenUrl, params);
-        if (accessToken == null) {
-            throw new IllegalStateException("Token refresh did not return an access token");
         }
         return accessToken;
     }
@@ -80,9 +63,6 @@ public class OAuth2TokenManager {
             }
             JsonNode json = objectMapper.readTree(response.body());
             this.accessToken = json.get("access_token").asText();
-            if (json.has("refresh_token")) {
-                this.refreshToken = json.get("refresh_token").asText();
-            }
             if (json.has("expires_in")) {
                 long expiresIn = json.get("expires_in").asLong();
                 this.tokenExpiry = Instant.now().plusSeconds(expiresIn - 30);

@@ -18,10 +18,10 @@ public class OAuth2ImplicitAuthenticator implements Authenticator {
     public OAuth2ImplicitAuthenticator(String host, String authorizationUrl, List<String> scopes) {
         this.host = host;
         this.authorizationUrl = authorizationUrl;
-        this.scopes = scopes;
+        this.scopes = List.copyOf(scopes);
     }
 
-    public String buildAuthorizationUrl(String state) {
+    public String buildAuthorizationUrl(@Nullable String state) {
         StringBuilder url = new StringBuilder(authorizationUrl);
         url.append("?response_type=token");
         if (!scopes.isEmpty()) {

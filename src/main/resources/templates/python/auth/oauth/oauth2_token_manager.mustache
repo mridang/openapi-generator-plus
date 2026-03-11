@@ -12,7 +12,6 @@ class OAuth2TokenManager:
 
     def __init__(self) -> None:
         self._access_token: Optional[str] = None
-        self._refresh_token: Optional[str] = None
         self._token_expiry: Optional[float] = None
         self._lock = threading.Lock()
 
@@ -20,19 +19,6 @@ class OAuth2TokenManager:
         with self._lock:
             if self._access_token and self._token_expiry and time.time() < self._token_expiry:
                 return self._access_token
-            self._fetch_token(token_url, params)
-            return self._access_token  # type: ignore[return-value]
-
-    def refresh_access_token(self, token_url: str, client_id: str, client_secret: str) -> str:
-        with self._lock:
-            if not self._refresh_token:
-                raise RuntimeError('No refresh token available')
-            params = {
-                'grant_type': 'refresh_token',
-                'refresh_token': self._refresh_token,
-                'client_id': client_id,
-                'client_secret': client_secret,
-            }
             self._fetch_token(token_url, params)
             return self._access_token  # type: ignore[return-value]
 
@@ -50,7 +36,5 @@ class OAuth2TokenManager:
                 raise RuntimeError(f'Token request failed with status {resp.status}')
             body = json.loads(resp.read().decode('utf-8'))
         self._access_token = body['access_token']
-        if 'refresh_token' in body:
-            self._refresh_token = body['refresh_token']
         if 'expires_in' in body:
             self._token_expiry = time.time() + body['expires_in'] - 30

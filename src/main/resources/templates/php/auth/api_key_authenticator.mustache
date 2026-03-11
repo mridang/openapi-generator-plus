@@ -5,10 +5,10 @@ namespace {{invokerPackage}}\Auth;
 
 class ApiKeyAuthenticator extends BaseAuthenticator
 {
-    private string $host;
-    private string $keyParamName;
-    private string $apiKey;
-    private ApiKeyLocation $location;
+    private readonly string $host;
+    private readonly string $keyParamName;
+    private readonly string $apiKey;
+    private readonly ApiKeyLocation $location;
 
     public function __construct(string $host, string $keyParamName, string $apiKey, ApiKeyLocation $location)
     {

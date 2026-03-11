@@ -18,7 +18,7 @@ module {{moduleName}}
           @authorization_url = authorization_url
           @token_url = token_url
           @redirect_uri = redirect_uri
-          @scopes = scopes
+          @scopes = scopes.freeze
           @token_manager = OAuth2TokenManager.new
           @token_exchanged = false
         end

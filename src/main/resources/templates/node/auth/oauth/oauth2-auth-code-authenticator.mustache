@@ -27,7 +27,7 @@ export class OAuth2AuthorizationCodeAuthenticator implements Authenticator {
     this.authorizationUrl = authorizationUrl;
     this.tokenUrl = tokenUrl;
     this.redirectUri = redirectUri;
-    this.scopes = scopes;
+    this.scopes = [...scopes];
     this.tokenManager = new OAuth2TokenManager();
   }
 

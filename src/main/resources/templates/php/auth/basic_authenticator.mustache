@@ -5,8 +5,8 @@ namespace {{invokerPackage}}\Auth;
 
 class BasicAuthenticator extends BaseAuthenticator
 {
-    private string $host;
-    private string $authHeader;
+    private readonly string $host;
+    private readonly string $authHeader;
 
     public function __construct(string $host, string $username, string $password)
     {
