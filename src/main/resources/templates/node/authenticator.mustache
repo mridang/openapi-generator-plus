@@ -12,4 +12,14 @@ export interface Authenticator {
    * Returns the authentication headers to include in every request.
    */
   getAuthHeaders(): Record<string, string>;
+
+  /**
+   * Returns query parameters to include for authentication.
+   */
+  getQueryParams(): Record<string, string>;
+
+  /**
+   * Returns cookie parameters to include for authentication.
+   */
+  getCookieParams(): Record<string, string>;
 }

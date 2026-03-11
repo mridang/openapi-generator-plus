@@ -1,0 +1,10 @@
+{{>partial_header}}
+from enum import Enum
+
+
+class ApiKeyLocation(Enum):
+    """Location where the API key should be sent."""
+
+    HEADER = 'header'
+    QUERY = 'query'
+    COOKIE = 'cookie'

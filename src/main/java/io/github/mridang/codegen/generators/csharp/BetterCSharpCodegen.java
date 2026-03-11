@@ -1,9 +1,12 @@
 package io.github.mridang.codegen.generators.csharp;
 
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.io.File;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.HashSet;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
@@ -238,5 +241,15 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     @Override
     public String escapeQuotationMark(String input) {
         return input.replace("\"", "\\\"");
+    }
+
+    @Override
+    protected void registerAuthSupportingFiles() {
+        // Auth supporting files not yet implemented for C#
+    }
+
+    @Override
+    protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
+        // Per-scheme authenticators not yet implemented for C#
     }
 }

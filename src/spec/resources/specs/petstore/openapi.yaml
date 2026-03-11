@@ -12,6 +12,9 @@ paths:
         - pet
       summary: Add a new pet to the store
       operationId: addPet
+      security:
+        - apiKeyHeader: []
+        - petStoreBearer: []
       requestBody:
         description: Create a new pet in the store
         content:
@@ -119,6 +122,10 @@ paths:
         - pet
       summary: Deletes a pet
       operationId: deletePet
+      security:
+        - adminBasic: []
+        - machineAuth:
+            - pets:write
       parameters:
         - name: petId
           in: path
@@ -138,6 +145,7 @@ paths:
         - store
       summary: Returns pet inventories by status
       operationId: getInventory
+      security: []
       responses:
         '200':
           description: Successful operation
@@ -213,7 +221,74 @@ paths:
           description: Invalid ID supplied
         '404':
           description: Order not found
+security:
+  - petStoreBasic: []
+  - petStoreBearer: []
 components:
+  securitySchemes:
+    petStoreBasic:
+      type: http
+      scheme: basic
+    adminBasic:
+      type: http
+      scheme: basic
+    petStoreBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    serviceToken:
+      type: http
+      scheme: bearer
+    apiKeyHeader:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    internalApiKey:
+      type: apiKey
+      in: header
+      name: X-Internal-Key
+    apiKeyQuery:
+      type: apiKey
+      in: query
+      name: api_key
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: SESSION_ID
+    machineAuth:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: https://auth.example.com/oauth/token
+          scopes:
+            pets:read: Read pets
+            pets:write: Write pets
+    legacyAuth:
+      type: oauth2
+      flows:
+        password:
+          tokenUrl: https://auth.example.com/oauth/token
+          scopes:
+            read: Read access
+    userAuth:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.example.com/authorize
+          tokenUrl: https://auth.example.com/oauth/token
+          scopes:
+            pets:read: Read pets
+            pets:write: Write pets
+    browserAuth:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://auth.example.com/authorize
+          scopes:
+            read: Read access
+    ssoAuth:
+      type: openIdConnect
+      openIdConnectUrl: https://auth.example.com/.well-known/openid-configuration
   schemas:
     Order:
       type: object

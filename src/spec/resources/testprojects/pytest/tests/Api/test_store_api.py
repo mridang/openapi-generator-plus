@@ -13,6 +13,7 @@ class TestStoreApi:
     @pytest.fixture(autouse=True)
     def setup(self, api_base_url):
         config = Configuration(base_url=api_base_url)
+        config.default_headers['Authorization'] = 'Bearer test-token'
         self.api = StoreApi(config=config)
 
     def test_get_inventory(self):

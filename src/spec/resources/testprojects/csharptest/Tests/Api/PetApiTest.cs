@@ -13,6 +13,7 @@ public class PetApiTest
     {
         var baseUrl = Environment.GetEnvironmentVariable("API_BASE_URL") ?? "http://localhost:4010";
         var config = new Configuration { BaseUrl = baseUrl };
+        config.DefaultHeaders["Authorization"] = "Bearer test-token";
         _api = new PetApi(new DefaultApiClient(), config);
     }
 

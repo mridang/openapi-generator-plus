@@ -7,6 +7,9 @@ use {{invokerPackage}}\ApiException;
 use {{invokerPackage}}\Configuration;
 use {{invokerPackage}}\DefaultApiClient;
 use {{invokerPackage}}\ObjectSerializer;
+{{#hasAnyAuthMethods}}
+use {{invokerPackage}}\Auth\Authenticator;
+{{/hasAnyAuthMethods}}
 
 /**
  * {{classname}} provides methods for the {{baseName}} API group.
@@ -22,6 +25,9 @@ use {{invokerPackage}}\ObjectSerializer;
 {{#description}}
      * {{.}}
 {{/description}}
+{{#hasAuthMethods}}
+     * @param Authenticator $auth Authenticator for this operation
+{{/hasAuthMethods}}
 {{#allParams}}
      * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}{{#description}} {{.}}{{/description}}
 {{/allParams}}
@@ -34,7 +40,7 @@ use {{invokerPackage}}\ObjectSerializer;
 {{/isDeprecated}}
      */
 {{#returnType}}
-    public function {{operationId}}({{#allParams}}${{paramName}}{{^required}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/required}}{{^-last}}, {{/-last}}{{/allParams}})
+    public function {{operationId}}({{#hasAuthMethods}}Authenticator $auth, {{/hasAuthMethods}}{{#allParams}}${{paramName}}{{^required}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/required}}{{^-last}}, {{/-last}}{{/allParams}})
     {
         $path = '{{{path}}}';
 {{#pathParams}}
@@ -82,13 +88,16 @@ use {{invokerPackage}}\ObjectSerializer;
             $body,
             [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
             {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
-            '{{{returnType}}}'
+            '{{{returnType}}}',
+{{#hasAuthMethods}}
+            $auth
+{{/hasAuthMethods}}
         );
         return $result;
     }
 {{/returnType}}
 {{^returnType}}
-    public function {{operationId}}({{#allParams}}${{paramName}}{{^required}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/required}}{{^-last}}, {{/-last}}{{/allParams}}): void
+    public function {{operationId}}({{#hasAuthMethods}}Authenticator $auth, {{/hasAuthMethods}}{{#allParams}}${{paramName}}{{^required}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/required}}{{^-last}}, {{/-last}}{{/allParams}}): void
     {
         $path = '{{{path}}}';
 {{#pathParams}}
@@ -135,7 +144,10 @@ use {{invokerPackage}}\ObjectSerializer;
             $body,
             [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
             {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
-            null
+            null,
+{{#hasAuthMethods}}
+            $auth
+{{/hasAuthMethods}}
         );
     }
 {{/returnType}}

@@ -9,6 +9,7 @@ from ..object_serializer import ObjectSerializer
 from ..header_selector import HeaderSelector
 from ..trace_context_util import inject_trace_context
 from ..exceptions import ApiException
+from ..auth.authenticator import Authenticator
 
 T = TypeVar('T')
 
@@ -41,6 +42,7 @@ class BaseApi:
         accepts: List[str],
         content_type: Optional[str],
         return_type: Optional[str],
+        auth: Optional[Authenticator] = None,
     ) -> Any:
         """Invoke an API operation.
 
@@ -52,10 +54,15 @@ class BaseApi:
         :param accepts: acceptable response content types
         :param content_type: request content type
         :param return_type: return type for deserialization (None for void)
+        :param auth: optional authenticator for operation-specific auth
         :return: deserialized response or None
         :raises ApiException: if the API call fails
         """
         url = self.config.base_url + path
+
+        if auth is not None:
+            query_params.update(auth.get_query_params())
+
         if query_params:
             filtered = {k: v for k, v in query_params.items() if v is not None}
             if filtered:
@@ -66,6 +73,16 @@ class BaseApi:
         headers.update(self.config.default_headers)
         if header_params:
             headers.update(header_params)
+        if auth is not None:
+            headers.update(auth.get_auth_headers())
+            cookies = auth.get_cookie_params()
+            if cookies:
+                cookie_str = '; '.join(f'{k}={v}' for k, v in cookies.items())
+                existing = headers.get('Cookie', '')
+                if existing:
+                    headers['Cookie'] = existing + '; ' + cookie_str
+                else:
+                    headers['Cookie'] = cookie_str
         inject_trace_context(headers)
 
         serialized_body = None

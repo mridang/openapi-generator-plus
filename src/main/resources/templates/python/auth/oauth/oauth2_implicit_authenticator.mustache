@@ -1,0 +1,34 @@
+{{>partial_header}}
+from typing import Dict, List, Optional
+from urllib.parse import urlencode
+
+from ..authenticator import Authenticator
+
+
+class OAuth2ImplicitAuthenticator(Authenticator):
+    """Authenticator for OAuth2 implicit flow."""
+
+    def __init__(self, host: str, authorization_url: str, scopes: List[str]) -> None:
+        self._host = host
+        self._authorization_url = authorization_url
+        self._scopes = scopes
+        self._access_token: Optional[str] = None
+
+    def build_authorization_url(self, state: Optional[str] = None) -> str:
+        params: Dict[str, str] = {'response_type': 'token'}
+        if self._scopes:
+            params['scope'] = ' '.join(self._scopes)
+        if state:
+            params['state'] = state
+        return f'{self._authorization_url}?{urlencode(params)}'
+
+    def set_access_token(self, token: str) -> None:
+        self._access_token = token
+
+    def get_host(self) -> str:
+        return self._host
+
+    def get_auth_headers(self) -> Dict[str, str]:
+        if self._access_token is None:
+            raise RuntimeError('Must call set_access_token() before making API requests')
+        return {'Authorization': f'Bearer {self._access_token}'}

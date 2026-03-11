@@ -27,6 +27,33 @@ require '{{gemName}}/api_client'
 require '{{gemName}}/default_api_client'
 require '{{gemName}}/api/base_api'
 require '{{gemName}}/auth/authenticator'
+{{#hasBasicAuth}}
+require '{{gemName}}/auth/basic_authenticator'
+{{/hasBasicAuth}}
+{{#hasBearerAuth}}
+require '{{gemName}}/auth/bearer_authenticator'
+{{/hasBearerAuth}}
+{{#hasApiKeyAuth}}
+require '{{gemName}}/auth/api_key_authenticator'
+{{/hasApiKeyAuth}}
+{{#hasAnyOAuth2}}
+require '{{gemName}}/auth/oauth/oauth2_token_manager'
+{{/hasAnyOAuth2}}
+{{#hasOAuth2ClientCredentials}}
+require '{{gemName}}/auth/oauth/oauth2_client_credentials_authenticator'
+{{/hasOAuth2ClientCredentials}}
+{{#hasOAuth2Password}}
+require '{{gemName}}/auth/oauth/oauth2_password_authenticator'
+{{/hasOAuth2Password}}
+{{#hasOAuth2AuthorizationCode}}
+require '{{gemName}}/auth/oauth/oauth2_auth_code_authenticator'
+{{/hasOAuth2AuthorizationCode}}
+{{#hasOAuth2Implicit}}
+require '{{gemName}}/auth/oauth/oauth2_implicit_authenticator'
+{{/hasOAuth2Implicit}}
+{{#hasOpenIdConnect}}
+require '{{gemName}}/auth/oauth/openid_connect_authenticator'
+{{/hasOpenIdConnect}}
 require '{{gemName}}/client'
 
 # Models

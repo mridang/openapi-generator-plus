@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from urllib.parse import quote
 
 {{#imports}}
@@ -10,6 +10,9 @@ from ..default_api_client import DefaultApiClient
 from ..configuration import Configuration
 from .base_api import BaseApi
 from ..object_serializer import ObjectSerializer
+{{#hasAnyAuthMethods}}
+from ..auth.authenticator import Authenticator
+{{/hasAnyAuthMethods}}
 
 
 {{#operations}}
@@ -26,6 +29,9 @@ class {{classname}}(BaseApi):
 
     def {{operationId}}(
         self,
+{{#hasAuthMethods}}
+        auth: Authenticator,
+{{/hasAuthMethods}}
         {{#allParams}}
         {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
         {{/allParams}}
@@ -34,6 +40,9 @@ class {{classname}}(BaseApi):
 {{#notes}}
         {{.}}
 {{/notes}}
+{{#hasAuthMethods}}
+        :param auth: authenticator for this operation
+{{/hasAuthMethods}}
 {{#allParams}}
         :param {{paramName}}: {{description}}{{#required}} (required){{/required}}{{^required}} (optional{{^isContainer}}{{#defaultValue}}, default to {{.}}{{/defaultValue}}{{/isContainer}}){{/required}}
 {{/allParams}}
@@ -82,6 +91,7 @@ class {{classname}}(BaseApi):
             [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
             {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
             {{#returnType}}'{{{returnType}}}'{{/returnType}}{{^returnType}}None{{/returnType}},
+            {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}None{{/hasAuthMethods}},
         )
 {{/operation}}
 {{/operations}}

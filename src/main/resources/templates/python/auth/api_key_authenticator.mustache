@@ -1,0 +1,33 @@
+{{>partial_header}}
+from typing import Dict
+
+from .authenticator import Authenticator
+from .api_key_location import ApiKeyLocation
+
+
+class ApiKeyAuthenticator(Authenticator):
+    """Authenticator for API key authentication."""
+
+    def __init__(self, host: str, key_param_name: str, api_key: str, location: ApiKeyLocation) -> None:
+        self._host = host
+        self._key_param_name = key_param_name
+        self._api_key = api_key
+        self._location = location
+
+    def get_host(self) -> str:
+        return self._host
+
+    def get_auth_headers(self) -> Dict[str, str]:
+        if self._location == ApiKeyLocation.HEADER:
+            return {self._key_param_name: self._api_key}
+        return {}
+
+    def get_query_params(self) -> Dict[str, str]:
+        if self._location == ApiKeyLocation.QUERY:
+            return {self._key_param_name: self._api_key}
+        return {}
+
+    def get_cookie_params(self) -> Dict[str, str]:
+        if self._location == ApiKeyLocation.COOKIE:
+            return {self._key_param_name: self._api_key}
+        return {}

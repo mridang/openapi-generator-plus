@@ -4,6 +4,7 @@ import { Order } from '../../models';
 
 const config = new Configuration({
   baseUrl: process.env.API_BASE_URL || 'http://localhost:4010',
+  defaultHeaders: { 'Authorization': 'Bearer test-token' },
 });
 const api = new StoreApi(config);
 

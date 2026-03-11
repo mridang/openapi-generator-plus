@@ -6,7 +6,9 @@ import static org.openapitools.codegen.utils.StringUtils.underscore;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -373,6 +375,47 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         }
         String result = name.replaceAll("([A-Z])", "_$1").replaceAll("^_", "");
         return result.toLowerCase(Locale.ROOT);
+    }
+
+    @Override
+    protected void registerAuthSupportingFiles() {
+        String modulePath = org.openapitools.codegen.utils.StringUtils.underscore(moduleName.replaceAll("::", "/"));
+        String libPath = LIB_FOLDER + File.separator + modulePath;
+        String authPath = libPath + File.separator + "auth";
+        String oauthPath = authPath + File.separator + "oauth";
+
+        if (hasBasicAuth) {
+            supportingFiles.add(new SupportingFile("auth/basic_authenticator.mustache", authPath, "basic_authenticator.rb"));
+        }
+        if (hasBearerAuth) {
+            supportingFiles.add(new SupportingFile("auth/bearer_authenticator.mustache", authPath, "bearer_authenticator.rb"));
+        }
+        if (hasApiKeyAuth) {
+            supportingFiles.add(new SupportingFile("auth/api_key_authenticator.mustache", authPath, "api_key_authenticator.rb"));
+        }
+        if (hasAnyOAuth2 || hasOpenIdConnect) {
+            supportingFiles.add(new SupportingFile("auth/oauth/oauth2_token_manager.mustache", oauthPath, "oauth2_token_manager.rb"));
+        }
+        if (hasOAuth2ClientCredentials) {
+            supportingFiles.add(new SupportingFile("auth/oauth/oauth2_client_credentials_authenticator.mustache", oauthPath, "oauth2_client_credentials_authenticator.rb"));
+        }
+        if (hasOAuth2Password) {
+            supportingFiles.add(new SupportingFile("auth/oauth/oauth2_password_authenticator.mustache", oauthPath, "oauth2_password_authenticator.rb"));
+        }
+        if (hasOAuth2AuthorizationCode) {
+            supportingFiles.add(new SupportingFile("auth/oauth/oauth2_auth_code_authenticator.mustache", oauthPath, "oauth2_auth_code_authenticator.rb"));
+        }
+        if (hasOAuth2Implicit) {
+            supportingFiles.add(new SupportingFile("auth/oauth/oauth2_implicit_authenticator.mustache", oauthPath, "oauth2_implicit_authenticator.rb"));
+        }
+        if (hasOpenIdConnect) {
+            supportingFiles.add(new SupportingFile("auth/oauth/openid_connect_authenticator.mustache", oauthPath, "openid_connect_authenticator.rb"));
+        }
+    }
+
+    @Override
+    protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
+        // Per-scheme authenticators are not generated for Ruby
     }
 
     @Override

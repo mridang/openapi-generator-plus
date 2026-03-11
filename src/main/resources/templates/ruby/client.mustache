@@ -39,17 +39,5 @@ module {{moduleName}}
 {{/apis}}
 {{/apiInfo}}
     end
-
-    # Creates a client authenticated with a static Bearer token.
-    # @param host [String] API base URL.
-    # @param access_token [String] Bearer token.
-    # @return [Client] Configured client instance.
-    def self.with_token(host, access_token)
-      auth = Class.new(Auth::Authenticator) do
-        define_method(:host) { host }
-        define_method(:auth_headers) { { 'Authorization' => "Bearer #{access_token}" } }
-      end
-      new(auth.new)
-    end
   end
 end

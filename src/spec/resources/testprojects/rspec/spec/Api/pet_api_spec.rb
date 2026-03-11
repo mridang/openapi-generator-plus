@@ -4,6 +4,8 @@ require 'spec_helper'
 
 RSpec.describe OpigenClient::Api::PetApi do
   let(:api) { OpigenClient::Api::PetApi.new }
+  let(:base_url) { ENV['API_BASE_URL'] || 'http://localhost:4010' }
+  let(:auth) { OpigenClient::Auth::BearerAuthenticator.new(base_url, 'test-token') }
 
   describe '#add_pet' do
     it 'creates a new pet' do
@@ -14,7 +16,7 @@ RSpec.describe OpigenClient::Api::PetApi do
         status: 'available'
       )
 
-      result = api.add_pet(pet)
+      result = api.add_pet(auth, pet)
 
       expect(result).not_to be_nil
       expect(result.name).not_to be_nil
@@ -58,7 +60,7 @@ RSpec.describe OpigenClient::Api::PetApi do
 
   describe '#delete_pet' do
     it 'deletes a pet' do
-      expect { api.delete_pet(1) }.not_to raise_error
+      expect { api.delete_pet(auth, 1) }.not_to raise_error
     end
   end
 end

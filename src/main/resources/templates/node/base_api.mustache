@@ -1,4 +1,5 @@
 import type { ApiClient } from '../api-client{{importFileExtension}}';
+import type { Authenticator } from '../auth/authenticator{{importFileExtension}}';
 import { Configuration } from '../configuration{{importFileExtension}}';
 import { DefaultApiClient } from '../default-api-client{{importFileExtension}}';
 import { HeaderSelector } from '../header-selector{{importFileExtension}}';
@@ -31,6 +32,7 @@ export abstract class BaseApi {
    * @param accepts acceptable response content types
    * @param contentType request content type
    * @param returnType deserialization function (or null for void)
+   * @param auth optional authenticator for operation-specific auth
    * @returns deserialized response or void
    */
   protected async invokeApi<T>(
@@ -41,9 +43,18 @@ export abstract class BaseApi {
     body: unknown,
     accepts: string[],
     contentType: string,
-    returnType: ((json: unknown) => T) | null
+    returnType: ((json: unknown) => T) | null,
+    auth?: Authenticator | null
   ): Promise<T | void> {
     let url = this.config.baseUrl + path;
+
+    if (auth) {
+      const authQueryParams = auth.getQueryParams();
+      for (const [k, v] of Object.entries(authQueryParams)) {
+        queryParams[k] = v;
+      }
+    }
+
     const filteredParams = Object.entries(queryParams)
       .filter(([, v]) => v != null)
       .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
@@ -56,6 +67,16 @@ export abstract class BaseApi {
     const headers = this.headerSelector.selectHeaders(accepts, contentType, isMultipart);
     Object.assign(headers, this.config.defaultHeaders);
     Object.assign(headers, headerParams);
+    if (auth) {
+      Object.assign(headers, auth.getAuthHeaders());
+      const cookies = auth.getCookieParams();
+      const cookieEntries = Object.entries(cookies);
+      if (cookieEntries.length > 0) {
+        const cookieStr = cookieEntries.map(([k, v]) => `${k}=${v}`).join('; ');
+        const existing = headers['Cookie'];
+        headers['Cookie'] = existing ? `${existing}; ${cookieStr}` : cookieStr;
+      }
+    }
     await injectTraceContext(headers);
 
     const serializedBody = body != null ? JSON.stringify(body) : null;

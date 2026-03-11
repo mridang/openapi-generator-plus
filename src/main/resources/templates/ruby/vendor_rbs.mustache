@@ -1,3 +1,8 @@
+module Base64
+  def self.strict_encode64: (String) -> String
+  def self.decode64: (String) -> String
+end
+
 module Dry
   def self.Types: () -> Module
 
@@ -9,6 +14,51 @@ end
 
 module Types
   Any: untyped
+end
+
+module URI
+  def self.parse: (String) -> URI::Generic
+  def self.encode_www_form: (Hash[String, String]) -> String
+
+  class Generic
+    def host: () -> String?
+    def port: () -> Integer?
+    def scheme: () -> String?
+    def path: () -> String
+  end
+end
+
+module Net
+  class HTTP
+    def self.get_response: (URI::Generic) -> HTTPResponse
+    def self.new: (String?, Integer?) -> HTTP
+
+    attr_accessor use_ssl: bool
+
+    def request: (HTTPRequest) -> HTTPResponse
+  end
+
+  class HTTPRequest
+    def []=: (String, String) -> void
+    attr_accessor body: String?
+  end
+
+  class HTTPResponse
+    def body: () -> String
+    def code: () -> String
+    def is_a?: (Class) -> bool
+  end
+
+  class HTTPSuccess < HTTPResponse
+  end
+
+  module HTTP::Post
+    def self.new: (String) -> HTTPRequest
+  end
+end
+
+module JSON
+  def self.parse: (String) -> untyped
 end
 
 module Faraday

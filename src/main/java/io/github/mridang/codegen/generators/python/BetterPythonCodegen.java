@@ -3,7 +3,9 @@ package io.github.mridang.codegen.generators.python;
 import static org.openapitools.codegen.utils.StringUtils.underscore;
 
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -289,6 +291,49 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
             return "api";
         }
         return org.openapitools.codegen.utils.StringUtils.underscore(name);
+    }
+
+    @Override
+    protected void registerAuthSupportingFiles() {
+        String packagePath = packageName.replace('.', File.separatorChar);
+        String authPath = packagePath + File.separator + "auth";
+        String oauthPath = authPath + File.separator + "oauth";
+
+        if (hasBasicAuth) {
+            supportingFiles.add(new SupportingFile("auth/basic_authenticator.mustache", authPath, "basic_authenticator.py"));
+        }
+        if (hasBearerAuth) {
+            supportingFiles.add(new SupportingFile("auth/bearer_authenticator.mustache", authPath, "bearer_authenticator.py"));
+        }
+        if (hasApiKeyAuth) {
+            supportingFiles.add(new SupportingFile("auth/api_key_authenticator.mustache", authPath, "api_key_authenticator.py"));
+            supportingFiles.add(new SupportingFile("auth/api_key_location.mustache", authPath, "api_key_location.py"));
+        }
+        if (hasAnyOAuth2 || hasOpenIdConnect) {
+            supportingFiles.add(new SupportingFile("auth/oauth/__init__.mustache", oauthPath, "__init__.py"));
+            supportingFiles.add(new SupportingFile("auth/oauth/oauth2_token_manager.mustache", oauthPath, "oauth2_token_manager.py"));
+        }
+        if (hasOAuth2ClientCredentials) {
+            supportingFiles.add(new SupportingFile("auth/oauth/oauth2_client_credentials_authenticator.mustache", oauthPath, "oauth2_client_credentials_authenticator.py"));
+        }
+        if (hasOAuth2Password) {
+            supportingFiles.add(new SupportingFile("auth/oauth/oauth2_password_authenticator.mustache", oauthPath, "oauth2_password_authenticator.py"));
+        }
+        if (hasOAuth2AuthorizationCode) {
+            supportingFiles.add(new SupportingFile("auth/oauth/oauth2_auth_code_authenticator.mustache", oauthPath, "oauth2_auth_code_authenticator.py"));
+        }
+        if (hasOAuth2Implicit) {
+            supportingFiles.add(new SupportingFile("auth/oauth/oauth2_implicit_authenticator.mustache", oauthPath, "oauth2_implicit_authenticator.py"));
+        }
+        if (hasOpenIdConnect) {
+            supportingFiles.add(new SupportingFile("auth/oauth/openid_connect_authenticator.mustache", oauthPath, "openid_connect_authenticator.py"));
+        }
+    }
+
+    @Override
+    protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
+        // Per-scheme authenticators are not generated for Python
+        // The base classes are sufficient with the scheme-specific parameters
     }
 
     @Override

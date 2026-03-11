@@ -2,6 +2,7 @@
 
 import pytest
 from petstore_client.api.pet_api import PetApi
+from petstore_client.auth.bearer_authenticator import BearerAuthenticator
 from petstore_client.configuration import Configuration
 from petstore_client.models.pet import Pet
 
@@ -12,7 +13,9 @@ class TestPetApi:
     @pytest.fixture(autouse=True)
     def setup(self, api_base_url):
         config = Configuration(base_url=api_base_url)
+        config.default_headers['Authorization'] = 'Bearer test-token'
         self.api = PetApi(config=config)
+        self.auth = BearerAuthenticator(api_base_url, 'test-token')
 
     def test_add_pet(self):
         pet = Pet(
@@ -22,7 +25,7 @@ class TestPetApi:
             status='available'
         )
 
-        result = self.api.add_pet(pet)
+        result = self.api.add_pet(self.auth, pet)
 
         assert result is not None
         assert result.name is not None
@@ -54,6 +57,6 @@ class TestPetApi:
         assert result is not None
 
     def test_delete_pet(self):
-        self.api.delete_pet(1)
+        self.api.delete_pet(self.auth, 1)
 
         assert True

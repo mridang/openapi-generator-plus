@@ -1,11 +1,15 @@
 import { PetApi } from '../../api/pet-api';
+import { BearerAuthenticator } from '../../auth/bearer-authenticator';
 import { Configuration } from '../../configuration';
 import { Pet } from '../../models';
 
+const baseUrl = process.env.API_BASE_URL || 'http://localhost:4010';
 const config = new Configuration({
-  baseUrl: process.env.API_BASE_URL || 'http://localhost:4010',
+  baseUrl,
+  defaultHeaders: { 'Authorization': 'Bearer test-token' },
 });
 const api = new PetApi(config);
+const auth = new BearerAuthenticator(baseUrl, 'test-token');
 
 describe('PetApi', () => {
   test('addPet', async () => {
@@ -16,7 +20,7 @@ describe('PetApi', () => {
       status: 'available',
     };
 
-    const result = await api.addPet(pet);
+    const result = await api.addPet(auth, pet);
 
     expect(result).toBeDefined();
     expect(result.name).toBeDefined();
@@ -51,6 +55,6 @@ describe('PetApi', () => {
   });
 
   test('deletePet', async () => {
-    await api.deletePet(1);
+    await api.deletePet(auth, 1);
   });
 });

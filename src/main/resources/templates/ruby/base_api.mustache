@@ -31,8 +31,11 @@ module {{moduleName}}
 
       # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
       # rubocop:disable Metrics/ParameterLists, Metrics/PerceivedComplexity
-      def invoke_api(method, path, query_params, header_params, body, accepts, content_type, return_type)
+      def invoke_api(method, path, query_params, header_params, body, accepts, content_type, return_type, auth = nil)
         url = "#{@config.base_url}#{path}"
+
+        auth&.query_params&.each { |k, v| query_params[k] = v }
+
         query_string = build_query_string(query_params)
         url = "#{url}?#{query_string}" unless query_string.empty?
 
@@ -44,6 +47,13 @@ module {{moduleName}}
         headers['Content-Type'] = selected['Content-Type'] if selected['Content-Type']
         headers.merge!(@config.default_headers)
         headers.merge!(header_params)
+        headers.merge!(auth.auth_headers) if auth
+        cookies = auth&.cookie_params || {}
+        unless cookies.empty?
+          cookie_str = cookies.map { |k, v| "#{k}=#{v}" }.join('; ')
+          existing = headers['Cookie']
+          headers['Cookie'] = existing ? "#{existing}; #{cookie_str}" : cookie_str
+        end
         {{moduleName}}::TraceContextUtil.inject_trace_context(headers)
 
         serialized_body = serialize_body(body, content_type)

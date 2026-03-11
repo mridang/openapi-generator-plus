@@ -1,0 +1,60 @@
+# frozen_string_literal: true
+
+require 'cgi'
+
+module {{moduleName}}
+  module Auth
+    module OAuth
+      # Authenticator for OAuth2 authorization code flow.
+      class OAuth2AuthorizationCodeAuthenticator < Authenticator
+        attr_reader :host
+
+        # rubocop:disable Metrics/ParameterLists
+        def initialize(host, client_id, client_secret, authorization_url, token_url, redirect_uri, scopes)
+          super()
+          @host = host
+          @client_id = client_id
+          @client_secret = client_secret
+          @authorization_url = authorization_url
+          @token_url = token_url
+          @redirect_uri = redirect_uri
+          @scopes = scopes
+          @token_manager = OAuth2TokenManager.new
+          @token_exchanged = false
+        end
+        # rubocop:enable Metrics/ParameterLists
+
+        def build_authorization_url(state = nil)
+          params = {
+            'response_type' => 'code',
+            'client_id' => @client_id,
+            'redirect_uri' => @redirect_uri
+          }
+          params['scope'] = @scopes.join(' ') unless @scopes.empty?
+          params['state'] = state if state
+          "#{@authorization_url}?#{URI.encode_www_form(params)}"
+        end
+
+        def exchange_code(code)
+          params = {
+            'grant_type' => 'authorization_code',
+            'code' => code,
+            'client_id' => @client_id,
+            'client_secret' => @client_secret,
+            'redirect_uri' => @redirect_uri
+          }
+          @token_manager.get_access_token(@token_url, params)
+          @token_exchanged = true
+        end
+
+        def auth_headers
+          raise 'Must call exchange_code before making API requests' unless @token_exchanged
+
+          params = { 'grant_type' => 'refresh_token' }
+          token = @token_manager.get_access_token(@token_url, params)
+          { 'Authorization' => "Bearer #{token}" }
+        end
+      end
+    end
+  end
+end

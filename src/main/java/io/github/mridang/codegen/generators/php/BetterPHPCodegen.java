@@ -5,9 +5,12 @@ import static org.openapitools.codegen.utils.CamelizeOption.LOWERCASE_FIRST_LETT
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.io.File;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.HashSet;
 import java.util.Locale;
 import javax.annotation.Nullable;
@@ -356,6 +359,48 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             return "_" + enumName;
         }
         return enumName;
+    }
+
+    @Override
+    protected void registerAuthSupportingFiles() {
+        String invokerFolder = toSrcPath(invokerPackage);
+        String authFolder = invokerFolder + File.separator + "Auth";
+        String oauthFolder = authFolder + File.separator + "OAuth";
+
+        supportingFiles.add(new SupportingFile("auth/base_authenticator.mustache", authFolder, "BaseAuthenticator.php"));
+        if (hasBasicAuth) {
+            supportingFiles.add(new SupportingFile("auth/basic_authenticator.mustache", authFolder, "BasicAuthenticator.php"));
+        }
+        if (hasBearerAuth) {
+            supportingFiles.add(new SupportingFile("auth/bearer_authenticator.mustache", authFolder, "BearerAuthenticator.php"));
+        }
+        if (hasApiKeyAuth) {
+            supportingFiles.add(new SupportingFile("auth/api_key_authenticator.mustache", authFolder, "ApiKeyAuthenticator.php"));
+            supportingFiles.add(new SupportingFile("auth/api_key_location.mustache", authFolder, "ApiKeyLocation.php"));
+        }
+        if (hasAnyOAuth2 || hasOpenIdConnect) {
+            supportingFiles.add(new SupportingFile("auth/oauth/oauth2_token_manager.mustache", oauthFolder, "OAuth2TokenManager.php"));
+        }
+        if (hasOAuth2ClientCredentials) {
+            supportingFiles.add(new SupportingFile("auth/oauth/oauth2_client_credentials_authenticator.mustache", oauthFolder, "OAuth2ClientCredentialsAuthenticator.php"));
+        }
+        if (hasOAuth2Password) {
+            supportingFiles.add(new SupportingFile("auth/oauth/oauth2_password_authenticator.mustache", oauthFolder, "OAuth2PasswordAuthenticator.php"));
+        }
+        if (hasOAuth2AuthorizationCode) {
+            supportingFiles.add(new SupportingFile("auth/oauth/oauth2_auth_code_authenticator.mustache", oauthFolder, "OAuth2AuthorizationCodeAuthenticator.php"));
+        }
+        if (hasOAuth2Implicit) {
+            supportingFiles.add(new SupportingFile("auth/oauth/oauth2_implicit_authenticator.mustache", oauthFolder, "OAuth2ImplicitAuthenticator.php"));
+        }
+        if (hasOpenIdConnect) {
+            supportingFiles.add(new SupportingFile("auth/oauth/openid_connect_authenticator.mustache", oauthFolder, "OpenIdConnectAuthenticator.php"));
+        }
+    }
+
+    @Override
+    protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
+        // Per-scheme authenticators are not generated for PHP
     }
 
     @Override

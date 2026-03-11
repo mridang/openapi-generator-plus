@@ -27,6 +27,18 @@ module {{moduleName}}
       def auth_headers
         raise NotImplementedError, "#{self.class}#auth_headers must be implemented"
       end
+
+      # Returns query parameters to include for authentication.
+      # @return [Hash{String => String}]
+      def query_params
+        {}
+      end
+
+      # Returns cookie parameters to include for authentication.
+      # @return [Hash{String => String}]
+      def cookie_params
+        {}
+      end
     end
   end
 end

@@ -1,7 +1,9 @@
 package io.github.mridang.codegen.generators;
 
+import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -15,6 +17,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.CodegenSecurity;
 import org.openapitools.codegen.CodegenType;
 import org.openapitools.codegen.DefaultCodegen;
 import org.openapitools.codegen.model.ModelMap;
@@ -22,6 +25,8 @@ import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.openapitools.codegen.utils.StringUtils;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Abstract base class for all language-specific code generators. Provides type resolution, enum
@@ -36,11 +41,23 @@ import org.openapitools.codegen.utils.StringUtils;
 public abstract class AbstractBetterCodegen extends DefaultCodegen
         implements UnsupportedFeaturesValidator {
 
+    private final Set<String> globalAuthOperationIds = new HashSet<>();
+
+    protected boolean hasBasicAuth;
+    protected boolean hasBearerAuth;
+    protected boolean hasApiKeyAuth;
+    protected boolean hasOAuth2ClientCredentials;
+    protected boolean hasOAuth2Password;
+    protected boolean hasOAuth2AuthorizationCode;
+    protected boolean hasOAuth2Implicit;
+    protected boolean hasOpenIdConnect;
+    protected boolean hasAnyOAuth2;
+
     protected AbstractBetterCodegen() {
         super();
         typeMapping.clear();
         importMapping.clear();
-        hideGenerationTimestamp = Boolean.TRUE;
+        hideGenerationTimestamp = true;
     }
 
     @Override
@@ -48,6 +65,104 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         super.processOpts();
         setEnablePostProcessFile(true);
         supportingFiles.clear();
+    }
+
+    @Override
+    public void processOpenAPI(OpenAPI openAPI) {
+        super.processOpenAPI(openAPI);
+        detectSecuritySchemes(openAPI);
+        additionalProperties.put("hasBasicAuth", hasBasicAuth);
+        additionalProperties.put("hasBearerAuth", hasBearerAuth);
+        additionalProperties.put("hasApiKeyAuth", hasApiKeyAuth);
+        additionalProperties.put("hasOAuth2ClientCredentials", hasOAuth2ClientCredentials);
+        additionalProperties.put("hasOAuth2Password", hasOAuth2Password);
+        additionalProperties.put("hasOAuth2AuthorizationCode", hasOAuth2AuthorizationCode);
+        additionalProperties.put("hasOAuth2Implicit", hasOAuth2Implicit);
+        additionalProperties.put("hasOpenIdConnect", hasOpenIdConnect);
+        additionalProperties.put("hasAnyOAuth2", hasAnyOAuth2);
+        registerAuthSupportingFiles();
+        generatePerSchemeAuthenticators(openAPI);
+    }
+
+    @SuppressFBWarnings(value = "IMPROPER_UNICODE", justification = "Comparing with ASCII-only constants")
+    private void detectSecuritySchemes(OpenAPI openAPI) {
+        if (openAPI.getComponents() == null
+                || openAPI.getComponents().getSecuritySchemes() == null) {
+            return;
+        }
+        for (Map.Entry<String, SecurityScheme> entry :
+                openAPI.getComponents().getSecuritySchemes().entrySet()) {
+            SecurityScheme scheme = entry.getValue();
+            if (scheme.getType() == SecurityScheme.Type.HTTP) {
+                if ("basic".equalsIgnoreCase(scheme.getScheme())) {
+                    hasBasicAuth = true;
+                } else if ("bearer".equalsIgnoreCase(scheme.getScheme())) {
+                    hasBearerAuth = true;
+                }
+            } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
+                hasApiKeyAuth = true;
+            } else if (scheme.getType() == SecurityScheme.Type.OAUTH2 && scheme.getFlows() != null) {
+                if (scheme.getFlows().getClientCredentials() != null) {
+                    hasOAuth2ClientCredentials = true;
+                }
+                if (scheme.getFlows().getPassword() != null) {
+                    hasOAuth2Password = true;
+                }
+                if (scheme.getFlows().getAuthorizationCode() != null) {
+                    hasOAuth2AuthorizationCode = true;
+                }
+                if (scheme.getFlows().getImplicit() != null) {
+                    hasOAuth2Implicit = true;
+                }
+            } else if (scheme.getType() == SecurityScheme.Type.OPENIDCONNECT) {
+                hasOpenIdConnect = true;
+            }
+        }
+        hasAnyOAuth2 =
+                hasOAuth2ClientCredentials
+                        || hasOAuth2Password
+                        || hasOAuth2AuthorizationCode
+                        || hasOAuth2Implicit;
+    }
+
+    /**
+     * Conditionally register base auth class supporting files based on which security scheme types
+     * are present.
+     */
+    protected abstract void registerAuthSupportingFiles();
+
+    /**
+     * Generate per-scheme concrete authenticator classes programmatically.
+     */
+    protected abstract void generatePerSchemeAuthenticators(OpenAPI openAPI);
+
+    /**
+     * Compute the authenticator class name for a security scheme.
+     */
+    protected String toAuthClassName(CodegenSecurity auth) {
+        String base = StringUtils.camelize(auth.name);
+        if (Boolean.TRUE.equals(auth.isBasicBasic)) {
+            return base + "Authenticator";
+        }
+        if (Boolean.TRUE.equals(auth.isBasicBearer)) {
+            return base + "Authenticator";
+        }
+        if (Boolean.TRUE.equals(auth.isApiKey)) {
+            return base + "Authenticator";
+        }
+        if (auth.isCode != null && auth.isCode) {
+            return base + "AuthorizationCodeAuthenticator";
+        }
+        if (auth.isPassword != null && auth.isPassword) {
+            return base + "PasswordAuthenticator";
+        }
+        if (auth.flow != null && "application".equals(auth.flow)) {
+            return base + "ClientCredentialsAuthenticator";
+        }
+        if (auth.flow != null && "implicit".equals(auth.flow)) {
+            return base + "ImplicitAuthenticator";
+        }
+        return base + "Authenticator";
     }
 
     protected String getPropertyOrDefault(String key, String defaultValue) {
@@ -214,6 +329,20 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
             if (classname != null) {
                 operations.put("clientPropertyName", deriveClientPropertyName(classname));
             }
+            List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
+            boolean anyOpHasAuth = false;
+            if (ops != null) {
+                for (CodegenOperation op : ops) {
+                    if (globalAuthOperationIds.contains(op.operationId)) {
+                        op.authMethods = null;
+                        op.hasAuthMethods = false;
+                    }
+                    if (op.hasAuthMethods) {
+                        anyOpHasAuth = true;
+                    }
+                }
+            }
+            objs.put("hasAnyAuthMethods", anyOpHasAuth);
         }
         return objs;
     }
@@ -230,6 +359,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     public CodegenOperation fromOperation(
             String path, String httpMethod, Operation operation, List<Server> servers) {
         validateOperation(operation);
-        return super.fromOperation(path, httpMethod, operation, servers);
+        CodegenOperation op = super.fromOperation(path, httpMethod, operation, servers);
+        if (operation.getSecurity() == null) {
+            globalAuthOperationIds.add(op.operationId);
+        }
+        return op;
     }
 }

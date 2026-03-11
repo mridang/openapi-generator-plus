@@ -3,7 +3,9 @@ package io.github.mridang.codegen.generators.node;
 import static org.openapitools.codegen.utils.CamelizeOption.LOWERCASE_FIRST_LETTER;
 
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.openapitools.codegen.utils.StringUtils;
 import java.io.File;
 import java.io.IOException;
@@ -369,6 +371,46 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
             }
         }
         return objs;
+    }
+
+    @Override
+    protected void registerAuthSupportingFiles() {
+        String authFolder = "auth";
+        String oauthFolder = authFolder + File.separator + "oauth";
+
+        if (hasBasicAuth) {
+            supportingFiles.add(new SupportingFile("auth/basic_authenticator.mustache", authFolder, "basic-authenticator.ts"));
+        }
+        if (hasBearerAuth) {
+            supportingFiles.add(new SupportingFile("auth/bearer_authenticator.mustache", authFolder, "bearer-authenticator.ts"));
+        }
+        if (hasApiKeyAuth) {
+            supportingFiles.add(new SupportingFile("auth/api_key_authenticator.mustache", authFolder, "api-key-authenticator.ts"));
+            supportingFiles.add(new SupportingFile("auth/api-key-location.mustache", authFolder, "api-key-location.ts"));
+        }
+        if (hasAnyOAuth2 || hasOpenIdConnect) {
+            supportingFiles.add(new SupportingFile("auth/oauth/oauth2-token-manager.mustache", oauthFolder, "oauth2-token-manager.ts"));
+        }
+        if (hasOAuth2ClientCredentials) {
+            supportingFiles.add(new SupportingFile("auth/oauth/oauth2-client-credentials-authenticator.mustache", oauthFolder, "oauth2-client-credentials-authenticator.ts"));
+        }
+        if (hasOAuth2Password) {
+            supportingFiles.add(new SupportingFile("auth/oauth/oauth2-password-authenticator.mustache", oauthFolder, "oauth2-password-authenticator.ts"));
+        }
+        if (hasOAuth2AuthorizationCode) {
+            supportingFiles.add(new SupportingFile("auth/oauth/oauth2-auth-code-authenticator.mustache", oauthFolder, "oauth2-auth-code-authenticator.ts"));
+        }
+        if (hasOAuth2Implicit) {
+            supportingFiles.add(new SupportingFile("auth/oauth/oauth2-implicit-authenticator.mustache", oauthFolder, "oauth2-implicit-authenticator.ts"));
+        }
+        if (hasOpenIdConnect) {
+            supportingFiles.add(new SupportingFile("auth/oauth/openid-connect-authenticator.mustache", oauthFolder, "openid-connect-authenticator.ts"));
+        }
+    }
+
+    @Override
+    protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
+        // Per-scheme authenticators are not generated for Node/TypeScript
     }
 
     @Override

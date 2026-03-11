@@ -1,0 +1,57 @@
+# frozen_string_literal: true
+
+require 'json'
+require 'net/http'
+require 'uri'
+
+module {{moduleName}}
+  module Auth
+    module OAuth
+      # Manages OAuth2 token lifecycle: fetching, caching, and refreshing.
+      class OAuth2TokenManager
+        def initialize
+          @mutex = Mutex.new
+          @access_token = nil
+          @refresh_token = nil
+          @token_expiry = nil
+        end
+
+        def get_access_token(token_url, params)
+          @mutex.synchronize do
+            return @access_token if @access_token && @token_expiry && Time.now.to_f < @token_expiry
+
+            fetch_token(token_url, params)
+            @access_token
+          end
+        end
+
+        def access_token=(token)
+          @mutex.synchronize do
+            @access_token = token
+            @token_expiry = nil
+          end
+        end
+
+        private
+
+        # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+        def fetch_token(token_url, params)
+          uri = URI.parse(token_url)
+          http = Net::HTTP.new(uri.host, uri.port)
+          http.use_ssl = uri.scheme == 'https'
+          request = Net::HTTP::Post.new(uri.path)
+          request['Content-Type'] = 'application/x-www-form-urlencoded'
+          request.body = URI.encode_www_form(params)
+          response = http.request(request)
+          raise "Token request failed with status #{response.code}" unless response.is_a?(Net::HTTPSuccess)
+
+          body = JSON.parse(response.body)
+          @access_token = body['access_token']
+          @refresh_token = body['refresh_token'] if body.key?('refresh_token')
+          @token_expiry = Time.now.to_f + body['expires_in'].to_i - 30 if body.key?('expires_in')
+        end
+        # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
+      end
+    end
+  end
+end

@@ -1,0 +1,31 @@
+{{>partial_header}}
+{{#hasAnyOAuth2}}
+from {{packageName}}.auth.oauth.oauth2_token_manager import (
+    OAuth2TokenManager as OAuth2TokenManager,
+)
+{{/hasAnyOAuth2}}
+{{#hasOAuth2ClientCredentials}}
+from {{packageName}}.auth.oauth.oauth2_client_credentials_authenticator import (
+    OAuth2ClientCredentialsAuthenticator as OAuth2ClientCredentialsAuthenticator,
+)
+{{/hasOAuth2ClientCredentials}}
+{{#hasOAuth2Password}}
+from {{packageName}}.auth.oauth.oauth2_password_authenticator import (
+    OAuth2PasswordAuthenticator as OAuth2PasswordAuthenticator,
+)
+{{/hasOAuth2Password}}
+{{#hasOAuth2AuthorizationCode}}
+from {{packageName}}.auth.oauth.oauth2_auth_code_authenticator import (
+    OAuth2AuthorizationCodeAuthenticator as OAuth2AuthorizationCodeAuthenticator,
+)
+{{/hasOAuth2AuthorizationCode}}
+{{#hasOAuth2Implicit}}
+from {{packageName}}.auth.oauth.oauth2_implicit_authenticator import (
+    OAuth2ImplicitAuthenticator as OAuth2ImplicitAuthenticator,
+)
+{{/hasOAuth2Implicit}}
+{{#hasOpenIdConnect}}
+from {{packageName}}.auth.oauth.openid_connect_authenticator import (
+    OpenIdConnectAuthenticator as OpenIdConnectAuthenticator,
+)
+{{/hasOpenIdConnect}}

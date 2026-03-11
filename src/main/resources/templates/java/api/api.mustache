@@ -4,6 +4,28 @@ import {{invokerPackage}}.ApiClient;
 import {{invokerPackage}}.ApiException;
 import {{invokerPackage}}.Configuration;
 import {{invokerPackage}}.ObjectSerializer;
+{{#hasAnyAuthMethods}}
+import {{invokerPackage}}.auth.Authenticator;
+{{/hasAnyAuthMethods}}
+{{#operations}}
+{{#operation}}
+{{#hasAuthMethods}}
+{{#authMethods}}
+{{#isOAuth}}
+import {{invokerPackage}}.auth.oauth.{{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}{{#isCode}}AuthorizationCode{{/isCode}}{{#isPassword}}Password{{/isPassword}}{{#isApplication}}ClientCredentials{{/isApplication}}{{#isImplicit}}Implicit{{/isImplicit}}Authenticator;
+{{/isOAuth}}
+{{#isOpenId}}
+import {{invokerPackage}}.auth.oauth.{{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}Authenticator;
+{{/isOpenId}}
+{{^isOAuth}}
+{{^isOpenId}}
+import {{invokerPackage}}.auth.{{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}Authenticator;
+{{/isOpenId}}
+{{/isOAuth}}
+{{/authMethods}}
+{{/hasAuthMethods}}
+{{/operation}}
+{{/operations}}
 {{#models.0}}
 import {{modelPackage}}.*;
 {{/models.0}}
@@ -63,10 +85,27 @@ public class {{classname}} extends BaseApi {
 {{#isDeprecated}}
     @Deprecated
 {{/isDeprecated}}
+{{#hasAuthMethods}}
+    {{#authMethods}}
+{{#returnType}}
+    @Nullable
+{{/returnType}}
+    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}{{#isCode}}AuthorizationCode{{/isCode}}{{#isPassword}}Password{{/isPassword}}{{#isApplication}}ClientCredentials{{/isApplication}}{{#isImplicit}}Implicit{{/isImplicit}}Authenticator auth{{#allParams}}, {{{dataType}}} {{paramName}}{{/allParams}}) throws ApiException {
+        {{#returnType}}return {{/returnType}}{{operationId}}Internal(auth{{#allParams}}, {{paramName}}{{/allParams}});
+    }
+
+    {{/authMethods}}
+{{#returnType}}
+    @Nullable
+{{/returnType}}
+    private {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}Internal(Authenticator auth{{#allParams}}, {{{dataType}}} {{paramName}}{{/allParams}}) throws ApiException {
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
 {{#returnType}}
     @Nullable
 {{/returnType}}
     public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#allParams}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/allParams}}) throws ApiException {
+{{/hasAuthMethods}}
 {{#allParams}}
 {{#required}}
         if ({{paramName}} == null) {
@@ -111,7 +150,8 @@ public class {{classname}} extends BaseApi {
                 {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
                 new String[] { {{#produces}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/produces}}},
                 {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
-                {{#returnType}}{{operationId}}TypeRef{{/returnType}}{{^returnType}}null{{/returnType}});
+                {{#returnType}}{{operationId}}TypeRef{{/returnType}}{{^returnType}}null{{/returnType}},
+                {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}});
     }
     {{/operation}}
 }

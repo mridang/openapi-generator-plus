@@ -1,0 +1,11 @@
+<?php
+
+{{>partial_header}}
+namespace {{invokerPackage}}\Auth;
+
+enum ApiKeyLocation: string
+{
+    case HEADER = 'header';
+    case QUERY = 'query';
+    case COOKIE = 'cookie';
+}

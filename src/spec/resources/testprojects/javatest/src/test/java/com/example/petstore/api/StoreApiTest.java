@@ -28,6 +28,7 @@ class StoreApiTest {
         }
         Configuration config = new Configuration();
         config.setBaseUrl(baseUrl);
+        config.getDefaultHeaders().put("Authorization", "Bearer test-token");
         api = new StoreApi(new DefaultApiClient(), config);
     }
 

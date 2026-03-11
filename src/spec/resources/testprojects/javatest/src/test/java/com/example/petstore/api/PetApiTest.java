@@ -2,6 +2,8 @@ package com.example.petstore.api;
 
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
+import com.example.petstore.auth.AdminBasicAuthenticator;
+import com.example.petstore.auth.PetStoreBearerAuthenticator;
 import com.example.petstore.models.Pet;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 class PetApiTest {
 
     private PetApi api;
+    private PetStoreBearerAuthenticator bearerAuth;
+    private AdminBasicAuthenticator basicAuth;
 
     @BeforeEach
     void setUp() {
@@ -26,7 +30,10 @@ class PetApiTest {
         }
         Configuration config = new Configuration();
         config.setBaseUrl(baseUrl);
+        config.getDefaultHeaders().put("Authorization", "Bearer test-token");
         api = new PetApi(new DefaultApiClient(), config);
+        bearerAuth = new PetStoreBearerAuthenticator(baseUrl, "test-token");
+        basicAuth = new AdminBasicAuthenticator(baseUrl, "admin", "password");
     }
 
     @Test
@@ -37,7 +44,7 @@ class PetApiTest {
         pet.photoUrls = List.of("http://example.com/photo.jpg");
         pet.status = Pet.StatusEnum.AVAILABLE;
 
-        Pet result = api.addPet(pet);
+        Pet result = api.addPet(bearerAuth, pet);
         assertNotNull(result);
 
         assertThat(result.name).isNotNull();
@@ -75,7 +82,7 @@ class PetApiTest {
 
     @Test
     void testDeletePet() throws Exception {
-        api.deletePet(1L);
+        api.deletePet(basicAuth, 1L);
 
         assertThat(true).isTrue();
     }

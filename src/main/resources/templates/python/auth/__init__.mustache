@@ -1,4 +1,26 @@
 {{>partial_header}}
 from {{packageName}}.auth.authenticator import Authenticator as Authenticator
+{{#hasBasicAuth}}
+from {{packageName}}.auth.basic_authenticator import BasicAuthenticator as BasicAuthenticator
+{{/hasBasicAuth}}
+{{#hasBearerAuth}}
+from {{packageName}}.auth.bearer_authenticator import BearerAuthenticator as BearerAuthenticator
+{{/hasBearerAuth}}
+{{#hasApiKeyAuth}}
+from {{packageName}}.auth.api_key_authenticator import ApiKeyAuthenticator as ApiKeyAuthenticator
+from {{packageName}}.auth.api_key_location import ApiKeyLocation as ApiKeyLocation
+{{/hasApiKeyAuth}}
 
-__all__ = ['Authenticator']
+__all__ = [
+    'Authenticator',
+{{#hasBasicAuth}}
+    'BasicAuthenticator',
+{{/hasBasicAuth}}
+{{#hasBearerAuth}}
+    'BearerAuthenticator',
+{{/hasBearerAuth}}
+{{#hasApiKeyAuth}}
+    'ApiKeyAuthenticator',
+    'ApiKeyLocation',
+{{/hasApiKeyAuth}}
+]

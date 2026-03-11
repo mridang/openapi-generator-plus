@@ -1,0 +1,27 @@
+import type { Authenticator } from './authenticator{{importFileExtension}}';
+
+export class BearerAuthenticator implements Authenticator {
+  private readonly host: string;
+  private readonly token: string;
+
+  constructor(host: string, token: string) {
+    this.host = host;
+    this.token = token;
+  }
+
+  getHost(): string {
+    return this.host;
+  }
+
+  getAuthHeaders(): Record<string, string> {
+    return { Authorization: `Bearer ${this.token}` };
+  }
+
+  getQueryParams(): Record<string, string> {
+    return {};
+  }
+
+  getCookieParams(): Record<string, string> {
+    return {};
+  }
+}

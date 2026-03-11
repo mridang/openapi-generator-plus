@@ -19,6 +19,9 @@ module {{moduleName}}
 {{#notes}}
       # {{.}}
 {{/notes}}
+{{#hasAuthMethods}}
+      # @param auth [Auth::Authenticator] authenticator for this operation
+{{/hasAuthMethods}}
 {{#allParams}}
 {{#required}}
       # @param {{paramName}} [{{{dataType}}}] {{description}}
@@ -36,7 +39,7 @@ module {{moduleName}}
 {{#isDeprecated}}
       # @deprecated
 {{/isDeprecated}}
-      def {{operationId}}{{#hasOptionalParams}}({{#requiredParams}}{{paramName}}, {{/requiredParams}}opts = {}){{/hasOptionalParams}}{{^hasOptionalParams}}{{#requiredParams}}{{#-first}}({{/-first}}{{paramName}}{{^-last}}, {{/-last}}{{#-last}}){{/-last}}{{/requiredParams}}{{/hasOptionalParams}}
+      def {{operationId}}{{#hasAuthMethods}}(auth{{#requiredParams}}, {{paramName}}{{/requiredParams}}{{#hasOptionalParams}}, opts = {}{{/hasOptionalParams}}){{/hasAuthMethods}}{{^hasAuthMethods}}{{#hasOptionalParams}}({{#requiredParams}}{{paramName}}, {{/requiredParams}}opts = {}){{/hasOptionalParams}}{{^hasOptionalParams}}{{#requiredParams}}{{#-first}}({{/-first}}{{paramName}}{{^-last}}, {{/-last}}{{#-last}}){{/-last}}{{/requiredParams}}{{/hasOptionalParams}}{{/hasAuthMethods}}
 {{#allParams}}
 {{#required}}
         if {{{paramName}}}.nil?
@@ -96,10 +99,9 @@ module {{moduleName}}
         invoke_api(:{{httpMethod}}, path, query_params, header_params, body,
                    [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
                    {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
-                   {{#returnType}}'{{{.}}}'{{/returnType}}{{^returnType}}nil{{/returnType}})
+                   {{#returnType}}'{{{.}}}'{{/returnType}}{{^returnType}}nil{{/returnType}},
+                   {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}nil{{/hasAuthMethods}})
       end
-{{^-last}}
-{{/-last}}
     {{/operation}}
     end
 {{/operations}}

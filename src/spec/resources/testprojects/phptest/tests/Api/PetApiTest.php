@@ -4,6 +4,7 @@ namespace PetstoreClient\Test\Api;
 
 use PHPUnit\Framework\TestCase;
 use PetstoreClient\Api\PetApi;
+use PetstoreClient\Auth\BearerAuthenticator;
 use PetstoreClient\Configuration;
 use PetstoreClient\Models\Pet;
 
@@ -13,12 +14,16 @@ use PetstoreClient\Models\Pet;
 class PetApiTest extends TestCase
 {
     private PetApi $api;
+    private BearerAuthenticator $auth;
 
     protected function setUp(): void
     {
+        $baseUrl = getenv('API_BASE_URL') ?: 'http://localhost:4010';
         $config = Configuration::getDefaultConfiguration()
-            ->setBaseUrl(getenv('API_BASE_URL') ?: 'http://localhost:4010');
+            ->setBaseUrl($baseUrl);
+        $config->setDefaultHeader('Authorization', 'Bearer test-token');
         $this->api = new PetApi(config: $config);
+        $this->auth = new BearerAuthenticator($baseUrl, 'test-token');
     }
 
     public function testAddPet(): void
@@ -27,7 +32,7 @@ class PetApiTest extends TestCase
         $pet->id = 12345;
         $pet->status = 'available';
 
-        $result = $this->api->addPet($pet);
+        $result = $this->api->addPet($this->auth, $pet);
 
         $this->assertInstanceOf(Pet::class, $result);
         $this->assertNotNull($result->name);
@@ -64,7 +69,7 @@ class PetApiTest extends TestCase
 
     public function testDeletePet(): void
     {
-        $this->api->deletePet(1);
+        $this->api->deletePet($this->auth, 1);
 
         $this->assertTrue(true);
     }

@@ -91,7 +91,73 @@ module {{moduleName}}
     class Authenticator
       def host: () -> String
       def auth_headers: () -> Hash[String, String]
+      def query_params: () -> Hash[String, String]
+      def cookie_params: () -> Hash[String, String]
     end
+{{#hasBasicAuth}}
+
+    class BasicAuthenticator < Authenticator
+      def initialize: (String, String, String) -> void
+    end
+{{/hasBasicAuth}}
+{{#hasBearerAuth}}
+
+    class BearerAuthenticator < Authenticator
+      def initialize: (String, String) -> void
+    end
+{{/hasBearerAuth}}
+{{#hasApiKeyAuth}}
+
+    class ApiKeyAuthenticator < Authenticator
+      def initialize: (String, String, String, Symbol) -> void
+    end
+{{/hasApiKeyAuth}}
+{{#hasAnyOAuth2}}
+
+    module OAuth
+{{#hasOAuth2ClientCredentials}}
+      class OAuth2ClientCredentialsAuthenticator < Authenticator
+        def initialize: (String, String, String, String, Array[String]) -> void
+      end
+{{/hasOAuth2ClientCredentials}}
+{{#hasOAuth2Password}}
+      class OAuth2PasswordAuthenticator < Authenticator
+        def initialize: (String, String, String, String, String, String, Array[String]) -> void
+      end
+{{/hasOAuth2Password}}
+{{#hasOAuth2AuthorizationCode}}
+      class OAuth2AuthorizationCodeAuthenticator < Authenticator
+        def initialize: (String, String, String, String, String, String, Array[String]) -> void
+        def build_authorization_url: (?String?) -> String
+        def exchange_code: (String) -> void
+      end
+{{/hasOAuth2AuthorizationCode}}
+{{#hasOAuth2Implicit}}
+      class OAuth2ImplicitAuthenticator < Authenticator
+        def initialize: (String, String, Array[String]) -> void
+        def build_authorization_url: (?String?) -> String
+        def access_token=: (String) -> void
+      end
+{{/hasOAuth2Implicit}}
+{{#hasOpenIdConnect}}
+      class OpenIdConnectAuthenticator < Authenticator
+        def initialize: (String, String, String, String, String, Array[String]) -> void
+        def build_authorization_url: (?String?) -> String
+        def exchange_code: (String) -> void
+        private
+        def resolve_delegate: () -> OAuth2AuthorizationCodeAuthenticator
+      end
+{{/hasOpenIdConnect}}
+
+      class OAuth2TokenManager
+        def initialize: () -> void
+        def get_access_token: (String, Hash[String, String]) -> String
+        def access_token=: (String) -> void
+        private
+        def fetch_token: (String, Hash[String, String]) -> void
+      end
+    end
+{{/hasAnyOAuth2}}
   end
 
   class Client
@@ -115,7 +181,7 @@ module {{moduleName}}
       attr_reader config: Configuration
       attr_reader header_selector: HeaderSelector
       def initialize: (?ApiClient?, ?Configuration) -> void
-      def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?) -> untyped
+      def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, Auth::Authenticator?) -> untyped
       def build_collection_param: (Array[untyped], Symbol) -> untyped
       private
       def build_query_string: (Hash[String, untyped]) -> String

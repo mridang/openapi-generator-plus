@@ -4,7 +4,7 @@ module {{moduleName}}
     class {{classname}} < BaseApi
       def initialize: (?::{{moduleName}}::ApiClient? api_client, ?::{{moduleName}}::Configuration config) -> void
 {{#operation}}
-      def {{operationId}}: ({{#requiredParams}}{{{vendorExtensions.x-rbs-type}}} {{paramName}}{{^-last}}, {{/-last}}{{/requiredParams}}{{#hasOptionalParams}}{{#hasRequiredParams}}, {{/hasRequiredParams}}?Hash[Symbol, untyped] opts{{/hasOptionalParams}}) -> untyped
+      def {{operationId}}: ({{#hasAuthMethods}}::{{moduleName}}::Auth::Authenticator auth{{#requiredParams}}, {{/requiredParams}}{{/hasAuthMethods}}{{#requiredParams}}{{{vendorExtensions.x-rbs-type}}} {{paramName}}{{^-last}}, {{/-last}}{{/requiredParams}}{{#hasOptionalParams}}{{#hasRequiredParams}}, {{/hasRequiredParams}}{{^hasRequiredParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasRequiredParams}}?Hash[Symbol, untyped] opts{{/hasOptionalParams}}) -> untyped
 {{/operation}}
     end
 {{/operations}}

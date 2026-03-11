@@ -1,6 +1,4 @@
 {{>partial_header}}
-from typing import Dict
-
 from {{packageName}}.auth.authenticator import Authenticator
 from {{packageName}}.configuration import Configuration
 from {{packageName}}.default_api_client import DefaultApiClient
@@ -37,24 +35,3 @@ class Client:
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
-
-    @staticmethod
-    def with_token(host: str, access_token: str) -> 'Client':
-        """Creates a client authenticated with a static Bearer token.
-
-        Args:
-            host: API base URL.
-            access_token: Bearer token.
-
-        Returns:
-            Configured client instance.
-        """
-
-        class _TokenAuth(Authenticator):
-            def get_host(self) -> str:
-                return host
-
-            def get_auth_headers(self) -> Dict[str, str]:
-                return {'Authorization': f'Bearer {access_token}'}
-
-        return Client(_TokenAuth())

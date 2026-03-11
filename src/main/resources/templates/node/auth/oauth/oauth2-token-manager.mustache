@@ -1,0 +1,38 @@
+export class OAuth2TokenManager {
+  private accessToken: string | null = null;
+  private refreshToken: string | null = null;
+  private tokenExpiry: number | null = null;
+
+  async getAccessToken(tokenUrl: string, params: Record<string, string>): Promise<string> {
+    if (this.accessToken && this.tokenExpiry && Date.now() < this.tokenExpiry) {
+      return this.accessToken;
+    }
+    await this.fetchToken(tokenUrl, params);
+    return this.accessToken!;
+  }
+
+  setAccessToken(token: string): void {
+    this.accessToken = token;
+    this.tokenExpiry = null;
+  }
+
+  private async fetchToken(tokenUrl: string, params: Record<string, string>): Promise<void> {
+    const body = new URLSearchParams(params).toString();
+    const response = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body
+    });
+    if (!response.ok) {
+      throw new Error(`Token request failed with status ${response.status}: ${await response.text()}`);
+    }
+    const json = (await response.json()) as Record<string, unknown>;
+    this.accessToken = json.access_token as string;
+    if (json.refresh_token) {
+      this.refreshToken = json.refresh_token as string;
+    }
+    if (json.expires_in) {
+      this.tokenExpiry = Date.now() + ((json.expires_in as number) - 30) * 1000;
+    }
+  }
+}

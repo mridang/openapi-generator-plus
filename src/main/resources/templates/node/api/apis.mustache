@@ -1,4 +1,7 @@
 import type { ApiClient } from '../api-client{{importFileExtension}}';
+{{#hasAnyAuthMethods}}
+import type { Authenticator } from '../auth/authenticator{{importFileExtension}}';
+{{/hasAnyAuthMethods}}
 import { BaseApi } from './base-api{{importFileExtension}}';
 import { Configuration } from '../configuration{{importFileExtension}}';
 import { ObjectSerializer } from '../object-serializer{{importFileExtension}}';
@@ -26,6 +29,9 @@ export class {{classname}} extends BaseApi {
 {{#summary}}
    * {{&summary}}
 {{/summary}}
+{{#hasAuthMethods}}
+   * @param auth authenticator for this operation
+{{/hasAuthMethods}}
 {{#allParams}}
    * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}
 {{/allParams}}
@@ -36,7 +42,7 @@ export class {{classname}} extends BaseApi {
    * @deprecated
 {{/isDeprecated}}
    */
-  async {{nickname}}({{#allParams}}{{paramName}}{{^required}}?{{/required}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isEnum}}{{^-last}}, {{/-last}}{{/allParams}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}> {
+  async {{nickname}}({{#hasAuthMethods}}auth: Authenticator, {{/hasAuthMethods}}{{#allParams}}{{paramName}}{{^required}}?{{/required}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isEnum}}{{^-last}}, {{/-last}}{{/allParams}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}> {
 {{#allParams}}
 {{#required}}
     if ({{paramName}} == null) {
@@ -83,11 +89,12 @@ export class {{classname}} extends BaseApi {
       {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
       [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
       {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
-      {{#isArray}}(json: unknown) => ObjectSerializer.deserializeArray(json, {{returnBaseType}}){{/isArray}}{{#isMap}}(json: unknown) => json as {{{returnType}}}{{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}(json: unknown) => json as {{{returnType}}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}(json: unknown) => ObjectSerializer.deserialize(json, {{returnBaseType}}){{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}}
+      {{#isArray}}(json: unknown) => ObjectSerializer.deserializeArray(json, {{returnBaseType}}){{/isArray}}{{#isMap}}(json: unknown) => json as {{{returnType}}}{{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}(json: unknown) => json as {{{returnType}}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}(json: unknown) => ObjectSerializer.deserialize(json, {{returnBaseType}}){{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}},
+      {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}}
     )) as {{{returnType}}};
 {{/returnType}}
 {{^returnType}}
-    (await this.invokeApi('{{httpMethod}}', path, queryParams, headerParams, {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}}, [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}], {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}}, null)) as void;
+    (await this.invokeApi('{{httpMethod}}', path, queryParams, headerParams, {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}}, [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}], {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}}, null, {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}})) as void;
 {{/returnType}}
   }
   {{/operation}}

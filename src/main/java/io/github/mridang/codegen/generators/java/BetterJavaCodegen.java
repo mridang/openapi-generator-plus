@@ -2,19 +2,23 @@ package io.github.mridang.codegen.generators.java;
 
 import static org.openapitools.codegen.utils.CamelizeOption.LOWERCASE_FIRST_LETTER;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import com.google.googlejavaformat.java.Formatter;
 import com.google.googlejavaformat.java.FormatterException;
 import com.google.googlejavaformat.java.ImportOrderer;
 import com.google.googlejavaformat.java.JavaFormatterOptions;
 import com.google.googlejavaformat.java.RemoveUnusedImports;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.CodegenModel;
@@ -257,6 +261,230 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             }
         }
         return objs;
+    }
+
+    @Override
+    protected void registerAuthSupportingFiles() {
+        String invokerFolder =
+                sourceFolder + File.separator + invokerPackage.replace(".", File.separator);
+        String authFolder = invokerFolder + File.separator + "auth";
+        String oauthFolder = authFolder + File.separator + "oauth";
+
+        if (hasBasicAuth) {
+            supportingFiles.add(
+                    new SupportingFile("auth/basic_authenticator.mustache", authFolder, "BasicAuthenticator.java"));
+        }
+        if (hasBearerAuth) {
+            supportingFiles.add(
+                    new SupportingFile("auth/bearer_authenticator.mustache", authFolder, "BearerAuthenticator.java"));
+        }
+        if (hasApiKeyAuth) {
+            supportingFiles.add(
+                    new SupportingFile("auth/api_key_authenticator.mustache", authFolder, "ApiKeyAuthenticator.java"));
+            supportingFiles.add(
+                    new SupportingFile("auth/api_key_location.mustache", authFolder, "ApiKeyLocation.java"));
+        }
+        if (hasAnyOAuth2 || hasOpenIdConnect) {
+            supportingFiles.add(
+                    new SupportingFile("auth/oauth/oauth2_token_manager.mustache", oauthFolder, "OAuth2TokenManager.java"));
+        }
+        if (hasOAuth2ClientCredentials) {
+            supportingFiles.add(
+                    new SupportingFile("auth/oauth/oauth2_client_credentials_authenticator.mustache", oauthFolder, "OAuth2ClientCredentialsAuthenticator.java"));
+        }
+        if (hasOAuth2Password) {
+            supportingFiles.add(
+                    new SupportingFile("auth/oauth/oauth2_password_authenticator.mustache", oauthFolder, "OAuth2PasswordAuthenticator.java"));
+        }
+        if (hasOAuth2AuthorizationCode) {
+            supportingFiles.add(
+                    new SupportingFile("auth/oauth/oauth2_auth_code_authenticator.mustache", oauthFolder, "OAuth2AuthorizationCodeAuthenticator.java"));
+        }
+        if (hasOAuth2Implicit) {
+            supportingFiles.add(
+                    new SupportingFile("auth/oauth/oauth2_implicit_authenticator.mustache", oauthFolder, "OAuth2ImplicitAuthenticator.java"));
+        }
+        if (hasOpenIdConnect) {
+            supportingFiles.add(
+                    new SupportingFile("auth/oauth/openid_connect_authenticator.mustache", oauthFolder, "OpenIdConnectAuthenticator.java"));
+        }
+    }
+
+    @SuppressFBWarnings(
+            value = "PATH_TRAVERSAL_IN",
+            justification = "File paths are constructed from codegen configuration, not user input")
+    @Override
+    protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
+        if (openAPI.getComponents() == null || openAPI.getComponents().getSecuritySchemes() == null) {
+            return;
+        }
+        String invokerFolder =
+                sourceFolder + File.separator + invokerPackage.replace(".", File.separator);
+        String authFolder = invokerFolder + File.separator + "auth";
+        String oauthFolder = authFolder + File.separator + "oauth";
+
+        for (Map.Entry<String, SecurityScheme> entry :
+                openAPI.getComponents().getSecuritySchemes().entrySet()) {
+            String schemeName = entry.getKey();
+            SecurityScheme scheme = entry.getValue();
+            String className = StringUtils.camelize(schemeName);
+            String code = generateJavaAuthClass(schemeName, className, scheme);
+            if (!code.isEmpty()) {
+                boolean isOAuth = scheme.getType() == SecurityScheme.Type.OAUTH2
+                        || scheme.getType() == SecurityScheme.Type.OPENIDCONNECT;
+                String folder = isOAuth ? oauthFolder : authFolder;
+                String fileName = className + (getOAuthSuffix(scheme)) + "Authenticator.java";
+                String filePath =
+                        outputFolder + File.separator + folder + File.separator + fileName;
+                writeFile(filePath, code);
+                postProcessFile(new File(filePath), "source");
+            }
+        }
+    }
+
+    private String getOAuthSuffix(SecurityScheme scheme) {
+        if (scheme.getType() == SecurityScheme.Type.OAUTH2 && scheme.getFlows() != null) {
+            if (scheme.getFlows().getClientCredentials() != null) return "ClientCredentials";
+            if (scheme.getFlows().getPassword() != null) return "Password";
+            if (scheme.getFlows().getAuthorizationCode() != null) return "AuthorizationCode";
+            if (scheme.getFlows().getImplicit() != null) return "Implicit";
+        }
+        return "";
+    }
+
+    @SuppressFBWarnings(value = "IMPROPER_UNICODE", justification = "Comparing with ASCII-only constants")
+    private String generateJavaAuthClass(String schemeName, String className, SecurityScheme scheme) {
+        String pkg = invokerPackage;
+        if (scheme.getType() == SecurityScheme.Type.HTTP) {
+            if ("basic".equalsIgnoreCase(scheme.getScheme())) {
+                return "package " + pkg + ".auth;\n\n"
+                        + "public final class " + className + "Authenticator extends BasicAuthenticator {\n"
+                        + "    public " + className + "Authenticator(String host, String username, String password) {\n"
+                        + "        super(host, username, password);\n"
+                        + "    }\n"
+                        + "}\n";
+            }
+            if ("bearer".equalsIgnoreCase(scheme.getScheme())) {
+                return "package " + pkg + ".auth;\n\n"
+                        + "public final class " + className + "Authenticator extends BearerAuthenticator {\n"
+                        + "    public " + className + "Authenticator(String host, String token) {\n"
+                        + "        super(host, token);\n"
+                        + "    }\n"
+                        + "}\n";
+            }
+        } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
+            String location = scheme.getIn().toString().toUpperCase(java.util.Locale.ROOT);
+            String paramName = scheme.getName();
+            return "package " + pkg + ".auth;\n\n"
+                    + "public final class " + className + "Authenticator extends ApiKeyAuthenticator {\n"
+                    + "    public " + className + "Authenticator(String host, String apiKey) {\n"
+                    + "        super(host, \"" + paramName + "\", apiKey, ApiKeyLocation." + location + ");\n"
+                    + "    }\n"
+                    + "}\n";
+        } else if (scheme.getType() == SecurityScheme.Type.OAUTH2 && scheme.getFlows() != null) {
+            return generateJavaOAuthClass(className, scheme, pkg);
+        } else if (scheme.getType() == SecurityScheme.Type.OPENIDCONNECT) {
+            String url = scheme.getOpenIdConnectUrl();
+            return "package " + pkg + ".auth.oauth;\n\n"
+                    + "import " + pkg + ".auth.Authenticator;\n"
+                    + "import java.util.List;\n\n"
+                    + "public final class " + className + "Authenticator extends OpenIdConnectAuthenticator {\n"
+                    + "    public " + className + "Authenticator(String host, String clientId,\n"
+                    + "            String clientSecret, String redirectUri) {\n"
+                    + "        super(host, \"" + url + "\", clientId, clientSecret, redirectUri,\n"
+                    + "              List.of());\n"
+                    + "    }\n"
+                    + "}\n";
+        }
+        LOGGER.warn("Unsupported security scheme type: {}", scheme.getType());
+        return "";
+    }
+
+    private String generateJavaOAuthClass(String className, SecurityScheme scheme, String pkg) {
+        if (scheme.getFlows().getClientCredentials() != null) {
+            var flow = scheme.getFlows().getClientCredentials();
+            String tokenUrl = flow.getTokenUrl();
+            String scopes = flow.getScopes() != null
+                    ? "\"" + String.join("\", \"", flow.getScopes().keySet()) + "\""
+                    : "";
+            return "package " + pkg + ".auth.oauth;\n\n"
+                    + "import " + pkg + ".auth.Authenticator;\n"
+                    + "import java.util.List;\n\n"
+                    + "public final class " + className + "ClientCredentialsAuthenticator extends OAuth2ClientCredentialsAuthenticator {\n"
+                    + "    public " + className + "ClientCredentialsAuthenticator(String host, String clientId, String clientSecret) {\n"
+                    + "        super(host, clientId, clientSecret, \"" + tokenUrl + "\",\n"
+                    + "              List.of(" + scopes + "));\n"
+                    + "    }\n"
+                    + "}\n";
+        }
+        if (scheme.getFlows().getPassword() != null) {
+            var flow = scheme.getFlows().getPassword();
+            String tokenUrl = flow.getTokenUrl();
+            String scopes = flow.getScopes() != null
+                    ? "\"" + String.join("\", \"", flow.getScopes().keySet()) + "\""
+                    : "";
+            return "package " + pkg + ".auth.oauth;\n\n"
+                    + "import " + pkg + ".auth.Authenticator;\n"
+                    + "import java.util.List;\n\n"
+                    + "public final class " + className + "PasswordAuthenticator extends OAuth2PasswordAuthenticator {\n"
+                    + "    public " + className + "PasswordAuthenticator(String host, String clientId,\n"
+                    + "            String clientSecret, String username, String password) {\n"
+                    + "        super(host, clientId, clientSecret, \"" + tokenUrl + "\",\n"
+                    + "              username, password, List.of(" + scopes + "));\n"
+                    + "    }\n"
+                    + "}\n";
+        }
+        if (scheme.getFlows().getAuthorizationCode() != null) {
+            var flow = scheme.getFlows().getAuthorizationCode();
+            String authUrl = flow.getAuthorizationUrl();
+            String tokenUrl = flow.getTokenUrl();
+            String scopes = flow.getScopes() != null
+                    ? "\"" + String.join("\", \"", flow.getScopes().keySet()) + "\""
+                    : "";
+            return "package " + pkg + ".auth.oauth;\n\n"
+                    + "import " + pkg + ".auth.Authenticator;\n"
+                    + "import java.util.List;\n\n"
+                    + "public final class " + className + "AuthorizationCodeAuthenticator extends OAuth2AuthorizationCodeAuthenticator {\n"
+                    + "    public " + className + "AuthorizationCodeAuthenticator(String host, String clientId,\n"
+                    + "            String clientSecret, String redirectUri) {\n"
+                    + "        super(host, clientId, clientSecret,\n"
+                    + "              \"" + authUrl + "\",\n"
+                    + "              \"" + tokenUrl + "\",\n"
+                    + "              redirectUri, List.of(" + scopes + "));\n"
+                    + "    }\n"
+                    + "}\n";
+        }
+        if (scheme.getFlows().getImplicit() != null) {
+            var flow = scheme.getFlows().getImplicit();
+            String authUrl = flow.getAuthorizationUrl();
+            String scopes = flow.getScopes() != null
+                    ? "\"" + String.join("\", \"", flow.getScopes().keySet()) + "\""
+                    : "";
+            return "package " + pkg + ".auth.oauth;\n\n"
+                    + "import " + pkg + ".auth.Authenticator;\n"
+                    + "import java.util.List;\n\n"
+                    + "public final class " + className + "ImplicitAuthenticator extends OAuth2ImplicitAuthenticator {\n"
+                    + "    public " + className + "ImplicitAuthenticator(String host) {\n"
+                    + "        super(host, \"" + authUrl + "\",\n"
+                    + "              List.of(" + scopes + "));\n"
+                    + "    }\n"
+                    + "}\n";
+        }
+        LOGGER.warn("Unsupported OAuth2 flow for scheme: {}", className);
+        return "";
+    }
+
+    @SuppressFBWarnings(
+            value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE",
+            justification = "filePath always contains a parent directory")
+    private void writeFile(String filePath, String content) {
+        try {
+            java.nio.file.Path path = java.nio.file.Path.of(filePath);
+            java.nio.file.Files.createDirectories(path.getParent());
+            java.nio.file.Files.writeString(path, content, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (java.io.IOException e) {
+            LOGGER.warn("Failed to write auth file: {}", filePath, e);
+        }
     }
 
     @Override

@@ -1,0 +1,43 @@
+# frozen_string_literal: true
+
+module {{moduleName}}
+  module Auth
+    # Authenticator for API key authentication.
+    class ApiKeyAuthenticator < Authenticator
+      attr_reader :host
+
+      # @param host [String] API base URL
+      # @param key_param_name [String] name of the key parameter
+      # @param api_key [String] the API key value
+      # @param location [Symbol] :header, :query, or :cookie
+      def initialize(host, key_param_name, api_key, location)
+        super()
+        @host = host
+        @key_param_name = key_param_name
+        @api_key = api_key
+        @location = location
+      end
+
+      # @return [Hash{String => String}]
+      def auth_headers
+        result = {} # : Hash[String, String]
+        result[@key_param_name] = @api_key if @location == :header
+        result
+      end
+
+      # @return [Hash{String => String}]
+      def query_params
+        result = {} # : Hash[String, String]
+        result[@key_param_name] = @api_key if @location == :query
+        result
+      end
+
+      # @return [Hash{String => String}]
+      def cookie_params
+        result = {} # : Hash[String, String]
+        result[@key_param_name] = @api_key if @location == :cookie
+        result
+      end
+    end
+  end
+end
