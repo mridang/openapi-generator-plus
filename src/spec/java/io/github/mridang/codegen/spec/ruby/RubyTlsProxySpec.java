@@ -15,13 +15,13 @@ public class RubyTlsProxySpec extends AbstractTlsProxySpec implements RubySpec {
   protected String[] getBuildCommands() {
     return new String[] {
       "bundle install --quiet",
-      "WIREMOCK_HTTPS_URL=https://wiremock:8443 WIREMOCK_HTTP_URL=http://wiremock:8080 PROXY_URL=http://proxy:3128 CA_CERT_PATH=/app/ca.pem bundle exec rspec spec/default_api_client_spec.rb --format documentation"
+      "WIREMOCK_HTTPS_URL=https://wiremock:8443 WIREMOCK_HTTP_URL=http://wiremock:8080 PROXY_URL=http://proxy:3128 CA_CERT_PATH=/app/ca.pem bundle exec ruby -Ilib -Ispec spec/default_api_client_spec.rb"
     };
   }
 
   @Override
   protected Path getTestProjectPath() {
-    return Paths.get("src/spec/resources/testprojects/rspec");
+    return Paths.get("src/spec/resources/testprojects/rubytest");
   }
 
   @Override

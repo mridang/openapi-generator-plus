@@ -6,7 +6,8 @@ gem 'dry-struct', '~> 1.6'
 gem 'dry-types', '~> 1.7'
 
 group :development, :test do
-  gem 'rspec', '~> 3.12'
+  gem 'minitest', '~> 5.0'
+  gem 'rake'
   gem 'rubocop', require: false
   gem 'steep', require: false
 end

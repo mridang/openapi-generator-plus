@@ -2,5 +2,4 @@
 /vendor/
 Gemfile.lock
 
-# RSpec artifacts
-/.rspec_status
+# Minitest artifacts

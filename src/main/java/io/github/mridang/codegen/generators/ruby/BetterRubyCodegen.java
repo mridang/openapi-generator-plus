@@ -159,6 +159,8 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile("infrastructure_rbs.mustache", "sig", "infrastructure.rbs"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
+        supportingFiles.add(new SupportingFile("rakefile.mustache", "", "Rakefile"));
+        supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
     }
 
     @Nullable

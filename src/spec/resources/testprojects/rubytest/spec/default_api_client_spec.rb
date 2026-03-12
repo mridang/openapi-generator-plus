@@ -1,4 +1,6 @@
-require_relative 'spec_helper'
+# frozen_string_literal: true
+
+require 'spec_helper'
 
 def get_env_or_skip(name)
   value = ENV[name]
@@ -8,7 +10,7 @@ def get_env_or_skip(name)
   value
 end
 
-RSpec.describe OpigenClient::DefaultApiClient do
+describe OpigenClient::DefaultApiClient do
   describe 'TLS verification disabled' do
     it 'makes HTTPS request with verify_ssl=false' do
       wiremock_url = get_env_or_skip('WIREMOCK_HTTPS_URL')
@@ -20,8 +22,8 @@ RSpec.describe OpigenClient::DefaultApiClient do
       client = OpigenClient::DefaultApiClient.new(config)
       response = client.send_request(:GET, "#{wiremock_url}/api/test", {}, nil)
 
-      expect(response.status_code).to eq(200)
-      expect(response.body).to include('success')
+      _(response.status_code).must_equal(200)
+      _(response.body).must_include('success')
     end
   end
 
@@ -38,8 +40,8 @@ RSpec.describe OpigenClient::DefaultApiClient do
       client = OpigenClient::DefaultApiClient.new(config)
       response = client.send_request(:GET, "#{wiremock_url}/api/test", {}, nil)
 
-      expect(response.status_code).to eq(200)
-      expect(response.body).to include('success')
+      _(response.status_code).must_equal(200)
+      _(response.body).must_include('success')
     end
   end
 
@@ -55,8 +57,8 @@ RSpec.describe OpigenClient::DefaultApiClient do
       client = OpigenClient::DefaultApiClient.new(config)
       response = client.send_request(:GET, "#{wiremock_url}/api/test", {}, nil)
 
-      expect(response.status_code).to eq(200)
-      expect(response.body).to include('success')
+      _(response.status_code).must_equal(200)
+      _(response.body).must_include('success')
     end
   end
 
@@ -73,8 +75,8 @@ RSpec.describe OpigenClient::DefaultApiClient do
       client = OpigenClient::DefaultApiClient.new(config)
       response = client.send_request(:GET, "#{wiremock_url}/api/test", {}, nil)
 
-      expect(response.status_code).to eq(200)
-      expect(response.body).to include('success')
+      _(response.status_code).must_equal(200)
+      _(response.body).must_include('success')
     end
   end
 end

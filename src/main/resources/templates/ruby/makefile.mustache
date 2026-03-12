@@ -6,7 +6,7 @@ install:
 build: install
 
 test: install
-	bundle exec rspec --format documentation
+	bundle exec rake test
 
 lint: install
 	bundle exec rubocop --format simple
