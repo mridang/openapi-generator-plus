@@ -161,6 +161,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         supportingFiles.add(new SupportingFile("rector.mustache", "", "rector.php"));
         supportingFiles.add(new SupportingFile("phpcs_xml.mustache", "", "phpcs.xml"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
+        supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
     }
 
     private String toSrcPath(String packageName) {

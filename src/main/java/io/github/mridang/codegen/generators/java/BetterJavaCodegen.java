@@ -173,6 +173,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile("spotbugs_exclude.mustache", "", "spotbugs-exclude.xml"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
+        supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
     }
 
     @Override

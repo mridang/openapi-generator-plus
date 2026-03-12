@@ -114,6 +114,8 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile("__init__.mustache", packagePath, "__init__.py"));
         supportingFiles.add(
+                new SupportingFile("py_typed.mustache", packagePath, "py.typed"));
+        supportingFiles.add(
                 new SupportingFile("api_client.mustache", packagePath, "api_client.py"));
         supportingFiles.add(
                 new SupportingFile(
@@ -145,6 +147,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         supportingFiles.add(new SupportingFile("requirements.mustache", "", "requirements.txt"));
         supportingFiles.add(new SupportingFile("pyproject_toml.mustache", "", "pyproject.toml"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
+        supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
     }
 
     @Override
