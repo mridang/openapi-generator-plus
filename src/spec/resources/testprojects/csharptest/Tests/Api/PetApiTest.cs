@@ -1,5 +1,6 @@
 using PetstoreClient;
 using PetstoreClient.Api;
+using PetstoreClient.Auth;
 using PetstoreClient.Models;
 using Xunit;
 
@@ -8,10 +9,12 @@ namespace Tests.Api;
 public class PetApiTest
 {
     private readonly PetApi _api;
+    private readonly IAuthenticator _auth;
 
     public PetApiTest()
     {
         var baseUrl = Environment.GetEnvironmentVariable("API_BASE_URL") ?? "http://localhost:4010";
+        _auth = new BearerAuthenticator(baseUrl, "test-token");
         var config = new Configuration { BaseUrl = baseUrl };
         config.DefaultHeaders["Authorization"] = "Bearer test-token";
         _api = new PetApi(new DefaultApiClient(), config);
@@ -26,7 +29,7 @@ public class PetApiTest
             Status = Pet.StatusEnum.Available,
         };
 
-        var result = await _api.AddPetAsync(pet);
+        var result = await _api.AddPetAsync(_auth, pet);
 
         Assert.NotNull(result);
         Assert.NotNull(result.Name);
@@ -69,7 +72,7 @@ public class PetApiTest
     [Fact]
     public async Task TestDeletePet()
     {
-        await _api.DeletePetAsync(1L);
+        await _api.DeletePetAsync(_auth, 1L);
         Assert.True(true);
     }
 }

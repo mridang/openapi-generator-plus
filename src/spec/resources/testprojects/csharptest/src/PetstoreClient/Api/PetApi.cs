@@ -1,3 +1,4 @@
+using PetstoreClient.Auth;
 using PetstoreClient.Models;
 
 namespace PetstoreClient.Api;
@@ -21,9 +22,10 @@ public class PetApi : BaseApi
     /// <summary>
     /// Add a new pet to the store
     /// </summary>
+    /// <param name="auth">Authenticator for this operation.</param>
     /// <param name="pet">Create a new pet in the store</param>
     /// <returns><![CDATA[Pet]]></returns>
-    public async Task<Pet> AddPetAsync(Pet pet)
+    public async Task<Pet> AddPetAsync(IAuthenticator auth, Pet pet)
     {
         string path = "/pet";
 
@@ -38,7 +40,8 @@ public class PetApi : BaseApi
                 headerParams,
                 pet,
                 AddPetAccepts,
-                "application/json"
+                "application/json",
+                auth
             )
             .ConfigureAwait(false);
         return result ?? throw new InvalidOperationException("Expected non-null response body");
@@ -47,8 +50,9 @@ public class PetApi : BaseApi
     /// <summary>
     /// Deletes a pet
     /// </summary>
+    /// <param name="auth">Authenticator for this operation.</param>
     /// <param name="petId">Pet id to delete</param>
-    public async Task DeletePetAsync(long petId)
+    public async Task DeletePetAsync(IAuthenticator auth, long petId)
     {
         string path = "/pet/{petId}";
         path = path.Replace(
@@ -68,7 +72,8 @@ public class PetApi : BaseApi
                 headerParams,
                 null,
                 [],
-                "application/json"
+                "application/json",
+                auth
             )
             .ConfigureAwait(false);
     }
@@ -97,7 +102,8 @@ public class PetApi : BaseApi
                 headerParams,
                 null,
                 FindPetsByStatusAccepts,
-                "application/json"
+                "application/json",
+                null
             )
             .ConfigureAwait(false);
         return result ?? throw new InvalidOperationException("Expected non-null response body");
@@ -128,7 +134,8 @@ public class PetApi : BaseApi
                 headerParams,
                 null,
                 GetPetByIdAccepts,
-                "application/json"
+                "application/json",
+                null
             )
             .ConfigureAwait(false);
         return result ?? throw new InvalidOperationException("Expected non-null response body");
@@ -160,7 +167,8 @@ public class PetApi : BaseApi
                 headerParams,
                 pet,
                 UpdatePetAccepts,
-                "application/json"
+                "application/json",
+                null
             )
             .ConfigureAwait(false);
         return result ?? throw new InvalidOperationException("Expected non-null response body");

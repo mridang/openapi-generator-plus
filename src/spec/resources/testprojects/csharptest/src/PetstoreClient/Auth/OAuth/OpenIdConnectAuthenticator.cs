@@ -1,0 +1,101 @@
+#pragma warning disable IDE0290 // Use primary constructor
+
+using System.Text.Json;
+
+namespace PetstoreClient.Auth.OAuth;
+
+/// <summary>
+/// Authenticator for OpenID Connect. Fetches the discovery document
+/// and delegates to <see cref="OAuth2AuthorizationCodeAuthenticator"/>.
+/// </summary>
+public sealed class OpenIdConnectAuthenticator : BaseAuthenticator
+{
+    private static readonly HttpClient HttpClient = new();
+
+    private readonly string _host;
+    private readonly Uri _openIdConnectUrl;
+    private readonly string _clientId;
+    private readonly string _clientSecret;
+    private readonly Uri _redirectUri;
+    private readonly string[] _scopes;
+    private OAuth2AuthorizationCodeAuthenticator? _delegate;
+
+    public OpenIdConnectAuthenticator(
+        string host,
+        Uri openIdConnectUrl,
+        string clientId,
+        string clientSecret,
+        Uri redirectUri,
+        string[] scopes
+    )
+    {
+        _host = host;
+        _openIdConnectUrl = openIdConnectUrl;
+        _clientId = clientId;
+        _clientSecret = clientSecret;
+        _redirectUri = redirectUri;
+        _scopes = [.. scopes];
+    }
+
+    private async Task<OAuth2AuthorizationCodeAuthenticator> GetDelegateAsync()
+    {
+        if (_delegate is not null)
+        {
+            return _delegate;
+        }
+
+        string response = await HttpClient.GetStringAsync(_openIdConnectUrl).ConfigureAwait(false);
+        using JsonDocument doc = JsonDocument.Parse(response);
+        JsonElement root = doc.RootElement;
+        string authorizationEndpoint =
+            root.GetProperty("authorization_endpoint").GetString()
+            ?? throw new InvalidOperationException(
+                "Discovery document missing authorization_endpoint"
+            );
+        string tokenEndpoint =
+            root.GetProperty("token_endpoint").GetString()
+            ?? throw new InvalidOperationException("Discovery document missing token_endpoint");
+
+        _delegate = new OAuth2AuthorizationCodeAuthenticator(
+            _host,
+            _clientId,
+            _clientSecret,
+            new Uri(authorizationEndpoint),
+            new Uri(tokenEndpoint),
+            _redirectUri,
+            _scopes
+        );
+        return _delegate;
+    }
+
+    /// <summary>
+    /// Builds the authorization URL using the discovered authorization endpoint.
+    /// </summary>
+    public async Task<Uri> BuildAuthorizationUrlAsync(string? state = null)
+    {
+        OAuth2AuthorizationCodeAuthenticator d = await GetDelegateAsync().ConfigureAwait(false);
+        return d.BuildAuthorizationUrl(state);
+    }
+
+    /// <summary>
+    /// Exchanges an authorization code for an access token.
+    /// </summary>
+    public async Task ExchangeCodeAsync(string code)
+    {
+        OAuth2AuthorizationCodeAuthenticator d = await GetDelegateAsync().ConfigureAwait(false);
+        await d.ExchangeCodeAsync(code).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc/>
+    public override string GetHost()
+    {
+        return _host;
+    }
+
+    /// <inheritdoc/>
+    public override Dictionary<string, string> GetAuthHeaders()
+    {
+        OAuth2AuthorizationCodeAuthenticator d = GetDelegateAsync().GetAwaiter().GetResult();
+        return d.GetAuthHeaders();
+    }
+}

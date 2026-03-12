@@ -40,25 +40,12 @@ public sealed class Client : IDisposable
     /// <returns>Configured client instance.</returns>
     public static Client WithToken(string host, string accessToken)
     {
-        return new Client(new TokenAuthenticator(host, accessToken));
+        return new Client(new BearerAuthenticator(host, accessToken));
     }
 
     /// <inheritdoc/>
     public void Dispose()
     {
         _apiClient.Dispose();
-    }
-
-    private sealed class TokenAuthenticator(string host, string accessToken) : IAuthenticator
-    {
-        public string GetHost()
-        {
-            return host;
-        }
-
-        public Dictionary<string, string> GetAuthHeaders()
-        {
-            return new() { ["Authorization"] = $"Bearer {accessToken}" };
-        }
     }
 }

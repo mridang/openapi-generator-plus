@@ -41,7 +41,8 @@ public class StoreApi : BaseApi
                 headerParams,
                 null,
                 [],
-                "application/json"
+                "application/json",
+                null
             )
             .ConfigureAwait(false);
     }
@@ -65,7 +66,8 @@ public class StoreApi : BaseApi
                 headerParams,
                 null,
                 GetInventoryAccepts,
-                "application/json"
+                "application/json",
+                null
             )
             .ConfigureAwait(false);
         return result ?? throw new InvalidOperationException("Expected non-null response body");
@@ -96,7 +98,8 @@ public class StoreApi : BaseApi
                 headerParams,
                 null,
                 GetOrderByIdAccepts,
-                "application/json"
+                "application/json",
+                null
             )
             .ConfigureAwait(false);
         return result ?? throw new InvalidOperationException("Expected non-null response body");
@@ -122,7 +125,8 @@ public class StoreApi : BaseApi
                 headerParams,
                 order,
                 PlaceOrderAccepts,
-                "application/json"
+                "application/json",
+                null
             )
             .ConfigureAwait(false);
         return result ?? throw new InvalidOperationException("Expected non-null response body");

@@ -1,5 +1,6 @@
 {{>partial_header}}
 from {{packageName}}.auth.authenticator import Authenticator
+from {{packageName}}.auth.bearer_authenticator import BearerAuthenticator
 from {{packageName}}.configuration import Configuration
 from {{packageName}}.default_api_client import DefaultApiClient
 {{#apiInfo}}
@@ -35,3 +36,16 @@ class Client:
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
+
+    @classmethod
+    def with_token(cls, host: str, access_token: str) -> 'Client':
+        """Creates a client authenticated with a static Bearer token.
+
+        Args:
+            host: API base URL.
+            access_token: Bearer token.
+
+        Returns:
+            Configured client instance.
+        """
+        return cls(BearerAuthenticator(host, access_token))

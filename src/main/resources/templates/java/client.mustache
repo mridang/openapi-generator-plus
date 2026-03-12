@@ -8,6 +8,7 @@ import {{apiPackage}}.{{classname}};
 {{/apis}}
 {{/apiInfo}}
 import {{invokerPackage}}.auth.Authenticator;
+import {{invokerPackage}}.auth.BearerAuthenticator;
 
 /**
  * Unified entry point for all API services. Takes an {@link Authenticator}
@@ -43,5 +44,16 @@ public class Client {
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
+    }
+
+    /**
+     * Creates a client authenticated with a static Bearer token.
+     *
+     * @param host API base URL.
+     * @param accessToken Bearer token.
+     * @return Configured client instance.
+     */
+    public static Client withToken(String host, String accessToken) {
+        return new Client(new BearerAuthenticator(host, accessToken));
     }
 }

@@ -1,5 +1,7 @@
 #pragma warning disable CA2000 // Dispose objects before losing scope
 
+using PetstoreClient.Auth;
+
 namespace PetstoreClient.Api;
 
 /// <summary>
@@ -36,12 +38,22 @@ public abstract class BaseApi
         Dictionary<string, string> headerParams,
         object? body,
         string[] accepts,
-        string contentType
+        string contentType,
+        IAuthenticator? auth = null
     )
     {
         ArgumentNullException.ThrowIfNull(queryParams);
         ArgumentNullException.ThrowIfNull(headerParams);
         string url = Config.BaseUrl + path;
+
+        if (auth is not null)
+        {
+            foreach (KeyValuePair<string, string> param in auth.GetQueryParams())
+            {
+                queryParams[param.Key] = param.Value;
+            }
+        }
+
         string query = BuildQueryString(queryParams);
         if (!string.IsNullOrEmpty(query))
         {
@@ -63,6 +75,25 @@ public abstract class BaseApi
         foreach (KeyValuePair<string, string> header in headerParams)
         {
             headers[header.Key] = header.Value;
+        }
+
+        if (auth is not null)
+        {
+            foreach (KeyValuePair<string, string> header in auth.GetAuthHeaders())
+            {
+                headers[header.Key] = header.Value;
+            }
+
+            Dictionary<string, string> cookies = auth.GetCookieParams();
+            if (cookies.Count > 0)
+            {
+                string cookieStr = string.Join("; ", cookies.Select(c => c.Key + "=" + c.Value));
+                headers["Cookie"] =
+                    headers.TryGetValue("Cookie", out string? existing)
+                    && !string.IsNullOrEmpty(existing)
+                        ? existing + "; " + cookieStr
+                        : cookieStr;
+            }
         }
 
         string? serializedBody = null;

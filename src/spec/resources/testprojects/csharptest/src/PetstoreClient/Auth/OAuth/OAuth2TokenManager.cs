@@ -1,0 +1,63 @@
+using System.Text.Json;
+
+namespace PetstoreClient.Auth.OAuth;
+
+/// <summary>
+/// Manages OAuth2 token lifecycle including fetching and caching access tokens.
+/// </summary>
+public sealed class OAuth2TokenManager
+{
+    private static readonly HttpClient HttpClient = new();
+
+    private string? _accessToken;
+    private DateTimeOffset? _tokenExpiry;
+
+    /// <summary>
+    /// Returns a valid access token, fetching a new one if necessary.
+    /// </summary>
+    public async Task<string> GetAccessTokenAsync(
+        Uri tokenUrl,
+        Dictionary<string, string> parameters
+    )
+    {
+        if (
+            _accessToken is not null
+            && _tokenExpiry is not null
+            && DateTimeOffset.UtcNow < _tokenExpiry
+        )
+        {
+            return _accessToken;
+        }
+
+        await FetchTokenAsync(tokenUrl, parameters).ConfigureAwait(false);
+        return _accessToken ?? throw new InvalidOperationException("Failed to obtain access token");
+    }
+
+    /// <summary>
+    /// Manually sets an access token, bypassing the token endpoint.
+    /// </summary>
+    public void SetAccessToken(string token)
+    {
+        _accessToken = token;
+        _tokenExpiry = null;
+    }
+
+    private async Task FetchTokenAsync(Uri tokenUrl, Dictionary<string, string> parameters)
+    {
+        using FormUrlEncodedContent content = new(parameters);
+        using HttpResponseMessage response = await HttpClient
+            .PostAsync(tokenUrl, content)
+            .ConfigureAwait(false);
+        _ = response.EnsureSuccessStatusCode();
+        string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        using JsonDocument doc = JsonDocument.Parse(body);
+        JsonElement root = doc.RootElement;
+        _accessToken =
+            root.GetProperty("access_token").GetString()
+            ?? throw new InvalidOperationException("Token response missing access_token");
+        if (root.TryGetProperty("expires_in", out JsonElement expiresIn))
+        {
+            _tokenExpiry = DateTimeOffset.UtcNow.AddSeconds(expiresIn.GetInt32() - 30);
+        }
+    }
+}

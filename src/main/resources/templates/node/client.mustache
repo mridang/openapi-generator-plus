@@ -1,4 +1,5 @@
 import type { Authenticator } from './auth/authenticator{{importFileExtension}}';
+import { BearerAuthenticator } from './auth/bearer-authenticator{{importFileExtension}}';
 import type { ApiClient } from './api-client{{importFileExtension}}';
 import { Configuration } from './configuration{{importFileExtension}}';
 import { DefaultApiClient } from './default-api-client{{importFileExtension}}';
@@ -41,5 +42,16 @@ export class Client {
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
+  }
+
+  /**
+   * Creates a client authenticated with a static Bearer token.
+   *
+   * @param host API base URL.
+   * @param accessToken Bearer token.
+   * @returns Configured client instance.
+   */
+  static withToken(host: string, accessToken: string): Client {
+    return new Client(new BearerAuthenticator(host, accessToken));
   }
 }

@@ -1,0 +1,26 @@
+namespace {{packageName}}.Auth;
+
+/// <summary>
+/// Abstract base class providing default implementations for optional
+/// <see cref="IAuthenticator"/> methods. Concrete authenticators should extend this class.
+/// </summary>
+public abstract class BaseAuthenticator : IAuthenticator
+{
+    /// <inheritdoc/>
+    public abstract string GetHost();
+
+    /// <inheritdoc/>
+    public abstract Dictionary<string, string> GetAuthHeaders();
+
+    /// <inheritdoc/>
+    public virtual Dictionary<string, string> GetQueryParams()
+    {
+        return [];
+    }
+
+    /// <inheritdoc/>
+    public virtual Dictionary<string, string> GetCookieParams()
+    {
+        return [];
+    }
+}

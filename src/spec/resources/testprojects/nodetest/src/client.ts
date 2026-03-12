@@ -1,4 +1,5 @@
 import type { Authenticator } from './auth/authenticator.js';
+import { BearerAuthenticator } from './auth/bearer-authenticator.js';
 import type { ApiClient } from './api-client.js';
 import { Configuration } from './configuration.js';
 import { DefaultApiClient } from './default-api-client.js';
@@ -26,5 +27,16 @@ export class Client {
     const apiClient: ApiClient = new DefaultApiClient(config);
     this.pet = new PetApi(config, apiClient);
     this.store = new StoreApi(config, apiClient);
+  }
+
+  /**
+   * Creates a client authenticated with a static Bearer token.
+   *
+   * @param host API base URL.
+   * @param accessToken Bearer token.
+   * @returns Configured client instance.
+   */
+  static withToken(host: string, accessToken: string): Client {
+    return new Client(new BearerAuthenticator(host, accessToken));
   }
 }

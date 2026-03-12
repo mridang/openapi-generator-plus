@@ -13,6 +13,7 @@
 namespace PetstoreClient;
 
 use PetstoreClient\Auth\Authenticator;
+use PetstoreClient\Auth\BearerAuthenticator;
 use PetstoreClient\Api\PetApi;
 use PetstoreClient\Api\StoreApi;
 
@@ -44,5 +45,17 @@ class Client
         $apiClient = new DefaultApiClient($config);
         $this->pet = new PetApi($apiClient, $config);
         $this->store = new StoreApi($apiClient, $config);
+    }
+
+    /**
+     * Creates a client authenticated with a static Bearer token.
+     *
+     * @param string $host API base URL.
+     * @param string $accessToken Bearer token.
+     * @return self Configured client instance.
+     */
+    public static function withToken(string $host, string $accessToken): self
+    {
+        return new self(new BearerAuthenticator($host, $accessToken));
     }
 }

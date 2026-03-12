@@ -1,0 +1,70 @@
+#pragma warning disable IDE0290 // Use primary constructor
+
+namespace PetstoreClient.Auth.OAuth;
+
+/// <summary>
+/// Authenticator for the OAuth2 Implicit flow.
+/// </summary>
+public sealed class OAuth2ImplicitAuthenticator : BaseAuthenticator
+{
+    private readonly string _host;
+    private readonly Uri _authorizationUrl;
+    private readonly string[] _scopes;
+    private string? _accessToken;
+
+    public OAuth2ImplicitAuthenticator(string host, Uri authorizationUrl, string[] scopes)
+    {
+        _host = host;
+        _authorizationUrl = authorizationUrl;
+        _scopes = [.. scopes];
+    }
+
+    /// <summary>
+    /// Builds the URL to redirect the user to for implicit authorization.
+    /// </summary>
+    public Uri BuildAuthorizationUrl(string? state = null)
+    {
+        Dictionary<string, string> parameters = new() { ["response_type"] = "token" };
+        if (_scopes.Length > 0)
+        {
+            parameters["scope"] = string.Join(" ", _scopes);
+        }
+
+        if (state is not null)
+        {
+            parameters["state"] = state;
+        }
+
+        string query = string.Join(
+            "&",
+            parameters.Select(p =>
+                Uri.EscapeDataString(p.Key) + "=" + Uri.EscapeDataString(p.Value)
+            )
+        );
+        return new Uri(_authorizationUrl + "?" + query);
+    }
+
+    /// <summary>
+    /// Sets the access token obtained from the authorization redirect.
+    /// </summary>
+    public void SetAccessToken(string token)
+    {
+        _accessToken = token;
+    }
+
+    /// <inheritdoc/>
+    public override string GetHost()
+    {
+        return _host;
+    }
+
+    /// <inheritdoc/>
+    public override Dictionary<string, string> GetAuthHeaders()
+    {
+        return _accessToken is null
+            ? throw new InvalidOperationException(
+                "Must call SetAccessToken() before making API requests"
+            )
+            : new() { ["Authorization"] = "Bearer " + _accessToken };
+    }
+}

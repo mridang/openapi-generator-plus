@@ -1,3 +1,6 @@
+{{#hasAnyAuthMethods}}
+using {{packageName}}.Auth;
+{{/hasAnyAuthMethods}}
 using {{packageName}}.Models;
 
 namespace {{packageName}}.{{apiPackage}};
@@ -20,13 +23,16 @@ public class {{classname}} : BaseApi
     /// <summary>
     /// {{summary}}
     /// </summary>
+{{#hasAuthMethods}}
+    /// <param name="auth">Authenticator for this operation.</param>
+{{/hasAuthMethods}}
     {{#allParams}}
     /// <param name="{{paramName}}">{{description}}</param>
     {{/allParams}}
     {{#returnType}}
     /// <returns><![CDATA[{{{returnType}}}]]></returns>
     {{/returnType}}
-    public async {{#returnType}}Task<{{{returnType}}}>{{/returnType}}{{^returnType}}Task{{/returnType}} {{operationId}}Async({{#allParams}}{{{dataType}}}{{^required}}?{{/required}} {{paramName}}{{^required}} = default{{/required}}{{^-last}}, {{/-last}}{{/allParams}})
+    public async {{#returnType}}Task<{{{returnType}}}>{{/returnType}}{{^returnType}}Task{{/returnType}} {{operationId}}Async({{#hasAuthMethods}}IAuthenticator auth, {{/hasAuthMethods}}{{#allParams}}{{{dataType}}}{{^required}}?{{/required}} {{paramName}}{{^required}} = default{{/required}}{{^-last}}, {{/-last}}{{/allParams}})
     {
         string path = "{{{path}}}";
         {{#pathParams}}
@@ -61,7 +67,8 @@ public class {{classname}} : BaseApi
                 headerParams,
                 {{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}},
 {{^produces}}                [],{{/produces}}{{#produces}}{{#-first}}                {{operationId}}Accepts,{{/-first}}{{/produces}}
-                {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}}
+                {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
+                {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}}
             )
             .ConfigureAwait(false);
         return result ?? throw new InvalidOperationException("Expected non-null response body");
@@ -74,7 +81,8 @@ public class {{classname}} : BaseApi
                 headerParams,
                 {{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}},
 {{^produces}}                [],{{/produces}}{{#produces}}{{#-first}}                {{operationId}}Accepts,{{/-first}}{{/produces}}
-                {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}}
+                {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
+                {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}}
             )
             .ConfigureAwait(false);
         {{/returnType}}

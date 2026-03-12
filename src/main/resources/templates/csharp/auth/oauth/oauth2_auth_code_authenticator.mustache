@@ -1,0 +1,109 @@
+#pragma warning disable IDE0290 // Use primary constructor
+
+namespace {{packageName}}.Auth.OAuth;
+
+/// <summary>
+/// Authenticator for the OAuth2 Authorization Code flow.
+/// </summary>
+public sealed class OAuth2AuthorizationCodeAuthenticator : BaseAuthenticator
+{
+    private readonly string _host;
+    private readonly string _clientId;
+    private readonly string _clientSecret;
+    private readonly Uri _authorizationUrl;
+    private readonly Uri _tokenUrl;
+    private readonly Uri _redirectUri;
+    private readonly string[] _scopes;
+    private readonly OAuth2TokenManager _tokenManager = new();
+    private bool _tokenExchanged;
+
+    public OAuth2AuthorizationCodeAuthenticator(
+        string host,
+        string clientId,
+        string clientSecret,
+        Uri authorizationUrl,
+        Uri tokenUrl,
+        Uri redirectUri,
+        string[] scopes
+    )
+    {
+        _host = host;
+        _clientId = clientId;
+        _clientSecret = clientSecret;
+        _authorizationUrl = authorizationUrl;
+        _tokenUrl = tokenUrl;
+        _redirectUri = redirectUri;
+        _scopes = [.. scopes];
+    }
+
+    /// <summary>
+    /// Builds the URL to redirect the user to for authorization.
+    /// </summary>
+    public Uri BuildAuthorizationUrl(string? state = null)
+    {
+        Dictionary<string, string> parameters = new()
+        {
+            ["response_type"] = "code",
+            ["client_id"] = _clientId,
+            ["redirect_uri"] = _redirectUri.ToString(),
+        };
+        if (_scopes.Length > 0)
+        {
+            parameters["scope"] = string.Join(" ", _scopes);
+        }
+
+        if (state is not null)
+        {
+            parameters["state"] = state;
+        }
+
+        string query = string.Join(
+            "&",
+            parameters.Select(p =>
+                Uri.EscapeDataString(p.Key) + "=" + Uri.EscapeDataString(p.Value)
+            )
+        );
+        return new Uri(_authorizationUrl + "?" + query);
+    }
+
+    /// <summary>
+    /// Exchanges an authorization code for an access token.
+    /// </summary>
+    public async Task ExchangeCodeAsync(string code)
+    {
+        Dictionary<string, string> parameters = new()
+        {
+            ["grant_type"] = "authorization_code",
+            ["code"] = code,
+            ["client_id"] = _clientId,
+            ["client_secret"] = _clientSecret,
+            ["redirect_uri"] = _redirectUri.ToString(),
+        };
+        _ = await _tokenManager.GetAccessTokenAsync(_tokenUrl, parameters).ConfigureAwait(false);
+        _tokenExchanged = true;
+    }
+
+    /// <inheritdoc/>
+    public override string GetHost()
+    {
+        return _host;
+    }
+
+    /// <inheritdoc/>
+    public override Dictionary<string, string> GetAuthHeaders()
+    {
+        if (!_tokenExchanged)
+        {
+            throw new InvalidOperationException(
+                "Must call ExchangeCodeAsync() before making API requests"
+            );
+        }
+
+        Dictionary<string, string> parameters = new() { ["grant_type"] = "refresh_token" };
+        string token = _tokenManager
+            .GetAccessTokenAsync(_tokenUrl, parameters)
+            .GetAwaiter()
+            .GetResult();
+        return new() { ["Authorization"] = "Bearer " + token };
+    }
+}

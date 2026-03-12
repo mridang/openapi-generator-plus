@@ -10,6 +10,7 @@ Do not edit the class manually.
 """
 
 from petstore_client.auth.authenticator import Authenticator
+from petstore_client.auth.bearer_authenticator import BearerAuthenticator
 from petstore_client.configuration import Configuration
 from petstore_client.default_api_client import DefaultApiClient
 from petstore_client.api.pet_api import PetApi
@@ -35,3 +36,16 @@ class Client:
         api_client = DefaultApiClient(config)
         self.pet: PetApi = PetApi(api_client, config)
         self.store: StoreApi = StoreApi(api_client, config)
+
+    @classmethod
+    def with_token(cls, host: str, access_token: str) -> 'Client':
+        """Creates a client authenticated with a static Bearer token.
+
+        Args:
+            host: API base URL.
+            access_token: Bearer token.
+
+        Returns:
+            Configured client instance.
+        """
+        return cls(BearerAuthenticator(host, access_token))

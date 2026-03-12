@@ -3,6 +3,7 @@ package com.example.petstore;
 import com.example.petstore.api.PetApi;
 import com.example.petstore.api.StoreApi;
 import com.example.petstore.auth.Authenticator;
+import com.example.petstore.auth.BearerAuthenticator;
 
 /**
  * Unified entry point for all API services. Takes an {@link Authenticator} and exposes each API
@@ -28,5 +29,16 @@ public class Client {
     ApiClient apiClient = new DefaultApiClient(config);
     this.pet = new PetApi(apiClient, config);
     this.store = new StoreApi(apiClient, config);
+  }
+
+  /**
+   * Creates a client authenticated with a static Bearer token.
+   *
+   * @param host API base URL.
+   * @param accessToken Bearer token.
+   * @return Configured client instance.
+   */
+  public static Client withToken(String host, String accessToken) {
+    return new Client(new BearerAuthenticator(host, accessToken));
   }
 }

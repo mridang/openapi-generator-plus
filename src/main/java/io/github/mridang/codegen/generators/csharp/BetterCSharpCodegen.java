@@ -245,11 +245,84 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
 
     @Override
     protected void registerAuthSupportingFiles() {
-        // Auth supporting files not yet implemented for C#
+        String invokerFolder =
+                sourceFolder + File.separator + packageName.replace(".", File.separator);
+        String authFolder = invokerFolder + File.separator + "Auth";
+        String oauthFolder = authFolder + File.separator + "OAuth";
+
+        supportingFiles.add(
+                new SupportingFile(
+                        "auth/base_authenticator.mustache", authFolder, "BaseAuthenticator.cs"));
+        if (hasBasicAuth) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "auth/basic_authenticator.mustache",
+                            authFolder,
+                            "BasicAuthenticator.cs"));
+        }
+        if (hasBearerAuth) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "auth/bearer_authenticator.mustache",
+                            authFolder,
+                            "BearerAuthenticator.cs"));
+        }
+        if (hasApiKeyAuth) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "auth/api_key_authenticator.mustache",
+                            authFolder,
+                            "ApiKeyAuthenticator.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "auth/api_key_location.mustache", authFolder, "ApiKeyLocation.cs"));
+        }
+        if (hasAnyOAuth2 || hasOpenIdConnect) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "auth/oauth/oauth2_token_manager.mustache",
+                            oauthFolder,
+                            "OAuth2TokenManager.cs"));
+        }
+        if (hasOAuth2ClientCredentials) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "auth/oauth/oauth2_client_credentials_authenticator.mustache",
+                            oauthFolder,
+                            "OAuth2ClientCredentialsAuthenticator.cs"));
+        }
+        if (hasOAuth2Password) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "auth/oauth/oauth2_password_authenticator.mustache",
+                            oauthFolder,
+                            "OAuth2PasswordAuthenticator.cs"));
+        }
+        if (hasOAuth2AuthorizationCode) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "auth/oauth/oauth2_auth_code_authenticator.mustache",
+                            oauthFolder,
+                            "OAuth2AuthorizationCodeAuthenticator.cs"));
+        }
+        if (hasOAuth2Implicit) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "auth/oauth/oauth2_implicit_authenticator.mustache",
+                            oauthFolder,
+                            "OAuth2ImplicitAuthenticator.cs"));
+        }
+        if (hasOpenIdConnect) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "auth/oauth/openid_connect_authenticator.mustache",
+                            oauthFolder,
+                            "OpenIdConnectAuthenticator.cs"));
+        }
     }
 
     @Override
     protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
-        // Per-scheme authenticators not yet implemented for C#
+        // Per-scheme authenticators are not generated for C#
     }
 }
