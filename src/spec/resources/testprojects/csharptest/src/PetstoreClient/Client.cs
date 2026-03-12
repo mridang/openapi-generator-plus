@@ -7,8 +7,10 @@ namespace PetstoreClient;
 /// Unified entry point for all API services. Takes an <see cref="IAuthenticator"/>
 /// and exposes each API group as a typed property.
 /// </summary>
-public class Client
+public sealed class Client : IDisposable
 {
+    private readonly DefaultApiClient _apiClient;
+
     public PetApi Pet { get; }
 
     public StoreApi Store { get; }
@@ -19,14 +21,15 @@ public class Client
     /// <param name="authenticator">Provides host URL and auth headers.</param>
     public Client(IAuthenticator authenticator)
     {
-        var config = new Configuration { BaseUrl = authenticator.GetHost() };
-        foreach (var header in authenticator.GetAuthHeaders())
+        ArgumentNullException.ThrowIfNull(authenticator);
+        Configuration config = new() { BaseUrl = authenticator.GetHost() };
+        foreach (KeyValuePair<string, string> header in authenticator.GetAuthHeaders())
         {
             config.DefaultHeaders[header.Key] = header.Value;
         }
-        var apiClient = new DefaultApiClient(config);
-        Pet = new PetApi(apiClient, config);
-        Store = new StoreApi(apiClient, config);
+        _apiClient = new DefaultApiClient(config);
+        Pet = new PetApi(_apiClient, config);
+        Store = new StoreApi(_apiClient, config);
     }
 
     /// <summary>
@@ -35,14 +38,27 @@ public class Client
     /// <param name="host">API base URL.</param>
     /// <param name="accessToken">Bearer token.</param>
     /// <returns>Configured client instance.</returns>
-    public static Client WithToken(string host, string accessToken) =>
-        new(new TokenAuthenticator(host, accessToken));
+    public static Client WithToken(string host, string accessToken)
+    {
+        return new Client(new TokenAuthenticator(host, accessToken));
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        _apiClient.Dispose();
+    }
 
     private sealed class TokenAuthenticator(string host, string accessToken) : IAuthenticator
     {
-        public string GetHost() => host;
+        public string GetHost()
+        {
+            return host;
+        }
 
-        public Dictionary<string, string> GetAuthHeaders() =>
-            new() { ["Authorization"] = $"Bearer {accessToken}" };
+        public Dictionary<string, string> GetAuthHeaders()
+        {
+            return new() { ["Authorization"] = $"Bearer {accessToken}" };
+        }
     }
 }

@@ -1,0 +1,76 @@
+import type { Authenticator } from '../authenticator.js';
+import { OAuth2AuthorizationCodeAuthenticator } from './oauth2-auth-code-authenticator.js';
+
+export class OpenIdConnectAuthenticator implements Authenticator {
+  private readonly host: string;
+  private readonly openIdConnectUrl: string;
+  private readonly clientId: string;
+  private readonly clientSecret: string;
+  private readonly redirectUri: string;
+  private readonly scopes: string[];
+  private delegate: OAuth2AuthorizationCodeAuthenticator | null = null;
+
+  constructor(
+    host: string,
+    openIdConnectUrl: string,
+    clientId: string,
+    clientSecret: string,
+    redirectUri: string,
+    scopes: string[]
+  ) {
+    this.host = host;
+    this.openIdConnectUrl = openIdConnectUrl;
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
+    this.redirectUri = redirectUri;
+    this.scopes = [...scopes];
+  }
+
+  private async getDelegate(): Promise<OAuth2AuthorizationCodeAuthenticator> {
+    if (!this.delegate) {
+      const response = await fetch(this.openIdConnectUrl);
+      const discovery = (await response.json()) as Record<string, unknown>;
+      this.delegate = new OAuth2AuthorizationCodeAuthenticator(
+        this.host,
+        this.clientId,
+        this.clientSecret,
+        discovery.authorization_endpoint as string,
+        discovery.token_endpoint as string,
+        this.redirectUri,
+        this.scopes
+      );
+    }
+    return this.delegate;
+  }
+
+  async buildAuthorizationUrl(state?: string): Promise<string> {
+    const delegate = await this.getDelegate();
+    return delegate.buildAuthorizationUrl(state);
+  }
+
+  async exchangeCode(code: string): Promise<void> {
+    const delegate = await this.getDelegate();
+    await delegate.exchangeCode(code);
+  }
+
+  getHost(): string {
+    return this.host;
+  }
+
+  getAuthHeaders(): Record<string, string> {
+    throw new Error('Use getAuthHeadersAsync() instead');
+  }
+
+  async getAuthHeadersAsync(): Promise<Record<string, string>> {
+    const delegate = await this.getDelegate();
+    return delegate.getAuthHeadersAsync();
+  }
+
+  getQueryParams(): Record<string, string> {
+    return {};
+  }
+
+  getCookieParams(): Record<string, string> {
+    return {};
+  }
+}

@@ -9,6 +9,7 @@ from ..object_serializer import ObjectSerializer
 from ..header_selector import HeaderSelector
 from ..trace_context_util import inject_trace_context
 from ..exceptions import ApiException
+from ..auth.authenticator import Authenticator
 
 T = TypeVar('T')
 
@@ -26,12 +27,12 @@ class BaseApi:
         api_client: Optional[ApiClient] = None,
         config: Optional[Configuration] = None,
     ):
-        self.config = config or Configuration.get_default()
-        self.api_client = api_client or DefaultApiClient(self.config)
+        self._config = config or Configuration.get_default()
+        self._api_client = api_client or DefaultApiClient(self._config)
         self._object_serializer = ObjectSerializer()
         self._header_selector = HeaderSelector()
 
-    def invoke_api(
+    def _invoke_api(
         self,
         method: str,
         path: str,
@@ -41,6 +42,7 @@ class BaseApi:
         accepts: List[str],
         content_type: Optional[str],
         return_type: Optional[str],
+        auth: Optional[Authenticator] = None,
     ) -> Any:
         """Invoke an API operation.
 
@@ -52,10 +54,15 @@ class BaseApi:
         :param accepts: acceptable response content types
         :param content_type: request content type
         :param return_type: return type for deserialization (None for void)
+        :param auth: optional authenticator for operation-specific auth
         :return: deserialized response or None
         :raises ApiException: if the API call fails
         """
-        url = self.config.base_url + path
+        url = self._config.base_url + path
+
+        if auth is not None:
+            query_params.update(auth.get_query_params())
+
         if query_params:
             filtered = {k: v for k, v in query_params.items() if v is not None}
             if filtered:
@@ -63,16 +70,26 @@ class BaseApi:
 
         is_multipart = content_type == 'multipart/form-data'
         headers = self._header_selector.select_headers(accepts, content_type or '', is_multipart)
-        headers.update(self.config.default_headers)
+        headers.update(self._config.default_headers)
         if header_params:
             headers.update(header_params)
+        if auth is not None:
+            headers.update(auth.get_auth_headers())
+            cookies = auth.get_cookie_params()
+            if cookies:
+                cookie_str = '; '.join(f'{k}={v}' for k, v in cookies.items())
+                existing = headers.get('Cookie', '')
+                if existing:
+                    headers['Cookie'] = existing + '; ' + cookie_str
+                else:
+                    headers['Cookie'] = cookie_str
         inject_trace_context(headers)
 
         serialized_body = None
         if body is not None:
             serialized_body = self._object_serializer.serialize(body)
 
-        response = self.api_client.send_request(method, url, headers, serialized_body)
+        response = self._api_client.send_request(method, url, headers, serialized_body)
 
         if response.status_code < 200 or response.status_code >= 300:
             raise ApiException(

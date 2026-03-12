@@ -13,6 +13,13 @@ import javax.annotation.Nullable;
 /** StoreApi provides methods for the Store API group. */
 public class StoreApi extends BaseApi {
 
+  private static final TypeReference<Map<String, Integer>> getInventoryTypeRef =
+      new TypeReference<>() {};
+
+  private static final TypeReference<Order> getOrderByIdTypeRef = new TypeReference<>() {};
+
+  private static final TypeReference<Order> placeOrderTypeRef = new TypeReference<>() {};
+
   public StoreApi() {
     super();
   }
@@ -38,7 +45,15 @@ public class StoreApi extends BaseApi {
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     invokeApi(
-        "DELETE", path, queryParams, headerParams, null, new String[] {}, "application/json", null);
+        "DELETE",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {},
+        "application/json",
+        null,
+        null);
   }
 
   /**
@@ -60,7 +75,8 @@ public class StoreApi extends BaseApi {
         null,
         new String[] {"application/json"},
         "application/json",
-        new TypeReference<Map<String, Integer>>() {});
+        getInventoryTypeRef,
+        null);
   }
 
   /**
@@ -89,7 +105,8 @@ public class StoreApi extends BaseApi {
         null,
         new String[] {"application/json"},
         "application/json",
-        new TypeReference<Order>() {});
+        getOrderByIdTypeRef,
+        null);
   }
 
   /**
@@ -112,6 +129,7 @@ public class StoreApi extends BaseApi {
         order,
         new String[] {"application/json"},
         "application/json",
-        new TypeReference<Order>() {});
+        placeOrderTypeRef,
+        null);
   }
 }

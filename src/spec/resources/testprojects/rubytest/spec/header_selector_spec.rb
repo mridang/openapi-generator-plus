@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require 'opigen_client/header_selector'
+require 'petstore_client/header_selector'
 
-describe OpigenClient::HeaderSelector do
+describe PetstoreClient::HeaderSelector do
   before do
-    @header_selector = OpigenClient::HeaderSelector.new
+    @header_selector = PetstoreClient::HeaderSelector.new
   end
 
   describe '#json_mime?' do

@@ -34,11 +34,7 @@ public class ObjectSerializer
     /// </summary>
     public T? Deserialize<T>(string? json)
     {
-        if (string.IsNullOrEmpty(json))
-        {
-            return default;
-        }
-        return JsonSerializer.Deserialize<T>(json, _options);
+        return string.IsNullOrEmpty(json) ? default : JsonSerializer.Deserialize<T>(json, _options);
     }
 
     /// <summary>
@@ -46,23 +42,13 @@ public class ObjectSerializer
     /// </summary>
     public static string ToPathValue(object? value)
     {
-        if (value == null)
-        {
-            return "";
-        }
-        if (value is bool b)
-        {
-            return b ? "true" : "false";
-        }
-        if (value is DateTimeOffset dto)
-        {
-            return dto.ToString("o");
-        }
-        if (value is DateTime dt)
-        {
-            return dt.ToString("o");
-        }
-        return value.ToString() ?? "";
+        return value == null ? ""
+            : value is bool b
+                ? b ? "true"
+                    : "false"
+            : value is DateTimeOffset dto ? dto.ToString("o")
+            : value is DateTime dt ? dt.ToString("o")
+            : value.ToString() ?? "";
     }
 
     /// <summary>
@@ -76,8 +62,8 @@ public class ObjectSerializer
         }
         if (value is IList list)
         {
-            var items = new List<string>();
-            foreach (var item in list)
+            List<string> items = [];
+            foreach (object? item in list)
             {
                 items.Add(item?.ToString() ?? "");
             }
@@ -85,7 +71,7 @@ public class ObjectSerializer
             {
                 return items;
             }
-            var sep = collectionFormat switch
+            string sep = collectionFormat switch
             {
                 "ssv" => " ",
                 "tsv" => "\t",
@@ -94,19 +80,15 @@ public class ObjectSerializer
             };
             return string.Join(sep, items);
         }
-        if (value is bool b)
-        {
-            return b ? "true" : "false";
-        }
-        if (value is DateTimeOffset dto)
-        {
-            return dto.ToString("o");
-        }
-        if (value is DateTime dt)
-        {
-            return dt.ToString("o");
-        }
-        return value.ToString() ?? "";
+        return value is bool b
+            ? b
+                ? "true"
+                : "false"
+            : value is DateTimeOffset dto
+                ? dto.ToString("o")
+                : value is DateTime dt
+                    ? dt.ToString("o")
+                    : value.ToString() ?? "";
     }
 
     /// <summary>
@@ -120,26 +102,22 @@ public class ObjectSerializer
         }
         if (value is IList list)
         {
-            var items = new List<string>();
-            foreach (var item in list)
+            List<string> items = [];
+            foreach (object? item in list)
             {
                 items.Add(item?.ToString() ?? "");
             }
             return string.Join(",", items);
         }
-        if (value is bool b)
-        {
-            return b ? "true" : "false";
-        }
-        if (value is DateTimeOffset dto)
-        {
-            return dto.ToString("o");
-        }
-        if (value is DateTime dt)
-        {
-            return dt.ToString("o");
-        }
-        return value.ToString() ?? "";
+        return value is bool b
+            ? b
+                ? "true"
+                : "false"
+            : value is DateTimeOffset dto
+                ? dto.ToString("o")
+                : value is DateTime dt
+                    ? dt.ToString("o")
+                    : value.ToString() ?? "";
     }
 
     /// <summary>
@@ -147,28 +125,18 @@ public class ObjectSerializer
     /// </summary>
     public static string ToFormValue(object? value)
     {
-        if (value == null)
-        {
-            return "";
-        }
-        if (value is bool b)
-        {
-            return b ? "true" : "false";
-        }
-        if (value is DateTimeOffset dto)
-        {
-            return dto.ToString("o");
-        }
-        if (value is DateTime dt)
-        {
-            return dt.ToString("o");
-        }
-        return value.ToString() ?? "";
+        return value == null ? ""
+            : value is bool b
+                ? b ? "true"
+                    : "false"
+            : value is DateTimeOffset dto ? dto.ToString("o")
+            : value is DateTime dt ? dt.ToString("o")
+            : value.ToString() ?? "";
     }
 
     private static JsonSerializerOptions CreateDefaultOptions()
     {
-        var options = new JsonSerializerOptions
+        JsonSerializerOptions options = new()
         {
             PropertyNamingPolicy = null,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,

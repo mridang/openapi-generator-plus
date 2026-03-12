@@ -4,6 +4,11 @@ import com.example.petstore.ApiClient;
 import com.example.petstore.ApiException;
 import com.example.petstore.Configuration;
 import com.example.petstore.ObjectSerializer;
+import com.example.petstore.auth.AdminBasicAuthenticator;
+import com.example.petstore.auth.ApiKeyHeaderAuthenticator;
+import com.example.petstore.auth.Authenticator;
+import com.example.petstore.auth.PetStoreBearerAuthenticator;
+import com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator;
 import com.example.petstore.models.Pet;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.HashMap;
@@ -13,6 +18,14 @@ import javax.annotation.Nullable;
 
 /** PetApi provides methods for the Pet API group. */
 public class PetApi extends BaseApi {
+
+  private static final TypeReference<Pet> addPetTypeRef = new TypeReference<>() {};
+
+  private static final TypeReference<List<Pet>> findPetsByStatusTypeRef = new TypeReference<>() {};
+
+  private static final TypeReference<Pet> getPetByIdTypeRef = new TypeReference<>() {};
+
+  private static final TypeReference<Pet> updatePetTypeRef = new TypeReference<>() {};
 
   public PetApi() {
     super();
@@ -30,7 +43,17 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    */
   @Nullable
-  public Pet addPet(Pet pet) throws ApiException {
+  public Pet addPet(PetStoreBearerAuthenticator auth, Pet pet) throws ApiException {
+    return addPetInternal(auth, pet);
+  }
+
+  @Nullable
+  public Pet addPet(ApiKeyHeaderAuthenticator auth, Pet pet) throws ApiException {
+    return addPetInternal(auth, pet);
+  }
+
+  @Nullable
+  private Pet addPetInternal(Authenticator auth, Pet pet) throws ApiException {
     if (pet == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'pet' when calling addPet");
@@ -46,7 +69,8 @@ public class PetApi extends BaseApi {
         pet,
         new String[] {"application/json"},
         "application/json",
-        new TypeReference<Pet>() {});
+        addPetTypeRef,
+        auth);
   }
 
   /**
@@ -55,7 +79,16 @@ public class PetApi extends BaseApi {
    * @param petId Pet id to delete (required)
    * @throws ApiException if fails to make API call
    */
-  public void deletePet(Long petId) throws ApiException {
+  public void deletePet(MachineAuthClientCredentialsAuthenticator auth, Long petId)
+      throws ApiException {
+    deletePetInternal(auth, petId);
+  }
+
+  public void deletePet(AdminBasicAuthenticator auth, Long petId) throws ApiException {
+    deletePetInternal(auth, petId);
+  }
+
+  private void deletePetInternal(Authenticator auth, Long petId) throws ApiException {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling deletePet");
@@ -65,7 +98,15 @@ public class PetApi extends BaseApi {
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     invokeApi(
-        "DELETE", path, queryParams, headerParams, null, new String[] {}, "application/json", null);
+        "DELETE",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {},
+        "application/json",
+        null,
+        auth);
   }
 
   /**
@@ -91,7 +132,8 @@ public class PetApi extends BaseApi {
         null,
         new String[] {"application/json"},
         "application/json",
-        new TypeReference<List<Pet>>() {});
+        findPetsByStatusTypeRef,
+        null);
   }
 
   /**
@@ -119,7 +161,8 @@ public class PetApi extends BaseApi {
         null,
         new String[] {"application/json"},
         "application/json",
-        new TypeReference<Pet>() {});
+        getPetByIdTypeRef,
+        null);
   }
 
   /**
@@ -152,6 +195,7 @@ public class PetApi extends BaseApi {
         pet,
         new String[] {"application/json"},
         "application/json",
-        new TypeReference<Pet>() {});
+        updatePetTypeRef,
+        null);
   }
 }

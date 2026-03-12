@@ -1,0 +1,57 @@
+# frozen_string_literal: true
+
+require 'json'
+require 'net/http'
+require 'uri'
+
+module PetstoreClient
+  module Auth
+    module OAuth
+      # Authenticator for OpenID Connect.
+      class OpenIdConnectAuthenticator < Authenticator
+        attr_reader :host
+
+        # rubocop:disable Metrics/ParameterLists
+        def initialize(host, openid_connect_url, client_id, client_secret, redirect_uri, scopes)
+          super()
+          @host = host
+          @openid_connect_url = openid_connect_url
+          @client_id = client_id
+          @client_secret = client_secret
+          @redirect_uri = redirect_uri
+          @scopes = scopes.freeze
+          @delegate = nil
+        end
+        # rubocop:enable Metrics/ParameterLists
+
+        def build_authorization_url(state = nil)
+          resolve_delegate.build_authorization_url(state)
+        end
+
+        def exchange_code(code)
+          resolve_delegate.exchange_code(code)
+        end
+
+        def auth_headers
+          resolve_delegate.auth_headers
+        end
+
+        private
+
+        def resolve_delegate
+          return @delegate if @delegate
+
+          uri = URI.parse(@openid_connect_url)
+          response = Net::HTTP.get_response(uri)
+          discovery = JSON.parse(response.body)
+          @delegate = OAuth2AuthorizationCodeAuthenticator.new(
+            @host, @client_id, @client_secret,
+            discovery['authorization_endpoint'],
+            discovery['token_endpoint'],
+            @redirect_uri, @scopes
+          )
+        end
+      end
+    end
+  end
+end

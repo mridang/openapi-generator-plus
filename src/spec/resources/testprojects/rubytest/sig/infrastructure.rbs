@@ -1,4 +1,4 @@
-module OpigenClient
+module PetstoreClient
   def self.configure: () { (Configuration) -> void } -> void
                     | () -> Configuration
 
@@ -87,16 +87,76 @@ module OpigenClient
     def build_accept_header: (String, Integer) -> String
   end
 
+  module Auth
+    class Authenticator
+      def host: () -> String
+      def auth_headers: () -> Hash[String, String]
+      def query_params: () -> Hash[String, String]
+      def cookie_params: () -> Hash[String, String]
+    end
+
+    class BasicAuthenticator < Authenticator
+      def initialize: (String, String, String) -> void
+    end
+
+    class BearerAuthenticator < Authenticator
+      def initialize: (String, String) -> void
+    end
+
+    class ApiKeyAuthenticator < Authenticator
+      def initialize: (String, String, String, Symbol) -> void
+    end
+
+    module OAuth
+      class OAuth2ClientCredentialsAuthenticator < Authenticator
+        def initialize: (String, String, String, String, Array[String]) -> void
+      end
+      class OAuth2PasswordAuthenticator < Authenticator
+        def initialize: (String, String, String, String, String, String, Array[String]) -> void
+      end
+      class OAuth2AuthorizationCodeAuthenticator < Authenticator
+        def initialize: (String, String, String, String, String, String, Array[String]) -> void
+        def build_authorization_url: (?String?) -> String
+        def exchange_code: (String) -> void
+      end
+      class OAuth2ImplicitAuthenticator < Authenticator
+        def initialize: (String, String, Array[String]) -> void
+        def build_authorization_url: (?String?) -> String
+        def access_token=: (String) -> void
+      end
+      class OpenIdConnectAuthenticator < Authenticator
+        def initialize: (String, String, String, String, String, Array[String]) -> void
+        def build_authorization_url: (?String?) -> String
+        def exchange_code: (String) -> void
+        private
+        def resolve_delegate: () -> OAuth2AuthorizationCodeAuthenticator
+      end
+
+      class OAuth2TokenManager
+        def initialize: () -> void
+        def get_access_token: (String, Hash[String, String]) -> String
+        def access_token=: (String) -> void
+        private
+        def fetch_token: (String, Hash[String, String]) -> void
+      end
+    end
+  end
+
+  class Client
+    attr_reader pet: Api::PetApi
+    attr_reader store: Api::StoreApi
+    def initialize: (Auth::Authenticator) -> void
+    def self.with_token: (String, String) -> Client
+  end
+
   module Models
   end
 
   module Api
     class BaseApi
-      attr_reader api_client: ApiClient
       attr_reader config: Configuration
-      attr_reader header_selector: HeaderSelector
       def initialize: (?ApiClient?, ?Configuration) -> void
-      def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?) -> untyped
+      def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, Auth::Authenticator?) -> untyped
       def build_collection_param: (Array[untyped], Symbol) -> untyped
       private
       def build_query_string: (Hash[String, untyped]) -> String

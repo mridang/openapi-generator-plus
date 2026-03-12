@@ -1,0 +1,45 @@
+package com.example.petstore.auth.oauth;
+
+import com.example.petstore.auth.Authenticator;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class OAuth2ClientCredentialsAuthenticator implements Authenticator {
+
+  private final String host;
+  private final String clientId;
+  private final String clientSecret;
+  private final String tokenUrl;
+  private final List<String> scopes;
+  private final OAuth2TokenManager tokenManager;
+
+  public OAuth2ClientCredentialsAuthenticator(
+      String host, String clientId, String clientSecret, String tokenUrl, List<String> scopes) {
+    this.host = host;
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
+    this.tokenUrl = tokenUrl;
+    this.scopes = List.copyOf(scopes);
+    this.tokenManager = new OAuth2TokenManager();
+  }
+
+  @Override
+  public String getHost() {
+    return host;
+  }
+
+  @Override
+  public Map<String, String> getAuthHeaders() {
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
+    params.put("client_id", clientId);
+    params.put("client_secret", clientSecret);
+    if (!scopes.isEmpty()) {
+      params.put("scope", String.join(" ", scopes));
+    }
+    String token = tokenManager.getAccessToken(tokenUrl, params);
+    return Collections.singletonMap("Authorization", "Bearer " + token);
+  }
+}

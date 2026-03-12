@@ -6,18 +6,11 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class DryFood
+public class DryFood(string FoodType, double WeightKg)
 {
     [JsonPropertyName("foodType")]
-    public string FoodType { get; set; }
+    public string FoodType { get; set; } = FoodType;
 
     [JsonPropertyName("weightKg")]
-    public double WeightKg { get; set; }
-
-    [JsonConstructor]
-    public DryFood(string FoodType, double WeightKg)
-    {
-        this.FoodType = FoodType;
-        this.WeightKg = WeightKg;
-    }
+    public double WeightKg { get; set; } = WeightKg;
 }

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from urllib.parse import quote
 
 from petstore_client.models.order import Order
@@ -35,7 +35,7 @@ class StoreApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
-        return self.invoke_api(
+        return self._invoke_api(
             'DELETE',
             path,
             query_params,
@@ -43,6 +43,7 @@ class StoreApi(BaseApi):
             body,
             [],
             'application/json',
+            None,
             None,
         )
 
@@ -57,7 +58,7 @@ class StoreApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
-        return self.invoke_api(
+        return self._invoke_api(
             'GET',
             path,
             query_params,
@@ -66,6 +67,7 @@ class StoreApi(BaseApi):
             ['application/json'],
             'application/json',
             'Dict[str, int]',
+            None,
         )
 
     def get_order_by_id(
@@ -84,7 +86,7 @@ class StoreApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
-        return self.invoke_api(
+        return self._invoke_api(
             'GET',
             path,
             query_params,
@@ -93,6 +95,7 @@ class StoreApi(BaseApi):
             ['application/json'],
             'application/json',
             'Order',
+            None,
         )
 
     def place_order(
@@ -108,7 +111,7 @@ class StoreApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = order
 
-        return self.invoke_api(
+        return self._invoke_api(
             'POST',
             path,
             query_params,
@@ -117,4 +120,5 @@ class StoreApi(BaseApi):
             ['application/json'],
             'application/json',
             'Order',
+            None,
         )

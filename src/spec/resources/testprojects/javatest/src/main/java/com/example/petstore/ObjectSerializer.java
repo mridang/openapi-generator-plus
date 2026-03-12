@@ -22,7 +22,7 @@ import javax.annotation.Nullable;
  * methods provide consistent value conversion for URL path, query string, header, and form
  * parameters.
  */
-public class ObjectSerializer {
+public final class ObjectSerializer {
 
   private final ObjectMapper objectMapper;
 
@@ -50,7 +50,7 @@ public class ObjectSerializer {
    * @return JSON string representation, or "null" if object is null
    * @throws SerializationException if serialization fails
    */
-  public String serialize(Object object) throws SerializationException {
+  public String serialize(@Nullable Object object) throws SerializationException {
     try {
       return objectMapper.writeValueAsString(object);
     } catch (JsonProcessingException e) {

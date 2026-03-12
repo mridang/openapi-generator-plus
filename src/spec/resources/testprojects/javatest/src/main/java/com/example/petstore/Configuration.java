@@ -12,8 +12,6 @@ import javax.annotation.Nullable;
  */
 public class Configuration {
 
-  @Nullable private static volatile Configuration defaultInstance;
-
   /** Base URL for all API requests. */
   private String baseUrl = "/api/v3";
 
@@ -48,31 +46,12 @@ public class Configuration {
   @Nullable private Integer retries = null;
 
   /**
-   * Return the default configuration instance, creating it lazily if needed.
+   * Create a new default configuration.
    *
-   * @return the default configuration
+   * @return a new configuration with default settings
    */
   public static Configuration getDefault() {
-    Configuration instance = defaultInstance;
-    if (instance == null) {
-      synchronized (Configuration.class) {
-        instance = defaultInstance;
-        if (instance == null) {
-          instance = new Configuration();
-          defaultInstance = instance;
-        }
-      }
-    }
-    return instance;
-  }
-
-  /**
-   * Set the default configuration instance.
-   *
-   * @param configuration the configuration to use as default
-   */
-  public static void setDefault(Configuration configuration) {
-    defaultInstance = configuration;
+    return new Configuration();
   }
 
   public String getBaseUrl() {

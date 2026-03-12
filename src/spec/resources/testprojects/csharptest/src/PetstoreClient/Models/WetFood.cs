@@ -6,18 +6,11 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class WetFood
+public class WetFood(string FoodType, int VolumeMl)
 {
     [JsonPropertyName("foodType")]
-    public string FoodType { get; set; }
+    public string FoodType { get; set; } = FoodType;
 
     [JsonPropertyName("volumeMl")]
-    public int VolumeMl { get; set; }
-
-    [JsonConstructor]
-    public WetFood(string FoodType, int VolumeMl)
-    {
-        this.FoodType = FoodType;
-        this.VolumeMl = VolumeMl;
-    }
+    public int VolumeMl { get; set; } = VolumeMl;
 }

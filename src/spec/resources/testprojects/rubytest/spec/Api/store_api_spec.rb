@@ -4,9 +4,9 @@
 
 require 'spec_helper'
 
-describe OpigenClient::Api::StoreApi do
+describe PetstoreClient::Api::StoreApi do
   before do
-    @api = OpigenClient::Api::StoreApi.new
+    @api = PetstoreClient::Api::StoreApi.new
   end
 
   describe '#get_inventory' do
@@ -19,7 +19,7 @@ describe OpigenClient::Api::StoreApi do
 
   describe '#place_order' do
     it 'places an order' do
-      order = OpigenClient::Models::Order.new(
+      order = PetstoreClient::Models::Order.new(
         id: 1,
         pet_id: 12345,
         quantity: 1,

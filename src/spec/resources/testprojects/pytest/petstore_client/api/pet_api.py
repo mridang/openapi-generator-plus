@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from urllib.parse import quote
 
 from petstore_client.models.pet import Pet
@@ -8,6 +8,7 @@ from ..default_api_client import DefaultApiClient
 from ..configuration import Configuration
 from .base_api import BaseApi
 from ..object_serializer import ObjectSerializer
+from ..auth.authenticator import Authenticator
 
 
 class PetApi(BaseApi):
@@ -22,9 +23,11 @@ class PetApi(BaseApi):
 
     def add_pet(
         self,
+        auth: Authenticator,
         pet: Pet,
     ) -> Pet:
         """Add a new pet to the store
+        :param auth: authenticator for this operation
         :param pet: Create a new pet in the store (required)
         :return: Pet
         """
@@ -35,7 +38,7 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = pet
 
-        return self.invoke_api(
+        return self._invoke_api(
             'POST',
             path,
             query_params,
@@ -44,13 +47,16 @@ class PetApi(BaseApi):
             ['application/json'],
             'application/json',
             'Pet',
+            auth,
         )
 
     def delete_pet(
         self,
+        auth: Authenticator,
         pet_id: int,
     ) -> None:
         """Deletes a pet
+        :param auth: authenticator for this operation
         :param pet_id: Pet id to delete (required)
         """
         if pet_id is None:
@@ -61,7 +67,7 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
-        return self.invoke_api(
+        return self._invoke_api(
             'DELETE',
             path,
             query_params,
@@ -70,6 +76,7 @@ class PetApi(BaseApi):
             [],
             'application/json',
             None,
+            auth,
         )
 
     def find_pets_by_status(
@@ -87,7 +94,7 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
-        return self.invoke_api(
+        return self._invoke_api(
             'GET',
             path,
             query_params,
@@ -96,6 +103,7 @@ class PetApi(BaseApi):
             ['application/json'],
             'application/json',
             'List[Pet]',
+            None,
         )
 
     def get_pet_by_id(
@@ -115,7 +123,7 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
-        return self.invoke_api(
+        return self._invoke_api(
             'GET',
             path,
             query_params,
@@ -124,6 +132,7 @@ class PetApi(BaseApi):
             ['application/json'],
             'application/json',
             'Pet',
+            None,
         )
 
     def update_pet(
@@ -146,7 +155,7 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = pet
 
-        return self.invoke_api(
+        return self._invoke_api(
             'PUT',
             path,
             query_params,
@@ -155,4 +164,5 @@ class PetApi(BaseApi):
             ['application/json'],
             'application/json',
             'Pet',
+            None,
         )

@@ -1,0 +1,85 @@
+package com.example.petstore.auth.oauth;
+
+import com.example.petstore.auth.Authenticator;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.List;
+import java.util.Map;
+import javax.annotation.Nullable;
+
+public class OpenIdConnectAuthenticator implements Authenticator {
+
+  private final String host;
+  private final String openIdConnectUrl;
+  private final String clientId;
+  private final String clientSecret;
+  private final String redirectUri;
+  private final List<String> scopes;
+  @Nullable private OAuth2AuthorizationCodeAuthenticator delegate;
+
+  public OpenIdConnectAuthenticator(
+      String host,
+      String openIdConnectUrl,
+      String clientId,
+      String clientSecret,
+      String redirectUri,
+      List<String> scopes) {
+    this.host = host;
+    this.openIdConnectUrl = openIdConnectUrl;
+    this.clientId = clientId;
+    this.clientSecret = clientSecret;
+    this.redirectUri = redirectUri;
+    this.scopes = List.copyOf(scopes);
+  }
+
+  private synchronized OAuth2AuthorizationCodeAuthenticator getDelegate() {
+    if (delegate == null) {
+      try {
+        HttpClient httpClient = HttpClient.newHttpClient();
+        HttpRequest request =
+            HttpRequest.newBuilder().uri(URI.create(openIdConnectUrl)).GET().build();
+        HttpResponse<String> response =
+            httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode discovery = mapper.readTree(response.body());
+        String authorizationEndpoint = discovery.get("authorization_endpoint").asText();
+        String tokenEndpoint = discovery.get("token_endpoint").asText();
+        delegate =
+            new OAuth2AuthorizationCodeAuthenticator(
+                host,
+                clientId,
+                clientSecret,
+                authorizationEndpoint,
+                tokenEndpoint,
+                redirectUri,
+                scopes);
+      } catch (IOException | InterruptedException e) {
+        throw new RuntimeException("Failed to fetch OpenID Connect discovery document", e);
+      }
+    }
+    return delegate;
+  }
+
+  public String buildAuthorizationUrl(String state) {
+    return getDelegate().buildAuthorizationUrl(state);
+  }
+
+  public void exchangeCode(String code) {
+    getDelegate().exchangeCode(code);
+  }
+
+  @Override
+  public String getHost() {
+    return host;
+  }
+
+  @Override
+  public Map<String, String> getAuthHeaders() {
+    return getDelegate().getAuthHeaders();
+  }
+}

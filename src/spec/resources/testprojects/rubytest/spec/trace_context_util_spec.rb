@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
-require 'opigen_client/trace_context_util'
+require 'petstore_client/trace_context_util'
 
-describe OpigenClient::TraceContextUtil do
+describe PetstoreClient::TraceContextUtil do
   describe '.inject_trace_context' do
     it 'injects traceparent when OpenTelemetry is available' do
       mock_propagation = Object.new
@@ -18,9 +18,9 @@ describe OpigenClient::TraceContextUtil do
 
       Object.const_set(:OpenTelemetry, stub_otel)
       begin
-        OpigenClient::TraceContextUtil.stub(:require, true) do
+        PetstoreClient::TraceContextUtil.stub(:require, true) do
           headers = {}
-          OpigenClient::TraceContextUtil.inject_trace_context(headers)
+          PetstoreClient::TraceContextUtil.inject_trace_context(headers)
           _(headers).must_include('traceparent')
           _(headers['traceparent']).must_equal('00-abcdef1234567890abcdef1234567890-0123456789abcdef-01')
         end
@@ -31,13 +31,13 @@ describe OpigenClient::TraceContextUtil do
 
     it 'does not inject traceparent when OpenTelemetry is not installed' do
       headers = {}
-      OpigenClient::TraceContextUtil.inject_trace_context(headers)
+      PetstoreClient::TraceContextUtil.inject_trace_context(headers)
       _(headers).wont_include('traceparent')
     end
 
     it 'does not raise any exception' do
       headers = {}
-      OpigenClient::TraceContextUtil.inject_trace_context(headers)
+      PetstoreClient::TraceContextUtil.inject_trace_context(headers)
     end
   end
 end

@@ -6,7 +6,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class Pet
+public class Pet(string Name, List<string> PhotoUrls)
 {
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum StatusEnum
@@ -25,13 +25,13 @@ public class Pet
     public long? Id { get; set; }
 
     [JsonPropertyName("name")]
-    public string Name { get; set; }
+    public string Name { get; set; } = Name;
 
     [JsonPropertyName("category")]
     public Category? Category { get; set; }
 
     [JsonPropertyName("photoUrls")]
-    public List<string> PhotoUrls { get; set; }
+    public List<string> PhotoUrls { get; set; } = PhotoUrls;
 
     [JsonPropertyName("tags")]
     public List<Tag>? Tags { get; set; }
@@ -41,11 +41,4 @@ public class Pet
     /// </summary>
     [JsonPropertyName("status")]
     public StatusEnum? Status { get; set; }
-
-    [JsonConstructor]
-    public Pet(string Name, List<string> PhotoUrls)
-    {
-        this.Name = Name;
-        this.PhotoUrls = PhotoUrls;
-    }
 }

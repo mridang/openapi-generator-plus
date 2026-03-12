@@ -10,5 +10,15 @@ Do not edit the class manually.
 """
 
 from petstore_client.auth.authenticator import Authenticator as Authenticator
+from petstore_client.auth.basic_authenticator import BasicAuthenticator as BasicAuthenticator
+from petstore_client.auth.bearer_authenticator import BearerAuthenticator as BearerAuthenticator
+from petstore_client.auth.api_key_authenticator import ApiKeyAuthenticator as ApiKeyAuthenticator
+from petstore_client.auth.api_key_location import ApiKeyLocation as ApiKeyLocation
 
-__all__ = ['Authenticator']
+__all__ = [
+    'Authenticator',
+    'BasicAuthenticator',
+    'BearerAuthenticator',
+    'ApiKeyAuthenticator',
+    'ApiKeyLocation',
+]

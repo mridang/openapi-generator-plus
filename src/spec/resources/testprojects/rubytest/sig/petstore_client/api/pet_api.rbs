@@ -1,0 +1,12 @@
+module PetstoreClient
+  module Api
+    class PetApi < BaseApi
+      def initialize: (?::PetstoreClient::ApiClient? api_client, ?::PetstoreClient::Configuration config) -> void
+      def add_pet: (::PetstoreClient::Auth::Authenticator auth, Models::Pet pet) -> untyped
+      def delete_pet: (::PetstoreClient::Auth::Authenticator auth, Integer pet_id) -> untyped
+      def find_pets_by_status: (?Hash[Symbol, untyped] opts) -> untyped
+      def get_pet_by_id: (Integer pet_id) -> untyped
+      def update_pet: (Integer pet_id, Models::Pet pet) -> untyped
+    end
+  end
+end

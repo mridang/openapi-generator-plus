@@ -8,6 +8,7 @@ import com.example.petstore.DefaultApiClient;
 import com.example.petstore.HeaderSelector;
 import com.example.petstore.ObjectSerializer;
 import com.example.petstore.TraceContextUtil;
+import com.example.petstore.auth.Authenticator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -22,7 +23,7 @@ import javax.annotation.Nullable;
  */
 public abstract class BaseApi {
 
-  protected ApiClient apiClient;
+  protected final ApiClient apiClient;
   protected final Configuration config;
   protected final ObjectSerializer objectSerializer;
   protected final HeaderSelector headerSelector;
@@ -42,14 +43,6 @@ public abstract class BaseApi {
     this.headerSelector = new HeaderSelector();
   }
 
-  public ApiClient getApiClient() {
-    return apiClient;
-  }
-
-  public void setApiClient(ApiClient apiClient) {
-    this.apiClient = apiClient;
-  }
-
   public Configuration getConfig() {
     return config;
   }
@@ -66,6 +59,7 @@ public abstract class BaseApi {
    * @param accepts acceptable response content types
    * @param contentType request content type
    * @param returnType return type for deserialization (null for void)
+   * @param auth optional authenticator for operation-specific auth
    * @return deserialized response or null
    * @throws ApiException if the API call fails
    */
@@ -78,10 +72,18 @@ public abstract class BaseApi {
       @Nullable Object body,
       String[] accepts,
       String contentType,
-      @Nullable TypeReference<T> returnType)
+      @Nullable TypeReference<T> returnType,
+      @Nullable Authenticator auth)
       throws ApiException {
 
     String url = config.getBaseUrl() + path;
+
+    if (auth != null) {
+      for (Map.Entry<String, String> entry : auth.getQueryParams().entrySet()) {
+        queryParams.put(entry.getKey(), entry.getValue());
+      }
+    }
+
     String query = buildQueryString(queryParams);
     if (!query.isEmpty()) {
       url += "?" + query;
@@ -92,6 +94,22 @@ public abstract class BaseApi {
     headers.putAll(config.getDefaultHeaders());
     if (headerParams != null) {
       headers.putAll(headerParams);
+    }
+    if (auth != null) {
+      headers.putAll(auth.getAuthHeaders());
+      Map<String, String> cookies = auth.getCookieParams();
+      if (!cookies.isEmpty()) {
+        StringJoiner cookieJoiner = new StringJoiner("; ");
+        for (Map.Entry<String, String> entry : cookies.entrySet()) {
+          cookieJoiner.add(entry.getKey() + "=" + entry.getValue());
+        }
+        String existing = headers.get("Cookie");
+        if (existing != null && !existing.isEmpty()) {
+          headers.put("Cookie", existing + "; " + cookieJoiner);
+        } else {
+          headers.put("Cookie", cookieJoiner.toString());
+        }
+      }
     }
     TraceContextUtil.injectTraceContext(headers);
 
@@ -141,7 +159,7 @@ public abstract class BaseApi {
    * @param value the string to encode
    * @return URL-encoded string
    */
-  protected String encode(String value) {
+  String encode(String value) {
     return URLEncoder.encode(value, StandardCharsets.UTF_8);
   }
 }

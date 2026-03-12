@@ -31,7 +31,7 @@ public class RubyFormattingSpec extends AbstractFormattingSpec implements RubySp
 
   @Override
   protected Map<String, Object> getCodegenProperties() {
-    return Map.of("gemName", "opigen_client", "moduleName", "OpigenClient");
+    return Map.of("gemName", "petstore_client", "moduleName", "PetstoreClient");
   }
 
   @Override

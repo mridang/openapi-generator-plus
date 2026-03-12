@@ -7,6 +7,7 @@ use PetstoreClient\ApiException;
 use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\ObjectSerializer;
+use PetstoreClient\Auth\Authenticator;
 
 /**
  * PetApi provides methods for the Pet API group.
@@ -15,11 +16,12 @@ class PetApi extends BaseApi
 {
     /**
      * Add a new pet to the store
+     * @param Authenticator $auth Authenticator for this operation
      * @param \PetstoreClient\Models\Pet $pet Create a new pet in the store
      * @return \PetstoreClient\Models\Pet
      * @throws ApiException
      */
-    public function addPet($pet)
+    public function addPet(Authenticator $auth, $pet)
     {
         $path = '/pet';
         $queryParams = [];
@@ -35,17 +37,19 @@ class PetApi extends BaseApi
             $body,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet'
+            '\PetstoreClient\Models\Pet',
+            $auth
         );
         return $result;
     }
 
     /**
      * Deletes a pet
+     * @param Authenticator $auth Authenticator for this operation
      * @param int $petId Pet id to delete
      * @throws ApiException
      */
-    public function deletePet($petId): void
+    public function deletePet(Authenticator $auth, $petId): void
     {
         $path = '/pet/{petId}';
         $path = str_replace(
@@ -65,7 +69,8 @@ class PetApi extends BaseApi
             $body,
             [],
             'application/json',
-            null
+            null,
+            $auth
         );
     }
 
@@ -94,7 +99,7 @@ class PetApi extends BaseApi
             $body,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet[]'
+            '\PetstoreClient\Models\Pet[]',
         );
         return $result;
     }
@@ -126,7 +131,7 @@ class PetApi extends BaseApi
             $body,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet'
+            '\PetstoreClient\Models\Pet',
         );
         return $result;
     }
@@ -159,7 +164,7 @@ class PetApi extends BaseApi
             $body,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet'
+            '\PetstoreClient\Models\Pet',
         );
         return $result;
     }

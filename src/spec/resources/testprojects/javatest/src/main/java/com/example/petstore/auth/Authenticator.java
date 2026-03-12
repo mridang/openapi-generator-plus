@@ -1,5 +1,6 @@
 package com.example.petstore.auth;
 
+import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -13,4 +14,14 @@ public interface Authenticator {
 
   /** Returns the authentication headers to include in every request. */
   Map<String, String> getAuthHeaders();
+
+  /** Returns query parameters to include for authentication. */
+  default Map<String, String> getQueryParams() {
+    return Collections.emptyMap();
+  }
+
+  /** Returns cookie parameters to include for authentication. */
+  default Map<String, String> getCookieParams() {
+    return Collections.emptyMap();
+  }
 }

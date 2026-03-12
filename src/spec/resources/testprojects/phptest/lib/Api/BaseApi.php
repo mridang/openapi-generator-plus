@@ -20,6 +20,7 @@ use PetstoreClient\DefaultApiClient;
 use PetstoreClient\HeaderSelector;
 use PetstoreClient\ObjectSerializer;
 use PetstoreClient\TraceContextUtil;
+use PetstoreClient\Auth\Authenticator;
 use GuzzleHttp\Psr7\MultipartStream;
 
 /**
@@ -32,11 +33,11 @@ use GuzzleHttp\Psr7\MultipartStream;
  */
 class BaseApi
 {
-    protected ApiClient $apiClient;
+    protected readonly ApiClient $apiClient;
 
-    protected Configuration $config;
+    protected readonly Configuration $config;
 
-    protected HeaderSelector $headerSelector;
+    protected readonly HeaderSelector $headerSelector;
 
     /**
      * @param ApiClient|null     $apiClient API client instance
@@ -67,6 +68,7 @@ class BaseApi
      * @param string[]              $accepts      Acceptable response content types
      * @param string|null           $contentType  Request content type
      * @param string|null           $returnType   Return type for deserialization
+     * @param Authenticator|null    $auth         Optional authenticator for operation-specific auth
      *
      * @return mixed Deserialized response or null
      * @throws ApiException
@@ -79,9 +81,17 @@ class BaseApi
         mixed $body,
         array $accepts,
         ?string $contentType,
-        ?string $returnType
+        ?string $returnType,
+        ?Authenticator $auth = null
     ): mixed {
         $url = $this->config->getBaseUrl() . $path;
+
+        if ($auth instanceof Authenticator) {
+            foreach ($auth->getQueryParams() as $k => $v) {
+                $queryParams[$k] = $v;
+            }
+        }
+
         $query = $this->buildQuery($queryParams);
         if ($query !== '') {
             $url .= '?' . $query;
@@ -91,6 +101,19 @@ class BaseApi
         $headers = $this->headerSelector->selectHeaders($accepts, $contentType ?? '', $isMultipart);
         $headers = array_merge($headers, $this->config->getDefaultHeaders());
         $headers = array_merge($headers, $headerParams);
+        if ($auth instanceof Authenticator) {
+            $headers = array_merge($headers, $auth->getAuthHeaders());
+            $cookies = $auth->getCookieParams();
+            if ($cookies !== []) {
+                $cookieParts = [];
+                foreach ($cookies as $k => $v) {
+                    $cookieParts[] = $k . '=' . $v;
+                }
+                $cookieStr = implode('; ', $cookieParts);
+                $existing = $headers['Cookie'] ?? '';
+                $headers['Cookie'] = $existing !== '' ? $existing . '; ' . $cookieStr : $cookieStr;
+            }
+        }
         TraceContextUtil::injectTraceContext($headers);
 
         $serializedBody = $this->serializeBody($body, $contentType, $isMultipart);

@@ -10,16 +10,16 @@ def get_env_or_skip(name)
   value
 end
 
-describe OpigenClient::DefaultApiClient do
+describe PetstoreClient::DefaultApiClient do
   describe 'TLS verification disabled' do
     it 'makes HTTPS request with verify_ssl=false' do
       wiremock_url = get_env_or_skip('WIREMOCK_HTTPS_URL')
 
-      config = OpigenClient::Configuration.default
+      config = PetstoreClient::Configuration.default
       config.base_url = wiremock_url
       config.verify_ssl = false
 
-      client = OpigenClient::DefaultApiClient.new(config)
+      client = PetstoreClient::DefaultApiClient.new(config)
       response = client.send_request(:GET, "#{wiremock_url}/api/test", {}, nil)
 
       _(response.status_code).must_equal(200)
@@ -32,12 +32,12 @@ describe OpigenClient::DefaultApiClient do
       wiremock_url = get_env_or_skip('WIREMOCK_HTTPS_URL')
       ca_cert_path = get_env_or_skip('CA_CERT_PATH')
 
-      config = OpigenClient::Configuration.default
+      config = PetstoreClient::Configuration.default
       config.base_url = wiremock_url
       config.verify_ssl = true
       config.ssl_ca_cert = ca_cert_path
 
-      client = OpigenClient::DefaultApiClient.new(config)
+      client = PetstoreClient::DefaultApiClient.new(config)
       response = client.send_request(:GET, "#{wiremock_url}/api/test", {}, nil)
 
       _(response.status_code).must_equal(200)
@@ -50,11 +50,11 @@ describe OpigenClient::DefaultApiClient do
       wiremock_url = get_env_or_skip('WIREMOCK_HTTP_URL')
       proxy_url = get_env_or_skip('PROXY_URL')
 
-      config = OpigenClient::Configuration.default
+      config = PetstoreClient::Configuration.default
       config.base_url = wiremock_url
       config.proxy = proxy_url
 
-      client = OpigenClient::DefaultApiClient.new(config)
+      client = PetstoreClient::DefaultApiClient.new(config)
       response = client.send_request(:GET, "#{wiremock_url}/api/test", {}, nil)
 
       _(response.status_code).must_equal(200)
@@ -67,12 +67,12 @@ describe OpigenClient::DefaultApiClient do
       wiremock_url = get_env_or_skip('WIREMOCK_HTTPS_URL')
       proxy_url = get_env_or_skip('PROXY_URL')
 
-      config = OpigenClient::Configuration.default
+      config = PetstoreClient::Configuration.default
       config.base_url = wiremock_url
       config.proxy = proxy_url
       config.verify_ssl = false
 
-      client = OpigenClient::DefaultApiClient.new(config)
+      client = PetstoreClient::DefaultApiClient.new(config)
       response = client.send_request(:GET, "#{wiremock_url}/api/test", {}, nil)
 
       _(response.status_code).must_equal(200)

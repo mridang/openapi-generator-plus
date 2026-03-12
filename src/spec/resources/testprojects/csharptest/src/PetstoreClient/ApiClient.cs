@@ -15,7 +15,7 @@ public interface IApiClient
     /// <returns>ApiResponse containing status code, body, and headers</returns>
     Task<ApiResponse> SendRequestAsync(
         string method,
-        string url,
+        Uri url,
         Dictionary<string, string> headers,
         string? body
     );

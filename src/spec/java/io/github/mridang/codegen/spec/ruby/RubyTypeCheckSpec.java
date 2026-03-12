@@ -26,7 +26,7 @@ public class RubyTypeCheckSpec extends AbstractIntegrationSpec implements RubySp
   @Test
   void generatedCodeShouldPassTypeChecking() {
     generateClientToDirectory(
-        Map.of("gemName", "opigen_client", "moduleName", "OpigenClient"), tempOutputDir);
+        Map.of("gemName", "petstore_client", "moduleName", "PetstoreClient"), tempOutputDir);
 
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 

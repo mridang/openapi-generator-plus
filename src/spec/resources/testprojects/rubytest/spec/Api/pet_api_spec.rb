@@ -4,16 +4,16 @@
 
 require 'spec_helper'
 
-describe OpigenClient::Api::PetApi do
+describe PetstoreClient::Api::PetApi do
   before do
-    @api = OpigenClient::Api::PetApi.new
+    @api = PetstoreClient::Api::PetApi.new
     @base_url = ENV['API_BASE_URL'] || 'http://localhost:4010'
-    @auth = OpigenClient::Auth::BearerAuthenticator.new(@base_url, 'test-token')
+    @auth = PetstoreClient::Auth::BearerAuthenticator.new(@base_url, 'test-token')
   end
 
   describe '#add_pet' do
     it 'creates a new pet' do
-      pet = OpigenClient::Models::Pet.new(
+      pet = PetstoreClient::Models::Pet.new(
         id: 12345,
         name: 'TestDog',
         photo_urls: ['http://example.com/photo.jpg'],
@@ -33,7 +33,7 @@ describe OpigenClient::Api::PetApi do
 
       _(result).must_be_kind_of(Array)
       _(result).wont_be_empty
-      _(result.first).must_be_kind_of(OpigenClient::Models::Pet)
+      _(result.first).must_be_kind_of(PetstoreClient::Models::Pet)
     end
   end
 
@@ -49,7 +49,7 @@ describe OpigenClient::Api::PetApi do
 
   describe '#update_pet' do
     it 'updates an existing pet' do
-      pet = OpigenClient::Models::Pet.new(
+      pet = PetstoreClient::Models::Pet.new(
         id: 1,
         name: 'UpdatedDog',
         photo_urls: ['http://example.com/updated.jpg'],

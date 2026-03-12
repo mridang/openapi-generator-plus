@@ -26,3 +26,11 @@ class Authenticator(ABC):
     @abstractmethod
     def get_auth_headers(self) -> Dict[str, str]:
         """Returns the authentication headers to include in every request."""
+
+    def get_query_params(self) -> Dict[str, str]:
+        """Returns query parameters to include for authentication."""
+        return {}
+
+    def get_cookie_params(self) -> Dict[str, str]:
+        """Returns cookie parameters to include for authentication."""
+        return {}

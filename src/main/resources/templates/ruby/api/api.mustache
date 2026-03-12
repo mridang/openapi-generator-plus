@@ -54,10 +54,14 @@ module {{moduleName}}
         query_params = {}
 {{#queryParams}}
 {{#required}}
-        query_params['{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_query_value({{paramName}}{{#collectionFormat}}, :{{collectionFormat}}{{/collectionFormat}})
+        query_params['{{baseName}}'] =
+          {{moduleName}}::ObjectSerializer.to_query_value({{paramName}}{{#collectionFormat}}, :{{collectionFormat}}{{/collectionFormat}})
 {{/required}}
 {{^required}}
-        query_params['{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_query_value(opts[:{{paramName}}]{{#collectionFormat}}, :{{collectionFormat}}{{/collectionFormat}}) unless opts[:{{paramName}}].nil?
+        unless opts[:{{paramName}}].nil?
+          query_params['{{baseName}}'] =
+            {{moduleName}}::ObjectSerializer.to_query_value(opts[:{{paramName}}]{{#collectionFormat}}, :{{collectionFormat}}{{/collectionFormat}})
+        end
 {{/required}}
 {{/queryParams}}
         # @type var header_params: Hash[String, String]

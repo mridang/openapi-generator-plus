@@ -23,8 +23,6 @@ interface Authenticator
 {
     /**
      * Returns the base URL of the API.
-     *
-     * @return string
      */
     public function getHost(): string;
 
@@ -34,4 +32,18 @@ interface Authenticator
      * @return array<string, string>
      */
     public function getAuthHeaders(): array;
+
+    /**
+     * Returns query parameters to include for authentication.
+     *
+     * @return array<string, string>
+     */
+    public function getQueryParams(): array;
+
+    /**
+     * Returns cookie parameters to include for authentication.
+     *
+     * @return array<string, string>
+     */
+    public function getCookieParams(): array;
 }

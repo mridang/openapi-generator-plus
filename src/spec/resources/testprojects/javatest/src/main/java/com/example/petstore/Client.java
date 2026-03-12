@@ -3,8 +3,6 @@ package com.example.petstore;
 import com.example.petstore.api.PetApi;
 import com.example.petstore.api.StoreApi;
 import com.example.petstore.auth.Authenticator;
-import java.util.Collections;
-import java.util.Map;
 
 /**
  * Unified entry point for all API services. Takes an {@link Authenticator} and exposes each API
@@ -24,30 +22,11 @@ public class Client {
     Configuration config = new Configuration();
     config.setBaseUrl(authenticator.getHost());
     config.getDefaultHeaders().putAll(authenticator.getAuthHeaders());
+    for (java.util.Map.Entry<String, String> entry : authenticator.getQueryParams().entrySet()) {
+      config.getDefaultHeaders().put("_query_" + entry.getKey(), entry.getValue());
+    }
     ApiClient apiClient = new DefaultApiClient(config);
     this.pet = new PetApi(apiClient, config);
     this.store = new StoreApi(apiClient, config);
-  }
-
-  /**
-   * Creates a client authenticated with a static Bearer token.
-   *
-   * @param host API base URL.
-   * @param accessToken Bearer token.
-   * @return Configured client instance.
-   */
-  public static Client withToken(String host, String accessToken) {
-    return new Client(
-        new Authenticator() {
-          @Override
-          public String getHost() {
-            return host;
-          }
-
-          @Override
-          public Map<String, String> getAuthHeaders() {
-            return Collections.singletonMap("Authorization", "Bearer " + accessToken);
-          }
-        });
   }
 }

@@ -29,8 +29,8 @@ public class RubyClientSpec extends AbstractClientSpec implements RubySpec {
   @Override
   protected Map<String, Object> getCodegenProperties() {
     return Map.of(
-        CodegenConstants.GEM_NAME, "opigen_client",
-        CodegenConstants.MODULE_NAME, "OpigenClient");
+        CodegenConstants.GEM_NAME, "petstore_client",
+        CodegenConstants.MODULE_NAME, "PetstoreClient");
   }
 
   @Override
