@@ -3,7 +3,10 @@
 {{>partial_header}}
 namespace {{invokerPackage}}\Auth\OAuth;
 
-class OAuth2TokenManager
+/**
+ * Manages OAuth2 token lifecycle including fetching, caching, and refreshing tokens.
+ */
+final class OAuth2TokenManager
 {
     private ?string $accessToken = null;
     private ?float $tokenExpiry = null;

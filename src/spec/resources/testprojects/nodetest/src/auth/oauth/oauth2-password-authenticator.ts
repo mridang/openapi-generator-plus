@@ -1,14 +1,17 @@
-import type { Authenticator } from '../authenticator.js';
+import { BaseAuthenticator } from '../base-authenticator.js';
 import { OAuth2TokenManager } from './oauth2-token-manager.js';
 
-export class OAuth2PasswordAuthenticator implements Authenticator {
+/**
+ * Authenticator for the OAuth2 Resource Owner Password flow.
+ */
+export class OAuth2PasswordAuthenticator extends BaseAuthenticator {
   private readonly host: string;
   private readonly clientId: string;
   private readonly clientSecret: string;
   private readonly tokenUrl: string;
   private readonly username: string;
   private readonly password: string;
-  private readonly scopes: string[];
+  private readonly scopes: readonly string[];
   private readonly tokenManager: OAuth2TokenManager;
 
   constructor(
@@ -20,13 +23,14 @@ export class OAuth2PasswordAuthenticator implements Authenticator {
     password: string,
     scopes: string[]
   ) {
+    super();
     this.host = host;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     this.tokenUrl = tokenUrl;
     this.username = username;
     this.password = password;
-    this.scopes = [...scopes];
+    this.scopes = Object.freeze([...scopes]);
     this.tokenManager = new OAuth2TokenManager();
   }
 
@@ -51,13 +55,5 @@ export class OAuth2PasswordAuthenticator implements Authenticator {
     }
     const token = await this.tokenManager.getAccessToken(this.tokenUrl, params);
     return { Authorization: `Bearer ${token}` };
-  }
-
-  getQueryParams(): Record<string, string> {
-    return {};
-  }
-
-  getCookieParams(): Record<string, string> {
-    return {};
   }
 }

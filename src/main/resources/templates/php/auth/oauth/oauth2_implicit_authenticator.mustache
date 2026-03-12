@@ -5,7 +5,10 @@ namespace {{invokerPackage}}\Auth\OAuth;
 
 use {{invokerPackage}}\Auth\BaseAuthenticator;
 
-class OAuth2ImplicitAuthenticator extends BaseAuthenticator
+/**
+ * Authenticator for the OAuth2 Implicit flow.
+ */
+final class OAuth2ImplicitAuthenticator extends BaseAuthenticator
 {
     private readonly string $host;
     private readonly string $authorizationUrl;

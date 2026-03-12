@@ -3,7 +3,10 @@
 {{>partial_header}}
 namespace {{invokerPackage}}\Auth;
 
-class BasicAuthenticator extends BaseAuthenticator
+/**
+ * Authenticator for HTTP Basic authentication.
+ */
+final class BasicAuthenticator extends BaseAuthenticator
 {
     private readonly string $host;
     private readonly string $authHeader;

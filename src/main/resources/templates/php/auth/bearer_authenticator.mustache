@@ -3,7 +3,10 @@
 {{>partial_header}}
 namespace {{invokerPackage}}\Auth;
 
-class BearerAuthenticator extends BaseAuthenticator
+/**
+ * Authenticator for HTTP Bearer token authentication.
+ */
+final class BearerAuthenticator extends BaseAuthenticator
 {
     private readonly string $host;
     private readonly string $token;

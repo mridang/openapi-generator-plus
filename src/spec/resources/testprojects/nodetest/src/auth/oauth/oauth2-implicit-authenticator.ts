@@ -1,15 +1,19 @@
-import type { Authenticator } from '../authenticator.js';
+import { BaseAuthenticator } from '../base-authenticator.js';
 
-export class OAuth2ImplicitAuthenticator implements Authenticator {
+/**
+ * Authenticator for the OAuth2 Implicit flow.
+ */
+export class OAuth2ImplicitAuthenticator extends BaseAuthenticator {
   private readonly host: string;
   private readonly authorizationUrl: string;
-  private readonly scopes: string[];
+  private readonly scopes: readonly string[];
   private accessToken: string | null = null;
 
   constructor(host: string, authorizationUrl: string, scopes: string[]) {
+    super();
     this.host = host;
     this.authorizationUrl = authorizationUrl;
-    this.scopes = [...scopes];
+    this.scopes = Object.freeze([...scopes]);
   }
 
   buildAuthorizationUrl(state?: string): string {
@@ -36,13 +40,5 @@ export class OAuth2ImplicitAuthenticator implements Authenticator {
       throw new Error('Must call setAccessToken() before making API requests');
     }
     return { Authorization: `Bearer ${this.accessToken}` };
-  }
-
-  getQueryParams(): Record<string, string> {
-    return {};
-  }
-
-  getCookieParams(): Record<string, string> {
-    return {};
   }
 }

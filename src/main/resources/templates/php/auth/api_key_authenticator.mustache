@@ -3,7 +3,11 @@
 {{>partial_header}}
 namespace {{invokerPackage}}\Auth;
 
-class ApiKeyAuthenticator extends BaseAuthenticator
+/**
+ * Authenticator for API key authentication. Supports sending the key
+ * as a header, query parameter, or cookie.
+ */
+final class ApiKeyAuthenticator extends BaseAuthenticator
 {
     private readonly string $host;
     private readonly string $keyParamName;

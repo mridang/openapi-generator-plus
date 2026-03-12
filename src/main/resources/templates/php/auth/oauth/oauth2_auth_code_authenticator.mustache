@@ -5,7 +5,10 @@ namespace {{invokerPackage}}\Auth\OAuth;
 
 use {{invokerPackage}}\Auth\BaseAuthenticator;
 
-class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
+/**
+ * Authenticator for the OAuth2 Authorization Code flow.
+ */
+final class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
 {
     private readonly string $host;
     private readonly string $clientId;

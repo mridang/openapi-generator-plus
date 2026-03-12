@@ -379,6 +379,8 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
         String authFolder = "src" + File.separator + "auth";
         String oauthFolder = authFolder + File.separator + "oauth";
 
+        supportingFiles.add(new SupportingFile("auth/base-authenticator.mustache", authFolder, "base-authenticator.ts"));
+
         if (hasBasicAuth) {
             supportingFiles.add(new SupportingFile("auth/basic_authenticator.mustache", authFolder, "basic-authenticator.ts"));
         }

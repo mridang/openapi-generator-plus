@@ -1,13 +1,17 @@
-import type { Authenticator } from '../authenticator{{importFileExtension}}';
+import { BaseAuthenticator } from '../base-authenticator{{importFileExtension}}';
 import { OAuth2AuthorizationCodeAuthenticator } from './oauth2-auth-code-authenticator{{importFileExtension}}';
 
-export class OpenIdConnectAuthenticator implements Authenticator {
+/**
+ * Authenticator for OpenID Connect. Fetches the discovery document and
+ * delegates to an OAuth2 Authorization Code authenticator.
+ */
+export class OpenIdConnectAuthenticator extends BaseAuthenticator {
   private readonly host: string;
   private readonly openIdConnectUrl: string;
   private readonly clientId: string;
   private readonly clientSecret: string;
   private readonly redirectUri: string;
-  private readonly scopes: string[];
+  private readonly scopes: readonly string[];
   private delegate: OAuth2AuthorizationCodeAuthenticator | null = null;
 
   constructor(
@@ -18,12 +22,13 @@ export class OpenIdConnectAuthenticator implements Authenticator {
     redirectUri: string,
     scopes: string[]
   ) {
+    super();
     this.host = host;
     this.openIdConnectUrl = openIdConnectUrl;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     this.redirectUri = redirectUri;
-    this.scopes = [...scopes];
+    this.scopes = Object.freeze([...scopes]);
   }
 
   private async getDelegate(): Promise<OAuth2AuthorizationCodeAuthenticator> {
@@ -37,7 +42,7 @@ export class OpenIdConnectAuthenticator implements Authenticator {
         discovery.authorization_endpoint as string,
         discovery.token_endpoint as string,
         this.redirectUri,
-        this.scopes
+        [...this.scopes]
       );
     }
     return this.delegate;
@@ -64,13 +69,5 @@ export class OpenIdConnectAuthenticator implements Authenticator {
   async getAuthHeadersAsync(): Promise<Record<string, string>> {
     const delegate = await this.getDelegate();
     return delegate.getAuthHeadersAsync();
-  }
-
-  getQueryParams(): Record<string, string> {
-    return {};
-  }
-
-  getCookieParams(): Record<string, string> {
-    return {};
   }
 }

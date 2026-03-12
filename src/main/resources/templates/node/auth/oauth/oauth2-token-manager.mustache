@@ -1,3 +1,6 @@
+/**
+ * Manages OAuth2 token lifecycle including fetching, caching, and refreshing tokens.
+ */
 export class OAuth2TokenManager {
   private accessToken: string | null = null;
   private tokenExpiry: number | null = null;

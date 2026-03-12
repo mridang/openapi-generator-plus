@@ -5,7 +5,11 @@ namespace {{invokerPackage}}\Auth\OAuth;
 
 use {{invokerPackage}}\Auth\BaseAuthenticator;
 
-class OpenIdConnectAuthenticator extends BaseAuthenticator
+/**
+ * Authenticator for OpenID Connect. Fetches the discovery document and
+ * delegates to an OAuth2 Authorization Code authenticator.
+ */
+final class OpenIdConnectAuthenticator extends BaseAuthenticator
 {
     private readonly string $host;
     private readonly string $openIdConnectUrl;

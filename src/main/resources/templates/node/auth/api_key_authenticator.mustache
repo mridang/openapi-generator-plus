@@ -1,13 +1,18 @@
-import type { Authenticator } from './authenticator{{importFileExtension}}';
+import { BaseAuthenticator } from './base-authenticator{{importFileExtension}}';
 import { ApiKeyLocation } from './api-key-location{{importFileExtension}}';
 
-export class ApiKeyAuthenticator implements Authenticator {
+/**
+ * Authenticator for API key authentication. Supports sending the key
+ * as a header, query parameter, or cookie.
+ */
+export class ApiKeyAuthenticator extends BaseAuthenticator {
   private readonly host: string;
   private readonly keyParamName: string;
   private readonly apiKey: string;
   private readonly location: ApiKeyLocation;
 
   constructor(host: string, keyParamName: string, apiKey: string, location: ApiKeyLocation) {
+    super();
     this.host = host;
     this.keyParamName = keyParamName;
     this.apiKey = apiKey;
@@ -25,14 +30,14 @@ export class ApiKeyAuthenticator implements Authenticator {
     return {};
   }
 
-  getQueryParams(): Record<string, string> {
+  override getQueryParams(): Record<string, string> {
     if (this.location === ApiKeyLocation.QUERY) {
       return { [this.keyParamName]: this.apiKey };
     }
     return {};
   }
 
-  getCookieParams(): Record<string, string> {
+  override getCookieParams(): Record<string, string> {
     if (this.location === ApiKeyLocation.COOKIE) {
       return { [this.keyParamName]: this.apiKey };
     }
