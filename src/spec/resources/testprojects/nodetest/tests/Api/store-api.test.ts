@@ -1,6 +1,6 @@
-import { StoreApi } from '../../api/store-api';
-import { Configuration } from '../../configuration';
-import { Order } from '../../models';
+import { StoreApi } from '../../src/api/store-api';
+import { Configuration } from '../../src/configuration';
+import { Order } from '../../src/models';
 
 const config = new Configuration({
   baseUrl: process.env.API_BASE_URL || 'http://localhost:4010',

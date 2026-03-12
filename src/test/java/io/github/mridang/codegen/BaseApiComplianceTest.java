@@ -136,10 +136,10 @@ public class BaseApiComplianceTest {
 
   @Test
   void nodeFilesExist() {
-    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/api/base-api.ts")));
-    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/api-client.ts")));
-    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/default-api-client.ts")));
-    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/api-response.ts")));
+    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/src/api/base-api.ts")));
+    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/src/api-client.ts")));
+    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/src/default-api-client.ts")));
+    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/src/api-response.ts")));
   }
 
   // --- 2. API classes extend BaseApi ---
@@ -229,7 +229,7 @@ public class BaseApiComplianceTest {
 
   @Test
   void nodeApiClassesExtendBaseApi() throws IOException {
-    Path apiDir = OUTPUT_DIR.resolve("node/api");
+    Path apiDir = OUTPUT_DIR.resolve("node/src/api");
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("-api.ts"))
@@ -332,7 +332,7 @@ public class BaseApiComplianceTest {
 
   @Test
   void nodeApiClassesUseInvokeApi() throws IOException {
-    Path apiDir = OUTPUT_DIR.resolve("node/api");
+    Path apiDir = OUTPUT_DIR.resolve("node/src/api");
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("-api.ts"))
@@ -451,7 +451,7 @@ public class BaseApiComplianceTest {
 
   @Test
   void nodeApiClassesNoInlineHttp() throws IOException {
-    Path apiDir = OUTPUT_DIR.resolve("node/api");
+    Path apiDir = OUTPUT_DIR.resolve("node/src/api");
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("-api.ts"))
@@ -529,13 +529,13 @@ public class BaseApiComplianceTest {
 
   @Test
   void nodeStructuralChecks() throws IOException {
-    String baseApi = Files.readString(OUTPUT_DIR.resolve("node/api/base-api.ts"));
+    String baseApi = Files.readString(OUTPUT_DIR.resolve("node/src/api/base-api.ts"));
     assertTrue(baseApi.contains("invokeApi"), "BaseApi must have invokeApi method");
 
-    String apiClient = Files.readString(OUTPUT_DIR.resolve("node/api-client.ts"));
+    String apiClient = Files.readString(OUTPUT_DIR.resolve("node/src/api-client.ts"));
     assertTrue(apiClient.contains("sendRequest("), "ApiClient must have sendRequest method");
 
-    String defaultApiClient = Files.readString(OUTPUT_DIR.resolve("node/default-api-client.ts"));
+    String defaultApiClient = Files.readString(OUTPUT_DIR.resolve("node/src/default-api-client.ts"));
     assertTrue(defaultApiClient.contains("sendRequest("), "DefaultApiClient must have sendRequest method");
   }
 
@@ -571,8 +571,8 @@ public class BaseApiComplianceTest {
 
   @Test
   void nodeAuthenticatorAndClientExist() {
-    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/auth/authenticator.ts")));
-    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/client.ts")));
+    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/src/auth/authenticator.ts")));
+    assertTrue(Files.exists(OUTPUT_DIR.resolve("node/src/client.ts")));
   }
 
   @Test
@@ -610,7 +610,7 @@ public class BaseApiComplianceTest {
 
   @Test
   void nodeClientReferencesApis() throws IOException {
-    String content = Files.readString(OUTPUT_DIR.resolve("node/client.ts"));
+    String content = Files.readString(OUTPUT_DIR.resolve("node/src/client.ts"));
     assertTrue(content.contains("PetApi"), "Client must reference PetApi");
     assertTrue(content.contains("StoreApi"), "Client must reference StoreApi");
     assertTrue(content.contains("Authenticator"), "Client must reference Authenticator");

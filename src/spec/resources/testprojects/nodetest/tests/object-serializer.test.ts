@@ -1,5 +1,5 @@
-import { ObjectSerializer } from '../object-serializer';
-import { Category } from '../models';
+import { ObjectSerializer } from '../src/object-serializer';
+import { Category } from '../src/models';
 
 describe('ObjectSerializer', () => {
   describe('toPathValue', () => {

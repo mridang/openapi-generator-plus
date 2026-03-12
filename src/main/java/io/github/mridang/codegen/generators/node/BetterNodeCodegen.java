@@ -100,45 +100,46 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
 
         this.apiPackage = "api";
 
-        supportingFiles.add(new SupportingFile("api_client.mustache", "", "api-client.ts"));
+        supportingFiles.add(new SupportingFile("api_client.mustache", "src", "api-client.ts"));
         supportingFiles.add(
                 new SupportingFile(
-                        "default_api_client.mustache", "", "default-api-client.ts"));
-        supportingFiles.add(new SupportingFile("api_response.mustache", "", "api-response.ts"));
+                        "default_api_client.mustache", "src", "default-api-client.ts"));
+        supportingFiles.add(new SupportingFile("api_response.mustache", "src", "api-response.ts"));
         supportingFiles.add(
-                new SupportingFile("configuration.mustache", "", "configuration.ts"));
-        supportingFiles.add(new SupportingFile("base_api.mustache", "api", "base-api.ts"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "object_serializer.mustache", "", "object-serializer.ts"));
+                new SupportingFile("configuration.mustache", "src", "configuration.ts"));
+        supportingFiles.add(new SupportingFile("base_api.mustache", "src/api", "base-api.ts"));
         supportingFiles.add(
                 new SupportingFile(
-                        "header_selector.mustache", "", "header-selector.ts"));
+                        "object_serializer.mustache", "src", "object-serializer.ts"));
         supportingFiles.add(
                 new SupportingFile(
-                        "trace_context_util.mustache", "", "trace-context-util.ts"));
+                        "header_selector.mustache", "src", "header-selector.ts"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "trace_context_util.mustache", "src", "trace-context-util.ts"));
         supportingFiles.add(new SupportingFile("tsconfig.mustache", "", "tsconfig.json"));
         supportingFiles.add(
-                new SupportingFile("models/index.mustache", "models", "index.ts"));
+                new SupportingFile("models/index.mustache", "src/models", "index.ts"));
         supportingFiles.add(
-                new SupportingFile("api/index.mustache", "api", "index.ts"));
+                new SupportingFile("api/index.mustache", "src/api", "index.ts"));
         supportingFiles.add(new SupportingFile("package.mustache", "", "package.json"));
-        supportingFiles.add(new SupportingFile("prettierrc.mustache", "", ".prettierrc"));
+        supportingFiles.add(new SupportingFile("prettierrc.mustache", "", ".prettierrc.mjs"));
         supportingFiles.add(
                 new SupportingFile("eslint_config.mustache", "", "eslint.config.mjs"));
-        supportingFiles.add(new SupportingFile("authenticator.mustache", "auth", "authenticator.ts"));
-        supportingFiles.add(new SupportingFile("client.mustache", "", "client.ts"));
+        supportingFiles.add(new SupportingFile("authenticator.mustache", "src/auth", "authenticator.ts"));
+        supportingFiles.add(new SupportingFile("client.mustache", "src", "client.ts"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
+        supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
     }
 
     @Override
     public String modelFileFolder() {
-        return outputFolder + File.separator + "models";
+        return outputFolder + File.separator + "src" + File.separator + "models";
     }
 
     @Override
     public String apiFileFolder() {
-        return outputFolder + File.separator + "api";
+        return outputFolder + File.separator + "src" + File.separator + "api";
     }
 
     @Override
@@ -375,7 +376,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
 
     @Override
     protected void registerAuthSupportingFiles() {
-        String authFolder = "auth";
+        String authFolder = "src" + File.separator + "auth";
         String oauthFolder = authFolder + File.separator + "oauth";
 
         if (hasBasicAuth) {

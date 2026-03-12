@@ -32,7 +32,7 @@ public class NodeClientSpec extends AbstractClientSpec implements NodeSpec {
 
   @Override
   protected void assertGeneratedStructure(Path outputDir) {
-    assertThat(outputDir.resolve("api")).exists();
-    assertThat(outputDir.resolve("models")).exists();
+    assertThat(outputDir.resolve("src/api")).exists();
+    assertThat(outputDir.resolve("src/models")).exists();
   }
 }

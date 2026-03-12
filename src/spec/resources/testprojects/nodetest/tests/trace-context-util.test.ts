@@ -1,4 +1,4 @@
-import { injectTraceContext } from '../trace-context-util';
+import { injectTraceContext } from '../src/trace-context-util';
 
 describe('TraceContextUtil', () => {
   test('should not inject traceparent when @opentelemetry/api is not installed', async () => {

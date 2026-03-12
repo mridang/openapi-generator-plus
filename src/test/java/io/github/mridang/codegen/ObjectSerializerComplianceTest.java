@@ -123,7 +123,7 @@ public class ObjectSerializerComplianceTest {
   @Test
   void nodeObjectSerializerExists() {
     assertTrue(
-        Files.exists(OUTPUT_DIR.resolve("node/object-serializer.ts")),
+        Files.exists(OUTPUT_DIR.resolve("node/src/object-serializer.ts")),
         "Node ObjectSerializer must exist");
   }
 
@@ -173,7 +173,7 @@ public class ObjectSerializerComplianceTest {
 
   @Test
   void nodeApiFilesReferenceObjectSerializer() throws IOException {
-    Path apiDir = OUTPUT_DIR.resolve("node");
+    Path apiDir = OUTPUT_DIR.resolve("node/src");
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("-api.ts"))
@@ -293,7 +293,7 @@ public class ObjectSerializerComplianceTest {
 
   @Test
   void nodeApiFilesNoInlineSerde() throws IOException {
-    Path apiDir = OUTPUT_DIR.resolve("node/api");
+    Path apiDir = OUTPUT_DIR.resolve("node/src/api");
     try (Stream<Path> files = Files.walk(apiDir)) {
       files
           .filter(p -> p.getFileName().toString().endsWith("-api.ts"))

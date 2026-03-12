@@ -1,7 +1,7 @@
-import { PetApi } from '../../api/pet-api';
-import { BearerAuthenticator } from '../../auth/bearer-authenticator';
-import { Configuration } from '../../configuration';
-import { Pet } from '../../models';
+import { PetApi } from '../../src/api/pet-api';
+import { BearerAuthenticator } from '../../src/auth/bearer-authenticator';
+import { Configuration } from '../../src/configuration';
+import { Pet } from '../../src/models';
 
 const baseUrl = process.env.API_BASE_URL || 'http://localhost:4010';
 const config = new Configuration({
