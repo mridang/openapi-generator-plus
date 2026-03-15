@@ -1,4 +1,6 @@
+#pragma warning disable CA1062 // Validate arguments of public methods
 #pragma warning disable CA2000 // Dispose objects before losing scope
+#pragma warning disable IDE0046 // Convert to conditional expression
 
 using PetstoreClient.Auth;
 
@@ -96,25 +98,61 @@ public abstract class BaseApi
             }
         }
 
-        string? serializedBody = null;
+        object? requestBody = null;
         if (body != null)
         {
-            serializedBody = Serializer.Serialize(body);
+            bool isBinary =
+                contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(
+                    contentType,
+                    "application/octet-stream",
+                    StringComparison.OrdinalIgnoreCase
+                );
+
+            requestBody = (isBinary || isMultipart) ? body : Serializer.Serialize(body);
         }
 
         ApiResponse response = await ApiClient
-            .SendRequestAsync(method, new Uri(url), headers, serializedBody)
+            .SendRequestAsync(method, new Uri(url), headers, requestBody)
             .ConfigureAwait(false);
 
-        return response.StatusCode is < 200 or >= 300
-                ? throw new ApiException(
-                    response.StatusCode,
-                    $"API returned status code {response.StatusCode}",
-                    response.Headers,
-                    response.Body
-                )
-            : !string.IsNullOrEmpty(response.Body) ? Serializer.Deserialize<T>(response.Body)
-            : default;
+        if (response.StatusCode is < 200 or >= 300)
+        {
+            throw new ApiException(
+                response.StatusCode,
+                $"API returned status code {response.StatusCode}",
+                response.Headers,
+                response.Body
+            );
+        }
+
+        if (string.IsNullOrEmpty(response.Body))
+        {
+            return default;
+        }
+
+        string? responseContentType = response
+            .Headers.Where(h =>
+                string.Equals(h.Key, "Content-Type", StringComparison.OrdinalIgnoreCase)
+            )
+            .Select(h => h.Value)
+            .FirstOrDefault();
+
+        if (responseContentType != null && !HeaderSelector.IsJsonMime(responseContentType))
+        {
+            if (typeof(T) == typeof(System.IO.Stream))
+            {
+                return (T)
+                    (object)
+                        new System.IO.MemoryStream(
+                            System.Text.Encoding.UTF8.GetBytes(response.Body)
+                        );
+            }
+
+            return (T)(object)response.Body;
+        }
+
+        return Serializer.Deserialize<T>(response.Body);
     }
 
     private static string BuildQueryString(Dictionary<string, object?> queryParams)

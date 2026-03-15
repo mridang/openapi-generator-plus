@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
-# rubocop:disable Lint/RedundantCopDisableDirective, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:disable Lint/RedundantCopDisableDirective, Layout/LineLength
+# rubocop:disable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:disable Style/StringConcatenation
 
 require 'cgi'
 
@@ -24,7 +26,7 @@ module {{moduleName}}
 {{/hasAuthMethods}}
 {{#allParams}}
 {{#required}}
-      # @param {{paramName}} [{{{dataType}}}] {{description}}
+      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{.}}{{/description}}
 {{/required}}
 {{/allParams}}
 {{#hasOptionalParams}}
@@ -49,7 +51,12 @@ module {{moduleName}}
 
 {{/required}}
 {{/allParams}}
-        path = '{{{path}}}'{{#pathParams}}{{=<% %>=}}.sub('{<%baseName%>}', CGI.escape(<%moduleName%>::ObjectSerializer.to_path_value(<%paramName%>)))<%={{ }}=%>{{/pathParams}}
+        path = '{{{path}}}'
+{{#pathParams}}
+{{=<% %>=}}
+        path = path.sub('{<%baseName%>}', CGI.escape(<%moduleName%>::ObjectSerializer.to_path_value(<%paramName%>)))
+<%={{ }}=%>
+{{/pathParams}}
         # @type var query_params: Hash[String, untyped]
         query_params = {}
 {{#queryParams}}
@@ -75,40 +82,44 @@ module {{moduleName}}
 {{/required}}
 {{/headerParams}}
 {{#hasFormParams}}
-        # @type var body: Hash[String, untyped]
-        body = {}
+        # @type var request_body: Hash[String, untyped]
+        request_body = {}
 {{#formParams}}
 {{#required}}
-        body['{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_form_value({{paramName}})
+        request_body['{{baseName}}'] = {{paramName}}
 {{/required}}
 {{^required}}
-        body['{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_form_value(opts[:{{paramName}}]) unless opts[:{{paramName}}].nil?
+        request_body['{{baseName}}'] = opts[:{{paramName}}] unless opts[:{{paramName}}].nil?
 {{/required}}
 {{/formParams}}
 {{/hasFormParams}}
 {{^hasFormParams}}
 {{#bodyParam}}
 {{#required}}
-        body = {{{paramName}}}
+        request_body = {{{paramName}}} # rubocop:disable Lint/SelfAssignment
 {{/required}}
 {{^required}}
-        body = opts[:{{{paramName}}}]
+        request_body = opts[:{{{paramName}}}]
 {{/required}}
 {{/bodyParam}}
 {{^bodyParam}}
-        body = nil
+        request_body = nil
 {{/bodyParam}}
 {{/hasFormParams}}
 
-        invoke_api(:{{httpMethod}}, path, query_params, header_params, body,
-                   [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
-                   {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
-                   {{#returnType}}'{{{.}}}'{{/returnType}}{{^returnType}}nil{{/returnType}},
-                   {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}nil{{/hasAuthMethods}})
+        invoke_api(
+          :{{httpMethod}}, path, query_params, header_params, request_body,
+          [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
+          {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
+          {{#returnType}}'{{{.}}}'{{/returnType}}{{^returnType}}nil{{/returnType}},
+          {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}nil{{/hasAuthMethods}}
+        )
       end
     {{/operation}}
     end
 {{/operations}}
   end
 end
-# rubocop:enable Lint/RedundantCopDisableDirective, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:enable Lint/RedundantCopDisableDirective, Layout/LineLength
+# rubocop:enable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:enable Style/StringConcatenation

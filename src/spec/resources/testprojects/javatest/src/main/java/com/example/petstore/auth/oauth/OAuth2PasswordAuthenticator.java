@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/** Authenticator for the OAuth2 Resource Owner Password flow. */
 public class OAuth2PasswordAuthenticator implements Authenticator {
 
   private final String host;

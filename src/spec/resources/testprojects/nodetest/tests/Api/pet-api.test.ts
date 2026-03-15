@@ -1,7 +1,8 @@
 import { PetApi } from '../../src/api/pet-api';
+import { UploadPetDocumentDocumentTypeEnum } from '../../src/api/pet-api';
 import { BearerAuthenticator } from '../../src/auth/bearer-authenticator';
 import { Configuration } from '../../src/configuration';
-import { Pet } from '../../src/models';
+import { ApiResponse, Pet, PetPassport, Photo, PhotoMetadata, SetPetAvatarThumbnailRequest } from '../../src/models';
 
 const baseUrl = process.env.API_BASE_URL || 'http://localhost:4010';
 const config = new Configuration({
@@ -56,5 +57,81 @@ describe('PetApi', () => {
 
   test('deletePet', async () => {
     await api.deletePet(auth, 1);
+  });
+
+  test('setPetAvatar', async () => {
+    const body = new Blob([new Uint8Array([0xFF, 0xD8, 0xFF])], { type: 'image/jpeg' });
+
+    await api.setPetAvatar(1, body);
+  });
+
+  test('getPetAvatar', async () => {
+    const result = await api.getPetAvatar(1);
+
+    expect(result).toBeDefined();
+  });
+
+  test('getPetAvatarThumbnail', async () => {
+    const result = await api.getPetAvatarThumbnail(1);
+
+    expect(result).toBeDefined();
+  });
+
+  test('setPetAvatarThumbnail', async () => {
+    const request: SetPetAvatarThumbnailRequest = 'aGVsbG8=';
+
+    await api.setPetAvatarThumbnail(1, request);
+  });
+
+  test('uploadPetCertificate', async () => {
+    const file = new Blob([new Uint8Array([0x25, 0x50, 0x44, 0x46])], { type: 'application/pdf' });
+
+    const result = await api.uploadPetCertificate(1, file);
+
+    expect(result).toBeDefined();
+  });
+
+  test('uploadPetDocument', async () => {
+    const file = new Blob([new Uint8Array([0x25, 0x50, 0x44, 0x46])], { type: 'application/pdf' });
+
+    const result = await api.uploadPetDocument(1, file, UploadPetDocumentDocumentTypeEnum.HealthCertificate, 'Annual checkup document');
+
+    expect(result).toBeDefined();
+  });
+
+  // Prism does not validate multipart array fields correctly
+  test.skip('addPetPhotos', async () => {
+    const files = [
+      new Blob([new Uint8Array([0xFF, 0xD8, 0xFF])], { type: 'image/jpeg' }),
+    ];
+    const metadata = new PhotoMetadata({
+      caption: 'Test photo',
+      isPrimary: true,
+    });
+
+    const result = await api.addPetPhotos(1, files, metadata);
+
+    expect(Array.isArray(result)).toBe(true);
+  });
+
+  test('downloadPetDocument', async () => {
+    const result = await api.downloadPetDocument(1, 100);
+
+    expect(result).toBeDefined();
+  });
+
+  test.skip('getPetPhoto - Prism returns JSON for image content type', async () => {
+    const result = await api.getPetPhoto(1, 100);
+
+    expect(result).toBeDefined();
+  });
+
+  test('getPetPassport', async () => {
+    const result = await api.getPetPassport(1);
+
+    expect(result).toBeDefined();
+    expect(result.pet).toBeDefined();
+    expect(result.thumbnail).toBeDefined();
+    expect(result.scans).toBeDefined();
   });
 });

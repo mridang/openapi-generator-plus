@@ -56,9 +56,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
         typeMapping.put("decimal", "string");
         typeMapping.put("date", "string");
         typeMapping.put("DateTime", "string");
-        typeMapping.put("binary", "Blob");
-        typeMapping.put("File", "Blob");
-        typeMapping.put("file", "Blob");
+        typeMapping.put("binary", "Buffer");
+        typeMapping.put("File", "Buffer");
+        typeMapping.put("file", "Buffer");
         typeMapping.put("ByteArray", "string");
         typeMapping.put("UUID", "string");
         typeMapping.put("URI", "string");
@@ -73,7 +73,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                 new HashSet<>(
                         Arrays.asList(
                                 "number", "boolean", "string", "object", "any", "unknown",
-                                "void", "undefined", "null", "Array", "Set", "Blob"));
+                                "void", "undefined", "null", "Array", "Set", "Buffer"));
 
         reservedWords = loadReservedWords("/reserved-words/node.txt");
 
@@ -356,7 +356,8 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                         }
                         return importName == null
                                 || languageSpecificPrimitives.contains(importName)
-                                || typeMapping.containsValue(importName);
+                                || typeMapping.containsValue(importName)
+                                || importName.contains("_");
                     });
             for (Map<String, String> imp : imports) {
                 if (!imp.containsKey("className") && imp.containsKey("classname")) {
@@ -439,12 +440,88 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                 changed = true;
             }
 
+            // Reformat lines exceeding 120 chars to match prettier output
+            List<String> formatted = new ArrayList<>(result.size());
+            for (String line : result) {
+                if (line.length() > 120) {
+                    List<String> broken = breakLongLine(line);
+                    if (broken.size() > 1) {
+                        formatted.addAll(broken);
+                        changed = true;
+                        continue;
+                    }
+                }
+                formatted.add(line);
+            }
+            result = formatted;
+
             if (changed) {
                 Files.write(file.toPath(), result, StandardCharsets.UTF_8);
             }
         } catch (IOException e) {
             LOGGER.debug("Failed to post-process {}: {}", file.getName(), e.getMessage());
         }
+    }
+
+    private static final java.util.regex.Pattern METHOD_SIG_PATTERN =
+            java.util.regex.Pattern.compile(
+                    "^(\\s+async\\s+\\w+)\\((.+)\\):\\s*(Promise<.+>)\\s*\\{$");
+
+    private static final java.util.regex.Pattern VOID_INVOKE_PATTERN =
+            java.util.regex.Pattern.compile(
+                    "^(\\s+)\\(await this\\.invokeApi\\((.+)\\)\\) as void;$");
+
+    private static final java.util.regex.Pattern TYPE_EXPORT_PATTERN =
+            java.util.regex.Pattern.compile(
+                    "^(export type \\w+) = (.+);$");
+
+    private List<String> breakLongLine(String line) {
+        java.util.regex.Matcher m;
+
+        // Break long method signatures: async foo(p1: T1, p2: T2): Promise<R> {
+        m = METHOD_SIG_PATTERN.matcher(line);
+        if (m.matches()) {
+            String prefix = m.group(1);
+            String params = m.group(2);
+            String returnType = m.group(3);
+            String indent = prefix.replaceAll("\\S.*", "");
+            List<String> broken = new ArrayList<>();
+            broken.add(prefix + "(");
+            String[] parts = params.split(",\\s*");
+            for (int i = 0; i < parts.length; i++) {
+                broken.add(indent + "  " + parts[i] + (i < parts.length - 1 ? "," : ""));
+            }
+            broken.add(indent + "): " + returnType + " {");
+            return broken;
+        }
+
+        // Break long void invokeApi calls
+        m = VOID_INVOKE_PATTERN.matcher(line);
+        if (m.matches()) {
+            String indent = m.group(1);
+            String args = m.group(2);
+            List<String> broken = new ArrayList<>();
+            broken.add(indent + "(await this.invokeApi(");
+            String[] parts = args.split(",\\s*");
+            for (int i = 0; i < parts.length; i++) {
+                broken.add(indent + "  " + parts[i] + (i < parts.length - 1 ? "," : ""));
+            }
+            broken.add(indent + ")) as void;");
+            return broken;
+        }
+
+        // Break long type exports: export type X = (typeof X)[keyof typeof X];
+        m = TYPE_EXPORT_PATTERN.matcher(line);
+        if (m.matches()) {
+            String prefix = m.group(1);
+            String value = m.group(2);
+            List<String> broken = new ArrayList<>();
+            broken.add(prefix + " =");
+            broken.add("  " + value + ";");
+            return broken;
+        }
+
+        return List.of(line);
     }
 
 }

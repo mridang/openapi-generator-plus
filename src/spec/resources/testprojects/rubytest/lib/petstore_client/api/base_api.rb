@@ -64,6 +64,16 @@ module PetstoreClient
 
         return unless return_type && response.body && !response.body.empty?
 
+        # @type var resp_content_type: String?
+        resp_content_type = nil
+        response.headers.each do |k, v|
+          if k.downcase == 'content-type'
+            resp_content_type = v.split(';').first&.strip
+            break
+          end
+        end
+        return response.body if resp_content_type && !resp_content_type.start_with?('application/json')
+
         PetstoreClient::ObjectSerializer.deserialize(response.body, return_type)
       end
       # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
@@ -96,22 +106,13 @@ module PetstoreClient
         pairs.join('&')
       end
 
-      def serialize_body(body, content_type) # rubocop:disable Metrics/MethodLength
+      def serialize_body(body, content_type)
         return nil if body.nil?
 
         if content_type == 'multipart/form-data'
-          # @type var form: Hash[String, String]
-          form = {}
-          body.each_with_object(form) do |(k, v), hash|
-            hash[k] = PetstoreClient::ObjectSerializer.to_form_value(v)
-          end
-        elsif content_type == 'application/x-www-form-urlencoded'
-          # @type var form: Hash[String, String]
-          form = {}
-          sanitized = body.each_with_object(form) do |(k, v), hash|
-            hash[k] = PetstoreClient::ObjectSerializer.to_form_value(v)
-          end
-          build_query_string(sanitized)
+          body
+        elsif content_type&.start_with?('image/') || content_type == 'application/octet-stream'
+          body.respond_to?(:read) ? body.read : body
         else
           PetstoreClient::ObjectSerializer.serialize(body)
         end

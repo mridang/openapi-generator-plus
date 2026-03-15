@@ -11,12 +11,12 @@ public interface IApiClient
     /// <param name="method">HTTP method (GET, POST, PUT, DELETE, etc.)</param>
     /// <param name="url">Fully qualified URL</param>
     /// <param name="headers">HTTP headers</param>
-    /// <param name="body">Request body (serialized JSON string, or null)</param>
+    /// <param name="body">Request body (JSON string, byte[], Stream, Dictionary for multipart, or null)</param>
     /// <returns>ApiResponse containing status code, body, and headers</returns>
     Task<ApiResponse> SendRequestAsync(
         string method,
         Uri url,
         Dictionary<string, string> headers,
-        string? body
+        object? body
     );
 }

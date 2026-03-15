@@ -344,7 +344,36 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
             }
             objs.put("hasAnyAuthMethods", anyOpHasAuth);
         }
+        cleanupBadImports(objs);
         return objs;
+    }
+
+    /**
+     * Remove imports that reference invalid class names (e.g. camelCase inline
+     * schema names generated for oneOf variants). These produce import errors
+     * because the imported name does not match any actual generated class.
+     */
+    @SuppressWarnings("unchecked")
+    private static void cleanupBadImports(OperationsMap objs) {
+        List<Map<String, String>> imports = (List<Map<String, String>>) objs.get("imports");
+        if (imports == null) {
+            return;
+        }
+        imports.removeIf(
+                imp -> {
+                    String importLine = imp.get("import");
+                    if (importLine == null) {
+                        return false;
+                    }
+                    // Inline oneOf variant imports have lowercase class names
+                    // (e.g. "import setPetAvatar_request") — filter them out.
+                    int lastSpace = importLine.lastIndexOf(' ');
+                    if (lastSpace < 0) {
+                        return false;
+                    }
+                    String className = importLine.substring(lastSpace + 1);
+                    return !className.isEmpty() && Character.isLowerCase(className.charAt(0));
+                });
     }
 
     protected String deriveClientPropertyName(String apiClassName) {

@@ -3,6 +3,7 @@ package com.example.petstore.auth;
 import java.util.Collections;
 import java.util.Map;
 
+/** Authenticator for HTTP Bearer token authentication. */
 public class BearerAuthenticator implements Authenticator {
 
   private final String host;

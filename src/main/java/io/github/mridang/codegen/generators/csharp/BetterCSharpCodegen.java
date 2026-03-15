@@ -5,17 +5,26 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.HashSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.utils.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Generates a C# API client using HttpClient and System.Text.Json for serialization. */
 @SuppressWarnings("unused")
 public class BetterCSharpCodegen extends AbstractBetterCodegen {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(BetterCSharpCodegen.class);
 
     protected String sourceFolder = "src";
     protected String packageName = "OpenApi";
@@ -36,7 +45,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         typeMapping.put("boolean", "bool");
         typeMapping.put("string", "string");
         typeMapping.put("byte", "byte[]");
-        typeMapping.put("binary", "byte[]");
+        typeMapping.put("binary", "System.IO.Stream");
         typeMapping.put("ByteArray", "byte[]");
         typeMapping.put("date", "DateOnly");
         typeMapping.put("DateTime", "DateTimeOffset");
@@ -324,5 +333,88 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     @Override
     protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
         // Per-scheme authenticators are not generated for C#
+    }
+
+    private static final int CSHARPIER_PRINT_WIDTH = 100;
+
+    private static final Pattern LONG_ARRAY_PATTERN =
+            Pattern.compile(
+                    "^(    private static readonly string\\[\\] \\w+ =) \\[(.+)\\];$",
+                    Pattern.MULTILINE);
+
+    private static final Pattern LONG_METHOD_PATTERN =
+            Pattern.compile(
+                    "^(    public async \\S+ \\w+)\\((.+)\\)$", Pattern.MULTILINE);
+
+    @Override
+    public void postProcessFile(File file, String fileType) {
+        super.postProcessFile(file, fileType);
+        if (file == null || !file.getName().endsWith(".cs")) {
+            return;
+        }
+        try {
+            String content = Files.readString(file.toPath());
+            String trimmed = content;
+            // Remove blank line after opening brace before field declarations
+            trimmed = trimmed.replaceAll("\\{\n\n(    private static)", "{\n$1");
+            // Remove blank lines between consecutive field declarations
+            trimmed = trimmed.replaceAll("(\\];\n)\n(    private static)", "$1$2");
+            // Break long inline array declarations to multi-line
+            trimmed = breakLongLines(LONG_ARRAY_PATTERN, trimmed, BetterCSharpCodegen::breakArray);
+            // Break long method signatures to multi-line
+            trimmed = breakLongLines(LONG_METHOD_PATTERN, trimmed, BetterCSharpCodegen::breakMethod);
+            if (!trimmed.equals(content)) {
+                Files.write(file.toPath(), trimmed.getBytes(StandardCharsets.UTF_8));
+            }
+        } catch (IOException e) {
+            LOGGER.warn("Failed to post-process file: {}", file.getAbsolutePath(), e);
+        }
+    }
+
+    @FunctionalInterface
+    private interface LineBreaker {
+        String breakLine(String prefix, String inner);
+    }
+
+    private static String breakLongLines(Pattern pattern, String content, LineBreaker breaker) {
+        Matcher matcher = pattern.matcher(content);
+        StringBuilder result = new StringBuilder();
+        while (matcher.find()) {
+            if (matcher.group(0).length() <= CSHARPIER_PRINT_WIDTH) {
+                matcher.appendReplacement(result, Matcher.quoteReplacement(matcher.group(0)));
+            } else {
+                matcher.appendReplacement(
+                        result,
+                        Matcher.quoteReplacement(breaker.breakLine(matcher.group(1), matcher.group(2))));
+            }
+        }
+        matcher.appendTail(result);
+        return result.toString();
+    }
+
+    private static String breakArray(String prefix, String elements) {
+        String[] parts = elements.split(", ");
+        StringBuilder sb = new StringBuilder(prefix);
+        sb.append("\n    [\n");
+        for (String part : parts) {
+            sb.append("        ").append(part).append(",\n");
+        }
+        sb.append("    ];");
+        return sb.toString();
+    }
+
+    private static String breakMethod(String prefix, String params) {
+        String[] parts = params.split(", ");
+        StringBuilder sb = new StringBuilder(prefix);
+        sb.append("(\n");
+        for (int i = 0; i < parts.length; i++) {
+            sb.append("        ").append(parts[i]);
+            if (i < parts.length - 1) {
+                sb.append(",");
+            }
+            sb.append("\n");
+        }
+        sb.append("    )");
+        return sb.toString();
     }
 }

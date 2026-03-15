@@ -26,12 +26,13 @@ public interface UnsupportedFeaturesValidator {
             }
         }
 
-        // Check for form parameters or file uploads
+        // Check for URL-encoded form parameters (multipart/form-data and
+        // binary content types are supported)
         if (operation.getRequestBody() != null && operation.getRequestBody().getContent() != null) {
             for (String mediaType : operation.getRequestBody().getContent().keySet()) {
-                if ("application/x-www-form-urlencoded".equalsIgnoreCase(mediaType) || "multipart/form-data".equalsIgnoreCase(mediaType)) {
+                if ("application/x-www-form-urlencoded".equalsIgnoreCase(mediaType)) {
                     throw new RuntimeException(
-                        "Operation '" + operation.getOperationId() + "' uses form parameters or file uploads ('" + mediaType + "'), which are not supported."
+                        "Operation '" + operation.getOperationId() + "' uses URL-encoded form parameters ('" + mediaType + "'), which are not supported."
                     );
                 }
             }

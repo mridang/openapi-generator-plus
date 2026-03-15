@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
-# rubocop:disable Lint/RedundantCopDisableDirective, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:disable Lint/RedundantCopDisableDirective, Layout/LineLength
+# rubocop:disable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:disable Style/StringConcatenation
 
 require 'cgi'
 
@@ -22,18 +24,21 @@ module PetstoreClient
                 "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
         end
 
-        path = '/store/order/{orderId}'.sub('{orderId}', CGI.escape(PetstoreClient::ObjectSerializer.to_path_value(order_id)))
+        path = '/store/order/{orderId}'
+        path = path.sub('{orderId}', CGI.escape(PetstoreClient::ObjectSerializer.to_path_value(order_id)))
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
         header_params = {}
-        body = nil
+        request_body = nil
 
-        invoke_api(:DELETE, path, query_params, header_params, body,
-                   [],
-                   'application/json',
-                   nil,
-                   nil)
+        invoke_api(
+          :DELETE, path, query_params, header_params, request_body,
+          [],
+          'application/json',
+          nil,
+          nil
+        )
       end
 
       # Returns pet inventories by status
@@ -44,13 +49,15 @@ module PetstoreClient
         query_params = {}
         # @type var header_params: Hash[String, String]
         header_params = {}
-        body = nil
+        request_body = nil
 
-        invoke_api(:GET, path, query_params, header_params, body,
-                   ['application/json'],
-                   'application/json',
-                   'Hash<String, Integer>',
-                   nil)
+        invoke_api(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'Hash<String, Integer>',
+          nil
+        )
       end
 
       # Find purchase order by ID
@@ -62,18 +69,21 @@ module PetstoreClient
                 "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
         end
 
-        path = '/store/order/{orderId}'.sub('{orderId}', CGI.escape(PetstoreClient::ObjectSerializer.to_path_value(order_id)))
+        path = '/store/order/{orderId}'
+        path = path.sub('{orderId}', CGI.escape(PetstoreClient::ObjectSerializer.to_path_value(order_id)))
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
         header_params = {}
-        body = nil
+        request_body = nil
 
-        invoke_api(:GET, path, query_params, header_params, body,
-                   ['application/json'],
-                   'application/json',
-                   'Order',
-                   nil)
+        invoke_api(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'Order',
+          nil
+        )
       end
 
       # Place an order for a pet
@@ -86,15 +96,19 @@ module PetstoreClient
         query_params = {}
         # @type var header_params: Hash[String, String]
         header_params = {}
-        body = opts[:order]
+        request_body = opts[:order]
 
-        invoke_api(:POST, path, query_params, header_params, body,
-                   ['application/json'],
-                   'application/json',
-                   'Order',
-                   nil)
+        invoke_api(
+          :POST, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'Order',
+          nil
+        )
       end
     end
   end
 end
-# rubocop:enable Lint/RedundantCopDisableDirective, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:enable Lint/RedundantCopDisableDirective, Layout/LineLength
+# rubocop:enable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:enable Style/StringConcatenation

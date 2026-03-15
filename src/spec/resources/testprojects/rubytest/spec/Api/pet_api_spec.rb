@@ -3,6 +3,7 @@
 # Integration tests for the Pet API endpoints.
 
 require 'spec_helper'
+require 'stringio'
 
 describe PetstoreClient::Api::PetApi do
   before do
@@ -65,6 +66,83 @@ describe PetstoreClient::Api::PetApi do
   describe '#delete_pet' do
     it 'deletes a pet' do
       @api.delete_pet(@auth, 1)
+    end
+  end
+
+  describe '#set_pet_avatar' do
+    it 'uploads binary image data' do
+      @api.set_pet_avatar(1, StringIO.new("\xFF\xD8\xFF"))
+    end
+  end
+
+  describe '#get_pet_avatar' do
+    it 'downloads the pet avatar as binary' do
+      result = @api.get_pet_avatar(1)
+
+      _(result).wont_be_nil
+    end
+  end
+
+  describe '#get_pet_avatar_thumbnail' do
+    it 'returns a base64-encoded thumbnail' do
+      result = @api.get_pet_avatar_thumbnail(1)
+
+      _(result).wont_be_nil
+    end
+  end
+
+  describe '#set_pet_avatar_thumbnail' do
+    it 'uploads a base64 thumbnail via JSON' do
+      request = 'iVBORw0KGgoAAAANSUhEUg=='
+
+      @api.set_pet_avatar_thumbnail(1, request)
+    end
+  end
+
+  describe '#upload_pet_certificate' do
+    it 'uploads a certificate via multipart' do
+      result = @api.upload_pet_certificate(1, StringIO.new('cert-data'))
+
+      _(result).wont_be_nil
+    end
+  end
+
+  describe '#upload_pet_document' do
+    it 'uploads a document with metadata via multipart' do
+      result = @api.upload_pet_document(1, StringIO.new('doc-data'), document_type: 'vaccination_record', notes: 'Annual checkup')
+
+      _(result).wont_be_nil
+    end
+  end
+
+  describe '#add_pet_photos' do
+    # Prism mock server does not support multipart array fields
+    it 'uploads photos with metadata via multipart' do
+      skip 'Prism does not validate multipart array fields correctly'
+    end
+  end
+
+  describe '#download_pet_document' do
+    it 'downloads a document as binary' do
+      result = @api.download_pet_document(1, 1)
+
+      _(result).wont_be_nil
+    end
+  end
+
+  describe '#get_pet_photo' do
+    # Prism returns JSON for content negotiation but the return type is File
+    it 'returns a photo via content negotiation' do
+      skip 'Prism returns JSON for image content type'
+    end
+  end
+
+  describe '#get_pet_passport' do
+    it 'returns a passport with embedded byte fields' do
+      result = @api.get_pet_passport(1)
+
+      _(result).wont_be_nil
+      _(result).must_be_kind_of(PetstoreClient::Models::PetPassport)
     end
   end
 end

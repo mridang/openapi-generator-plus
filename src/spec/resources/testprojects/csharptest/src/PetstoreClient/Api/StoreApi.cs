@@ -1,3 +1,5 @@
+#pragma warning disable CA1002 // Do not expose generic lists
+
 using PetstoreClient.Models;
 
 namespace PetstoreClient.Api;
@@ -31,7 +33,6 @@ public class StoreApi : BaseApi
         );
 
         Dictionary<string, object?> queryParams = [];
-
         Dictionary<string, string> headerParams = [];
 
         _ = await InvokeApiAsync<object>(
@@ -56,7 +57,6 @@ public class StoreApi : BaseApi
         string path = "/store/inventory";
 
         Dictionary<string, object?> queryParams = [];
-
         Dictionary<string, string> headerParams = [];
 
         Dictionary<string, int>? result = await InvokeApiAsync<Dictionary<string, int>>(
@@ -88,7 +88,6 @@ public class StoreApi : BaseApi
         );
 
         Dictionary<string, object?> queryParams = [];
-
         Dictionary<string, string> headerParams = [];
 
         Order? result = await InvokeApiAsync<Order>(
@@ -115,7 +114,6 @@ public class StoreApi : BaseApi
         string path = "/store/order";
 
         Dictionary<string, object?> queryParams = [];
-
         Dictionary<string, string> headerParams = [];
 
         Order? result = await InvokeApiAsync<Order>(

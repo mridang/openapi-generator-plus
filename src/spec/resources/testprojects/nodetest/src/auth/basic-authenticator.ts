@@ -1,10 +1,14 @@
-import type { Authenticator } from './authenticator.js';
+import { BaseAuthenticator } from './base-authenticator.js';
 
-export class BasicAuthenticator implements Authenticator {
+/**
+ * Authenticator for HTTP Basic authentication.
+ */
+export class BasicAuthenticator extends BaseAuthenticator {
   private readonly host: string;
   private readonly authHeader: string;
 
   constructor(host: string, username: string, password: string) {
+    super();
     this.host = host;
     this.authHeader = 'Basic ' + Buffer.from(`${username}:${password}`).toString('base64');
   }
@@ -15,13 +19,5 @@ export class BasicAuthenticator implements Authenticator {
 
   getAuthHeaders(): Record<string, string> {
     return { Authorization: this.authHeader };
-  }
-
-  getQueryParams(): Record<string, string> {
-    return {};
-  }
-
-  getCookieParams(): Record<string, string> {
-    return {};
   }
 }

@@ -1,3 +1,4 @@
+import base64
 import datetime
 import decimal
 import json
@@ -39,6 +40,7 @@ class ObjectSerializer:
         'float': float,
         'str': str,
         'bool': bool,
+        'bytes': bytes,
         'date': datetime.date,
         'datetime': datetime.datetime,
         'decimal': decimal.Decimal,
@@ -54,6 +56,8 @@ class ObjectSerializer:
         """Serialize an object to a JSON string."""
         try:
             if isinstance(obj, BaseModel):
+                if hasattr(obj, 'actual_instance'):
+                    return self.serialize(obj.actual_instance)
                 return obj.model_dump_json(by_alias=True, exclude_none=True)
             return json.dumps(ObjectSerializer._sanitize_for_serialization(obj), default=str)
         except Exception as e:
@@ -86,6 +90,8 @@ class ObjectSerializer:
             return obj.value
         elif isinstance(obj, SecretStr):
             return obj.get_secret_value()
+        elif isinstance(obj, bytes):
+            return base64.b64encode(obj).decode('ascii')
         elif isinstance(obj, cls._PRIMITIVE_TYPES):
             return obj
         elif isinstance(obj, list):
@@ -129,6 +135,12 @@ class ObjectSerializer:
 
         if isinstance(klass, type) and issubclass(klass, BaseModel):
             return klass.model_validate(data)
+        elif klass == bytes:
+            if isinstance(data, bytes):
+                return data
+            if isinstance(data, str):
+                return base64.b64decode(data)
+            return data
         elif klass in self._PRIMITIVE_TYPES:
             try:
                 return klass(data)

@@ -12,7 +12,6 @@ use {{invokerPackage}}\HeaderSelector;
 use {{invokerPackage}}\ObjectSerializer;
 use {{invokerPackage}}\TraceContextUtil;
 use {{invokerPackage}}\Auth\Authenticator;
-use GuzzleHttp\Psr7\MultipartStream;
 
 /**
  * Base class for all API classes. Provides the invokeApi method that
@@ -121,6 +120,19 @@ class BaseApi
         }
 
         if ($returnType !== null && trim($response->body) !== '') {
+            $respContentType = null;
+            foreach ($response->headers as $name => $values) {
+                if (strtolower($name) === 'content-type') {
+                    $respContentType = explode(';', $values[0])[0];
+                    $respContentType = trim($respContentType);
+                    break;
+                }
+            }
+
+            if ($respContentType !== null && !str_starts_with($respContentType, 'application/json')) {
+                return $response->body;
+            }
+
             return ObjectSerializer::deserialize($response->body, $returnType, []);
         }
 
@@ -181,19 +193,11 @@ class BaseApi
         }
 
         if ($isMultipart) {
-            assert(is_array($body));
-            $multipartContents = [];
-            /** @var array<string, mixed> $body */
-            foreach ($body as $name => $value) {
-                $values = is_array($value) ? $value : [$value];
-                foreach ($values as $v) {
-                    $multipartContents[] = [
-                        'name' => (string) $name,
-                        'contents' => $v,
-                    ];
-                }
-            }
-            return new MultipartStream($multipartContents);
+            return $body;
+        }
+
+        if (str_starts_with($contentType ?? '', 'image/') || $contentType === 'application/octet-stream') {
+            return $body;
         }
 
         if ($contentType === 'application/x-www-form-urlencoded') {

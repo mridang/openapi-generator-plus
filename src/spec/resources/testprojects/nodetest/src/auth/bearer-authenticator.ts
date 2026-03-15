@@ -1,10 +1,14 @@
-import type { Authenticator } from './authenticator.js';
+import { BaseAuthenticator } from './base-authenticator.js';
 
-export class BearerAuthenticator implements Authenticator {
+/**
+ * Authenticator for HTTP Bearer token authentication.
+ */
+export class BearerAuthenticator extends BaseAuthenticator {
   private readonly host: string;
   private readonly token: string;
 
   constructor(host: string, token: string) {
+    super();
     this.host = host;
     this.token = token;
   }
@@ -15,13 +19,5 @@ export class BearerAuthenticator implements Authenticator {
 
   getAuthHeaders(): Record<string, string> {
     return { Authorization: `Bearer ${this.token}` };
-  }
-
-  getQueryParams(): Record<string, string> {
-    return {};
-  }
-
-  getCookieParams(): Record<string, string> {
-    return {};
   }
 }

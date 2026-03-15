@@ -1,3 +1,5 @@
+#pragma warning disable CA1002 // Do not expose generic lists
+
 {{#hasAnyAuthMethods}}
 using {{packageName}}.Auth;
 {{/hasAnyAuthMethods}}
@@ -11,8 +13,9 @@ namespace {{packageName}}.{{apiPackage}};
 /// </summary>
 public class {{classname}} : BaseApi
 {
-{{#operation}}{{#produces}}{{#-first}}    private static readonly string[] {{operationId}}Accepts = [{{/-first}}{{/produces}}{{#produces}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/produces}}{{#produces}}{{#-first}}];
-{{/-first}}{{/produces}}{{/operation}}
+{{#operation}}{{#produces}}{{#-first}}
+    private static readonly string[] {{operationId}}Accepts = [{{/-first}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{#-last}}];
+{{/-last}}{{/produces}}{{/operation}}
     public {{classname}}()
         : base() { }
 
@@ -44,28 +47,41 @@ public class {{classname}} : BaseApi
         {{/pathParams}}
 
         Dictionary<string, object?> queryParams = [];
-        {{#queryParams}}
+{{#queryParams}}
         if ({{paramName}} != null)
         {
             queryParams["{{baseName}}"] = ObjectSerializer.ToQueryValue({{paramName}}, {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}});
         }
-        {{/queryParams}}
-
+{{/queryParams}}
         Dictionary<string, string> headerParams = [];
-        {{#headerParams}}
+{{#headerParams}}
         if ({{paramName}} != null)
         {
             headerParams["{{baseName}}"] = ObjectSerializer.ToHeaderValue({{paramName}});
         }
-        {{/headerParams}}
-
+{{/headerParams}}
+{{#hasFormParams}}
+        Dictionary<string, object> formBody = [];
+{{#formParams}}
+{{#required}}
+        formBody["{{baseName}}"] = {{paramName}};
+{{/required}}
+{{^required}}
+        if ({{paramName}} != null)
+        {
+            formBody["{{baseName}}"] = {{paramName}};
+        }
+{{/required}}
+{{/formParams}}
+{{/hasFormParams}}
         {{#returnType}}
+
         {{{returnType}}}? result = await InvokeApiAsync<{{{returnType}}}>(
                 "{{httpMethod}}",
                 path,
                 queryParams,
                 headerParams,
-                {{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}},
+                {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
 {{^produces}}                [],{{/produces}}{{#produces}}{{#-first}}                {{operationId}}Accepts,{{/-first}}{{/produces}}
                 {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
                 {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}}
@@ -74,12 +90,13 @@ public class {{classname}} : BaseApi
         return result ?? throw new InvalidOperationException("Expected non-null response body");
         {{/returnType}}
         {{^returnType}}
+
         _ = await InvokeApiAsync<object>(
                 "{{httpMethod}}",
                 path,
                 queryParams,
                 headerParams,
-                {{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}},
+                {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
 {{^produces}}                [],{{/produces}}{{#produces}}{{#-first}}                {{operationId}}Accepts,{{/-first}}{{/produces}}
                 {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
                 {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}}

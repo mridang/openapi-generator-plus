@@ -1,4 +1,5 @@
 #pragma warning disable CA2000 // Dispose objects before losing scope — handler ownership transfers to HttpClient
+#pragma warning disable IDE0028 // Collection initialization can be simplified
 
 using System.Text;
 
@@ -50,20 +51,54 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         string method,
         Uri url,
         Dictionary<string, string> headers,
-        string? body
+        object? body
     )
     {
         ArgumentNullException.ThrowIfNull(headers);
         using HttpRequestMessage request = new(new HttpMethod(method), url);
 
+        string? contentType = null;
         foreach (KeyValuePair<string, string> header in headers)
         {
-            _ = request.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            if (string.Equals(header.Key, "Content-Type", StringComparison.OrdinalIgnoreCase))
+            {
+                contentType = header.Value;
+            }
+            else
+            {
+                _ = request.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            }
         }
 
         if (body != null)
         {
-            request.Content = new StringContent(body, Encoding.UTF8, "application/json");
+            request.Content = body switch
+            {
+                byte[] bytes => new ByteArrayContent(bytes),
+                Stream stream => new StreamContent(stream),
+                Dictionary<string, object> formParts => BuildMultipartContent(formParts),
+                string text => new StringContent(
+                    text,
+                    Encoding.UTF8,
+                    contentType ?? "application/json"
+                ),
+                _ => new StringContent(
+                    body.ToString() ?? "",
+                    Encoding.UTF8,
+                    contentType ?? "application/json"
+                ),
+            };
+
+            if (
+                contentType != null
+                && body is not Dictionary<string, object>
+                && body is not string
+                && request.Content.Headers.ContentType != null
+            )
+            {
+                request.Content.Headers.ContentType =
+                    System.Net.Http.Headers.MediaTypeHeaderValue.Parse(contentType);
+            }
         }
 
         using HttpResponseMessage response = await _httpClient
@@ -77,7 +112,69 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             responseHeaders[header.Key] = string.Join(",", header.Value);
         }
 
+        foreach (KeyValuePair<string, IEnumerable<string>> header in response.Content.Headers)
+        {
+            responseHeaders[header.Key] = string.Join(",", header.Value);
+        }
+
         return new ApiResponse((int)response.StatusCode, responseBody, responseHeaders);
+    }
+
+    private static MultipartFormDataContent BuildMultipartContent(
+        Dictionary<string, object> formParts
+    )
+    {
+        MultipartFormDataContent multipart = new();
+        foreach (KeyValuePair<string, object> part in formParts)
+        {
+            if (part.Value is System.Collections.IList list)
+            {
+                foreach (object? item in list)
+                {
+                    if (item != null)
+                    {
+                        AddMultipartField(multipart, part.Key, item);
+                    }
+                }
+            }
+            else
+            {
+                AddMultipartField(multipart, part.Key, part.Value);
+            }
+        }
+        return multipart;
+    }
+
+    private static void AddMultipartField(
+        MultipartFormDataContent multipart,
+        string name,
+        object value
+    )
+    {
+        switch (value)
+        {
+            case byte[] bytes:
+                multipart.Add(new ByteArrayContent(bytes), name, name);
+                break;
+            case Stream stream:
+                multipart.Add(new StreamContent(stream), name, name);
+                break;
+            case string s:
+                multipart.Add(new StringContent(s), name);
+                break;
+            default:
+                if (value is int or long or float or double or bool or decimal)
+                {
+                    multipart.Add(new StringContent(value.ToString() ?? ""), name);
+                }
+                else
+                {
+                    string json = System.Text.Json.JsonSerializer.Serialize(value);
+                    StringContent jsonContent = new(json, Encoding.UTF8, "application/json");
+                    multipart.Add(jsonContent, name);
+                }
+                break;
+        }
     }
 
     /// <inheritdoc/>

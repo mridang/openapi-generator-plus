@@ -75,7 +75,7 @@ export class {{classname}} extends BaseApi {
     const formBody: Record<string, unknown> = {};
 {{#formParams}}
     if ({{paramName}} != null) {
-      formBody['{{baseName}}'] = ObjectSerializer.toFormValue({{paramName}});
+      formBody['{{baseName}}'] = {{paramName}};
     }
 {{/formParams}}
 

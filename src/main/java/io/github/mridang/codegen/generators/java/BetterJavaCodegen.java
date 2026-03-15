@@ -64,11 +64,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         typeMapping.put("char", "String");
         typeMapping.put("object", "Object");
         typeMapping.put("AnyType", "Object");
-        typeMapping.put("binary", "byte[]");
+        typeMapping.put("binary", "InputStream");
         typeMapping.put("ByteArray", "byte[]");
         typeMapping.put("byte", "byte[]");
-        typeMapping.put("file", "File");
-        typeMapping.put("File", "File");
+        typeMapping.put("file", "InputStream");
+        typeMapping.put("File", "InputStream");
         typeMapping.put("date", "LocalDate");
         typeMapping.put("DateTime", "OffsetDateTime");
         typeMapping.put("date-time", "OffsetDateTime");
@@ -89,6 +89,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         importMapping.put("UUID", "java.util.UUID");
         importMapping.put("URI", "java.net.URI");
         importMapping.put("File", "java.io.File");
+        importMapping.put("InputStream", "java.io.InputStream");
         importMapping.put("JsonProperty", "com.fasterxml.jackson.annotation.JsonProperty");
         importMapping.put("JsonValue", "com.fasterxml.jackson.annotation.JsonValue");
         importMapping.put("JsonCreator", "com.fasterxml.jackson.annotation.JsonCreator");

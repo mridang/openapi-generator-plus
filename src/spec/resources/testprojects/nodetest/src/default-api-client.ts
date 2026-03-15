@@ -1,6 +1,7 @@
 import type { ApiClient } from './api-client.js';
 import type { ApiResponse } from './api-response.js';
 import type { Configuration } from './configuration.js';
+import * as crypto from 'node:crypto';
 import * as https from 'node:https';
 import * as http from 'node:http';
 import * as fs from 'node:fs';
@@ -29,8 +30,18 @@ export class DefaultApiClient implements ApiClient {
     method: string,
     url: string,
     headers: Record<string, string>,
-    body: string | null
+    body: string | Buffer | null
   ): Promise<ApiResponse> {
+    if (body instanceof Blob) {
+      body = Buffer.from(await body.arrayBuffer());
+    }
+
+    if (body != null && typeof body === 'object' && !Buffer.isBuffer(body)) {
+      const boundary = crypto.randomUUID();
+      headers['Content-Type'] = `multipart/form-data; boundary=${boundary}`;
+      body = await this.buildMultipartBody(body as Record<string, unknown>, boundary);
+    }
+
     if (this.config?.proxy || this.agent) {
       return this.sendWithNodeHttp(method, url, headers, body);
     }
@@ -41,7 +52,7 @@ export class DefaultApiClient implements ApiClient {
     method: string,
     url: string,
     headers: Record<string, string>,
-    body: string | null
+    body: string | Buffer | null
   ): Promise<ApiResponse> {
     const response = await fetch(url, {
       method,
@@ -66,7 +77,7 @@ export class DefaultApiClient implements ApiClient {
     method: string,
     url: string,
     headers: Record<string, string>,
-    body: string | null
+    body: string | Buffer | null
   ): Promise<ApiResponse> {
     return new Promise((resolve, reject) => {
       const parsed = new URL(url);
@@ -150,5 +161,43 @@ export class DefaultApiClient implements ApiClient {
         headers: responseHeaders
       });
     });
+  }
+
+  private async buildMultipartBody(formParts: Record<string, unknown>, boundary: string): Promise<Buffer> {
+    const parts: Buffer[] = [];
+    for (const [name, value] of Object.entries(formParts)) {
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          parts.push(await this.multipartPart(name, item, boundary));
+        }
+      } else {
+        parts.push(await this.multipartPart(name, value, boundary));
+      }
+    }
+    parts.push(Buffer.from(`--${boundary}--\r\n`, 'utf-8'));
+    return Buffer.concat(parts);
+  }
+
+  private async multipartPart(name: string, value: unknown, boundary: string): Promise<Buffer> {
+    if (Buffer.isBuffer(value)) {
+      const header = `--${boundary}\r\nContent-Disposition: form-data; name="${name}"; filename="${name}"\r\nContent-Type: application/octet-stream\r\n\r\n`;
+      return Buffer.concat([Buffer.from(header, 'utf-8'), value, Buffer.from('\r\n', 'utf-8')]);
+    }
+    if (value instanceof Blob) {
+      const buf = Buffer.from(await value.arrayBuffer());
+      const header = `--${boundary}\r\nContent-Disposition: form-data; name="${name}"; filename="${name}"\r\nContent-Type: application/octet-stream\r\n\r\n`;
+      return Buffer.concat([Buffer.from(header, 'utf-8'), buf, Buffer.from('\r\n', 'utf-8')]);
+    }
+    if (typeof value === 'object' && value !== null) {
+      const json = JSON.stringify(value);
+      return Buffer.from(
+        `--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\nContent-Type: application/json\r\n\r\n${json}\r\n`,
+        'utf-8'
+      );
+    }
+    return Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${String(value)}\r\n`,
+      'utf-8'
+    );
   }
 }

@@ -4,6 +4,7 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.Map;
 
+/** Authenticator for HTTP Basic authentication. */
 public class BasicAuthenticator implements Authenticator {
 
   private final String host;

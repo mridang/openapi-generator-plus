@@ -6,7 +6,11 @@ use PHPUnit\Framework\TestCase;
 use PetstoreClient\Api\PetApi;
 use PetstoreClient\Auth\BearerAuthenticator;
 use PetstoreClient\Configuration;
+use PetstoreClient\Models\ApiResponse;
 use PetstoreClient\Models\Pet;
+use PetstoreClient\Models\PetPassport;
+use PetstoreClient\Models\PhotoMetadata;
+use PetstoreClient\Models\SetPetAvatarThumbnailRequest;
 
 /**
  * Integration tests for the Pet API endpoints.
@@ -72,5 +76,83 @@ class PetApiTest extends TestCase
         $this->api->deletePet($this->auth, 1);
 
         $this->assertTrue(true);
+    }
+
+    public function testSetPetAvatar(): void
+    {
+        $this->api->setPetAvatar(1, "\xFF\xD8\xFF");
+
+        $this->assertTrue(true);
+    }
+
+    public function testGetPetAvatar(): void
+    {
+        $result = $this->api->getPetAvatar(1);
+
+        $this->assertNotNull($result);
+        $this->assertIsString($result);
+    }
+
+    public function testGetPetAvatarThumbnail(): void
+    {
+        $result = $this->api->getPetAvatarThumbnail(1);
+
+        $this->assertNotNull($result);
+    }
+
+    public function testSetPetAvatarThumbnail(): void
+    {
+        $request = new SetPetAvatarThumbnailRequest('iVBORw0KGgoAAAANSUhEUg==');
+
+        $this->api->setPetAvatarThumbnail(1, $request);
+
+        $this->assertTrue(true);
+    }
+
+    public function testUploadPetCertificate(): void
+    {
+        $result = $this->api->uploadPetCertificate(1, 'certificate-content');
+
+        $this->assertInstanceOf(ApiResponse::class, $result);
+    }
+
+    public function testUploadPetDocument(): void
+    {
+        $result = $this->api->uploadPetDocument(1, 'document-content', 'vaccination_record', 'Annual checkup');
+
+        $this->assertInstanceOf(ApiResponse::class, $result);
+    }
+
+    /**
+     * @group skip
+     * Prism does not validate multipart array fields correctly
+     */
+    public function testAddPetPhotos(): void
+    {
+        $this->markTestSkipped('Prism does not validate multipart array fields correctly');
+    }
+
+    public function testDownloadPetDocument(): void
+    {
+        $result = $this->api->downloadPetDocument(1, 1);
+
+        $this->assertNotNull($result);
+        $this->assertIsString($result);
+    }
+
+    /**
+     * @group skip
+     * Prism returns JSON for image content type
+     */
+    public function testGetPetPhoto(): void
+    {
+        $this->markTestSkipped('Prism returns JSON for image content type');
+    }
+
+    public function testGetPetPassport(): void
+    {
+        $result = $this->api->getPetPassport(1);
+
+        $this->assertInstanceOf(PetPassport::class, $result);
     }
 }

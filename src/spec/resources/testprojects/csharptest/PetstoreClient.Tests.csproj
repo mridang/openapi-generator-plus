@@ -7,6 +7,7 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="src/**" />
     <ProjectReference Include="src/PetstoreClient/PetstoreClient.csproj" />
   </ItemGroup>
   <ItemGroup>

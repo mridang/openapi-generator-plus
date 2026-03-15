@@ -56,7 +56,8 @@ class {{classname}}(BaseApi):
 {{#allParams}}
 {{#required}}
         if {{paramName}} is None:
-            raise ValueError("Missing the required parameter '{{paramName}}' when calling {{operationId}}")
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
 {{/required}}
 {{/allParams}}
         path = '{{{path}}}'{{#pathParams}}
@@ -74,8 +75,13 @@ class {{classname}}(BaseApi):
 {{#hasFormParams}}
         body: Dict[str, Any] = {}
 {{#formParams}}
+{{#required}}
+        body['{{baseName}}'] = {{paramName}}
+{{/required}}
+{{^required}}
         if {{paramName}} is not None:
-            body['{{baseName}}'] = ObjectSerializer.to_form_value({{paramName}})
+            body['{{baseName}}'] = {{paramName}}
+{{/required}}
 {{/formParams}}
 {{/hasFormParams}}
 {{^hasFormParams}}

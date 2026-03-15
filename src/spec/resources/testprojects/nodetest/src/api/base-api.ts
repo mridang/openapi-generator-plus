@@ -79,7 +79,7 @@ export abstract class BaseApi {
     }
     await injectTraceContext(headers);
 
-    const serializedBody = body != null ? JSON.stringify(body) : null;
+    const serializedBody = this.serializeBody(body, contentType);
 
     const response = await this.apiClient.sendRequest(method, url, headers, serializedBody);
 
@@ -88,8 +88,36 @@ export abstract class BaseApi {
     }
 
     if (returnType != null && response.body) {
+      const respContentType =
+        Object.entries(response.headers)
+          .find(([k]) => k.toLowerCase() === 'content-type')?.[1]
+          ?.split(';')[0]
+          ?.trim() ?? '';
+      if (respContentType && !respContentType.startsWith('application/json')) {
+        return response.body as unknown as T;
+      }
       const json = JSON.parse(response.body);
       return returnType(json);
     }
+  }
+
+  /**
+   * Serialize the request body based on content type.
+   *
+   * For multipart/form-data and binary content types (image/* or
+   * application/octet-stream), the body is passed through as-is.
+   * All other content types are JSON-serialized.
+   */
+  private serializeBody(body: unknown, contentType: string): string | Buffer | null {
+    if (body == null) {
+      return null;
+    }
+    if (contentType === 'multipart/form-data') {
+      return body as string | Buffer;
+    }
+    if (contentType.startsWith('image/') || contentType === 'application/octet-stream') {
+      return body as Buffer;
+    }
+    return JSON.stringify(body);
   }
 }

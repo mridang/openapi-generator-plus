@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.StringJoiner;
 import javax.annotation.Nullable;
 
+/** Manages OAuth2 token lifecycle including fetching, caching, and refreshing tokens. */
 public class OAuth2TokenManager {
 
   private final HttpClient httpClient;

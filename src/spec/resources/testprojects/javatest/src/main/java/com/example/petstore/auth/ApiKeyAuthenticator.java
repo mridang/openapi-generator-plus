@@ -3,6 +3,10 @@ package com.example.petstore.auth;
 import java.util.Collections;
 import java.util.Map;
 
+/**
+ * Authenticator for API key authentication. Supports sending the key as a header, query parameter,
+ * or cookie.
+ */
 public class ApiKeyAuthenticator implements Authenticator {
 
   private final String host;

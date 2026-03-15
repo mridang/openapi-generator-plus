@@ -1,5 +1,5 @@
 target :lib do
   check "lib"
   signature "sig"
-  library "date", "json", "time", "cgi", "uri"
+  library "date", "json", "time", "cgi", "uri", "securerandom"
 end

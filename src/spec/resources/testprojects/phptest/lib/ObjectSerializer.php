@@ -317,6 +317,26 @@ class ObjectSerializer
     }
 
     /**
+     * Resolve a oneOf schema by attempting deserialization against each candidate.
+     *
+     * @param mixed         $data    the data to match
+     * @param array<string> $schemas list of fully-qualified class names
+     *
+     * @return mixed the deserialized value matching one of the schemas
+     */
+    public static function resolveOneOf(mixed $data, array $schemas): mixed
+    {
+        foreach ($schemas as $schema) {
+            try {
+                return self::deserialize($data, $schema);
+            } catch (\Throwable) {
+                continue;
+            }
+        }
+        return $data;
+    }
+
+    /**
      * Convert a value to a representation suitable for use as a form parameter.
      */
     public static function toFormValue(mixed $value): string

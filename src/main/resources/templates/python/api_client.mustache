@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Protocol, runtime_checkable
+from typing import Any, Dict, Optional, Protocol, runtime_checkable
 
 from {{packageName}}.api_response import ApiResponse
 
@@ -11,13 +11,13 @@ class ApiClient(Protocol):
     The default implementation uses urllib3.
     """
 
-    def send_request(self, method: str, url: str, headers: Dict[str, str], body: Optional[str]) -> ApiResponse:
+    def send_request(self, method: str, url: str, headers: Dict[str, str], body: Any = None) -> ApiResponse:
         """Send an HTTP request and return the response.
 
         :param method: HTTP method (GET, POST, PUT, DELETE, etc.)
         :param url: Fully qualified URL
         :param headers: HTTP headers
-        :param body: Request body (serialized JSON string, or None)
+        :param body: Request body (serialized JSON string, bytes, dict for multipart, or None)
         :return: ApiResponse containing status code, body, and headers
         """
         ...

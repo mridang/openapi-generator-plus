@@ -1,0 +1,6 @@
+module PetstoreClient::Models
+  module SetPetAvatarThumbnailRequest
+    def self.openapi_one_of: () -> Array[Symbol]
+    def self.build: (untyped) -> untyped
+  end
+end

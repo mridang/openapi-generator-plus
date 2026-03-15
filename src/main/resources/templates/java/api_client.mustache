@@ -17,10 +17,11 @@ public interface ApiClient {
      * @param method  HTTP method (GET, POST, PUT, DELETE, etc.)
      * @param url     Fully qualified URL
      * @param headers HTTP headers
-     * @param body    Request body (serialized JSON string, or null)
+     * @param body    Request body (serialized JSON string, byte[] for binary, or
+     *                {@code Map<String, Object>} for multipart form data; may be null)
      * @return ApiResponse containing status code, body, and headers
      * @throws ApiException if the request fails
      */
-    ApiResponse sendRequest(String method, String url, Map<String, String> headers, @Nullable String body)
+    ApiResponse sendRequest(String method, String url, Map<String, String> headers, @Nullable Object body)
             throws ApiException;
 }

@@ -82,6 +82,10 @@ class ObjectSerializer
         }
 
         if (is_object($data)) {
+            if (method_exists($data, 'getActualInstance')) {
+                return self::sanitizeForSerialization($data->getActualInstance());
+            }
+
             /** @var array<string, mixed> $normalized */
             $normalized = self::getSerializer()->normalize($data, null, [
                 AbstractObjectNormalizer::SKIP_NULL_VALUES => true,
@@ -305,6 +309,26 @@ class ObjectSerializer
     public static function toHeaderValue(mixed $value): string
     {
         return self::toString($value);
+    }
+
+    /**
+     * Resolve a oneOf schema by attempting deserialization against each candidate.
+     *
+     * @param mixed         $data    the data to match
+     * @param array<string> $schemas list of fully-qualified class names
+     *
+     * @return mixed the deserialized value matching one of the schemas
+     */
+    public static function resolveOneOf(mixed $data, array $schemas): mixed
+    {
+        foreach ($schemas as $schema) {
+            try {
+                return self::deserialize($data, $schema);
+            } catch (\Throwable) {
+                continue;
+            }
+        }
+        return $data;
     }
 
     /**

@@ -4,7 +4,12 @@ import pytest
 from petstore_client.api.pet_api import PetApi
 from petstore_client.auth.bearer_authenticator import BearerAuthenticator
 from petstore_client.configuration import Configuration
+from petstore_client.models.api_response import ApiResponse
 from petstore_client.models.pet import Pet
+from petstore_client.models.pet_passport import PetPassport
+from petstore_client.models.photo import Photo
+from petstore_client.models.photo_metadata import PhotoMetadata
+from petstore_client.models.set_pet_avatar_thumbnail_request import SetPetAvatarThumbnailRequest
 
 
 class TestPetApi:
@@ -60,3 +65,63 @@ class TestPetApi:
         self.api.delete_pet(self.auth, 1)
 
         assert True
+
+    def test_set_pet_avatar(self):
+        self.api.set_pet_avatar(1, b'\xFF\xD8\xFF')
+
+        assert True
+
+    def test_get_pet_avatar(self):
+        result = self.api.get_pet_avatar(1)
+
+        assert result is not None
+
+    def test_get_pet_avatar_thumbnail(self):
+        result = self.api.get_pet_avatar_thumbnail(1)
+
+        assert result is not None
+
+    def test_set_pet_avatar_thumbnail(self):
+        request = SetPetAvatarThumbnailRequest(actual_instance=b'\x89PNG')
+
+        self.api.set_pet_avatar_thumbnail(1, request)
+
+        assert True
+
+    def test_upload_pet_certificate(self):
+        result = self.api.upload_pet_certificate(1, b'cert-data')
+
+        assert result is not None
+        assert isinstance(result, ApiResponse)
+
+    def test_upload_pet_document(self):
+        result = self.api.upload_pet_document(1, b'doc-data', document_type='vaccination_record', notes='Annual checkup')
+
+        assert result is not None
+        assert isinstance(result, ApiResponse)
+
+    @pytest.mark.skip(reason='Prism does not validate multipart array fields correctly')
+    def test_add_pet_photos(self):
+        metadata = PhotoMetadata(caption='Test photo', is_primary=True)
+
+        result = self.api.add_pet_photos(1, [b'photo1'], metadata)
+
+        assert result is not None
+        assert isinstance(result, list)
+
+    def test_download_pet_document(self):
+        result = self.api.download_pet_document(1, 1)
+
+        assert result is not None
+
+    @pytest.mark.skip(reason='Prism returns JSON for image content type')
+    def test_get_pet_photo(self):
+        result = self.api.get_pet_photo(1, 1)
+
+        assert result is not None
+
+    def test_get_pet_passport(self):
+        result = self.api.get_pet_passport(1)
+
+        assert result is not None
+        assert isinstance(result, PetPassport)

@@ -66,14 +66,15 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         typeMapping.put("array", "List");
         typeMapping.put("set", "Set");
         typeMapping.put("map", "Dict");
-        typeMapping.put("File", "file");
+        typeMapping.put("file", "bytes");
+        typeMapping.put("File", "bytes");
         typeMapping.put("decimal", "float");
 
         languageSpecificPrimitives =
                 new HashSet<>(
                         Arrays.asList(
                                 "int", "float", "bool", "str", "bytes", "object",
-                                "date", "datetime", "file", "List", "Dict", "Set",
+                                "date", "datetime", "List", "Dict", "Set",
                                 "Tuple", "Optional"));
 
         reservedWords = loadReservedWords("/reserved-words/python.txt");
@@ -348,7 +349,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         try {
             String content = Files.readString(file.toPath());
             String trimmed = content.replaceAll("\\{ ('.*?') }", "{$1}");
+            trimmed = trimmed.replaceAll("(?m)[ \\t]+$", "");
             trimmed = trimmed.replaceAll("\\n{4,}", "\n\n\n");
+            trimmed = breakLongRaises(trimmed);
             trimmed = trimmed.replaceAll("\\n+$", "\n");
             if (!trimmed.equals(content)) {
                 Files.write(file.toPath(), trimmed.getBytes(StandardCharsets.UTF_8));
@@ -356,5 +359,29 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         } catch (IOException e) {
             LOGGER.warn("Failed to post-process file: {}", file.getAbsolutePath(), e);
         }
+    }
+
+    private static String breakLongRaises(String content) {
+        StringBuilder sb = new StringBuilder();
+        for (String line : content.split("\n", -1)) {
+            if (line.length() > 120
+                    && line.stripLeading().startsWith("raise ValueError(\"")
+                    && line.stripTrailing().endsWith("\")")) {
+                String indent = line.substring(0, line.indexOf('r'));
+                int msgStart = line.indexOf("(\"") + 1;
+                int msgEnd = line.lastIndexOf("\")") + 1;
+                String msg = line.substring(msgStart, msgEnd);
+                sb.append(indent).append("raise ValueError(\n");
+                sb.append(indent).append("    ").append(msg).append("\n");
+                sb.append(indent).append(")");
+            } else {
+                sb.append(line);
+            }
+            sb.append("\n");
+        }
+        if (sb.length() > 0 && content.charAt(content.length() - 1) != '\n') {
+            sb.setLength(sb.length() - 1);
+        }
+        return sb.toString();
     }
 }

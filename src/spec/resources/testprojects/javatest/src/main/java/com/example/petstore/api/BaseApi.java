@@ -10,6 +10,8 @@ import com.example.petstore.ObjectSerializer;
 import com.example.petstore.TraceContextUtil;
 import com.example.petstore.auth.Authenticator;
 import com.fasterxml.jackson.core.type.TypeReference;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -113,12 +115,20 @@ public abstract class BaseApi {
     }
     TraceContextUtil.injectTraceContext(headers);
 
-    String serializedBody = null;
+    Object requestBody = null;
     if (body != null) {
-      serializedBody = objectSerializer.serialize(body);
+      if (body instanceof byte[]
+          || contentType.startsWith("image/")
+          || "application/octet-stream".equals(contentType)) {
+        requestBody = body;
+      } else if ("multipart/form-data".equals(contentType) && body instanceof Map) {
+        requestBody = body;
+      } else {
+        requestBody = objectSerializer.serialize(body);
+      }
     }
 
-    ApiResponse response = apiClient.sendRequest(method, url, headers, serializedBody);
+    ApiResponse response = apiClient.sendRequest(method, url, headers, requestBody);
 
     if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
       throw new ApiException(
@@ -129,6 +139,26 @@ public abstract class BaseApi {
     }
 
     if (returnType != null && response.getBody() != null && !response.getBody().isEmpty()) {
+      String responseContentType =
+          response.getHeaders() != null
+              ? response
+                  .getHeaders()
+                  .getOrDefault(
+                      "content-type", response.getHeaders().getOrDefault("Content-Type", ""))
+              : "";
+      if (!responseContentType.isEmpty()
+          && !responseContentType.contains("application/json")
+          && !responseContentType.contains("+json")) {
+        if (returnType.getType() == InputStream.class) {
+          @SuppressWarnings("unchecked")
+          T streamBody =
+              (T) new ByteArrayInputStream(response.getBody().getBytes(StandardCharsets.UTF_8));
+          return streamBody;
+        }
+        @SuppressWarnings("unchecked")
+        T rawBody = (T) response.getBody();
+        return rawBody;
+      }
       return objectSerializer.deserialize(response.getBody(), returnType);
     }
     return null;

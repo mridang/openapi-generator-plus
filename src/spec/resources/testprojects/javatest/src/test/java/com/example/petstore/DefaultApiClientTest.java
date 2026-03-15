@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -36,7 +37,7 @@ class DefaultApiClientTest {
                     "GET", wiremockUrl + "/api/test", new HashMap<>(), null);
 
             assertEquals(200, response.getStatusCode());
-            assertTrue(response.getBody().contains("success"));
+            assertTrue(Objects.requireNonNull(response.getBody()).contains("success"));
         }
     }
 
@@ -60,7 +61,7 @@ class DefaultApiClientTest {
                     "GET", wiremockUrl + "/api/test", new HashMap<>(), null);
 
             assertEquals(200, response.getStatusCode());
-            assertTrue(response.getBody().contains("success"));
+            assertTrue(Objects.requireNonNull(response.getBody()).contains("success"));
         }
     }
 
@@ -83,7 +84,7 @@ class DefaultApiClientTest {
                     "GET", wiremockUrl + "/api/test", new HashMap<>(), null);
 
             assertEquals(200, response.getStatusCode());
-            assertTrue(response.getBody().contains("success"));
+            assertTrue(Objects.requireNonNull(response.getBody()).contains("success"));
         }
     }
 
@@ -107,7 +108,7 @@ class DefaultApiClientTest {
                     "GET", wiremockUrl + "/api/test", new HashMap<>(), null);
 
             assertEquals(200, response.getStatusCode());
-            assertTrue(response.getBody().contains("success"));
+            assertTrue(Objects.requireNonNull(response.getBody()).contains("success"));
         }
     }
 }

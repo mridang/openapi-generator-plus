@@ -4,10 +4,18 @@ import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
 import com.example.petstore.auth.AdminBasicAuthenticator;
 import com.example.petstore.auth.PetStoreBearerAuthenticator;
+import com.example.petstore.models.ApiResponse;
 import com.example.petstore.models.Pet;
+import com.example.petstore.models.PetPassport;
+import com.example.petstore.models.Photo;
+import com.example.petstore.models.PhotoMetadata;
+import com.example.petstore.models.SetPetAvatarThumbnailRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -85,5 +93,87 @@ class PetApiTest {
         api.deletePet(basicAuth, 1L);
 
         assertThat(true).isTrue();
+    }
+
+    @Test
+    void testSetPetAvatar() throws Exception {
+        InputStream fakeImageData = new ByteArrayInputStream("fake-image-data".getBytes(StandardCharsets.UTF_8));
+        api.setPetAvatar(1L, fakeImageData);
+
+        assertThat(true).isTrue();
+    }
+
+    @Test
+    void testGetPetAvatar() throws Exception {
+        InputStream result = api.getPetAvatar(1L);
+        assertNotNull(result);
+    }
+
+    @Test
+    void testGetPetAvatarThumbnail() throws Exception {
+        byte[] result = api.getPetAvatarThumbnail(1L);
+        assertNotNull(result);
+    }
+
+    @Test
+    void testSetPetAvatarThumbnail() throws Exception {
+        byte[] thumbnailData = new byte[]{0x01, 0x02, 0x03, 0x04};
+        SetPetAvatarThumbnailRequest request = new SetPetAvatarThumbnailRequest(thumbnailData);
+
+        api.setPetAvatarThumbnail(1L, request);
+
+        assertThat(true).isTrue();
+    }
+
+    @Test
+    void testUploadPetCertificate() throws Exception {
+        InputStream fakeFile = new ByteArrayInputStream("fake-pdf-data".getBytes(StandardCharsets.UTF_8));
+        ApiResponse result = api.uploadPetCertificate(1L, fakeFile);
+        assertNotNull(result);
+    }
+
+    @Test
+    void testUploadPetDocument() throws Exception {
+        InputStream fakeDoc = new ByteArrayInputStream("fake-doc-data".getBytes(StandardCharsets.UTF_8));
+        ApiResponse result = api.uploadPetDocument(
+                1L, fakeDoc, "vaccination_record", "Annual checkup");
+        assertNotNull(result);
+    }
+
+    @Test
+    @org.junit.jupiter.api.Disabled("Prism does not validate multipart array fields correctly")
+    void testAddPetPhotos() throws Exception {
+        PhotoMetadata metadata = new PhotoMetadata();
+        metadata.caption = "Test photo";
+        metadata.isPrimary = true;
+
+        List<InputStream> files = List.of(new ByteArrayInputStream("fake-image-data".getBytes(StandardCharsets.UTF_8)));
+        List<Photo> result = api.addPetPhotos(
+                1L, files, metadata);
+        assertNotNull(result);
+    }
+
+    @Test
+    void testDownloadPetDocument() throws Exception {
+        InputStream result = api.downloadPetDocument(1L, 1L);
+        assertNotNull(result);
+    }
+
+    @Test
+    @org.junit.jupiter.api.Disabled("Prism returns JSON for image content type")
+    void testGetPetPhoto() throws Exception {
+        InputStream result = api.getPetPhoto(1L, 1L);
+        assertNotNull(result);
+    }
+
+    @Test
+    void testGetPetPassport() throws Exception {
+        PetPassport result = api.getPetPassport(1L);
+        assertNotNull(result);
+
+        assertThat(result.pet).isNotNull();
+        assertThat(result.thumbnail).isNotNull();
+        assertThat(result.scans).isNotNull();
+        assertThat(result.issuedAt).isNotNull();
     }
 }

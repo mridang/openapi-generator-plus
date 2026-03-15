@@ -1,0 +1,11 @@
+module PetstoreClient
+  module Api
+    class StoreApi < BaseApi
+      def initialize: (?::PetstoreClient::ApiClient? api_client, ?::PetstoreClient::Configuration config) -> void
+      def delete_order: (Integer order_id) -> untyped
+      def get_inventory: () -> untyped
+      def get_order_by_id: (Integer order_id) -> untyped
+      def place_order: (?Hash[Symbol, untyped] opts) -> untyped
+    end
+  end
+end

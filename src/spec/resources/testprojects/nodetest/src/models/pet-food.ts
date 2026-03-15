@@ -1,6 +1,5 @@
 import { DryFood } from './dry-food.js';
 import { WetFood } from './wet-food.js';
-
 /**
  * Food for pets, discriminated by foodType
  */

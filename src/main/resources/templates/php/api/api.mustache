@@ -63,19 +63,24 @@ use {{invokerPackage}}\Auth\Authenticator;
         }
 {{/headerParams}}
 {{#hasFormParams}}
-        $body = [];
+        $requestBody = [];
 {{#formParams}}
+{{#required}}
+        $requestBody['{{baseName}}'] = ${{paramName}};
+{{/required}}
+{{^required}}
         if (${{paramName}} !== null) {
-            $body['{{baseName}}'] = ObjectSerializer::toFormValue(${{paramName}});
+            $requestBody['{{baseName}}'] = ${{paramName}};
         }
+{{/required}}
 {{/formParams}}
 {{/hasFormParams}}
 {{^hasFormParams}}
 {{#bodyParam}}
-        $body = ${{paramName}};
+        $requestBody = ${{paramName}};
 {{/bodyParam}}
 {{^bodyParam}}
-        $body = null;
+        $requestBody = null;
 {{/bodyParam}}
 {{/hasFormParams}}
 
@@ -85,7 +90,7 @@ use {{invokerPackage}}\Auth\Authenticator;
             $path,
             $queryParams,
             $headerParams,
-            $body,
+            $requestBody,
             [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
             {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
             '{{{returnType}}}',
@@ -120,19 +125,24 @@ use {{invokerPackage}}\Auth\Authenticator;
         }
 {{/headerParams}}
 {{#hasFormParams}}
-        $body = [];
+        $requestBody = [];
 {{#formParams}}
+{{#required}}
+        $requestBody['{{baseName}}'] = ${{paramName}};
+{{/required}}
+{{^required}}
         if (${{paramName}} !== null) {
-            $body['{{baseName}}'] = ObjectSerializer::toFormValue(${{paramName}});
+            $requestBody['{{baseName}}'] = ${{paramName}};
         }
+{{/required}}
 {{/formParams}}
 {{/hasFormParams}}
 {{^hasFormParams}}
 {{#bodyParam}}
-        $body = ${{paramName}};
+        $requestBody = ${{paramName}};
 {{/bodyParam}}
 {{^bodyParam}}
-        $body = null;
+        $requestBody = null;
 {{/bodyParam}}
 {{/hasFormParams}}
 
@@ -141,7 +151,7 @@ use {{invokerPackage}}\Auth\Authenticator;
             $path,
             $queryParams,
             $headerParams,
-            $body,
+            $requestBody,
             [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
             {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
             null,

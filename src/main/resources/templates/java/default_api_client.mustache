@@ -1,19 +1,26 @@
 package {{invokerPackage}};
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
@@ -106,16 +113,27 @@ public final class DefaultApiClient implements ApiClient {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public ApiResponse sendRequest(
-            String method, String url, Map<String, String> headers, @Nullable String body)
+            String method, String url, Map<String, String> headers, @Nullable Object body)
             throws ApiException {
+        HttpRequest.BodyPublisher bodyPublisher;
+        if (body == null) {
+            bodyPublisher = HttpRequest.BodyPublishers.noBody();
+        } else if (body instanceof Map) {
+            String boundary = UUID.randomUUID().toString();
+            headers.put("Content-Type", "multipart/form-data; boundary=" + boundary);
+            bodyPublisher = buildMultipartBody((Map<String, Object>) body, boundary);
+        } else if (body instanceof byte[] bytes) {
+            bodyPublisher = HttpRequest.BodyPublishers.ofByteArray(bytes);
+        } else if (body instanceof InputStream stream) {
+            bodyPublisher = HttpRequest.BodyPublishers.ofInputStream(() -> stream);
+        } else {
+            bodyPublisher = HttpRequest.BodyPublishers.ofString(body.toString());
+        }
+
         HttpRequest.Builder builder =
-                HttpRequest.newBuilder(URI.create(url))
-                        .method(
-                                method,
-                                body != null
-                                        ? HttpRequest.BodyPublishers.ofString(body)
-                                        : HttpRequest.BodyPublishers.noBody());
+                HttpRequest.newBuilder(URI.create(url)).method(method, bodyPublisher);
 
         for (Map.Entry<String, String> header : headers.entrySet()) {
             builder.header(header.getKey(), header.getValue());
@@ -145,5 +163,114 @@ public final class DefaultApiClient implements ApiClient {
             Thread.currentThread().interrupt();
             throw new ApiException(e);
         }
+    }
+
+    /**
+     * Build a multipart/form-data request body from a map of form fields.
+     *
+     * <p>Each entry value may be a {@link File}, {@code byte[]}, {@link java.util.List},
+     * or any other object (model objects are JSON-serialized, primitives are converted
+     * to string text parts).</p>
+     *
+     * @param formFields the form field names and values
+     * @param boundary   the multipart boundary string
+     * @return a body publisher for the multipart content
+     */
+    private HttpRequest.BodyPublisher buildMultipartBody(
+            Map<String, Object> formFields, String boundary) {
+        var byteArrays = new java.util.ArrayList<byte[]>();
+
+        for (Map.Entry<String, Object> entry : formFields.entrySet()) {
+            String fieldName = entry.getKey();
+            Object value = entry.getValue();
+
+            if (value instanceof java.util.List<?> list) {
+                for (Object item : list) {
+                    addMultipartField(byteArrays, boundary, fieldName, item);
+                }
+            } else {
+                addMultipartField(byteArrays, boundary, fieldName, value);
+            }
+        }
+        byteArrays.add(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+
+        int totalLength = 0;
+        for (byte[] arr : byteArrays) {
+            totalLength += arr.length;
+        }
+        byte[] result = new byte[totalLength];
+        int offset = 0;
+        for (byte[] arr : byteArrays) {
+            System.arraycopy(arr, 0, result, offset, arr.length);
+            offset += arr.length;
+        }
+        return HttpRequest.BodyPublishers.ofByteArray(result);
+    }
+
+    private void addMultipartField(
+            List<byte[]> byteArrays,
+            String boundary,
+            String fieldName,
+            Object value) {
+        byte[] separator =
+                ("--" + boundary + "\r\nContent-Disposition: form-data; name=")
+                        .getBytes(StandardCharsets.UTF_8);
+        byteArrays.add(separator);
+
+        if (value instanceof File file) {
+            String fileName = file.getName();
+            String mimeType;
+            try {
+                mimeType = Files.probeContentType(file.toPath());
+            } catch (IOException e) {
+                mimeType = "application/octet-stream";
+            }
+            if (mimeType == null) {
+                mimeType = "application/octet-stream";
+            }
+            byteArrays.add(
+                    ("\"" + fieldName + "\"; filename=\"" + fileName + "\"\r\n"
+                                    + "Content-Type: " + mimeType + "\r\n\r\n")
+                            .getBytes(StandardCharsets.UTF_8));
+            try {
+                byteArrays.add(Files.readAllBytes(file.toPath()));
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to read file: " + file, e);
+            }
+        } else if (value instanceof byte[] bytes) {
+            byteArrays.add(
+                    ("\"" + fieldName + "\"; filename=\"" + fieldName + "\"\r\n"
+                                    + "Content-Type: application/octet-stream\r\n\r\n")
+                            .getBytes(StandardCharsets.UTF_8));
+            byteArrays.add(bytes);
+        } else if (value instanceof InputStream stream) {
+            try {
+                byteArrays.add(
+                        ("\"" + fieldName + "\"; filename=\"" + fieldName + "\"\r\n"
+                                        + "Content-Type: application/octet-stream\r\n\r\n")
+                                .getBytes(StandardCharsets.UTF_8));
+                byteArrays.add(stream.readAllBytes());
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to read stream: " + fieldName, e);
+            }
+        } else if (value instanceof String
+                || value instanceof Number
+                || value instanceof Boolean) {
+            byteArrays.add(
+                    ("\"" + fieldName + "\"\r\n\r\n" + value)
+                            .getBytes(StandardCharsets.UTF_8));
+        } else {
+            try {
+                String json = new ObjectMapper().writeValueAsString(value);
+                byteArrays.add(
+                        ("\"" + fieldName + "\"\r\nContent-Type: application/json\r\n\r\n" + json)
+                                .getBytes(StandardCharsets.UTF_8));
+            } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                byteArrays.add(
+                        ("\"" + fieldName + "\"\r\n\r\n" + value)
+                                .getBytes(StandardCharsets.UTF_8));
+            }
+        }
+        byteArrays.add("\r\n".getBytes(StandardCharsets.UTF_8));
     }
 }

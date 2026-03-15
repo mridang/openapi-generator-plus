@@ -40,7 +40,9 @@ from {{packageName}}.signing import HttpSigningConfiguration as HttpSigningConfi
 # import models into sdk package
 {{#models}}
 {{#model}}
-from {{modelPackage}}.{{classFilename}} import {{classname}} as {{classname}}
+from {{modelPackage}}.{{classFilename}} import (
+    {{classname}} as {{classname}},
+)
 {{/model}}
 {{/models}}
 {{#recursionLimit}}

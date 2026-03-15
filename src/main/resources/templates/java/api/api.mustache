@@ -135,10 +135,14 @@ public class {{classname}} extends BaseApi {
 {{#hasFormParams}}
         Map<String, Object> formBody = new HashMap<>();
 {{#formParams}}
+{{#required}}
+        formBody.put("{{baseName}}", {{paramName}});
+{{/required}}
+{{^required}}
         if ({{paramName}} != null) {
-            formBody.put(
-                    "{{baseName}}", ObjectSerializer.toFormValue({{paramName}}));
+            formBody.put("{{baseName}}", {{paramName}});
         }
+{{/required}}
 {{/formParams}}
 
 {{/hasFormParams}}

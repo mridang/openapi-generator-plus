@@ -75,4 +75,107 @@ public class PetApiTest
         await _api.DeletePetAsync(_auth, 1L);
         Assert.True(true);
     }
+
+    [Fact]
+    public async Task TestSetPetAvatar()
+    {
+        var imageData = new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10 });
+        await _api.SetPetAvatarAsync(1L, imageData);
+        Assert.True(true);
+    }
+
+    [Fact]
+    public async Task TestGetPetAvatar()
+    {
+        var result = await _api.GetPetAvatarAsync(1L);
+
+        Assert.NotNull(result);
+        Assert.IsAssignableFrom<Stream>(result);
+    }
+
+    [Fact]
+    public async Task TestGetPetAvatarThumbnail()
+    {
+        var result = await _api.GetPetAvatarThumbnailAsync(1L);
+
+        Assert.NotNull(result);
+        Assert.IsType<byte[]>(result);
+    }
+
+    [Fact]
+    public async Task TestSetPetAvatarThumbnail()
+    {
+        var thumbnailData = new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A };
+        var request = new SetPetAvatarThumbnailRequest(thumbnailData);
+
+        await _api.SetPetAvatarThumbnailAsync(1L, request);
+        Assert.True(true);
+    }
+
+    [Fact]
+    public async Task TestUploadPetCertificate()
+    {
+        var fileData = new MemoryStream(new byte[] { 0x25, 0x50, 0x44, 0x46 });
+        var result = await _api.UploadPetCertificateAsync(1L, fileData);
+
+        Assert.NotNull(result);
+        Assert.IsType<PetstoreClient.Models.ApiResponse>(result);
+    }
+
+    [Fact]
+    public async Task TestUploadPetDocument()
+    {
+        var fileData = new MemoryStream(new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D });
+        var result = await _api.UploadPetDocumentAsync(1L, fileData, "vaccination", "Annual rabies vaccination");
+
+        Assert.NotNull(result);
+        Assert.IsType<PetstoreClient.Models.ApiResponse>(result);
+    }
+
+    [Fact(Skip = "Prism does not validate multipart array fields correctly")]
+    public async Task TestAddPetPhotos()
+    {
+        var files = new List<Stream>
+        {
+            new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0 }),
+            new MemoryStream(new byte[] { 0xFF, 0xD8, 0xFF, 0xE1 }),
+        };
+        var metadata = new PhotoMetadata
+        {
+            Caption = "Pet photo",
+            IsPrimary = true,
+        };
+
+        var result = await _api.AddPetPhotosAsync(1L, files, metadata);
+
+        Assert.NotNull(result);
+        Assert.IsType<List<Photo>>(result);
+    }
+
+    [Fact]
+    public async Task TestDownloadPetDocument()
+    {
+        var result = await _api.DownloadPetDocumentAsync(1L, 100L);
+
+        Assert.NotNull(result);
+        Assert.IsAssignableFrom<Stream>(result);
+    }
+
+    [Fact(Skip = "Prism returns JSON for image content type")]
+    public async Task TestGetPetPhoto()
+    {
+        var result = await _api.GetPetPhotoAsync(1L, 100L);
+
+        Assert.NotNull(result);
+        Assert.IsAssignableFrom<Stream>(result);
+    }
+
+    [Fact]
+    public async Task TestGetPetPassport()
+    {
+        var result = await _api.GetPetPassportAsync(1L);
+
+        Assert.NotNull(result);
+        Assert.IsType<PetPassport>(result);
+    }
 }

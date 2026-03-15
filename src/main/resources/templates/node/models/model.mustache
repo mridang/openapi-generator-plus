@@ -23,7 +23,6 @@ export type {{classname}} = (typeof {{classname}})[keyof typeof {{classname}}];
 {{^isEnum}}
 {{#oneOf}}
 {{#-first}}
-
 {{#description}}
 /**
  * {{{.}}}
@@ -61,7 +60,6 @@ export type {{classname}} = {{#oneOf}}{{{.}}}{{^-last}} | {{/-last}}{{/oneOf}};
 {{^oneOf}}
 {{#anyOf}}
 {{#-first}}
-
 {{#description}}
 /**
  * {{{.}}}
