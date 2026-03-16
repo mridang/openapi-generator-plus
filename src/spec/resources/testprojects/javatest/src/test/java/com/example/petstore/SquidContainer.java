@@ -1,7 +1,6 @@
 package com.example.petstore;
 
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.MountableFile;
 
 import java.nio.file.Path;
@@ -20,9 +19,13 @@ public final class SquidContainer {
             .withCopyFileToContainer(
                 MountableFile.forHostPath(Path.of("/app/proxy/squid.conf")),
                 "/etc/squid/squid.conf")
-            .waitingFor(Wait.forListeningPort())
             .withStartupTimeout(Duration.ofSeconds(60));
         INSTANCE.start();
+        try {
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private SquidContainer() {}

@@ -20,7 +20,7 @@ public class PrismFixture : IAsyncLifetime
             .WithPortBinding(4010, true)
             .WithBindMount(specPath, "/tmp/openapi.yaml", AccessMode.ReadOnly)
             .WithCommand("mock", "-h", "0.0.0.0", "/tmp/openapi.yaml")
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(4010))
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilMessageIsLogged("Prism is listening"))
             .Build();
 
         await _container.StartAsync();

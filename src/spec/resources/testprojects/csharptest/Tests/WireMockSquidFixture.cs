@@ -35,17 +35,19 @@ public class WireMockSquidFixture : IAsyncLifetime
                 "--keystore-password", "changeit",
                 "--key-manager-password", "changeit",
                 "--verbose")
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(8443))
+            .WithWaitStrategy(Wait.ForUnixContainer().UntilMessageIsLogged("port:"))
             .Build();
 
         _squid = new ContainerBuilder()
             .WithImage("ubuntu/squid:5.2-22.04_beta")
             .WithPortBinding(3128, true)
             .WithBindMount(squidConfPath, "/etc/squid/squid.conf", AccessMode.ReadOnly)
-            .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(3128))
             .Build();
 
         await Task.WhenAll(_wiremock.StartAsync(), _squid.StartAsync());
+
+        // Give Squid a moment to initialize
+        await Task.Delay(3000);
 
         WireMockHttpsUrl = $"https://{_wiremock.Hostname}:{_wiremock.GetMappedPublicPort(8443)}";
         WireMockHttpUrl = $"http://{_wiremock.Hostname}:{_wiremock.GetMappedPublicPort(8080)}";

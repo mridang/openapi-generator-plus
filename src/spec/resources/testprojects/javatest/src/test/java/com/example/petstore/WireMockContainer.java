@@ -31,7 +31,7 @@ public final class WireMockContainer {
                 "--keystore-password", "changeit",
                 "--key-manager-password", "changeit",
                 "--verbose")
-            .waitingFor(Wait.forListeningPort())
+            .waitingFor(Wait.forLogMessage(".*port:.*", 1))
             .withStartupTimeout(Duration.ofSeconds(60));
         INSTANCE.start();
     }
