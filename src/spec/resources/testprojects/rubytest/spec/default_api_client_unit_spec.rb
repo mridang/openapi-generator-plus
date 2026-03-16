@@ -47,6 +47,7 @@ describe PetstoreClient::DefaultApiClient do
       response = client.send_request('GET', 'http://localhost/echo', {}, nil)
       _(response.headers['x-test-header']).must_equal 'test-value'
     end
+    stubs.verify_stubbed_calls
   end
 
   it 'returns non-2xx status code' do
@@ -59,6 +60,7 @@ describe PetstoreClient::DefaultApiClient do
       _(response.status_code).must_equal 404
       _(response.body).must_equal 'not found'
     end
+    stubs.verify_stubbed_calls
   end
 
   it 'sends PUT request' do
@@ -84,5 +86,6 @@ describe PetstoreClient::DefaultApiClient do
       _(response.status_code).must_equal 200
       _(response.body).must_include 'DELETE'
     end
+    stubs.verify_stubbed_calls
   end
 end

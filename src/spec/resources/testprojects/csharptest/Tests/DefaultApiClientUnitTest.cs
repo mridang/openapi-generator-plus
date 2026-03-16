@@ -26,7 +26,7 @@ public class DefaultApiClientUnitTest
     [Fact]
     public async Task SendsPostWithJsonBody()
     {
-        var httpClient = CreateMockHttpClient(HttpStatusCode.OK, "{\"method\":\"POST\"}");
+        var httpClient = CreateMockHttpClient(HttpStatusCode.OK, "{\"method\":\"POST\",\"body\":\"key\"}");
         var client = new DefaultApiClient(httpClient);
 
         var response = await client.SendRequestAsync(
