@@ -130,6 +130,50 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile("dotnet_tools.mustache", ".config", "dotnet-tools.json"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
+
+        if (generateTests) {
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/tests_csproj.mustache", "", packageName + ".Tests.csproj"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/Api/PetApiTest.mustache",
+                            "Tests" + File.separator + "Api",
+                            "PetApiTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/Api/StoreApiTest.mustache",
+                            "Tests" + File.separator + "Api",
+                            "StoreApiTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/DefaultApiClientTest.mustache",
+                            "Tests",
+                            "DefaultApiClientTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/DefaultApiClientUnitTest.mustache",
+                            "Tests",
+                            "DefaultApiClientUnitTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/HeaderSelectorTest.mustache",
+                            "Tests",
+                            "HeaderSelectorTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ObjectSerializerTest.mustache",
+                            "Tests",
+                            "ObjectSerializerTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/PrismFixture.mustache", "Tests", "PrismFixture.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/WireMockSquidFixture.mustache",
+                            "Tests",
+                            "WireMockSquidFixture.cs"));
+        }
     }
 
     @Override

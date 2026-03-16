@@ -23,9 +23,18 @@ public class ObjectSerializer
 
     /// <summary>
     /// Serialize an object to a JSON string.
+    /// Unwraps oneOf/anyOf wrapper objects by serializing their ActualInstance.
     /// </summary>
     public string Serialize(object? value)
     {
+        if (value != null)
+        {
+            System.Reflection.PropertyInfo? actualProp = value.GetType().GetProperty("ActualInstance");
+            if (actualProp != null)
+            {
+                value = actualProp.GetValue(value);
+            }
+        }
         return JsonSerializer.Serialize(value, _options);
     }
 

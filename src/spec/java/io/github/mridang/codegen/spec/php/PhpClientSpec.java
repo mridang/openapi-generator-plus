@@ -5,8 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.mridang.codegen.spec.AbstractClientSpec;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Map;
-import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SuppressWarnings("NewClassNamingConvention")
@@ -24,11 +22,6 @@ public class PhpClientSpec extends AbstractClientSpec implements PhpSpec {
   @Override
   protected Path getTestProjectPath() {
     return Paths.get("src/spec/resources/testprojects/phptest");
-  }
-
-  @Override
-  protected Map<String, Object> getCodegenProperties() {
-    return Map.of(CodegenConstants.INVOKER_PACKAGE, "PetstoreClient");
   }
 
   @Override

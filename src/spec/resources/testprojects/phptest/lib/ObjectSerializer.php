@@ -91,6 +91,10 @@ class ObjectSerializer
         }
 
         if (is_object($data)) {
+            if (method_exists($data, 'getActualInstance')) {
+                return self::sanitizeForSerialization($data->getActualInstance());
+            }
+
             /** @var array<string, mixed> $normalized */
             $normalized = self::getSerializer()->normalize($data, null, [
                 AbstractObjectNormalizer::SKIP_NULL_VALUES => true,

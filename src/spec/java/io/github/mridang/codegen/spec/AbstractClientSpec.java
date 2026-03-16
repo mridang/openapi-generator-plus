@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
@@ -13,14 +12,12 @@ import org.junit.jupiter.api.TestMethodOrder;
 
 /**
  * Base class for client integration specs. Provides the shared test structure:
- * copy test project, generate client, assert structure, then run tests against Prism.
+ * copy test project, assert structure, then run tests against Prism.
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public abstract class AbstractClientSpec extends AbstractIntegrationSpec {
 
   protected abstract Path getTestProjectPath();
-
-  protected abstract Map<String, Object> getCodegenProperties();
 
   protected abstract void assertGeneratedStructure(Path outputDir);
 
@@ -42,19 +39,16 @@ public abstract class AbstractClientSpec extends AbstractIntegrationSpec {
   @Test
   @Order(1)
   void shouldGenerateClient() {
-    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
+    // The test project is already fully generated (by GenerateClientsTest) and
+    // copied to tempOutputDir in @BeforeEach. Just assert the structure.
     assertGeneratedStructure(tempOutputDir);
   }
 
   @Test
   @Order(2)
   void shouldRunClientTests() throws IOException {
-    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
-
-    // Re-copy test project overlay to restore dependency manifests and test configs
-    // that were overwritten by the code generator (pom.xml, package.json, etc.)
-    copyDirectory(getTestProjectPath(), tempOutputDir);
-
+    // The test project is already fully generated (by GenerateClientsTest) and
+    // copied to tempOutputDir in @BeforeEach. No regeneration or overlay needed.
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 
     assertThat(result.isSuccess())

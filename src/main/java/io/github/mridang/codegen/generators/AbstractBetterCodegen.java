@@ -52,6 +52,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     protected boolean hasOAuth2Implicit;
     protected boolean hasOpenIdConnect;
     protected boolean hasAnyOAuth2;
+    protected boolean generateTests;
 
     protected AbstractBetterCodegen() {
         super();
@@ -65,6 +66,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         super.processOpts();
         setEnablePostProcessFile(true);
         supportingFiles.clear();
+
+        if (additionalProperties.containsKey("generateTests")) {
+            generateTests =
+                    Boolean.parseBoolean(additionalProperties.get("generateTests").toString());
+        }
+        additionalProperties.put("generateTests", generateTests);
     }
 
     @Override

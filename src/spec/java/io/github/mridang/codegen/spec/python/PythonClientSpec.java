@@ -5,15 +5,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.mridang.codegen.spec.AbstractClientSpec;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Map;
-import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
 public class PythonClientSpec extends AbstractClientSpec implements PythonSpec {
-
-  private static final String PACKAGE_NAME = "petstore_client";
 
   @Override
   protected String[] getBuildCommands() {
@@ -29,16 +25,9 @@ public class PythonClientSpec extends AbstractClientSpec implements PythonSpec {
   }
 
   @Override
-  protected Map<String, Object> getCodegenProperties() {
-    return Map.of(
-        CodegenConstants.PACKAGE_NAME, PACKAGE_NAME,
-        CodegenConstants.PROJECT_NAME, "petstore-client");
-  }
-
-  @Override
   protected void assertGeneratedStructure(Path outputDir) {
-    assertThat(outputDir.resolve(PACKAGE_NAME)).exists();
-    assertThat(outputDir.resolve(PACKAGE_NAME + "/api")).exists();
-    assertThat(outputDir.resolve(PACKAGE_NAME + "/models")).exists();
+    assertThat(outputDir.resolve("petstore_client")).exists();
+    assertThat(outputDir.resolve("petstore_client/api")).exists();
+    assertThat(outputDir.resolve("petstore_client/models")).exists();
   }
 }

@@ -1,5 +1,7 @@
+# frozen_string_literal: true
+
 target :lib do
-  check "lib"
-  signature "sig"
-  library "date", "json", "time", "cgi", "uri", "securerandom"
+  check 'lib'
+  signature 'sig'
+  library 'date', 'json', 'securerandom', 'time', 'cgi', 'uri'
 end

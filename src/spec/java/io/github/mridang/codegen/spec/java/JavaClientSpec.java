@@ -5,15 +5,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.mridang.codegen.spec.AbstractClientSpec;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Map;
-import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
 public class JavaClientSpec extends AbstractClientSpec implements JavaSpec {
-
-  private static final String PACKAGE_NAME = "com.example.petstore";
 
   @Override
   protected String[] getBuildCommands() {
@@ -26,14 +22,6 @@ public class JavaClientSpec extends AbstractClientSpec implements JavaSpec {
   @Override
   protected Path getTestProjectPath() {
     return Paths.get("src/spec/resources/testprojects/javatest");
-  }
-
-  @Override
-  protected Map<String, Object> getCodegenProperties() {
-    return Map.of(
-        CodegenConstants.MODEL_PACKAGE, PACKAGE_NAME + ".models",
-        CodegenConstants.API_PACKAGE, PACKAGE_NAME + ".api",
-        CodegenConstants.INVOKER_PACKAGE, PACKAGE_NAME);
   }
 
   @Override

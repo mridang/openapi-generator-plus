@@ -130,6 +130,46 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
         supportingFiles.add(new SupportingFile("client.mustache", "src", "client.ts"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
+
+        if (generateTests) {
+            supportingFiles.add(new SupportingFile("test/jest.config.mjs", "", "jest.config.mjs"));
+            supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
+            supportingFiles.add(
+                    new SupportingFile("test/global-setup.ts", "tests", "global-setup.ts"));
+            supportingFiles.add(
+                    new SupportingFile("test/global-teardown.ts", "tests", "global-teardown.ts"));
+            supportingFiles.add(new SupportingFile("test/setup.ts", "tests", "setup.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/Api/pet-api.test.ts",
+                            "tests" + File.separator + "Api",
+                            "pet-api.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/Api/store-api.test.ts",
+                            "tests" + File.separator + "Api",
+                            "store-api.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/default-api-client.test.ts",
+                            "tests",
+                            "default-api-client.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/default-api-client-unit.test.ts",
+                            "tests",
+                            "default-api-client-unit.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/object-serializer.test.ts",
+                            "tests",
+                            "object-serializer.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/trace-context-util.test.ts",
+                            "tests",
+                            "trace-context-util.test.ts"));
+        }
     }
 
     @Override

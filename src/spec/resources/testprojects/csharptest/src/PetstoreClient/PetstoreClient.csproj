@@ -7,7 +7,6 @@
     <AnalysisLevel>latest-all</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>CS1591</NoWarn>
     <WarningLevel>9999</WarningLevel>
   </PropertyGroup>
   <ItemGroup>

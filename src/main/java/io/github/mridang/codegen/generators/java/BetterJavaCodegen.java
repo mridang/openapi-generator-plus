@@ -175,6 +175,56 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 new SupportingFile("spotbugs_exclude.mustache", "", "spotbugs-exclude.xml"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
+
+        if (generateTests) {
+            String testFolder =
+                    "src" + File.separator + "test" + File.separator + "java" + File.separator
+                            + invokerPackage.replace(".", File.separator);
+            String testApiFolder = testFolder + File.separator + "api";
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api/PetApiTest.mustache", testApiFolder, "PetApiTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api/StoreApiTest.mustache", testApiFolder, "StoreApiTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/DefaultApiClientTest.mustache",
+                            testFolder,
+                            "DefaultApiClientTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/DefaultApiClientUnitTest.mustache",
+                            testFolder,
+                            "DefaultApiClientUnitTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/HeaderSelectorTest.mustache",
+                            testFolder,
+                            "HeaderSelectorTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ObjectSerializerTest.mustache",
+                            testFolder,
+                            "ObjectSerializerTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/TraceContextUtilTest.mustache",
+                            testFolder,
+                            "TraceContextUtilTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/PrismContainer.mustache", testFolder, "PrismContainer.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/SquidContainer.mustache", testFolder, "SquidContainer.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/WireMockContainer.mustache",
+                            testFolder,
+                            "WireMockContainer.java"));
+            supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
+        }
     }
 
     @Override

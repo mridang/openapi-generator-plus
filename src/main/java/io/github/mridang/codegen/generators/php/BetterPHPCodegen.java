@@ -162,6 +162,47 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         supportingFiles.add(new SupportingFile("phpcs_xml.mustache", "", "phpcs.xml"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
+
+        if (generateTests) {
+            supportingFiles.add(new SupportingFile("test/bootstrap.php", "tests", "bootstrap.php"));
+            supportingFiles.add(new SupportingFile("test/phpunit.xml", "", "phpunit.xml"));
+            supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/Api/PetApiTest.mustache",
+                            "tests" + File.separator + "Api",
+                            "PetApiTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/Api/StoreApiTest.mustache",
+                            "tests" + File.separator + "Api",
+                            "StoreApiTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/DefaultApiClientTest.mustache",
+                            "tests",
+                            "DefaultApiClientTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/DefaultApiClientUnitTest.mustache",
+                            "tests",
+                            "DefaultApiClientUnitTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/HeaderSelectorTest.mustache",
+                            "tests",
+                            "HeaderSelectorTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ObjectSerializerTest.mustache",
+                            "tests",
+                            "ObjectSerializerTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/TraceContextUtilTest.mustache",
+                            "tests",
+                            "TraceContextUtilTest.php"));
+        }
     }
 
     private String toSrcPath(String packageName) {

@@ -10,238 +10,238 @@ import org.junit.jupiter.api.Test;
 
 class ObjectSerializerTest {
 
-    private final ObjectSerializer serializer = new ObjectSerializer();
+  private final ObjectSerializer serializer = new ObjectSerializer();
 
-    @Nested
-    @DisplayName("toPathValue")
-    class ToPathValueTests {
+  @Nested
+  @DisplayName("toPathValue")
+  class ToPathValueTests {
 
-        @Test
-        @DisplayName("returns empty string for null")
-        void returnsEmptyStringForNull() {
-            assertEquals("", ObjectSerializer.toPathValue(null));
-        }
-
-        @Test
-        @DisplayName("returns the string for a string value")
-        void returnsStringForStringValue() {
-            assertEquals("hello", ObjectSerializer.toPathValue("hello"));
-        }
-
-        @Test
-        @DisplayName("converts integer to string")
-        void convertsIntegerToString() {
-            assertEquals("42", ObjectSerializer.toPathValue(42));
-        }
-
-        @Test
-        @DisplayName("converts true to \"true\"")
-        void convertsTrueToString() {
-            assertEquals("true", ObjectSerializer.toPathValue(true));
-        }
-
-        @Test
-        @DisplayName("converts false to \"false\"")
-        void convertsFalseToString() {
-            assertEquals("false", ObjectSerializer.toPathValue(false));
-        }
+    @Test
+    @DisplayName("returns empty string for null")
+    void returnsEmptyStringForNull() {
+      assertEquals("", ObjectSerializer.toPathValue(null));
     }
 
-    @Nested
-    @DisplayName("toQueryValue")
-    class ToQueryValueTests {
-
-        @Test
-        @DisplayName("returns null for null")
-        void returnsNullForNull() {
-            assertNull(ObjectSerializer.toQueryValue(null, null));
-        }
-
-        @Test
-        @DisplayName("returns the string for a string value")
-        void returnsStringForStringValue() {
-            assertEquals("hello", ObjectSerializer.toQueryValue("hello", null));
-        }
-
-        @Test
-        @DisplayName("converts integer to string")
-        void convertsIntegerToString() {
-            assertEquals("42", ObjectSerializer.toQueryValue(42, null));
-        }
-
-        @Test
-        @DisplayName("converts true to \"true\"")
-        void convertsTrueToString() {
-            assertEquals("true", ObjectSerializer.toQueryValue(true, null));
-        }
-
-        @Test
-        @DisplayName("joins array with comma by default")
-        void joinsArrayWithCommaByDefault() {
-            List<String> list = Arrays.asList("a", "b", "c");
-            assertEquals("a,b,c", ObjectSerializer.toQueryValue(list, null));
-        }
-
-        @Test
-        @DisplayName("joins array with comma for csv")
-        void joinsArrayWithCommaForCsv() {
-            List<String> list = Arrays.asList("a", "b", "c");
-            assertEquals("a,b,c", ObjectSerializer.toQueryValue(list, "csv"));
-        }
-
-        @Test
-        @DisplayName("joins array with space for ssv")
-        void joinsArrayWithSpaceForSsv() {
-            List<String> list = Arrays.asList("a", "b", "c");
-            assertEquals("a b c", ObjectSerializer.toQueryValue(list, "ssv"));
-        }
-
-        @Test
-        @DisplayName("joins array with tab for tsv")
-        void joinsArrayWithTabForTsv() {
-            List<String> list = Arrays.asList("a", "b", "c");
-            assertEquals("a\tb\tc", ObjectSerializer.toQueryValue(list, "tsv"));
-        }
-
-        @Test
-        @DisplayName("joins array with pipe for pipes")
-        void joinsArrayWithPipeForPipes() {
-            List<String> list = Arrays.asList("a", "b", "c");
-            assertEquals("a|b|c", ObjectSerializer.toQueryValue(list, "pipes"));
-        }
-
-        @Test
-        @DisplayName("returns array as-is for multi")
-        void returnsArrayForMulti() {
-            List<String> list = Arrays.asList("a", "b", "c");
-            assertEquals(list, ObjectSerializer.toQueryValue(list, "multi"));
-        }
+    @Test
+    @DisplayName("returns the string for a string value")
+    void returnsStringForStringValue() {
+      assertEquals("hello", ObjectSerializer.toPathValue("hello"));
     }
 
-    @Nested
-    @DisplayName("toHeaderValue")
-    class ToHeaderValueTests {
-
-        @Test
-        @DisplayName("returns empty string for null")
-        void returnsEmptyStringForNull() {
-            assertEquals("", ObjectSerializer.toHeaderValue(null));
-        }
-
-        @Test
-        @DisplayName("returns the string for a string value")
-        void returnsStringForStringValue() {
-            assertEquals("hello", ObjectSerializer.toHeaderValue("hello"));
-        }
-
-        @Test
-        @DisplayName("converts integer to string")
-        void convertsIntegerToString() {
-            assertEquals("42", ObjectSerializer.toHeaderValue(42));
-        }
-
-        @Test
-        @DisplayName("joins array with comma")
-        void joinsArrayWithComma() {
-            List<String> list = Arrays.asList("a", "b", "c");
-            assertEquals("a,b,c", ObjectSerializer.toHeaderValue(list));
-        }
+    @Test
+    @DisplayName("converts integer to string")
+    void convertsIntegerToString() {
+      assertEquals("42", ObjectSerializer.toPathValue(42));
     }
 
-    @Nested
-    @DisplayName("toFormValue")
-    class ToFormValueTests {
-
-        @Test
-        @DisplayName("returns empty string for null")
-        void returnsEmptyStringForNull() {
-            assertEquals("", ObjectSerializer.toFormValue(null));
-        }
-
-        @Test
-        @DisplayName("returns the string for a string value")
-        void returnsStringForStringValue() {
-            assertEquals("hello", ObjectSerializer.toFormValue("hello"));
-        }
-
-        @Test
-        @DisplayName("converts integer to string")
-        void convertsIntegerToString() {
-            assertEquals("42", ObjectSerializer.toFormValue(42));
-        }
-
-        @Test
-        @DisplayName("converts true to \"true\"")
-        void convertsTrueToString() {
-            assertEquals("true", ObjectSerializer.toFormValue(true));
-        }
-
-        @Test
-        @DisplayName("converts false to \"false\"")
-        void convertsFalseToString() {
-            assertEquals("false", ObjectSerializer.toFormValue(false));
-        }
+    @Test
+    @DisplayName("converts true to \"true\"")
+    void convertsTrueToString() {
+      assertEquals("true", ObjectSerializer.toPathValue(true));
     }
 
-    @Nested
-    @DisplayName("serialize")
-    class SerializeTests {
+    @Test
+    @DisplayName("converts false to \"false\"")
+    void convertsFalseToString() {
+      assertEquals("false", ObjectSerializer.toPathValue(false));
+    }
+  }
 
-        @Test
-        @DisplayName("serializes a model to valid JSON")
-        void serializesModelToValidJson() {
-            com.example.petstore.models.Category category = new com.example.petstore.models.Category();
-            category.id = 1L;
-            category.name = "Dogs";
-            String json = serializer.serialize(category);
-            assertTrue(json.contains("\"id\":1"));
-            assertTrue(json.contains("\"name\":\"Dogs\""));
-        }
+  @Nested
+  @DisplayName("toQueryValue")
+  class ToQueryValueTests {
 
-        @Test
-        @DisplayName("handles null")
-        void handlesNull() {
-            String json = serializer.serialize(null);
-            assertEquals("null", json);
-        }
+    @Test
+    @DisplayName("returns null for null")
+    void returnsNullForNull() {
+      assertNull(ObjectSerializer.toQueryValue(null, null));
     }
 
-    @Nested
-    @DisplayName("deserialize")
-    class DeserializeTests {
-
-        @Test
-        @DisplayName("deserializes JSON to typed model")
-        void deserializesJsonToTypedModel() {
-            String json = "{\"id\":1,\"name\":\"Dogs\"}";
-            com.example.petstore.models.Category category =
-                    serializer.deserialize(
-                            json,
-                            new com.fasterxml.jackson.core.type.TypeReference<
-                                    com.example.petstore.models.Category>() {});
-            assertNotNull(category);
-            assertEquals(1L, category.id);
-            assertEquals("Dogs", category.name);
-        }
-
-        @Test
-        @DisplayName("returns null for empty input")
-        void returnsNullForEmptyInput() {
-            assertNull(
-                    serializer.deserialize(
-                            "",
-                            new com.fasterxml.jackson.core.type.TypeReference<
-                                    com.example.petstore.models.Category>() {}));
-        }
-
-        @Test
-        @DisplayName("returns null for null input")
-        void returnsNullForNullInput() {
-            assertNull(
-                    serializer.deserialize(
-                            null,
-                            new com.fasterxml.jackson.core.type.TypeReference<
-                                    com.example.petstore.models.Category>() {}));
-        }
+    @Test
+    @DisplayName("returns the string for a string value")
+    void returnsStringForStringValue() {
+      assertEquals("hello", ObjectSerializer.toQueryValue("hello", null));
     }
+
+    @Test
+    @DisplayName("converts integer to string")
+    void convertsIntegerToString() {
+      assertEquals("42", ObjectSerializer.toQueryValue(42, null));
+    }
+
+    @Test
+    @DisplayName("converts true to \"true\"")
+    void convertsTrueToString() {
+      assertEquals("true", ObjectSerializer.toQueryValue(true, null));
+    }
+
+    @Test
+    @DisplayName("joins array with comma by default")
+    void joinsArrayWithCommaByDefault() {
+      List<String> list = Arrays.asList("a", "b", "c");
+      assertEquals("a,b,c", ObjectSerializer.toQueryValue(list, null));
+    }
+
+    @Test
+    @DisplayName("joins array with comma for csv")
+    void joinsArrayWithCommaForCsv() {
+      List<String> list = Arrays.asList("a", "b", "c");
+      assertEquals("a,b,c", ObjectSerializer.toQueryValue(list, "csv"));
+    }
+
+    @Test
+    @DisplayName("joins array with space for ssv")
+    void joinsArrayWithSpaceForSsv() {
+      List<String> list = Arrays.asList("a", "b", "c");
+      assertEquals("a b c", ObjectSerializer.toQueryValue(list, "ssv"));
+    }
+
+    @Test
+    @DisplayName("joins array with tab for tsv")
+    void joinsArrayWithTabForTsv() {
+      List<String> list = Arrays.asList("a", "b", "c");
+      assertEquals("a\tb\tc", ObjectSerializer.toQueryValue(list, "tsv"));
+    }
+
+    @Test
+    @DisplayName("joins array with pipe for pipes")
+    void joinsArrayWithPipeForPipes() {
+      List<String> list = Arrays.asList("a", "b", "c");
+      assertEquals("a|b|c", ObjectSerializer.toQueryValue(list, "pipes"));
+    }
+
+    @Test
+    @DisplayName("returns array as-is for multi")
+    void returnsArrayForMulti() {
+      List<String> list = Arrays.asList("a", "b", "c");
+      assertEquals(list, ObjectSerializer.toQueryValue(list, "multi"));
+    }
+  }
+
+  @Nested
+  @DisplayName("toHeaderValue")
+  class ToHeaderValueTests {
+
+    @Test
+    @DisplayName("returns empty string for null")
+    void returnsEmptyStringForNull() {
+      assertEquals("", ObjectSerializer.toHeaderValue(null));
+    }
+
+    @Test
+    @DisplayName("returns the string for a string value")
+    void returnsStringForStringValue() {
+      assertEquals("hello", ObjectSerializer.toHeaderValue("hello"));
+    }
+
+    @Test
+    @DisplayName("converts integer to string")
+    void convertsIntegerToString() {
+      assertEquals("42", ObjectSerializer.toHeaderValue(42));
+    }
+
+    @Test
+    @DisplayName("joins array with comma")
+    void joinsArrayWithComma() {
+      List<String> list = Arrays.asList("a", "b", "c");
+      assertEquals("a,b,c", ObjectSerializer.toHeaderValue(list));
+    }
+  }
+
+  @Nested
+  @DisplayName("toFormValue")
+  class ToFormValueTests {
+
+    @Test
+    @DisplayName("returns empty string for null")
+    void returnsEmptyStringForNull() {
+      assertEquals("", ObjectSerializer.toFormValue(null));
+    }
+
+    @Test
+    @DisplayName("returns the string for a string value")
+    void returnsStringForStringValue() {
+      assertEquals("hello", ObjectSerializer.toFormValue("hello"));
+    }
+
+    @Test
+    @DisplayName("converts integer to string")
+    void convertsIntegerToString() {
+      assertEquals("42", ObjectSerializer.toFormValue(42));
+    }
+
+    @Test
+    @DisplayName("converts true to \"true\"")
+    void convertsTrueToString() {
+      assertEquals("true", ObjectSerializer.toFormValue(true));
+    }
+
+    @Test
+    @DisplayName("converts false to \"false\"")
+    void convertsFalseToString() {
+      assertEquals("false", ObjectSerializer.toFormValue(false));
+    }
+  }
+
+  @Nested
+  @DisplayName("serialize")
+  class SerializeTests {
+
+    @Test
+    @DisplayName("serializes a model to valid JSON")
+    void serializesModelToValidJson() {
+      com.example.petstore.models.Category category = new com.example.petstore.models.Category();
+      category.id = 1L;
+      category.name = "Dogs";
+      String json = serializer.serialize(category);
+      assertTrue(json.contains("\"id\":1"));
+      assertTrue(json.contains("\"name\":\"Dogs\""));
+    }
+
+    @Test
+    @DisplayName("handles null")
+    void handlesNull() {
+      String json = serializer.serialize(null);
+      assertEquals("null", json);
+    }
+  }
+
+  @Nested
+  @DisplayName("deserialize")
+  class DeserializeTests {
+
+    @Test
+    @DisplayName("deserializes JSON to typed model")
+    void deserializesJsonToTypedModel() {
+      String json = "{\"id\":1,\"name\":\"Dogs\"}";
+      com.example.petstore.models.Category category =
+          serializer.deserialize(
+              json,
+              new com.fasterxml.jackson.core.type.TypeReference<
+                  com.example.petstore.models.Category>() {});
+      assertNotNull(category);
+      assertEquals(1L, category.id);
+      assertEquals("Dogs", category.name);
+    }
+
+    @Test
+    @DisplayName("returns null for empty input")
+    void returnsNullForEmptyInput() {
+      assertNull(
+          serializer.deserialize(
+              "",
+              new com.fasterxml.jackson.core.type.TypeReference<
+                  com.example.petstore.models.Category>() {}));
+    }
+
+    @Test
+    @DisplayName("returns null for null input")
+    void returnsNullForNullInput() {
+      assertNull(
+          serializer.deserialize(
+              null,
+              new com.fasterxml.jackson.core.type.TypeReference<
+                  com.example.petstore.models.Category>() {}));
+    }
+  }
 }

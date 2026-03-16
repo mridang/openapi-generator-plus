@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.github.mridang.codegen.spec.AbstractClientSpec;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Map;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SuppressWarnings("NewClassNamingConvention")
@@ -23,11 +22,6 @@ public class NodeClientSpec extends AbstractClientSpec implements NodeSpec {
   @Override
   protected Path getTestProjectPath() {
     return Paths.get("src/spec/resources/testprojects/nodetest");
-  }
-
-  @Override
-  protected Map<String, Object> getCodegenProperties() {
-    return Map.of();
   }
 
   @Override

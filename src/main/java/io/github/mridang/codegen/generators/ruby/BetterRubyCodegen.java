@@ -161,6 +161,47 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("rakefile.mustache", "", "Rakefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
+
+        if (generateTests) {
+            supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
+            supportingFiles.add(
+                    new SupportingFile("test/spec_helper.mustache", "spec", "spec_helper.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/Api/pet_api_spec.mustache",
+                            "spec" + File.separator + "Api",
+                            "pet_api_spec.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/Api/store_api_spec.mustache",
+                            "spec" + File.separator + "Api",
+                            "store_api_spec.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/default_api_client_spec.mustache",
+                            "spec",
+                            "default_api_client_spec.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/default_api_client_unit_spec.mustache",
+                            "spec",
+                            "default_api_client_unit_spec.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/header_selector_spec.mustache",
+                            "spec",
+                            "header_selector_spec.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/object_serializer_spec.mustache",
+                            "spec",
+                            "object_serializer_spec.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/trace_context_util_spec.mustache",
+                            "spec",
+                            "trace_context_util_spec.rb"));
+        }
     }
 
     @Nullable

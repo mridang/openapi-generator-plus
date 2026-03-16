@@ -149,6 +149,50 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         supportingFiles.add(new SupportingFile("pyproject_toml.mustache", "", "pyproject.toml"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
+
+        if (generateTests) {
+            supportingFiles.add(new SupportingFile("test/conftest.py", "", "conftest.py"));
+            supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
+            supportingFiles.add(
+                    new SupportingFile("test/tests_init.py", "tests", "__init__.py"));
+            supportingFiles.add(
+                    new SupportingFile("test/Api_init.py", "tests" + File.separator + "Api", "__init__.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/Api/test_pet_api.mustache",
+                            "tests" + File.separator + "Api",
+                            "test_pet_api.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/Api/test_store_api.mustache",
+                            "tests" + File.separator + "Api",
+                            "test_store_api.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_default_api_client.mustache",
+                            "tests",
+                            "test_default_api_client.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_default_api_client_unit.mustache",
+                            "tests",
+                            "test_default_api_client_unit.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_header_selector.mustache",
+                            "tests",
+                            "test_header_selector.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_object_serializer.mustache",
+                            "tests",
+                            "test_object_serializer.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_trace_context_util.mustache",
+                            "tests",
+                            "test_trace_context_util.py"));
+        }
     }
 
     @Override
@@ -362,6 +406,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     private static String breakLongRaises(String content) {
+        if (content.isEmpty()) {
+            return content;
+        }
         StringBuilder sb = new StringBuilder();
         for (String line : content.split("\n", -1)) {
             if (line.length() > 120
