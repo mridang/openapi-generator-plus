@@ -16,7 +16,8 @@
         "friendsofphp/php-cs-fixer": "^3.5",
         "phpstan/phpstan": "^1.0 || ^2.0",
         "squizlabs/php_codesniffer": "^3.7",
-        "rector/rector": "^1.0 || ^2.0"
+        "rector/rector": "^1.0 || ^2.0",
+        "testcontainers/testcontainers": "dev-main"
     },
     "suggest": {
         "open-telemetry/api": "For automatic W3C Trace Context (traceparent) propagation on API calls"

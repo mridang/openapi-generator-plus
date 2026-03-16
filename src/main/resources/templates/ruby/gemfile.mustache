@@ -14,4 +14,7 @@ group :development, :test do
   gem 'rubocop-minitest', require: false
   gem 'rubocop-rake', require: false
   gem 'steep', require: false
+{{#generateTests}}
+  gem 'testcontainers', '~> 0.2'
+{{/generateTests}}
 end
