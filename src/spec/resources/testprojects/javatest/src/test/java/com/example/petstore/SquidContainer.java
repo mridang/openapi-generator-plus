@@ -1,0 +1,33 @@
+package com.example.petstore;
+
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.utility.MountableFile;
+
+import java.nio.file.Path;
+import java.time.Duration;
+
+/**
+ * Singleton Squid proxy container shared across all test classes.
+ */
+public final class SquidContainer {
+
+    private static final GenericContainer<?> INSTANCE;
+
+    static {
+        INSTANCE = new GenericContainer<>("ubuntu/squid:5.2-22.04_beta")
+            .withExposedPorts(3128)
+            .withCopyFileToContainer(
+                MountableFile.forHostPath(Path.of("/app/proxy/squid.conf")),
+                "/etc/squid/squid.conf")
+            .waitingFor(Wait.forListeningPort())
+            .withStartupTimeout(Duration.ofSeconds(60));
+        INSTANCE.start();
+    }
+
+    private SquidContainer() {}
+
+    public static String getProxyUrl() {
+        return "http://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(3128);
+    }
+}

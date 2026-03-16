@@ -2,6 +2,7 @@ package com.example.petstore.api;
 
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
+import com.example.petstore.PrismContainer;
 import com.example.petstore.models.Order;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,10 +23,7 @@ class StoreApiTest {
 
     @BeforeEach
     void setUp() {
-        String baseUrl = System.getenv("API_BASE_URL");
-        if (baseUrl == null || baseUrl.isEmpty()) {
-            baseUrl = "http://localhost:4010";
-        }
+        String baseUrl = PrismContainer.getBaseUrl();
         Configuration config = new Configuration();
         config.setBaseUrl(baseUrl);
         config.getDefaultHeaders().put("Authorization", "Bearer test-token");

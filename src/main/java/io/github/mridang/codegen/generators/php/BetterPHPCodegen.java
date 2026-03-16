@@ -20,7 +20,7 @@ import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.openapitools.codegen.utils.StringUtils;
 
-/** Generates a PHP API client using Guzzle for HTTP and Symfony Serializer for models. */
+/** Generates a PHP API client using Symfony HTTP Client and Symfony Serializer for models. */
 @SuppressWarnings("unused")
 public class BetterPHPCodegen extends AbstractBetterCodegen {
 
@@ -93,7 +93,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
 
     @Override
     public String getHelp() {
-        return "Generates a minimal PHP client with Guzzle and Symfony Serializer.";
+        return "Generates a minimal PHP client with Symfony HTTP Client and Symfony Serializer.";
     }
 
     @Override

@@ -5,13 +5,14 @@ using Xunit;
 
 namespace Tests.Api;
 
+[Collection("Prism")]
 public class StoreApiTest
 {
     private readonly StoreApi _api;
 
-    public StoreApiTest()
+    public StoreApiTest(Tests.PrismFixture prism)
     {
-        var baseUrl = Environment.GetEnvironmentVariable("API_BASE_URL") ?? "http://localhost:4010";
+        var baseUrl = prism.BaseUrl;
         var config = new Configuration { BaseUrl = baseUrl };
         config.DefaultHeaders["Authorization"] = "Bearer test-token";
         _api = new StoreApi(new DefaultApiClient(), config);

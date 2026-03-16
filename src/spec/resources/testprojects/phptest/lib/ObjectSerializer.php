@@ -221,7 +221,6 @@ class ObjectSerializer
 
         if ($class === 'SplFileObject') {
             assert(is_string($data) || is_resource($data));
-            $stream = \GuzzleHttp\Psr7\Utils::streamFor($data);
 
             $tempDir = sys_get_temp_dir();
 
@@ -244,14 +243,16 @@ class ObjectSerializer
                 }
             }
 
-            $file = fopen($filename, 'w');
-            if ($file === false) {
-                throw new \RuntimeException("Failed to open file: $filename");
+            if (is_resource($data)) {
+                $dest = fopen($filename, 'w');
+                if ($dest === false) {
+                    throw new \RuntimeException("Failed to open file: $filename");
+                }
+                stream_copy_to_stream($data, $dest);
+                fclose($dest);
+            } else {
+                file_put_contents($filename, $data);
             }
-            while ($chunk = $stream->read(200)) {
-                fwrite($file, $chunk);
-            }
-            fclose($file);
 
             return new \SplFileObject($filename, 'r');
         }

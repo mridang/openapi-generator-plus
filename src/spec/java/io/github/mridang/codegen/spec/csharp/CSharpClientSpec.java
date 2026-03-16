@@ -17,7 +17,7 @@ public class CSharpClientSpec extends AbstractClientSpec implements CSharpSpec {
   protected String[] getBuildCommands() {
     return new String[] {
       "dotnet restore",
-      "API_BASE_URL=http://prism:4010 dotnet test --verbosity normal"
+      "dotnet test --verbosity normal"
     };
   }
 

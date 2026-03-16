@@ -19,7 +19,7 @@ public class JavaClientSpec extends AbstractClientSpec implements JavaSpec {
   protected String[] getBuildCommands() {
     return new String[] {
       "mvn compile test-compile -q -B",
-      "API_BASE_URL=http://prism:4010 mvn test -q -B"
+      "mvn test -q -B"
     };
   }
 

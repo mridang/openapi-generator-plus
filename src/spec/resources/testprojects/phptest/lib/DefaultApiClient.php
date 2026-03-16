@@ -12,42 +12,43 @@
 
 namespace PetstoreClient;
 
-use GuzzleHttp\Client;
-use GuzzleHttp\ClientInterface;
-use GuzzleHttp\Exception\GuzzleException;
 use PetstoreClient\Configuration;
 use RuntimeException;
+use Symfony\Component\HttpClient\HttpClient;
+use Symfony\Component\Mime\Part\DataPart;
+use Symfony\Component\Mime\Part\Multipart\FormDataPart;
+use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
  * DefaultApiClient Class
  *
- * Default implementation of ApiClient using Guzzle HTTP client.
+ * Default implementation of ApiClient using Symfony HTTP client.
  *
  * @category Class
  * @package  PetstoreClient
  */
 class DefaultApiClient implements ApiClient
 {
-    private ClientInterface $client;
+    private HttpClientInterface $client;
 
     /**
-     * @param Configuration|null   $config Configuration instance
-     * @param ClientInterface|null $client Guzzle client instance
+     * @param Configuration|null      $config Configuration instance
+     * @param HttpClientInterface|null $client Symfony HTTP client instance
      */
-    public function __construct(?Configuration $config = null, ?ClientInterface $client = null)
+    public function __construct(?Configuration $config = null, ?HttpClientInterface $client = null)
     {
-        if ($client instanceof ClientInterface) {
+        if ($client instanceof HttpClientInterface) {
             $this->client = $client;
         } else {
-            $options = [
-                'http_errors' => false,
-            ];
+            $options = [];
 
             if ($config instanceof Configuration) {
                 if (!$config->isVerifySsl()) {
-                    $options['verify'] = false;
+                    $options['verify_peer'] = false;
+                    $options['verify_host'] = false;
                 } elseif ($config->getSslCaCert() !== null) {
-                    $options['verify'] = $config->getSslCaCert();
+                    $options['cafile'] = $config->getSslCaCert();
                 }
 
                 if ($config->getProxy() !== null) {
@@ -55,7 +56,7 @@ class DefaultApiClient implements ApiClient
                 }
             }
 
-            $this->client = new Client($options);
+            $this->client = HttpClient::create($options);
         }
     }
 
@@ -69,27 +70,32 @@ class DefaultApiClient implements ApiClient
     {
         if (is_array($body)) {
             unset($headers['Content-Type']);
-            $multipart = [];
+            $formFields = [];
             foreach ($body as $name => $value) {
                 $values = is_array($value) ? $value : [$value];
+                $parts = [];
                 foreach ($values as $v) {
                     if (is_object($v) && !($v instanceof \SplFileObject)) {
-                        $multipart[] = [
-                            'name' => (string) $name,
-                            'contents' => ObjectSerializer::serialize($v),
-                            'headers' => ['Content-Type' => 'application/json'],
-                        ];
+                        $parts[] = new DataPart(
+                            ObjectSerializer::serialize($v),
+                            null,
+                            'application/json'
+                        );
+                    } elseif ($v instanceof \SplFileObject) {
+                        $parts[] = DataPart::fromPath($v->getRealPath());
+                    } elseif (is_resource($v)) {
+                        $parts[] = new DataPart(stream_get_contents($v));
                     } else {
-                        $multipart[] = [
-                            'name' => (string) $name,
-                            'contents' => $v,
-                        ];
+                        $parts[] = (string) $v;
                     }
                 }
+                $formFields[(string) $name] = count($parts) === 1 ? $parts[0] : $parts;
             }
+            $formData = new FormDataPart($formFields);
+            $headers['Content-Type'] = $formData->getPreparedHeaders()->get('Content-Type')->getBodyAsString();
             $options = [
                 'headers' => $headers,
-                'multipart' => $multipart,
+                'body' => $formData->bodyToIterable(),
             ];
         } else {
             $options = [
@@ -103,18 +109,18 @@ class DefaultApiClient implements ApiClient
 
         try {
             $response = $this->client->request($method, $url, $options);
-        } catch (GuzzleException $e) {
+
+            return new ApiResponse(
+                statusCode: $response->getStatusCode(),
+                body: $response->getContent(false),
+                headers: $response->getHeaders(false)
+            );
+        } catch (TransportExceptionInterface $e) {
             throw new RuntimeException(
-                "API Request failed: [{$e->getCode()}] {$e->getMessage()}",
-                (int) $e->getCode(),
+                "API Request failed: {$e->getMessage()}",
+                0,
                 $e
             );
         }
-
-        return new ApiResponse(
-            statusCode: $response->getStatusCode(),
-            body: (string) $response->getBody(),
-            headers: $response->getHeaders()
-        );
     }
 }

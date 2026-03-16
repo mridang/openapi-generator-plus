@@ -17,7 +17,7 @@ public class PhpClientSpec extends AbstractClientSpec implements PhpSpec {
   protected String[] getBuildCommands() {
     return new String[] {
       "composer install --no-interaction --prefer-dist",
-      "API_BASE_URL=http://prism:4010 vendor/bin/phpunit --testdox"
+      "vendor/bin/phpunit --testdox"
     };
   }
 

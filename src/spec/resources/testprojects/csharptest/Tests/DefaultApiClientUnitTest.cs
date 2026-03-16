@@ -1,0 +1,147 @@
+using System.Net;
+using PetstoreClient;
+using Xunit;
+
+namespace Tests;
+
+public class DefaultApiClientUnitTest
+{
+    [Fact]
+    public async Task SendsGetRequestAndReturnsResponse()
+    {
+        var httpClient = CreateMockHttpClient(HttpStatusCode.OK, "{\"method\":\"GET\"}");
+        var client = new DefaultApiClient(httpClient);
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("GET", response.Body);
+    }
+
+    [Fact]
+    public async Task SendsPostWithJsonBody()
+    {
+        var httpClient = CreateMockHttpClient(HttpStatusCode.OK, "{\"method\":\"POST\"}");
+        var client = new DefaultApiClient(httpClient);
+
+        var response = await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/echo"),
+            new Dictionary<string, string> { { "Content-Type", "application/json" } },
+            "{\"key\":\"value\"}"
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("POST", response.Body);
+        Assert.Contains("key", response.Body);
+    }
+
+    [Fact]
+    public async Task ReturnsResponseHeaders()
+    {
+        var headers = new Dictionary<string, string> { { "X-Test-Header", "test-value" } };
+        var httpClient = CreateMockHttpClient(HttpStatusCode.OK, "ok", headers);
+        var client = new DefaultApiClient(httpClient);
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.True(response.Headers.ContainsKey("X-Test-Header"));
+        Assert.Equal("test-value", response.Headers["X-Test-Header"]);
+    }
+
+    [Fact]
+    public async Task ReturnsNon2xxStatusCode()
+    {
+        var httpClient = CreateMockHttpClient(HttpStatusCode.NotFound, "not found");
+        var client = new DefaultApiClient(httpClient);
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/not-found"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(404, response.StatusCode);
+        Assert.Equal("not found", response.Body);
+    }
+
+    [Fact]
+    public async Task SendsPutRequest()
+    {
+        var httpClient = CreateMockHttpClient(HttpStatusCode.OK, "{\"method\":\"PUT\"}");
+        var client = new DefaultApiClient(httpClient);
+
+        var response = await client.SendRequestAsync(
+            "PUT",
+            new Uri("http://example.com/echo"),
+            new Dictionary<string, string>(),
+            "update"
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("PUT", response.Body);
+    }
+
+    [Fact]
+    public async Task SendsDeleteRequest()
+    {
+        var httpClient = CreateMockHttpClient(HttpStatusCode.OK, "{\"method\":\"DELETE\"}");
+        var client = new DefaultApiClient(httpClient);
+
+        var response = await client.SendRequestAsync(
+            "DELETE",
+            new Uri("http://example.com/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("DELETE", response.Body);
+    }
+
+    private static HttpClient CreateMockHttpClient(
+        HttpStatusCode statusCode,
+        string body,
+        Dictionary<string, string>? responseHeaders = null
+    )
+    {
+        var handler = new MockHandler(statusCode, body, responseHeaders ?? []);
+        return new HttpClient(handler);
+    }
+
+    private sealed class MockHandler(
+        HttpStatusCode statusCode,
+        string body,
+        Dictionary<string, string> headers
+    ) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            var response = new HttpResponseMessage(statusCode)
+            {
+                Content = new StringContent(body),
+            };
+
+            foreach (var header in headers)
+            {
+                response.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            }
+
+            return Task.FromResult(response);
+        }
+    }
+}

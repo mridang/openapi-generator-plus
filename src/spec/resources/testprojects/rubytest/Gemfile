@@ -12,4 +12,5 @@ group :development, :test do
   gem 'rubocop-minitest', require: false
   gem 'rubocop-rake', require: false
   gem 'steep', require: false
+  gem 'testcontainers'
 end

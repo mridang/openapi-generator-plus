@@ -27,6 +27,16 @@ public abstract class AbstractClientSpec extends AbstractIntegrationSpec {
   @BeforeEach
   void copyTestProject() throws IOException {
     copyDirectory(getTestProjectPath(), tempOutputDir);
+
+    // Copy shared test resources so language-native Testcontainers can access them
+    copyClasspathResource("specs/petstore/openapi.yaml", tempOutputDir.resolve("specs/openapi.yaml"));
+    copyClasspathResource("certs/ca.pem", tempOutputDir.resolve("certs/ca.pem"));
+    copyClasspathResource("certs/ca-key.pem", tempOutputDir.resolve("certs/ca-key.pem"));
+    copyClasspathResource("certs/server.pem", tempOutputDir.resolve("certs/server.pem"));
+    copyClasspathResource("certs/server-key.pem", tempOutputDir.resolve("certs/server-key.pem"));
+    copyClasspathResource("certs/server-keystore.p12", tempOutputDir.resolve("certs/server-keystore.p12"));
+    copyClasspathResource("wiremock/mappings/test.json", tempOutputDir.resolve("wiremock/mappings/test.json"));
+    copyClasspathResource("proxy/squid.conf", tempOutputDir.resolve("proxy/squid.conf"));
   }
 
   @Test
@@ -38,9 +48,12 @@ public abstract class AbstractClientSpec extends AbstractIntegrationSpec {
 
   @Test
   @Order(2)
-  void shouldRunClientTests() {
-    startPrismServer();
+  void shouldRunClientTests() throws IOException {
     generateClientToDirectory(getCodegenProperties(), tempOutputDir);
+
+    // Re-copy test project overlay to restore dependency manifests and test configs
+    // that were overwritten by the code generator (pom.xml, package.json, etc.)
+    copyDirectory(getTestProjectPath(), tempOutputDir);
 
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 

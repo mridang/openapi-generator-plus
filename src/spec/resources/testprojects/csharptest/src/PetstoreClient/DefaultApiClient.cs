@@ -1,6 +1,8 @@
 #pragma warning disable CA2000 // Dispose objects before losing scope — handler ownership transfers to HttpClient
 #pragma warning disable IDE0028 // Collection initialization can be simplified
 
+using System.Net;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 
 namespace PetstoreClient;
@@ -33,6 +35,30 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         {
             handler.ServerCertificateCustomValidationCallback =
                 HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+        }
+        else if (config.SslCaCert != null)
+        {
+            X509Certificate2Collection caCerts = [];
+            caCerts.ImportFromPemFile(config.SslCaCert);
+            handler.ServerCertificateCustomValidationCallback = (_, cert, _, _) =>
+            {
+                if (cert == null)
+                {
+                    return false;
+                }
+
+                using X509Chain customChain = new();
+                customChain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+                customChain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+                customChain.ChainPolicy.CustomTrustStore.AddRange(caCerts);
+                return customChain.Build(cert);
+            };
+        }
+
+        if (config.Proxy != null)
+        {
+            handler.Proxy = new WebProxy(config.Proxy);
+            handler.UseProxy = true;
         }
 
         _httpClient = new HttpClient(handler, disposeHandler: true);

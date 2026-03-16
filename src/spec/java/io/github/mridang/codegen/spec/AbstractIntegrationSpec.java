@@ -1,15 +1,14 @@
 package io.github.mridang.codegen.spec;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.time.Duration;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
@@ -22,9 +21,6 @@ import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
-import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.utility.DockerImageName;
-import org.testcontainers.utility.MountableFile;
 
 import javax.annotation.Nullable;
 
@@ -34,8 +30,6 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
   protected static final Logger logger = LoggerFactory.getLogger(AbstractIntegrationSpec.class);
 
   @Nullable protected static Network sharedNetwork;
-
-  @Nullable protected GenericContainer<?> prismContainer;
 
   @TempDir protected Path tempOutputDir;
 
@@ -70,47 +64,6 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
     logger.info("========================================");
   }
 
-  @AfterEach
-  void cleanup() {
-    if (prismContainer != null && prismContainer.isRunning()) {
-      prismContainer.stop();
-      logger.info("Stopped Prism container");
-    }
-  }
-
-  @SuppressWarnings("LoggingSimilarMessage")
-  protected void startPrismServer() {
-    URL specUrl = getClass().getClassLoader().getResource(getSpecResourcePath());
-    if (specUrl == null) {
-      throw new IllegalStateException("Could not find spec resource: " + getSpecResourcePath());
-    }
-
-    logger.info("Starting Prism mock server with spec: {}", specUrl);
-
-    prismContainer =
-        new GenericContainer<>(DockerImageName.parse("stoplight/prism:5"))
-            .withNetwork(sharedNetwork)
-            .withNetworkAliases("prism")
-            .withExposedPorts(4010)
-            .withCopyFileToContainer(MountableFile.forClasspathResource(getSpecResourcePath()), "/tmp/openapi.yaml")
-            .withCommand("mock", "-h", "0.0.0.0", "/tmp/openapi.yaml")
-            .waitingFor(Wait.forListeningPort())
-            .withStartupTimeout(Duration.ofSeconds(60))
-            .withLogConsumer(new Slf4jLogConsumer(logger).withPrefix("prism"));
-
-    prismContainer.start();
-
-    @SuppressWarnings("HttpUrlsUsage") String hostBaseUrl =
-        String.format("http://%s:%d", prismContainer.getHost(), prismContainer.getMappedPort(4010));
-    String networkBaseUrl = "http://prism:4010";
-
-    logger.info("Prism mock server started:");
-    logger.info("  - Host URL: {}", hostBaseUrl);
-    logger.info("  - Network URL: {}", networkBaseUrl);
-    logger.info("  - Container ID: {}", prismContainer.getContainerId());
-
-  }
-
   protected void generateClientToDirectory(
       Map<String, Object> additionalProperties, Path outputDir) {
     URL specUrl = getClass().getClassLoader().getResource(getSpecResourcePath());
@@ -133,6 +86,17 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
     generator.opts(configurator.toClientOptInput()).generate();
 
     logger.info("Code generation complete.");
+  }
+
+  protected void copyClasspathResource(String resourcePath, Path targetPath) throws IOException {
+    try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+      if (is == null) {
+        throw new IllegalStateException("Could not find classpath resource: " + resourcePath);
+      }
+      Files.createDirectories(targetPath.getParent());
+      Files.copy(is, targetPath, StandardCopyOption.REPLACE_EXISTING);
+      logger.info("Copied classpath resource {} to {}", resourcePath, targetPath);
+    }
   }
 
   protected static void copyDirectory(Path source, Path target) throws IOException {
@@ -160,6 +124,12 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
             .withNetwork(sharedNetwork)
             .withFileSystemBind(
                 tempOutputDir.toAbsolutePath().toString(), "/app", BindMode.READ_WRITE)
+            .withFileSystemBind("/var/run/docker.sock", "/var/run/docker.sock", BindMode.READ_WRITE)
+            .withEnv("TESTCONTAINERS_HOST_OVERRIDE", "host.docker.internal")
+            .withEnv("TC_HOST", "host.docker.internal")
+            .withEnv("DOCKER_HOST", "unix:///var/run/docker.sock")
+            .withEnv("TESTCONTAINERS_RYUK_DISABLED", "true")
+            .withEnv("HOST_APP_PATH", tempOutputDir.toAbsolutePath().toString())
             .withWorkingDirectory("/app")
             .withCommand("tail", "-f", "/dev/null")
             .withLogConsumer(new Slf4jLogConsumer(logger).withPrefix(getGeneratorName()))) {

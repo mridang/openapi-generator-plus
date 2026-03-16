@@ -1,0 +1,99 @@
+<?php
+
+declare(strict_types=1);
+
+namespace PetstoreClient\Tests;
+
+use PHPUnit\Framework\TestCase;
+use PetstoreClient\DefaultApiClient;
+use Symfony\Component\HttpClient\MockHttpClient;
+use Symfony\Component\HttpClient\Response\MockResponse;
+
+class DefaultApiClientUnitTest extends TestCase
+{
+    public function testSendsGetRequest(): void
+    {
+        $mockResponse = new MockResponse('{"method":"GET","body":""}', [
+            'http_code' => 200,
+            'response_headers' => ['X-Test-Header' => 'test-value'],
+        ]);
+        $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+
+        $response = $client->sendRequest('GET', 'http://example.com/echo', [], null);
+
+        $this->assertSame(200, $response->statusCode);
+        $this->assertStringContainsString('GET', $response->body);
+    }
+
+    public function testSendsPostWithJsonBody(): void
+    {
+        $mockResponse = new MockResponse('{"method":"POST","body":"key"}', [
+            'http_code' => 200,
+        ]);
+        $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+
+        $response = $client->sendRequest(
+            'POST',
+            'http://example.com/echo',
+            ['Content-Type' => 'application/json'],
+            '{"key":"value"}'
+        );
+
+        $this->assertSame(200, $response->statusCode);
+        $this->assertStringContainsString('POST', $response->body);
+        $this->assertStringContainsString('key', $response->body);
+    }
+
+    public function testReturnsResponseHeaders(): void
+    {
+        $mockResponse = new MockResponse('ok', [
+            'http_code' => 200,
+            'response_headers' => ['X-Test-Header' => 'test-value'],
+        ]);
+        $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+
+        $response = $client->sendRequest('GET', 'http://example.com/echo', [], null);
+
+        $this->assertArrayHasKey('x-test-header', $response->headers);
+        $this->assertSame('test-value', $response->headers['x-test-header']);
+    }
+
+    public function testReturnsNon2xxStatus(): void
+    {
+        $mockResponse = new MockResponse('not found', [
+            'http_code' => 404,
+        ]);
+        $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+
+        $response = $client->sendRequest('GET', 'http://example.com/not-found', [], null);
+
+        $this->assertSame(404, $response->statusCode);
+        $this->assertSame('not found', $response->body);
+    }
+
+    public function testSendsPutRequest(): void
+    {
+        $mockResponse = new MockResponse('{"method":"PUT"}', [
+            'http_code' => 200,
+        ]);
+        $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+
+        $response = $client->sendRequest('PUT', 'http://example.com/echo', [], 'update');
+
+        $this->assertSame(200, $response->statusCode);
+        $this->assertStringContainsString('PUT', $response->body);
+    }
+
+    public function testSendsDeleteRequest(): void
+    {
+        $mockResponse = new MockResponse('{"method":"DELETE"}', [
+            'http_code' => 200,
+        ]);
+        $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+
+        $response = $client->sendRequest('DELETE', 'http://example.com/echo', [], null);
+
+        $this->assertSame(200, $response->statusCode);
+        $this->assertStringContainsString('DELETE', $response->body);
+    }
+}

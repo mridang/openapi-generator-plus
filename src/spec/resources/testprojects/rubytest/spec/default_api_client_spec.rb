@@ -2,20 +2,12 @@
 
 require 'spec_helper'
 
-def get_env_or_skip(name)
-  value = ENV[name]
-  unless value && !value.empty?
-    skip "Skipping: #{name} not set"
-  end
-  value
-end
-
 describe PetstoreClient::DefaultApiClient do
   describe 'TLS verification disabled' do
     it 'makes HTTPS request with verify_ssl=false' do
-      wiremock_url = get_env_or_skip('WIREMOCK_HTTPS_URL')
+      wiremock_url = ENV.fetch('WIREMOCK_HTTPS_URL')
 
-      config = PetstoreClient::Configuration.default
+      config = PetstoreClient::Configuration.new
       config.base_url = wiremock_url
       config.verify_ssl = false
 
@@ -29,10 +21,10 @@ describe PetstoreClient::DefaultApiClient do
 
   describe 'custom CA bundle' do
     it 'makes HTTPS request with custom CA cert' do
-      wiremock_url = get_env_or_skip('WIREMOCK_HTTPS_URL')
-      ca_cert_path = get_env_or_skip('CA_CERT_PATH')
+      wiremock_url = ENV.fetch('WIREMOCK_HTTPS_URL')
+      ca_cert_path = ENV.fetch('CA_CERT_PATH')
 
-      config = PetstoreClient::Configuration.default
+      config = PetstoreClient::Configuration.new
       config.base_url = wiremock_url
       config.verify_ssl = true
       config.ssl_ca_cert = ca_cert_path
@@ -47,10 +39,10 @@ describe PetstoreClient::DefaultApiClient do
 
   describe 'HTTP proxy' do
     it 'makes HTTP request through proxy' do
-      wiremock_url = get_env_or_skip('WIREMOCK_HTTP_URL')
-      proxy_url = get_env_or_skip('PROXY_URL')
+      wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
+      proxy_url = ENV.fetch('PROXY_URL')
 
-      config = PetstoreClient::Configuration.default
+      config = PetstoreClient::Configuration.new
       config.base_url = wiremock_url
       config.proxy = proxy_url
 
@@ -64,10 +56,10 @@ describe PetstoreClient::DefaultApiClient do
 
   describe 'HTTP proxy with TLS' do
     it 'makes HTTPS request through proxy with verify_ssl=false' do
-      wiremock_url = get_env_or_skip('WIREMOCK_HTTPS_URL')
-      proxy_url = get_env_or_skip('PROXY_URL')
+      wiremock_url = ENV.fetch('WIREMOCK_HTTPS_URL')
+      proxy_url = ENV.fetch('PROXY_URL')
 
-      config = PetstoreClient::Configuration.default
+      config = PetstoreClient::Configuration.new
       config.base_url = wiremock_url
       config.proxy = proxy_url
       config.verify_ssl = false

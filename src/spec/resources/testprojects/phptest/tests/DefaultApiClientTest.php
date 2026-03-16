@@ -8,22 +8,13 @@ use PetstoreClient\DefaultApiClient;
 
 class DefaultApiClientTest extends TestCase
 {
-    private function getEnvOrSkip(string $name): string
-    {
-        $value = getenv($name);
-        if ($value === false || $value === '') {
-            $this->markTestSkipped("Skipping: {$name} not set");
-        }
-        return $value;
-    }
-
     // -- TLS verification disabled --
 
     public function testMakesHttpsRequestWithVerifySslFalse(): void
     {
-        $wiremockUrl = $this->getEnvOrSkip('WIREMOCK_HTTPS_URL');
+        $wiremockUrl = getenv('WIREMOCK_HTTPS_URL');
 
-        $config = Configuration::getDefaultConfiguration()
+        $config = (new Configuration())
             ->setBaseUrl($wiremockUrl)
             ->setVerifySsl(false);
 
@@ -38,10 +29,10 @@ class DefaultApiClientTest extends TestCase
 
     public function testMakesHttpsRequestWithCustomCaCert(): void
     {
-        $wiremockUrl = $this->getEnvOrSkip('WIREMOCK_HTTPS_URL');
-        $caCertPath = $this->getEnvOrSkip('CA_CERT_PATH');
+        $wiremockUrl = getenv('WIREMOCK_HTTPS_URL');
+        $caCertPath = getenv('CA_CERT_PATH');
 
-        $config = Configuration::getDefaultConfiguration()
+        $config = (new Configuration())
             ->setBaseUrl($wiremockUrl)
             ->setVerifySsl(true)
             ->setSslCaCert($caCertPath);
@@ -57,10 +48,10 @@ class DefaultApiClientTest extends TestCase
 
     public function testMakesHttpRequestThroughProxy(): void
     {
-        $wiremockUrl = $this->getEnvOrSkip('WIREMOCK_HTTP_URL');
-        $proxyUrl = $this->getEnvOrSkip('PROXY_URL');
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL');
+        $proxyUrl = getenv('PROXY_URL');
 
-        $config = Configuration::getDefaultConfiguration()
+        $config = (new Configuration())
             ->setBaseUrl($wiremockUrl)
             ->setProxy($proxyUrl);
 
@@ -75,10 +66,10 @@ class DefaultApiClientTest extends TestCase
 
     public function testMakesHttpsRequestThroughProxyWithVerifySslFalse(): void
     {
-        $wiremockUrl = $this->getEnvOrSkip('WIREMOCK_HTTPS_URL');
-        $proxyUrl = $this->getEnvOrSkip('PROXY_URL');
+        $wiremockUrl = getenv('WIREMOCK_HTTPS_URL');
+        $proxyUrl = getenv('PROXY_URL');
 
-        $config = Configuration::getDefaultConfiguration()
+        $config = (new Configuration())
             ->setBaseUrl($wiremockUrl)
             ->setProxy($proxyUrl)
             ->setVerifySsl(false);

@@ -17,7 +17,7 @@ public class RubyClientSpec extends AbstractClientSpec implements RubySpec {
   protected String[] getBuildCommands() {
     return new String[] {
       "bundle install --quiet",
-      "API_BASE_URL=http://prism:4010 bundle exec rake test"
+      "bundle exec rake test"
     };
   }
 

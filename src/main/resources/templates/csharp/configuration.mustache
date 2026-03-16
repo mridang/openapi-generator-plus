@@ -27,6 +27,16 @@ public class Configuration
     public bool VerifySsl { get; set; } = true;
 
     /// <summary>
+    /// Path to a custom CA certificate file for SSL verification.
+    /// </summary>
+    public string? SslCaCert { get; set; }
+
+    /// <summary>
+    /// HTTP proxy URL (e.g. "http://proxy:3128").
+    /// </summary>
+    public string? Proxy { get; set; }
+
+    /// <summary>
     /// Return the default configuration instance.
     /// </summary>
     public static Configuration Default

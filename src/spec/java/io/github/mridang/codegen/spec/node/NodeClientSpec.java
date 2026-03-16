@@ -16,7 +16,7 @@ public class NodeClientSpec extends AbstractClientSpec implements NodeSpec {
   protected String[] getBuildCommands() {
     return new String[] {
       "npm install",
-      "API_BASE_URL=http://prism:4010 npx jest --verbose"
+      "npx jest --verbose"
     };
   }
 
