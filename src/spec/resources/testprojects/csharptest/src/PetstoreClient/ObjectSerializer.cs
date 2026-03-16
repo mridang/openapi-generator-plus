@@ -29,7 +29,9 @@ public class ObjectSerializer
     {
         if (value != null)
         {
-            System.Reflection.PropertyInfo? actualProp = value.GetType().GetProperty("ActualInstance");
+            System.Reflection.PropertyInfo? actualProp = value
+                .GetType()
+                .GetProperty("ActualInstance");
             if (actualProp != null)
             {
                 value = actualProp.GetValue(value);

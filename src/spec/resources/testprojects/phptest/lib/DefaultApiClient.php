@@ -85,14 +85,19 @@ class DefaultApiClient implements ApiClient
                         $parts[] = DataPart::fromPath($v->getRealPath());
                     } elseif (is_resource($v)) {
                         $parts[] = new DataPart(stream_get_contents($v));
+                    } elseif (is_scalar($v)) {
+                        $parts[] = strval($v);
                     } else {
-                        $parts[] = (string) $v;
+                        $parts[] = '';
                     }
                 }
                 $formFields[(string) $name] = count($parts) === 1 ? $parts[0] : $parts;
             }
             $formData = new FormDataPart($formFields);
-            $headers['Content-Type'] = $formData->getPreparedHeaders()->get('Content-Type')->getBodyAsString();
+            $contentType = $formData->getPreparedHeaders()->get('Content-Type');
+            if ($contentType instanceof \Symfony\Component\Mime\Header\HeaderInterface) {
+                $headers['Content-Type'] = $contentType->getBodyAsString();
+            }
             $options = [
                 'headers' => $headers,
                 'body' => $formData->bodyToIterable(),
