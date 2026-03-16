@@ -12,7 +12,7 @@ $prism = (new GenericContainer('stoplight/prism:5'))
     ->withExposedPorts(4010)
     ->withMount($specPath, '/tmp/openapi.yaml')
     ->withCommand(['mock', '-h', '0.0.0.0', '/tmp/openapi.yaml'])
-    ->withWait(new WaitForLog('Prism is listening'))
+    ->withWait(new WaitForLog('Prism is listening', false, 60000))
     ->start();
 
 $baseUrl = 'http://' . $prism->getHost() . ':' . $prism->getMappedPort(4010);
@@ -36,7 +36,7 @@ $wiremock = (new GenericContainer('wiremock/wiremock:3.13.0'))
         '--key-manager-password', 'changeit',
         '--verbose',
     ])
-    ->withWait(new WaitForLog('port:'))
+    ->withWait(new WaitForLog('port:', false, 60000))
     ->start();
 
 $wiremockHost = $wiremock->getHost();

@@ -55,7 +55,7 @@ class DefaultApiClientUnitTest extends TestCase
         $response = $client->sendRequest('GET', 'http://example.com/echo', [], null);
 
         $this->assertArrayHasKey('x-test-header', $response->headers);
-        $this->assertSame('test-value', $response->headers['x-test-header']);
+        $this->assertSame(['test-value'], $response->headers['x-test-header']);
     }
 
     public function testReturnsNon2xxStatus(): void
