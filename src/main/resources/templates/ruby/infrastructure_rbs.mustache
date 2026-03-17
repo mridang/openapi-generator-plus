@@ -1,24 +1,39 @@
 module {{moduleName}}
-  def self.configure: () { (Configuration) -> void } -> void
+  def self.configure: () { (Configuration::Builder) -> void } -> void
                     | () -> Configuration
 
   VERSION: String
 
   class Configuration
-    attr_accessor base_url: String
-    attr_accessor default_headers: Hash[String, String]
-    attr_accessor debug: bool
-    attr_accessor verify_ssl: bool
-    attr_accessor ssl_ca_cert: String?
-    attr_accessor cert_file: String?
-    attr_accessor key_file: String?
-    attr_accessor proxy: String?
-    attr_accessor timeout: Integer?
-    attr_accessor retries: Integer?
-    def initialize: () -> void
-                  | () { (Configuration) -> void } -> void
+    attr_reader base_url: String
+    attr_reader default_headers: Hash[String, String]
+    attr_reader debug: bool
+    attr_reader verify_ssl: bool
+    attr_reader ssl_ca_cert: String?
+    attr_reader cert_file: String?
+    attr_reader key_file: String?
+    attr_reader proxy: String?
+    attr_reader timeout: Integer?
+    attr_reader retries: Integer?
+    def initialize: (base_url: String, default_headers: Hash[String, String], debug: bool, verify_ssl: bool, ssl_ca_cert: String?, cert_file: String?, key_file: String?, proxy: String?, timeout: Integer?, retries: Integer?) -> void
+    def self.builder: () -> Configuration::Builder
     def self.default: () -> Configuration
     def self.default=: (Configuration) -> Configuration
+
+    class Builder
+      def base_url: (String) -> Builder
+      def default_header: (String, String) -> Builder
+      def default_headers: (Hash[String, String]) -> Builder
+      def debug: (bool) -> Builder
+      def verify_ssl: (bool) -> Builder
+      def ssl_ca_cert: (String?) -> Builder
+      def cert_file: (String?) -> Builder
+      def key_file: (String?) -> Builder
+      def proxy: (String?) -> Builder
+      def timeout: (Integer?) -> Builder
+      def retries: (Integer?) -> Builder
+      def build: () -> Configuration
+    end
   end
 
   class ApiResponse

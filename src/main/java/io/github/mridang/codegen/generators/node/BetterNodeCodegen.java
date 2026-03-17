@@ -123,7 +123,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile("api/index.mustache", "src/api", "index.ts"));
         supportingFiles.add(new SupportingFile("package.mustache", "", "package.json"));
-        supportingFiles.add(new SupportingFile("prettierrc.mustache", "", ".prettierrc.mjs"));
+        supportingFiles.add(new SupportingFile("prettierrc.mustache", "", "prettier.config.mjs"));
         supportingFiles.add(
                 new SupportingFile("eslint_config.mustache", "", "eslint.config.mjs"));
         supportingFiles.add(new SupportingFile("authenticator.mustache", "src/auth", "authenticator.ts"));

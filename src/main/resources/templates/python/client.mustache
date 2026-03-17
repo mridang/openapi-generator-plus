@@ -25,9 +25,12 @@ class Client:
         Args:
             authenticator: Provides host URL and auth headers.
         """
-        config = Configuration()
-        config.base_url = authenticator.get_host()
-        config.default_headers.update(authenticator.get_auth_headers())
+        config = (
+            Configuration.builder()
+            .base_url(authenticator.get_host())
+            .default_headers(authenticator.get_auth_headers())
+            .build()
+        )
         api_client = DefaultApiClient(config)
 {{#apiInfo}}
 {{#apis}}

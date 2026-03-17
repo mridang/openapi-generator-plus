@@ -14,9 +14,10 @@ class DefaultApiClientTest extends TestCase
     {
         $wiremockUrl = getenv('WIREMOCK_HTTPS_URL');
 
-        $config = (new Configuration())
-            ->setBaseUrl($wiremockUrl)
-            ->setVerifySsl(false);
+        $config = Configuration::builder()
+            ->baseUrl($wiremockUrl)
+            ->verifySsl(false)
+            ->build();
 
         $client = new DefaultApiClient($config);
         $response = $client->sendRequest('GET', $wiremockUrl . '/api/test', [], null);
@@ -32,10 +33,11 @@ class DefaultApiClientTest extends TestCase
         $wiremockUrl = getenv('WIREMOCK_HTTPS_URL');
         $caCertPath = getenv('CA_CERT_PATH');
 
-        $config = (new Configuration())
-            ->setBaseUrl($wiremockUrl)
-            ->setVerifySsl(true)
-            ->setSslCaCert($caCertPath);
+        $config = Configuration::builder()
+            ->baseUrl($wiremockUrl)
+            ->verifySsl(true)
+            ->sslCaCert($caCertPath)
+            ->build();
 
         $client = new DefaultApiClient($config);
         $response = $client->sendRequest('GET', $wiremockUrl . '/api/test', [], null);
@@ -51,9 +53,10 @@ class DefaultApiClientTest extends TestCase
         $wiremockUrl = getenv('WIREMOCK_HTTP_URL');
         $proxyUrl = getenv('PROXY_URL');
 
-        $config = (new Configuration())
-            ->setBaseUrl($wiremockUrl)
-            ->setProxy($proxyUrl);
+        $config = Configuration::builder()
+            ->baseUrl($wiremockUrl)
+            ->proxy($proxyUrl)
+            ->build();
 
         $client = new DefaultApiClient($config);
         $response = $client->sendRequest('GET', $wiremockUrl . '/api/test', [], null);
@@ -69,10 +72,11 @@ class DefaultApiClientTest extends TestCase
         $wiremockUrl = getenv('WIREMOCK_HTTPS_URL');
         $proxyUrl = getenv('PROXY_URL');
 
-        $config = (new Configuration())
-            ->setBaseUrl($wiremockUrl)
-            ->setProxy($proxyUrl)
-            ->setVerifySsl(false);
+        $config = Configuration::builder()
+            ->baseUrl($wiremockUrl)
+            ->proxy($proxyUrl)
+            ->verifySsl(false)
+            ->build();
 
         $client = new DefaultApiClient($config);
         $response = $client->sendRequest('GET', $wiremockUrl . '/api/test', [], null);

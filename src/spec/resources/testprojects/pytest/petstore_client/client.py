@@ -30,9 +30,12 @@ class Client:
         Args:
             authenticator: Provides host URL and auth headers.
         """
-        config = Configuration()
-        config.base_url = authenticator.get_host()
-        config.default_headers.update(authenticator.get_auth_headers())
+        config = (
+            Configuration.builder()
+            .base_url(authenticator.get_host())
+            .default_headers(authenticator.get_auth_headers())
+            .build()
+        )
         api_client = DefaultApiClient(config)
         self.pet: PetApi = PetApi(api_client, config)
         self.store: StoreApi = StoreApi(api_client, config)

@@ -31,9 +31,11 @@ class PetApiTest {
   @BeforeEach
   void setUp() {
     String baseUrl = PrismContainer.getBaseUrl();
-    Configuration config = new Configuration();
-    config.setBaseUrl(baseUrl);
-    config.getDefaultHeaders().put("Authorization", "Bearer test-token");
+    Configuration config =
+        Configuration.builder()
+            .baseUrl(baseUrl)
+            .defaultHeader("Authorization", "Bearer test-token")
+            .build();
     api = new PetApi(new DefaultApiClient(), config);
     bearerAuth = new PetStoreBearerAuthenticator(baseUrl, "test-token");
     basicAuth = new AdminBasicAuthenticator(baseUrl, "admin", "password");

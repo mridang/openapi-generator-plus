@@ -41,9 +41,9 @@ prism_url = "http://#{prism_host}:#{prism_port}"
 ENV['API_BASE_URL'] = prism_url
 
 # Configure the client to use the Prism mock server
-{{moduleName}}.configure do |config|
-  config.base_url = prism_url
-  config.default_headers['Authorization'] = 'Bearer test-token'
+{{moduleName}}.configure do |b|
+  b.base_url prism_url
+  b.default_header 'Authorization', 'Bearer test-token'
 end
 
 # Start WireMock server with HTTPS

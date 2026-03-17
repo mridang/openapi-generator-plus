@@ -2,10 +2,10 @@ import { StoreApi } from '../../src/api/store-api';
 import { Configuration } from '../../src/configuration';
 import { Order } from '../../src/models';
 
-const config = new Configuration({
-  baseUrl: process.env.API_BASE_URL || 'http://localhost:4010',
-  defaultHeaders: { 'Authorization': 'Bearer test-token' },
-});
+const config = Configuration.builder()
+  .baseUrl(process.env.API_BASE_URL || 'http://localhost:4010')
+  .defaultHeader('Authorization', 'Bearer test-token')
+  .build();
 const api = new StoreApi(config);
 
 describe('StoreApi', () => {

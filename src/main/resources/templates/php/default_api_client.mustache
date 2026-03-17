@@ -21,7 +21,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  */
 class DefaultApiClient implements ApiClient
 {
-    private HttpClientInterface $client;
+    private readonly HttpClientInterface $client;
 
     /**
      * @param Configuration|null      $config Configuration instance
@@ -35,15 +35,15 @@ class DefaultApiClient implements ApiClient
             $options = [];
 
             if ($config instanceof Configuration) {
-                if (!$config->isVerifySsl()) {
+                if (!$config->verifySsl) {
                     $options['verify_peer'] = false;
                     $options['verify_host'] = false;
-                } elseif ($config->getSslCaCert() !== null) {
-                    $options['cafile'] = $config->getSslCaCert();
+                } elseif ($config->sslCaCert !== null) {
+                    $options['cafile'] = $config->sslCaCert;
                 }
 
-                if ($config->getProxy() !== null) {
-                    $options['proxy'] = $config->getProxy();
+                if ($config->proxy !== null) {
+                    $options['proxy'] = $config->proxy;
                 }
             }
 

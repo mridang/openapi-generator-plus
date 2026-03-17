@@ -22,11 +22,14 @@ public sealed class Client : IDisposable
     public Client(IAuthenticator authenticator)
     {
         ArgumentNullException.ThrowIfNull(authenticator);
-        Configuration config = new() { BaseUrl = authenticator.GetHost() };
+        ConfigurationBuilder configBuilder = Configuration
+            .CreateBuilder()
+            .BaseUrl(authenticator.GetHost());
         foreach (KeyValuePair<string, string> header in authenticator.GetAuthHeaders())
         {
-            config.DefaultHeaders[header.Key] = header.Value;
+            configBuilder = configBuilder.DefaultHeader(header.Key, header.Value);
         }
+        Configuration config = configBuilder.Build();
         _apiClient = new DefaultApiClient(config);
         Pet = new PetApi(_apiClient, config);
         Store = new StoreApi(_apiClient, config);

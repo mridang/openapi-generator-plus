@@ -7,9 +7,10 @@ describe PetstoreClient::DefaultApiClient do
     it 'makes HTTPS request with verify_ssl=false' do
       wiremock_url = ENV.fetch('WIREMOCK_HTTPS_URL')
 
-      config = PetstoreClient::Configuration.new
-      config.base_url = wiremock_url
-      config.verify_ssl = false
+      config = PetstoreClient::Configuration.builder
+        .base_url(wiremock_url)
+        .verify_ssl(false)
+        .build
 
       client = PetstoreClient::DefaultApiClient.new(config)
       response = client.send_request(:GET, "#{wiremock_url}/api/test", {}, nil)
@@ -24,10 +25,11 @@ describe PetstoreClient::DefaultApiClient do
       wiremock_url = ENV.fetch('WIREMOCK_HTTPS_URL')
       ca_cert_path = ENV.fetch('CA_CERT_PATH')
 
-      config = PetstoreClient::Configuration.new
-      config.base_url = wiremock_url
-      config.verify_ssl = true
-      config.ssl_ca_cert = ca_cert_path
+      config = PetstoreClient::Configuration.builder
+        .base_url(wiremock_url)
+        .verify_ssl(true)
+        .ssl_ca_cert(ca_cert_path)
+        .build
 
       client = PetstoreClient::DefaultApiClient.new(config)
       response = client.send_request(:GET, "#{wiremock_url}/api/test", {}, nil)
@@ -42,9 +44,10 @@ describe PetstoreClient::DefaultApiClient do
       wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
       proxy_url = ENV.fetch('PROXY_URL')
 
-      config = PetstoreClient::Configuration.new
-      config.base_url = wiremock_url
-      config.proxy = proxy_url
+      config = PetstoreClient::Configuration.builder
+        .base_url(wiremock_url)
+        .proxy(proxy_url)
+        .build
 
       client = PetstoreClient::DefaultApiClient.new(config)
       response = client.send_request(:GET, "#{wiremock_url}/api/test", {}, nil)
@@ -59,10 +62,11 @@ describe PetstoreClient::DefaultApiClient do
       wiremock_url = ENV.fetch('WIREMOCK_HTTPS_URL')
       proxy_url = ENV.fetch('PROXY_URL')
 
-      config = PetstoreClient::Configuration.new
-      config.base_url = wiremock_url
-      config.proxy = proxy_url
-      config.verify_ssl = false
+      config = PetstoreClient::Configuration.builder
+        .base_url(wiremock_url)
+        .proxy(proxy_url)
+        .verify_ssl(false)
+        .build
 
       client = PetstoreClient::DefaultApiClient.new(config)
       response = client.send_request(:GET, "#{wiremock_url}/api/test", {}, nil)

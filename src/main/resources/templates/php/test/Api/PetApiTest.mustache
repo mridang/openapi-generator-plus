@@ -23,9 +23,10 @@ class PetApiTest extends TestCase
     protected function setUp(): void
     {
         $baseUrl = getenv('API_BASE_URL') ?: 'http://localhost:4010';
-        $config = Configuration::getDefaultConfiguration()
-            ->setBaseUrl($baseUrl);
-        $config->setDefaultHeader('Authorization', 'Bearer test-token');
+        $config = Configuration::builder()
+            ->baseUrl($baseUrl)
+            ->defaultHeader('Authorization', 'Bearer test-token')
+            ->build();
         $this->api = new PetApi(config: $config);
         $this->auth = new BearerAuthenticator($baseUrl, 'test-token');
     }

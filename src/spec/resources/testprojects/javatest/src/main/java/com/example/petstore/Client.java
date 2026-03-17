@@ -9,7 +9,7 @@ import com.example.petstore.auth.BearerAuthenticator;
  * Unified entry point for all API services. Takes an {@link Authenticator} and exposes each API
  * group as a typed property.
  */
-public class Client {
+public final class Client {
 
   public final PetApi pet;
   public final StoreApi store;
@@ -20,12 +20,14 @@ public class Client {
    * @param authenticator Provides host URL and auth headers.
    */
   public Client(Authenticator authenticator) {
-    Configuration config = new Configuration();
-    config.setBaseUrl(authenticator.getHost());
-    config.getDefaultHeaders().putAll(authenticator.getAuthHeaders());
+    Configuration.Builder configBuilder =
+        Configuration.builder()
+            .baseUrl(authenticator.getHost())
+            .defaultHeaders(authenticator.getAuthHeaders());
     for (java.util.Map.Entry<String, String> entry : authenticator.getQueryParams().entrySet()) {
-      config.getDefaultHeaders().put("_query_" + entry.getKey(), entry.getValue());
+      configBuilder.defaultHeader("_query_" + entry.getKey(), entry.getValue());
     }
+    Configuration config = configBuilder.build();
     ApiClient apiClient = new DefaultApiClient(config);
     this.pet = new PetApi(apiClient, config);
     this.store = new StoreApi(apiClient, config);

@@ -57,8 +57,8 @@ class DefaultApiClientUnitTest {
   void sendsGetRequestAndReturnsResponse() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiResponse response = client.sendRequest("GET", baseUrl + "/echo", Map.of(), null);
-    assertEquals(200, response.getStatusCode());
-    assertTrue(response.getBody().contains("\"method\":\"GET\""));
+    assertEquals(200, response.statusCode());
+    assertTrue(response.body().contains("\"method\":\"GET\""));
   }
 
   @Test
@@ -68,19 +68,19 @@ class DefaultApiClientUnitTest {
     headers.put("Content-Type", "application/json");
     ApiResponse response =
         client.sendRequest("POST", baseUrl + "/echo", headers, "{\"key\":\"value\"}");
-    assertEquals(200, response.getStatusCode());
-    assertTrue(response.getBody().contains("\"method\":\"POST\""));
-    assertTrue(response.getBody().contains("key"));
+    assertEquals(200, response.statusCode());
+    assertTrue(response.body().contains("\"method\":\"POST\""));
+    assertTrue(response.body().contains("key"));
   }
 
   @Test
   void returnsResponseHeaders() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiResponse response = client.sendRequest("GET", baseUrl + "/echo", Map.of(), null);
-    assertNotNull(response.getHeaders());
+    assertNotNull(response.headers());
     // Header names may be lowercased by the HTTP client
     String value =
-        response.getHeaders().entrySet().stream()
+        response.headers().entrySet().stream()
             .filter(e -> e.getKey().equalsIgnoreCase("X-Test-Header"))
             .findFirst()
             .map(Map.Entry::getValue)
@@ -92,23 +92,23 @@ class DefaultApiClientUnitTest {
   void returnsNon2xxStatusCode() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiResponse response = client.sendRequest("GET", baseUrl + "/not-found", Map.of(), null);
-    assertEquals(404, response.getStatusCode());
-    assertEquals("not found", response.getBody());
+    assertEquals(404, response.statusCode());
+    assertEquals("not found", response.body());
   }
 
   @Test
   void sendsPutRequest() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiResponse response = client.sendRequest("PUT", baseUrl + "/echo", Map.of(), "update");
-    assertEquals(200, response.getStatusCode());
-    assertTrue(response.getBody().contains("\"method\":\"PUT\""));
+    assertEquals(200, response.statusCode());
+    assertTrue(response.body().contains("\"method\":\"PUT\""));
   }
 
   @Test
   void sendsDeleteRequest() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiResponse response = client.sendRequest("DELETE", baseUrl + "/echo", Map.of(), null);
-    assertEquals(200, response.getStatusCode());
-    assertTrue(response.getBody().contains("\"method\":\"DELETE\""));
+    assertEquals(200, response.statusCode());
+    assertTrue(response.body().contains("\"method\":\"DELETE\""));
   }
 }

@@ -130,21 +130,20 @@ public abstract class BaseApi {
 
     ApiResponse response = apiClient.sendRequest(method, url, headers, requestBody);
 
-    if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
+    if (response.statusCode() < 200 || response.statusCode() >= 300) {
       throw new ApiException(
-          response.getStatusCode(),
-          "API returned status code " + response.getStatusCode(),
+          response.statusCode(),
+          "API returned status code " + response.statusCode(),
           null,
-          response.getBody());
+          response.body());
     }
 
-    if (returnType != null && response.getBody() != null && !response.getBody().isEmpty()) {
+    if (returnType != null && response.body() != null && !response.body().isEmpty()) {
       String responseContentType =
-          response.getHeaders() != null
+          response.headers() != null
               ? response
-                  .getHeaders()
-                  .getOrDefault(
-                      "content-type", response.getHeaders().getOrDefault("Content-Type", ""))
+                  .headers()
+                  .getOrDefault("content-type", response.headers().getOrDefault("Content-Type", ""))
               : "";
       if (!responseContentType.isEmpty()
           && !responseContentType.contains("application/json")
@@ -152,14 +151,14 @@ public abstract class BaseApi {
         if (returnType.getType() == InputStream.class) {
           @SuppressWarnings("unchecked")
           T streamBody =
-              (T) new ByteArrayInputStream(response.getBody().getBytes(StandardCharsets.UTF_8));
+              (T) new ByteArrayInputStream(response.body().getBytes(StandardCharsets.UTF_8));
           return streamBody;
         }
         @SuppressWarnings("unchecked")
-        T rawBody = (T) response.getBody();
+        T rawBody = (T) response.body();
         return rawBody;
       }
-      return objectSerializer.deserialize(response.getBody(), returnType);
+      return objectSerializer.deserialize(response.body(), returnType);
     }
     return null;
   }

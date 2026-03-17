@@ -1,40 +1,80 @@
 #pragma warning disable CA1054 // URI-like parameters should not be strings
 #pragma warning disable CA1056 // URI-like properties should not be strings
 #pragma warning disable CA1724 // Type names should not match namespaces
+#pragma warning disable IDE0290 // Use primary constructor
+
+using System.Collections.ObjectModel;
 
 namespace PetstoreClient;
 
 /// <summary>
 /// Configuration for API clients.
+///
+/// This class is immutable. Use <see cref="CreateBuilder"/> to create instances:
+/// <code>
+/// var config = Configuration.CreateBuilder()
+///     .BaseUrl("https://api.example.com")
+///     .DefaultHeader("Authorization", "Bearer token")
+///     .VerifySsl(false)
+///     .Build();
+/// </code>
 /// </summary>
-public class Configuration
+public sealed class Configuration
 {
     private static Configuration? _default;
 
     /// <summary>
     /// Base URL for all API requests.
     /// </summary>
-    public string BaseUrl { get; set; } = "/api/v3";
+    public string BaseUrl { get; }
 
     /// <summary>
     /// Headers to include in every API request.
     /// </summary>
-    public Dictionary<string, string> DefaultHeaders { get; } = [];
+    public IReadOnlyDictionary<string, string> DefaultHeaders { get; }
 
     /// <summary>
     /// Enable SSL/TLS certificate verification.
     /// </summary>
-    public bool VerifySsl { get; set; } = true;
+    public bool VerifySsl { get; }
 
     /// <summary>
     /// Path to a custom CA certificate file for SSL verification.
     /// </summary>
-    public string? SslCaCert { get; set; }
+    public string? SslCaCert { get; }
 
     /// <summary>
     /// HTTP proxy URL (e.g. "http://proxy:3128").
     /// </summary>
-    public string? Proxy { get; set; }
+    public string? Proxy { get; }
+
+    /// <summary>
+    /// Creates a new Configuration with the specified values.
+    /// </summary>
+    public Configuration(
+        string baseUrl = "/api/v3",
+        Dictionary<string, string>? defaultHeaders = null,
+        bool verifySsl = true,
+        string? sslCaCert = null,
+        string? proxy = null
+    )
+    {
+        BaseUrl = baseUrl;
+        DefaultHeaders = new ReadOnlyDictionary<string, string>(
+            new Dictionary<string, string>(defaultHeaders ?? [])
+        );
+        VerifySsl = verifySsl;
+        SslCaCert = sslCaCert;
+        Proxy = proxy;
+    }
+
+    /// <summary>
+    /// Create a new builder for constructing Configuration instances.
+    /// </summary>
+    public static ConfigurationBuilder CreateBuilder()
+    {
+        return new ConfigurationBuilder();
+    }
 
     /// <summary>
     /// Return the default configuration instance.
@@ -47,5 +87,75 @@ public class Configuration
             return _default;
         }
         set => _default = value;
+    }
+}
+
+/// <summary>
+/// Builder for creating immutable <see cref="Configuration"/> instances.
+/// </summary>
+public sealed class ConfigurationBuilder
+{
+    private string _baseUrl = "/api/v3";
+    private readonly Dictionary<string, string> _defaultHeaders = [];
+    private bool _verifySsl = true;
+    private string? _sslCaCert;
+    private string? _proxy;
+
+    /// <summary>Set the base URL for all API requests.</summary>
+    public ConfigurationBuilder BaseUrl(string baseUrl)
+    {
+        _baseUrl = baseUrl;
+        return this;
+    }
+
+    /// <summary>Add a default header to include in every API request.</summary>
+    public ConfigurationBuilder DefaultHeader(string name, string value)
+    {
+        _defaultHeaders[name] = value;
+        return this;
+    }
+
+    /// <summary>Set all default headers to include in every API request.</summary>
+    public ConfigurationBuilder DefaultHeaders(IEnumerable<KeyValuePair<string, string>> headers)
+    {
+        ArgumentNullException.ThrowIfNull(headers);
+        foreach (KeyValuePair<string, string> header in headers)
+        {
+            _defaultHeaders[header.Key] = header.Value;
+        }
+        return this;
+    }
+
+    /// <summary>Enable or disable SSL/TLS certificate verification.</summary>
+    public ConfigurationBuilder VerifySsl(bool verifySsl)
+    {
+        _verifySsl = verifySsl;
+        return this;
+    }
+
+    /// <summary>Set the path to a CA certificate file for SSL/TLS verification.</summary>
+    public ConfigurationBuilder SslCaCert(string? sslCaCert)
+    {
+        _sslCaCert = sslCaCert;
+        return this;
+    }
+
+    /// <summary>Set the proxy URL for all API requests.</summary>
+    public ConfigurationBuilder Proxy(string? proxy)
+    {
+        _proxy = proxy;
+        return this;
+    }
+
+    /// <summary>Build and return an immutable Configuration instance.</summary>
+    public Configuration Build()
+    {
+        return new Configuration(
+            baseUrl: _baseUrl,
+            defaultHeaders: new Dictionary<string, string>(_defaultHeaders),
+            verifySsl: _verifySsl,
+            sslCaCert: _sslCaCert,
+            proxy: _proxy
+        );
     }
 }

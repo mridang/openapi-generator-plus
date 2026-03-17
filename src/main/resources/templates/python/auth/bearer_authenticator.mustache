@@ -1,18 +1,19 @@
 {{>partial_header}}
+from dataclasses import dataclass
 from typing import Dict
 
 from .authenticator import Authenticator
 
 
+@dataclass(frozen=True)
 class BearerAuthenticator(Authenticator):
     """Authenticator for HTTP Bearer token authentication."""
 
-    def __init__(self, host: str, token: str) -> None:
-        self._host = host
-        self._token = token
+    host: str
+    token: str
 
     def get_host(self) -> str:
-        return self._host
+        return self.host
 
     def get_auth_headers(self) -> Dict[str, str]:
-        return {'Authorization': f'Bearer {self._token}'}
+        return {'Authorization': f'Bearer {self.token}'}

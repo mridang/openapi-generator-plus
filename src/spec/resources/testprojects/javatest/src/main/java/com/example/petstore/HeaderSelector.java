@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 /** HeaderSelector */
-public class HeaderSelector {
+public final class HeaderSelector {
 
   private static final Pattern JSON_MIME_PATTERN =
       Pattern.compile(

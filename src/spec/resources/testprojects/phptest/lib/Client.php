@@ -37,11 +37,10 @@ class Client
      */
     public function __construct(Authenticator $authenticator)
     {
-        $config = new Configuration();
-        $config->setBaseUrl($authenticator->getHost());
-        foreach ($authenticator->getAuthHeaders() as $key => $value) {
-            $config->setDefaultHeader($key, $value);
-        }
+        $config = Configuration::builder()
+            ->baseUrl($authenticator->getHost())
+            ->defaultHeaders($authenticator->getAuthHeaders())
+            ->build();
         $apiClient = new DefaultApiClient($config);
         $this->pet = new PetApi($apiClient, $config);
         $this->store = new StoreApi($apiClient, $config);

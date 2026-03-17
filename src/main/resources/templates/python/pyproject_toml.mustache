@@ -1,5 +1,11 @@
 [tool.ruff]
 line-length = 120
 
+[tool.ruff.lint]
+select = ["B006", "B008", "RUF012"]
+
 [tool.ruff.format]
 quote-style = "single"
+
+[tool.mypy]
+strict = true

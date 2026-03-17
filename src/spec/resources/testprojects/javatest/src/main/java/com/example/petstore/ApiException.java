@@ -8,18 +8,28 @@ import javax.annotation.Nullable;
 public class ApiException extends Exception {
   private static final long serialVersionUID = 1L;
 
-  private int code = 0;
-  @Nullable private transient Map<String, List<String>> responseHeaders = null;
-  @Nullable private String responseBody = null;
+  private final int code;
+  @Nullable private final transient Map<String, List<String>> responseHeaders;
+  @Nullable private final String responseBody;
 
-  public ApiException() {}
+  public ApiException() {
+    this.code = 0;
+    this.responseHeaders = null;
+    this.responseBody = null;
+  }
 
   public ApiException(Throwable throwable) {
     super(throwable);
+    this.code = 0;
+    this.responseHeaders = null;
+    this.responseBody = null;
   }
 
   public ApiException(String message) {
     super(message);
+    this.code = 0;
+    this.responseHeaders = null;
+    this.responseBody = null;
   }
 
   public ApiException(
@@ -60,8 +70,7 @@ public class ApiException extends Exception {
   }
 
   public ApiException(int code, String message) {
-    super(message);
-    this.code = code;
+    this(message, null, code, null, null);
   }
 
   public ApiException(
@@ -69,9 +78,7 @@ public class ApiException extends Exception {
       String message,
       @Nullable Map<String, List<String>> responseHeaders,
       @Nullable String responseBody) {
-    this(code, message);
-    this.responseHeaders = responseHeaders;
-    this.responseBody = responseBody;
+    this(message, null, code, responseHeaders, responseBody);
   }
 
   /**

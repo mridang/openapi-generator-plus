@@ -5,10 +5,10 @@ import { Configuration } from '../../src/configuration';
 import { ApiResponse, Pet, PetPassport, Photo, PhotoMetadata, SetPetAvatarThumbnailRequest } from '../../src/models';
 
 const baseUrl = process.env.API_BASE_URL || 'http://localhost:4010';
-const config = new Configuration({
-  baseUrl,
-  defaultHeaders: { 'Authorization': 'Bearer test-token' },
-});
+const config = Configuration.builder()
+  .baseUrl(baseUrl)
+  .defaultHeader('Authorization', 'Bearer test-token')
+  .build();
 const api = new PetApi(config);
 const auth = new BearerAuthenticator(baseUrl, 'test-token');
 

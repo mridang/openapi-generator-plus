@@ -131,6 +131,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 new SupportingFile("configuration.mustache", invokerFolder, "Configuration.php"));
         supportingFiles.add(
                 new SupportingFile(
+                        "configuration_builder.mustache",
+                        invokerFolder,
+                        "ConfigurationBuilder.php"));
+        supportingFiles.add(
+                new SupportingFile(
                         "object_serializer.mustache", invokerFolder, "ObjectSerializer.php"));
         supportingFiles.add(
                 new SupportingFile("api_exception.mustache", invokerFolder, "ApiException.php"));

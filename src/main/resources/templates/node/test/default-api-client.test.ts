@@ -7,10 +7,10 @@ describe('DefaultApiClient', () => {
     test('makes HTTPS request with verifySsl=false', async () => {
       const wiremockUrl = process.env['WIREMOCK_HTTPS_URL']!;
 
-      const config = new Configuration({
-        baseUrl: wiremockUrl,
-        verifySsl: false,
-      });
+      const config = Configuration.builder()
+        .baseUrl(wiremockUrl)
+        .verifySsl(false)
+        .build();
 
       const client = new DefaultApiClient(config);
       const response = await client.sendRequest(
@@ -30,11 +30,11 @@ describe('DefaultApiClient', () => {
       const wiremockUrl = process.env['WIREMOCK_HTTPS_URL']!;
       const caCertPath = process.env['CA_CERT_PATH']!;
 
-      const config = new Configuration({
-        baseUrl: wiremockUrl,
-        verifySsl: true,
-        sslCaCert: caCertPath,
-      });
+      const config = Configuration.builder()
+        .baseUrl(wiremockUrl)
+        .verifySsl(true)
+        .sslCaCert(caCertPath)
+        .build();
 
       const client = new DefaultApiClient(config);
       const response = await client.sendRequest(
@@ -54,10 +54,10 @@ describe('DefaultApiClient', () => {
       const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
       const proxyUrl = process.env['PROXY_URL']!;
 
-      const config = new Configuration({
-        baseUrl: wiremockUrl,
-        proxy: proxyUrl,
-      });
+      const config = Configuration.builder()
+        .baseUrl(wiremockUrl)
+        .proxy(proxyUrl)
+        .build();
 
       const client = new DefaultApiClient(config);
       const response = await client.sendRequest(
@@ -77,11 +77,11 @@ describe('DefaultApiClient', () => {
       const wiremockUrl = process.env['WIREMOCK_HTTPS_URL']!;
       const proxyUrl = process.env['PROXY_URL']!;
 
-      const config = new Configuration({
-        baseUrl: wiremockUrl,
-        proxy: proxyUrl,
-        verifySsl: false,
-      });
+      const config = Configuration.builder()
+        .baseUrl(wiremockUrl)
+        .proxy(proxyUrl)
+        .verifySsl(false)
+        .build();
 
       const client = new DefaultApiClient(config);
       const response = await client.sendRequest(

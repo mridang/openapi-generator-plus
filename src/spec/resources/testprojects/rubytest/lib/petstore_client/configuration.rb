@@ -12,68 +12,183 @@ module PetstoreClient
   #
   # Holds settings that apply to all API requests such as the base URL,
   # default headers, TLS options, proxy, timeout, and retry policy.
+  #
+  # This class is immutable. Use {Configuration.builder} to create instances:
+  #
+  #     config = PetstoreClient::Configuration.builder
+  #       .base_url('https://api.example.com')
+  #       .default_header('Authorization', 'Bearer token')
+  #       .verify_ssl(false)
+  #       .build
   class Configuration
-    # Base URL for all API requests.
-    attr_accessor :base_url
+    # @return [String]
+    attr_reader :base_url
 
-    # Headers to include in every API request. Use this for authentication
-    # (e.g. Authorization header) and other custom headers.
     # @return [Hash{String => String}]
-    attr_accessor :default_headers
+    attr_reader :default_headers
 
-    # Enable debug logging of HTTP requests and responses.
     # @return [Boolean]
-    attr_accessor :debug
+    attr_reader :debug
 
-    # Enable SSL/TLS certificate verification.
     # @return [Boolean]
-    attr_accessor :verify_ssl
+    attr_reader :verify_ssl
 
-    # Path to a CA certificate file for SSL/TLS verification.
     # @return [String, nil]
-    attr_accessor :ssl_ca_cert
+    attr_reader :ssl_ca_cert
 
-    # Path to a client certificate file for mutual TLS authentication.
     # @return [String, nil]
-    attr_accessor :cert_file
+    attr_reader :cert_file
 
-    # Path to a client private key file for mutual TLS authentication.
     # @return [String, nil]
-    attr_accessor :key_file
+    attr_reader :key_file
 
-    # Proxy URL for all API requests.
     # @return [String, nil]
-    attr_accessor :proxy
+    attr_reader :proxy
 
-    # Request timeout in seconds. nil means no timeout.
     # @return [Integer, nil]
-    attr_accessor :timeout
+    attr_reader :timeout
 
-    # Number of retry attempts for failed requests. nil means no retries.
     # @return [Integer, nil]
-    attr_accessor :retries
+    attr_reader :retries
 
-    def initialize # rubocop:disable Metrics/MethodLength
-      @base_url = '/api/v3'
-      @default_headers = {}
-      @debug = false
-      @verify_ssl = true
-      @ssl_ca_cert = nil
-      @cert_file = nil
-      @key_file = nil
-      @proxy = nil
-      @timeout = nil
-      @retries = nil
+    def initialize(base_url:, default_headers:, debug:, verify_ssl:, # rubocop:disable Metrics/MethodLength,Metrics/ParameterLists
+                   ssl_ca_cert:, cert_file:, key_file:, proxy:, timeout:, retries:)
+      @base_url = base_url
+      @default_headers = default_headers.freeze
+      @debug = debug
+      @verify_ssl = verify_ssl
+      @ssl_ca_cert = ssl_ca_cert
+      @cert_file = cert_file
+      @key_file = key_file
+      @proxy = proxy
+      @timeout = timeout
+      @retries = retries
+      freeze
+    end
 
-      yield(self) if block_given?
+    # Create a new builder for constructing Configuration instances.
+    # @return [Builder]
+    def self.builder
+      Builder.new
     end
 
     class << self
       attr_writer :default
 
       # Return the default configuration instance, creating it lazily if needed.
+      # @return [Configuration]
       def default
-        @default ||= Configuration.new
+        @default ||= builder.build
+      end
+    end
+
+    # Builder for creating immutable {Configuration} instances.
+    class Builder
+      def initialize
+        @base_url = '/api/v3'
+        @default_headers = {} #: Hash[String, String] # rubocop:disable Layout/LeadingCommentSpace
+        @debug = false
+        @verify_ssl = true
+        @ssl_ca_cert = nil
+        @cert_file = nil
+        @key_file = nil
+        @proxy = nil
+        @timeout = nil
+        @retries = nil
+      end
+
+      # @param val [String]
+      # @return [self]
+      def base_url(val)
+        @base_url = val
+        self
+      end
+
+      # @param name [String]
+      # @param value [String]
+      # @return [self]
+      def default_header(name, value)
+        @default_headers[name] = value
+        self
+      end
+
+      # @param headers [Hash{String => String}]
+      # @return [self]
+      def default_headers(headers)
+        @default_headers.merge!(headers)
+        self
+      end
+
+      # @param val [Boolean]
+      # @return [self]
+      def debug(val)
+        @debug = val
+        self
+      end
+
+      # @param val [Boolean]
+      # @return [self]
+      def verify_ssl(val)
+        @verify_ssl = val
+        self
+      end
+
+      # @param val [String, nil]
+      # @return [self]
+      def ssl_ca_cert(val)
+        @ssl_ca_cert = val
+        self
+      end
+
+      # @param val [String, nil]
+      # @return [self]
+      def cert_file(val)
+        @cert_file = val
+        self
+      end
+
+      # @param val [String, nil]
+      # @return [self]
+      def key_file(val)
+        @key_file = val
+        self
+      end
+
+      # @param val [String, nil]
+      # @return [self]
+      def proxy(val)
+        @proxy = val
+        self
+      end
+
+      # @param val [Integer, nil]
+      # @return [self]
+      def timeout(val)
+        @timeout = val
+        self
+      end
+
+      # @param val [Integer, nil]
+      # @return [self]
+      def retries(val)
+        @retries = val
+        self
+      end
+
+      # @return [Configuration]
+      def build # rubocop:disable Metrics/MethodLength
+        Configuration.new(
+          base_url: @base_url,
+          default_headers: @default_headers,
+          debug: @debug,
+          verify_ssl: @verify_ssl,
+          ssl_ca_cert: @ssl_ca_cert,
+          cert_file: @cert_file,
+          key_file: @key_file,
+          proxy: @proxy,
+          timeout: @timeout,
+          retries: @retries
+        )
       end
     end
   end

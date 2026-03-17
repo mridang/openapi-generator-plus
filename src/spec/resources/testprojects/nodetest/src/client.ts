@@ -20,10 +20,10 @@ export class Client {
    * @param authenticator Provides host URL and auth headers.
    */
   constructor(authenticator: Authenticator) {
-    const config = new Configuration({
-      baseUrl: authenticator.getHost(),
-      defaultHeaders: { ...authenticator.getAuthHeaders() }
-    });
+    const config = Configuration.builder()
+      .baseUrl(authenticator.getHost())
+      .defaultHeaders(authenticator.getAuthHeaders())
+      .build();
     const apiClient: ApiClient = new DefaultApiClient(config);
     this.pet = new PetApi(config, apiClient);
     this.store = new StoreApi(config, apiClient);

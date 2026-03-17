@@ -57,12 +57,16 @@ require 'petstore_client/api/store_api'
 # :nodoc:
 module PetstoreClient
   class << self
+    # Configure the default Configuration instance using a builder.
+    #
+    #     PetstoreClient.configure do |b|
+    #       b.base_url 'https://api.example.com'
+    #       b.default_header 'Authorization', 'Bearer token'
+    #     end
     def configure
-      if block_given?
-        yield(Configuration.default)
-      else
-        Configuration.default
-      end
+      builder = Configuration.builder
+      yield(builder) if block_given?
+      Configuration.default = builder.build
     end
   end
 end

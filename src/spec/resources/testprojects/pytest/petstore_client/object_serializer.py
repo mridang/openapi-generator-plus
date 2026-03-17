@@ -50,7 +50,7 @@ class ObjectSerializer:
     _DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S%z'
 
     def __init__(self) -> None:
-        self._datetime_format = self._DATETIME_FORMAT
+        pass
 
     def serialize(self, obj: Any) -> str:
         """Serialize an object to a JSON string."""

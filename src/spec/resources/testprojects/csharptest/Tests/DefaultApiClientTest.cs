@@ -16,11 +16,10 @@ public class DefaultApiClientTest
     [Fact]
     public async Task MakesHttpsRequestWithVerifySslFalse()
     {
-        var config = new Configuration
-        {
-            BaseUrl = _fixture.WireMockHttpsUrl,
-            VerifySsl = false,
-        };
+        var config = Configuration.CreateBuilder()
+            .BaseUrl(_fixture.WireMockHttpsUrl)
+            .VerifySsl(false)
+            .Build();
 
         var client = new DefaultApiClient(config);
         var response = await client.SendRequestAsync(
@@ -37,12 +36,11 @@ public class DefaultApiClientTest
     [Fact]
     public async Task MakesHttpsRequestWithCustomCaCert()
     {
-        var config = new Configuration
-        {
-            BaseUrl = _fixture.WireMockHttpsUrl,
-            VerifySsl = true,
-            SslCaCert = _fixture.CaCertPath,
-        };
+        var config = Configuration.CreateBuilder()
+            .BaseUrl(_fixture.WireMockHttpsUrl)
+            .VerifySsl(true)
+            .SslCaCert(_fixture.CaCertPath)
+            .Build();
 
         var client = new DefaultApiClient(config);
         var response = await client.SendRequestAsync(
@@ -59,11 +57,10 @@ public class DefaultApiClientTest
     [Fact]
     public async Task MakesHttpRequestThroughProxy()
     {
-        var config = new Configuration
-        {
-            BaseUrl = _fixture.WireMockHttpUrl,
-            Proxy = _fixture.ProxyUrl,
-        };
+        var config = Configuration.CreateBuilder()
+            .BaseUrl(_fixture.WireMockHttpUrl)
+            .Proxy(_fixture.ProxyUrl)
+            .Build();
 
         var client = new DefaultApiClient(config);
         var response = await client.SendRequestAsync(
@@ -80,12 +77,11 @@ public class DefaultApiClientTest
     [Fact]
     public async Task MakesHttpsRequestThroughProxyWithVerifySslFalse()
     {
-        var config = new Configuration
-        {
-            BaseUrl = _fixture.WireMockHttpsUrl,
-            Proxy = _fixture.ProxyUrl,
-            VerifySsl = false,
-        };
+        var config = Configuration.CreateBuilder()
+            .BaseUrl(_fixture.WireMockHttpsUrl)
+            .Proxy(_fixture.ProxyUrl)
+            .VerifySsl(false)
+            .Build();
 
         var client = new DefaultApiClient(config);
         var response = await client.SendRequestAsync(

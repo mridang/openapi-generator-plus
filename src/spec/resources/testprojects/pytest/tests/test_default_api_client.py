@@ -4,7 +4,10 @@ from petstore_client.default_api_client import DefaultApiClient
 
 class TestTlsVerificationDisabled:
     def test_makes_https_request_with_verify_ssl_false(self, wiremock_https_url):
-        config = Configuration(base_url=wiremock_https_url, verify_ssl=False)
+        config = Configuration.builder() \
+            .base_url(wiremock_https_url) \
+            .verify_ssl(False) \
+            .build()
         client = DefaultApiClient(config)
         response = client.send_request('GET', wiremock_https_url + '/api/test', {}, None)
 
@@ -14,7 +17,11 @@ class TestTlsVerificationDisabled:
 
 class TestCustomCaBundle:
     def test_makes_https_request_with_custom_ca_cert(self, wiremock_https_url, ca_cert_path):
-        config = Configuration(base_url=wiremock_https_url, verify_ssl=True, ssl_ca_cert=ca_cert_path)
+        config = Configuration.builder() \
+            .base_url(wiremock_https_url) \
+            .verify_ssl(True) \
+            .ssl_ca_cert(ca_cert_path) \
+            .build()
         client = DefaultApiClient(config)
         response = client.send_request('GET', wiremock_https_url + '/api/test', {}, None)
 
@@ -24,7 +31,10 @@ class TestCustomCaBundle:
 
 class TestHttpProxy:
     def test_makes_http_request_through_proxy(self, wiremock_http_url, proxy_url):
-        config = Configuration(base_url=wiremock_http_url, proxy=proxy_url)
+        config = Configuration.builder() \
+            .base_url(wiremock_http_url) \
+            .proxy(proxy_url) \
+            .build()
         client = DefaultApiClient(config)
         response = client.send_request('GET', wiremock_http_url + '/api/test', {}, None)
 
@@ -34,7 +44,11 @@ class TestHttpProxy:
 
 class TestHttpProxyWithTls:
     def test_makes_https_request_through_proxy_with_verify_ssl_false(self, wiremock_https_url, proxy_url):
-        config = Configuration(base_url=wiremock_https_url, proxy=proxy_url, verify_ssl=False)
+        config = Configuration.builder() \
+            .base_url(wiremock_https_url) \
+            .proxy(proxy_url) \
+            .verify_ssl(False) \
+            .build()
         client = DefaultApiClient(config)
         response = client.send_request('GET', wiremock_https_url + '/api/test', {}, None)
 

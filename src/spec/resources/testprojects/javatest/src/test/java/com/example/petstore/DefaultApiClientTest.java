@@ -20,16 +20,14 @@ class DefaultApiClientTest {
     void makesHttpsRequestWithVerifySslFalse() throws ApiException {
       String wiremockUrl = WireMockContainer.getHttpsUrl();
 
-      Configuration config = new Configuration();
-      config.setBaseUrl(wiremockUrl);
-      config.setVerifySsl(false);
+      Configuration config = Configuration.builder().baseUrl(wiremockUrl).verifySsl(false).build();
 
       DefaultApiClient client = new DefaultApiClient(config);
       ApiResponse response =
           client.sendRequest("GET", wiremockUrl + "/api/test", new HashMap<>(), null);
 
-      assertEquals(200, response.getStatusCode());
-      assertTrue(response.getBody().contains("success"));
+      assertEquals(200, response.statusCode());
+      assertTrue(response.body().contains("success"));
     }
   }
 
@@ -42,17 +40,19 @@ class DefaultApiClientTest {
     void makesHttpsRequestWithCustomCaCert() throws ApiException {
       String wiremockUrl = WireMockContainer.getHttpsUrl();
 
-      Configuration config = new Configuration();
-      config.setBaseUrl(wiremockUrl);
-      config.setVerifySsl(true);
-      config.setSslCaCert(CA_CERT_PATH);
+      Configuration config =
+          Configuration.builder()
+              .baseUrl(wiremockUrl)
+              .verifySsl(true)
+              .sslCaCert(CA_CERT_PATH)
+              .build();
 
       DefaultApiClient client = new DefaultApiClient(config);
       ApiResponse response =
           client.sendRequest("GET", wiremockUrl + "/api/test", new HashMap<>(), null);
 
-      assertEquals(200, response.getStatusCode());
-      assertTrue(response.getBody().contains("success"));
+      assertEquals(200, response.statusCode());
+      assertTrue(response.body().contains("success"));
     }
   }
 
@@ -66,16 +66,14 @@ class DefaultApiClientTest {
       String wiremockUrl = WireMockContainer.getHttpUrl();
       String proxyUrl = SquidContainer.getProxyUrl();
 
-      Configuration config = new Configuration();
-      config.setBaseUrl(wiremockUrl);
-      config.setProxy(proxyUrl);
+      Configuration config = Configuration.builder().baseUrl(wiremockUrl).proxy(proxyUrl).build();
 
       DefaultApiClient client = new DefaultApiClient(config);
       ApiResponse response =
           client.sendRequest("GET", wiremockUrl + "/api/test", new HashMap<>(), null);
 
-      assertEquals(200, response.getStatusCode());
-      assertTrue(response.getBody().contains("success"));
+      assertEquals(200, response.statusCode());
+      assertTrue(response.body().contains("success"));
     }
   }
 
@@ -89,17 +87,15 @@ class DefaultApiClientTest {
       String wiremockUrl = WireMockContainer.getHttpsUrl();
       String proxyUrl = SquidContainer.getProxyUrl();
 
-      Configuration config = new Configuration();
-      config.setBaseUrl(wiremockUrl);
-      config.setProxy(proxyUrl);
-      config.setVerifySsl(false);
+      Configuration config =
+          Configuration.builder().baseUrl(wiremockUrl).proxy(proxyUrl).verifySsl(false).build();
 
       DefaultApiClient client = new DefaultApiClient(config);
       ApiResponse response =
           client.sendRequest("GET", wiremockUrl + "/api/test", new HashMap<>(), null);
 
-      assertEquals(200, response.getStatusCode());
-      assertTrue(response.getBody().contains("success"));
+      assertEquals(200, response.statusCode());
+      assertTrue(response.body().contains("success"));
     }
   }
 
@@ -117,8 +113,8 @@ class DefaultApiClientTest {
       headers.put("Accept-Encoding", "gzip");
       ApiResponse response = client.sendRequest("GET", COMPRESSION_URL, headers, null);
 
-      assertEquals(200, response.getStatusCode());
-      assertTrue(response.getBody().contains("userId"));
+      assertEquals(200, response.statusCode());
+      assertTrue(response.body().contains("userId"));
     }
 
     @Test
@@ -129,8 +125,8 @@ class DefaultApiClientTest {
       headers.put("Accept-Encoding", "br");
       ApiResponse response = client.sendRequest("GET", COMPRESSION_URL, headers, null);
 
-      assertEquals(200, response.getStatusCode());
-      assertTrue(response.getBody().contains("userId"));
+      assertEquals(200, response.statusCode());
+      assertTrue(response.body().contains("userId"));
     }
 
     @Test
@@ -141,8 +137,8 @@ class DefaultApiClientTest {
       headers.put("Accept-Encoding", "zstd");
       ApiResponse response = client.sendRequest("GET", COMPRESSION_URL, headers, null);
 
-      assertEquals(200, response.getStatusCode());
-      assertTrue(response.getBody().contains("userId"));
+      assertEquals(200, response.statusCode());
+      assertTrue(response.body().contains("userId"));
     }
   }
 }

@@ -20,9 +20,10 @@ module PetstoreClient
     # Creates a new client with the given authenticator.
     # @param authenticator [Auth::Authenticator] Provides host URL and auth headers.
     def initialize(authenticator)
-      config = Configuration.default
-      config.base_url = authenticator.host
-      authenticator.auth_headers.each { |key, value| config.default_headers[key] = value }
+      config = Configuration.builder
+                            .base_url(authenticator.host)
+                            .default_headers(authenticator.auth_headers)
+                            .build
       api_client = DefaultApiClient.new(config)
       @pet = Api::PetApi.new(api_client, config)
       @store = Api::StoreApi.new(api_client, config)

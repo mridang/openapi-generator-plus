@@ -17,8 +17,10 @@ class TestPetApi:
 
     @pytest.fixture(autouse=True)
     def setup(self, api_base_url):
-        config = Configuration(base_url=api_base_url)
-        config.default_headers['Authorization'] = 'Bearer test-token'
+        config = Configuration.builder() \
+            .base_url(api_base_url) \
+            .default_header('Authorization', 'Bearer test-token') \
+            .build()
         self.api = PetApi(config=config)
         self.auth = BearerAuthenticator(api_base_url, 'test-token')
 

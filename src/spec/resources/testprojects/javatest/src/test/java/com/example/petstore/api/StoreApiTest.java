@@ -21,9 +21,11 @@ class StoreApiTest {
   @BeforeEach
   void setUp() {
     String baseUrl = PrismContainer.getBaseUrl();
-    Configuration config = new Configuration();
-    config.setBaseUrl(baseUrl);
-    config.getDefaultHeaders().put("Authorization", "Bearer test-token");
+    Configuration config =
+        Configuration.builder()
+            .baseUrl(baseUrl)
+            .defaultHeader("Authorization", "Bearer test-token")
+            .build();
     api = new StoreApi(new DefaultApiClient(), config);
   }
 

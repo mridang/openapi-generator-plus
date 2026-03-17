@@ -16,9 +16,10 @@ class StoreApiTest extends TestCase
 
     protected function setUp(): void
     {
-        $config = Configuration::getDefaultConfiguration()
-            ->setBaseUrl(getenv('API_BASE_URL') ?: 'http://localhost:4010');
-        $config->setDefaultHeader('Authorization', 'Bearer test-token');
+        $config = Configuration::builder()
+            ->baseUrl(getenv('API_BASE_URL') ?: 'http://localhost:4010')
+            ->defaultHeader('Authorization', 'Bearer test-token')
+            ->build();
         $this->api = new StoreApi(config: $config);
     }
 

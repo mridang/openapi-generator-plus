@@ -10,21 +10,27 @@ Do not edit the class manually.
 """
 
 import base64
+from dataclasses import InitVar, dataclass, field
 from typing import Dict
 
 from .authenticator import Authenticator
 
 
+@dataclass(frozen=True)
 class BasicAuthenticator(Authenticator):
     """Authenticator for HTTP Basic authentication."""
 
-    def __init__(self, host: str, username: str, password: str) -> None:
-        self._host = host
+    host: str
+    username: InitVar[str]
+    password: InitVar[str]
+    auth_header: str = field(init=False, repr=False)
+
+    def __post_init__(self, username: str, password: str) -> None:
         credentials = base64.b64encode(f'{username}:{password}'.encode('utf-8')).decode('utf-8')
-        self._auth_header = f'Basic {credentials}'
+        object.__setattr__(self, 'auth_header', f'Basic {credentials}')
 
     def get_host(self) -> str:
-        return self._host
+        return self.host
 
     def get_auth_headers(self) -> Dict[str, str]:
-        return {'Authorization': self._auth_header}
+        return {'Authorization': self.auth_header}

@@ -74,7 +74,7 @@ class BaseApi
         ?string $returnType,
         ?Authenticator $auth = null
     ): mixed {
-        $url = $this->config->getBaseUrl() . $path;
+        $url = $this->config->baseUrl . $path;
 
         if ($auth instanceof Authenticator) {
             foreach ($auth->getQueryParams() as $k => $v) {
@@ -89,7 +89,7 @@ class BaseApi
 
         $isMultipart = $contentType === 'multipart/form-data';
         $headers = $this->headerSelector->selectHeaders($accepts, $contentType ?? '', $isMultipart);
-        $headers = array_merge($headers, $this->config->getDefaultHeaders());
+        $headers = array_merge($headers, $this->config->defaultHeaders);
         $headers = array_merge($headers, $headerParams);
         if ($auth instanceof Authenticator) {
             $headers = array_merge($headers, $auth->getAuthHeaders());

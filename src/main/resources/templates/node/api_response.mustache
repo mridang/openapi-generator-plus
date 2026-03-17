@@ -2,7 +2,7 @@
  * Represents an HTTP API response.
  */
 export interface ApiResponse {
-  statusCode: number;
-  body: string;
-  headers: Record<string, string>;
+  readonly statusCode: number;
+  readonly body: string;
+  readonly headers: Readonly<Record<string, string>>;
 }

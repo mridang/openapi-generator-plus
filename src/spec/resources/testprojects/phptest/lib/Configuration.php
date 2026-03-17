@@ -17,63 +17,55 @@ namespace PetstoreClient;
  *
  * Holds settings that apply to all API requests such as the base URL,
  * default headers, TLS options, proxy, timeout, and retry policy.
+ *
+ * This class is immutable. Use {@see Configuration::builder()} to create instances:
+ *
+ *     $config = Configuration::builder()
+ *         ->baseUrl('https://api.example.com')
+ *         ->defaultHeader('Authorization', 'Bearer token')
+ *         ->verifySsl(false)
+ *         ->build();
+ *
+ * @category Class
+ * @package  PetstoreClient
  */
-class Configuration
+final class Configuration
 {
     private static ?Configuration $defaultInstance = null;
 
     /**
-     * Base URL for all API requests.
+     * @param string               $baseUrl        Base URL for all API requests
+     * @param array<string, string> $defaultHeaders Headers to include in every API request
+     * @param bool                 $debug          Enable debug logging
+     * @param bool                 $verifySsl      Enable SSL/TLS certificate verification
+     * @param string|null          $sslCaCert      Path to a CA certificate file
+     * @param string|null          $certFile       Path to a client certificate file
+     * @param string|null          $keyFile        Path to a client private key file
+     * @param string|null          $proxy          Proxy URL for all API requests
+     * @param int|null             $timeout        Request timeout in seconds
+     * @param int|null             $retries        Number of retry attempts
      */
-    private string $baseUrl = '/api/v3';
+    public function __construct(
+        public readonly string $baseUrl = '/api/v3',
+        public readonly array $defaultHeaders = [],
+        public readonly bool $debug = false,
+        public readonly bool $verifySsl = true,
+        public readonly ?string $sslCaCert = null,
+        public readonly ?string $certFile = null,
+        public readonly ?string $keyFile = null,
+        public readonly ?string $proxy = null,
+        public readonly ?int $timeout = null,
+        public readonly ?int $retries = null,
+    ) {
+    }
 
     /**
-     * Headers to include in every API request. Use this for authentication
-     * (e.g. Authorization header) and other custom headers.
-     *
-     * @var array<string, string>
+     * Create a new builder for constructing Configuration instances.
      */
-    private array $defaultHeaders = [];
-
-    /**
-     * Enable debug logging of HTTP requests and responses.
-     */
-    private bool $debug = false;
-
-    /**
-     * Enable SSL/TLS certificate verification.
-     */
-    private bool $verifySsl = true;
-
-    /**
-     * Path to a CA certificate file for SSL/TLS verification.
-     */
-    private ?string $sslCaCert = null;
-
-    /**
-     * Path to a client certificate file for mutual TLS authentication.
-     */
-    private ?string $certFile = null;
-
-    /**
-     * Path to a client private key file for mutual TLS authentication.
-     */
-    private ?string $keyFile = null;
-
-    /**
-     * Proxy URL for all API requests.
-     */
-    private ?string $proxy = null;
-
-    /**
-     * Request timeout in seconds. null means no timeout.
-     */
-    private ?int $timeout = null;
-
-    /**
-     * Number of retry attempts for failed requests. null means no retries.
-     */
-    private ?int $retries = null;
+    public static function builder(): ConfigurationBuilder
+    {
+        return new ConfigurationBuilder();
+    }
 
     /**
      * Return the default configuration instance, creating it lazily if needed.
@@ -93,148 +85,5 @@ class Configuration
     public static function setDefaultConfiguration(Configuration $configuration): void
     {
         self::$defaultInstance = $configuration;
-    }
-
-    public function getBaseUrl(): string
-    {
-        return $this->baseUrl;
-    }
-
-    /**
-     * @return $this
-     */
-    public function setBaseUrl(string $baseUrl): static
-    {
-        $this->baseUrl = $baseUrl;
-        return $this;
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    public function getDefaultHeaders(): array
-    {
-        return $this->defaultHeaders;
-    }
-
-    /**
-     * @return $this
-     */
-    public function setDefaultHeader(string $name, string $value): static
-    {
-        $this->defaultHeaders[$name] = $value;
-        return $this;
-    }
-
-    public function isDebug(): bool
-    {
-        return $this->debug;
-    }
-
-    /**
-     * @return $this
-     */
-    public function setDebug(bool $debug): static
-    {
-        $this->debug = $debug;
-        return $this;
-    }
-
-    public function isVerifySsl(): bool
-    {
-        return $this->verifySsl;
-    }
-
-    /**
-     * @return $this
-     */
-    public function setVerifySsl(bool $verifySsl): static
-    {
-        $this->verifySsl = $verifySsl;
-        return $this;
-    }
-
-    public function getSslCaCert(): ?string
-    {
-        return $this->sslCaCert;
-    }
-
-    /**
-     * @return $this
-     */
-    public function setSslCaCert(?string $sslCaCert): static
-    {
-        $this->sslCaCert = $sslCaCert;
-        return $this;
-    }
-
-    public function getCertFile(): ?string
-    {
-        return $this->certFile;
-    }
-
-    /**
-     * @return $this
-     */
-    public function setCertFile(?string $certFile): static
-    {
-        $this->certFile = $certFile;
-        return $this;
-    }
-
-    public function getKeyFile(): ?string
-    {
-        return $this->keyFile;
-    }
-
-    /**
-     * @return $this
-     */
-    public function setKeyFile(?string $keyFile): static
-    {
-        $this->keyFile = $keyFile;
-        return $this;
-    }
-
-    public function getProxy(): ?string
-    {
-        return $this->proxy;
-    }
-
-    /**
-     * @return $this
-     */
-    public function setProxy(?string $proxy): static
-    {
-        $this->proxy = $proxy;
-        return $this;
-    }
-
-    public function getTimeout(): ?int
-    {
-        return $this->timeout;
-    }
-
-    /**
-     * @return $this
-     */
-    public function setTimeout(?int $timeout): static
-    {
-        $this->timeout = $timeout;
-        return $this;
-    }
-
-    public function getRetries(): ?int
-    {
-        return $this->retries;
-    }
-
-    /**
-     * @return $this
-     */
-    public function setRetries(?int $retries): static
-    {
-        $this->retries = $retries;
-        return $this;
     }
 }
