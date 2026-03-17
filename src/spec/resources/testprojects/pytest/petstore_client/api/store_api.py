@@ -36,7 +36,7 @@ class StoreApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
-        return self._invoke_api(
+        return self._invoke_api(  # type: ignore[no-any-return]
             'DELETE',
             path,
             query_params,
@@ -59,7 +59,7 @@ class StoreApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
-        return self._invoke_api(
+        return self._invoke_api(  # type: ignore[no-any-return]
             'GET',
             path,
             query_params,
@@ -88,7 +88,7 @@ class StoreApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
-        return self._invoke_api(
+        return self._invoke_api(  # type: ignore[no-any-return]
             'GET',
             path,
             query_params,
@@ -113,7 +113,7 @@ class StoreApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = order
 
-        return self._invoke_api(
+        return self._invoke_api(  # type: ignore[no-any-return]
             'POST',
             path,
             query_params,

@@ -70,7 +70,7 @@ class ObjectSerializer:
                 return None
 
             data = json.loads(json_string)
-            return self._deserialize(data, target_type)
+            return self._deserialize(data, target_type)  # type: ignore[no-any-return]
         except json.JSONDecodeError as e:
             raise SerializationError(f'Failed to parse JSON: {e}', e)
         except Exception as e:

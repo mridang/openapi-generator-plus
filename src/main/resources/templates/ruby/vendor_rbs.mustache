@@ -61,6 +61,14 @@ module JSON
   def self.parse: (String) -> untyped
 end
 
+module Brotli
+  def self.inflate: (String) -> String
+end
+
+module Zstd
+  def self.decompress: (String) -> String
+end
+
 module Faraday
   def self.new: (?String?) ?{ (Connection) -> void } -> Connection
 

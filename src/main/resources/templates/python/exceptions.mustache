@@ -12,7 +12,7 @@ class ApiTypeError(OpenApiException, TypeError):
         self,
         msg: str,
         path_to_item: Optional[List[str]] = None,
-        valid_classes: Optional[tuple] = None,
+        valid_classes: Optional[tuple[type, ...]] = None,
         key_type: Optional[bool] = None,
     ) -> None:
         """Raises an exception for TypeErrors

@@ -68,7 +68,7 @@ class DefaultApiClient implements ApiClient
      */
     public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
     {
-        $headers['Accept-Encoding'] ??= self::getSupportedEncodings();
+        $headers['Accept-Encoding'] ??= $this->getSupportedEncodings();
 
         if (is_array($body)) {
             unset($headers['Content-Type']);
@@ -136,7 +136,7 @@ class DefaultApiClient implements ApiClient
         }
     }
 
-    private static function getSupportedEncodings(): string
+    private function getSupportedEncodings(): string
     {
         $encodings = ['gzip', 'deflate'];
         if (function_exists('brotli_uncompress')) {

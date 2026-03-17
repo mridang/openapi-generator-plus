@@ -44,7 +44,7 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = pet
 
-        return self._invoke_api(
+        return self._invoke_api(  # type: ignore[no-any-return]
             'POST',
             path,
             query_params,
@@ -86,7 +86,7 @@ class PetApi(BaseApi):
         body['files'] = files
         body['metadata'] = metadata
 
-        return self._invoke_api(
+        return self._invoke_api(  # type: ignore[no-any-return]
             'POST',
             path,
             query_params,
@@ -116,7 +116,7 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
-        return self._invoke_api(
+        return self._invoke_api(  # type: ignore[no-any-return]
             'DELETE',
             path,
             query_params,
@@ -152,7 +152,7 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
-        return self._invoke_api(
+        return self._invoke_api(  # type: ignore[no-any-return]
             'GET',
             path,
             query_params,
@@ -179,7 +179,7 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
-        return self._invoke_api(
+        return self._invoke_api(  # type: ignore[no-any-return]
             'GET',
             path,
             query_params,
@@ -209,7 +209,7 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
-        return self._invoke_api(
+        return self._invoke_api(  # type: ignore[no-any-return]
             'GET',
             path,
             query_params,
@@ -239,7 +239,7 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
-        return self._invoke_api(
+        return self._invoke_api(  # type: ignore[no-any-return]
             'GET',
             path,
             query_params,
@@ -269,7 +269,7 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
-        return self._invoke_api(
+        return self._invoke_api(  # type: ignore[no-any-return]
             'GET',
             path,
             query_params,
@@ -299,7 +299,7 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
-        return self._invoke_api(
+        return self._invoke_api(  # type: ignore[no-any-return]
             'GET',
             path,
             query_params,
@@ -335,7 +335,7 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
-        return self._invoke_api(
+        return self._invoke_api(  # type: ignore[no-any-return]
             'GET',
             path,
             query_params,
@@ -369,7 +369,7 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = body
 
-        return self._invoke_api(
+        return self._invoke_api(  # type: ignore[no-any-return]
             'PUT',
             path,
             query_params,
@@ -403,7 +403,7 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = set_pet_avatar_thumbnail_request
 
-        return self._invoke_api(
+        return self._invoke_api(  # type: ignore[no-any-return]
             'PUT',
             path,
             query_params,
@@ -437,7 +437,7 @@ class PetApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = pet
 
-        return self._invoke_api(
+        return self._invoke_api(  # type: ignore[no-any-return]
             'PUT',
             path,
             query_params,
@@ -473,7 +473,7 @@ class PetApi(BaseApi):
         body: Dict[str, Any] = {}
         body['file'] = file
 
-        return self._invoke_api(
+        return self._invoke_api(  # type: ignore[no-any-return]
             'POST',
             path,
             query_params,
@@ -517,7 +517,7 @@ class PetApi(BaseApi):
         if notes is not None:
             body['notes'] = notes
 
-        return self._invoke_api(
+        return self._invoke_api(  # type: ignore[no-any-return]
             'POST',
             path,
             query_params,

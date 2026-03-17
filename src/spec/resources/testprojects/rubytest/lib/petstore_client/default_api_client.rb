@@ -31,7 +31,7 @@ module PetstoreClient
       @config = config
     end
 
-    def send_request(method, url, headers, body) # rubocop:disable Metrics/MethodLength
+    def send_request(method, url, headers, body) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
       if body.is_a?(Hash)
         boundary = SecureRandom.uuid
         headers['Content-Type'] = "multipart/form-data; boundary=#{boundary}"
@@ -63,7 +63,7 @@ module PetstoreClient
 
     private
 
-    def decompress_body(body, encoding) # rubocop:disable Metrics/MethodLength
+    def decompress_body(body, encoding) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
       return body if body.nil? || body.empty?
 
       case encoding&.downcase

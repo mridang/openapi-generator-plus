@@ -1,7 +1,7 @@
 import math
 import re
 from collections import namedtuple
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 
 class HeaderSelector:
@@ -82,9 +82,9 @@ class HeaderSelector:
         :param headers_with_json: Array of Accept Headers of type "json"
         :return: "Accept" Header (e.g. "application/json, text/html; q=0.9")
         """
-        with_application_json: List = []
-        with_json: List = []
-        without_json: List = []
+        with_application_json: list[Any] = []
+        with_json: list[Any] = []
+        without_json: list[Any] = []
 
         for header in accept:
             header_data = self._get_header_and_weight(header)
@@ -124,7 +124,12 @@ class HeaderSelector:
         else:
             return self.HeaderData(header=header.strip(), weight=1000)
 
-    def _adjust_weight(self, headers: List, current_weight: List[int], has_more_than_28_headers: bool) -> List[str]:
+    def _adjust_weight(
+        self,
+        headers: list[Any],
+        current_weight: List[int],
+        has_more_than_28_headers: bool,
+    ) -> List[str]:
         """Adjust weights for a group of headers.
 
         :param headers: list of headers to process

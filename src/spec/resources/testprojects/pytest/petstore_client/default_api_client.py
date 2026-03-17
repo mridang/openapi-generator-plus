@@ -15,9 +15,9 @@ except ImportError:
     _brotli = None
 
 try:
-    import zstandard as _zstandard  # type: ignore[import-untyped]
+    import zstandard as _zstandard
 except ImportError:
-    _zstandard = None
+    _zstandard = None  # type: ignore[assignment]
 
 
 def _supported_encodings() -> str:
@@ -110,15 +110,14 @@ class DefaultApiClient:
         :return: encoded MIME part as bytes
         """
         if hasattr(value, 'read'):
-            data = value.read()
-            if isinstance(data, str):
-                data = data.encode('utf-8')
+            raw_data = value.read()
+            file_data: bytes = raw_data.encode('utf-8') if isinstance(raw_data, str) else raw_data
             header = (
                 f'--{boundary}\r\n'
                 f'Content-Disposition: form-data; name="{name}"; filename="{name}"\r\n'
                 f'Content-Type: application/octet-stream\r\n\r\n'
             )
-            return header.encode('utf-8') + data + b'\r\n'
+            return header.encode('utf-8') + file_data + b'\r\n'
         elif isinstance(value, bytes):
             header = (
                 f'--{boundary}\r\n'
@@ -127,7 +126,7 @@ class DefaultApiClient:
             )
             return header.encode('utf-8') + value + b'\r\n'
         elif hasattr(value, 'model_dump_json'):
-            json_str = value.model_dump_json(by_alias=True, exclude_none=True)
+            json_str: str = value.model_dump_json(by_alias=True, exclude_none=True)
             header = (
                 f'--{boundary}\r\n'
                 f'Content-Disposition: form-data; name="{name}"\r\n'
@@ -156,7 +155,9 @@ class DefaultApiClient:
         if encoding == 'deflate':
             return zlib.decompress(data)
         if encoding == 'br' and _brotli is not None:
-            return _brotli.decompress(data)
+            br_result: bytes = _brotli.decompress(data)
+            return br_result
         if encoding == 'zstd' and _zstandard is not None:
-            return _zstandard.ZstdDecompressor().decompress(data, max_output_size=len(data) * 16)
+            zstd_result: bytes = _zstandard.ZstdDecompressor().decompress(data, max_output_size=len(data) * 16)
+            return zstd_result
         return data

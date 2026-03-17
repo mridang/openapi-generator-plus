@@ -88,7 +88,7 @@ class {{classname}}(BaseApi):
         body = {{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}None{{/bodyParam}}
 {{/hasFormParams}}
 
-        return self._invoke_api(
+        return self._invoke_api(  # type: ignore[no-any-return]
             '{{httpMethod}}',
             path,
             query_params,

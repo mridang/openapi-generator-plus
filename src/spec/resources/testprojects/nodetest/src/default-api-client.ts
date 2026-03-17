@@ -173,7 +173,7 @@ export class DefaultApiClient implements ApiClient {
 
   static supportedEncodings(): string {
     const encodings = ['gzip', 'deflate', 'br'];
-    if (typeof zlib.zstdDecompress === 'function') {
+    if ('zstdDecompress' in zlib) {
       encodings.push('zstd');
     }
     return encodings.join(', ');
@@ -189,11 +189,13 @@ export class DefaultApiClient implements ApiClient {
         return promisify(zlib.inflate)(data);
       case 'br':
         return promisify(zlib.brotliDecompress)(data);
-      case 'zstd':
-        if (typeof zlib.zstdDecompress === 'function') {
-          return promisify(zlib.zstdDecompress)(data);
+      case 'zstd': {
+        const zstdFn = (zlib as unknown as Record<string, typeof zlib.gunzip>)['zstdDecompress'];
+        if (zstdFn) {
+          return promisify(zstdFn)(data);
         }
         return data;
+      }
       default:
         return data;
     }
