@@ -71,4 +71,39 @@ describe PetstoreClient::DefaultApiClient do
       _(response.body).must_include('success')
     end
   end
+
+  describe 'HTTP compression' do
+    it 'decompresses gzip response' do
+      client = PetstoreClient::DefaultApiClient.new
+      response = client.send_request(
+        :GET, 'https://jsonplaceholder.typicode.com/posts/1',
+        { 'Accept-Encoding' => 'gzip' }, nil
+      )
+
+      _(response.status_code).must_equal(200)
+      _(response.body).must_include('userId')
+    end
+
+    it 'decompresses brotli response' do
+      client = PetstoreClient::DefaultApiClient.new
+      response = client.send_request(
+        :GET, 'https://jsonplaceholder.typicode.com/posts/1',
+        { 'Accept-Encoding' => 'br' }, nil
+      )
+
+      _(response.status_code).must_equal(200)
+      _(response.body).must_include('userId')
+    end
+
+    it 'decompresses zstd response' do
+      client = PetstoreClient::DefaultApiClient.new
+      response = client.send_request(
+        :GET, 'https://jsonplaceholder.typicode.com/posts/1',
+        { 'Accept-Encoding' => 'zstd' }, nil
+      )
+
+      _(response.status_code).must_equal(200)
+      _(response.body).must_include('userId')
+    end
+  end
 end

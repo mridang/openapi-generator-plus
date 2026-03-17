@@ -40,3 +40,35 @@ class TestHttpProxyWithTls:
 
         assert response.status_code == 200
         assert 'success' in response.body
+
+
+class TestHttpCompression:
+    def test_decompresses_gzip_response(self):
+        client = DefaultApiClient()
+        response = client.send_request(
+            'GET', 'https://jsonplaceholder.typicode.com/posts/1',
+            {'Accept-Encoding': 'gzip'}, None
+        )
+
+        assert response.status_code == 200
+        assert 'userId' in response.body
+
+    def test_decompresses_brotli_response(self):
+        client = DefaultApiClient()
+        response = client.send_request(
+            'GET', 'https://jsonplaceholder.typicode.com/posts/1',
+            {'Accept-Encoding': 'br'}, None
+        )
+
+        assert response.status_code == 200
+        assert 'userId' in response.body
+
+    def test_decompresses_zstd_response(self):
+        client = DefaultApiClient()
+        response = client.send_request(
+            'GET', 'https://jsonplaceholder.typicode.com/posts/1',
+            {'Accept-Encoding': 'zstd'}, None
+        )
+
+        assert response.status_code == 200
+        assert 'userId' in response.body

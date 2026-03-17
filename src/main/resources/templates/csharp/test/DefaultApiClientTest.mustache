@@ -98,4 +98,34 @@ public class DefaultApiClientTest
         Assert.Equal(200, response.StatusCode);
         Assert.Contains("success", response.Body);
     }
+
+    [Fact]
+    public async Task DecompressesGzipResponse()
+    {
+        var client = new DefaultApiClient();
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("https://jsonplaceholder.typicode.com/posts/1"),
+            new Dictionary<string, string> { { "Accept-Encoding", "gzip" } },
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("userId", response.Body);
+    }
+
+    [Fact]
+    public async Task DecompressesBrotliResponse()
+    {
+        var client = new DefaultApiClient();
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("https://jsonplaceholder.typicode.com/posts/1"),
+            new Dictionary<string, string> { { "Accept-Encoding", "br" } },
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("userId", response.Body);
+    }
 }

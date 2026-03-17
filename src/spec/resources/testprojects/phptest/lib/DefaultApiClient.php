@@ -68,6 +68,8 @@ class DefaultApiClient implements ApiClient
      */
     public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
     {
+        $headers['Accept-Encoding'] ??= self::getSupportedEncodings();
+
         if (is_array($body)) {
             unset($headers['Content-Type']);
             $formFields = [];
@@ -115,10 +117,15 @@ class DefaultApiClient implements ApiClient
         try {
             $response = $this->client->request($method, $url, $options);
 
+            $responseBody = $response->getContent(false);
+            $responseHeaders = $response->getHeaders(false);
+            $contentEncoding = $responseHeaders['content-encoding'][0] ?? '';
+            $responseBody = $this->decompressBody($responseBody, $contentEncoding);
+
             return new ApiResponse(
                 statusCode: $response->getStatusCode(),
-                body: $response->getContent(false),
-                headers: $response->getHeaders(false)
+                body: $responseBody,
+                headers: $responseHeaders
             );
         } catch (TransportExceptionInterface $e) {
             throw new RuntimeException(
@@ -127,5 +134,37 @@ class DefaultApiClient implements ApiClient
                 $e
             );
         }
+    }
+
+    private static function getSupportedEncodings(): string
+    {
+        $encodings = ['gzip', 'deflate'];
+        if (function_exists('brotli_uncompress')) {
+            $encodings[] = 'br';
+        }
+        if (function_exists('zstd_uncompress')) {
+            $encodings[] = 'zstd';
+        }
+
+        return implode(', ', $encodings);
+    }
+
+    private function decompressBody(string $body, string $encoding): string
+    {
+        if ($body === '') {
+            return $body;
+        }
+
+        return match (strtolower($encoding)) {
+            'gzip', 'x-gzip' => gzdecode($body) ?: $body,
+            'deflate' => gzinflate($body) ?: $body,
+            'br' => function_exists('brotli_uncompress')
+                ? (brotli_uncompress($body) ?: $body)
+                : $body,
+            'zstd' => function_exists('zstd_uncompress')
+                ? (zstd_uncompress($body) ?: $body)
+                : $body,
+            default => $body,
+        };
     }
 }

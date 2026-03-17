@@ -1,11 +1,32 @@
 from typing import Any, Dict, Optional
+import gzip
 import uuid
+import zlib
 
 import urllib3
 
 from {{packageName}}.api_client import ApiClient
 from {{packageName}}.api_response import ApiResponse
 from {{packageName}}.configuration import Configuration
+
+try:
+    import brotli as _brotli  # type: ignore[import-untyped]
+except ImportError:
+    _brotli = None
+
+try:
+    import zstandard as _zstandard  # type: ignore[import-untyped]
+except ImportError:
+    _zstandard = None
+
+
+def _supported_encodings() -> str:
+    encodings = ['gzip', 'deflate']
+    if _brotli is not None:
+        encodings.append('br')
+    if _zstandard is not None:
+        encodings.append('zstd')
+    return ', '.join(encodings)
 
 
 class DefaultApiClient:
@@ -37,6 +58,8 @@ class DefaultApiClient:
         :param body: Request body (serialized JSON string, bytes, dict for multipart, or None)
         :return: ApiResponse containing status code, body, and headers
         """
+        headers.setdefault('Accept-Encoding', _supported_encodings())
+
         if isinstance(body, dict):
             boundary = str(uuid.uuid4())
             headers['Content-Type'] = f'multipart/form-data; boundary={boundary}'
@@ -48,9 +71,14 @@ class DefaultApiClient:
         else:
             encoded_body = None
 
-        response = self._pool_manager.request(method, url, headers=headers, body=encoded_body)
+        response = self._pool_manager.request(
+            method, url, headers=headers, body=encoded_body, preload_content=False, decode_content=False
+        )
 
-        response_body = response.data.decode('utf-8') if response.data else ''
+        raw_data = response.read()
+        content_encoding = (response.headers.get('content-encoding') or '').lower()
+        decompressed = self._decompress_body(raw_data, content_encoding)
+        response_body = decompressed.decode('utf-8') if decompressed else ''
         response_headers = dict(response.headers) if response.headers else {}
 
         return ApiResponse(status_code=response.status, body=response_body, headers=response_headers)
@@ -109,3 +137,26 @@ class DefaultApiClient:
         else:
             part = f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'
             return part.encode('utf-8')
+
+    @staticmethod
+    def _decompress_body(data: bytes, encoding: str) -> bytes:
+        """Decompress response body based on Content-Encoding header.
+
+        Supports gzip and deflate natively. Brotli and zstd are supported
+        when their respective packages (brotli, zstandard) are installed.
+
+        :param data: raw response bytes
+        :param encoding: Content-Encoding header value
+        :return: decompressed bytes
+        """
+        if not data:
+            return data
+        if encoding in ('gzip', 'x-gzip'):
+            return gzip.decompress(data)
+        if encoding == 'deflate':
+            return zlib.decompress(data)
+        if encoding == 'br' and _brotli is not None:
+            return _brotli.decompress(data)
+        if encoding == 'zstd' and _zstandard is not None:
+            return _zstandard.ZstdDecompressor().decompress(data, max_output_size=len(data) * 16)
+        return data

@@ -102,4 +102,51 @@ class DefaultApiClientTest {
             assertTrue(response.getBody().contains("success"));
         }
     }
+
+    @Nested
+    @DisplayName("HTTP compression")
+    class HttpCompression {
+
+        private static final String COMPRESSION_URL =
+                "https://jsonplaceholder.typicode.com/posts/1";
+
+        @Test
+        @DisplayName("decompresses gzip response")
+        void decompressesGzipResponse() throws ApiException {
+            DefaultApiClient client = new DefaultApiClient();
+            HashMap<String, String> headers = new HashMap<>();
+            headers.put("Accept-Encoding", "gzip");
+            ApiResponse response =
+                    client.sendRequest("GET", COMPRESSION_URL, headers, null);
+
+            assertEquals(200, response.getStatusCode());
+            assertTrue(response.getBody().contains("userId"));
+        }
+
+        @Test
+        @DisplayName("decompresses brotli response")
+        void decompressesBrotliResponse() throws ApiException {
+            DefaultApiClient client = new DefaultApiClient();
+            HashMap<String, String> headers = new HashMap<>();
+            headers.put("Accept-Encoding", "br");
+            ApiResponse response =
+                    client.sendRequest("GET", COMPRESSION_URL, headers, null);
+
+            assertEquals(200, response.getStatusCode());
+            assertTrue(response.getBody().contains("userId"));
+        }
+
+        @Test
+        @DisplayName("decompresses zstd response")
+        void decompressesZstdResponse() throws ApiException {
+            DefaultApiClient client = new DefaultApiClient();
+            HashMap<String, String> headers = new HashMap<>();
+            headers.put("Accept-Encoding", "zstd");
+            ApiResponse response =
+                    client.sendRequest("GET", COMPRESSION_URL, headers, null);
+
+            assertEquals(200, response.getStatusCode());
+            assertTrue(response.getBody().contains("userId"));
+        }
+    }
 }

@@ -1,6 +1,7 @@
 package com.example.petstore;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -19,8 +20,11 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.InflaterInputStream;
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
@@ -130,13 +134,17 @@ public final class DefaultApiClient implements ApiClient {
     HttpRequest.Builder builder =
         HttpRequest.newBuilder(URI.create(url)).method(method, bodyPublisher);
 
+    if (!headers.containsKey("Accept-Encoding")) {
+      builder.header("Accept-Encoding", getSupportedEncodings());
+    }
+
     for (Map.Entry<String, String> header : headers.entrySet()) {
       builder.header(header.getKey(), header.getValue());
     }
 
     try {
-      HttpResponse<String> response =
-          httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+      HttpResponse<byte[]> response =
+          httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray());
 
       Map<String, String> responseHeaders = new HashMap<>();
       response
@@ -149,14 +157,99 @@ public final class DefaultApiClient implements ApiClient {
                 }
               });
 
-      return new ApiResponse(
-          response.statusCode(), response.body() != null ? response.body() : "", responseHeaders);
+      String contentEncoding = response.headers().firstValue("content-encoding").orElse("identity");
+      byte[] bodyBytes = response.body() != null ? response.body() : new byte[0];
+      String responseBody = decompressBody(bodyBytes, contentEncoding);
+
+      return new ApiResponse(response.statusCode(), responseBody, responseHeaders);
     } catch (IOException e) {
       throw new ApiException(e);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new ApiException(e);
     }
+  }
+
+  /**
+   * Decompress response body bytes based on the Content-Encoding header value.
+   *
+   * <p>Supports gzip and deflate natively. Brotli and zstd are supported when their respective
+   * libraries ({@code org.brotli:dec} and {@code com.github.luben:zstd-jni}) are on the classpath.
+   *
+   * @param data the raw response bytes
+   * @param encoding the Content-Encoding header value
+   * @return the decompressed body as a UTF-8 string
+   */
+  private static String decompressBody(byte[] data, String encoding) throws IOException {
+    if (data.length == 0) {
+      return "";
+    }
+    byte[] decompressed =
+        switch (encoding.toLowerCase(Locale.ROOT)) {
+          case "gzip", "x-gzip" -> {
+            try (GZIPInputStream gis = new GZIPInputStream(new ByteArrayInputStream(data))) {
+              yield gis.readAllBytes();
+            }
+          }
+          case "deflate" -> {
+            try (InflaterInputStream iis =
+                new InflaterInputStream(new ByteArrayInputStream(data))) {
+              yield iis.readAllBytes();
+            }
+          }
+          case "br" -> decompressBrotli(data);
+          case "zstd" -> decompressZstd(data);
+          default -> data;
+        };
+    return new String(decompressed, StandardCharsets.UTF_8);
+  }
+
+  private static byte[] decompressBrotli(byte[] data) throws IOException {
+    try {
+      Class<?> brotliClass = Class.forName("org.brotli.dec.BrotliInputStream");
+      try (InputStream bis =
+          (InputStream)
+              brotliClass
+                  .getConstructor(InputStream.class)
+                  .newInstance(new ByteArrayInputStream(data))) {
+        return bis.readAllBytes();
+      }
+    } catch (ClassNotFoundException e) {
+      return data;
+    } catch (ReflectiveOperationException e) {
+      throw new IOException("Failed to decompress brotli response", e);
+    }
+  }
+
+  private static byte[] decompressZstd(byte[] data) {
+    try {
+      Class<?> zstdClass = Class.forName("com.github.luben.zstd.Zstd");
+      long originalSize =
+          (long) zstdClass.getMethod("decompressedSize", byte[].class).invoke(null, data);
+      int size = originalSize > 0 ? (int) originalSize : data.length * 4;
+      return (byte[])
+          zstdClass.getMethod("decompress", byte[].class, int.class).invoke(null, data, size);
+    } catch (ClassNotFoundException e) {
+      return data;
+    } catch (ReflectiveOperationException e) {
+      return data;
+    }
+  }
+
+  @SuppressWarnings("EmptyCatch")
+  private static String getSupportedEncodings() {
+    StringBuilder sb = new StringBuilder("gzip, deflate");
+    try {
+      Class.forName("org.brotli.dec.BrotliInputStream");
+      sb.append(", br");
+    } catch (ClassNotFoundException ignored) {
+    }
+    try {
+      Class.forName("com.github.luben.zstd.Zstd");
+      sb.append(", zstd");
+    } catch (ClassNotFoundException ignored) {
+    }
+    return sb.toString();
   }
 
   /**

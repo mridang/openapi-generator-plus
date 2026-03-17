@@ -19,7 +19,12 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     /// </summary>
     public DefaultApiClient()
     {
-        _httpClient = new HttpClient();
+        HttpClientHandler handler = new()
+        {
+            AutomaticDecompression = DecompressionMethods.All,
+            CheckCertificateRevocationList = true,
+        };
+        _httpClient = new HttpClient(handler, disposeHandler: true);
     }
 
     /// <summary>
@@ -29,7 +34,11 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     {
         ArgumentNullException.ThrowIfNull(config);
 
-        HttpClientHandler handler = new() { CheckCertificateRevocationList = true };
+        HttpClientHandler handler = new()
+        {
+            CheckCertificateRevocationList = true,
+            AutomaticDecompression = DecompressionMethods.All,
+        };
 
         if (!config.VerifySsl)
         {

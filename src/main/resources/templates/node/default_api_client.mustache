@@ -5,6 +5,8 @@ import * as crypto from 'node:crypto';
 import * as https from 'node:https';
 import * as http from 'node:http';
 import * as fs from 'node:fs';
+import * as zlib from 'node:zlib';
+import { promisify } from 'node:util';
 
 /**
  * Default implementation of ApiClient using the Fetch API.
@@ -35,6 +37,8 @@ export class DefaultApiClient implements ApiClient {
     if (body instanceof Blob) {
       body = Buffer.from(await body.arrayBuffer());
     }
+
+    headers['Accept-Encoding'] ??= DefaultApiClient.supportedEncodings();
 
     if (body != null && typeof body === 'object' && !Buffer.isBuffer(body)) {
       const boundary = crypto.randomUUID();
@@ -146,21 +150,53 @@ export class DefaultApiClient implements ApiClient {
     const chunks: Buffer[] = [];
     res.on('data', (chunk: Buffer) => chunks.push(chunk));
     res.on('end', () => {
-      const responseBody = Buffer.concat(chunks).toString('utf-8');
-      const responseHeaders: Record<string, string> = {};
-      for (const [key, value] of Object.entries(res.headers)) {
-        if (typeof value === 'string') {
-          responseHeaders[key] = value;
-        } else if (Array.isArray(value)) {
-          responseHeaders[key] = value.join(', ');
+      const raw = Buffer.concat(chunks);
+      const encoding = (res.headers['content-encoding'] ?? '').toLowerCase();
+      this.decompressBody(raw, encoding).then((decompressed) => {
+        const responseBody = decompressed.toString('utf-8');
+        const responseHeaders: Record<string, string> = {};
+        for (const [key, value] of Object.entries(res.headers)) {
+          if (typeof value === 'string') {
+            responseHeaders[key] = value;
+          } else if (Array.isArray(value)) {
+            responseHeaders[key] = value.join(', ');
+          }
         }
-      }
-      resolve({
-        statusCode: res.statusCode ?? 0,
-        body: responseBody,
-        headers: responseHeaders
+        resolve({
+          statusCode: res.statusCode ?? 0,
+          body: responseBody,
+          headers: responseHeaders
+        });
       });
     });
+  }
+
+  static supportedEncodings(): string {
+    const encodings = ['gzip', 'deflate', 'br'];
+    if (typeof zlib.zstdDecompress === 'function') {
+      encodings.push('zstd');
+    }
+    return encodings.join(', ');
+  }
+
+  private async decompressBody(data: Buffer, encoding: string): Promise<Buffer> {
+    if (data.length === 0) return data;
+    switch (encoding) {
+      case 'gzip':
+      case 'x-gzip':
+        return promisify(zlib.gunzip)(data);
+      case 'deflate':
+        return promisify(zlib.inflate)(data);
+      case 'br':
+        return promisify(zlib.brotliDecompress)(data);
+      case 'zstd':
+        if (typeof zlib.zstdDecompress === 'function') {
+          return promisify(zlib.zstdDecompress)(data);
+        }
+        return data;
+      default:
+        return data;
+    }
   }
 
   private async buildMultipartBody(formParts: Record<string, unknown>, boundary: string): Promise<Buffer> {

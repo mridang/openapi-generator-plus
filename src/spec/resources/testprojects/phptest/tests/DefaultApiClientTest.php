@@ -80,4 +80,56 @@ class DefaultApiClientTest extends TestCase
         $this->assertSame(200, $response->statusCode);
         $this->assertStringContainsString('success', $response->body);
     }
+
+    // -- HTTP compression --
+
+    public function testDecompressesGzipResponse(): void
+    {
+        $client = new DefaultApiClient();
+        $response = $client->sendRequest(
+            'GET',
+            'https://jsonplaceholder.typicode.com/posts/1',
+            ['Accept-Encoding' => 'gzip'],
+            null
+        );
+
+        $this->assertSame(200, $response->statusCode);
+        $this->assertStringContainsString('userId', $response->body);
+    }
+
+    public function testDecompressesBrotliResponse(): void
+    {
+        if (!function_exists('brotli_uncompress')) {
+            $this->markTestSkipped('ext-brotli not available');
+        }
+
+        $client = new DefaultApiClient();
+        $response = $client->sendRequest(
+            'GET',
+            'https://jsonplaceholder.typicode.com/posts/1',
+            ['Accept-Encoding' => 'br'],
+            null
+        );
+
+        $this->assertSame(200, $response->statusCode);
+        $this->assertStringContainsString('userId', $response->body);
+    }
+
+    public function testDecompressesZstdResponse(): void
+    {
+        if (!function_exists('zstd_uncompress')) {
+            $this->markTestSkipped('ext-zstd not available');
+        }
+
+        $client = new DefaultApiClient();
+        $response = $client->sendRequest(
+            'GET',
+            'https://jsonplaceholder.typicode.com/posts/1',
+            ['Accept-Encoding' => 'zstd'],
+            null
+        );
+
+        $this->assertSame(200, $response->statusCode);
+        $this->assertStringContainsString('userId', $response->body);
+    }
 }

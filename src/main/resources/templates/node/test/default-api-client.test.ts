@@ -1,5 +1,6 @@
 import { DefaultApiClient } from '../src/default-api-client';
 import { Configuration } from '../src/configuration';
+import * as zlib from 'node:zlib';
 
 describe('DefaultApiClient', () => {
   describe('TLS verification disabled', () => {
@@ -92,6 +93,48 @@ describe('DefaultApiClient', () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain('success');
+    });
+  });
+
+  describe('HTTP compression', () => {
+    test('decompresses gzip response', async () => {
+      const client = new DefaultApiClient();
+      const response = await client.sendRequest(
+        'GET',
+        'https://jsonplaceholder.typicode.com/posts/1',
+        { 'Accept-Encoding': 'gzip' },
+        null
+      );
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain('userId');
+    });
+
+    test('decompresses brotli response', async () => {
+      const client = new DefaultApiClient();
+      const response = await client.sendRequest(
+        'GET',
+        'https://jsonplaceholder.typicode.com/posts/1',
+        { 'Accept-Encoding': 'br' },
+        null
+      );
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain('userId');
+    });
+
+    const zstdAvailable = typeof zlib.zstdDecompress === 'function';
+    (zstdAvailable ? test : test.skip)('decompresses zstd response', async () => {
+      const client = new DefaultApiClient();
+      const response = await client.sendRequest(
+        'GET',
+        'https://jsonplaceholder.typicode.com/posts/1',
+        { 'Accept-Encoding': 'zstd' },
+        null
+      );
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain('userId');
     });
   });
 });

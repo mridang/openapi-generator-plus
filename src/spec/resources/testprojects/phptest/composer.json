@@ -20,6 +20,8 @@
         "testcontainers/testcontainers": "dev-main"
     },
     "suggest": {
+        "ext-brotli": "For brotli response decompression",
+        "ext-zstd": "For zstd response decompression",
         "open-telemetry/api": "For automatic W3C Trace Context (traceparent) propagation on API calls"
     },
     "autoload": {

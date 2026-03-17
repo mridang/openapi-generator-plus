@@ -10,6 +10,18 @@
 require 'faraday'
 require 'json'
 require 'securerandom'
+require 'stringio'
+require 'zlib'
+begin
+  require 'brotli'
+rescue LoadError
+  nil
+end
+begin
+  require 'zstd-ruby'
+rescue LoadError
+  nil
+end
 
 module PetstoreClient
   # Default HTTP client implementation backed by Faraday.
@@ -28,17 +40,53 @@ module PetstoreClient
         serialized_body = body
       end
 
+      headers['Accept-Encoding'] ||= self.class.supported_encodings
+
       conn = build_connection
       response = conn.run_request(method.downcase.to_sym, url, serialized_body, headers)
 
+      body = decompress_body(response.body, response.headers['content-encoding'])
+
       ApiResponse.new(
         status_code: response.status,
-        body: response.body,
+        body: body,
         headers: response.headers.to_h
       )
     end
 
+    def self.supported_encodings
+      encodings = 'gzip, deflate'
+      encodings += ', br' if defined?(Brotli)
+      encodings += ', zstd' if defined?(Zstd)
+      encodings
+    end
+
     private
+
+    def decompress_body(body, encoding) # rubocop:disable Metrics/MethodLength
+      return body if body.nil? || body.empty?
+
+      case encoding&.downcase
+      when 'gzip', 'x-gzip'
+        Zlib::GzipReader.new(StringIO.new(body)).read
+      when 'deflate'
+        Zlib::Inflate.inflate(body)
+      when 'br'
+        if defined?(Brotli)
+          Brotli.inflate(body)
+        else
+          body
+        end
+      when 'zstd'
+        if defined?(Zstd)
+          Zstd.decompress(body)
+        else
+          body
+        end
+      else
+        body
+      end
+    end
 
     def build_connection # rubocop:disable Metrics/AbcSize
       Faraday.new do |f|

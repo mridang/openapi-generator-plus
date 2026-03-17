@@ -8,6 +8,7 @@ gem 'faraday', '~> 2.0'
 gem 'oj', '~> 3.0'
 
 group :development, :test do
+  gem 'brotli', '~> 0.5'
   gem 'minitest', '~> 5.0'
   gem 'rake'
   gem 'rubocop', require: false
@@ -15,4 +16,5 @@ group :development, :test do
   gem 'rubocop-rake', require: false
   gem 'steep', require: false
   gem 'testcontainers', '~> 0.2'
+  gem 'zstd-ruby', '~> 1.5'
 end
