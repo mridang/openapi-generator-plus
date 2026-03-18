@@ -25,19 +25,38 @@ import javax.annotation.Nullable;
  */
 public abstract class BaseApi {
 
+  /** The HTTP transport client used for sending requests. */
   protected final ApiClient apiClient;
+
+  /** API-level configuration (base URL and default headers). */
   protected final Configuration config;
+
+  /** Serializer for request/response body conversion. */
   protected final ObjectSerializer objectSerializer;
+
+  /** Content negotiation logic for Accept and Content-Type headers. */
   protected final HeaderSelector headerSelector;
 
+  /** Create an API instance with the default configuration and default transport. */
   public BaseApi() {
     this(Configuration.getDefault());
   }
 
+  /**
+   * Create an API instance with the given configuration and default transport.
+   *
+   * @param config API-level configuration (base URL and default headers)
+   */
   public BaseApi(Configuration config) {
-    this(new DefaultApiClient(config), config);
+    this(new DefaultApiClient(), config);
   }
 
+  /**
+   * Create an API instance with a custom API client and configuration.
+   *
+   * @param apiClient the HTTP transport client
+   * @param config API-level configuration (base URL and default headers)
+   */
   public BaseApi(ApiClient apiClient, Configuration config) {
     this.apiClient = apiClient;
     this.config = config;
@@ -45,6 +64,11 @@ public abstract class BaseApi {
     this.headerSelector = new HeaderSelector();
   }
 
+  /**
+   * Return the API-level configuration.
+   *
+   * @return the configuration
+   */
   public Configuration getConfig() {
     return config;
   }

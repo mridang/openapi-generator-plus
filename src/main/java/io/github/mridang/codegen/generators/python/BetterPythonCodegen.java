@@ -138,11 +138,26 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile(
                         "trace_context_util.mustache", packagePath, "trace_context_util.py"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "transport_options.mustache", packagePath, "transport_options.py"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "server_configuration.mustache",
+                        packagePath,
+                        "server_configuration.py"));
+        supportingFiles.add(
+                new SupportingFile("servers.mustache", packagePath, "servers.py"));
         String authPath = packagePath + File.separator + "auth";
         supportingFiles.add(
                 new SupportingFile("auth/__init__.mustache", authPath, "__init__.py"));
         supportingFiles.add(
                 new SupportingFile("authenticator.mustache", authPath, "authenticator.py"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "auth/http_aware_authenticator.mustache",
+                        authPath,
+                        "http_aware_authenticator.py"));
         supportingFiles.add(
                 new SupportingFile("client.mustache", packagePath, "client.py"));
         supportingFiles.add(new SupportingFile("requirements.mustache", "", "requirements.txt"));
@@ -177,6 +192,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                             "test/test_default_api_client_unit.mustache",
                             "tests",
                             "test_default_api_client_unit.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_transport_options.mustache",
+                            "tests",
+                            "test_transport_options.py"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/test_header_selector.mustache",

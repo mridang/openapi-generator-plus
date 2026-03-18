@@ -2,12 +2,25 @@
 from typing import Dict, Optional, Sequence
 from urllib.parse import urlencode
 
-from ..authenticator import Authenticator
+from ...api_client import ApiClient
+from ..http_aware_authenticator import HttpAwareAuthenticator
 from .oauth2_token_manager import OAuth2TokenManager
 
 
-class OAuth2AuthorizationCodeAuthenticator(Authenticator):
-    """Authenticator for OAuth2 authorization code flow."""
+class OAuth2AuthorizationCodeAuthenticator(HttpAwareAuthenticator):
+    """Authenticator for the OAuth2 Authorization Code flow.
+
+    Implements :class:`HttpAwareAuthenticator` so that token exchange requests
+    use the shared :class:`ApiClient` with the same transport configuration
+    (proxy, TLS, timeouts) as regular API calls.
+
+    Usage:
+
+    1. Call :meth:`build_authorization_url` to get the authorization URL.
+    2. Redirect the user to that URL.
+    3. After the callback, call :meth:`exchange_code` with the auth code.
+    4. Use the authenticator normally -- tokens are managed automatically.
+    """
 
     def __init__(
         self,
@@ -19,6 +32,17 @@ class OAuth2AuthorizationCodeAuthenticator(Authenticator):
         redirect_uri: str,
         scopes: Sequence[str],
     ) -> None:
+        """Create a new authorization code authenticator.
+
+        Args:
+            host: API base URL.
+            client_id: OAuth2 client ID.
+            client_secret: OAuth2 client secret.
+            authorization_url: Authorization endpoint URL.
+            token_url: Token endpoint URL.
+            redirect_uri: Redirect URI registered with the OAuth2 provider.
+            scopes: Requested scopes.
+        """
         self._host = host
         self._client_id = client_id
         self._client_secret = client_secret
@@ -29,7 +53,23 @@ class OAuth2AuthorizationCodeAuthenticator(Authenticator):
         self._token_manager = OAuth2TokenManager()
         self._token_exchanged = False
 
+    def set_api_client(self, api_client: ApiClient) -> None:
+        """Inject the shared API client for making token requests.
+
+        Args:
+            api_client: The shared API client instance.
+        """
+        self._token_manager.set_api_client(api_client)
+
     def build_authorization_url(self, state: Optional[str] = None) -> str:
+        """Build the authorization URL to redirect the user to.
+
+        Args:
+            state: Optional CSRF state parameter.
+
+        Returns:
+            The authorization URL.
+        """
         params = {
             'response_type': 'code',
             'client_id': self._client_id,
@@ -42,6 +82,11 @@ class OAuth2AuthorizationCodeAuthenticator(Authenticator):
         return f'{self._authorization_url}?{urlencode(params)}'
 
     def exchange_code(self, code: str) -> None:
+        """Exchange an authorization code for an access token.
+
+        Args:
+            code: The authorization code from the callback.
+        """
         params = {
             'grant_type': 'authorization_code',
             'code': code,
@@ -53,9 +98,18 @@ class OAuth2AuthorizationCodeAuthenticator(Authenticator):
         self._token_exchanged = True
 
     def get_host(self) -> str:
+        """Returns the base URL of the API."""
         return self._host
 
     def get_auth_headers(self) -> Dict[str, str]:
+        """Returns the authentication headers with a valid Bearer token.
+
+        Raises:
+            RuntimeError: If :meth:`exchange_code` has not been called yet.
+
+        Returns:
+            Dict with the Authorization header.
+        """
         if not self._token_exchanged:
             raise RuntimeError('Must call exchange_code() before making API requests')
         params = {'grant_type': 'refresh_token'}

@@ -1,10 +1,15 @@
-import { BaseAuthenticator } from '../base-authenticator.js';
+import type { ApiClient } from '../../api-client.js';
+import type { HttpAwareAuthenticator } from '../http-aware-authenticator.js';
 import { OAuth2TokenManager } from './oauth2-token-manager.js';
 
 /**
  * Authenticator for the OAuth2 Resource Owner Password flow.
+ *
+ * Implements {@link HttpAwareAuthenticator} so that token exchange requests
+ * use the shared {@link ApiClient} with the same transport configuration
+ * (proxy, TLS, timeouts) as regular API calls.
  */
-export class OAuth2PasswordAuthenticator extends BaseAuthenticator {
+export class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
   private readonly host: string;
   private readonly clientId: string;
   private readonly clientSecret: string;
@@ -14,6 +19,17 @@ export class OAuth2PasswordAuthenticator extends BaseAuthenticator {
   private readonly scopes: readonly string[];
   private readonly tokenManager: OAuth2TokenManager;
 
+  /**
+   * Create a new password authenticator.
+   *
+   * @param host API base URL
+   * @param clientId OAuth2 client ID
+   * @param clientSecret OAuth2 client secret
+   * @param tokenUrl token endpoint URL
+   * @param username resource owner username
+   * @param password resource owner password
+   * @param scopes requested scopes
+   */
   constructor(
     host: string,
     clientId: string,
@@ -23,7 +39,6 @@ export class OAuth2PasswordAuthenticator extends BaseAuthenticator {
     password: string,
     scopes: string[]
   ) {
-    super();
     this.host = host;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
@@ -34,14 +49,42 @@ export class OAuth2PasswordAuthenticator extends BaseAuthenticator {
     this.tokenManager = new OAuth2TokenManager();
   }
 
+  /**
+   * Inject the shared API client for making token requests.
+   *
+   * @param apiClient the shared API client instance
+   */
+  setApiClient(apiClient: ApiClient): void {
+    this.tokenManager.setApiClient(apiClient);
+  }
+
+  /**
+   * Returns the base URL of the API.
+   *
+   * @returns the host URL
+   */
   getHost(): string {
     return this.host;
   }
 
+  /**
+   * Returns the authentication headers with a valid Bearer token.
+   *
+   * This method is synchronous and will throw. Use {@link getAuthHeadersAsync} instead.
+   *
+   * @throws Error always -- use getAuthHeadersAsync() instead
+   */
   getAuthHeaders(): Record<string, string> {
     throw new Error('Use getAuthHeadersAsync() instead');
   }
 
+  /**
+   * Returns the authentication headers with a valid Bearer token.
+   *
+   * Fetches or refreshes the token as necessary using the injected ApiClient.
+   *
+   * @returns a promise resolving to the authorization headers
+   */
   async getAuthHeadersAsync(): Promise<Record<string, string>> {
     const params: Record<string, string> = {
       grant_type: 'password',
@@ -55,5 +98,23 @@ export class OAuth2PasswordAuthenticator extends BaseAuthenticator {
     }
     const token = await this.tokenManager.getAccessToken(this.tokenUrl, params);
     return { Authorization: `Bearer ${token}` };
+  }
+
+  /**
+   * Returns query parameters to include for authentication.
+   *
+   * @returns empty record (not used for OAuth2)
+   */
+  getQueryParams(): Record<string, string> {
+    return {};
+  }
+
+  /**
+   * Returns cookie parameters to include for authentication.
+   *
+   * @returns empty record (not used for OAuth2)
+   */
+  getCookieParams(): Record<string, string> {
+    return {};
   }
 }

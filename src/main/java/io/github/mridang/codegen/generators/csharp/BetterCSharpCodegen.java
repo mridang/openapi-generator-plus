@@ -113,6 +113,16 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 new SupportingFile("configuration.mustache", invokerFolder, "Configuration.cs"));
         supportingFiles.add(
                 new SupportingFile(
+                        "transport_options.mustache", invokerFolder, "TransportOptions.cs"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "server_configuration.mustache",
+                        invokerFolder,
+                        "ServerConfiguration.cs"));
+        supportingFiles.add(
+                new SupportingFile("servers.mustache", invokerFolder, "Servers.cs"));
+        supportingFiles.add(
+                new SupportingFile(
                         "object_serializer.mustache", invokerFolder, "ObjectSerializer.cs"));
         supportingFiles.add(
                 new SupportingFile(
@@ -155,6 +165,11 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             "test/DefaultApiClientUnitTest.mustache",
                             "Tests",
                             "DefaultApiClientUnitTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/TransportOptionsTest.mustache",
+                            "Tests",
+                            "TransportOptionsTest.cs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/HeaderSelectorTest.mustache",
@@ -306,6 +321,11 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile(
                         "auth/base_authenticator.mustache", authFolder, "BaseAuthenticator.cs"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "auth/http_aware_authenticator.mustache",
+                        authFolder,
+                        "IHttpAwareAuthenticator.cs"));
         if (hasBasicAuth) {
             supportingFiles.add(
                     new SupportingFile(

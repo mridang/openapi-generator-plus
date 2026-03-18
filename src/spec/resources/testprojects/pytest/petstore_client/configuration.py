@@ -7,30 +7,35 @@ from typing_extensions import Self
 
 @dataclass(frozen=True)
 class Configuration:
-    """Configuration for API clients.
+    """API-level configuration for generated client classes.
 
-    Holds settings that apply to all API requests such as the base URL,
-    default headers, TLS options, proxy, timeout, and retry policy.
+    Holds the base URL and default headers that are applied to every API
+    request. Transport-level settings (TLS, proxy, timeouts) belong in
+    :class:`TransportOptions` and are configured on the
+    :class:`DefaultApiClient`.
 
-    This class is immutable. Use :meth:`builder` to create instances::
+    This class is immutable and thread-safe. Use :meth:`builder` to create
+    instances::
 
         config = Configuration.builder() \\
             .base_url('https://api.example.com') \\
             .default_header('Authorization', 'Bearer token') \\
-            .verify_ssl(False) \\
             .build()
     """
 
     base_url: str = '/api/v3'
+    """The base URL for all API requests.
+
+    Defaults to the first server URL from the OpenAPI specification.
+    """
+
     default_headers: Mapping[str, str] = field(default_factory=lambda: MappingProxyType({}))
-    debug: bool = False
-    verify_ssl: bool = True
-    ssl_ca_cert: Optional[str] = None
-    cert_file: Optional[str] = None
-    key_file: Optional[str] = None
-    proxy: Optional[str] = None
-    timeout: Optional[int] = None
-    retries: Optional[int] = None
+    """Default headers included in every API request.
+
+    These headers are merged after transport-level headers from
+    :class:`TransportOptions` but before operation-specific headers
+    and authentication headers.
+    """
 
     _default: ClassVar[Optional['Configuration']] = None
 
@@ -63,88 +68,58 @@ class ConfigurationBuilder:
 
         config = Configuration.builder() \\
             .base_url('https://api.example.com') \\
-            .verify_ssl(False) \\
+            .default_header('X-Custom', 'value') \\
             .build()
     """
 
     def __init__(self) -> None:
         self._base_url: str = '/api/v3'
         self._default_headers: Dict[str, str] = {}
-        self._debug: bool = False
-        self._verify_ssl: bool = True
-        self._ssl_ca_cert: Optional[str] = None
-        self._cert_file: Optional[str] = None
-        self._key_file: Optional[str] = None
-        self._proxy: Optional[str] = None
-        self._timeout: Optional[int] = None
-        self._retries: Optional[int] = None
 
     def base_url(self, base_url: str) -> 'ConfigurationBuilder':
-        """Set the base URL for all API requests."""
+        """Set the base URL for all API requests.
+
+        Args:
+            base_url: The base URL.
+
+        Returns:
+            This builder.
+        """
         self._base_url = base_url
         return self
 
     def default_header(self, name: str, value: str) -> 'ConfigurationBuilder':
-        """Add a default header to include in every API request."""
+        """Add a single default header to include in every API request.
+
+        Args:
+            name: Header name.
+            value: Header value.
+
+        Returns:
+            This builder.
+        """
         self._default_headers[name] = value
         return self
 
     def default_headers(self, headers: Dict[str, str]) -> 'ConfigurationBuilder':
-        """Set all default headers to include in every API request."""
+        """Add multiple default headers to include in every API request.
+
+        Args:
+            headers: Map of header names to values.
+
+        Returns:
+            This builder.
+        """
         self._default_headers.update(headers)
         return self
 
-    def debug(self, debug: bool) -> 'ConfigurationBuilder':
-        """Enable or disable debug logging."""
-        self._debug = debug
-        return self
-
-    def verify_ssl(self, verify_ssl: bool) -> 'ConfigurationBuilder':
-        """Enable or disable SSL/TLS certificate verification."""
-        self._verify_ssl = verify_ssl
-        return self
-
-    def ssl_ca_cert(self, ssl_ca_cert: Optional[str]) -> 'ConfigurationBuilder':
-        """Set the path to a CA certificate file for SSL/TLS verification."""
-        self._ssl_ca_cert = ssl_ca_cert
-        return self
-
-    def cert_file(self, cert_file: Optional[str]) -> 'ConfigurationBuilder':
-        """Set the path to a client certificate file for mutual TLS."""
-        self._cert_file = cert_file
-        return self
-
-    def key_file(self, key_file: Optional[str]) -> 'ConfigurationBuilder':
-        """Set the path to a client private key file for mutual TLS."""
-        self._key_file = key_file
-        return self
-
-    def proxy(self, proxy: Optional[str]) -> 'ConfigurationBuilder':
-        """Set the proxy URL for all API requests."""
-        self._proxy = proxy
-        return self
-
-    def timeout(self, timeout: Optional[int]) -> 'ConfigurationBuilder':
-        """Set the request timeout in seconds."""
-        self._timeout = timeout
-        return self
-
-    def retries(self, retries: Optional[int]) -> 'ConfigurationBuilder':
-        """Set the number of retry attempts for failed requests."""
-        self._retries = retries
-        return self
-
     def build(self) -> Configuration:
-        """Build and return an immutable Configuration instance."""
+        """Build and return an immutable Configuration instance.
+
+        Returns:
+            The configured instance.
+        """
         return Configuration(
             base_url=self._base_url,
             default_headers=self._default_headers,
-            debug=self._debug,
-            verify_ssl=self._verify_ssl,
-            ssl_ca_cert=self._ssl_ca_cert,
-            cert_file=self._cert_file,
-            key_file=self._key_file,
-            proxy=self._proxy,
-            timeout=self._timeout,
-            retries=self._retries,
         )

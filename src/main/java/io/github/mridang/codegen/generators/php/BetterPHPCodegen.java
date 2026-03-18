@@ -153,6 +153,24 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 new SupportingFile(
                         "default_api_client.mustache", invokerFolder, "DefaultApiClient.php"));
         supportingFiles.add(
+                new SupportingFile(
+                        "transport_options.mustache", invokerFolder, "TransportOptions.php"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "transport_options_builder.mustache",
+                        invokerFolder,
+                        "TransportOptionsBuilder.php"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "server_variable.mustache", invokerFolder, "ServerVariable.php"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "server_configuration.mustache",
+                        invokerFolder,
+                        "ServerConfiguration.php"));
+        supportingFiles.add(
+                new SupportingFile("servers.mustache", invokerFolder, "Servers.php"));
+        supportingFiles.add(
                 new SupportingFile("base_api.mustache", apiFolder, "BaseApi.php"));
         supportingFiles.add(
                 new SupportingFile(
@@ -192,6 +210,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "test/DefaultApiClientUnitTest.mustache",
                             "tests",
                             "DefaultApiClientUnitTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/TransportOptionsTest.mustache",
+                            "tests",
+                            "TransportOptionsTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/HeaderSelectorTest.mustache",
@@ -415,6 +438,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         String oauthFolder = authFolder + File.separator + "OAuth";
 
         supportingFiles.add(new SupportingFile("auth/base_authenticator.mustache", authFolder, "BaseAuthenticator.php"));
+        supportingFiles.add(new SupportingFile("auth/http_aware_authenticator.mustache", authFolder, "HttpAwareAuthenticator.php"));
         if (hasBasicAuth) {
             supportingFiles.add(new SupportingFile("auth/basic_authenticator.mustache", authFolder, "BasicAuthenticator.php"));
         }

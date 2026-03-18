@@ -11,12 +11,18 @@ Do not edit the class manually.
 
 from typing import Dict, Sequence
 
-from ..authenticator import Authenticator
+from ...api_client import ApiClient
+from ..http_aware_authenticator import HttpAwareAuthenticator
 from .oauth2_token_manager import OAuth2TokenManager
 
 
-class OAuth2ClientCredentialsAuthenticator(Authenticator):
-    """Authenticator for OAuth2 client credentials flow."""
+class OAuth2ClientCredentialsAuthenticator(HttpAwareAuthenticator):
+    """Authenticator for the OAuth2 Client Credentials flow.
+
+    Implements :class:`HttpAwareAuthenticator` so that token exchange requests
+    use the shared :class:`ApiClient` with the same transport configuration
+    (proxy, TLS, timeouts) as regular API calls.
+    """
 
     def __init__(
         self,
@@ -26,6 +32,15 @@ class OAuth2ClientCredentialsAuthenticator(Authenticator):
         token_url: str,
         scopes: Sequence[str],
     ) -> None:
+        """Create a new client credentials authenticator.
+
+        Args:
+            host: API base URL.
+            client_id: OAuth2 client ID.
+            client_secret: OAuth2 client secret.
+            token_url: Token endpoint URL.
+            scopes: Requested scopes.
+        """
         self._host = host
         self._client_id = client_id
         self._client_secret = client_secret
@@ -33,10 +48,27 @@ class OAuth2ClientCredentialsAuthenticator(Authenticator):
         self._scopes = tuple(scopes)
         self._token_manager = OAuth2TokenManager()
 
+    def set_api_client(self, api_client: ApiClient) -> None:
+        """Inject the shared API client for making token requests.
+
+        Args:
+            api_client: The shared API client instance.
+        """
+        self._token_manager.set_api_client(api_client)
+
     def get_host(self) -> str:
+        """Returns the base URL of the API."""
         return self._host
 
     def get_auth_headers(self) -> Dict[str, str]:
+        """Returns the authentication headers with a valid Bearer token.
+
+        Fetches or refreshes the token automatically using the client
+        credentials flow.
+
+        Returns:
+            Dict with the Authorization header.
+        """
         params = {
             'grant_type': 'client_credentials',
             'client_id': self._client_id,

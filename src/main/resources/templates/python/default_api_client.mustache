@@ -7,7 +7,7 @@ import urllib3
 
 from {{packageName}}.api_client import ApiClient
 from {{packageName}}.api_response import ApiResponse
-from {{packageName}}.configuration import Configuration
+from {{packageName}}.transport_options import TransportOptions
 
 try:
     import brotli as _brotli  # type: ignore[import-untyped]
@@ -21,6 +21,14 @@ except ImportError:
 
 
 def _supported_encodings() -> str:
+    """Return a comma-separated string of supported content encodings.
+
+    Includes gzip and deflate unconditionally. Brotli and zstd are
+    included when their respective packages are installed.
+
+    Returns:
+        Supported encoding names for the Accept-Encoding header.
+    """
     encodings = ['gzip', 'deflate']
     if _brotli is not None:
         encodings.append('br')
@@ -30,39 +38,90 @@ def _supported_encodings() -> str:
 
 
 class DefaultApiClient:
-    """Default implementation of ApiClient using urllib3."""
+    """Default implementation of :class:`ApiClient` using urllib3.
 
-    def __init__(self, config: Optional[Configuration] = None, pool_manager: Optional[Any] = None) -> None:
+    Applies transport-level settings from :class:`TransportOptions`: TLS
+    verification, custom CA certificates, proxy routing, timeouts, redirect
+    handling, ``User-Agent`` injection, ``X-Request-ID`` injection, and
+    transport-level default headers.
+
+    Header merge order (lowest to highest priority):
+
+    1. :attr:`TransportOptions.default_headers` -- transport-level defaults
+    2. Caller-provided headers (from :class:`BaseApi` -- includes config
+       defaults, auth, operation headers)
+    3. :attr:`TransportOptions.user_agent` -- injected if not already set
+    4. :attr:`TransportOptions.inject_request_id` -- injected if not already set
+    """
+
+    def __init__(
+        self,
+        transport_options: Optional[TransportOptions] = None,
+        pool_manager: Optional[Any] = None,
+    ) -> None:
+        """Create a new DefaultApiClient.
+
+        Args:
+            transport_options: Transport configuration to apply. If ``None``,
+                default transport options are used.
+            pool_manager: Pre-configured urllib3 pool manager. If provided,
+                transport_options TLS/proxy settings are ignored for pool
+                creation, but header injection settings still apply.
+        """
+        if transport_options is None:
+            transport_options = TransportOptions.builder().build()
+        self._transport_options = transport_options
+
         if pool_manager is not None:
             self._pool_manager = pool_manager
-        elif config is not None:
-            kwargs = {}
-            if not config.verify_ssl:
+        else:
+            kwargs: Dict[str, Any] = {}
+
+            # --- TLS / SSL ---
+            if not transport_options.verify_ssl:
                 kwargs['cert_reqs'] = 'CERT_NONE'
-            elif config.ssl_ca_cert:
-                kwargs['ca_certs'] = config.ssl_ca_cert
+            elif transport_options.ca_cert_path:
+                kwargs['ca_certs'] = transport_options.ca_cert_path
                 kwargs['cert_reqs'] = 'CERT_REQUIRED'
-            if config.proxy:
-                self._pool_manager = urllib3.ProxyManager(config.proxy, **kwargs)
+
+            # --- Proxy ---
+            if transport_options.proxy:
+                self._pool_manager = urllib3.ProxyManager(transport_options.proxy, **kwargs)
             else:
                 self._pool_manager = urllib3.PoolManager(**kwargs)
-        else:
-            self._pool_manager = urllib3.PoolManager()
 
     def send_request(self, method: str, url: str, headers: Dict[str, str], body: Any = None) -> ApiResponse:
         """Send an HTTP request and return the response.
 
-        :param method: HTTP method (GET, POST, PUT, DELETE, etc.)
-        :param url: Fully qualified URL
-        :param headers: HTTP headers
-        :param body: Request body (serialized JSON string, bytes, dict for multipart, or None)
-        :return: ApiResponse containing status code, body, and headers
+        Applies transport-level header injection (default headers, User-Agent,
+        X-Request-ID) before sending. The merge order ensures transport
+        defaults have lowest priority.
+
+        Args:
+            method: HTTP method (GET, POST, PUT, DELETE, etc.).
+            url: Fully qualified URL.
+            headers: HTTP headers from the caller.
+            body: Request body (serialized JSON string, bytes, dict for
+                multipart, or None).
+
+        Returns:
+            :class:`ApiResponse` containing status code, body, and headers.
         """
-        headers.setdefault('Accept-Encoding', _supported_encodings())
+        # --- Merge headers: transport defaults < caller headers < injected ---
+        merged_headers: Dict[str, str] = dict(self._transport_options.default_headers)
+        merged_headers.update(headers)
+
+        if self._transport_options.user_agent is not None and 'User-Agent' not in merged_headers:
+            merged_headers['User-Agent'] = self._transport_options.user_agent
+
+        if self._transport_options.inject_request_id and 'X-Request-ID' not in merged_headers:
+            merged_headers['X-Request-ID'] = str(uuid.uuid4())
+
+        merged_headers.setdefault('Accept-Encoding', _supported_encodings())
 
         if isinstance(body, dict):
             boundary = str(uuid.uuid4())
-            headers['Content-Type'] = f'multipart/form-data; boundary={boundary}'
+            merged_headers['Content-Type'] = f'multipart/form-data; boundary={boundary}'
             encoded_body = self._build_multipart_body(body, boundary)
         elif isinstance(body, bytes):
             encoded_body = body
@@ -71,8 +130,26 @@ class DefaultApiClient:
         else:
             encoded_body = None
 
+        # --- Timeout ---
+        request_kwargs: Dict[str, Any] = {}
+        if self._transport_options.timeout is not None:
+            timeout_seconds = self._transport_options.timeout / 1000.0
+            request_kwargs['timeout'] = urllib3.Timeout(total=timeout_seconds)
+
+        # --- Redirects ---
+        if not self._transport_options.follow_redirects:
+            request_kwargs['redirect'] = False
+        elif self._transport_options.max_redirects is not None:
+            request_kwargs['redirect'] = self._transport_options.max_redirects
+
         response = self._pool_manager.request(
-            method, url, headers=headers, body=encoded_body, preload_content=False, decode_content=False
+            method,
+            url,
+            headers=merged_headers,
+            body=encoded_body,
+            preload_content=False,
+            decode_content=False,
+            **request_kwargs,
         )
 
         raw_data = response.read()
@@ -86,9 +163,12 @@ class DefaultApiClient:
     def _build_multipart_body(self, form_parts: Dict[str, Any], boundary: str) -> bytes:
         """Build a multipart/form-data body from a dict of form parts.
 
-        :param form_parts: dict mapping field names to values
-        :param boundary: the multipart boundary string
-        :return: encoded multipart body as bytes
+        Args:
+            form_parts: Dict mapping field names to values.
+            boundary: The multipart boundary string.
+
+        Returns:
+            Encoded multipart body as bytes.
         """
         parts: list[bytes] = []
         for name, value in form_parts.items():
@@ -104,10 +184,13 @@ class DefaultApiClient:
     def _multipart_part(name: str, value: Any, boundary: str) -> bytes:
         """Build a single MIME part for multipart encoding.
 
-        :param name: the field name
-        :param value: the field value (str, bytes, file-like, or model object)
-        :param boundary: the multipart boundary string
-        :return: encoded MIME part as bytes
+        Args:
+            name: The field name.
+            value: The field value (str, bytes, file-like, or model object).
+            boundary: The multipart boundary string.
+
+        Returns:
+            Encoded MIME part as bytes.
         """
         if hasattr(value, 'read'):
             raw_data = value.read()
@@ -144,9 +227,12 @@ class DefaultApiClient:
         Supports gzip and deflate natively. Brotli and zstd are supported
         when their respective packages (brotli, zstandard) are installed.
 
-        :param data: raw response bytes
-        :param encoding: Content-Encoding header value
-        :return: decompressed bytes
+        Args:
+            data: Raw response bytes.
+            encoding: Content-Encoding header value.
+
+        Returns:
+            Decompressed bytes.
         """
         if not data:
             return data

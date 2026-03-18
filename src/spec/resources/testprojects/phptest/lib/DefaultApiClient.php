@@ -12,7 +12,6 @@
 
 namespace PetstoreClient;
 
-use PetstoreClient\Configuration;
 use RuntimeException;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\Mime\Part\DataPart;
@@ -21,39 +20,65 @@ use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
- * DefaultApiClient Class
+ * Default implementation of {@see ApiClient} using Symfony HTTP client.
  *
- * Default implementation of ApiClient using Symfony HTTP client.
+ * Applies transport-level settings from {@see TransportOptions}: TLS
+ * verification, custom CA certificates, proxy routing, timeouts, redirect
+ * handling, User-Agent injection, X-Request-ID injection, and
+ * transport-level default headers.
+ *
+ * Header merge order (lowest to highest priority):
+ * 1. TransportOptions::defaultHeaders -- transport-level defaults
+ * 2. Caller-provided headers (from BaseApi -- includes config defaults, auth, operation headers)
+ * 3. TransportOptions::userAgent -- injected if not already set
+ * 4. TransportOptions::injectRequestId -- injected if not already set
  *
  * @category Class
  * @package  PetstoreClient
  */
 class DefaultApiClient implements ApiClient
 {
+    /** @var HttpClientInterface The underlying Symfony HTTP client. */
     private readonly HttpClientInterface $client;
 
+    /** @var TransportOptions Transport configuration applied to every request. */
+    private readonly TransportOptions $transportOptions;
+
     /**
-     * @param Configuration|null      $config Configuration instance
-     * @param HttpClientInterface|null $client Symfony HTTP client instance
+     * Create a client with default transport settings.
+     *
+     * Equivalent to new DefaultApiClient(TransportOptions::builder()->build()).
      */
-    public function __construct(?Configuration $config = null, ?HttpClientInterface $client = null)
-    {
+    public function __construct(
+        ?TransportOptions $transportOptions = null,
+        ?HttpClientInterface $client = null
+    ) {
+        $this->transportOptions = $transportOptions ?? TransportOptions::builder()->build();
+
         if ($client instanceof HttpClientInterface) {
             $this->client = $client;
         } else {
             $options = [];
 
-            if ($config instanceof Configuration) {
-                if (!$config->verifySsl) {
-                    $options['verify_peer'] = false;
-                    $options['verify_host'] = false;
-                } elseif ($config->sslCaCert !== null) {
-                    $options['cafile'] = $config->sslCaCert;
-                }
+            if (!$this->transportOptions->verifySsl) {
+                $options['verify_peer'] = false;
+                $options['verify_host'] = false;
+            } elseif ($this->transportOptions->caCertPath !== null) {
+                $options['cafile'] = $this->transportOptions->caCertPath;
+            }
 
-                if ($config->proxy !== null) {
-                    $options['proxy'] = $config->proxy;
-                }
+            if ($this->transportOptions->proxy !== null) {
+                $options['proxy'] = $this->transportOptions->proxy;
+            }
+
+            if ($this->transportOptions->timeout !== null) {
+                $options['timeout'] = $this->transportOptions->timeout / 1000.0;
+            }
+
+            if (!$this->transportOptions->followRedirects) {
+                $options['max_redirects'] = 0;
+            } elseif ($this->transportOptions->maxRedirects !== null) {
+                $options['max_redirects'] = $this->transportOptions->maxRedirects;
             }
 
             $this->client = HttpClient::create($options);
@@ -61,17 +86,43 @@ class DefaultApiClient implements ApiClient
     }
 
     /**
+     * Send an HTTP request and return the response.
+     *
+     * Merges transport-level default headers, applies User-Agent and
+     * X-Request-ID injection, handles multipart form data, and decompresses
+     * the response body.
+     *
      * @param string               $method  HTTP method
      * @param string               $url     Fully qualified URL
      * @param array<string, string> $headers HTTP headers
      * @param mixed                $body    Request body
+     *
+     * @return ApiResponse the HTTP response
+     *
+     * @throws RuntimeException if the request fails at the transport level
      */
     public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
     {
-        $headers['Accept-Encoding'] ??= $this->getSupportedEncodings();
+        $mergedHeaders = array_merge($this->transportOptions->defaultHeaders, $headers);
+
+        if (
+            $this->transportOptions->userAgent !== null
+            && !isset($mergedHeaders['User-Agent'])
+        ) {
+            $mergedHeaders['User-Agent'] = $this->transportOptions->userAgent;
+        }
+
+        if (
+            $this->transportOptions->injectRequestId
+            && !isset($mergedHeaders['X-Request-ID'])
+        ) {
+            $mergedHeaders['X-Request-ID'] = $this->generateUuid();
+        }
+
+        $mergedHeaders['Accept-Encoding'] ??= $this->getSupportedEncodings();
 
         if (is_array($body)) {
-            unset($headers['Content-Type']);
+            unset($mergedHeaders['Content-Type']);
             $formFields = [];
             foreach ($body as $name => $value) {
                 $values = is_array($value) ? $value : [$value];
@@ -98,15 +149,15 @@ class DefaultApiClient implements ApiClient
             $formData = new FormDataPart($formFields);
             $contentType = $formData->getPreparedHeaders()->get('Content-Type');
             if ($contentType instanceof \Symfony\Component\Mime\Header\HeaderInterface) {
-                $headers['Content-Type'] = $contentType->getBodyAsString();
+                $mergedHeaders['Content-Type'] = $contentType->getBodyAsString();
             }
             $options = [
-                'headers' => $headers,
+                'headers' => $mergedHeaders,
                 'body' => $formData->bodyToIterable(),
             ];
         } else {
             $options = [
-                'headers' => $headers,
+                'headers' => $mergedHeaders,
             ];
 
             if ($body !== null) {
@@ -136,6 +187,25 @@ class DefaultApiClient implements ApiClient
         }
     }
 
+    /**
+     * Generate a version 4 UUID.
+     *
+     * @return string a random UUID string
+     */
+    private function generateUuid(): string
+    {
+        $data = random_bytes(16);
+        $data[6] = chr((ord($data[6]) & 0x0f) | 0x40);
+        $data[8] = chr((ord($data[8]) & 0x3f) | 0x80);
+
+        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
+    }
+
+    /**
+     * Return a comma-separated list of supported content encodings.
+     *
+     * @return string supported encoding names
+     */
     private function getSupportedEncodings(): string
     {
         $encodings = ['gzip', 'deflate'];
@@ -149,6 +219,13 @@ class DefaultApiClient implements ApiClient
         return implode(', ', $encodings);
     }
 
+    /**
+     * Decompress a response body based on the Content-Encoding header value.
+     *
+     * @param string $body     the raw response body
+     * @param string $encoding the Content-Encoding header value
+     * @return string the decompressed body
+     */
     private function decompressBody(string $body, string $encoding): string
     {
         if ($body === '') {

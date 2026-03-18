@@ -4,14 +4,32 @@ namespace PetstoreClient.Auth.OAuth;
 
 /// <summary>
 /// Authenticator for the OAuth2 Implicit flow.
+///
+/// Implements <see cref="IHttpAwareAuthenticator"/> so that the interface contract
+/// is satisfied for consistency. The implicit flow does not make token exchange
+/// requests, so the injected <see cref="IApiClient"/> is not used.
+///
+/// Usage:
+/// <list type="number">
+///   <item><description>Call <see cref="BuildAuthorizationUrl"/> to get the authorization URL.</description></item>
+///   <item><description>Redirect the user to that URL.</description></item>
+///   <item><description>Extract the access token from the fragment and call <see cref="SetAccessToken"/>.</description></item>
+///   <item><description>Use the authenticator normally.</description></item>
+/// </list>
 /// </summary>
-public sealed class OAuth2ImplicitAuthenticator : BaseAuthenticator
+public sealed class OAuth2ImplicitAuthenticator : BaseAuthenticator, IHttpAwareAuthenticator
 {
     private readonly string _host;
     private readonly Uri _authorizationUrl;
     private readonly string[] _scopes;
     private string? _accessToken;
 
+    /// <summary>
+    /// Create a new implicit flow authenticator.
+    /// </summary>
+    /// <param name="host">API base URL.</param>
+    /// <param name="authorizationUrl">Authorization endpoint URL.</param>
+    /// <param name="scopes">Requested scopes.</param>
     public OAuth2ImplicitAuthenticator(string host, Uri authorizationUrl, string[] scopes)
     {
         _host = host;
@@ -19,9 +37,14 @@ public sealed class OAuth2ImplicitAuthenticator : BaseAuthenticator
         _scopes = [.. scopes];
     }
 
+    /// <inheritdoc/>
+    public void SetApiClient(IApiClient apiClient) { }
+
     /// <summary>
     /// Builds the URL to redirect the user to for implicit authorization.
     /// </summary>
+    /// <param name="state">Optional CSRF state parameter.</param>
+    /// <returns>The authorization URL.</returns>
     public Uri BuildAuthorizationUrl(string? state = null)
     {
         Dictionary<string, string> parameters = new() { ["response_type"] = "token" };
@@ -47,6 +70,7 @@ public sealed class OAuth2ImplicitAuthenticator : BaseAuthenticator
     /// <summary>
     /// Sets the access token obtained from the authorization redirect.
     /// </summary>
+    /// <param name="token">The access token.</param>
     public void SetAccessToken(string token)
     {
         _accessToken = token;

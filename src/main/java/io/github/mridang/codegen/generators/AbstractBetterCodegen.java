@@ -5,12 +5,15 @@ import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
+import io.swagger.v3.oas.models.servers.ServerVariable;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -89,6 +92,61 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         additionalProperties.put("hasAnyOAuth2", hasAnyOAuth2);
         registerAuthSupportingFiles();
         generatePerSchemeAuthenticators(openAPI);
+        processServers(openAPI);
+    }
+
+    /**
+     * Extract global server definitions from the OpenAPI spec and populate
+     * template properties for server selection code generation.
+     *
+     * <p>Sets {@code hasServers} and {@code servers} in additional properties.
+     * Each server entry contains {@code serverIndex}, {@code serverUrl},
+     * {@code serverDescription}, {@code hasVariables}, and {@code serverVariables}.
+     */
+    private void processServers(OpenAPI openAPI) {
+        List<Server> servers = openAPI.getServers();
+        if (servers == null || servers.isEmpty()) {
+            additionalProperties.put("hasServers", false);
+            return;
+        }
+        additionalProperties.put("hasServers", true);
+
+        List<Map<String, Object>> serverList = new ArrayList<>();
+        for (int i = 0; i < servers.size(); i++) {
+            Server server = servers.get(i);
+            Map<String, Object> serverMap = new HashMap<>();
+            serverMap.put("serverIndex", String.valueOf(i));
+            serverMap.put("serverUrl", server.getUrl() != null ? server.getUrl() : "");
+            serverMap.put("serverDescription", server.getDescription());
+
+            if (server.getVariables() != null && !server.getVariables().isEmpty()) {
+                serverMap.put("hasVariables", true);
+                List<Map<String, Object>> varList = new ArrayList<>();
+                for (Map.Entry<String, ServerVariable> varEntry :
+                        server.getVariables().entrySet()) {
+                    ServerVariable sv = varEntry.getValue();
+                    Map<String, Object> varMap = new HashMap<>();
+                    varMap.put("varName", varEntry.getKey());
+                    varMap.put("varDefault", sv.getDefault());
+                    varMap.put("varDescription", sv.getDescription());
+                    if (sv.getEnum() != null && !sv.getEnum().isEmpty()) {
+                        varMap.put("hasEnumValues", true);
+                        varMap.put("varEnumValues", sv.getEnum());
+                    } else {
+                        varMap.put("hasEnumValues", false);
+                    }
+                    varList.add(varMap);
+                }
+                serverMap.put("serverVariables", varList);
+            } else {
+                serverMap.put("hasVariables", false);
+            }
+            serverList.add(serverMap);
+        }
+        boolean anyServerHasVariables =
+                serverList.stream().anyMatch(s -> Boolean.TRUE.equals(s.get("hasVariables")));
+        additionalProperties.put("hasAnyServerVariables", anyServerHasVariables);
+        additionalProperties.put("serverConfigs", serverList);
     }
 
     @SuppressFBWarnings(value = "IMPROPER_UNICODE", justification = "Comparing with ASCII-only constants")

@@ -1,0 +1,29 @@
+{{>partial_header}}
+from typing import List
+
+from {{packageName}}.server_configuration import ServerConfiguration, ServerVariable
+
+
+{{#serverConfigs}}
+SERVER_{{serverIndex}}: ServerConfiguration = ServerConfiguration(
+    url_template='{{{serverUrl}}}',
+    {{#serverDescription}}description='{{{serverDescription}}}',{{/serverDescription}}{{^serverDescription}}description=None,{{/serverDescription}}
+    {{#hasVariables}}variables={
+{{#serverVariables}}        '{{varName}}': ServerVariable(
+            default_value='{{{varDefault}}}',
+            {{#varDescription}}description='{{{varDescription}}}',{{/varDescription}}{{^varDescription}}description=None,{{/varDescription}}
+            {{#hasEnumValues}}enum_values=[{{#varEnumValues}}'{{{.}}}'{{^-last}}, {{/-last}}{{/varEnumValues}}],{{/hasEnumValues}}{{^hasEnumValues}}enum_values=[],{{/hasEnumValues}}
+        ),
+{{/serverVariables}}    },{{/hasVariables}}{{^hasVariables}}variables={},{{/hasVariables}}
+)
+"""Server {{serverIndex}}: {{{serverUrl}}}{{#serverDescription}}
+
+{{{serverDescription}}}{{/serverDescription}}
+"""
+
+{{/serverConfigs}}
+
+ALL: List[ServerConfiguration] = [
+{{#serverConfigs}}    SERVER_{{serverIndex}},
+{{/serverConfigs}}]
+"""All server configurations in declaration order."""

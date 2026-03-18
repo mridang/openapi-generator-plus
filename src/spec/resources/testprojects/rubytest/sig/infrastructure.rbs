@@ -7,15 +7,7 @@ module PetstoreClient
   class Configuration
     attr_reader base_url: String
     attr_reader default_headers: Hash[String, String]
-    attr_reader debug: bool
-    attr_reader verify_ssl: bool
-    attr_reader ssl_ca_cert: String?
-    attr_reader cert_file: String?
-    attr_reader key_file: String?
-    attr_reader proxy: String?
-    attr_reader timeout: Integer?
-    attr_reader retries: Integer?
-    def initialize: (base_url: String, default_headers: Hash[String, String], debug: bool, verify_ssl: bool, ssl_ca_cert: String?, cert_file: String?, key_file: String?, proxy: String?, timeout: Integer?, retries: Integer?) -> void
+    def initialize: (base_url: String, default_headers: Hash[String, String]) -> void
     def self.builder: () -> Configuration::Builder
     def self.default: () -> Configuration
     def self.default=: (Configuration) -> Configuration
@@ -24,16 +16,56 @@ module PetstoreClient
       def base_url: (String) -> Builder
       def default_header: (String, String) -> Builder
       def default_headers: (Hash[String, String]) -> Builder
-      def debug: (bool) -> Builder
-      def verify_ssl: (bool) -> Builder
-      def ssl_ca_cert: (String?) -> Builder
-      def cert_file: (String?) -> Builder
-      def key_file: (String?) -> Builder
-      def proxy: (String?) -> Builder
-      def timeout: (Integer?) -> Builder
-      def retries: (Integer?) -> Builder
       def build: () -> Configuration
     end
+  end
+
+  class TransportOptions
+    attr_reader verify_ssl: bool
+    attr_reader ca_cert_path: String?
+    attr_reader proxy: String?
+    attr_reader timeout: Integer?
+    attr_reader follow_redirects: bool
+    attr_reader max_redirects: Integer?
+    attr_reader user_agent: String?
+    attr_reader default_headers: Hash[String, String]
+    attr_reader inject_request_id: bool
+    def initialize: (verify_ssl: bool, ca_cert_path: String?, proxy: String?, timeout: Integer?, follow_redirects: bool, max_redirects: Integer?, user_agent: String?, default_headers: Hash[String, String], inject_request_id: bool) -> void
+    def self.builder: () -> TransportOptions::Builder
+
+    class Builder
+      def verify_ssl: (bool) -> Builder
+      def ca_cert_path: (String?) -> Builder
+      def proxy: (String?) -> Builder
+      def timeout: (Integer?) -> Builder
+      def follow_redirects: (bool) -> Builder
+      def max_redirects: (Integer?) -> Builder
+      def user_agent: (String?) -> Builder
+      def default_header: (String, String) -> Builder
+      def default_headers: (Hash[String, String]) -> Builder
+      def inject_request_id: (bool) -> Builder
+      def build: () -> TransportOptions
+    end
+  end
+
+  class ServerVariable
+    attr_reader default_value: String
+    attr_reader description: String?
+    attr_reader enum_values: Array[String]
+    def initialize: (default_value: String, ?description: String?, ?enum_values: Array[String]) -> void
+  end
+
+  class ServerConfiguration
+    attr_reader url_template: String
+    attr_reader description: String?
+    attr_reader variables: Hash[String, ServerVariable]
+    def initialize: (url_template: String, ?description: String?, ?variables: Hash[String, ServerVariable]) -> void
+    def url: (?Hash[String, String]) -> String
+  end
+
+  module Servers
+    SERVER_0: ServerConfiguration
+    ALL: Array[ServerConfiguration]
   end
 
   class ApiResponse
@@ -56,7 +88,7 @@ module PetstoreClient
   end
 
   class DefaultApiClient < ApiClient
-    def initialize: (?Configuration?) -> void
+    def initialize: (?TransportOptions?) -> void
     def send_request: (Symbol, String, Hash[String, String], untyped) -> ApiResponse
     def self.supported_encodings: () -> String
     private
@@ -116,6 +148,10 @@ module PetstoreClient
       def cookie_params: () -> Hash[String, String]
     end
 
+    module HttpAwareAuthenticator
+      def api_client=: (ApiClient) -> void
+    end
+
     class BasicAuthenticator < Authenticator
       def initialize: (String, String, String) -> void
     end
@@ -130,23 +166,33 @@ module PetstoreClient
 
     module OAuth
       class OAuth2ClientCredentialsAuthenticator < Authenticator
+        include HttpAwareAuthenticator
         def initialize: (String, String, String, String, Array[String]) -> void
+        def api_client=: (ApiClient) -> void
       end
       class OAuth2PasswordAuthenticator < Authenticator
+        include HttpAwareAuthenticator
         def initialize: (String, String, String, String, String, String, Array[String]) -> void
+        def api_client=: (ApiClient) -> void
       end
       class OAuth2AuthorizationCodeAuthenticator < Authenticator
+        include HttpAwareAuthenticator
         def initialize: (String, String, String, String, String, String, Array[String]) -> void
+        def api_client=: (ApiClient) -> void
         def build_authorization_url: (?String?) -> String
         def exchange_code: (String) -> void
       end
       class OAuth2ImplicitAuthenticator < Authenticator
+        include HttpAwareAuthenticator
         def initialize: (String, String, Array[String]) -> void
+        def api_client=: (ApiClient) -> void
         def build_authorization_url: (?String?) -> String
         def access_token=: (String) -> void
       end
       class OpenIdConnectAuthenticator < Authenticator
+        include HttpAwareAuthenticator
         def initialize: (String, String, String, String, String, Array[String]) -> void
+        attr_writer api_client: ApiClient?
         def build_authorization_url: (?String?) -> String
         def exchange_code: (String) -> void
         private
@@ -154,6 +200,7 @@ module PetstoreClient
       end
 
       class OAuth2TokenManager
+        attr_writer api_client: ApiClient?
         def initialize: () -> void
         def get_access_token: (String, Hash[String, String]) -> String
         def access_token=: (String) -> void
@@ -166,7 +213,7 @@ module PetstoreClient
   class Client
     attr_reader pet: Api::PetApi
     attr_reader store: Api::StoreApi
-    def initialize: (Auth::Authenticator) -> void
+    def initialize: (Auth::Authenticator, ?TransportOptions?) -> void
     def self.with_token: (String, String) -> Client
   end
 

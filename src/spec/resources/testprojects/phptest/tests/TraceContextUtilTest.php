@@ -1,33 +1,12 @@
 <?php
-/**
- * TraceContextUtilTest
- * PHP version 8.1
- *
- * @category Class
- * @package  PetstoreClient
- * @author   OpenAPI Generator team
- * @link     https://openapi-generator.tech
- */
 
-/**
- * Swagger Petstore - OpenAPI 3.0
- *
- * Unit tests for TraceContextUtil.
- */
+declare(strict_types=1);
 
-namespace PetstoreClient\Test;
+namespace PetstoreClient\Tests;
 
 use PHPUnit\Framework\TestCase;
 use PetstoreClient\TraceContextUtil;
 
-/**
- * TraceContextUtilTest Class
- *
- * @category Class
- * @package  PetstoreClient
- * @author   OpenAPI Generator team
- * @link     https://openapi-generator.tech
- */
 class TraceContextUtilTest extends TestCase
 {
     /**

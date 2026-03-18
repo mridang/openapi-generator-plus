@@ -9,6 +9,13 @@
     <testsuites>
         <testsuite name="Unit Tests">
             <file>tests/DefaultApiClientUnitTest.php</file>
+            <file>tests/TransportOptionsTest.php</file>
+            <file>tests/HeaderSelectorTest.php</file>
+            <file>tests/ObjectSerializerTest.php</file>
+            <file>tests/TraceContextUtilTest.php</file>
+        </testsuite>
+        <testsuite name="Integration Tests">
+            <file>tests/DefaultApiClientTest.php</file>
         </testsuite>
         <testsuite name="API Tests">
             <directory>tests/Api</directory>

@@ -18,6 +18,7 @@ import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -31,7 +32,23 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
 
-/** Default implementation of {@link ApiClient} using {@link java.net.http.HttpClient}. */
+/**
+ * Default implementation of {@link ApiClient} using {@link java.net.http.HttpClient}.
+ *
+ * <p>Applies transport-level settings from {@link TransportOptions}: TLS verification, custom CA
+ * certificates, proxy routing, timeouts, redirect handling, {@code User-Agent} injection, {@code
+ * X-Request-ID} injection, and transport-level default headers.
+ *
+ * <p>Header merge order (lowest to highest priority):
+ *
+ * <ol>
+ *   <li>{@link TransportOptions#getDefaultHeaders()} — transport-level defaults
+ *   <li>Caller-provided headers (from {@code BaseApi} — includes config defaults, auth, operation
+ *       headers)
+ *   <li>{@link TransportOptions#getUserAgent()} — injected if not already set
+ *   <li>{@link TransportOptions#isInjectRequestId()} — injected if not already set
+ * </ol>
+ */
 public final class DefaultApiClient implements ApiClient {
 
   private static final X509TrustManager TRUST_ALL_MANAGER =
@@ -49,25 +66,32 @@ public final class DefaultApiClient implements ApiClient {
       };
 
   private final HttpClient httpClient;
+  private final TransportOptions transportOptions;
 
-  /** Create a client with default settings. */
+  /**
+   * Create a client with default transport settings.
+   *
+   * <p>Equivalent to {@code new DefaultApiClient(TransportOptions.builder().build())}.
+   */
   public DefaultApiClient() {
-    this(HttpClient.newHttpClient());
+    this(TransportOptions.builder().build());
   }
 
   /**
-   * Create a client configured from the given {@link Configuration}.
+   * Create a client configured from the given {@link TransportOptions}.
    *
-   * <p>Applies proxy, custom CA certificate, and TLS verification settings.
+   * <p>Applies proxy, custom CA certificate, TLS verification, timeout, and redirect settings to
+   * the underlying {@link HttpClient}.
    *
-   * @param config configuration to apply
+   * @param transportOptions transport configuration to apply
    */
-  public DefaultApiClient(Configuration config) {
+  public DefaultApiClient(TransportOptions transportOptions) {
+    this.transportOptions = transportOptions;
     try {
       HttpClient.Builder builder = HttpClient.newBuilder();
 
-      if (config.getProxy() != null) {
-        URI proxyUri = URI.create(config.getProxy());
+      if (transportOptions.getProxy() != null) {
+        URI proxyUri = URI.create(transportOptions.getProxy());
         int port = proxyUri.getPort();
         if (port == -1) {
           port = "https".equals(proxyUri.getScheme()) ? 443 : 8080;
@@ -75,14 +99,14 @@ public final class DefaultApiClient implements ApiClient {
         builder.proxy(ProxySelector.of(new InetSocketAddress(proxyUri.getHost(), port)));
       }
 
-      if (!config.isVerifySsl()) {
+      if (!transportOptions.isVerifySsl()) {
         SSLContext sslContext = SSLContext.getInstance("TLS");
         sslContext.init(null, new TrustManager[] {TRUST_ALL_MANAGER}, null);
         builder.sslContext(sslContext);
-      } else if (config.getSslCaCert() != null) {
+      } else if (transportOptions.getCaCertPath() != null) {
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
         X509Certificate caCert;
-        try (FileInputStream fis = new FileInputStream(config.getSslCaCert())) {
+        try (FileInputStream fis = new FileInputStream(transportOptions.getCaCertPath())) {
           caCert = (X509Certificate) cf.generateCertificate(fis);
         }
         KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
@@ -96,6 +120,15 @@ public final class DefaultApiClient implements ApiClient {
         builder.sslContext(sslContext);
       }
 
+      builder.followRedirects(
+          transportOptions.isFollowRedirects()
+              ? HttpClient.Redirect.NORMAL
+              : HttpClient.Redirect.NEVER);
+
+      if (transportOptions.getTimeout() != null) {
+        builder.connectTimeout(Duration.ofMillis(transportOptions.getTimeout()));
+      }
+
       this.httpClient = builder.build();
     } catch (GeneralSecurityException | IOException e) {
       throw new RuntimeException("Failed to configure SSL/TLS", e);
@@ -105,10 +138,13 @@ public final class DefaultApiClient implements ApiClient {
   /**
    * Create a client with a pre-configured {@link HttpClient}.
    *
+   * <p>Uses default {@link TransportOptions} for header injection settings.
+   *
    * @param httpClient the HTTP client to use
    */
   public DefaultApiClient(HttpClient httpClient) {
     this.httpClient = httpClient;
+    this.transportOptions = TransportOptions.builder().build();
   }
 
   @Override
@@ -116,12 +152,23 @@ public final class DefaultApiClient implements ApiClient {
   public ApiResponse sendRequest(
       String method, String url, Map<String, String> headers, @Nullable Object body)
       throws ApiException {
+
+    Map<String, String> mergedHeaders = new HashMap<>(transportOptions.getDefaultHeaders());
+    mergedHeaders.putAll(headers);
+
+    if (transportOptions.getUserAgent() != null && !mergedHeaders.containsKey("User-Agent")) {
+      mergedHeaders.put("User-Agent", transportOptions.getUserAgent());
+    }
+    if (transportOptions.isInjectRequestId() && !mergedHeaders.containsKey("X-Request-ID")) {
+      mergedHeaders.put("X-Request-ID", UUID.randomUUID().toString());
+    }
+
     HttpRequest.BodyPublisher bodyPublisher;
     if (body == null) {
       bodyPublisher = HttpRequest.BodyPublishers.noBody();
     } else if (body instanceof Map) {
       String boundary = UUID.randomUUID().toString();
-      headers.put("Content-Type", "multipart/form-data; boundary=" + boundary);
+      mergedHeaders.put("Content-Type", "multipart/form-data; boundary=" + boundary);
       bodyPublisher = buildMultipartBody((Map<String, Object>) body, boundary);
     } else if (body instanceof byte[] bytes) {
       bodyPublisher = HttpRequest.BodyPublishers.ofByteArray(bytes);
@@ -134,11 +181,15 @@ public final class DefaultApiClient implements ApiClient {
     HttpRequest.Builder builder =
         HttpRequest.newBuilder(URI.create(url)).method(method, bodyPublisher);
 
-    if (!headers.containsKey("Accept-Encoding")) {
+    if (transportOptions.getTimeout() != null) {
+      builder.timeout(Duration.ofMillis(transportOptions.getTimeout()));
+    }
+
+    if (!mergedHeaders.containsKey("Accept-Encoding")) {
       builder.header("Accept-Encoding", getSupportedEncodings());
     }
 
-    for (Map.Entry<String, String> header : headers.entrySet()) {
+    for (Map.Entry<String, String> header : mergedHeaders.entrySet()) {
       builder.header(header.getKey(), header.getValue());
     }
 

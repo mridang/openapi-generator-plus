@@ -17,11 +17,16 @@ module PetstoreClient
     # handles URL construction, header selection, body serialization, request
     # dispatch, and response deserialization.
     class BaseApi
+      # @return [Configuration]
       attr_reader :config
 
+      # Create an API instance.
+      #
+      # @param api_client [ApiClient, nil] the HTTP transport client
+      # @param config [Configuration] API-level configuration (base URL and default headers)
       def initialize(api_client = nil, config = PetstoreClient::Configuration.default)
         @config = config
-        @api_client = api_client || PetstoreClient::DefaultApiClient.new(@config)
+        @api_client = api_client || PetstoreClient::DefaultApiClient.new
         @header_selector = PetstoreClient::HeaderSelector.new
       end
 

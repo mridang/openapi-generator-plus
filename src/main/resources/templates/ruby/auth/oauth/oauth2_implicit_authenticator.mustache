@@ -4,10 +4,34 @@ module {{moduleName}}
   module Auth
     module OAuth
       # Authenticator for OAuth2 implicit flow.
+      #
+      # Includes {HttpAwareAuthenticator} so that the interface is
+      # consistent with other OAuth2 authenticators. The implicit flow
+      # does not make token exchange requests, but the module is
+      # included for consistency.
+      #
+      # Usage:
+      # 1. Call {#build_authorization_url} to get the authorization URL
+      # 2. Redirect the user to that URL
+      # 3. Extract the access token from the fragment and call {#access_token=}
+      # 4. Use the authenticator normally
       class OAuth2ImplicitAuthenticator < Authenticator
+        include HttpAwareAuthenticator
+
+        # @return [String]
         attr_reader :host
+
+        # @!attribute [w] access_token
+        #   Set the access token obtained from the authorization redirect fragment.
+        #   @param token [String] the access token
+        #   @return [String]
         attr_writer :access_token
 
+        # Create a new implicit flow authenticator.
+        #
+        # @param host [String] API base URL
+        # @param authorization_url [String] authorization endpoint URL
+        # @param scopes [Array<String>] requested scopes
         def initialize(host, authorization_url, scopes)
           super()
           @host = host
@@ -16,6 +40,22 @@ module {{moduleName}}
           @access_token = nil
         end
 
+        # Inject the shared API client.
+        #
+        # The implicit flow does not make token exchange requests, but
+        # implements the interface for consistency.
+        #
+        # @param _client [ApiClient] the shared API client instance (unused)
+        # @return [void]
+        def api_client=(_client)
+          # Implicit flow does not make token exchange requests,
+          # but implements the interface for consistency.
+        end
+
+        # Build the authorization URL to redirect the user to.
+        #
+        # @param state [String, nil] optional CSRF state parameter
+        # @return [String] the authorization URL
         def build_authorization_url(state = nil)
           params = { 'response_type' => 'token' }
           params['scope'] = @scopes.join(' ') unless @scopes.empty?
@@ -23,6 +63,7 @@ module {{moduleName}}
           "#{@authorization_url}?#{URI.encode_www_form(params)}"
         end
 
+        # @return [Hash{String => String}]
         def auth_headers
           raise 'Must set access_token before making API requests' if @access_token.nil?
 

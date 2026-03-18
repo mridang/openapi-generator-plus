@@ -309,6 +309,10 @@ class ObjectSerializer
      */
     public static function toHeaderValue(mixed $value): string
     {
+        if (is_array($value)) {
+            return implode(',', array_map(static fn ($v): string => self::toString($v), $value));
+        }
+
         return self::toString($value);
     }
 

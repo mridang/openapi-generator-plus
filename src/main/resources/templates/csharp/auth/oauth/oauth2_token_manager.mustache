@@ -3,18 +3,35 @@ using System.Text.Json;
 namespace {{packageName}}.Auth.OAuth;
 
 /// <summary>
-/// Manages OAuth2 token lifecycle including fetching and caching access tokens.
+/// Manages OAuth2 token lifecycle including fetching, caching, and refreshing tokens.
+///
+/// Uses the shared <see cref="IApiClient"/> instance so that token exchange requests
+/// honour the same transport configuration (proxy, TLS, timeouts) as regular
+/// API calls.
 /// </summary>
 public sealed class OAuth2TokenManager
 {
-    private static readonly HttpClient HttpClient = new();
-
+    private IApiClient? _apiClient;
     private string? _accessToken;
     private DateTimeOffset? _tokenExpiry;
 
     /// <summary>
-    /// Returns a valid access token, fetching a new one if necessary.
+    /// Inject the shared API client for making token requests.
     /// </summary>
+    /// <param name="apiClient">The shared API client instance.</param>
+    public void SetApiClient(IApiClient apiClient)
+    {
+        _apiClient = apiClient;
+    }
+
+    /// <summary>
+    /// Returns a valid access token, fetching or refreshing as necessary.
+    /// This method is synchronized to prevent concurrent token requests.
+    /// </summary>
+    /// <param name="tokenUrl">The OAuth2 token endpoint URL.</param>
+    /// <param name="parameters">The token request parameters (grant_type, client_id, etc.).</param>
+    /// <returns>A valid access token.</returns>
+    /// <exception cref="InvalidOperationException">If no API client has been injected or token fetch fails.</exception>
     public async Task<string> GetAccessTokenAsync(
         Uri tokenUrl,
         Dictionary<string, string> parameters
@@ -36,6 +53,7 @@ public sealed class OAuth2TokenManager
     /// <summary>
     /// Manually sets an access token, bypassing the token endpoint.
     /// </summary>
+    /// <param name="token">The access token to use.</param>
     public void SetAccessToken(string token)
     {
         _accessToken = token;
@@ -44,13 +62,39 @@ public sealed class OAuth2TokenManager
 
     private async Task FetchTokenAsync(Uri tokenUrl, Dictionary<string, string> parameters)
     {
-        using FormUrlEncodedContent content = new(parameters);
-        using HttpResponseMessage response = await HttpClient
-            .PostAsync(tokenUrl, content)
+        if (_apiClient is null)
+        {
+            throw new InvalidOperationException(
+                "ApiClient has not been injected. "
+                    + "Ensure the Client constructor calls SetApiClient() "
+                    + "on IHttpAwareAuthenticator before making API requests."
+            );
+        }
+
+        string body = string.Join(
+            "&",
+            parameters.Select(p =>
+                Uri.EscapeDataString(p.Key) + "=" + Uri.EscapeDataString(p.Value)
+            )
+        );
+
+        Dictionary<string, string> headers = new()
+        {
+            ["Content-Type"] = "application/x-www-form-urlencoded",
+        };
+
+        ApiResponse response = await _apiClient
+            .SendRequestAsync("POST", tokenUrl, headers, body)
             .ConfigureAwait(false);
-        _ = response.EnsureSuccessStatusCode();
-        string body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-        using JsonDocument doc = JsonDocument.Parse(body);
+
+        if (response.StatusCode is < 200 or >= 300)
+        {
+            throw new InvalidOperationException(
+                $"Token request failed with status {response.StatusCode}: {response.Body}"
+            );
+        }
+
+        using JsonDocument doc = JsonDocument.Parse(response.Body);
         JsonElement root = doc.RootElement;
         _accessToken =
             root.GetProperty("access_token").GetString()

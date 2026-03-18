@@ -135,6 +135,9 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
 
         supportingFiles.add(new SupportingFile("gem.mustache", LIB_FOLDER, gemName + ".rb"));
         supportingFiles.add(new SupportingFile("configuration.mustache", libPath, "configuration.rb"));
+        supportingFiles.add(new SupportingFile("transport_options.mustache", libPath, "transport_options.rb"));
+        supportingFiles.add(new SupportingFile("server_configuration.mustache", libPath, "server_configuration.rb"));
+        supportingFiles.add(new SupportingFile("servers.mustache", libPath, "servers.rb"));
         supportingFiles.add(new SupportingFile("api_error.mustache", libPath, "api_error.rb"));
         supportingFiles.add(new SupportingFile("version.mustache", libPath, "version.rb"));
         supportingFiles.add(new SupportingFile("header_selector.mustache", libPath, "header_selector.rb"));
@@ -151,6 +154,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                         "authenticator.mustache",
                         libPath + File.separator + "auth",
                         "authenticator.rb"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "auth/http_aware_authenticator.mustache",
+                        libPath + File.separator + "auth",
+                        "http_aware_authenticator.rb"));
         supportingFiles.add(new SupportingFile("client.mustache", libPath, "client.rb"));
         supportingFiles.add(new SupportingFile("gemfile.mustache", "", "Gemfile"));
         supportingFiles.add(new SupportingFile("rubocop.mustache", "", ".rubocop.yml"));
@@ -186,6 +194,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                             "test/default_api_client_unit_spec.mustache",
                             "spec",
                             "default_api_client_unit_spec.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/transport_options_spec.mustache",
+                            "spec",
+                            "transport_options_spec.rb"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/header_selector_spec.mustache",

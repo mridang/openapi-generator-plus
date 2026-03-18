@@ -1,20 +1,42 @@
 # frozen_string_literal: true
 
 require 'json'
-require 'net/http'
 require 'uri'
 
 module PetstoreClient
   module Auth
     module OAuth
       # Manages OAuth2 token lifecycle: fetching, caching, and refreshing.
+      #
+      # Uses the shared {ApiClient} instance so that token exchange requests
+      # honour the same transport configuration (proxy, TLS, timeouts) as
+      # regular API calls.
       class OAuth2TokenManager
+        # Inject the shared API client for making token requests.
+        #
+        # @param client [ApiClient] the shared API client instance
+        # @return [void]
+        attr_writer :api_client
+
+        # Create a new token manager.
+        #
+        # The {ApiClient} must be injected via {#api_client=} before any
+        # token requests are made.
         def initialize
           @mutex = Mutex.new
+          @api_client = nil
           @access_token = nil
           @token_expiry = nil
         end
 
+        # Get a valid access token, fetching or refreshing as necessary.
+        #
+        # This method is synchronized to prevent concurrent token requests.
+        #
+        # @param token_url [String] the OAuth2 token endpoint URL
+        # @param params [Hash{String => String}] the token request parameters
+        # @return [String] a valid access token
+        # @raise [RuntimeError] if no API client has been injected or token fetch fails
         def get_access_token(token_url, params)
           @mutex.synchronize do
             return @access_token if @access_token && @token_expiry && Time.now.to_f < @token_expiry
@@ -24,6 +46,10 @@ module PetstoreClient
           end
         end
 
+        # Manually set an access token, bypassing the token endpoint.
+        #
+        # @param token [String] the access token to use
+        # @return [void]
         def access_token=(token)
           @mutex.synchronize do
             @access_token = token
@@ -33,22 +59,32 @@ module PetstoreClient
 
         private
 
-        # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
-        def fetch_token(token_url, params)
-          uri = URI.parse(token_url)
-          http = Net::HTTP.new(uri.host, uri.port)
-          http.use_ssl = uri.scheme == 'https'
-          request = Net::HTTP::Post.new(uri.path)
-          request['Content-Type'] = 'application/x-www-form-urlencoded'
-          request.body = URI.encode_www_form(params)
-          response = http.request(request)
-          raise "Token request failed with status #{response.code}" unless response.is_a?(Net::HTTPSuccess)
+        # Fetch a token from the token endpoint using the injected API client.
+        #
+        # @param token_url [String] the OAuth2 token endpoint URL
+        # @param params [Hash{String => String}] the token request parameters
+        # @return [void]
+        # @raise [RuntimeError] if no API client has been injected or the request fails
+        def fetch_token(token_url, params) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
+          client = @api_client
+          if client.nil?
+            raise 'ApiClient has not been injected. ' \
+                  'Ensure the Client constructor calls api_client= ' \
+                  'on HttpAwareAuthenticator before making API requests.'
+          end
 
-          body = JSON.parse(response.body)
-          @access_token = body['access_token']
-          @token_expiry = Time.now.to_f + body['expires_in'].to_i - 30 if body.key?('expires_in')
+          headers = { 'Content-Type' => 'application/x-www-form-urlencoded' }
+          body = URI.encode_www_form(params)
+
+          response = client.send_request(:post, token_url, headers, body)
+          unless response.status_code >= 200 && response.status_code < 300
+            raise "Token request failed with status #{response.status_code}"
+          end
+
+          parsed = JSON.parse(response.body)
+          @access_token = parsed['access_token']
+          @token_expiry = Time.now.to_f + parsed['expires_in'].to_i - 30 if parsed.key?('expires_in')
         end
-        # rubocop:enable Metrics/AbcSize, Metrics/MethodLength
       end
     end
   end

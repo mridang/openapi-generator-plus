@@ -11,35 +11,31 @@ namespace {{invokerPackage}};
  */
 final class ConfigurationBuilder
 {
+    /** @var string Base URL for all API requests. */
     private string $baseUrl = '{{{basePath}}}';
 
-    /** @var array<string, string> */
+    /** @var array<string, string> Default headers to include in every API request. */
     private array $defaultHeaders = [];
 
-    private bool $debug = false;
-
-    private bool $verifySsl = true;
-
-    private ?string $sslCaCert = null;
-
-    private ?string $certFile = null;
-
-    private ?string $keyFile = null;
-
-    private ?string $proxy = null;
-
-    private ?int $timeout = null;
-
-    private ?int $retries = null;
-
-    /** Set the base URL for all API requests. */
+    /**
+     * Set the base URL for all API requests.
+     *
+     * @param string $baseUrl the base URL
+     * @return self this builder
+     */
     public function baseUrl(string $baseUrl): self
     {
         $this->baseUrl = $baseUrl;
         return $this;
     }
 
-    /** Add a default header to include in every API request. */
+    /**
+     * Add a single default header to include in every API request.
+     *
+     * @param string $name  header name
+     * @param string $value header value
+     * @return self this builder
+     */
     public function defaultHeader(string $name, string $value): self
     {
         $this->defaultHeaders[$name] = $value;
@@ -47,9 +43,10 @@ final class ConfigurationBuilder
     }
 
     /**
-     * Set all default headers to include in every API request.
+     * Add multiple default headers to include in every API request.
      *
-     * @param array<string, string> $headers
+     * @param array<string, string> $headers map of header names to values
+     * @return self this builder
      */
     public function defaultHeaders(array $headers): self
     {
@@ -57,76 +54,16 @@ final class ConfigurationBuilder
         return $this;
     }
 
-    /** Enable or disable debug logging. */
-    public function debug(bool $debug): self
-    {
-        $this->debug = $debug;
-        return $this;
-    }
-
-    /** Enable or disable SSL/TLS certificate verification. */
-    public function verifySsl(bool $verifySsl): self
-    {
-        $this->verifySsl = $verifySsl;
-        return $this;
-    }
-
-    /** Set the path to a CA certificate file for SSL/TLS verification. */
-    public function sslCaCert(?string $sslCaCert): self
-    {
-        $this->sslCaCert = $sslCaCert;
-        return $this;
-    }
-
-    /** Set the path to a client certificate file for mutual TLS. */
-    public function certFile(?string $certFile): self
-    {
-        $this->certFile = $certFile;
-        return $this;
-    }
-
-    /** Set the path to a client private key file for mutual TLS. */
-    public function keyFile(?string $keyFile): self
-    {
-        $this->keyFile = $keyFile;
-        return $this;
-    }
-
-    /** Set the proxy URL for all API requests. */
-    public function proxy(?string $proxy): self
-    {
-        $this->proxy = $proxy;
-        return $this;
-    }
-
-    /** Set the request timeout in seconds. */
-    public function timeout(?int $timeout): self
-    {
-        $this->timeout = $timeout;
-        return $this;
-    }
-
-    /** Set the number of retry attempts for failed requests. */
-    public function retries(?int $retries): self
-    {
-        $this->retries = $retries;
-        return $this;
-    }
-
-    /** Build and return an immutable Configuration instance. */
+    /**
+     * Build and return an immutable Configuration instance.
+     *
+     * @return Configuration the configured instance
+     */
     public function build(): Configuration
     {
         return new Configuration(
             baseUrl: $this->baseUrl,
             defaultHeaders: $this->defaultHeaders,
-            debug: $this->debug,
-            verifySsl: $this->verifySsl,
-            sslCaCert: $this->sslCaCert,
-            certFile: $this->certFile,
-            keyFile: $this->keyFile,
-            proxy: $this->proxy,
-            timeout: $this->timeout,
-            retries: $this->retries,
         );
     }
 }

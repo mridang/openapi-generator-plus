@@ -8,14 +8,17 @@ using System.Collections.ObjectModel;
 namespace PetstoreClient;
 
 /// <summary>
-/// Configuration for API clients.
+/// API-level configuration for generated client classes.
+///
+/// Holds the base URL and default headers that are applied to every API
+/// request. Transport-level settings (TLS, proxy, timeouts) belong in
+/// <see cref="TransportOptions"/> and are configured on the <see cref="DefaultApiClient"/>.
 ///
 /// This class is immutable. Use <see cref="CreateBuilder"/> to create instances:
 /// <code>
 /// var config = Configuration.CreateBuilder()
 ///     .BaseUrl("https://api.example.com")
 ///     .DefaultHeader("Authorization", "Bearer token")
-///     .VerifySsl(false)
 ///     .Build();
 /// </code>
 /// </summary>
@@ -25,47 +28,30 @@ public sealed class Configuration
 
     /// <summary>
     /// Base URL for all API requests.
+    /// Defaults to the first server URL from the OpenAPI specification.
     /// </summary>
     public string BaseUrl { get; }
 
     /// <summary>
-    /// Headers to include in every API request.
+    /// Default headers included in every API request.
+    /// These headers are merged after transport-level headers from
+    /// <see cref="TransportOptions"/> but before operation-specific headers
+    /// and authentication headers.
     /// </summary>
     public IReadOnlyDictionary<string, string> DefaultHeaders { get; }
-
-    /// <summary>
-    /// Enable SSL/TLS certificate verification.
-    /// </summary>
-    public bool VerifySsl { get; }
-
-    /// <summary>
-    /// Path to a custom CA certificate file for SSL verification.
-    /// </summary>
-    public string? SslCaCert { get; }
-
-    /// <summary>
-    /// HTTP proxy URL (e.g. "http://proxy:3128").
-    /// </summary>
-    public string? Proxy { get; }
 
     /// <summary>
     /// Creates a new Configuration with the specified values.
     /// </summary>
     public Configuration(
         string baseUrl = "/api/v3",
-        Dictionary<string, string>? defaultHeaders = null,
-        bool verifySsl = true,
-        string? sslCaCert = null,
-        string? proxy = null
+        Dictionary<string, string>? defaultHeaders = null
     )
     {
         BaseUrl = baseUrl;
         DefaultHeaders = new ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(defaultHeaders ?? [])
         );
-        VerifySsl = verifySsl;
-        SslCaCert = sslCaCert;
-        Proxy = proxy;
     }
 
     /// <summary>
@@ -78,6 +64,8 @@ public sealed class Configuration
 
     /// <summary>
     /// Return the default configuration instance.
+    /// If no default has been set, a new instance is created with the
+    /// spec-defined base URL and no default headers.
     /// </summary>
     public static Configuration Default
     {
@@ -97,11 +85,10 @@ public sealed class ConfigurationBuilder
 {
     private string _baseUrl = "/api/v3";
     private readonly Dictionary<string, string> _defaultHeaders = [];
-    private bool _verifySsl = true;
-    private string? _sslCaCert;
-    private string? _proxy;
 
     /// <summary>Set the base URL for all API requests.</summary>
+    /// <param name="baseUrl">The base URL.</param>
+    /// <returns>This builder.</returns>
     public ConfigurationBuilder BaseUrl(string baseUrl)
     {
         _baseUrl = baseUrl;
@@ -109,13 +96,18 @@ public sealed class ConfigurationBuilder
     }
 
     /// <summary>Add a default header to include in every API request.</summary>
+    /// <param name="name">Header name.</param>
+    /// <param name="value">Header value.</param>
+    /// <returns>This builder.</returns>
     public ConfigurationBuilder DefaultHeader(string name, string value)
     {
         _defaultHeaders[name] = value;
         return this;
     }
 
-    /// <summary>Set all default headers to include in every API request.</summary>
+    /// <summary>Add multiple default headers to include in every API request.</summary>
+    /// <param name="headers">Map of header names to values.</param>
+    /// <returns>This builder.</returns>
     public ConfigurationBuilder DefaultHeaders(IEnumerable<KeyValuePair<string, string>> headers)
     {
         ArgumentNullException.ThrowIfNull(headers);
@@ -126,36 +118,13 @@ public sealed class ConfigurationBuilder
         return this;
     }
 
-    /// <summary>Enable or disable SSL/TLS certificate verification.</summary>
-    public ConfigurationBuilder VerifySsl(bool verifySsl)
-    {
-        _verifySsl = verifySsl;
-        return this;
-    }
-
-    /// <summary>Set the path to a CA certificate file for SSL/TLS verification.</summary>
-    public ConfigurationBuilder SslCaCert(string? sslCaCert)
-    {
-        _sslCaCert = sslCaCert;
-        return this;
-    }
-
-    /// <summary>Set the proxy URL for all API requests.</summary>
-    public ConfigurationBuilder Proxy(string? proxy)
-    {
-        _proxy = proxy;
-        return this;
-    }
-
     /// <summary>Build and return an immutable Configuration instance.</summary>
+    /// <returns>The configured instance.</returns>
     public Configuration Build()
     {
         return new Configuration(
             baseUrl: _baseUrl,
-            defaultHeaders: new Dictionary<string, string>(_defaultHeaders),
-            verifySsl: _verifySsl,
-            sslCaCert: _sslCaCert,
-            proxy: _proxy
+            defaultHeaders: new Dictionary<string, string>(_defaultHeaders)
         );
     }
 }

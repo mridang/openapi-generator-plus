@@ -1,6 +1,6 @@
 import type { ApiClient } from './api-client.js';
 import type { ApiResponse } from './api-response.js';
-import type { Configuration } from './configuration.js';
+import { TransportOptions } from './transport-options.js';
 import * as crypto from 'node:crypto';
 import * as https from 'node:https';
 import * as http from 'node:http';
@@ -9,25 +9,64 @@ import * as zlib from 'node:zlib';
 import { promisify } from 'node:util';
 
 /**
- * Default implementation of ApiClient using the Fetch API.
+ * Default implementation of {@link ApiClient} using Node.js http/https modules.
  *
- * When a Configuration with proxy or TLS settings is provided,
- * falls back to Node.js http/https modules for full control.
+ * Applies transport-level settings from {@link TransportOptions}: TLS
+ * verification, custom CA certificates, proxy routing, timeouts, redirect
+ * handling, User-Agent injection, X-Request-ID injection, and
+ * transport-level default headers.
+ *
+ * Header merge order (lowest to highest priority):
+ * 1. {@link TransportOptions.defaultHeaders} -- transport-level defaults
+ * 2. Caller-provided headers (from BaseApi -- includes config defaults, auth, operation headers)
+ * 3. {@link TransportOptions.userAgent} -- injected if not already set
+ * 4. {@link TransportOptions.injectRequestId} -- injected if not already set
  */
 export class DefaultApiClient implements ApiClient {
-  private readonly config?: Configuration;
+  private readonly transportOptions: TransportOptions;
   private readonly agent?: https.Agent;
 
-  constructor(config?: Configuration) {
-    this.config = config;
-    if (config && (config.sslCaCert != null || !config.verifySsl)) {
+  /**
+   * Create a client with default transport settings.
+   *
+   * Equivalent to `new DefaultApiClient(TransportOptions.builder().build())`.
+   */
+  constructor();
+
+  /**
+   * Create a client configured from the given {@link TransportOptions}.
+   *
+   * Applies proxy, custom CA certificate, TLS verification, timeout,
+   * and redirect settings to the underlying HTTP agent.
+   *
+   * @param transportOptions transport configuration to apply
+   */
+  constructor(transportOptions: TransportOptions);
+
+  constructor(transportOptions?: TransportOptions) {
+    this.transportOptions = transportOptions ?? TransportOptions.builder().build();
+
+    if (this.transportOptions.caCertPath != null || !this.transportOptions.verifySsl) {
       this.agent = new https.Agent({
-        ca: config.sslCaCert ? fs.readFileSync(config.sslCaCert) : undefined,
-        rejectUnauthorized: config.verifySsl
+        ca: this.transportOptions.caCertPath ? fs.readFileSync(this.transportOptions.caCertPath) : undefined,
+        rejectUnauthorized: this.transportOptions.verifySsl
       });
     }
   }
 
+  /**
+   * Send an HTTP request and return the response.
+   *
+   * Merges transport-level default headers, applies User-Agent and
+   * X-Request-ID injection, handles proxy routing, TLS, timeouts,
+   * and redirect following.
+   *
+   * @param method HTTP method (GET, POST, PUT, DELETE, etc.)
+   * @param url fully qualified URL
+   * @param headers HTTP headers from the caller
+   * @param body request body (serialized JSON string, raw Buffer, or null)
+   * @returns ApiResponse containing status code, body, and headers
+   */
   async sendRequest(
     method: string,
     url: string,
@@ -38,18 +77,30 @@ export class DefaultApiClient implements ApiClient {
       body = Buffer.from(await body.arrayBuffer());
     }
 
-    headers['Accept-Encoding'] ??= DefaultApiClient.supportedEncodings();
+    const mergedHeaders: Record<string, string> = {
+      ...this.transportOptions.defaultHeaders,
+      ...headers
+    };
+
+    if (this.transportOptions.userAgent != null && !mergedHeaders['User-Agent']) {
+      mergedHeaders['User-Agent'] = this.transportOptions.userAgent;
+    }
+    if (this.transportOptions.injectRequestId && !mergedHeaders['X-Request-ID']) {
+      mergedHeaders['X-Request-ID'] = crypto.randomUUID();
+    }
+
+    mergedHeaders['Accept-Encoding'] ??= DefaultApiClient.supportedEncodings();
 
     if (body != null && typeof body === 'object' && !Buffer.isBuffer(body)) {
       const boundary = crypto.randomUUID();
-      headers['Content-Type'] = `multipart/form-data; boundary=${boundary}`;
+      mergedHeaders['Content-Type'] = `multipart/form-data; boundary=${boundary}`;
       body = await this.buildMultipartBody(body as Record<string, unknown>, boundary);
     }
 
-    if (this.config?.proxy || this.agent) {
-      return this.sendWithNodeHttp(method, url, headers, body);
+    if (this.transportOptions.proxy || this.agent) {
+      return this.sendWithNodeHttp(method, url, mergedHeaders, body, 0);
     }
-    return this.sendWithFetch(method, url, headers, body);
+    return this.sendWithFetch(method, url, mergedHeaders, body);
   }
 
   private async sendWithFetch(
@@ -58,11 +109,18 @@ export class DefaultApiClient implements ApiClient {
     headers: Record<string, string>,
     body: string | Buffer | null
   ): Promise<ApiResponse> {
-    const response = await fetch(url, {
+    const fetchOptions: RequestInit = {
       method,
       headers,
-      body: body ?? undefined
-    });
+      body: body ?? undefined,
+      redirect: this.transportOptions.followRedirects ? 'follow' : 'manual'
+    };
+
+    if (this.transportOptions.timeout != null) {
+      fetchOptions.signal = AbortSignal.timeout(this.transportOptions.timeout);
+    }
+
+    const response = await fetch(url, fetchOptions);
 
     const responseBody = await response.text();
     const responseHeaders: Record<string, string> = {};
@@ -81,7 +139,8 @@ export class DefaultApiClient implements ApiClient {
     method: string,
     url: string,
     headers: Record<string, string>,
-    body: string | Buffer | null
+    body: string | Buffer | null,
+    redirectCount: number
   ): Promise<ApiResponse> {
     return new Promise((resolve, reject) => {
       const parsed = new URL(url);
@@ -89,8 +148,8 @@ export class DefaultApiClient implements ApiClient {
 
       let requestOptions: http.RequestOptions;
 
-      if (this.config?.proxy) {
-        const proxyUrl = new URL(this.config.proxy);
+      if (this.transportOptions.proxy) {
+        const proxyUrl = new URL(this.transportOptions.proxy);
         if (isHttps) {
           const connectReq = http.request({
             host: proxyUrl.hostname,
@@ -107,10 +166,18 @@ export class DefaultApiClient implements ApiClient {
               method,
               headers,
               createConnection: () => socket,
-              agent: this.agent ?? new https.Agent({ rejectUnauthorized: this.config?.verifySsl ?? true })
+              agent: this.agent ?? new https.Agent({ rejectUnauthorized: this.transportOptions.verifySsl })
             };
-            const req = https.request(tlsOptions, (res) => this.collectResponse(res, resolve));
+            if (this.transportOptions.timeout != null) {
+              tlsOptions.timeout = this.transportOptions.timeout;
+            }
+            const req = https.request(tlsOptions, (res) =>
+              this.handleResponse(res, url, method, headers, body, redirectCount, resolve, reject)
+            );
             req.on('error', reject);
+            req.on('timeout', () => {
+              req.destroy(new Error('Request timed out'));
+            });
             if (body) req.write(body);
             req.end();
           });
@@ -138,12 +205,62 @@ export class DefaultApiClient implements ApiClient {
         };
       }
 
-      const transport = this.config?.proxy || !isHttps ? http : https;
-      const req = transport.request(requestOptions, (res) => this.collectResponse(res, resolve));
+      if (this.transportOptions.timeout != null) {
+        requestOptions.timeout = this.transportOptions.timeout;
+      }
+
+      const transport = this.transportOptions.proxy || !isHttps ? http : https;
+      const req = transport.request(requestOptions, (res) =>
+        this.handleResponse(res, url, method, headers, body, redirectCount, resolve, reject)
+      );
       req.on('error', reject);
+      req.on('timeout', () => {
+        req.destroy(new Error('Request timed out'));
+      });
       if (body) req.write(body);
       req.end();
     });
+  }
+
+  /**
+   * Handle an incoming HTTP response, following redirects when configured.
+   *
+   * @param res the incoming HTTP response
+   * @param originalUrl the URL of the request that produced this response
+   * @param method the original HTTP method
+   * @param headers the original request headers
+   * @param body the original request body
+   * @param redirectCount number of redirects already followed
+   * @param resolve promise resolve callback
+   * @param reject promise reject callback
+   */
+  private handleResponse(
+    res: http.IncomingMessage,
+    originalUrl: string,
+    method: string,
+    headers: Record<string, string>,
+    body: string | Buffer | null,
+    redirectCount: number,
+    resolve: (value: ApiResponse) => void,
+    reject: (reason: unknown) => void
+  ): void {
+    const statusCode = res.statusCode ?? 0;
+    const isRedirect = statusCode >= 300 && statusCode < 400 && res.headers.location != null;
+
+    if (isRedirect && this.transportOptions.followRedirects) {
+      const max = this.transportOptions.maxRedirects ?? 10;
+      if (redirectCount >= max) {
+        reject(new Error(`Maximum number of redirects (${max}) exceeded`));
+        res.resume();
+        return;
+      }
+      const redirectUrl = new URL(res.headers.location!, originalUrl);
+      res.resume();
+      this.sendWithNodeHttp(method, redirectUrl.href, headers, body, redirectCount + 1).then(resolve, reject);
+      return;
+    }
+
+    this.collectResponse(res, resolve);
   }
 
   private collectResponse(res: http.IncomingMessage, resolve: (value: ApiResponse) => void): void {
@@ -171,6 +288,11 @@ export class DefaultApiClient implements ApiClient {
     });
   }
 
+  /**
+   * Returns the list of supported content encodings for Accept-Encoding.
+   *
+   * @returns comma-separated encoding names
+   */
   static supportedEncodings(): string {
     const encodings = ['gzip', 'deflate', 'br'];
     if ('zstdDecompress' in zlib) {
@@ -179,6 +301,15 @@ export class DefaultApiClient implements ApiClient {
     return encodings.join(', ');
   }
 
+  /**
+   * Decompress response body bytes based on the Content-Encoding header value.
+   *
+   * Supports gzip, deflate, brotli, and zstd (when available).
+   *
+   * @param data the raw response bytes
+   * @param encoding the Content-Encoding header value
+   * @returns the decompressed body as a Buffer
+   */
   private async decompressBody(data: Buffer, encoding: string): Promise<Buffer> {
     if (data.length === 0) return data;
     switch (encoding) {
@@ -201,6 +332,13 @@ export class DefaultApiClient implements ApiClient {
     }
   }
 
+  /**
+   * Build a multipart/form-data request body from a map of form fields.
+   *
+   * @param formParts the form field names and values
+   * @param boundary the multipart boundary string
+   * @returns the assembled multipart body as a Buffer
+   */
   private async buildMultipartBody(formParts: Record<string, unknown>, boundary: string): Promise<Buffer> {
     const parts: Buffer[] = [];
     for (const [name, value] of Object.entries(formParts)) {
@@ -216,6 +354,14 @@ export class DefaultApiClient implements ApiClient {
     return Buffer.concat(parts);
   }
 
+  /**
+   * Build a single multipart part.
+   *
+   * @param name the field name
+   * @param value the field value
+   * @param boundary the multipart boundary string
+   * @returns the assembled part as a Buffer
+   */
   private async multipartPart(name: string, value: unknown, boundary: string): Promise<Buffer> {
     if (Buffer.isBuffer(value)) {
       const header = `--${boundary}\r\nContent-Disposition: form-data; name="${name}"; filename="${name}"\r\nContent-Type: application/octet-stream\r\n\r\n`;

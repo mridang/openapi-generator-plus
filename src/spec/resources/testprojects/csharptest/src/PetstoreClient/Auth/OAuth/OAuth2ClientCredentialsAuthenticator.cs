@@ -4,8 +4,14 @@ namespace PetstoreClient.Auth.OAuth;
 
 /// <summary>
 /// Authenticator for the OAuth2 Client Credentials flow.
+///
+/// Implements <see cref="IHttpAwareAuthenticator"/> so that token exchange requests
+/// use the shared <see cref="IApiClient"/> with the same transport configuration
+/// (proxy, TLS, timeouts) as regular API calls.
 /// </summary>
-public sealed class OAuth2ClientCredentialsAuthenticator : BaseAuthenticator
+public sealed class OAuth2ClientCredentialsAuthenticator
+    : BaseAuthenticator,
+        IHttpAwareAuthenticator
 {
     private readonly string _host;
     private readonly string _clientId;
@@ -14,6 +20,14 @@ public sealed class OAuth2ClientCredentialsAuthenticator : BaseAuthenticator
     private readonly string[] _scopes;
     private readonly OAuth2TokenManager _tokenManager = new();
 
+    /// <summary>
+    /// Create a new client credentials authenticator.
+    /// </summary>
+    /// <param name="host">API base URL.</param>
+    /// <param name="clientId">OAuth2 client ID.</param>
+    /// <param name="clientSecret">OAuth2 client secret.</param>
+    /// <param name="tokenUrl">Token endpoint URL.</param>
+    /// <param name="scopes">Requested scopes.</param>
     public OAuth2ClientCredentialsAuthenticator(
         string host,
         string clientId,
@@ -27,6 +41,12 @@ public sealed class OAuth2ClientCredentialsAuthenticator : BaseAuthenticator
         _clientSecret = clientSecret;
         _tokenUrl = tokenUrl;
         _scopes = [.. scopes];
+    }
+
+    /// <inheritdoc/>
+    public void SetApiClient(IApiClient apiClient)
+    {
+        _tokenManager.SetApiClient(apiClient);
     }
 
     /// <inheritdoc/>

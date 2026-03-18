@@ -47,7 +47,7 @@ class BaseApi
         ?Configuration $config = null
     ) {
         $this->config = $config ?: Configuration::getDefaultConfiguration();
-        $this->apiClient = $apiClient ?: new DefaultApiClient($this->config);
+        $this->apiClient = $apiClient ?: new DefaultApiClient();
         $this->headerSelector = new HeaderSelector();
     }
 

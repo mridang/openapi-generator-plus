@@ -1,34 +1,62 @@
 package {{invokerPackage}}.auth.oauth;
 
+import {{invokerPackage}}.ApiClient;
+import {{invokerPackage}}.ApiException;
+import {{invokerPackage}}.ApiResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.net.URI;
 import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.StringJoiner;
 import javax.annotation.Nullable;
 
 /**
  * Manages OAuth2 token lifecycle including fetching, caching, and refreshing tokens.
+ *
+ * <p>Uses the shared {@link ApiClient} instance so that token exchange requests
+ * honour the same transport configuration (proxy, TLS, timeouts) as regular
+ * API calls.
  */
 public class OAuth2TokenManager {
 
-    private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
-    @Nullable private String accessToken;
-    @Nullable private Instant tokenExpiry;
+    @Nullable private ApiClient apiClient;
+    @Nullable private String    accessToken;
+    @Nullable private Instant   tokenExpiry;
 
+    /**
+     * Create a new token manager.
+     *
+     * <p>The {@link ApiClient} must be injected via {@link #setApiClient(ApiClient)}
+     * before any token requests are made.
+     */
     public OAuth2TokenManager() {
-        this.httpClient = HttpClient.newHttpClient();
         this.objectMapper = new ObjectMapper();
     }
 
+    /**
+     * Inject the shared API client for making token requests.
+     *
+     * @param apiClient the shared API client instance
+     */
+    public void setApiClient(ApiClient apiClient) {
+        this.apiClient = apiClient;
+    }
+
+    /**
+     * Get a valid access token, fetching or refreshing as necessary.
+     *
+     * <p>This method is synchronized to prevent concurrent token requests.
+     *
+     * @param tokenUrl the OAuth2 token endpoint URL
+     * @param params   the token request parameters (grant_type, client_id, etc.)
+     * @return a valid access token
+     * @throws IllegalStateException if no API client has been injected or token fetch fails
+     */
     public synchronized String getAccessToken(String tokenUrl, Map<String, String> params) {
         if (accessToken != null && tokenExpiry != null && Instant.now().isBefore(tokenExpiry)) {
             return accessToken;
@@ -40,26 +68,36 @@ public class OAuth2TokenManager {
         return accessToken;
     }
 
+    /**
+     * Manually set an access token, bypassing the token endpoint.
+     *
+     * @param token the access token to use
+     */
     public synchronized void setAccessToken(String token) {
         this.accessToken = token;
         this.tokenExpiry = null;
     }
 
     private void fetchToken(String tokenUrl, Map<String, String> params) {
+        if (apiClient == null) {
+            throw new IllegalStateException(
+                    "ApiClient has not been injected. "
+                            + "Ensure the Client constructor calls setApiClient() "
+                            + "on HttpAwareAuthenticator before making API requests.");
+        }
+
         StringJoiner body = new StringJoiner("&");
         for (Map.Entry<String, String> entry : params.entrySet()) {
             body.add(URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8) + "="
                     + URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8));
         }
 
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(tokenUrl))
-                .header("Content-Type", "application/x-www-form-urlencoded")
-                .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
-                .build();
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Content-Type", "application/x-www-form-urlencoded");
 
         try {
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            ApiResponse response = apiClient.sendRequest(
+                    "POST", tokenUrl, headers, body.toString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new RuntimeException("Token request failed with status " + response.statusCode()
                         + ": " + response.body());
@@ -70,7 +108,7 @@ public class OAuth2TokenManager {
                 long expiresIn = json.get("expires_in").asLong();
                 this.tokenExpiry = Instant.now().plusSeconds(expiresIn - 30);
             }
-        } catch (IOException | InterruptedException e) {
+        } catch (ApiException | IOException e) {
             throw new RuntimeException("Failed to fetch OAuth2 token", e);
         }
     }

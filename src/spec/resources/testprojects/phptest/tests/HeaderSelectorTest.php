@@ -1,35 +1,12 @@
 <?php
-/**
- * HeaderSelectorTest
- * PHP version 8.1
- *
- * @category Class
- * @package  PetstoreClient
- * @author   OpenAPI Generator team
- * @link     https://openapi-generator.tech
- */
 
-/**
- * Swagger Petstore - OpenAPI 3.0
- *
- * Unit tests for HeaderSelector.
- *
- * These tests verify RFC 9110 compliant content negotiation with quality weights.
- */
+declare(strict_types=1);
 
 namespace PetstoreClient\Tests;
 
 use PHPUnit\Framework\TestCase;
 use PetstoreClient\HeaderSelector;
 
-/**
- * HeaderSelectorTest Class
- *
- * @category Class
- * @package  PetstoreClient
- * @author   OpenAPI Generator team
- * @link     https://openapi-generator.tech
- */
 class HeaderSelectorTest extends TestCase
 {
     private HeaderSelector $headerSelector;

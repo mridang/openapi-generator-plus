@@ -75,7 +75,9 @@ module Faraday
   class Connection
     attr_accessor proxy: String?
     attr_accessor ssl: SSLOptions
+    attr_accessor options: RequestOptions
     def run_request: (Symbol, String?, String?, Hash[String, String]?) -> Response
+    def response: (Symbol, **untyped) -> void
   end
 
   class SSLOptions
@@ -83,6 +85,11 @@ module Faraday
     attr_accessor ca_file: String?
     attr_accessor client_cert: String?
     attr_accessor client_key: String?
+  end
+
+  class RequestOptions
+    attr_accessor timeout: (Integer | Float)?
+    attr_accessor open_timeout: (Integer | Float)?
   end
 
   class Response

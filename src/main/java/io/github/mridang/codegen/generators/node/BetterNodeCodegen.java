@@ -107,6 +107,13 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
         supportingFiles.add(new SupportingFile("api_response.mustache", "src", "api-response.ts"));
         supportingFiles.add(
                 new SupportingFile("configuration.mustache", "src", "configuration.ts"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "transport_options.mustache", "src", "transport-options.ts"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "server_configuration.mustache", "src", "server-configuration.ts"));
+        supportingFiles.add(new SupportingFile("servers.mustache", "src", "servers.ts"));
         supportingFiles.add(new SupportingFile("base_api.mustache", "src/api", "base-api.ts"));
         supportingFiles.add(
                 new SupportingFile(
@@ -159,6 +166,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                             "test/default-api-client-unit.test.ts",
                             "tests",
                             "default-api-client-unit.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/transport-options.test.ts",
+                            "tests",
+                            "transport-options.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/object-serializer.test.ts",
@@ -421,6 +433,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
         String oauthFolder = authFolder + File.separator + "oauth";
 
         supportingFiles.add(new SupportingFile("auth/base-authenticator.mustache", authFolder, "base-authenticator.ts"));
+        supportingFiles.add(new SupportingFile("auth/http_aware_authenticator.mustache", authFolder, "http-aware-authenticator.ts"));
 
         if (hasBasicAuth) {
             supportingFiles.add(new SupportingFile("auth/basic_authenticator.mustache", authFolder, "basic-authenticator.ts"));

@@ -9,46 +9,58 @@ namespace PetstoreClient;
 
 /// <summary>
 /// Default implementation of <see cref="IApiClient"/> using HttpClient.
+///
+/// Applies transport-level settings from <see cref="TransportOptions"/>: TLS
+/// verification, custom CA certificates, proxy routing, timeouts, redirect
+/// handling, <c>User-Agent</c> injection, <c>X-Request-ID</c> injection,
+/// and transport-level default headers.
+///
+/// Header merge order (lowest to highest priority):
+/// <list type="number">
+///   <item><description><see cref="TransportOptions.DefaultHeaders"/> -- transport-level defaults</description></item>
+///   <item><description>Caller-provided headers (from <see cref="Api.BaseApi"/> -- includes config defaults, auth, operation headers)</description></item>
+///   <item><description><see cref="TransportOptions.UserAgent"/> -- injected if not already set</description></item>
+///   <item><description><see cref="TransportOptions.InjectRequestId"/> -- injected if not already set</description></item>
+/// </list>
 /// </summary>
 public sealed class DefaultApiClient : IApiClient, IDisposable
 {
     private readonly HttpClient _httpClient;
+    private readonly TransportOptions _transportOptions;
 
     /// <summary>
-    /// Create a client with default settings.
+    /// Create a client with default transport settings.
+    /// Equivalent to <c>new DefaultApiClient(TransportOptions.CreateBuilder().Build())</c>.
     /// </summary>
     public DefaultApiClient()
-    {
-        HttpClientHandler handler = new()
-        {
-            AutomaticDecompression = DecompressionMethods.All,
-            CheckCertificateRevocationList = true,
-        };
-        _httpClient = new HttpClient(handler, disposeHandler: true);
-    }
+        : this(TransportOptions.CreateBuilder().Build()) { }
 
     /// <summary>
-    /// Create a client configured from the given configuration.
+    /// Create a client configured from the given <see cref="TransportOptions"/>.
+    /// Applies proxy, custom CA certificate, TLS verification, timeout,
+    /// redirect, and max-redirect settings to the underlying HttpClient.
     /// </summary>
-    public DefaultApiClient(Configuration config)
+    /// <param name="transportOptions">Transport configuration to apply.</param>
+    public DefaultApiClient(TransportOptions transportOptions)
     {
-        ArgumentNullException.ThrowIfNull(config);
+        ArgumentNullException.ThrowIfNull(transportOptions);
+        _transportOptions = transportOptions;
 
         HttpClientHandler handler = new()
         {
-            CheckCertificateRevocationList = true,
             AutomaticDecompression = DecompressionMethods.All,
+            CheckCertificateRevocationList = true,
         };
 
-        if (!config.VerifySsl)
+        if (!transportOptions.VerifySsl)
         {
             handler.ServerCertificateCustomValidationCallback =
                 HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
         }
-        else if (config.SslCaCert != null)
+        else if (transportOptions.CaCertPath != null)
         {
             X509Certificate2Collection caCerts = [];
-            caCerts.ImportFromPemFile(config.SslCaCert);
+            caCerts.ImportFromPemFile(transportOptions.CaCertPath);
             handler.ServerCertificateCustomValidationCallback = (_, cert, _, _) =>
             {
                 if (cert == null)
@@ -64,21 +76,42 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             };
         }
 
-        if (config.Proxy != null)
+        if (transportOptions.Proxy != null)
         {
-            handler.Proxy = new WebProxy(config.Proxy);
+            handler.Proxy = new WebProxy(transportOptions.Proxy);
             handler.UseProxy = true;
         }
 
+        if (!transportOptions.FollowRedirects)
+        {
+            handler.AllowAutoRedirect = false;
+        }
+        else
+        {
+            handler.AllowAutoRedirect = true;
+            if (transportOptions.MaxRedirects.HasValue)
+            {
+                handler.MaxAutomaticRedirections = transportOptions.MaxRedirects.Value;
+            }
+        }
+
         _httpClient = new HttpClient(handler, disposeHandler: true);
+
+        if (transportOptions.Timeout.HasValue)
+        {
+            _httpClient.Timeout = TimeSpan.FromMilliseconds(transportOptions.Timeout.Value);
+        }
     }
 
     /// <summary>
     /// Create a client with a pre-configured HttpClient.
+    /// Uses default <see cref="TransportOptions"/> for header injection settings.
     /// </summary>
+    /// <param name="httpClient">The HTTP client to use.</param>
     public DefaultApiClient(HttpClient httpClient)
     {
         _httpClient = httpClient;
+        _transportOptions = TransportOptions.CreateBuilder().Build();
     }
 
     /// <inheritdoc/>
@@ -90,10 +123,27 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     )
     {
         ArgumentNullException.ThrowIfNull(headers);
+
+        Dictionary<string, string> mergedHeaders = new(_transportOptions.DefaultHeaders);
+        foreach (KeyValuePair<string, string> header in headers)
+        {
+            mergedHeaders[header.Key] = header.Value;
+        }
+
+        if (_transportOptions.UserAgent != null && !mergedHeaders.ContainsKey("User-Agent"))
+        {
+            mergedHeaders["User-Agent"] = _transportOptions.UserAgent;
+        }
+
+        if (_transportOptions.InjectRequestId && !mergedHeaders.ContainsKey("X-Request-ID"))
+        {
+            mergedHeaders["X-Request-ID"] = Guid.NewGuid().ToString();
+        }
+
         using HttpRequestMessage request = new(new HttpMethod(method), url);
 
         string? contentType = null;
-        foreach (KeyValuePair<string, string> header in headers)
+        foreach (KeyValuePair<string, string> header in mergedHeaders)
         {
             if (string.Equals(header.Key, "Content-Type", StringComparison.OrdinalIgnoreCase))
             {

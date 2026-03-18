@@ -33,6 +33,9 @@ public abstract class AbstractClientSpec extends AbstractIntegrationSpec {
     copyClasspathResource("certs/server-key.pem", tempOutputDir.resolve("certs/server-key.pem"));
     copyClasspathResource("certs/server-keystore.p12", tempOutputDir.resolve("certs/server-keystore.p12"));
     copyClasspathResource("wiremock/mappings/test.json", tempOutputDir.resolve("wiremock/mappings/test.json"));
+    copyClasspathResource("wiremock/mappings/redirect.json", tempOutputDir.resolve("wiremock/mappings/redirect.json"));
+    copyClasspathResource("wiremock/mappings/slow.json", tempOutputDir.resolve("wiremock/mappings/slow.json"));
+    copyClasspathResource("wiremock/mappings/echo-headers.json", tempOutputDir.resolve("wiremock/mappings/echo-headers.json"));
     copyClasspathResource("proxy/squid.conf", tempOutputDir.resolve("proxy/squid.conf"));
   }
 

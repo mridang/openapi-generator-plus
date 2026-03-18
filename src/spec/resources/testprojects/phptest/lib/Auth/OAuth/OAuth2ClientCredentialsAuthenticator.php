@@ -12,22 +12,49 @@
 
 namespace PetstoreClient\Auth\OAuth;
 
+use PetstoreClient\ApiClient;
 use PetstoreClient\Auth\BaseAuthenticator;
+use PetstoreClient\Auth\HttpAwareAuthenticator;
 
 /**
  * Authenticator for the OAuth2 Client Credentials flow.
+ *
+ * Implements {@see HttpAwareAuthenticator} so that token exchange requests
+ * use the shared {@see ApiClient} with the same transport configuration
+ * (proxy, TLS, timeouts) as regular API calls.
+ *
+ * @category Class
+ * @package  PetstoreClient
  */
-final class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator
+final class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator implements HttpAwareAuthenticator
 {
+    /** @var string API base URL. */
     private readonly string $host;
+
+    /** @var string OAuth2 client ID. */
     private readonly string $clientId;
+
+    /** @var string OAuth2 client secret. */
     private readonly string $clientSecret;
+
+    /** @var string Token endpoint URL. */
     private readonly string $tokenUrl;
-    /** @var string[] */
+
+    /** @var string[] Requested scopes. */
     private readonly array $scopes;
+
+    /** @var OAuth2TokenManager Token lifecycle manager. */
     private readonly OAuth2TokenManager $tokenManager;
 
-    /** @param string[] $scopes */
+    /**
+     * Create a new client credentials authenticator.
+     *
+     * @param string   $host         API base URL
+     * @param string   $clientId     OAuth2 client ID
+     * @param string   $clientSecret OAuth2 client secret
+     * @param string   $tokenUrl     token endpoint URL
+     * @param string[] $scopes       requested scopes
+     */
     public function __construct(string $host, string $clientId, string $clientSecret, string $tokenUrl, array $scopes)
     {
         $this->host = $host;
@@ -38,12 +65,32 @@ final class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator
         $this->tokenManager = new OAuth2TokenManager();
     }
 
+    /**
+     * Inject the shared API client for making token exchange requests.
+     *
+     * @param ApiClient $apiClient the shared API client instance
+     */
+    public function setApiClient(ApiClient $apiClient): void
+    {
+        $this->tokenManager->setApiClient($apiClient);
+    }
+
+    /**
+     * Returns the base URL of the API.
+     *
+     * @return string the API base URL
+     */
     public function getHost(): string
     {
         return $this->host;
     }
 
-    /** @return array<string, string> */
+    /**
+     * Returns the authentication headers with a Bearer token obtained
+     * via the client credentials flow.
+     *
+     * @return array<string, string> the authorization headers
+     */
     public function getAuthHeaders(): array
     {
         $params = [
@@ -55,6 +102,7 @@ final class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator
             $params['scope'] = implode(' ', $this->scopes);
         }
         $token = $this->tokenManager->getAccessToken($this->tokenUrl, $params);
+
         return ['Authorization' => 'Bearer ' . $token];
     }
 }

@@ -14,34 +14,65 @@ namespace PetstoreClient;
 
 use PetstoreClient\Auth\Authenticator;
 use PetstoreClient\Auth\BearerAuthenticator;
+use PetstoreClient\Auth\HttpAwareAuthenticator;
 use PetstoreClient\Api\PetApi;
 use PetstoreClient\Api\StoreApi;
 
 /**
- * Unified entry point for all API services. Takes an Authenticator
- * and exposes each API group as a typed property.
+ * Unified entry point for all API services.
+ *
+ * Takes an {@see Authenticator} and optionally {@see TransportOptions},
+ * then exposes each API group as a typed property. If the authenticator
+ * implements {@see HttpAwareAuthenticator}, the shared {@see ApiClient}
+ * is injected so that authentication HTTP calls (token exchange, discovery)
+ * use the same transport configuration as regular API calls.
+ *
+ * Usage:
+ *
+ *     // Default transport
+ *     $client = new Client($authenticator);
+ *
+ *     // Custom transport (proxy, timeouts, etc.)
+ *     $transport = TransportOptions::builder()
+ *         ->proxy('http://proxy:3128')
+ *         ->timeout(5000)
+ *         ->build();
+ *     $client = new Client($authenticator, $transport);
  *
  * @category Class
  * @package  PetstoreClient
  */
 class Client
 {
+    /** @var PetApi API operations for the PetApi group. */
     public readonly PetApi $pet;
 
+    /** @var StoreApi API operations for the StoreApi group. */
     public readonly StoreApi $store;
 
     /**
-     * Creates a new client with the given authenticator.
+     * Creates a new client with the given authenticator and transport options.
      *
-     * @param Authenticator $authenticator Provides host URL and auth headers.
+     * If the authenticator implements {@see HttpAwareAuthenticator}, the
+     * shared {@see ApiClient} is injected so that token exchange and
+     * discovery requests use the same proxy, TLS, and timeout settings.
+     *
+     * @param Authenticator       $authenticator    Provides host URL and auth headers.
+     * @param TransportOptions|null $transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
      */
-    public function __construct(Authenticator $authenticator)
+    public function __construct(Authenticator $authenticator, ?TransportOptions $transportOptions = null)
     {
+        $transportOptions ??= TransportOptions::builder()->build();
+        $apiClient = new DefaultApiClient($transportOptions);
+
+        if ($authenticator instanceof HttpAwareAuthenticator) {
+            $authenticator->setApiClient($apiClient);
+        }
+
         $config = Configuration::builder()
             ->baseUrl($authenticator->getHost())
             ->defaultHeaders($authenticator->getAuthHeaders())
             ->build();
-        $apiClient = new DefaultApiClient($config);
         $this->pet = new PetApi($apiClient, $config);
         $this->store = new StoreApi($apiClient, $config);
     }

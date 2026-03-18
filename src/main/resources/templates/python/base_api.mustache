@@ -27,8 +27,26 @@ class BaseApi:
         api_client: Optional[ApiClient] = None,
         config: Optional[Configuration] = None,
     ):
+        """Create an API instance.
+
+        When called with no arguments, uses the default configuration and
+        a default-constructed :class:`DefaultApiClient` (with default
+        transport settings).
+
+        When called with a configuration only, creates a
+        :class:`DefaultApiClient` with default transport settings.
+
+        When called with both an api_client and config, uses the provided
+        instances directly (this is the path used by :class:`Client`).
+
+        Args:
+            api_client: The HTTP transport client. If ``None``, a
+                :class:`DefaultApiClient` with default transport is created.
+            config: API-level configuration (base URL and default headers).
+                If ``None``, the default configuration is used.
+        """
         self._config = config or Configuration.get_default()
-        self._api_client = api_client or DefaultApiClient(self._config)
+        self._api_client = api_client or DefaultApiClient()
         self._object_serializer = ObjectSerializer()
         self._header_selector = HeaderSelector()
 
@@ -46,17 +64,22 @@ class BaseApi:
     ) -> Any:
         """Invoke an API operation.
 
-        :param method: HTTP method (GET, POST, PUT, DELETE, etc.)
-        :param path: URL path (with path params already substituted)
-        :param query_params: query parameters
-        :param header_params: custom header parameters
-        :param body: request body (model object or None)
-        :param accepts: acceptable response content types
-        :param content_type: request content type
-        :param return_type: return type for deserialization (None for void)
-        :param auth: optional authenticator for operation-specific auth
-        :return: deserialized response or None
-        :raises ApiException: if the API call fails
+        Args:
+            method: HTTP method (GET, POST, PUT, DELETE, etc.).
+            path: URL path (with path params already substituted).
+            query_params: Query parameters.
+            header_params: Custom header parameters.
+            body: Request body (model object or None).
+            accepts: Acceptable response content types.
+            content_type: Request content type.
+            return_type: Return type for deserialization (None for void).
+            auth: Optional authenticator for operation-specific auth.
+
+        Returns:
+            Deserialized response or None.
+
+        Raises:
+            ApiException: If the API call fails.
         """
         url = self._config.base_url + path
 

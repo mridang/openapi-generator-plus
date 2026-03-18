@@ -12,20 +12,47 @@
 
 namespace PetstoreClient\Auth\OAuth;
 
+use PetstoreClient\ApiClient;
 use PetstoreClient\Auth\BaseAuthenticator;
+use PetstoreClient\Auth\HttpAwareAuthenticator;
 
 /**
  * Authenticator for the OAuth2 Implicit flow.
+ *
+ * Implements {@see HttpAwareAuthenticator} so that any token refresh
+ * requests use the shared {@see ApiClient} with the same transport
+ * configuration (proxy, TLS, timeouts) as regular API calls.
+ *
+ * Usage:
+ * 1. Call buildAuthorizationUrl() to get the authorization URL
+ * 2. Redirect the user to that URL
+ * 3. Extract the access token from the fragment and call setAccessToken()
+ * 4. Use the authenticator normally
+ *
+ * @category Class
+ * @package  PetstoreClient
  */
-final class OAuth2ImplicitAuthenticator extends BaseAuthenticator
+final class OAuth2ImplicitAuthenticator extends BaseAuthenticator implements HttpAwareAuthenticator
 {
+    /** @var string API base URL. */
     private readonly string $host;
+
+    /** @var string Authorization endpoint URL. */
     private readonly string $authorizationUrl;
-    /** @var string[] */
+
+    /** @var string[] Requested scopes. */
     private readonly array $scopes;
+
+    /** @var string|null The current access token. */
     private ?string $accessToken = null;
 
-    /** @param string[] $scopes */
+    /**
+     * Create a new implicit flow authenticator.
+     *
+     * @param string   $host             API base URL
+     * @param string   $authorizationUrl authorization endpoint URL
+     * @param string[] $scopes           requested scopes
+     */
     public function __construct(string $host, string $authorizationUrl, array $scopes)
     {
         $this->host = $host;
@@ -33,6 +60,24 @@ final class OAuth2ImplicitAuthenticator extends BaseAuthenticator
         $this->scopes = $scopes;
     }
 
+    /**
+     * Inject the shared API client for making HTTP requests.
+     *
+     * Implicit flow does not make token exchange requests,
+     * but implements the interface for consistency.
+     *
+     * @param ApiClient $apiClient the shared API client instance
+     */
+    public function setApiClient(ApiClient $apiClient): void
+    {
+    }
+
+    /**
+     * Build the authorization URL to redirect the user to.
+     *
+     * @param string|null $state optional CSRF state parameter
+     * @return string the authorization URL
+     */
     public function buildAuthorizationUrl(?string $state = null): string
     {
         $params = ['response_type' => 'token'];
@@ -42,25 +87,43 @@ final class OAuth2ImplicitAuthenticator extends BaseAuthenticator
         if ($state !== null) {
             $params['state'] = $state;
         }
+
         return $this->authorizationUrl . '?' . http_build_query($params);
     }
 
+    /**
+     * Set the access token obtained from the authorization redirect fragment.
+     *
+     * @param string $token the access token
+     */
     public function setAccessToken(string $token): void
     {
         $this->accessToken = $token;
     }
 
+    /**
+     * Returns the base URL of the API.
+     *
+     * @return string the API base URL
+     */
     public function getHost(): string
     {
         return $this->host;
     }
 
-    /** @return array<string, string> */
+    /**
+     * Returns the authentication headers with the manually set Bearer token.
+     *
+     * @return array<string, string> the authorization headers
+     *
+     * @throws \RuntimeException if setAccessToken() has not been called
+     */
     public function getAuthHeaders(): array
     {
         if ($this->accessToken === null) {
             throw new \RuntimeException('Must call setAccessToken() before making API requests');
         }
+
         return ['Authorization' => 'Bearer ' . $this->accessToken];
     }
 }

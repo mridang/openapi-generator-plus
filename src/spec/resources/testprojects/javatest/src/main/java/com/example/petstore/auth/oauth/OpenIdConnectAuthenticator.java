@@ -1,22 +1,28 @@
 package com.example.petstore.auth.oauth;
 
-import com.example.petstore.auth.Authenticator;
+import com.example.petstore.ApiClient;
+import com.example.petstore.ApiException;
+import com.example.petstore.ApiResponse;
+import com.example.petstore.auth.HttpAwareAuthenticator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
- * Authenticator for OpenID Connect. Fetches the discovery document and delegates to an OAuth2
- * Authorization Code authenticator.
+ * Authenticator for OpenID Connect.
+ *
+ * <p>Fetches the OIDC discovery document to discover the authorization and token endpoints, then
+ * delegates to an {@link OAuth2AuthorizationCodeAuthenticator}.
+ *
+ * <p>Implements {@link HttpAwareAuthenticator} so that both the discovery request and subsequent
+ * token exchange requests use the shared {@link ApiClient} with the same transport configuration
+ * (proxy, TLS, timeouts) as regular API calls.
  */
-public class OpenIdConnectAuthenticator implements Authenticator {
+public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
 
   private final String host;
   private final String openIdConnectUrl;
@@ -24,8 +30,19 @@ public class OpenIdConnectAuthenticator implements Authenticator {
   private final String clientSecret;
   private final String redirectUri;
   private final List<String> scopes;
+  @Nullable private ApiClient apiClient;
   @Nullable private OAuth2AuthorizationCodeAuthenticator delegate;
 
+  /**
+   * Create a new OpenID Connect authenticator.
+   *
+   * @param host API base URL
+   * @param openIdConnectUrl OIDC discovery document URL
+   * @param clientId OAuth2 client ID
+   * @param clientSecret OAuth2 client secret
+   * @param redirectUri redirect URI registered with the provider
+   * @param scopes requested scopes
+   */
   public OpenIdConnectAuthenticator(
       String host,
       String openIdConnectUrl,
@@ -41,14 +58,23 @@ public class OpenIdConnectAuthenticator implements Authenticator {
     this.scopes = List.copyOf(scopes);
   }
 
+  @Override
+  public synchronized void setApiClient(ApiClient apiClient) {
+    this.apiClient = apiClient;
+  }
+
   private synchronized OAuth2AuthorizationCodeAuthenticator getDelegate() {
     if (delegate == null) {
+      if (apiClient == null) {
+        throw new IllegalStateException(
+            "ApiClient has not been injected. "
+                + "Ensure the Client constructor calls setApiClient() "
+                + "on HttpAwareAuthenticator before making API requests.");
+      }
       try {
-        HttpClient httpClient = HttpClient.newHttpClient();
-        HttpRequest request =
-            HttpRequest.newBuilder().uri(URI.create(openIdConnectUrl)).GET().build();
-        HttpResponse<String> response =
-            httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Accept", "application/json");
+        ApiResponse response = apiClient.sendRequest("GET", openIdConnectUrl, headers, null);
         ObjectMapper mapper = new ObjectMapper();
         JsonNode discovery = mapper.readTree(response.body());
         String authorizationEndpoint = discovery.get("authorization_endpoint").asText();
@@ -62,17 +88,29 @@ public class OpenIdConnectAuthenticator implements Authenticator {
                 tokenEndpoint,
                 redirectUri,
                 scopes);
-      } catch (IOException | InterruptedException e) {
+        delegate.setApiClient(apiClient);
+      } catch (ApiException | IOException e) {
         throw new RuntimeException("Failed to fetch OpenID Connect discovery document", e);
       }
     }
     return delegate;
   }
 
+  /**
+   * Build the authorization URL using the discovered authorization endpoint.
+   *
+   * @param state CSRF state parameter
+   * @return the authorization URL
+   */
   public String buildAuthorizationUrl(String state) {
     return getDelegate().buildAuthorizationUrl(state);
   }
 
+  /**
+   * Exchange an authorization code for tokens using the discovered token endpoint.
+   *
+   * @param code the authorization code from the callback
+   */
   public void exchangeCode(String code) {
     getDelegate().exchangeCode(code);
   }

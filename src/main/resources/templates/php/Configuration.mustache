@@ -4,17 +4,17 @@
 namespace {{invokerPackage}};
 
 /**
- * Configuration for API clients.
+ * API-level configuration for generated client classes.
  *
- * Holds settings that apply to all API requests such as the base URL,
- * default headers, TLS options, proxy, timeout, and retry policy.
+ * Holds the base URL and default headers that are applied to every API
+ * request. Transport-level settings (TLS, proxy, timeouts) belong in
+ * {@see TransportOptions} and are configured on the {@see DefaultApiClient}.
  *
  * This class is immutable. Use {@see Configuration::builder()} to create instances:
  *
  *     $config = Configuration::builder()
  *         ->baseUrl('https://api.example.com')
  *         ->defaultHeader('Authorization', 'Bearer token')
- *         ->verifySsl(false)
  *         ->build();
  *
  * @category Class
@@ -27,26 +27,10 @@ final class Configuration
     /**
      * @param string               $baseUrl        Base URL for all API requests
      * @param array<string, string> $defaultHeaders Headers to include in every API request
-     * @param bool                 $debug          Enable debug logging
-     * @param bool                 $verifySsl      Enable SSL/TLS certificate verification
-     * @param string|null          $sslCaCert      Path to a CA certificate file
-     * @param string|null          $certFile       Path to a client certificate file
-     * @param string|null          $keyFile        Path to a client private key file
-     * @param string|null          $proxy          Proxy URL for all API requests
-     * @param int|null             $timeout        Request timeout in seconds
-     * @param int|null             $retries        Number of retry attempts
      */
     public function __construct(
         public readonly string $baseUrl = '{{{basePath}}}',
         public readonly array $defaultHeaders = [],
-        public readonly bool $debug = false,
-        public readonly bool $verifySsl = true,
-        public readonly ?string $sslCaCert = null,
-        public readonly ?string $certFile = null,
-        public readonly ?string $keyFile = null,
-        public readonly ?string $proxy = null,
-        public readonly ?int $timeout = null,
-        public readonly ?int $retries = null,
     ) {
     }
 

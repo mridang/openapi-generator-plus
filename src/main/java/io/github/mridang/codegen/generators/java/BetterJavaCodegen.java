@@ -156,6 +156,19 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 new SupportingFile("configuration.mustache", invokerFolder, "Configuration.java"));
         supportingFiles.add(
                 new SupportingFile(
+                        "transport_options.mustache", invokerFolder, "TransportOptions.java"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "server_configuration.mustache",
+                        invokerFolder,
+                        "ServerConfiguration.java"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "server_variable.mustache", invokerFolder, "ServerVariable.java"));
+        supportingFiles.add(
+                new SupportingFile("servers.mustache", invokerFolder, "Servers.java"));
+        supportingFiles.add(
+                new SupportingFile(
                         "object_serializer.mustache", invokerFolder, "ObjectSerializer.java"));
         supportingFiles.add(
                 new SupportingFile(
@@ -169,6 +182,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                         "authenticator.mustache",
                         invokerFolder + File.separator + "auth",
                         "Authenticator.java"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "auth/http_aware_authenticator.mustache",
+                        invokerFolder + File.separator + "auth",
+                        "HttpAwareAuthenticator.java"));
         supportingFiles.add(
                 new SupportingFile("client.mustache", invokerFolder, "Client.java"));
         supportingFiles.add(
@@ -197,6 +215,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "test/DefaultApiClientUnitTest.mustache",
                             testFolder,
                             "DefaultApiClientUnitTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/TransportOptionsTest.mustache",
+                            testFolder,
+                            "TransportOptionsTest.java"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/HeaderSelectorTest.mustache",

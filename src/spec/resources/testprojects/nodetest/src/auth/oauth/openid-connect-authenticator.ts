@@ -1,19 +1,38 @@
-import { BaseAuthenticator } from '../base-authenticator.js';
+import type { ApiClient } from '../../api-client.js';
+import type { HttpAwareAuthenticator } from '../http-aware-authenticator.js';
 import { OAuth2AuthorizationCodeAuthenticator } from './oauth2-auth-code-authenticator.js';
 
 /**
- * Authenticator for OpenID Connect. Fetches the discovery document and
- * delegates to an OAuth2 Authorization Code authenticator.
+ * Authenticator for OpenID Connect.
+ *
+ * Fetches the OIDC discovery document to discover the authorization and
+ * token endpoints, then delegates to an {@link OAuth2AuthorizationCodeAuthenticator}.
+ *
+ * Implements {@link HttpAwareAuthenticator} so that both the discovery
+ * request and subsequent token exchange requests use the shared
+ * {@link ApiClient} with the same transport configuration (proxy, TLS,
+ * timeouts) as regular API calls.
  */
-export class OpenIdConnectAuthenticator extends BaseAuthenticator {
+export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
   private readonly host: string;
   private readonly openIdConnectUrl: string;
   private readonly clientId: string;
   private readonly clientSecret: string;
   private readonly redirectUri: string;
   private readonly scopes: readonly string[];
+  private apiClient: ApiClient | null = null;
   private delegate: OAuth2AuthorizationCodeAuthenticator | null = null;
 
+  /**
+   * Create a new OpenID Connect authenticator.
+   *
+   * @param host API base URL
+   * @param openIdConnectUrl OIDC discovery document URL
+   * @param clientId OAuth2 client ID
+   * @param clientSecret OAuth2 client secret
+   * @param redirectUri redirect URI registered with the provider
+   * @param scopes requested scopes
+   */
   constructor(
     host: string,
     openIdConnectUrl: string,
@@ -22,7 +41,6 @@ export class OpenIdConnectAuthenticator extends BaseAuthenticator {
     redirectUri: string,
     scopes: string[]
   ) {
-    super();
     this.host = host;
     this.openIdConnectUrl = openIdConnectUrl;
     this.clientId = clientId;
@@ -31,10 +49,40 @@ export class OpenIdConnectAuthenticator extends BaseAuthenticator {
     this.scopes = Object.freeze([...scopes]);
   }
 
+  /**
+   * Inject the shared API client for making HTTP requests.
+   *
+   * Used for fetching the discovery document and for token exchange
+   * via the delegate authenticator.
+   *
+   * @param apiClient the shared API client instance
+   */
+  setApiClient(apiClient: ApiClient): void {
+    this.apiClient = apiClient;
+  }
+
+  /**
+   * Fetch the OIDC discovery document and create the delegate authenticator.
+   *
+   * @returns the delegate authorization code authenticator
+   * @throws Error if the API client has not been injected
+   */
   private async getDelegate(): Promise<OAuth2AuthorizationCodeAuthenticator> {
     if (!this.delegate) {
-      const response = await fetch(this.openIdConnectUrl);
-      const discovery = (await response.json()) as Record<string, unknown>;
+      if (this.apiClient == null) {
+        throw new Error(
+          'ApiClient has not been injected. ' +
+            'Ensure the Client constructor calls setApiClient() ' +
+            'on HttpAwareAuthenticator before making API requests.'
+        );
+      }
+      const response = await this.apiClient.sendRequest(
+        'GET',
+        this.openIdConnectUrl,
+        { Accept: 'application/json' },
+        null
+      );
+      const discovery = JSON.parse(response.body) as Record<string, unknown>;
       this.delegate = new OAuth2AuthorizationCodeAuthenticator(
         this.host,
         this.clientId,
@@ -44,30 +92,77 @@ export class OpenIdConnectAuthenticator extends BaseAuthenticator {
         this.redirectUri,
         [...this.scopes]
       );
+      this.delegate.setApiClient(this.apiClient);
     }
     return this.delegate;
   }
 
+  /**
+   * Build the authorization URL using the discovered authorization endpoint.
+   *
+   * @param state optional CSRF state parameter
+   * @returns the authorization URL
+   */
   async buildAuthorizationUrl(state?: string): Promise<string> {
     const delegate = await this.getDelegate();
     return delegate.buildAuthorizationUrl(state);
   }
 
+  /**
+   * Exchange an authorization code for tokens using the discovered token endpoint.
+   *
+   * @param code the authorization code from the callback
+   */
   async exchangeCode(code: string): Promise<void> {
     const delegate = await this.getDelegate();
     await delegate.exchangeCode(code);
   }
 
+  /**
+   * Returns the base URL of the API.
+   *
+   * @returns the host URL
+   */
   getHost(): string {
     return this.host;
   }
 
+  /**
+   * Returns the authentication headers with a valid Bearer token.
+   *
+   * This method is synchronous and will throw. Use {@link getAuthHeadersAsync} instead.
+   *
+   * @throws Error always -- use getAuthHeadersAsync() instead
+   */
   getAuthHeaders(): Record<string, string> {
     throw new Error('Use getAuthHeadersAsync() instead');
   }
 
+  /**
+   * Returns the authentication headers with a valid Bearer token.
+   *
+   * @returns a promise resolving to the authorization headers
+   */
   async getAuthHeadersAsync(): Promise<Record<string, string>> {
     const delegate = await this.getDelegate();
     return delegate.getAuthHeadersAsync();
+  }
+
+  /**
+   * Returns query parameters to include for authentication.
+   *
+   * @returns empty record (not used for OpenID Connect)
+   */
+  getQueryParams(): Record<string, string> {
+    return {};
+  }
+
+  /**
+   * Returns cookie parameters to include for authentication.
+   *
+   * @returns empty record (not used for OpenID Connect)
+   */
+  getCookieParams(): Record<string, string> {
+    return {};
   }
 }

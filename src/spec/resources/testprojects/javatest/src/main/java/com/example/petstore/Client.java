@@ -4,22 +4,64 @@ import com.example.petstore.api.PetApi;
 import com.example.petstore.api.StoreApi;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.auth.BearerAuthenticator;
+import com.example.petstore.auth.HttpAwareAuthenticator;
 
 /**
- * Unified entry point for all API services. Takes an {@link Authenticator} and exposes each API
- * group as a typed property.
+ * Unified entry point for all API services.
+ *
+ * <p>Takes an {@link Authenticator} and optionally {@link TransportOptions}, then exposes each API
+ * group as a typed property. If the authenticator implements {@link HttpAwareAuthenticator}, the
+ * shared {@link ApiClient} is injected so that authentication HTTP calls (token exchange,
+ * discovery) use the same transport configuration as regular API calls.
+ *
+ * <p>Usage:
+ *
+ * <pre>{@code
+ * // Default transport
+ * Client client = new Client(authenticator);
+ *
+ * // Custom transport (proxy, timeouts, etc.)
+ * TransportOptions transport = TransportOptions.builder()
+ *     .proxy("http://proxy:3128")
+ *     .timeout(5000)
+ *     .build();
+ * Client client = new Client(authenticator, transport);
+ * }</pre>
  */
 public final class Client {
 
+  /** API operations for the PetApi group. */
   public final PetApi pet;
+
+  /** API operations for the StoreApi group. */
   public final StoreApi store;
 
   /**
-   * Creates a new client with the given authenticator.
+   * Creates a new client with the given authenticator and default transport settings.
    *
-   * @param authenticator Provides host URL and auth headers.
+   * @param authenticator provides host URL and auth credentials
    */
   public Client(Authenticator authenticator) {
+    this(authenticator, TransportOptions.builder().build());
+  }
+
+  /**
+   * Creates a new client with the given authenticator and transport options.
+   *
+   * <p>If the authenticator implements {@link HttpAwareAuthenticator}, the shared {@link ApiClient}
+   * is injected so that token exchange and discovery requests use the same proxy, TLS, and timeout
+   * settings.
+   *
+   * @param authenticator provides host URL and auth credentials
+   * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
+   */
+  public Client(Authenticator authenticator, TransportOptions transportOptions) {
+    ApiClient apiClient = new DefaultApiClient(transportOptions);
+
+    if (authenticator instanceof HttpAwareAuthenticator httpAware) {
+      httpAware.setApiClient(apiClient);
+    }
+
     Configuration.Builder configBuilder =
         Configuration.builder()
             .baseUrl(authenticator.getHost())
@@ -28,17 +70,16 @@ public final class Client {
       configBuilder.defaultHeader("_query_" + entry.getKey(), entry.getValue());
     }
     Configuration config = configBuilder.build();
-    ApiClient apiClient = new DefaultApiClient(config);
     this.pet = new PetApi(apiClient, config);
     this.store = new StoreApi(apiClient, config);
   }
 
   /**
-   * Creates a client authenticated with a static Bearer token.
+   * Creates a client authenticated with a static Bearer token and default transport.
    *
-   * @param host API base URL.
-   * @param accessToken Bearer token.
-   * @return Configured client instance.
+   * @param host API base URL
+   * @param accessToken Bearer token
+   * @return configured client instance
    */
   public static Client withToken(String host, String accessToken) {
     return new Client(new BearerAuthenticator(host, accessToken));

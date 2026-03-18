@@ -1,0 +1,64 @@
+<?php
+
+{{>partial_header}}
+namespace {{invokerPackage}};
+
+/**
+ * Generated server configurations from the OpenAPI specification.
+ *
+ * Each constant corresponds to a server entry defined in the spec's
+ * servers array. Use these constants with Configuration::builder()
+ * to select a server:
+ *
+ *     $config = Configuration::builder()
+ *         ->baseUrl(Servers::SERVER_0->getUrl())
+ *         ->build();
+ *
+ * For servers with variables, pass overrides:
+ *
+ *     $url = Servers::SERVER_1->getUrl(['environment' => 'staging']);
+ *
+ * @category Class
+ * @package  {{invokerPackage}}
+ */
+final class Servers
+{
+{{#serverConfigs}}
+    /**
+     * Server {{serverIndex}}: {{serverUrl}}{{#serverDescription}}
+     *
+     * {{serverDescription}}{{/serverDescription}}
+     */
+    public static function server{{serverIndex}}(): ServerConfiguration
+    {
+        return new ServerConfiguration(
+            urlTemplate: '{{{serverUrl}}}',
+            description: {{#serverDescription}}'{{{serverDescription}}}'{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}},
+            variables: {{#hasVariables}}[
+{{#serverVariables}}                '{{varName}}' => new ServerVariable(
+                    defaultValue: '{{{varDefault}}}',
+                    description: {{#varDescription}}'{{{varDescription}}}'{{/varDescription}}{{^varDescription}}null{{/varDescription}},
+                    enumValues: {{#hasEnumValues}}[{{#varEnumValues}}'{{{.}}}'{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}},
+                ),
+{{/serverVariables}}            ]{{/hasVariables}}{{^hasVariables}}[]{{/hasVariables}},
+        );
+    }
+
+{{/serverConfigs}}
+    /**
+     * Return all server configurations in declaration order.
+     *
+     * @return ServerConfiguration[]
+     */
+    public static function all(): array
+    {
+        return [
+{{#serverConfigs}}            self::server{{serverIndex}}(),
+{{/serverConfigs}}        ];
+    }
+
+    /** @codeCoverageIgnore */
+    private function __construct()
+    {
+    }
+}

@@ -12,15 +12,49 @@
 
 namespace PetstoreClient\Auth\OAuth;
 
+use PetstoreClient\ApiClient;
+use PetstoreClient\ApiException;
+
 /**
  * Manages OAuth2 token lifecycle including fetching, caching, and refreshing tokens.
+ *
+ * Uses the shared {@see ApiClient} instance so that token exchange requests
+ * honour the same transport configuration (proxy, TLS, timeouts) as regular
+ * API calls.
+ *
+ * @category Class
+ * @package  PetstoreClient
  */
 final class OAuth2TokenManager
 {
+    /** @var ApiClient|null The shared API client for making token requests. */
+    private ?ApiClient $apiClient = null;
+
+    /** @var string|null The current access token. */
     private ?string $accessToken = null;
+
+    /** @var float|null The token expiry time as a Unix timestamp. */
     private ?float $tokenExpiry = null;
 
-    /** @param array<string, string> $params */
+    /**
+     * Inject the shared API client for making token requests.
+     *
+     * @param ApiClient $apiClient the shared API client instance
+     */
+    public function setApiClient(ApiClient $apiClient): void
+    {
+        $this->apiClient = $apiClient;
+    }
+
+    /**
+     * Get a valid access token, fetching or refreshing as necessary.
+     *
+     * @param string               $tokenUrl the OAuth2 token endpoint URL
+     * @param array<string, string> $params   the token request parameters (grant_type, client_id, etc.)
+     * @return string a valid access token
+     *
+     * @throws \RuntimeException if no API client has been injected or token fetch fails
+     */
     public function getAccessToken(string $tokenUrl, array $params): string
     {
         if ($this->accessToken !== null && $this->tokenExpiry !== null && microtime(true) < $this->tokenExpiry) {
@@ -30,34 +64,59 @@ final class OAuth2TokenManager
         if ($this->accessToken === null) {
             throw new \RuntimeException('Failed to obtain access token');
         }
+
         return $this->accessToken;
     }
 
+    /**
+     * Manually set an access token, bypassing the token endpoint.
+     *
+     * @param string $token the access token to use
+     */
     public function setAccessToken(string $token): void
     {
         $this->accessToken = $token;
         $this->tokenExpiry = null;
     }
 
-    /** @param array<string, string> $params */
+    /**
+     * Fetch a new token from the token endpoint using the injected ApiClient.
+     *
+     * @param string               $tokenUrl the OAuth2 token endpoint URL
+     * @param array<string, string> $params   the token request parameters
+     *
+     * @throws \RuntimeException if the API client has not been injected or the request fails
+     */
     private function fetchToken(string $tokenUrl, array $params): void
     {
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'POST',
-                'header' => 'Content-Type: application/x-www-form-urlencoded',
-                'content' => http_build_query($params),
-            ],
-        ]);
-        $response = file_get_contents($tokenUrl, false, $context);
-        if ($response === false) {
-            throw new \RuntimeException('Failed to fetch OAuth2 token');
+        if (!$this->apiClient instanceof ApiClient) {
+            throw new \RuntimeException(
+                'ApiClient has not been injected. '
+                . 'Ensure the Client constructor calls setApiClient() '
+                . 'on HttpAwareAuthenticator before making API requests.'
+            );
         }
-        /** @var array{access_token: string, refresh_token?: string, expires_in?: int} $body */
-        $body = json_decode($response, true);
-        $this->accessToken = $body['access_token'];
-        if (isset($body['expires_in'])) {
-            $this->tokenExpiry = microtime(true) + (float) $body['expires_in'] - 30;
+
+        $headers = ['Content-Type' => 'application/x-www-form-urlencoded'];
+        $body = http_build_query($params);
+
+        try {
+            $response = $this->apiClient->sendRequest('POST', $tokenUrl, $headers, $body);
+            if ($response->statusCode < 200 || $response->statusCode >= 300) {
+                throw new \RuntimeException(
+                    'Token request failed with status ' . $response->statusCode
+                    . ': ' . $response->body
+                );
+            }
+
+            /** @var array{access_token: string, refresh_token?: string, expires_in?: int} $responseBody */
+            $responseBody = json_decode($response->body, true);
+            $this->accessToken = $responseBody['access_token'];
+            if (isset($responseBody['expires_in'])) {
+                $this->tokenExpiry = microtime(true) + (float) $responseBody['expires_in'] - 30;
+            }
+        } catch (ApiException $e) {
+            throw new \RuntimeException('Failed to fetch OAuth2 token', 0, $e);
         }
     }
 }

@@ -25,26 +25,52 @@ import javax.annotation.Nullable;
  */
 public abstract class BaseApi {
 
+    /** The HTTP transport client used for sending requests. */
     protected final ApiClient apiClient;
+
+    /** API-level configuration (base URL and default headers). */
     protected final Configuration config;
+
+    /** Serializer for request/response body conversion. */
     protected final ObjectSerializer objectSerializer;
+
+    /** Content negotiation logic for Accept and Content-Type headers. */
     protected final HeaderSelector headerSelector;
 
+    /**
+     * Create an API instance with the default configuration and default transport.
+     */
     public BaseApi() {
         this(Configuration.getDefault());
     }
 
+    /**
+     * Create an API instance with the given configuration and default transport.
+     *
+     * @param config API-level configuration (base URL and default headers)
+     */
     public BaseApi(Configuration config) {
-        this(new DefaultApiClient(config), config);
+        this(new DefaultApiClient(), config);
     }
 
+    /**
+     * Create an API instance with a custom API client and configuration.
+     *
+     * @param apiClient the HTTP transport client
+     * @param config    API-level configuration (base URL and default headers)
+     */
     public BaseApi(ApiClient apiClient, Configuration config) {
-        this.apiClient = apiClient;
-        this.config = config;
+        this.apiClient        = apiClient;
+        this.config           = config;
         this.objectSerializer = new ObjectSerializer();
-        this.headerSelector = new HeaderSelector();
+        this.headerSelector   = new HeaderSelector();
     }
 
+    /**
+     * Return the API-level configuration.
+     *
+     * @return the configuration
+     */
     public Configuration getConfig() {
         return config;
     }
@@ -52,16 +78,16 @@ public abstract class BaseApi {
     /**
      * Invoke an API operation.
      *
-     * @param <T> the return type
-     * @param method HTTP method (GET, POST, PUT, DELETE, etc.)
-     * @param path URL path (with path params already substituted)
+     * @param <T>         the return type
+     * @param method      HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param path        URL path (with path params already substituted)
      * @param queryParams query parameters
      * @param headerParams custom header parameters
-     * @param body request body (model object or null)
-     * @param accepts acceptable response content types
+     * @param body        request body (model object or null)
+     * @param accepts     acceptable response content types
      * @param contentType request content type
-     * @param returnType return type for deserialization (null for void)
-     * @param auth optional authenticator for operation-specific auth
+     * @param returnType  return type for deserialization (null for void)
+     * @param auth        optional authenticator for operation-specific auth
      * @return deserialized response or null
      * @throws ApiException if the API call fails
      */

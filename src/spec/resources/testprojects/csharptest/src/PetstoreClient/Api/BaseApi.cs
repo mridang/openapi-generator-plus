@@ -7,20 +7,39 @@ using PetstoreClient.Auth;
 namespace PetstoreClient.Api;
 
 /// <summary>
-/// Base class for all API classes.
+/// Base class for all API classes. Provides the <c>InvokeApiAsync</c> method that
+/// handles URL construction, header selection, body serialization, request
+/// dispatch, and response deserialization.
 /// </summary>
 public abstract class BaseApi
 {
+    /// <summary>The HTTP transport client used for sending requests.</summary>
     protected IApiClient ApiClient { get; set; }
+
+    /// <summary>API-level configuration (base URL and default headers).</summary>
     protected Configuration Config { get; }
+
+    /// <summary>Serializer for request/response body conversion.</summary>
     protected ObjectSerializer Serializer { get; }
 
+    /// <summary>
+    /// Create an API instance with the default configuration and default transport.
+    /// </summary>
     protected BaseApi()
         : this(Configuration.Default) { }
 
+    /// <summary>
+    /// Create an API instance with the given configuration and default transport.
+    /// </summary>
+    /// <param name="config">API-level configuration (base URL and default headers).</param>
     protected BaseApi(Configuration config)
-        : this(new DefaultApiClient(config), config) { }
+        : this(new DefaultApiClient(), config) { }
 
+    /// <summary>
+    /// Create an API instance with a custom API client and configuration.
+    /// </summary>
+    /// <param name="apiClient">The HTTP transport client.</param>
+    /// <param name="config">API-level configuration (base URL and default headers).</param>
     protected BaseApi(IApiClient apiClient, Configuration config)
     {
         ArgumentNullException.ThrowIfNull(apiClient);

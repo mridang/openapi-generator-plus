@@ -12,25 +12,66 @@
 
 namespace PetstoreClient\Auth\OAuth;
 
+use PetstoreClient\ApiClient;
 use PetstoreClient\Auth\BaseAuthenticator;
+use PetstoreClient\Auth\HttpAwareAuthenticator;
 
 /**
  * Authenticator for the OAuth2 Authorization Code flow.
+ *
+ * Implements {@see HttpAwareAuthenticator} so that token exchange requests
+ * use the shared {@see ApiClient} with the same transport configuration
+ * (proxy, TLS, timeouts) as regular API calls.
+ *
+ * Usage:
+ * 1. Call buildAuthorizationUrl() to get the authorization URL
+ * 2. Redirect the user to that URL
+ * 3. After the callback, call exchangeCode() with the auth code
+ * 4. Use the authenticator normally -- tokens are managed automatically
+ *
+ * @category Class
+ * @package  PetstoreClient
  */
-final class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
+final class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator implements HttpAwareAuthenticator
 {
+    /** @var string API base URL. */
     private readonly string $host;
+
+    /** @var string OAuth2 client ID. */
     private readonly string $clientId;
+
+    /** @var string OAuth2 client secret. */
     private readonly string $clientSecret;
+
+    /** @var string Authorization endpoint URL. */
     private readonly string $authorizationUrl;
+
+    /** @var string Token endpoint URL. */
     private readonly string $tokenUrl;
+
+    /** @var string Redirect URI registered with the OAuth2 provider. */
     private readonly string $redirectUri;
-    /** @var string[] */
+
+    /** @var string[] Requested scopes. */
     private readonly array $scopes;
+
+    /** @var OAuth2TokenManager Token lifecycle manager. */
     private readonly OAuth2TokenManager $tokenManager;
+
+    /** @var bool Whether the authorization code has been exchanged. */
     private bool $tokenExchanged = false;
 
-    /** @param string[] $scopes */
+    /**
+     * Create a new authorization code authenticator.
+     *
+     * @param string   $host             API base URL
+     * @param string   $clientId         OAuth2 client ID
+     * @param string   $clientSecret     OAuth2 client secret
+     * @param string   $authorizationUrl authorization endpoint URL
+     * @param string   $tokenUrl         token endpoint URL
+     * @param string   $redirectUri      redirect URI registered with the OAuth2 provider
+     * @param string[] $scopes           requested scopes
+     */
     public function __construct(
         string $host,
         string $clientId,
@@ -50,6 +91,22 @@ final class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
         $this->tokenManager = new OAuth2TokenManager();
     }
 
+    /**
+     * Inject the shared API client for making token exchange requests.
+     *
+     * @param ApiClient $apiClient the shared API client instance
+     */
+    public function setApiClient(ApiClient $apiClient): void
+    {
+        $this->tokenManager->setApiClient($apiClient);
+    }
+
+    /**
+     * Build the authorization URL to redirect the user to.
+     *
+     * @param string|null $state optional CSRF state parameter
+     * @return string the authorization URL
+     */
     public function buildAuthorizationUrl(?string $state = null): string
     {
         $params = [
@@ -63,9 +120,15 @@ final class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
         if ($state !== null) {
             $params['state'] = $state;
         }
+
         return $this->authorizationUrl . '?' . http_build_query($params);
     }
 
+    /**
+     * Exchange an authorization code for an access token.
+     *
+     * @param string $code the authorization code from the callback
+     */
     public function exchangeCode(string $code): void
     {
         $params = [
@@ -79,12 +142,24 @@ final class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
         $this->tokenExchanged = true;
     }
 
+    /**
+     * Returns the base URL of the API.
+     *
+     * @return string the API base URL
+     */
     public function getHost(): string
     {
         return $this->host;
     }
 
-    /** @return array<string, string> */
+    /**
+     * Returns the authentication headers with a Bearer token obtained
+     * via the authorization code flow.
+     *
+     * @return array<string, string> the authorization headers
+     *
+     * @throws \RuntimeException if exchangeCode() has not been called
+     */
     public function getAuthHeaders(): array
     {
         if (!$this->tokenExchanged) {
@@ -92,6 +167,7 @@ final class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
         }
         $params = ['grant_type' => 'refresh_token'];
         $token = $this->tokenManager->getAccessToken($this->tokenUrl, $params);
+
         return ['Authorization' => 'Bearer ' . $token];
     }
 }

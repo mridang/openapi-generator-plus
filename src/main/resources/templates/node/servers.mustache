@@ -1,0 +1,42 @@
+import { ServerConfiguration{{#hasAnyServerVariables}}, ServerVariable{{/hasAnyServerVariables}} } from './server-configuration{{importFileExtension}}';
+
+/**
+ * Generated server configurations from the OpenAPI specification.
+ *
+ * Each constant corresponds to a server entry defined in the spec's
+ * `servers` array. Use these constants with
+ * `Configuration.builder().baseUrl(...)` to select a server:
+ *
+ * ```typescript
+ * const config = Configuration.builder()
+ *   .baseUrl(Servers.SERVER_0.getUrl())
+ *   .build();
+ * ```
+ *
+ * For servers with variables, pass overrides:
+ *
+ * ```typescript
+ * const url = Servers.SERVER_1.getUrl({ environment: 'staging' });
+ * ```
+ */
+export class Servers {
+{{#serverConfigs}}
+  /**
+   * Server {{serverIndex}}: {{serverUrl}}{{#serverDescription}}
+   *
+   * {{serverDescription}}{{/serverDescription}}
+   */
+{{#hasVariables}}  public static readonly SERVER_{{serverIndex}} = new ServerConfiguration(
+    '{{{serverUrl}}}',
+    {{#serverDescription}}'{{{serverDescription}}}'{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}},
+    {
+{{#serverVariables}}      '{{varName}}': new ServerVariable('{{{varDefault}}}', {{#varDescription}}'{{{varDescription}}}'{{/varDescription}}{{^varDescription}}null{{/varDescription}}, {{#hasEnumValues}}[{{#varEnumValues}}'{{{.}}}'{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}}){{^-last}},{{/-last}}
+{{/serverVariables}}    }
+  );{{/hasVariables}}{{^hasVariables}}  public static readonly SERVER_{{serverIndex}} = new ServerConfiguration('{{{serverUrl}}}', {{#serverDescription}}'{{{serverDescription}}}'{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}}, {});{{/hasVariables}}
+
+{{/serverConfigs}}
+  /** All server configurations in declaration order. */
+  public static readonly ALL: readonly ServerConfiguration[] = [{{#serverConfigs}}Servers.SERVER_{{serverIndex}}{{^-last}}, {{/-last}}{{/serverConfigs}}];
+
+  private constructor() {}
+}

@@ -12,39 +12,104 @@ Do not edit the class manually.
 import json
 import threading
 import time
-from typing import Dict, Optional
-from urllib.request import urlopen, Request
-from urllib.parse import urlencode
+from typing import Any, Dict, Optional
+
+from ...api_client import ApiClient
 
 
 class OAuth2TokenManager:
-    """Manages OAuth2 token lifecycle: fetching, caching, and refreshing."""
+    """Manages OAuth2 token lifecycle: fetching, caching, and refreshing.
+
+    Uses the shared :class:`ApiClient` instance so that token exchange
+    requests honour the same transport configuration (proxy, TLS, timeouts)
+    as regular API calls.
+    """
 
     def __init__(self) -> None:
+        """Create a new token manager.
+
+        The :class:`ApiClient` must be injected via :meth:`set_api_client`
+        before any token requests are made.
+        """
+        self._api_client: Optional[ApiClient] = None
         self._access_token: Optional[str] = None
         self._token_expiry: Optional[float] = None
         self._lock = threading.Lock()
 
+    def set_api_client(self, api_client: ApiClient) -> None:
+        """Inject the shared API client for making token requests.
+
+        Args:
+            api_client: The shared API client instance.
+        """
+        self._api_client = api_client
+
     def get_access_token(self, token_url: str, params: Dict[str, str]) -> str:
+        """Get a valid access token, fetching or refreshing as necessary.
+
+        This method is thread-safe; concurrent calls will not trigger
+        duplicate token requests.
+
+        Args:
+            token_url: The OAuth2 token endpoint URL.
+            params: The token request parameters (grant_type, client_id, etc.).
+
+        Returns:
+            A valid access token.
+
+        Raises:
+            RuntimeError: If no API client has been injected or token
+                fetch fails.
+        """
         with self._lock:
             if self._access_token and self._token_expiry and time.time() < self._token_expiry:
                 return self._access_token
             self._fetch_token(token_url, params)
-            return self._access_token  # type: ignore[return-value]
+            if self._access_token is None:
+                raise RuntimeError('Token fetch did not return an access token')
+            return self._access_token
 
     def set_access_token(self, token: str) -> None:
+        """Manually set an access token, bypassing the token endpoint.
+
+        Args:
+            token: The access token to use.
+        """
         with self._lock:
             self._access_token = token
             self._token_expiry = None
 
     def _fetch_token(self, token_url: str, params: Dict[str, str]) -> None:
-        data = urlencode(params).encode('utf-8')
-        req = Request(token_url, data=data, method='POST')
-        req.add_header('Content-Type', 'application/x-www-form-urlencoded')
-        with urlopen(req) as resp:
-            if resp.status < 200 or resp.status >= 300:
-                raise RuntimeError(f'Token request failed with status {resp.status}')
-            body = json.loads(resp.read().decode('utf-8'))
-        self._access_token = body['access_token']
-        if 'expires_in' in body:
-            self._token_expiry = time.time() + body['expires_in'] - 30
+        """Fetch a token from the token endpoint using the injected ApiClient.
+
+        Args:
+            token_url: The OAuth2 token endpoint URL.
+            params: The token request form parameters.
+
+        Raises:
+            RuntimeError: If no API client has been injected or the token
+                request fails.
+        """
+        if self._api_client is None:
+            raise RuntimeError(
+                'ApiClient has not been injected. '
+                'Ensure the Client constructor calls set_api_client() '
+                'on HttpAwareAuthenticator before making API requests.'
+            )
+
+        from urllib.parse import urlencode
+
+        body = urlencode(params)
+
+        headers: Dict[str, str] = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        }
+
+        response = self._api_client.send_request('POST', token_url, headers, body)
+        if response.status_code < 200 or response.status_code >= 300:
+            raise RuntimeError(f'Token request failed with status {response.status_code}: {response.body}')
+
+        token_data = json.loads(response.body)
+        self._access_token = token_data['access_token']
+        if 'expires_in' in token_data:
+            self._token_expiry = time.time() + token_data['expires_in'] - 30

@@ -11,13 +11,26 @@ import { injectTraceContext } from '../trace-context-util{{importFileExtension}}
  * request dispatch, and response deserialization.
  */
 export abstract class BaseApi {
+  /** The HTTP transport client used for sending requests. */
   protected readonly apiClient: ApiClient;
+
+  /** API-level configuration (base URL and default headers). */
   protected readonly config: Configuration;
+
+  /** Content negotiation logic for Accept and Content-Type headers. */
   protected readonly headerSelector: HeaderSelector;
 
+  /**
+   * Create an API instance.
+   *
+   * @param config API-level configuration (base URL and default headers).
+   *   When omitted the {@link Configuration.getDefault default configuration} is used.
+   * @param apiClient the HTTP transport client.
+   *   When omitted a {@link DefaultApiClient} with default transport options is used.
+   */
   constructor(config?: Configuration, apiClient?: ApiClient) {
     this.config = config ?? Configuration.getDefault();
-    this.apiClient = apiClient ?? new DefaultApiClient(this.config);
+    this.apiClient = apiClient ?? new DefaultApiClient();
     this.headerSelector = new HeaderSelector();
   }
 
@@ -107,6 +120,10 @@ export abstract class BaseApi {
    * For multipart/form-data and binary content types (image/* or
    * application/octet-stream), the body is passed through as-is.
    * All other content types are JSON-serialized.
+   *
+   * @param body the request body object
+   * @param contentType the Content-Type header value
+   * @returns the serialized body
    */
   private serializeBody(body: unknown, contentType: string): string | Buffer | null {
     if (body == null) {

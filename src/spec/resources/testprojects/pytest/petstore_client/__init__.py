@@ -19,6 +19,9 @@ __all__ = [
     'Client',
     'ApiClient',
     'Configuration',
+    'TransportOptions',
+    'ServerConfiguration',
+    'ServerVariable',
     'OpenApiException',
     'ApiTypeError',
     'ApiValueError',
@@ -50,6 +53,9 @@ from petstore_client.api_client import ApiClient as ApiClient
 from petstore_client.auth.authenticator import Authenticator as Authenticator
 from petstore_client.client import Client as Client
 from petstore_client.configuration import Configuration as Configuration
+from petstore_client.transport_options import TransportOptions as TransportOptions
+from petstore_client.server_configuration import ServerConfiguration as ServerConfiguration
+from petstore_client.server_configuration import ServerVariable as ServerVariable
 from petstore_client.exceptions import OpenApiException as OpenApiException
 from petstore_client.exceptions import ApiTypeError as ApiTypeError
 from petstore_client.exceptions import ApiValueError as ApiValueError

@@ -4,8 +4,22 @@ namespace PetstoreClient.Auth.OAuth;
 
 /// <summary>
 /// Authenticator for the OAuth2 Authorization Code flow.
+///
+/// Implements <see cref="IHttpAwareAuthenticator"/> so that token exchange requests
+/// use the shared <see cref="IApiClient"/> with the same transport configuration
+/// (proxy, TLS, timeouts) as regular API calls.
+///
+/// Usage:
+/// <list type="number">
+///   <item><description>Call <see cref="BuildAuthorizationUrl"/> to get the authorization URL.</description></item>
+///   <item><description>Redirect the user to that URL.</description></item>
+///   <item><description>After the callback, call <see cref="ExchangeCodeAsync"/> with the auth code.</description></item>
+///   <item><description>Use the authenticator normally -- tokens are managed automatically.</description></item>
+/// </list>
 /// </summary>
-public sealed class OAuth2AuthorizationCodeAuthenticator : BaseAuthenticator
+public sealed class OAuth2AuthorizationCodeAuthenticator
+    : BaseAuthenticator,
+        IHttpAwareAuthenticator
 {
     private readonly string _host;
     private readonly string _clientId;
@@ -17,6 +31,16 @@ public sealed class OAuth2AuthorizationCodeAuthenticator : BaseAuthenticator
     private readonly OAuth2TokenManager _tokenManager = new();
     private bool _tokenExchanged;
 
+    /// <summary>
+    /// Create a new authorization code authenticator.
+    /// </summary>
+    /// <param name="host">API base URL.</param>
+    /// <param name="clientId">OAuth2 client ID.</param>
+    /// <param name="clientSecret">OAuth2 client secret.</param>
+    /// <param name="authorizationUrl">Authorization endpoint URL.</param>
+    /// <param name="tokenUrl">Token endpoint URL.</param>
+    /// <param name="redirectUri">Redirect URI registered with the OAuth2 provider.</param>
+    /// <param name="scopes">Requested scopes.</param>
     public OAuth2AuthorizationCodeAuthenticator(
         string host,
         string clientId,
@@ -36,9 +60,17 @@ public sealed class OAuth2AuthorizationCodeAuthenticator : BaseAuthenticator
         _scopes = [.. scopes];
     }
 
+    /// <inheritdoc/>
+    public void SetApiClient(IApiClient apiClient)
+    {
+        _tokenManager.SetApiClient(apiClient);
+    }
+
     /// <summary>
     /// Builds the URL to redirect the user to for authorization.
     /// </summary>
+    /// <param name="state">Optional CSRF state parameter.</param>
+    /// <returns>The authorization URL.</returns>
     public Uri BuildAuthorizationUrl(string? state = null)
     {
         Dictionary<string, string> parameters = new()
@@ -69,6 +101,7 @@ public sealed class OAuth2AuthorizationCodeAuthenticator : BaseAuthenticator
     /// <summary>
     /// Exchanges an authorization code for an access token.
     /// </summary>
+    /// <param name="code">The authorization code from the callback.</param>
     public async Task ExchangeCodeAsync(string code)
     {
         Dictionary<string, string> parameters = new()

@@ -1,6 +1,7 @@
 package com.example.petstore.auth.oauth;
 
-import com.example.petstore.auth.Authenticator;
+import com.example.petstore.ApiClient;
+import com.example.petstore.auth.HttpAwareAuthenticator;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
@@ -8,20 +9,51 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-/** Authenticator for the OAuth2 Implicit flow. */
-public class OAuth2ImplicitAuthenticator implements Authenticator {
+/**
+ * Authenticator for the OAuth2 Implicit flow.
+ *
+ * <p>Implements {@link HttpAwareAuthenticator} so that any token refresh requests use the shared
+ * {@link ApiClient} with the same transport configuration (proxy, TLS, timeouts) as regular API
+ * calls.
+ *
+ * <p>Usage:
+ *
+ * <ol>
+ *   <li>Call {@link #buildAuthorizationUrl(String)} to get the authorization URL
+ *   <li>Redirect the user to that URL
+ *   <li>Extract the access token from the fragment and call {@link #setAccessToken(String)}
+ *   <li>Use the authenticator normally
+ * </ol>
+ */
+public class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator {
 
   private final String host;
   private final String authorizationUrl;
   private final List<String> scopes;
   @Nullable private String accessToken;
 
+  /**
+   * Create a new implicit flow authenticator.
+   *
+   * @param host API base URL
+   * @param authorizationUrl authorization endpoint URL
+   * @param scopes requested scopes
+   */
   public OAuth2ImplicitAuthenticator(String host, String authorizationUrl, List<String> scopes) {
     this.host = host;
     this.authorizationUrl = authorizationUrl;
     this.scopes = List.copyOf(scopes);
   }
 
+  @Override
+  public void setApiClient(ApiClient apiClient) {}
+
+  /**
+   * Build the authorization URL to redirect the user to.
+   *
+   * @param state optional CSRF state parameter
+   * @return the authorization URL
+   */
   public String buildAuthorizationUrl(@Nullable String state) {
     StringBuilder url = new StringBuilder(authorizationUrl);
     url.append("?response_type=token");
@@ -34,6 +66,11 @@ public class OAuth2ImplicitAuthenticator implements Authenticator {
     return url.toString();
   }
 
+  /**
+   * Set the access token obtained from the authorization redirect fragment.
+   *
+   * @param token the access token
+   */
   public void setAccessToken(String token) {
     this.accessToken = token;
   }
