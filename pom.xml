@@ -144,6 +144,7 @@
           <useUnlimitedThreads>true</useUnlimitedThreads>
           <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
           <trimStackTrace>false</trimStackTrace>
+          <skipTests>${skipUnitTests}</skipTests>
         </configuration>
       </plugin>
       <plugin>
@@ -262,6 +263,9 @@
             <goals>
               <goal>prepare-agent</goal>
             </goals>
+            <configuration>
+              <propertyName>jacoco.agent</propertyName>
+            </configuration>
           </execution>
           <execution>
             <id>report-html</id>
@@ -309,8 +313,6 @@
             <include>**/*Spec.java</include>
           </includes>
           <argLine>${jacoco.agent} --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</argLine>
-          <parallel>methods</parallel>
-          <useUnlimitedThreads>true</useUnlimitedThreads>
         </configuration>
       </plugin>
       <plugin>
@@ -572,7 +574,7 @@
   </dependencies>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <!--suppress XmlUnresolvedReference -->
-    <jacoco.agent>${argLine}</jacoco.agent>
+    <jacoco.agent></jacoco.agent>
+    <skipUnitTests>false</skipUnitTests>
   </properties>
 </project>

@@ -19,7 +19,7 @@ import org.openapitools.codegen.config.CodegenConfigurator;
  */
 public class BaseApiComplianceTest {
 
-  private static final Path OUTPUT_DIR = Paths.get("/tmp/compliance-test-clients");
+  private static final Path OUTPUT_DIR = Paths.get("/tmp/compliance-test-baseapi");
 
   @BeforeAll
   static void generateAllClients() throws IOException {

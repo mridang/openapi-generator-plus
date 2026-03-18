@@ -8,8 +8,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Map;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.io.TempDir;
@@ -29,7 +28,7 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
 
   protected static final Logger logger = LoggerFactory.getLogger(AbstractIntegrationSpec.class);
 
-  @Nullable protected static Network sharedNetwork;
+  @Nullable protected Network sharedNetwork;
 
   @TempDir protected Path tempOutputDir;
 
@@ -40,17 +39,17 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
 
   protected abstract String[] getBuildCommands();
 
-  @BeforeAll
-  static void setupSharedInfrastructure() {
+  @BeforeEach
+  void setupNetwork() {
     sharedNetwork = Network.newNetwork();
-    logger.info("Created shared Docker network: {}", sharedNetwork.getId());
+    logger.info("Created Docker network: {}", sharedNetwork.getId());
   }
 
-  @AfterAll
-  static void teardownSharedInfrastructure() {
+  @AfterEach
+  void teardownNetwork() {
     if (sharedNetwork != null) {
       sharedNetwork.close();
-      logger.info("Closed shared Docker network");
+      logger.info("Closed Docker network");
     }
   }
 
