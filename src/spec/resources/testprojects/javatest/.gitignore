@@ -1,9 +1,0 @@
-# Maven build output
-/target/
-
-# IDE files
-*.iml
-.idea/
-
-# Coverage output
-.out/

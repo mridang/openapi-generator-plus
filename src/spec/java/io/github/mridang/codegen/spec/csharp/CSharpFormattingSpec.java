@@ -4,9 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractFormattingSpec;
 import java.nio.file.Path;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
-import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
@@ -25,13 +23,6 @@ public class CSharpFormattingSpec extends AbstractFormattingSpec implements CSha
   @Override
   protected String getFileExtension() {
     return ".cs";
-  }
-
-  @Override
-  protected Map<String, Object> getCodegenProperties() {
-    return Map.of(
-        CodegenConstants.PACKAGE_NAME, "PetstoreClient",
-        CodegenConstants.SOURCE_FOLDER, "src");
   }
 
   @Override

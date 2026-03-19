@@ -3,7 +3,6 @@ package io.github.mridang.codegen.spec.ruby;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractFormattingSpec;
-import java.util.Map;
 import javax.annotation.Nullable;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -27,11 +26,6 @@ public class RubyFormattingSpec extends AbstractFormattingSpec implements RubySp
   @Override
   protected String getFileExtension() {
     return ".rb";
-  }
-
-  @Override
-  protected Map<String, Object> getCodegenProperties() {
-    return Map.of("gemName", "petstore_client", "moduleName", "PetstoreClient");
   }
 
   @Override

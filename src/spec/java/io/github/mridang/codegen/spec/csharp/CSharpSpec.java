@@ -2,6 +2,7 @@ package io.github.mridang.codegen.spec.csharp;
 
 import io.github.mridang.codegen.spec.DockerImageSpec;
 import io.github.mridang.codegen.spec.LanguageSpec;
+import java.util.Map;
 import org.testcontainers.utility.DockerImageName;
 
 interface CSharpSpec extends LanguageSpec, DockerImageSpec {
@@ -16,5 +17,9 @@ interface CSharpSpec extends LanguageSpec, DockerImageSpec {
 
   default String getDockerImage() {
     return "mcr.microsoft.com/dotnet/sdk:9.0";
+  }
+
+  default Map<String, Object> getCodegenProperties() {
+    return Map.of("packageName", "PetstoreClient", "sourceFolder", "src");
   }
 }

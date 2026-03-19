@@ -2,6 +2,7 @@ package io.github.mridang.codegen.spec.java;
 
 import io.github.mridang.codegen.spec.DockerImageSpec;
 import io.github.mridang.codegen.spec.LanguageSpec;
+import java.util.Map;
 import org.testcontainers.utility.DockerImageName;
 
 interface JavaSpec extends LanguageSpec, DockerImageSpec {
@@ -16,5 +17,12 @@ interface JavaSpec extends LanguageSpec, DockerImageSpec {
 
   default String getDockerImage() {
     return "eclipse-temurin:17-jdk-jammy";
+  }
+
+  default Map<String, Object> getCodegenProperties() {
+    return Map.of(
+        "modelPackage", "com.example.petstore.models",
+        "apiPackage", "com.example.petstore.api",
+        "invokerPackage", "com.example.petstore");
   }
 }

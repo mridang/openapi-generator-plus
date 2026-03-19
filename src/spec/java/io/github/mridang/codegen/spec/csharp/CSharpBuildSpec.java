@@ -3,9 +3,7 @@ package io.github.mridang.codegen.spec.csharp;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractIntegrationSpec;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
-import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
@@ -24,11 +22,7 @@ public class CSharpBuildSpec extends AbstractIntegrationSpec implements CSharpSp
 
   @Test
   void generatedCodeShouldCompileWithStrictSettings() {
-    generateClientToDirectory(
-        Map.of(
-            CodegenConstants.PACKAGE_NAME, "PetstoreClient",
-            CodegenConstants.SOURCE_FOLDER, "src"),
-        tempOutputDir);
+    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
 
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 

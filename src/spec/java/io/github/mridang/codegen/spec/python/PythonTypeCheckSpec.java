@@ -3,10 +3,7 @@ package io.github.mridang.codegen.spec.python;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractIntegrationSpec;
-
-import java.util.Map;
 import org.junit.jupiter.api.Test;
-import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
@@ -17,23 +14,17 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Testcontainers
 public class PythonTypeCheckSpec extends AbstractIntegrationSpec implements PythonSpec {
 
-  private static final String PACKAGE_NAME = "petstore_client";
-
   @Override
   protected String[] getBuildCommands() {
     return new String[] {
       "pip install --quiet -r requirements.txt",
-      "mypy " + PACKAGE_NAME + "/"
+      "mypy petstore_client/"
     };
   }
 
   @Test
   void generatedCodeShouldPassTypeChecking() {
-    generateClientToDirectory(
-        Map.of(
-            CodegenConstants.PACKAGE_NAME, PACKAGE_NAME,
-            CodegenConstants.PROJECT_NAME, "petstore-client"),
-        tempOutputDir);
+    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
 
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 

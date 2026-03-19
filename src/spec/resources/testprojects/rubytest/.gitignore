@@ -1,8 +1,0 @@
-# Bundle dependencies
-/vendor/
-Gemfile.lock
-
-# Minitest artifacts
-
-# Coverage output
-.out/

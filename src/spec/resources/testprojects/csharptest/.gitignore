@@ -1,6 +1,0 @@
-# Build output
-bin/
-obj/
-
-# Coverage output
-.out/

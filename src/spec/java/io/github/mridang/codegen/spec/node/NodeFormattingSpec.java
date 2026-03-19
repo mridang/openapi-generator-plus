@@ -3,7 +3,6 @@ package io.github.mridang.codegen.spec.node;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractFormattingSpec;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -23,11 +22,6 @@ public class NodeFormattingSpec extends AbstractFormattingSpec implements NodeSp
   @Override
   protected String getFileExtension() {
     return ".ts";
-  }
-
-  @Override
-  protected Map<String, Object> getCodegenProperties() {
-    return Map.of();
   }
 
   @Test

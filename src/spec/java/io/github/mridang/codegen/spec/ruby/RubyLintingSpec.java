@@ -3,7 +3,6 @@ package io.github.mridang.codegen.spec.ruby;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractIntegrationSpec;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -25,8 +24,7 @@ public class RubyLintingSpec extends AbstractIntegrationSpec implements RubySpec
 
   @Test
   void generatedCodeShouldPassLinting() {
-    generateClientToDirectory(
-        Map.of("gemName", "petstore_client", "moduleName", "PetstoreClient"), tempOutputDir);
+    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
 
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 

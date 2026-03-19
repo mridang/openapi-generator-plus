@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractClientSpec;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SuppressWarnings("NewClassNamingConvention")
@@ -17,11 +16,6 @@ public class PythonClientSpec extends AbstractClientSpec implements PythonSpec {
       "pip install --quiet -r requirements.txt",
       "python -m pytest tests/ -v"
     };
-  }
-
-  @Override
-  protected Path getTestProjectPath() {
-    return Paths.get("src/spec/resources/testprojects/pytest");
   }
 
   @Override

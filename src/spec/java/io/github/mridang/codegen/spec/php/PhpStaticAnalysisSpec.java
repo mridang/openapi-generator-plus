@@ -3,9 +3,7 @@ package io.github.mridang.codegen.spec.php;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractIntegrationSpec;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
-import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
@@ -26,8 +24,7 @@ public class PhpStaticAnalysisSpec extends AbstractIntegrationSpec implements Ph
 
   @Test
   void generatedCodeShouldPassStaticAnalysis() {
-    generateClientToDirectory(
-        Map.of(CodegenConstants.INVOKER_PACKAGE, "PetstoreClient"), tempOutputDir);
+    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
 
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 

@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractClientSpec;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SuppressWarnings("NewClassNamingConvention")
@@ -18,11 +17,6 @@ public class CSharpClientSpec extends AbstractClientSpec implements CSharpSpec {
       "dotnet test --verbosity normal",
       "mv .out/coverage.cobertura.xml .out/coverage.xml"
     };
-  }
-
-  @Override
-  protected Path getTestProjectPath() {
-    return Paths.get("src/spec/resources/testprojects/csharptest");
   }
 
   @Override

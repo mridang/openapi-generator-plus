@@ -8,11 +8,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.junit.jupiter.api.Test;
+
 
 /**
  * Base class for formatting specs. Provides shared tests for HTML entities and inline comments.
@@ -21,8 +21,6 @@ import org.junit.jupiter.api.Test;
 public abstract class AbstractFormattingSpec extends AbstractIntegrationSpec {
 
   protected abstract String getFileExtension();
-
-  protected abstract Map<String, Object> getCodegenProperties();
 
   /**
    * Return the regex pattern for detecting inline comments, or null to skip the test. Default

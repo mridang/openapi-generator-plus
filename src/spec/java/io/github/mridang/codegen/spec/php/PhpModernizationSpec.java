@@ -3,9 +3,7 @@ package io.github.mridang.codegen.spec.php;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractIntegrationSpec;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
-import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
@@ -27,8 +25,7 @@ public class PhpModernizationSpec extends AbstractIntegrationSpec implements Php
 
   @Test
   void generatedCodeShouldBeModern() {
-    generateClientToDirectory(
-        Map.of(CodegenConstants.INVOKER_PACKAGE, "PetstoreClient"), tempOutputDir);
+    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
 
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 

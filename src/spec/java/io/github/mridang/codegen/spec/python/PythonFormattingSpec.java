@@ -3,10 +3,8 @@ package io.github.mridang.codegen.spec.python;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractFormattingSpec;
-import java.util.Map;
 import javax.annotation.Nullable;
 import org.junit.jupiter.api.Test;
-import org.openapitools.codegen.CodegenConstants;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
@@ -16,8 +14,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
 public class PythonFormattingSpec extends AbstractFormattingSpec implements PythonSpec {
-
-  private static final String PACKAGE_NAME = "petstore_client";
 
   @Override
   protected String[] getBuildCommands() {
@@ -30,13 +26,6 @@ public class PythonFormattingSpec extends AbstractFormattingSpec implements Pyth
   @Override
   protected String getFileExtension() {
     return ".py";
-  }
-
-  @Override
-  protected Map<String, Object> getCodegenProperties() {
-    return Map.of(
-        CodegenConstants.PACKAGE_NAME, PACKAGE_NAME,
-        CodegenConstants.PROJECT_NAME, "petstore-client");
   }
 
   @Override

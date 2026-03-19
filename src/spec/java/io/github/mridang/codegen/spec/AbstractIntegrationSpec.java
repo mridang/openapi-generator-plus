@@ -7,7 +7,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Map;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
@@ -98,25 +97,6 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
     }
   }
 
-  protected static void copyDirectory(Path source, Path target) throws IOException {
-    try (Stream<Path> stream = Files.walk(source)) {
-      stream.forEach(
-          sourcePath -> {
-            try {
-              Path targetPath = target.resolve(source.relativize(sourcePath));
-              if (Files.isDirectory(sourcePath)) {
-                Files.createDirectories(targetPath);
-              } else {
-                Files.copy(sourcePath, targetPath, StandardCopyOption.REPLACE_EXISTING);
-              }
-            } catch (IOException e) {
-              throw new RuntimeException("Failed to copy " + sourcePath, e);
-            }
-          });
-    }
-    logger.info("Copied directory from {} to {}", source, target);
-  }
-
   protected ExecResult executeInRuntimeContainer(String[] commands) {
     try (GenericContainer<?> runtimeContainer =
         new GenericContainer<>(getRuntimeImage())
@@ -187,24 +167,6 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
       logger.error("Failed to execute commands in runtime container", e);
       String message = e.getMessage();
       return new ExecResult(-1, message != null ? message : e.getClass().getName());
-    }
-  }
-
-  private void logDirectoryContents(Path dir, int depth) {
-    if (depth > 3) {
-      return;
-    }
-    try (Stream<Path> paths = Files.list(dir)) {
-      paths.forEach(
-          path -> {
-            String indent = "  ".repeat(depth);
-            logger.info("{}{}", indent, path.getFileName());
-            if (Files.isDirectory(path)) {
-              logDirectoryContents(path, depth + 1);
-            }
-          });
-    } catch (IOException e) {
-      logger.warn("Could not list directory: {}", dir);
     }
   }
 
