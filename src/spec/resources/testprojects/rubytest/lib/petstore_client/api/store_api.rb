@@ -10,6 +10,7 @@ require 'cgi'
 module PetstoreClient
   module Api
     # StoreApi provides methods for the Store API group.
+    # Access to Petstore orders
     class StoreApi < BaseApi
       def initialize(api_client = nil, config = PetstoreClient::Configuration.default)
         super

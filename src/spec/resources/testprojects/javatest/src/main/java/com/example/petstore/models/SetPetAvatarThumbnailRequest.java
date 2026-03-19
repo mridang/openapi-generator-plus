@@ -3,6 +3,7 @@ package com.example.petstore.models;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
+@SuppressWarnings("deprecation")
 public class SetPetAvatarThumbnailRequest {
 
   private Object actualInstance;

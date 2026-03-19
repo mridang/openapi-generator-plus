@@ -18,7 +18,10 @@ from typing_extensions import Self
 
 class Tag(BaseModel):
     """
-    Tag
+    Tags are deprecated, use categories instead
+
+    .. deprecated::
+        This schema is deprecated.
     """
 
     id: Optional[int] = Field(default=None, alias='id')

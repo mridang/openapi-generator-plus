@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 
+@SuppressWarnings("deprecation")
 public class PetPassport {
 
   @JsonProperty("pet")

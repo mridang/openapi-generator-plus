@@ -17,7 +17,12 @@ from ..auth.authenticator import Authenticator
 
 
 class PetApi(BaseApi):
-    """PetApi provides methods for the pet API group."""
+    """PetApi provides methods for the pet API group.
+    Everything about your Pets
+
+    .. seealso::
+        `Find out more about pets <https://example.com/docs/pets>`_
+    """
 
     def __init__(
         self,
@@ -169,8 +174,12 @@ class PetApi(BaseApi):
         status: Optional[str] = None,
     ) -> List[Pet]:
         """Finds Pets by status
-        :param status: Status values that need to be considered for filter (optional, default to available)
+        :param status: Status values that need to be considered for filter (optional, default to available) (deprecated)
         :return: List[Pet]
+        .. deprecated::
+            This operation is deprecated.
+        .. seealso::
+            `Find out more about filtering <https://example.com/docs/filtering>`_
         """
         path = '/pet/findByStatus'
         query_params: Dict[str, Any] = {}
@@ -259,6 +268,8 @@ class PetApi(BaseApi):
         Returns a single pet
         :param pet_id: ID of pet to return (required)
         :return: Pet
+        .. deprecated::
+            This operation is deprecated.
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")

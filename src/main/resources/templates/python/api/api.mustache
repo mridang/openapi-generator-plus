@@ -17,7 +17,16 @@ from ..auth.authenticator import Authenticator
 
 {{#operations}}
 class {{classname}}(BaseApi):
-    """{{classname}} provides methods for the {{baseName}} API group."""
+    """{{classname}} provides methods for the {{baseName}} API group.
+{{#tagDescription}}
+    {{.}}
+{{/tagDescription}}
+{{#tagExternalDocs}}
+
+    .. seealso::
+        `{{description}} <{{url}}>`_
+{{/tagExternalDocs}}
+    """
 
     def __init__(
         self,
@@ -44,14 +53,19 @@ class {{classname}}(BaseApi):
         :param auth: authenticator for this operation
 {{/hasAuthMethods}}
 {{#allParams}}
-        :param {{paramName}}: {{description}}{{#required}} (required){{/required}}{{^required}} (optional{{^isContainer}}{{#defaultValue}}, default to {{.}}{{/defaultValue}}{{/isContainer}}){{/required}}
+        :param {{paramName}}: {{description}}{{#required}} (required){{/required}}{{^required}} (optional{{^isContainer}}{{#defaultValue}}, default to {{.}}{{/defaultValue}}{{/isContainer}}){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{/allParams}}
 {{#returnType}}
         :return: {{{returnType}}}
 {{/returnType}}
 {{#isDeprecated}}
         .. deprecated::
+            This operation is deprecated.
 {{/isDeprecated}}
+{{#externalDocs}}
+        .. seealso::
+            `{{description}} <{{url}}>`_
+{{/externalDocs}}
         """
 {{#allParams}}
 {{#required}}

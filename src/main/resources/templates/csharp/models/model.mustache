@@ -3,6 +3,7 @@
 #pragma warning disable CA1711 // Identifiers should not have incorrect suffix
 #pragma warning disable CA1819 // Properties should not return arrays
 #pragma warning disable CA2227 // Collection properties should be read only
+#pragma warning disable CS0618 // Type or member is obsolete
 
 {{#models}}
 {{#model}}
@@ -39,11 +40,28 @@ using System.Text.Json.Serialization;
 {{/discriminator}}
 namespace {{packageName}}.Models;
 
+{{#isDeprecated}}
 {{#description}}
 /// <summary>
 /// {{{.}}}
 /// </summary>
 {{/description}}
+/// <remarks>Deprecated.</remarks>
+{{#externalDocumentation}}
+/// <seealso href="{{url}}">{{description}}</seealso>
+{{/externalDocumentation}}
+[Obsolete("This schema is deprecated.")]
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+/// <summary>
+/// {{{.}}}
+/// </summary>
+{{/description}}
+{{#externalDocumentation}}
+/// <seealso href="{{url}}">{{description}}</seealso>
+{{/externalDocumentation}}
+{{/isDeprecated}}
 {{#discriminator}}
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "{{discriminator.propertyBaseName}}")]
 {{#mappedModels}}
@@ -64,11 +82,28 @@ public class {{classname}}(object value)
 {{#-first}}
 namespace {{packageName}}.Models;
 
+{{#isDeprecated}}
 {{#description}}
 /// <summary>
 /// {{{.}}}
 /// </summary>
 {{/description}}
+/// <remarks>Deprecated.</remarks>
+{{#externalDocumentation}}
+/// <seealso href="{{url}}">{{description}}</seealso>
+{{/externalDocumentation}}
+[Obsolete("This schema is deprecated.")]
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+/// <summary>
+/// {{{.}}}
+/// </summary>
+{{/description}}
+{{#externalDocumentation}}
+/// <seealso href="{{url}}">{{description}}</seealso>
+{{/externalDocumentation}}
+{{/isDeprecated}}
 public class {{classname}}
 {
     public object? ActualInstance { get; set; }
@@ -91,6 +126,13 @@ namespace {{packageName}}.Models;
 /// </summary>
 {{/description}}
 {{#hasRequired}}
+{{#isDeprecated}}
+/// <remarks>Deprecated.</remarks>
+[Obsolete("This schema is deprecated.")]
+{{/isDeprecated}}
+{{#externalDocumentation}}
+/// <seealso href="{{url}}">{{description}}</seealso>
+{{/externalDocumentation}}
 public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{^-last}}, {{/-last}}{{/requiredVars}}){{#parent}} : {{{.}}}{{/parent}}
 {
     {{#vars}}
@@ -117,6 +159,10 @@ public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/
     /// {{{.}}}
     /// </summary>
     {{/description}}
+{{#deprecated}}
+    /// <remarks>Deprecated.</remarks>
+    [Obsolete("This property is deprecated.")]
+{{/deprecated}}
     [JsonPropertyName("{{baseName}}")]
     public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}} {{name}} { get; set; }{{#required}} = {{name}};{{/required}}{{^required}}{{#defaultValue}} = {{{.}}};{{/defaultValue}}{{/required}}
 {{^-last}}
@@ -126,6 +172,13 @@ public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/
 }
 {{/hasRequired}}
 {{^hasRequired}}
+{{#isDeprecated}}
+/// <remarks>Deprecated.</remarks>
+[Obsolete("This schema is deprecated.")]
+{{/isDeprecated}}
+{{#externalDocumentation}}
+/// <seealso href="{{url}}">{{description}}</seealso>
+{{/externalDocumentation}}
 public class {{classname}}{{#parent}} : {{{.}}}{{/parent}}
 {
     {{#vars}}
@@ -152,6 +205,10 @@ public class {{classname}}{{#parent}} : {{{.}}}{{/parent}}
     /// {{{.}}}
     /// </summary>
     {{/description}}
+{{#deprecated}}
+    /// <remarks>Deprecated.</remarks>
+    [Obsolete("This property is deprecated.")]
+{{/deprecated}}
     [JsonPropertyName("{{baseName}}")]
     public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}} {{name}} { get; set; }{{#defaultValue}} = {{{.}}};{{/defaultValue}}
 {{^-last}}

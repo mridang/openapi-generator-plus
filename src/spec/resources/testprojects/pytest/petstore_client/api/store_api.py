@@ -11,7 +11,9 @@ from ..object_serializer import ObjectSerializer
 
 
 class StoreApi(BaseApi):
-    """StoreApi provides methods for the store API group."""
+    """StoreApi provides methods for the store API group.
+    Access to Petstore orders
+    """
 
     def __init__(
         self,

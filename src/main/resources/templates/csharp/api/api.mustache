@@ -10,7 +10,13 @@ namespace {{packageName}}.{{apiPackage}};
 {{#operations}}
 /// <summary>
 /// {{classname}} provides methods for the {{baseName}} API group.
+{{#tagDescription}}
+/// {{.}}
+{{/tagDescription}}
 /// </summary>
+{{#tagExternalDocs}}
+/// <seealso href="{{url}}">{{description}}</seealso>
+{{/tagExternalDocs}}
 public class {{classname}} : BaseApi
 {
 {{#operation}}{{#produces}}{{#-first}}
@@ -26,15 +32,24 @@ public class {{classname}} : BaseApi
     /// <summary>
     /// {{summary}}
     /// </summary>
+{{#notes}}
+    /// <remarks>{{.}}</remarks>
+{{/notes}}
 {{#hasAuthMethods}}
     /// <param name="auth">Authenticator for this operation.</param>
 {{/hasAuthMethods}}
     {{#allParams}}
-    /// <param name="{{paramName}}">{{description}}</param>
+    /// <param name="{{paramName}}">{{description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
     {{/allParams}}
     {{#returnType}}
     /// <returns><![CDATA[{{{returnType}}}]]></returns>
     {{/returnType}}
+{{#externalDocs}}
+    /// <seealso href="{{url}}">{{description}}</seealso>
+{{/externalDocs}}
+{{#isDeprecated}}
+    [Obsolete("This operation is deprecated.")]
+{{/isDeprecated}}
     public async {{#returnType}}Task<{{{returnType}}}>{{/returnType}}{{^returnType}}Task{{/returnType}} {{operationId}}Async({{#hasAuthMethods}}IAuthenticator auth, {{/hasAuthMethods}}{{#allParams}}{{{dataType}}}{{^required}}?{{/required}} {{paramName}}{{^required}} = default{{/required}}{{^-last}}, {{/-last}}{{/allParams}})
     {
         string path = "{{{path}}}";

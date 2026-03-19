@@ -19,6 +19,9 @@ from typing_extensions import Self
 class Pet(BaseModel):
     """
     Pet
+
+    .. seealso::
+        `Learn more about the Pet model <https://example.com/docs/pet>`_
     """
 
     id: Optional[int] = Field(default=None, alias='id')
@@ -26,6 +29,7 @@ class Pet(BaseModel):
     category: Optional[Category] = Field(default=None, alias='category')
     photo_urls: List[str] = Field(alias='photoUrls')
     tags: Optional[List[Tag]] = Field(default=None, alias='tags')
+    # .. deprecated:: This property is deprecated.
     status: Optional[str] = Field(default=None, alias='status')
     additional_properties: Dict[str, Any] = {}
 

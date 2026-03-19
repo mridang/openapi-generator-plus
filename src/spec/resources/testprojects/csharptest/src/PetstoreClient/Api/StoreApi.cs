@@ -6,6 +6,7 @@ namespace PetstoreClient.Api;
 
 /// <summary>
 /// StoreApi provides methods for the Store API group.
+/// Access to Petstore orders
 /// </summary>
 public class StoreApi : BaseApi
 {

@@ -6,6 +6,7 @@ import { Order } from '../models/index.js';
 
 /**
  * StoreApi provides methods for the Store API group.
+ * Access to Petstore orders
  */
 export class StoreApi extends BaseApi {
   constructor(config?: Configuration, apiClient?: ApiClient) {

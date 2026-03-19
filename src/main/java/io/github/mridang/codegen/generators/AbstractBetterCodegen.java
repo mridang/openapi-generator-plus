@@ -4,8 +4,10 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.ExternalDocumentation;
 import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.oas.models.servers.ServerVariable;
+import io.swagger.v3.oas.models.tags.Tag;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -394,6 +396,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
             if (classname != null) {
                 operations.put("clientPropertyName", deriveClientPropertyName(classname));
             }
+            injectTagMetadata(operations);
             List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
             boolean anyOpHasAuth = false;
             if (ops != null) {
@@ -447,6 +450,42 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
             return "api";
         }
         return Character.toLowerCase(name.charAt(0)) + name.substring(1);
+    }
+
+    /**
+     * Inject tag description and externalDocs into the operations template context so that API
+     * class-level documentation can render tag metadata.
+     */
+    @SuppressWarnings("unchecked")
+    private void injectTagMetadata(Map<String, Object> operations) {
+        if (openAPI == null || openAPI.getTags() == null) {
+            return;
+        }
+        List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
+        if (ops == null || ops.isEmpty()) {
+            return;
+        }
+        // All operations in this group share the same tag — use the first operation's tag
+        List<Tag> opTags = ops.get(0).tags;
+        if (opTags == null || opTags.isEmpty()) {
+            return;
+        }
+        String tagName = opTags.get(0).getName();
+        for (Tag tag : openAPI.getTags()) {
+            if (tagName.equals(tag.getName())) {
+                if (tag.getDescription() != null) {
+                    operations.put("tagDescription", tag.getDescription());
+                }
+                ExternalDocumentation extDocs = tag.getExternalDocs();
+                if (extDocs != null) {
+                    Map<String, Object> externalDocsMap = new java.util.HashMap<>();
+                    externalDocsMap.put("url", extDocs.getUrl());
+                    externalDocsMap.put("description", extDocs.getDescription());
+                    operations.put("tagExternalDocs", externalDocsMap);
+                }
+                break;
+            }
+        }
     }
 
     @Override

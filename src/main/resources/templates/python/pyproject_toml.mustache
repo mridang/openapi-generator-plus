@@ -9,3 +9,6 @@ quote-style = "single"
 
 [tool.mypy]
 strict = true
+
+[tool.pytest.ini_options]
+addopts = "--cov=petstore_client --cov-report=xml:.out/coverage.xml --cov-report=term-missing"

@@ -12,9 +12,12 @@ import { {{#imports}}{{className}}{{^-last}}, {{/-last}}{{/imports}} } from '../
 {{#operations}}
 /**
  * {{classname}} provides methods for the {{baseName}} API group.
-{{#description}}
+{{#tagDescription}}
  * {{.}}
-{{/description}}
+{{/tagDescription}}
+{{#tagExternalDocs}}
+ * @see {@link {{url}}} {{description}}
+{{/tagExternalDocs}}
  */
 export class {{classname}} extends BaseApi {
   constructor(config?: Configuration, apiClient?: ApiClient) {
@@ -23,24 +26,27 @@ export class {{classname}} extends BaseApi {
   {{#operation}}
 
   /**
-{{#notes}}
-   * {{&notes}}
-{{/notes}}
 {{#summary}}
    * {{&summary}}
 {{/summary}}
+{{#notes}}
+   * {{&notes}}
+{{/notes}}
 {{#hasAuthMethods}}
    * @param auth authenticator for this operation
 {{/hasAuthMethods}}
 {{#allParams}}
-   * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}
+   * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{/allParams}}
 {{#returnType}}
    * @return {{{returnType}}}
 {{/returnType}}
 {{#isDeprecated}}
-   * @deprecated
+   * @deprecated This operation is deprecated.
 {{/isDeprecated}}
+{{#externalDocs}}
+   * @see {@link {{url}}} {{description}}
+{{/externalDocs}}
    */
   async {{nickname}}({{#hasAuthMethods}}auth: Authenticator, {{/hasAuthMethods}}{{#allParams}}{{paramName}}{{^required}}?{{/required}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isEnum}}{{^-last}}, {{/-last}}{{/allParams}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}> {
 {{#allParams}}

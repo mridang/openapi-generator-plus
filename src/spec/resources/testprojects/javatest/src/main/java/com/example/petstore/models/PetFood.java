@@ -13,4 +13,5 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
   @JsonSubTypes.Type(value = DryFood.class, name = "dry"),
   @JsonSubTypes.Type(value = WetFood.class, name = "wet")
 })
+@SuppressWarnings("deprecation")
 public abstract class PetFood {}

@@ -3,11 +3,13 @@
 #pragma warning disable CA1711 // Identifiers should not have incorrect suffix
 #pragma warning disable CA1819 // Properties should not return arrays
 #pragma warning disable CA2227 // Collection properties should be read only
+#pragma warning disable CS0618 // Type or member is obsolete
 
 using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
+/// <seealso href="https://example.com/docs/pet">Learn more about the Pet model</seealso>
 public class Pet(string Name, List<string> PhotoUrls)
 {
     [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -41,6 +43,8 @@ public class Pet(string Name, List<string> PhotoUrls)
     /// <summary>
     /// pet status in the store
     /// </summary>
+    /// <remarks>Deprecated.</remarks>
+    [Obsolete("This property is deprecated.")]
     [JsonPropertyName("status")]
     public StatusEnum? Status { get; set; }
 }

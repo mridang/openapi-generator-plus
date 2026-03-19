@@ -4,3 +4,6 @@
 # IDE files
 *.iml
 .idea/
+
+# Coverage output
+.out/

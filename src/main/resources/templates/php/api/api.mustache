@@ -11,33 +11,40 @@ use {{invokerPackage}}\ObjectSerializer;
 use {{invokerPackage}}\Auth\Authenticator;
 {{/hasAnyAuthMethods}}
 
+{{#operations}}
 /**
  * {{classname}} provides methods for the {{baseName}} API group.
-{{#description}}
+{{#tagDescription}}
  * {{.}}
-{{/description}}
+{{/tagDescription}}
+{{#tagExternalDocs}}
+ * @see {{url}} {{description}}
+{{/tagExternalDocs}}
  */
-{{#operations}}class {{classname}} extends BaseApi
+class {{classname}} extends BaseApi
 {
 {{#operation}}
     /**
      * {{summary}}
-{{#description}}
+{{#notes}}
      * {{.}}
-{{/description}}
+{{/notes}}
 {{#hasAuthMethods}}
      * @param Authenticator $auth Authenticator for this operation
 {{/hasAuthMethods}}
 {{#allParams}}
-     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}{{#description}} {{.}}{{/description}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}{{#description}} {{.}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{/allParams}}
 {{#returnType}}
      * @return {{{returnType}}}
 {{/returnType}}
      * @throws ApiException
 {{#isDeprecated}}
-     * @deprecated
+     * @deprecated This operation is deprecated.
 {{/isDeprecated}}
+{{#externalDocs}}
+     * @see {{url}} {{description}}
+{{/externalDocs}}
      */
 {{#returnType}}
     public function {{operationId}}({{#hasAuthMethods}}Authenticator $auth, {{/hasAuthMethods}}{{#allParams}}${{paramName}}{{^required}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/required}}{{^-last}}, {{/-last}}{{/allParams}})

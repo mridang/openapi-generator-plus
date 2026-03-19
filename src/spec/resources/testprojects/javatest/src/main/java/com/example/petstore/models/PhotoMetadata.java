@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.OffsetDateTime;
 import javax.annotation.Nullable;
 
+@SuppressWarnings("deprecation")
 public class PhotoMetadata {
 
   @JsonProperty("caption")

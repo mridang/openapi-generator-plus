@@ -7,6 +7,12 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 
+/**
+ * Pet.
+ *
+ * @see <a href="https://example.com/docs/pet">Learn more about the Pet model</a>
+ */
+@SuppressWarnings("deprecation")
 public class Pet {
 
   public enum StatusEnum {
@@ -56,7 +62,12 @@ public class Pet {
   @Nullable
   public List<Tag> tags = new ArrayList<>();
 
-  /** pet status in the store */
+  /**
+   * pet status in the store
+   *
+   * @deprecated This property is deprecated.
+   */
+  @Deprecated
   @JsonProperty("status")
   @Nullable
   public StatusEnum status;

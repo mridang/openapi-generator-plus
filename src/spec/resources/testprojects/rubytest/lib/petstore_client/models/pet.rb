@@ -23,6 +23,7 @@ module PetstoreClient
   # Model classes generated from OpenAPI schemas.
   module Models
     # Model class for Pet.
+    # @see https://example.com/docs/pet Learn more about the Pet model
     class Pet < Dry::Struct
       # Attribute mapping from ruby-style variable name to JSON key.
       ATTRIBUTE_MAP = {
@@ -57,6 +58,7 @@ module PetstoreClient
       attribute :category, Types::Any.optional.meta(omittable: true)
       attribute :photo_urls, Types::Any
       attribute :tags, Types::Any.optional.meta(omittable: true)
+      # @deprecated This property is deprecated.
       attribute :status, Types::Any.optional.meta(omittable: true)
     end
   end

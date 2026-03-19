@@ -11,6 +11,12 @@ module {{moduleName}}
   module Api
 {{#operations}}
     # {{classname}} provides methods for the {{baseName}} API group.
+{{#tagDescription}}
+    # {{.}}
+{{/tagDescription}}
+{{#tagExternalDocs}}
+    # @see {{url}} {{description}}
+{{/tagExternalDocs}}
     class {{classname}} < BaseApi
       def initialize(api_client = nil, config = {{moduleName}}::Configuration.default)
         super
@@ -26,7 +32,7 @@ module {{moduleName}}
 {{/hasAuthMethods}}
 {{#allParams}}
 {{#required}}
-      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{.}}{{/description}}
+      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{.}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{/required}}
 {{/allParams}}
 {{#hasOptionalParams}}
@@ -34,13 +40,16 @@ module {{moduleName}}
 {{/hasOptionalParams}}
 {{#allParams}}
 {{^required}}
-      # @option opts [{{{dataType}}}] :{{paramName}}{{#description}} {{.}}{{/description}}{{#defaultValue}} (default to {{{.}}}){{/defaultValue}}
+      # @option opts [{{{dataType}}}] :{{paramName}}{{#description}} {{.}}{{/description}}{{#defaultValue}} (default to {{{.}}}){{/defaultValue}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{/required}}
 {{/allParams}}
       # @return [{{{returnType}}}{{^returnType}}nil{{/returnType}}]
 {{#isDeprecated}}
-      # @deprecated
+      # @deprecated This operation is deprecated.
 {{/isDeprecated}}
+{{#externalDocs}}
+      # @see {{url}} {{description}}
+{{/externalDocs}}
       def {{operationId}}{{#hasAuthMethods}}(auth{{#requiredParams}}, {{paramName}}{{/requiredParams}}{{#hasOptionalParams}}, opts = {}{{/hasOptionalParams}}){{/hasAuthMethods}}{{^hasAuthMethods}}{{#hasOptionalParams}}({{#requiredParams}}{{paramName}}, {{/requiredParams}}opts = {}){{/hasOptionalParams}}{{^hasOptionalParams}}{{#requiredParams}}{{#-first}}({{/-first}}{{paramName}}{{^-last}}, {{/-last}}{{#-last}}){{/-last}}{{/requiredParams}}{{/hasOptionalParams}}{{/hasAuthMethods}}
 {{#allParams}}
 {{#required}}

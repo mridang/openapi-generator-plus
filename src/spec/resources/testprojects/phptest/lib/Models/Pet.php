@@ -14,6 +14,9 @@ namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
 
+/**
+ * @see https://example.com/docs/pet Learn more about the Pet model
+ */
 class Pet
 {
     public const STATUS_AVAILABLE = 'available';
@@ -39,6 +42,7 @@ class Pet
 
     /**
      * pet status in the store
+     * @deprecated This property is deprecated.
      */
     #[SerializedName('status')]
     public ?string $status = null;

@@ -43,9 +43,42 @@ public enum {{classname}} {
 {{^isEnum}}
 {{#oneOf}}
 {{#-first}}
+{{#isDeprecated}}
+/**
 {{#description}}
-/** {{{.}}} */
+ * {{{.}}}
+ *
 {{/description}}
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see <a href="{{url}}">{{description}}</a>
+{{/externalDocumentation}}
+ */
+@Deprecated
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{{.}}}
+ *
+ * @see <a href="{{url}}">{{description}}</a>
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
+/** {{{.}}} */
+{{/externalDocumentation}}
+{{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * {{classname}}.
+ *
+ * @see <a href="{{url}}">{{description}}</a>
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
 {{#discriminator}}
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
@@ -57,9 +90,11 @@ public enum {{classname}} {
   @JsonSubTypes.Type(value = {{modelName}}.class, name = "{{mappingName}}"){{^-last}},{{/-last}}
 {{/mappedModels}}
 })
+@SuppressWarnings("deprecation")
 public abstract class {{classname}} {}
 {{/discriminator}}
 {{^discriminator}}
+@SuppressWarnings("deprecation")
 public class {{classname}} {
 
   private Object actualInstance;
@@ -80,9 +115,43 @@ public class {{classname}} {
 {{^oneOf}}
 {{#anyOf}}
 {{#-first}}
+{{#isDeprecated}}
+/**
 {{#description}}
-/** {{{.}}} */
+ * {{{.}}}
+ *
 {{/description}}
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see <a href="{{url}}">{{description}}</a>
+{{/externalDocumentation}}
+ */
+@Deprecated
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{{.}}}
+ *
+ * @see <a href="{{url}}">{{description}}</a>
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
+/** {{{.}}} */
+{{/externalDocumentation}}
+{{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * {{classname}}.
+ *
+ * @see <a href="{{url}}">{{description}}</a>
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
+@SuppressWarnings("deprecation")
 public class {{classname}} {
 
   private Object actualInstance;
@@ -100,9 +169,51 @@ public class {{classname}} {
 {{/-first}}
 {{/anyOf}}
 {{^anyOf}}
+{{#isDeprecated}}
 {{#description}}
-/** {{{.}}} */
+/**
+ * {{{.}}}
+ *
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see <a href="{{url}}">{{description}}</a>
+{{/externalDocumentation}}
+ */
 {{/description}}
+{{^description}}
+/**
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see <a href="{{url}}">{{description}}</a>
+{{/externalDocumentation}}
+ */
+{{/description}}
+@Deprecated
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{{.}}}
+ *
+ * @see <a href="{{url}}">{{description}}</a>
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
+/** {{{.}}} */
+{{/externalDocumentation}}
+{{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * {{classname}}.
+ *
+ * @see <a href="{{url}}">{{description}}</a>
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
+@SuppressWarnings("deprecation")
 public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#vars}}
 {{#isEnum}}
@@ -139,9 +250,24 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/vars}}
 
 {{#vars}}
+  {{#deprecated}}
+  {{#description}}
+  /**
+   * {{{.}}}
+   *
+   * @deprecated This property is deprecated.
+   */
+  {{/description}}
+  {{^description}}
+  /** @deprecated This property is deprecated. */
+  {{/description}}
+  @Deprecated
+  {{/deprecated}}
+  {{^deprecated}}
   {{#description}}
   /** {{{.}}} */
   {{/description}}
+  {{/deprecated}}
   @JsonProperty("{{baseName}}")
   @Nullable
   public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};

@@ -11,6 +11,8 @@ use PetstoreClient\Auth\Authenticator;
 
 /**
  * PetApi provides methods for the Pet API group.
+ * Everything about your Pets
+ * @see https://example.com/docs/pets Find out more about pets
  */
 class PetApi extends BaseApi
 {
@@ -45,6 +47,7 @@ class PetApi extends BaseApi
 
     /**
      * Add photos to the pet&#39;s gallery
+     * Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
      * @param int $petId
      * @param \SplFileObject[] $files
      * @param \PetstoreClient\Models\PhotoMetadata $metadata
@@ -112,6 +115,7 @@ class PetApi extends BaseApi
 
     /**
      * Download a vet document
+     * Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
      * @param int $petId
      * @param int $documentId
      * @return \SplFileObject
@@ -150,9 +154,11 @@ class PetApi extends BaseApi
 
     /**
      * Finds Pets by status
-     * @param string|null $status Status values that need to be considered for filter
+     * @param string|null $status Status values that need to be considered for filter (deprecated)
      * @return \PetstoreClient\Models\Pet[]
      * @throws ApiException
+     * @deprecated This operation is deprecated.
+     * @see https://example.com/docs/filtering Find out more about filtering
      */
     public function findPetsByStatus($status = 'available')
     {
@@ -180,6 +186,7 @@ class PetApi extends BaseApi
 
     /**
      * Get the pet&#39;s profile photo
+     * Returns the raw image bytes of the pet&#39;s current avatar.
      * @param int $petId
      * @return \SplFileObject
      * @throws ApiException
@@ -212,6 +219,7 @@ class PetApi extends BaseApi
 
     /**
      * Get the pet&#39;s avatar thumbnail as base64
+     * Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
      * @param int $petId
      * @return string
      * @throws ApiException
@@ -244,9 +252,11 @@ class PetApi extends BaseApi
 
     /**
      * Find pet by ID
+     * Returns a single pet
      * @param int $petId ID of pet to return
      * @return \PetstoreClient\Models\Pet
      * @throws ApiException
+     * @deprecated This operation is deprecated.
      */
     public function getPetById($petId)
     {
@@ -276,6 +286,7 @@ class PetApi extends BaseApi
 
     /**
      * Get the pet&#39;s passport
+     * Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
      * @param int $petId
      * @return \PetstoreClient\Models\PetPassport
      * @throws ApiException
@@ -308,6 +319,7 @@ class PetApi extends BaseApi
 
     /**
      * Get a photo or its metadata
+     * Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
      * @param int $petId
      * @param int $photoId
      * @return \SplFileObject
@@ -346,6 +358,7 @@ class PetApi extends BaseApi
 
     /**
      * Set the pet&#39;s profile photo
+     * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
      * @param int $petId
      * @param \SplFileObject $body
      * @throws ApiException
@@ -376,6 +389,7 @@ class PetApi extends BaseApi
 
     /**
      * Set the pet&#39;s avatar thumbnail as base64
+     * Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
      * @param int $petId
      * @param \PetstoreClient\Models\SetPetAvatarThumbnailRequest $setPetAvatarThumbnailRequest
      * @throws ApiException
@@ -439,6 +453,7 @@ class PetApi extends BaseApi
 
     /**
      * Upload the pet&#39;s adoption certificate
+     * Attaches a single adoption certificate document. No metadata fields are required alongside the file.
      * @param int $petId
      * @param \SplFileObject $file
      * @return \PetstoreClient\Models\ApiResponse
@@ -473,6 +488,7 @@ class PetApi extends BaseApi
 
     /**
      * Attach a vet document or health record
+     * Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
      * @param int $petId
      * @param \SplFileObject $file
      * @param string|null $documentType

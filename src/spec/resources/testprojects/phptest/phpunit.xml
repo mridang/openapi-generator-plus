@@ -21,4 +21,12 @@
             <directory>tests/Api</directory>
         </testsuite>
     </testsuites>
+    <coverage>
+        <include>
+            <directory suffix=".php">lib</directory>
+        </include>
+        <report>
+            <cobertura outputFile=".out/coverage.xml"/>
+        </report>
+    </coverage>
 </phpunit>

@@ -2,6 +2,9 @@ import { Category } from './category.js';
 import { Tag } from './tag.js';
 import { Expose, Type } from 'class-transformer';
 
+/**
+ * @see {@link https://example.com/docs/pet} Learn more about the Pet model
+ */
 export class Pet {
   @Expose({ name: 'id' })
   id?: number;
@@ -15,6 +18,7 @@ export class Pet {
   @Expose({ name: 'tags' })
   @Type(() => Tag)
   tags?: Array<Tag>;
+  /** @deprecated This property is deprecated. */
   @Expose({ name: 'status' })
   status?: string;
 

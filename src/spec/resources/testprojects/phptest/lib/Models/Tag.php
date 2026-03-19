@@ -14,6 +14,11 @@ namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
 
+/**
+ * Tags are deprecated, use categories instead
+ *
+ * @deprecated This schema is deprecated.
+ */
 class Tag
 {
     #[SerializedName('id')]

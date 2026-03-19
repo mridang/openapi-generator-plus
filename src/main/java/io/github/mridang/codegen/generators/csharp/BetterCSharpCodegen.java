@@ -142,6 +142,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
 
         if (generateTests) {
+            supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/tests_csproj.mustache", "", packageName + ".Tests.csproj"));

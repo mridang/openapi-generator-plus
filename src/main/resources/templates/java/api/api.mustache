@@ -40,10 +40,14 @@ import javax.annotation.Nullable;
 {{#operations}}
 /**
  * {{classname}} provides methods for the {{baseName}} API group.
-{{#description}}
+{{#tagDescription}}
  * {{.}}
-{{/description}}
+{{/tagDescription}}
+{{#tagExternalDocs}}
+ * @see <a href="{{url}}">{{description}}</a>
+{{/tagExternalDocs}}
  */
+@SuppressWarnings("deprecation")
 public class {{classname}} extends BaseApi {
 {{#operation}}
 {{#returnType}}
@@ -68,14 +72,14 @@ public class {{classname}} extends BaseApi {
      * {{.}}
 {{/notes}}
 {{#allParams}}
-     * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional{{^isContainer}}{{#defaultValue}}, default to {{.}}{{/defaultValue}}{{/isContainer}}){{/required}}
+     * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional{{^isContainer}}{{#defaultValue}}, default to {{.}}{{/defaultValue}}{{/isContainer}}){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{/allParams}}
 {{#returnType}}
      * @return {{{returnType}}}
 {{/returnType}}
      * @throws ApiException if fails to make API call
 {{#isDeprecated}}
-     * @deprecated
+     * @deprecated This operation is deprecated.
 {{/isDeprecated}}
 {{#externalDocs}}
      * {{description}}

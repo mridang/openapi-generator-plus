@@ -139,6 +139,13 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
       logger.info("  - Image: {}", getRuntimeImage());
       logger.info("  - Container ID: {}", runtimeContainer.getContainerId());
 
+      // Copy bind-mounted files to container-local storage to avoid file corruption
+      // caused by heavy parallel I/O on macOS Docker bind mounts (VirtioFS/gRPC-FUSE).
+      // Package managers (npm, composer, mvn) write thousands of small files during
+      // install, and concurrent containers writing to bind mounts causes truncated or
+      // corrupted files. Running in /work avoids this entirely.
+      runtimeContainer.execInContainer("sh", "-c", "cp -a /app /work");
+
       StringBuilder output = new StringBuilder();
       int exitCode = 0;
 
@@ -146,7 +153,7 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
         logger.info("Executing: {}", command);
 
         org.testcontainers.containers.Container.ExecResult result =
-            runtimeContainer.execInContainer("sh", "-c", command);
+            runtimeContainer.execInContainer("sh", "-c", "cd /work && " + command);
 
         output.append("=== ").append(command).append(" ===\n");
         output.append(result.getStdout());
@@ -166,6 +173,9 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
           break;
         }
       }
+
+      // Copy output artifacts (coverage reports, etc.) back to the bind mount
+      runtimeContainer.execInContainer("sh", "-c", "cp -a /work/.out /app/.out 2>/dev/null || true");
 
       // Fix file permissions before container exits so JUnit can clean up @TempDir
       // Docker containers run as root and create files owned by root, which the

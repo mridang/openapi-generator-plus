@@ -23,11 +23,41 @@ export type {{classname}} = (typeof {{classname}})[keyof typeof {{classname}}];
 {{^isEnum}}
 {{#oneOf}}
 {{#-first}}
+{{#isDeprecated}}
+/**
 {{#description}}
+ * {{{.}}}
+ *
+{{/description}}
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see {@link {{url}}} {{description}}
+{{/externalDocumentation}}
+ */
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{{.}}}
+ *
+ * @see {@link {{url}}} {{description}}
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
 /**
  * {{{.}}}
  */
+{{/externalDocumentation}}
 {{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * @see {@link {{url}}} {{description}}
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
 {{#discriminator}}
 export type {{classname}}Type = {{#oneOf}}{{{.}}}{{^-last}} | {{/-last}}{{/oneOf}};
 
@@ -60,11 +90,41 @@ export type {{classname}} = {{#oneOf}}{{{.}}}{{^-last}} | {{/-last}}{{/oneOf}};
 {{^oneOf}}
 {{#anyOf}}
 {{#-first}}
+{{#isDeprecated}}
+/**
 {{#description}}
+ * {{{.}}}
+ *
+{{/description}}
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see {@link {{url}}} {{description}}
+{{/externalDocumentation}}
+ */
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{{.}}}
+ *
+ * @see {@link {{url}}} {{description}}
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
 /**
  * {{{.}}}
  */
+{{/externalDocumentation}}
 {{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * @see {@link {{url}}} {{description}}
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
 export type {{classname}} = {{#anyOf}}{{{.}}}{{^-last}} | {{/-last}}{{/anyOf}};
 
 {{/-first}}
@@ -72,13 +132,46 @@ export type {{classname}} = {{#anyOf}}{{{.}}}{{^-last}} | {{/-last}}{{/anyOf}};
 {{^anyOf}}
 import { Expose{{#hasTypeDecorator}}, Type{{/hasTypeDecorator}} } from 'class-transformer';
 
+{{#isDeprecated}}
+/**
 {{#description}}
+ * {{{.}}}
+ *
+{{/description}}
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see {@link {{url}}} {{description}}
+{{/externalDocumentation}}
+ */
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{{.}}}
+ *
+ * @see {@link {{url}}} {{description}}
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
 /**
  * {{{.}}}
  */
+{{/externalDocumentation}}
 {{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * @see {@link {{url}}} {{description}}
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
 export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#vars}}
+{{#deprecated}}
+  /** @deprecated This property is deprecated. */
+{{/deprecated}}
   @Expose({ name: '{{baseName}}' })
 {{^isPrimitiveType}}
 {{^isArray}}

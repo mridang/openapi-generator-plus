@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import java.time.OffsetDateTime;
 import javax.annotation.Nullable;
 
+@SuppressWarnings("deprecation")
 public class Order {
 
   public enum StatusEnum {

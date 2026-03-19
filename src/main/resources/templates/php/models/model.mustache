@@ -18,11 +18,41 @@ enum {{classname}}: string
 {{^isEnum}}
 {{#oneOf}}
 {{#-first}}
+{{#isDeprecated}}
+/**
 {{#description}}
+ * {{{.}}}
+ *
+{{/description}}
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see {{url}} {{description}}
+{{/externalDocumentation}}
+ */
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{{.}}}
+ *
+ * @see {{url}} {{description}}
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
 /**
  * {{{.}}}
  */
+{{/externalDocumentation}}
 {{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * @see {{url}} {{description}}
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
 class {{classname}}
 {
 {{#discriminator}}
@@ -79,11 +109,41 @@ class {{classname}}
 {{^oneOf}}
 {{#anyOf}}
 {{#-first}}
+{{#isDeprecated}}
+/**
 {{#description}}
+ * {{{.}}}
+ *
+{{/description}}
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see {{url}} {{description}}
+{{/externalDocumentation}}
+ */
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{{.}}}
+ *
+ * @see {{url}} {{description}}
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
 /**
  * {{{.}}}
  */
+{{/externalDocumentation}}
 {{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * @see {{url}} {{description}}
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
 class {{classname}}
 {
     /** @var string[] */
@@ -111,11 +171,41 @@ class {{classname}}
 {{^anyOf}}
 use Symfony\Component\Serializer\Attribute\SerializedName;
 
+{{#isDeprecated}}
+/**
 {{#description}}
+ * {{{.}}}
+ *
+{{/description}}
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see {{url}} {{description}}
+{{/externalDocumentation}}
+ */
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{{.}}}
+ *
+ * @see {{url}} {{description}}
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
 /**
  * {{{.}}}
  */
+{{/externalDocumentation}}
 {{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * @see {{url}} {{description}}
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
 class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {
 {{#hasEnums}}
@@ -142,16 +232,37 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
      * @var {{{dataType}}}|null
 {{/required}}
 {{/isContainer}}
+{{#deprecated}}
+     * @deprecated This property is deprecated.
+{{/deprecated}}
      */
 {{/description}}
 {{^description}}
 {{#isContainer}}
+{{#deprecated}}
+    /**
+{{#required}}
+     * @var {{{dataType}}}
+{{/required}}
+{{^required}}
+     * @var {{{dataType}}}|null
+{{/required}}
+     * @deprecated This property is deprecated.
+     */
+{{/deprecated}}
+{{^deprecated}}
 {{#required}}
     /** @var {{{dataType}}} */
 {{/required}}
 {{^required}}
     /** @var {{{dataType}}}|null */
 {{/required}}
+{{/deprecated}}
+{{/isContainer}}
+{{^isContainer}}
+{{#deprecated}}
+    /** @deprecated This property is deprecated. */
+{{/deprecated}}
 {{/isContainer}}
 {{/description}}
     #[SerializedName('{{{baseName}}}')]

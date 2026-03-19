@@ -29,6 +29,16 @@ from typing_extensions import Self
 class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}):
     """
     {{{description}}}{{^description}}{{{classname}}}{{/description}}
+{{#isDeprecated}}
+
+    .. deprecated::
+        This schema is deprecated.
+{{/isDeprecated}}
+{{#externalDocumentation}}
+
+    .. seealso::
+        `{{description}} <{{url}}>`_
+{{/externalDocumentation}}
     """
 
 {{#composedSchemas.oneOf}}
@@ -122,6 +132,16 @@ from typing_extensions import Self
 class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}):
     """
     {{{description}}}{{^description}}{{{classname}}}{{/description}}
+{{#isDeprecated}}
+
+    .. deprecated::
+        This schema is deprecated.
+{{/isDeprecated}}
+{{#externalDocumentation}}
+
+    .. seealso::
+        `{{description}} <{{url}}>`_
+{{/externalDocumentation}}
     """
 
     actual_instance: Optional[Union[{{#anyOf}}{{{.}}}{{^-last}}, {{/-last}}{{/anyOf}}]] = None
@@ -155,9 +175,22 @@ if TYPE_CHECKING:
 class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}):
     """
     {{#description}}{{{description}}}{{/description}}{{^description}}{{{classname}}}{{/description}}
+{{#isDeprecated}}
+
+    .. deprecated::
+        This schema is deprecated.
+{{/isDeprecated}}
+{{#externalDocumentation}}
+
+    .. seealso::
+        `{{description}} <{{url}}>`_
+{{/externalDocumentation}}
     """
 
 {{#vars}}
+{{#deprecated}}
+    # .. deprecated:: This property is deprecated.
+{{/deprecated}}
 {{#required}}
     {{name}}: {{{dataType}}} = Field(alias='{{{baseName}}}')
 {{/required}}

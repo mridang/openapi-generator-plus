@@ -7,6 +7,8 @@ import { ApiResponse, Pet, PetPassport, Photo, PhotoMetadata, SetPetAvatarThumbn
 
 /**
  * PetApi provides methods for the Pet API group.
+ * Everything about your Pets
+ * @see {@link https://example.com/docs/pets} Find out more about pets
  */
 export class PetApi extends BaseApi {
   constructor(config?: Configuration, apiClient?: ApiClient) {
@@ -40,8 +42,8 @@ export class PetApi extends BaseApi {
   }
 
   /**
-   * Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
    * Add photos to the pet's gallery
+   * Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
    * @param petId  (required)
    * @param files  (required)
    * @param metadata  (required)
@@ -99,8 +101,8 @@ export class PetApi extends BaseApi {
   }
 
   /**
-   * Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
    * Download a vet document
+   * Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
    * @param petId  (required)
    * @param documentId  (required)
    * @return Buffer
@@ -132,8 +134,10 @@ export class PetApi extends BaseApi {
 
   /**
    * Finds Pets by status
-   * @param status Status values that need to be considered for filter (optional)
+   * @param status Status values that need to be considered for filter (optional) (deprecated)
    * @return Array<Pet>
+   * @deprecated This operation is deprecated.
+   * @see {@link https://example.com/docs/filtering} Find out more about filtering
    */
   async findPetsByStatus(status?: FindPetsByStatusStatusEnum): Promise<Array<Pet>> {
     const path = `/pet/findByStatus`;
@@ -156,8 +160,8 @@ export class PetApi extends BaseApi {
   }
 
   /**
-   * Returns the raw image bytes of the pet's current avatar.
    * Get the pet's profile photo
+   * Returns the raw image bytes of the pet's current avatar.
    * @param petId  (required)
    * @return Buffer
    */
@@ -183,8 +187,8 @@ export class PetApi extends BaseApi {
   }
 
   /**
-   * Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
    * Get the pet's avatar thumbnail as base64
+   * Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
    * @param petId  (required)
    * @return string
    */
@@ -210,10 +214,11 @@ export class PetApi extends BaseApi {
   }
 
   /**
-   * Returns a single pet
    * Find pet by ID
+   * Returns a single pet
    * @param petId ID of pet to return (required)
    * @return Pet
+   * @deprecated This operation is deprecated.
    */
   async getPetById(petId: number): Promise<Pet> {
     if (petId == null) {
@@ -237,8 +242,8 @@ export class PetApi extends BaseApi {
   }
 
   /**
-   * Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
    * Get the pet's passport
+   * Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
    * @param petId  (required)
    * @return PetPassport
    */
@@ -264,8 +269,8 @@ export class PetApi extends BaseApi {
   }
 
   /**
-   * Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
    * Get a photo or its metadata
+   * Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
    * @param petId  (required)
    * @param photoId  (required)
    * @return Buffer
@@ -296,8 +301,8 @@ export class PetApi extends BaseApi {
   }
 
   /**
-   * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
    * Set the pet's profile photo
+   * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
    * @param petId  (required)
    * @param body  (required)
    */
@@ -316,8 +321,8 @@ export class PetApi extends BaseApi {
   }
 
   /**
-   * Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
    * Set the pet's avatar thumbnail as base64
+   * Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
    * @param petId  (required)
    * @param setPetAvatarThumbnailRequest  (required)
    */
@@ -379,8 +384,8 @@ export class PetApi extends BaseApi {
   }
 
   /**
-   * Attaches a single adoption certificate document. No metadata fields are required alongside the file.
    * Upload the pet's adoption certificate
+   * Attaches a single adoption certificate document. No metadata fields are required alongside the file.
    * @param petId  (required)
    * @param file  (required)
    * @return ApiResponse
@@ -415,8 +420,8 @@ export class PetApi extends BaseApi {
   }
 
   /**
-   * Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
    * Attach a vet document or health record
+   * Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
    * @param petId  (required)
    * @param file  (required)
    * @param documentType  (optional)

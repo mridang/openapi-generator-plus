@@ -10,6 +10,8 @@ require 'cgi'
 module PetstoreClient
   module Api
     # PetApi provides methods for the Pet API group.
+    # Everything about your Pets
+    # @see https://example.com/docs/pets Find out more about pets
     class PetApi < BaseApi
       def initialize(api_client = nil, config = PetstoreClient::Configuration.default)
         super
@@ -146,8 +148,10 @@ module PetstoreClient
 
       # Finds Pets by status
       # @param [Hash] opts the optional parameters
-      # @option opts [String] :status Status values that need to be considered for filter (default to 'available')
+      # @option opts [String] :status Status values that need to be considered for filter (default to 'available') (deprecated)
       # @return [Array<Pet>]
+      # @deprecated This operation is deprecated.
+      # @see https://example.com/docs/filtering Find out more about filtering
       def find_pets_by_status(opts = {})
         path = '/pet/findByStatus'
         # @type var query_params: Hash[String, untyped]
@@ -227,6 +231,7 @@ module PetstoreClient
       # Returns a single pet
       # @param pet_id [Integer] ID of pet to return
       # @return [Pet]
+      # @deprecated This operation is deprecated.
       def get_pet_by_id(pet_id)
         if pet_id.nil?
           raise ArgumentError,

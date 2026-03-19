@@ -20,7 +20,7 @@ public class PhpFormattingSpec extends AbstractFormattingSpec implements PhpSpec
   @Override
   protected String[] getBuildCommands() {
     return new String[] {
-      "composer install --no-interaction --prefer-dist",
+      "COMPOSER_PROCESS_TIMEOUT=600 composer install --no-interaction --prefer-dist",
       "vendor/bin/phpcs"
     };
   }

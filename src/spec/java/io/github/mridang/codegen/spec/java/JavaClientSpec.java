@@ -15,7 +15,8 @@ public class JavaClientSpec extends AbstractClientSpec implements JavaSpec {
   protected String[] getBuildCommands() {
     return new String[] {
       "mvn compile test-compile -q -B",
-      "mvn test -q -B"
+      "mvn test -q -B",
+      "mv .out/jacoco.xml .out/coverage.xml"
     };
   }
 

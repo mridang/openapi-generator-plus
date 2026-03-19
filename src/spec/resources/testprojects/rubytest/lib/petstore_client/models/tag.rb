@@ -22,7 +22,8 @@ end
 module PetstoreClient
   # Model classes generated from OpenAPI schemas.
   module Models
-    # Model class for Tag.
+    # Tags are deprecated, use categories instead
+    # @deprecated This schema is deprecated.
     class Tag < Dry::Struct
       # Attribute mapping from ruby-style variable name to JSON key.
       ATTRIBUTE_MAP = {

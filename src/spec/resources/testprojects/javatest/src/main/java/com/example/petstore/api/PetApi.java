@@ -22,7 +22,12 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-/** PetApi provides methods for the Pet API group. */
+/**
+ * PetApi provides methods for the Pet API group. Everything about your Pets
+ *
+ * @see <a href="https://example.com/docs/pets">Find out more about pets</a>
+ */
+@SuppressWarnings("deprecation")
 public class PetApi extends BaseApi {
 
   private static final TypeReference<Pet> addPetTypeRef = new TypeReference<>() {};
@@ -221,10 +226,13 @@ public class PetApi extends BaseApi {
   /**
    * Finds Pets by status
    *
-   * @param status Status values that need to be considered for filter (optional)
+   * @param status Status values that need to be considered for filter (optional) (deprecated)
    * @return List<Pet>
    * @throws ApiException if fails to make API call
+   * @deprecated This operation is deprecated. Find out more about filtering
+   * @see <a href="https://example.com/docs/filtering">Finds Pets by status Documentation</a>
    */
+  @Deprecated
   @Nullable
   public List<Pet> findPetsByStatus(String status) throws ApiException {
     String path = "/pet/findByStatus";
@@ -312,7 +320,9 @@ public class PetApi extends BaseApi {
    * @param petId ID of pet to return (required)
    * @return Pet
    * @throws ApiException if fails to make API call
+   * @deprecated This operation is deprecated.
    */
+  @Deprecated
   @Nullable
   public Pet getPetById(Long petId) throws ApiException {
     if (petId == null) {

@@ -3,6 +3,14 @@ info:
   title: Swagger Petstore - OpenAPI 3.0
   description: A simplified Pet Store API for integration testing.
   version: 1.0.0
+tags:
+  - name: pet
+    description: Everything about your Pets
+    externalDocs:
+      description: Find out more about pets
+      url: https://example.com/docs/pets
+  - name: store
+    description: Access to Petstore orders
 servers:
   - url: /api/v3
 paths:
@@ -41,11 +49,16 @@ paths:
         - pet
       summary: Finds Pets by status
       operationId: findPetsByStatus
+      deprecated: true
+      externalDocs:
+        description: Find out more about filtering
+        url: https://example.com/docs/filtering
       parameters:
         - name: status
           in: query
           description: Status values that need to be considered for filter
           required: false
+          deprecated: true
           schema:
             type: string
             default: available
@@ -72,6 +85,7 @@ paths:
       summary: Find pet by ID
       description: Returns a single pet
       operationId: getPetById
+      deprecated: true
       parameters:
         - name: petId
           in: path
@@ -760,6 +774,8 @@ components:
 
     Tag:
       type: object
+      deprecated: true
+      description: Tags are deprecated, use categories instead
       properties:
         id:
           type: integer
@@ -772,6 +788,9 @@ components:
         - name
         - photoUrls
       type: object
+      externalDocs:
+        description: Learn more about the Pet model
+        url: https://example.com/docs/pet
       properties:
         id:
           type: integer
@@ -793,6 +812,7 @@ components:
         status:
           type: string
           description: pet status in the store
+          deprecated: true
           enum:
             - available
             - pending

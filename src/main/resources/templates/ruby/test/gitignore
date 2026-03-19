@@ -3,3 +3,6 @@
 Gemfile.lock
 
 # Minitest artifacts
+
+# Coverage output
+.out/

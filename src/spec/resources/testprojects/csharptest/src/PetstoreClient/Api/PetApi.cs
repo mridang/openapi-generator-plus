@@ -7,7 +7,9 @@ namespace PetstoreClient.Api;
 
 /// <summary>
 /// PetApi provides methods for the Pet API group.
+/// Everything about your Pets
 /// </summary>
+/// <seealso href="https://example.com/docs/pets">Find out more about pets</seealso>
 public class PetApi : BaseApi
 {
     private static readonly string[] AddPetAccepts = ["application/json"];
@@ -64,6 +66,7 @@ public class PetApi : BaseApi
     /// <summary>
     /// Add photos to the pet&#39;s gallery
     /// </summary>
+    /// <remarks>Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.</remarks>
     /// <param name="petId"></param>
     /// <param name="files"></param>
     /// <param name="metadata"></param>
@@ -134,6 +137,7 @@ public class PetApi : BaseApi
     /// <summary>
     /// Download a vet document
     /// </summary>
+    /// <remarks>Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.</remarks>
     /// <param name="petId"></param>
     /// <param name="documentId"></param>
     /// <returns><![CDATA[System.IO.Stream]]></returns>
@@ -171,8 +175,10 @@ public class PetApi : BaseApi
     /// <summary>
     /// Finds Pets by status
     /// </summary>
-    /// <param name="status">Status values that need to be considered for filter</param>
+    /// <param name="status">Status values that need to be considered for filter (deprecated)</param>
     /// <returns><![CDATA[List<Pet>]]></returns>
+    /// <seealso href="https://example.com/docs/filtering">Find out more about filtering</seealso>
+    [Obsolete("This operation is deprecated.")]
     public async Task<List<Pet>> FindPetsByStatusAsync(string? status = default)
     {
         string path = "/pet/findByStatus";
@@ -201,6 +207,7 @@ public class PetApi : BaseApi
     /// <summary>
     /// Get the pet&#39;s profile photo
     /// </summary>
+    /// <remarks>Returns the raw image bytes of the pet&#39;s current avatar.</remarks>
     /// <param name="petId"></param>
     /// <returns><![CDATA[System.IO.Stream]]></returns>
     public async Task<System.IO.Stream> GetPetAvatarAsync(long petId)
@@ -232,6 +239,7 @@ public class PetApi : BaseApi
     /// <summary>
     /// Get the pet&#39;s avatar thumbnail as base64
     /// </summary>
+    /// <remarks>Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.</remarks>
     /// <param name="petId"></param>
     /// <returns><![CDATA[byte[]]]></returns>
     public async Task<byte[]> GetPetAvatarThumbnailAsync(long petId)
@@ -263,8 +271,10 @@ public class PetApi : BaseApi
     /// <summary>
     /// Find pet by ID
     /// </summary>
+    /// <remarks>Returns a single pet</remarks>
     /// <param name="petId">ID of pet to return</param>
     /// <returns><![CDATA[Pet]]></returns>
+    [Obsolete("This operation is deprecated.")]
     public async Task<Pet> GetPetByIdAsync(long petId)
     {
         string path = "/pet/{petId}";
@@ -294,6 +304,7 @@ public class PetApi : BaseApi
     /// <summary>
     /// Get the pet&#39;s passport
     /// </summary>
+    /// <remarks>Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.</remarks>
     /// <param name="petId"></param>
     /// <returns><![CDATA[PetPassport]]></returns>
     public async Task<PetPassport> GetPetPassportAsync(long petId)
@@ -325,6 +336,7 @@ public class PetApi : BaseApi
     /// <summary>
     /// Get a photo or its metadata
     /// </summary>
+    /// <remarks>Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.</remarks>
     /// <param name="petId"></param>
     /// <param name="photoId"></param>
     /// <returns><![CDATA[System.IO.Stream]]></returns>
@@ -362,6 +374,7 @@ public class PetApi : BaseApi
     /// <summary>
     /// Set the pet&#39;s profile photo
     /// </summary>
+    /// <remarks>Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.</remarks>
     /// <param name="petId"></param>
     /// <param name="body"></param>
     public async Task SetPetAvatarAsync(long petId, System.IO.Stream body)
@@ -392,6 +405,7 @@ public class PetApi : BaseApi
     /// <summary>
     /// Set the pet&#39;s avatar thumbnail as base64
     /// </summary>
+    /// <remarks>Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.</remarks>
     /// <param name="petId"></param>
     /// <param name="setPetAvatarThumbnailRequest"></param>
     public async Task SetPetAvatarThumbnailAsync(
@@ -457,6 +471,7 @@ public class PetApi : BaseApi
     /// <summary>
     /// Upload the pet&#39;s adoption certificate
     /// </summary>
+    /// <remarks>Attaches a single adoption certificate document. No metadata fields are required alongside the file.</remarks>
     /// <param name="petId"></param>
     /// <param name="file"></param>
     /// <returns><![CDATA[ApiResponse]]></returns>
@@ -491,6 +506,7 @@ public class PetApi : BaseApi
     /// <summary>
     /// Attach a vet document or health record
     /// </summary>
+    /// <remarks>Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.</remarks>
     /// <param name="petId"></param>
     /// <param name="file"></param>
     /// <param name="documentType"></param>

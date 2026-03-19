@@ -1,5 +1,15 @@
 # frozen_string_literal: true
 
+require 'simplecov'
+require 'simplecov-cobertura'
+
+SimpleCov.start do
+  formatter SimpleCov::Formatter::CoberturaFormatter
+  coverage_dir '.out'
+  add_filter '/spec/'
+  track_files 'lib/**/*.rb'
+end
+
 $LOAD_PATH.unshift File.expand_path('../lib', __dir__)
 
 require 'minitest/autorun'

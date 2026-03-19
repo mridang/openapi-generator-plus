@@ -38,6 +38,12 @@ module {{moduleName}}
 {{^description}}
     # Union type for {{classname}}.
 {{/description}}
+{{#isDeprecated}}
+    # @deprecated This schema is deprecated.
+{{/isDeprecated}}
+{{#externalDocumentation}}
+    # @see {{url}} {{description}}
+{{/externalDocumentation}}
     module {{classname}}
       class << self
         {{#oneOf}}
@@ -121,6 +127,12 @@ module {{moduleName}}
 {{^description}}
     # Union type for {{classname}}.
 {{/description}}
+{{#isDeprecated}}
+    # @deprecated This schema is deprecated.
+{{/isDeprecated}}
+{{#externalDocumentation}}
+    # @see {{url}} {{description}}
+{{/externalDocumentation}}
     module {{classname}}
       class << self
         {{#anyOf}}
@@ -163,6 +175,12 @@ module {{moduleName}}
     {{^description}}
     # Model class for {{classname}}.
     {{/description}}
+    {{#isDeprecated}}
+    # @deprecated This schema is deprecated.
+    {{/isDeprecated}}
+    {{#externalDocumentation}}
+    # @see {{url}} {{description}}
+    {{/externalDocumentation}}
     class {{classname}} < {{#parent}}{{{.}}}{{/parent}}{{^parent}}Dry::Struct{{/parent}}
       # Attribute mapping from ruby-style variable name to JSON key.
       ATTRIBUTE_MAP = {
@@ -187,6 +205,9 @@ module {{moduleName}}
       end
 
       {{#vars}}
+      {{#deprecated}}
+      # @deprecated This property is deprecated.
+      {{/deprecated}}
       {{#required}}
       attribute :{{name}}, Types::Any
       {{/required}}
@@ -203,6 +224,12 @@ module {{moduleName}}
     {{^description}}
     # Model class for {{classname}}.
     {{/description}}
+    {{#isDeprecated}}
+    # @deprecated This schema is deprecated.
+    {{/isDeprecated}}
+    {{#externalDocumentation}}
+    # @see {{url}} {{description}}
+    {{/externalDocumentation}}
     class {{classname}} < {{#parent}}{{{.}}}{{/parent}}{{^parent}}Dry::Struct{{/parent}}
       ATTRIBUTE_MAP = {}.freeze
       JSON_KEY_MAP = ATTRIBUTE_MAP.invert.freeze

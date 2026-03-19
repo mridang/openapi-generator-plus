@@ -6,3 +6,6 @@ composer.lock
 
 # PHPUnit cache
 .phpunit.result.cache
+
+# Coverage output
+.out/
