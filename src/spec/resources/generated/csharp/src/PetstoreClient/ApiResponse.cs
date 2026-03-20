@@ -1,0 +1,11 @@
+namespace PetstoreClient;
+
+/// <summary>
+/// Represents an HTTP API response.
+/// </summary>
+public class ApiResponse(int statusCode, string body, Dictionary<string, string> headers)
+{
+    public int StatusCode { get; } = statusCode;
+    public string Body { get; } = body;
+    public Dictionary<string, string> Headers { get; } = headers;
+}

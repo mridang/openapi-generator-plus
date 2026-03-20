@@ -1,0 +1,8 @@
+/**
+ * Represents an HTTP API response.
+ */
+export interface ApiResponse {
+  readonly statusCode: number;
+  readonly body: string;
+  readonly headers: Readonly<Record<string, string>>;
+}

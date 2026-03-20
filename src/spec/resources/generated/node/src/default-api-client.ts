@@ -1,0 +1,387 @@
+import type { ApiClient } from './api-client.js';
+import type { ApiResponse } from './api-response.js';
+import { TransportOptions } from './transport-options.js';
+import * as crypto from 'node:crypto';
+import * as https from 'node:https';
+import * as http from 'node:http';
+import * as fs from 'node:fs';
+import * as zlib from 'node:zlib';
+import { promisify } from 'node:util';
+
+/**
+ * Default implementation of {@link ApiClient} using Node.js http/https modules.
+ *
+ * Applies transport-level settings from {@link TransportOptions}: TLS
+ * verification, custom CA certificates, proxy routing, timeouts, redirect
+ * handling, User-Agent injection, X-Request-ID injection, and
+ * transport-level default headers.
+ *
+ * Header merge order (lowest to highest priority):
+ * 1. {@link TransportOptions.defaultHeaders} -- transport-level defaults
+ * 2. Caller-provided headers (from BaseApi -- includes config defaults, auth, operation headers)
+ * 3. {@link TransportOptions.userAgent} -- injected if not already set
+ * 4. {@link TransportOptions.injectRequestId} -- injected if not already set
+ */
+export class DefaultApiClient implements ApiClient {
+  private readonly transportOptions: TransportOptions;
+  private readonly agent?: https.Agent;
+
+  /**
+   * Create a client with default transport settings.
+   *
+   * Equivalent to `new DefaultApiClient(TransportOptions.builder().build())`.
+   */
+  constructor();
+
+  /**
+   * Create a client configured from the given {@link TransportOptions}.
+   *
+   * Applies proxy, custom CA certificate, TLS verification, timeout,
+   * and redirect settings to the underlying HTTP agent.
+   *
+   * @param transportOptions transport configuration to apply
+   */
+  constructor(transportOptions: TransportOptions);
+
+  constructor(transportOptions?: TransportOptions) {
+    this.transportOptions = transportOptions ?? TransportOptions.builder().build();
+
+    if (this.transportOptions.caCertPath != null || !this.transportOptions.verifySsl) {
+      this.agent = new https.Agent({
+        ca: this.transportOptions.caCertPath ? fs.readFileSync(this.transportOptions.caCertPath) : undefined,
+        rejectUnauthorized: this.transportOptions.verifySsl
+      });
+    }
+  }
+
+  /**
+   * Send an HTTP request and return the response.
+   *
+   * Merges transport-level default headers, applies User-Agent and
+   * X-Request-ID injection, handles proxy routing, TLS, timeouts,
+   * and redirect following.
+   *
+   * @param method HTTP method (GET, POST, PUT, DELETE, etc.)
+   * @param url fully qualified URL
+   * @param headers HTTP headers from the caller
+   * @param body request body (serialized JSON string, raw Buffer, or null)
+   * @returns ApiResponse containing status code, body, and headers
+   */
+  async sendRequest(
+    method: string,
+    url: string,
+    headers: Record<string, string>,
+    body: string | Buffer | null
+  ): Promise<ApiResponse> {
+    if (body instanceof Blob) {
+      body = Buffer.from(await body.arrayBuffer());
+    }
+
+    const mergedHeaders: Record<string, string> = {
+      ...this.transportOptions.defaultHeaders,
+      ...headers
+    };
+
+    if (this.transportOptions.userAgent != null && !mergedHeaders['User-Agent']) {
+      mergedHeaders['User-Agent'] = this.transportOptions.userAgent;
+    }
+    if (this.transportOptions.injectRequestId && !mergedHeaders['X-Request-ID']) {
+      mergedHeaders['X-Request-ID'] = crypto.randomUUID();
+    }
+
+    mergedHeaders['Accept-Encoding'] ??= DefaultApiClient.supportedEncodings();
+
+    if (body != null && typeof body === 'object' && !Buffer.isBuffer(body)) {
+      const boundary = crypto.randomUUID();
+      mergedHeaders['Content-Type'] = `multipart/form-data; boundary=${boundary}`;
+      body = await this.buildMultipartBody(body as Record<string, unknown>, boundary);
+    }
+
+    if (this.transportOptions.proxy || this.agent) {
+      return this.sendWithNodeHttp(method, url, mergedHeaders, body, 0);
+    }
+    return this.sendWithFetch(method, url, mergedHeaders, body);
+  }
+
+  private async sendWithFetch(
+    method: string,
+    url: string,
+    headers: Record<string, string>,
+    body: string | Buffer | null
+  ): Promise<ApiResponse> {
+    const fetchOptions: RequestInit = {
+      method,
+      headers,
+      body: body ?? undefined,
+      redirect: this.transportOptions.followRedirects ? 'follow' : 'manual'
+    };
+
+    if (this.transportOptions.timeout != null) {
+      fetchOptions.signal = AbortSignal.timeout(this.transportOptions.timeout);
+    }
+
+    const response = await fetch(url, fetchOptions);
+
+    const responseBody = await response.text();
+    const responseHeaders: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      responseHeaders[key] = value;
+    });
+
+    return {
+      statusCode: response.status,
+      body: responseBody,
+      headers: responseHeaders
+    };
+  }
+
+  private sendWithNodeHttp(
+    method: string,
+    url: string,
+    headers: Record<string, string>,
+    body: string | Buffer | null,
+    redirectCount: number
+  ): Promise<ApiResponse> {
+    return new Promise((resolve, reject) => {
+      const parsed = new URL(url);
+      const isHttps = parsed.protocol === 'https:';
+
+      let requestOptions: http.RequestOptions;
+
+      if (this.transportOptions.proxy) {
+        const proxyUrl = new URL(this.transportOptions.proxy);
+        if (isHttps) {
+          const connectReq = http.request({
+            host: proxyUrl.hostname,
+            port: Number(proxyUrl.port) || 3128,
+            method: 'CONNECT',
+            path: `${parsed.hostname}:${parsed.port || 443}`
+          });
+
+          connectReq.on('connect', (_res, socket) => {
+            const tlsOptions: https.RequestOptions = {
+              host: parsed.hostname,
+              port: Number(parsed.port) || 443,
+              path: parsed.pathname + parsed.search,
+              method,
+              headers,
+              createConnection: () => socket,
+              agent: this.agent ?? new https.Agent({ rejectUnauthorized: this.transportOptions.verifySsl })
+            };
+            if (this.transportOptions.timeout != null) {
+              tlsOptions.timeout = this.transportOptions.timeout;
+            }
+            const req = https.request(tlsOptions, (res) =>
+              this.handleResponse(res, url, method, headers, body, redirectCount, resolve, reject)
+            );
+            req.on('error', reject);
+            req.on('timeout', () => {
+              req.destroy(new Error('Request timed out'));
+            });
+            if (body) req.write(body);
+            req.end();
+          });
+
+          connectReq.on('error', reject);
+          connectReq.end();
+          return;
+        } else {
+          requestOptions = {
+            host: proxyUrl.hostname,
+            port: Number(proxyUrl.port) || 3128,
+            path: url,
+            method,
+            headers: { ...headers, Host: parsed.host }
+          };
+        }
+      } else {
+        requestOptions = {
+          hostname: parsed.hostname,
+          port: parsed.port ? Number(parsed.port) : undefined,
+          path: parsed.pathname + parsed.search,
+          method,
+          headers,
+          agent: isHttps ? this.agent : undefined
+        };
+      }
+
+      if (this.transportOptions.timeout != null) {
+        requestOptions.timeout = this.transportOptions.timeout;
+      }
+
+      const transport = this.transportOptions.proxy || !isHttps ? http : https;
+      const req = transport.request(requestOptions, (res) =>
+        this.handleResponse(res, url, method, headers, body, redirectCount, resolve, reject)
+      );
+      req.on('error', reject);
+      req.on('timeout', () => {
+        req.destroy(new Error('Request timed out'));
+      });
+      if (body) req.write(body);
+      req.end();
+    });
+  }
+
+  /**
+   * Handle an incoming HTTP response, following redirects when configured.
+   *
+   * @param res the incoming HTTP response
+   * @param originalUrl the URL of the request that produced this response
+   * @param method the original HTTP method
+   * @param headers the original request headers
+   * @param body the original request body
+   * @param redirectCount number of redirects already followed
+   * @param resolve promise resolve callback
+   * @param reject promise reject callback
+   */
+  private handleResponse(
+    res: http.IncomingMessage,
+    originalUrl: string,
+    method: string,
+    headers: Record<string, string>,
+    body: string | Buffer | null,
+    redirectCount: number,
+    resolve: (value: ApiResponse) => void,
+    reject: (reason: unknown) => void
+  ): void {
+    const statusCode = res.statusCode ?? 0;
+    const isRedirect = statusCode >= 300 && statusCode < 400 && res.headers.location != null;
+
+    if (isRedirect && this.transportOptions.followRedirects) {
+      const max = this.transportOptions.maxRedirects ?? 10;
+      if (redirectCount >= max) {
+        reject(new Error(`Maximum number of redirects (${max}) exceeded`));
+        res.resume();
+        return;
+      }
+      const redirectUrl = new URL(res.headers.location!, originalUrl);
+      res.resume();
+      this.sendWithNodeHttp(method, redirectUrl.href, headers, body, redirectCount + 1).then(resolve, reject);
+      return;
+    }
+
+    this.collectResponse(res, resolve);
+  }
+
+  private collectResponse(res: http.IncomingMessage, resolve: (value: ApiResponse) => void): void {
+    const chunks: Buffer[] = [];
+    res.on('data', (chunk: Buffer) => chunks.push(chunk));
+    res.on('end', () => {
+      const raw = Buffer.concat(chunks);
+      const encoding = (res.headers['content-encoding'] ?? '').toLowerCase();
+      this.decompressBody(raw, encoding).then((decompressed) => {
+        const responseBody = decompressed.toString('utf-8');
+        const responseHeaders: Record<string, string> = {};
+        for (const [key, value] of Object.entries(res.headers)) {
+          if (typeof value === 'string') {
+            responseHeaders[key] = value;
+          } else if (Array.isArray(value)) {
+            responseHeaders[key] = value.join(', ');
+          }
+        }
+        resolve({
+          statusCode: res.statusCode ?? 0,
+          body: responseBody,
+          headers: responseHeaders
+        });
+      });
+    });
+  }
+
+  /**
+   * Returns the list of supported content encodings for Accept-Encoding.
+   *
+   * @returns comma-separated encoding names
+   */
+  static supportedEncodings(): string {
+    const encodings = ['gzip', 'deflate', 'br'];
+    if ('zstdDecompress' in zlib) {
+      encodings.push('zstd');
+    }
+    return encodings.join(', ');
+  }
+
+  /**
+   * Decompress response body bytes based on the Content-Encoding header value.
+   *
+   * Supports gzip, deflate, brotli, and zstd (when available).
+   *
+   * @param data the raw response bytes
+   * @param encoding the Content-Encoding header value
+   * @returns the decompressed body as a Buffer
+   */
+  private async decompressBody(data: Buffer, encoding: string): Promise<Buffer> {
+    if (data.length === 0) return data;
+    switch (encoding) {
+      case 'gzip':
+      case 'x-gzip':
+        return promisify(zlib.gunzip)(data);
+      case 'deflate':
+        return promisify(zlib.inflate)(data);
+      case 'br':
+        return promisify(zlib.brotliDecompress)(data);
+      case 'zstd': {
+        const zstdFn = (zlib as unknown as Record<string, typeof zlib.gunzip>)['zstdDecompress'];
+        if (zstdFn) {
+          return promisify(zstdFn)(data);
+        }
+        return data;
+      }
+      default:
+        return data;
+    }
+  }
+
+  /**
+   * Build a multipart/form-data request body from a map of form fields.
+   *
+   * @param formParts the form field names and values
+   * @param boundary the multipart boundary string
+   * @returns the assembled multipart body as a Buffer
+   */
+  private async buildMultipartBody(formParts: Record<string, unknown>, boundary: string): Promise<Buffer> {
+    const parts: Buffer[] = [];
+    for (const [name, value] of Object.entries(formParts)) {
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          parts.push(await this.multipartPart(name, item, boundary));
+        }
+      } else {
+        parts.push(await this.multipartPart(name, value, boundary));
+      }
+    }
+    parts.push(Buffer.from(`--${boundary}--\r\n`, 'utf-8'));
+    return Buffer.concat(parts);
+  }
+
+  /**
+   * Build a single multipart part.
+   *
+   * @param name the field name
+   * @param value the field value
+   * @param boundary the multipart boundary string
+   * @returns the assembled part as a Buffer
+   */
+  private async multipartPart(name: string, value: unknown, boundary: string): Promise<Buffer> {
+    if (Buffer.isBuffer(value)) {
+      const header = `--${boundary}\r\nContent-Disposition: form-data; name="${name}"; filename="${name}"\r\nContent-Type: application/octet-stream\r\n\r\n`;
+      return Buffer.concat([Buffer.from(header, 'utf-8'), value, Buffer.from('\r\n', 'utf-8')]);
+    }
+    if (value instanceof Blob) {
+      const buf = Buffer.from(await value.arrayBuffer());
+      const header = `--${boundary}\r\nContent-Disposition: form-data; name="${name}"; filename="${name}"\r\nContent-Type: application/octet-stream\r\n\r\n`;
+      return Buffer.concat([Buffer.from(header, 'utf-8'), buf, Buffer.from('\r\n', 'utf-8')]);
+    }
+    if (typeof value === 'object' && value !== null) {
+      const json = JSON.stringify(value);
+      return Buffer.from(
+        `--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\nContent-Type: application/json\r\n\r\n${json}\r\n`,
+        'utf-8'
+      );
+    }
+    return Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${String(value)}\r\n`,
+      'utf-8'
+    );
+  }
+}

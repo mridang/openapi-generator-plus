@@ -1,0 +1,233 @@
+interface HeaderData {
+  header: string;
+  weight: number;
+}
+
+/**
+ * HeaderSelector
+ */
+export class HeaderSelector {
+  private static readonly JSON_MIME_PATTERN = /^application\/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)/i;
+
+  private static readonly WEIGHT_PATTERN = /(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$/;
+
+  /**
+   * Select headers for an API request.
+   *
+   * @param accept       array of acceptable MIME types for the response
+   * @param contentType  the Content-Type for the request body
+   * @param isMultipart  whether this is a multipart request
+   * @returns map of header names to values
+   */
+  public selectHeaders(accept: string[], contentType: string | null, isMultipart: boolean): Record<string, string> {
+    const headers: Record<string, string> = {};
+
+    const acceptHeader = this.selectAcceptHeader(accept);
+    if (acceptHeader !== null) {
+      headers['Accept'] = acceptHeader;
+    }
+
+    if (!isMultipart) {
+      if (contentType === null || contentType === '') {
+        contentType = 'application/json';
+      }
+      headers['Content-Type'] = contentType;
+    }
+
+    return headers;
+  }
+
+  /**
+   * Return the header 'Accept' based on an array of Accept provided.
+   *
+   * @param accept Array of header
+   * @returns Accept (e.g. application/json)
+   */
+  private selectAcceptHeader(accept: string[] | null): string | null {
+    if (accept === null) {
+      return null;
+    }
+
+    const filteredAccept = accept.filter((s) => s !== null && s !== '');
+
+    if (filteredAccept.length === 0) {
+      return null;
+    }
+
+    if (filteredAccept.length === 1) {
+      return filteredAccept[0];
+    }
+
+    const headersWithJson = this.selectJsonMimeList(filteredAccept);
+    if (headersWithJson.length === 0) {
+      return filteredAccept.join(',');
+    }
+
+    return this.getAcceptHeaderWithAdjustedWeight(filteredAccept, headersWithJson);
+  }
+
+  /**
+   * Detects whether a string contains a valid JSON mime type.
+   *
+   * @param searchString the MIME type string to check
+   * @returns true if the string represents a JSON MIME type
+   */
+  public isJsonMime(searchString: string | null): boolean {
+    if (searchString === null) {
+      return false;
+    }
+    return HeaderSelector.JSON_MIME_PATTERN.test(searchString);
+  }
+
+  /**
+   * Select all items from a list containing a JSON mime type.
+   *
+   * @param mimeList list of MIME types to filter
+   * @returns list containing only JSON MIME types
+   */
+  private selectJsonMimeList(mimeList: string[]): string[] {
+    return mimeList.filter((mime) => this.isJsonMime(mime));
+  }
+
+  /**
+   * Create an Accept header string from the given "Accept" headers array, recalculating all weights.
+   *
+   * @param accept          Array of Accept Headers
+   * @param headersWithJson Array of Accept Headers of type "json"
+   * @returns "Accept" Header (e.g. "application/json, text/html; q=0.9")
+   */
+  private getAcceptHeaderWithAdjustedWeight(accept: string[], headersWithJson: string[]): string {
+    const withApplicationJson: HeaderData[] = [];
+    const withJson: HeaderData[] = [];
+    const withoutJson: HeaderData[] = [];
+
+    for (const header of accept) {
+      const headerData = this.getHeaderAndWeight(header);
+
+      if (headerData.header.toLowerCase().startsWith('application/json')) {
+        withApplicationJson.push(headerData);
+      } else if (headersWithJson.includes(header)) {
+        withJson.push(headerData);
+      } else {
+        withoutJson.push(headerData);
+      }
+    }
+
+    const acceptHeaders: string[] = [];
+    const currentWeight = [1000];
+
+    const hasMoreThan28Headers = accept.length > 28;
+
+    if (withApplicationJson.length > 0) {
+      acceptHeaders.push(...this.adjustWeight(withApplicationJson, currentWeight, hasMoreThan28Headers));
+    }
+    if (withJson.length > 0) {
+      acceptHeaders.push(...this.adjustWeight(withJson, currentWeight, hasMoreThan28Headers));
+    }
+    if (withoutJson.length > 0) {
+      acceptHeaders.push(...this.adjustWeight(withoutJson, currentWeight, hasMoreThan28Headers));
+    }
+
+    return acceptHeaders.join(',');
+  }
+
+  /**
+   * Given an Accept header, returns the header and its weight.
+   *
+   * @param header "Accept" Header
+   * @returns HeaderData with the header and its weight
+   */
+  private getHeaderAndWeight(header: string): HeaderData {
+    const match = HeaderSelector.WEIGHT_PATTERN.exec(header);
+    if (match) {
+      const headerValue = match[1];
+      const weight = parseFloat(match[2]);
+      return { header: headerValue, weight: Math.floor(weight * 1000) };
+    } else {
+      return { header: header.trim(), weight: 1000 };
+    }
+  }
+
+  /**
+   * Adjust weights for a group of headers.
+   *
+   * @param headers             list of headers to process
+   * @param currentWeight       array containing current weight (modified in place)
+   * @param hasMoreThan28Headers whether there are more than 28 total headers
+   * @returns array of adjusted "Accept" headers
+   */
+  private adjustWeight(headers: HeaderData[], currentWeight: number[], hasMoreThan28Headers: boolean): string[] {
+    headers.sort((a, b) => b.weight - a.weight);
+
+    const acceptHeaders: string[] = [];
+    for (let index = 0; index < headers.length; index++) {
+      const header = headers[index];
+
+      if (index > 0 && headers[index - 1].weight > header.weight) {
+        currentWeight[0] = this.getNextWeight(currentWeight[0], hasMoreThan28Headers);
+      }
+
+      const weight = currentWeight[0];
+      acceptHeaders.push(this.buildAcceptHeader(header.header, weight));
+    }
+
+    currentWeight[0] = this.getNextWeight(currentWeight[0], hasMoreThan28Headers);
+
+    return acceptHeaders;
+  }
+
+  /**
+   * Build a single Accept header string with optional quality weight.
+   *
+   * @param header the MIME type
+   * @param weight the quality weight (scaled by 1000)
+   * @returns formatted header string
+   */
+  private buildAcceptHeader(header: string, weight: number): string {
+    if (weight === 1000) {
+      return header;
+    }
+
+    const cleanHeader = header.replace(/[;\s]+$/, '');
+    let weightStr = (weight / 1000).toFixed(3).replace(/0+$/, '');
+    if (weightStr.endsWith('.')) {
+      weightStr = weightStr.slice(0, -1);
+    }
+
+    return cleanHeader + ';q=' + weightStr;
+  }
+
+  /**
+   * Calculate the next weight, based on the current one.
+   *
+   * If there are less than 28 "Accept" headers, the weights will be decreased by 1 on its highest significant digit, using the
+   * following formula:
+   *
+   *    next weight = current weight - 10 ^ (floor(log(current weight - 1)))
+   *
+   *    ( current weight minus ( 10 raised to the power of ( floor of (log to the base 10 of ( current weight minus 1 ) ) ) ) )
+   *
+   * Starting from 1000, this generates the following series:
+   *
+   * 1000, 900, 800, 700, 600, 500, 400, 300, 200, 100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
+   *
+   * The resulting quality codes are closer to the average "normal" usage of them (like "q=0.9", "q=0.8" and so on), but it only works
+   * if there is a maximum of 28 "Accept" headers. If we have more than that (which is extremely unlikely), then we fall back to a 1-by-1
+   * decrement rule, which will result in quality codes like "q=0.999", "q=0.998" etc.
+   *
+   * @param currentWeight varying from 1 to 1000 (will be divided by 1000 to build the quality value)
+   * @param hasMoreThan28Headers whether there are more than 28 headers
+   * @returns the next weight
+   */
+  public getNextWeight(currentWeight: number, hasMoreThan28Headers: boolean): number {
+    if (currentWeight <= 1) {
+      return 1;
+    }
+
+    if (hasMoreThan28Headers) {
+      return currentWeight - 1;
+    }
+
+    return currentWeight - Math.pow(10, Math.floor(Math.log10(currentWeight - 1)));
+  }
+}

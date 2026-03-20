@@ -1,0 +1,9 @@
+module PetstoreClient::Models
+  class PhotoMetadataLocation < Dry::Struct
+    ATTRIBUTE_MAP: Hash[Symbol, String]
+    JSON_KEY_MAP: Hash[String, Symbol]
+    OPENAPI_TYPES: Hash[Symbol, String]
+    attr_reader lat: Float?
+    attr_reader lng: Float?
+  end
+end

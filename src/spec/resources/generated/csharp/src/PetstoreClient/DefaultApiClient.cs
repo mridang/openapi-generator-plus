@@ -1,0 +1,270 @@
+#pragma warning disable CA2000 // Dispose objects before losing scope — handler ownership transfers to HttpClient
+#pragma warning disable IDE0028 // Collection initialization can be simplified
+
+using System.Net;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
+
+namespace PetstoreClient;
+
+/// <summary>
+/// Default implementation of <see cref="IApiClient"/> using HttpClient.
+///
+/// Applies transport-level settings from <see cref="TransportOptions"/>: TLS
+/// verification, custom CA certificates, proxy routing, timeouts, redirect
+/// handling, <c>User-Agent</c> injection, <c>X-Request-ID</c> injection,
+/// and transport-level default headers.
+///
+/// Header merge order (lowest to highest priority):
+/// <list type="number">
+///   <item><description><see cref="TransportOptions.DefaultHeaders"/> -- transport-level defaults</description></item>
+///   <item><description>Caller-provided headers (from <see cref="Api.BaseApi"/> -- includes config defaults, auth, operation headers)</description></item>
+///   <item><description><see cref="TransportOptions.UserAgent"/> -- injected if not already set</description></item>
+///   <item><description><see cref="TransportOptions.InjectRequestId"/> -- injected if not already set</description></item>
+/// </list>
+/// </summary>
+public sealed class DefaultApiClient : IApiClient, IDisposable
+{
+    private readonly HttpClient _httpClient;
+    private readonly TransportOptions _transportOptions;
+
+    /// <summary>
+    /// Create a client with default transport settings.
+    /// Equivalent to <c>new DefaultApiClient(TransportOptions.CreateBuilder().Build())</c>.
+    /// </summary>
+    public DefaultApiClient()
+        : this(TransportOptions.CreateBuilder().Build()) { }
+
+    /// <summary>
+    /// Create a client configured from the given <see cref="TransportOptions"/>.
+    /// Applies proxy, custom CA certificate, TLS verification, timeout,
+    /// redirect, and max-redirect settings to the underlying HttpClient.
+    /// </summary>
+    /// <param name="transportOptions">Transport configuration to apply.</param>
+    public DefaultApiClient(TransportOptions transportOptions)
+    {
+        ArgumentNullException.ThrowIfNull(transportOptions);
+        _transportOptions = transportOptions;
+
+        HttpClientHandler handler = new()
+        {
+            AutomaticDecompression = DecompressionMethods.All,
+            CheckCertificateRevocationList = true,
+        };
+
+        if (!transportOptions.VerifySsl)
+        {
+            handler.ServerCertificateCustomValidationCallback =
+                HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+        }
+        else if (transportOptions.CaCertPath != null)
+        {
+            X509Certificate2Collection caCerts = [];
+            caCerts.ImportFromPemFile(transportOptions.CaCertPath);
+            handler.ServerCertificateCustomValidationCallback = (_, cert, _, _) =>
+            {
+                if (cert == null)
+                {
+                    return false;
+                }
+
+                using X509Chain customChain = new();
+                customChain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+                customChain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+                customChain.ChainPolicy.CustomTrustStore.AddRange(caCerts);
+                return customChain.Build(cert);
+            };
+        }
+
+        if (transportOptions.Proxy != null)
+        {
+            handler.Proxy = new WebProxy(transportOptions.Proxy);
+            handler.UseProxy = true;
+        }
+
+        if (!transportOptions.FollowRedirects)
+        {
+            handler.AllowAutoRedirect = false;
+        }
+        else
+        {
+            handler.AllowAutoRedirect = true;
+            if (transportOptions.MaxRedirects.HasValue)
+            {
+                handler.MaxAutomaticRedirections = transportOptions.MaxRedirects.Value;
+            }
+        }
+
+        _httpClient = new HttpClient(handler, disposeHandler: true);
+
+        if (transportOptions.Timeout.HasValue)
+        {
+            _httpClient.Timeout = TimeSpan.FromMilliseconds(transportOptions.Timeout.Value);
+        }
+    }
+
+    /// <summary>
+    /// Create a client with a pre-configured HttpClient.
+    /// Uses default <see cref="TransportOptions"/> for header injection settings.
+    /// </summary>
+    /// <param name="httpClient">The HTTP client to use.</param>
+    public DefaultApiClient(HttpClient httpClient)
+    {
+        _httpClient = httpClient;
+        _transportOptions = TransportOptions.CreateBuilder().Build();
+    }
+
+    /// <inheritdoc/>
+    public async Task<ApiResponse> SendRequestAsync(
+        string method,
+        Uri url,
+        Dictionary<string, string> headers,
+        object? body
+    )
+    {
+        ArgumentNullException.ThrowIfNull(headers);
+
+        Dictionary<string, string> mergedHeaders = new(_transportOptions.DefaultHeaders);
+        foreach (KeyValuePair<string, string> header in headers)
+        {
+            mergedHeaders[header.Key] = header.Value;
+        }
+
+        if (_transportOptions.UserAgent != null && !mergedHeaders.ContainsKey("User-Agent"))
+        {
+            mergedHeaders["User-Agent"] = _transportOptions.UserAgent;
+        }
+
+        if (_transportOptions.InjectRequestId && !mergedHeaders.ContainsKey("X-Request-ID"))
+        {
+            mergedHeaders["X-Request-ID"] = Guid.NewGuid().ToString();
+        }
+
+        using HttpRequestMessage request = new(new HttpMethod(method), url);
+
+        string? contentType = null;
+        foreach (KeyValuePair<string, string> header in mergedHeaders)
+        {
+            if (string.Equals(header.Key, "Content-Type", StringComparison.OrdinalIgnoreCase))
+            {
+                contentType = header.Value;
+            }
+            else
+            {
+                _ = request.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            }
+        }
+
+        if (body != null)
+        {
+            request.Content = body switch
+            {
+                byte[] bytes => new ByteArrayContent(bytes),
+                Stream stream => new StreamContent(stream),
+                Dictionary<string, object> formParts => BuildMultipartContent(formParts),
+                string text => new StringContent(
+                    text,
+                    Encoding.UTF8,
+                    contentType ?? "application/json"
+                ),
+                _ => new StringContent(
+                    body.ToString() ?? "",
+                    Encoding.UTF8,
+                    contentType ?? "application/json"
+                ),
+            };
+
+            if (
+                contentType != null
+                && body is not Dictionary<string, object>
+                && body is not string
+                && request.Content.Headers.ContentType != null
+            )
+            {
+                request.Content.Headers.ContentType =
+                    System.Net.Http.Headers.MediaTypeHeaderValue.Parse(contentType);
+            }
+        }
+
+        using HttpResponseMessage response = await _httpClient
+            .SendAsync(request)
+            .ConfigureAwait(false);
+        string responseBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        Dictionary<string, string> responseHeaders = [];
+
+        foreach (KeyValuePair<string, IEnumerable<string>> header in response.Headers)
+        {
+            responseHeaders[header.Key] = string.Join(",", header.Value);
+        }
+
+        foreach (KeyValuePair<string, IEnumerable<string>> header in response.Content.Headers)
+        {
+            responseHeaders[header.Key] = string.Join(",", header.Value);
+        }
+
+        return new ApiResponse((int)response.StatusCode, responseBody, responseHeaders);
+    }
+
+    private static MultipartFormDataContent BuildMultipartContent(
+        Dictionary<string, object> formParts
+    )
+    {
+        MultipartFormDataContent multipart = new();
+        foreach (KeyValuePair<string, object> part in formParts)
+        {
+            if (part.Value is System.Collections.IList list)
+            {
+                foreach (object? item in list)
+                {
+                    if (item != null)
+                    {
+                        AddMultipartField(multipart, part.Key, item);
+                    }
+                }
+            }
+            else
+            {
+                AddMultipartField(multipart, part.Key, part.Value);
+            }
+        }
+        return multipart;
+    }
+
+    private static void AddMultipartField(
+        MultipartFormDataContent multipart,
+        string name,
+        object value
+    )
+    {
+        switch (value)
+        {
+            case byte[] bytes:
+                multipart.Add(new ByteArrayContent(bytes), name, name);
+                break;
+            case Stream stream:
+                multipart.Add(new StreamContent(stream), name, name);
+                break;
+            case string s:
+                multipart.Add(new StringContent(s), name);
+                break;
+            default:
+                if (value is int or long or float or double or bool or decimal)
+                {
+                    multipart.Add(new StringContent(value.ToString() ?? ""), name);
+                }
+                else
+                {
+                    string json = System.Text.Json.JsonSerializer.Serialize(value);
+                    StringContent jsonContent = new(json, Encoding.UTF8, "application/json");
+                    multipart.Add(jsonContent, name);
+                }
+                break;
+        }
+    }
+
+    /// <inheritdoc/>
+    public void Dispose()
+    {
+        _httpClient.Dispose();
+    }
+}

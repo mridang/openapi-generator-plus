@@ -1,0 +1,127 @@
+package com.example.petstore;
+
+import java.util.List;
+import java.util.Map;
+import javax.annotation.Nullable;
+
+/** Exception thrown when an API call fails. */
+public class ApiException extends Exception {
+  private static final long serialVersionUID = 1L;
+
+  private final int code;
+  @Nullable private final transient Map<String, List<String>> responseHeaders;
+  @Nullable private final String responseBody;
+
+  public ApiException() {
+    this.code = 0;
+    this.responseHeaders = null;
+    this.responseBody = null;
+  }
+
+  public ApiException(Throwable throwable) {
+    super(throwable);
+    this.code = 0;
+    this.responseHeaders = null;
+    this.responseBody = null;
+  }
+
+  public ApiException(String message) {
+    super(message);
+    this.code = 0;
+    this.responseHeaders = null;
+    this.responseBody = null;
+  }
+
+  public ApiException(
+      String message,
+      @Nullable Throwable throwable,
+      int code,
+      @Nullable Map<String, List<String>> responseHeaders,
+      @Nullable String responseBody) {
+    super(message, throwable);
+    this.code = code;
+    this.responseHeaders = responseHeaders;
+    this.responseBody = responseBody;
+  }
+
+  public ApiException(
+      String message,
+      int code,
+      @Nullable Map<String, List<String>> responseHeaders,
+      @Nullable String responseBody) {
+    this(message, null, code, responseHeaders, responseBody);
+  }
+
+  public ApiException(
+      String message,
+      @Nullable Throwable throwable,
+      int code,
+      @Nullable Map<String, List<String>> responseHeaders) {
+    this(message, throwable, code, responseHeaders, null);
+  }
+
+  public ApiException(int code, Map<String, List<String>> responseHeaders, String responseBody) {
+    this(
+        "Response Code: " + code + " Response Body: " + responseBody,
+        null,
+        code,
+        responseHeaders,
+        responseBody);
+  }
+
+  public ApiException(int code, String message) {
+    this(message, null, code, null, null);
+  }
+
+  public ApiException(
+      int code,
+      String message,
+      @Nullable Map<String, List<String>> responseHeaders,
+      @Nullable String responseBody) {
+    this(message, null, code, responseHeaders, responseBody);
+  }
+
+  /**
+   * Get the HTTP status code.
+   *
+   * @return HTTP status code
+   */
+  public int getCode() {
+    return code;
+  }
+
+  /**
+   * Get the HTTP response headers.
+   *
+   * @return A map of list of string
+   */
+  @Nullable
+  public Map<String, List<String>> getResponseHeaders() {
+    return responseHeaders;
+  }
+
+  /**
+   * Get the HTTP response body.
+   *
+   * @return Response body in the form of string
+   */
+  @Nullable
+  public String getResponseBody() {
+    return responseBody;
+  }
+
+  @Override
+  public String getMessage() {
+    return "ApiException{"
+        + "code="
+        + code
+        + ", message='"
+        + super.getMessage()
+        + "', responseHeaders="
+        + responseHeaders
+        + ", responseBody='"
+        + responseBody
+        + '\''
+        + '}';
+  }
+}

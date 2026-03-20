@@ -1,0 +1,22 @@
+module PetstoreClient
+  module Api
+    class PetApi < BaseApi
+      def initialize: (?::PetstoreClient::ApiClient? api_client, ?::PetstoreClient::Configuration config) -> void
+      def add_pet: (::PetstoreClient::Auth::Authenticator auth, untyped pet) -> untyped
+      def add_pet_photos: (untyped pet_id, files: untyped, metadata: untyped) -> untyped
+      def delete_pet: (::PetstoreClient::Auth::Authenticator auth, untyped pet_id) -> untyped
+      def download_pet_document: (untyped pet_id, untyped document_id) -> untyped
+      def find_pets_by_status: (?status: untyped?) -> untyped
+      def get_pet_avatar: (untyped pet_id) -> untyped
+      def get_pet_avatar_thumbnail: (untyped pet_id) -> untyped
+      def get_pet_by_id: (untyped pet_id) -> untyped
+      def get_pet_passport: (untyped pet_id) -> untyped
+      def get_pet_photo: (untyped pet_id, untyped photo_id) -> untyped
+      def set_pet_avatar: (untyped pet_id, untyped body) -> untyped
+      def set_pet_avatar_thumbnail: (untyped pet_id, untyped set_pet_avatar_thumbnail_request) -> untyped
+      def update_pet: (untyped pet_id, untyped pet) -> untyped
+      def upload_pet_certificate: (untyped pet_id, file: untyped) -> untyped
+      def upload_pet_document: (untyped pet_id, file: untyped, ?document_type: untyped?, ?notes: untyped?) -> untyped
+    end
+  end
+end

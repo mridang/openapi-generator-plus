@@ -1,0 +1,82 @@
+import type { ApiClient } from '../../api-client.js';
+
+/**
+ * Manages OAuth2 token lifecycle including fetching, caching, and refreshing tokens.
+ *
+ * Uses the shared {@link ApiClient} instance so that token exchange requests
+ * honour the same transport configuration (proxy, TLS, timeouts) as regular
+ * API calls.
+ */
+export class OAuth2TokenManager {
+  private apiClient: ApiClient | null = null;
+  private accessToken: string | null = null;
+  private tokenExpiry: number | null = null;
+
+  /**
+   * Inject the shared API client for making token requests.
+   *
+   * @param apiClient the shared API client instance
+   */
+  setApiClient(apiClient: ApiClient): void {
+    this.apiClient = apiClient;
+  }
+
+  /**
+   * Get a valid access token, fetching or refreshing as necessary.
+   *
+   * @param tokenUrl the OAuth2 token endpoint URL
+   * @param params the token request parameters (grant_type, client_id, etc.)
+   * @returns a valid access token
+   * @throws Error if no API client has been injected or token fetch fails
+   */
+  async getAccessToken(tokenUrl: string, params: Record<string, string>): Promise<string> {
+    if (this.accessToken && this.tokenExpiry && Date.now() < this.tokenExpiry) {
+      return this.accessToken;
+    }
+    await this.fetchToken(tokenUrl, params);
+    return this.accessToken!;
+  }
+
+  /**
+   * Manually set an access token, bypassing the token endpoint.
+   *
+   * @param token the access token to use
+   */
+  setAccessToken(token: string): void {
+    this.accessToken = token;
+    this.tokenExpiry = null;
+  }
+
+  /**
+   * Fetch a new token from the token endpoint using the injected ApiClient.
+   *
+   * @param tokenUrl the OAuth2 token endpoint URL
+   * @param params the token request parameters
+   */
+  private async fetchToken(tokenUrl: string, params: Record<string, string>): Promise<void> {
+    if (this.apiClient == null) {
+      throw new Error(
+        'ApiClient has not been injected. ' +
+          'Ensure the Client constructor calls setApiClient() ' +
+          'on HttpAwareAuthenticator before making API requests.'
+      );
+    }
+
+    const body = new URLSearchParams(params).toString();
+    const response = await this.apiClient.sendRequest(
+      'POST',
+      tokenUrl,
+      { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw new Error(`Token request failed with status ${response.statusCode}: ${response.body}`);
+    }
+    const json = JSON.parse(response.body) as Record<string, unknown>;
+    this.accessToken = json.access_token as string;
+    if (json.expires_in) {
+      this.tokenExpiry = Date.now() + ((json.expires_in as number) - 30) * 1000;
+    }
+  }
+}

@@ -1,0 +1,603 @@
+#pragma warning disable CA1002 // Do not expose generic lists
+
+using PetstoreClient.Auth;
+using PetstoreClient.Models;
+
+namespace PetstoreClient.Api;
+
+/// <summary>
+/// Options for the AddPetPhotos operation.
+/// </summary>
+public sealed class AddPetPhotosOptions
+{
+    /// <summary></summary>
+    public required List<System.IO.Stream> Files { get; init; }
+
+    /// <summary></summary>
+    public required PhotoMetadata Metadata { get; init; }
+}
+
+/// <summary>
+/// Options for the FindPetsByStatus operation.
+/// </summary>
+public sealed class FindPetsByStatusOptions
+{
+    /// <summary> Status values that need to be considered for filter</summary>
+    public string? Status { get; init; }
+}
+
+/// <summary>
+/// Options for the UploadPetCertificate operation.
+/// </summary>
+public sealed class UploadPetCertificateOptions
+{
+    /// <summary></summary>
+    public required System.IO.Stream File { get; init; }
+}
+
+/// <summary>
+/// Options for the UploadPetDocument operation.
+/// </summary>
+public sealed class UploadPetDocumentOptions
+{
+    /// <summary></summary>
+    public required System.IO.Stream File { get; init; }
+
+    /// <summary></summary>
+    public string? DocumentType { get; init; }
+
+    /// <summary></summary>
+    public string? Notes { get; init; }
+}
+
+/// <summary>
+/// PetApi provides methods for the Pet API group.
+/// Everything about your Pets
+/// </summary>
+/// <seealso href="https://example.com/docs/pets">Find out more about pets</seealso>
+public class PetApi : BaseApi
+{
+    private static readonly string[] AddPetAccepts = ["application/json"];
+    private static readonly string[] AddPetPhotosAccepts = ["application/json"];
+    private static readonly string[] DownloadPetDocumentAccepts = ["application/octet-stream"];
+    private static readonly string[] FindPetsByStatusAccepts = ["application/json"];
+    private static readonly string[] GetPetAvatarAccepts = ["image/jpeg", "image/png"];
+    private static readonly string[] GetPetAvatarThumbnailAccepts = ["application/json"];
+    private static readonly string[] GetPetByIdAccepts = ["application/json"];
+    private static readonly string[] GetPetPassportAccepts = ["application/json"];
+    private static readonly string[] GetPetPhotoAccepts =
+    [
+        "image/jpeg",
+        "image/png",
+        "application/json",
+    ];
+    private static readonly string[] UpdatePetAccepts = ["application/json"];
+    private static readonly string[] UploadPetCertificateAccepts = ["application/json"];
+    private static readonly string[] UploadPetDocumentAccepts = ["application/json"];
+
+    public PetApi()
+        : base() { }
+
+    public PetApi(IApiClient apiClient, Configuration config)
+        : base(apiClient, config) { }
+
+    /// <summary>
+    /// Add a new pet to the store
+    /// </summary>
+    /// <param name="auth">Authenticator for this operation.</param>
+    /// <param name="pet">Create a new pet in the store</param>
+    /// <returns><![CDATA[Pet]]></returns>
+    public async Task<Pet> AddPetAsync(IAuthenticator auth, Pet pet)
+    {
+        string path = "/pet";
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        Pet? result = await InvokeApiAsync<Pet>(
+                "POST",
+                path,
+                queryParams,
+                headerParams,
+                pet,
+                AddPetAccepts,
+                "application/json",
+                auth
+            )
+            .ConfigureAwait(false);
+        return result ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Add photos to the pet&#39;s gallery
+    /// </summary>
+    /// <remarks>Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.</remarks>
+    /// <param name="petId"></param>
+    /// <param name="options">Options for query, header, and form parameters.</param>
+    /// <returns><![CDATA[List<Photo>]]></returns>
+    public async Task<List<Photo>> AddPetPhotosAsync(long petId, AddPetPhotosOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        string path = "/pet/{petId}/photos";
+        path = path.Replace(
+            "{" + "petId" + "}",
+            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+        Dictionary<string, object> formBody = [];
+        formBody["files"] = options.Files;
+        formBody["metadata"] = options.Metadata;
+
+        List<Photo>? result = await InvokeApiAsync<List<Photo>>(
+                "POST",
+                path,
+                queryParams,
+                headerParams,
+                formBody,
+                AddPetPhotosAccepts,
+                "multipart/form-data",
+                null
+            )
+            .ConfigureAwait(false);
+        return result ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Deletes a pet
+    /// </summary>
+    /// <param name="auth">Authenticator for this operation.</param>
+    /// <param name="petId">Pet id to delete</param>
+    public async Task DeletePetAsync(IAuthenticator auth, long petId)
+    {
+        string path = "/pet/{petId}";
+        path = path.Replace(
+            "{" + "petId" + "}",
+            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        _ = await InvokeApiAsync<object>(
+                "DELETE",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                [],
+                "application/json",
+                auth
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Download a vet document
+    /// </summary>
+    /// <remarks>Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.</remarks>
+    /// <param name="petId"></param>
+    /// <param name="documentId"></param>
+    /// <returns><![CDATA[System.IO.Stream]]></returns>
+    public async Task<System.IO.Stream> DownloadPetDocumentAsync(long petId, long documentId)
+    {
+        string path = "/pet/{petId}/documents/{documentId}";
+        path = path.Replace(
+            "{" + "petId" + "}",
+            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            StringComparison.Ordinal
+        );
+        path = path.Replace(
+            "{" + "documentId" + "}",
+            (string)ValueSerializer.Serialize(documentId, "path", "long")!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        System.IO.Stream? result = await InvokeApiAsync<System.IO.Stream>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                DownloadPetDocumentAccepts,
+                "application/json",
+                null
+            )
+            .ConfigureAwait(false);
+        return result ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Finds Pets by status
+    /// </summary>
+    /// <param name="options">Options for query, header, and form parameters.</param>
+    /// <returns><![CDATA[List<Pet>]]></returns>
+    /// <seealso href="https://example.com/docs/filtering">Find out more about filtering</seealso>
+    [Obsolete("This operation is deprecated.")]
+    public async Task<List<Pet>> FindPetsByStatusAsync(FindPetsByStatusOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        string path = "/pet/findByStatus";
+
+        Dictionary<string, object?> queryParams = [];
+        if (options.Status != null)
+        {
+            queryParams["status"] = ValueSerializer.Serialize(
+                options.Status,
+                "query",
+                "string",
+                null
+            );
+        }
+        Dictionary<string, string> headerParams = [];
+
+        List<Pet>? result = await InvokeApiAsync<List<Pet>>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                FindPetsByStatusAccepts,
+                "application/json",
+                null
+            )
+            .ConfigureAwait(false);
+        return result ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Get the pet&#39;s profile photo
+    /// </summary>
+    /// <remarks>Returns the raw image bytes of the pet&#39;s current avatar.</remarks>
+    /// <param name="petId"></param>
+    /// <returns><![CDATA[System.IO.Stream]]></returns>
+    public async Task<System.IO.Stream> GetPetAvatarAsync(long petId)
+    {
+        string path = "/pet/{petId}/avatar";
+        path = path.Replace(
+            "{" + "petId" + "}",
+            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        System.IO.Stream? result = await InvokeApiAsync<System.IO.Stream>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetPetAvatarAccepts,
+                "application/json",
+                null
+            )
+            .ConfigureAwait(false);
+        return result ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Get the pet&#39;s avatar thumbnail as base64
+    /// </summary>
+    /// <remarks>Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.</remarks>
+    /// <param name="petId"></param>
+    /// <returns><![CDATA[byte[]]]></returns>
+    public async Task<byte[]> GetPetAvatarThumbnailAsync(long petId)
+    {
+        string path = "/pet/{petId}/avatar/thumbnail";
+        path = path.Replace(
+            "{" + "petId" + "}",
+            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        byte[]? result = await InvokeApiAsync<byte[]>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetPetAvatarThumbnailAccepts,
+                "application/json",
+                null
+            )
+            .ConfigureAwait(false);
+        return result ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Find pet by ID
+    /// </summary>
+    /// <remarks>Returns a single pet</remarks>
+    /// <param name="petId">ID of pet to return</param>
+    /// <returns><![CDATA[Pet]]></returns>
+    [Obsolete("This operation is deprecated.")]
+    public async Task<Pet> GetPetByIdAsync(long petId)
+    {
+        string path = "/pet/{petId}";
+        path = path.Replace(
+            "{" + "petId" + "}",
+            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        Pet? result = await InvokeApiAsync<Pet>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetPetByIdAccepts,
+                "application/json",
+                null
+            )
+            .ConfigureAwait(false);
+        return result ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Get the pet&#39;s passport
+    /// </summary>
+    /// <remarks>Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.</remarks>
+    /// <param name="petId"></param>
+    /// <returns><![CDATA[PetPassport]]></returns>
+    public async Task<PetPassport> GetPetPassportAsync(long petId)
+    {
+        string path = "/pet/{petId}/passport";
+        path = path.Replace(
+            "{" + "petId" + "}",
+            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        PetPassport? result = await InvokeApiAsync<PetPassport>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetPetPassportAccepts,
+                "application/json",
+                null
+            )
+            .ConfigureAwait(false);
+        return result ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Get a photo or its metadata
+    /// </summary>
+    /// <remarks>Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.</remarks>
+    /// <param name="petId"></param>
+    /// <param name="photoId"></param>
+    /// <returns><![CDATA[System.IO.Stream]]></returns>
+    public async Task<System.IO.Stream> GetPetPhotoAsync(long petId, long photoId)
+    {
+        string path = "/pet/{petId}/photos/{photoId}";
+        path = path.Replace(
+            "{" + "petId" + "}",
+            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            StringComparison.Ordinal
+        );
+        path = path.Replace(
+            "{" + "photoId" + "}",
+            (string)ValueSerializer.Serialize(photoId, "path", "long")!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        System.IO.Stream? result = await InvokeApiAsync<System.IO.Stream>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetPetPhotoAccepts,
+                "application/json",
+                null
+            )
+            .ConfigureAwait(false);
+        return result ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Set the pet&#39;s profile photo
+    /// </summary>
+    /// <remarks>Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.</remarks>
+    /// <param name="petId"></param>
+    /// <param name="body"></param>
+    public async Task SetPetAvatarAsync(long petId, System.IO.Stream body)
+    {
+        string path = "/pet/{petId}/avatar";
+        path = path.Replace(
+            "{" + "petId" + "}",
+            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        _ = await InvokeApiAsync<object>(
+                "PUT",
+                path,
+                queryParams,
+                headerParams,
+                body,
+                [],
+                "image/jpeg",
+                null
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Set the pet&#39;s avatar thumbnail as base64
+    /// </summary>
+    /// <remarks>Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.</remarks>
+    /// <param name="petId"></param>
+    /// <param name="setPetAvatarThumbnailRequest"></param>
+    public async Task SetPetAvatarThumbnailAsync(
+        long petId,
+        SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest
+    )
+    {
+        string path = "/pet/{petId}/avatar/thumbnail";
+        path = path.Replace(
+            "{" + "petId" + "}",
+            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        _ = await InvokeApiAsync<object>(
+                "PUT",
+                path,
+                queryParams,
+                headerParams,
+                setPetAvatarThumbnailRequest,
+                [],
+                "application/json",
+                null
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Update an existing pet
+    /// </summary>
+    /// <param name="petId">ID of pet to update</param>
+    /// <param name="pet">Pet object that needs to be updated</param>
+    /// <returns><![CDATA[Pet]]></returns>
+    public async Task<Pet> UpdatePetAsync(long petId, Pet pet)
+    {
+        string path = "/pet/{petId}";
+        path = path.Replace(
+            "{" + "petId" + "}",
+            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        Pet? result = await InvokeApiAsync<Pet>(
+                "PUT",
+                path,
+                queryParams,
+                headerParams,
+                pet,
+                UpdatePetAccepts,
+                "application/json",
+                null
+            )
+            .ConfigureAwait(false);
+        return result ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Upload the pet&#39;s adoption certificate
+    /// </summary>
+    /// <remarks>Attaches a single adoption certificate document. No metadata fields are required alongside the file.</remarks>
+    /// <param name="petId"></param>
+    /// <param name="options">Options for query, header, and form parameters.</param>
+    /// <returns><![CDATA[ApiResponse]]></returns>
+    public async Task<ApiResponse> UploadPetCertificateAsync(
+        long petId,
+        UploadPetCertificateOptions options
+    )
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        string path = "/pet/{petId}/certificate";
+        path = path.Replace(
+            "{" + "petId" + "}",
+            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+        Dictionary<string, object> formBody = [];
+        formBody["file"] = options.File;
+
+        ApiResponse? result = await InvokeApiAsync<ApiResponse>(
+                "POST",
+                path,
+                queryParams,
+                headerParams,
+                formBody,
+                UploadPetCertificateAccepts,
+                "multipart/form-data",
+                null
+            )
+            .ConfigureAwait(false);
+        return result ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Attach a vet document or health record
+    /// </summary>
+    /// <remarks>Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.</remarks>
+    /// <param name="petId"></param>
+    /// <param name="options">Options for query, header, and form parameters.</param>
+    /// <returns><![CDATA[ApiResponse]]></returns>
+    public async Task<ApiResponse> UploadPetDocumentAsync(
+        long petId,
+        UploadPetDocumentOptions options
+    )
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        string path = "/pet/{petId}/documents";
+        path = path.Replace(
+            "{" + "petId" + "}",
+            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+        Dictionary<string, object> formBody = [];
+        formBody["file"] = options.File;
+        if (options.DocumentType != null)
+        {
+            formBody["documentType"] = options.DocumentType;
+        }
+        if (options.Notes != null)
+        {
+            formBody["notes"] = options.Notes;
+        }
+
+        ApiResponse? result = await InvokeApiAsync<ApiResponse>(
+                "POST",
+                path,
+                queryParams,
+                headerParams,
+                formBody,
+                UploadPetDocumentAccepts,
+                "multipart/form-data",
+                null
+            )
+            .ConfigureAwait(false);
+        return result ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+}

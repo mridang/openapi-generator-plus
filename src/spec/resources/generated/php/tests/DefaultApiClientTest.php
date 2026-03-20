@@ -1,0 +1,284 @@
+<?php
+
+declare(strict_types=1);
+
+namespace PetstoreClient\Tests;
+
+use PHPUnit\Framework\TestCase;
+use PetstoreClient\DefaultApiClient;
+use PetstoreClient\TransportOptions;
+
+class DefaultApiClientTest extends TestCase
+{
+    // -- TLS verification disabled --
+
+    public function testMakesHttpsRequestWithVerifySslFalse(): void
+    {
+        $wiremockUrl = getenv('WIREMOCK_HTTPS_URL');
+
+        $transport = TransportOptions::builder()
+            ->verifySsl(false)
+            ->build();
+
+        $client = new DefaultApiClient($transport);
+        $response = $client->sendRequest('GET', $wiremockUrl . '/api/test', [], null);
+
+        $this->assertSame(200, $response->statusCode);
+        $this->assertStringContainsString('success', $response->body);
+    }
+
+    // -- Custom CA bundle --
+
+    public function testMakesHttpsRequestWithCustomCaCert(): void
+    {
+        $wiremockUrl = getenv('WIREMOCK_HTTPS_URL');
+        $caCertPath = getenv('CA_CERT_PATH');
+
+        $transport = TransportOptions::builder()
+            ->verifySsl(true)
+            ->caCertPath($caCertPath)
+            ->build();
+
+        $client = new DefaultApiClient($transport);
+        $response = $client->sendRequest('GET', $wiremockUrl . '/api/test', [], null);
+
+        $this->assertSame(200, $response->statusCode);
+        $this->assertStringContainsString('success', $response->body);
+    }
+
+    // -- HTTP proxy --
+
+    public function testMakesHttpRequestThroughProxy(): void
+    {
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL');
+        $proxyUrl = getenv('PROXY_URL');
+
+        $transport = TransportOptions::builder()
+            ->proxy($proxyUrl)
+            ->build();
+
+        $client = new DefaultApiClient($transport);
+        $response = $client->sendRequest('GET', $wiremockUrl . '/api/test', [], null);
+
+        $this->assertSame(200, $response->statusCode);
+        $this->assertStringContainsString('success', $response->body);
+    }
+
+    // -- HTTP proxy with TLS --
+
+    public function testMakesHttpsRequestThroughProxyWithVerifySslFalse(): void
+    {
+        $wiremockUrl = getenv('WIREMOCK_HTTPS_URL');
+        $proxyUrl = getenv('PROXY_URL');
+
+        $transport = TransportOptions::builder()
+            ->proxy($proxyUrl)
+            ->verifySsl(false)
+            ->build();
+
+        $client = new DefaultApiClient($transport);
+        $response = $client->sendRequest('GET', $wiremockUrl . '/api/test', [], null);
+
+        $this->assertSame(200, $response->statusCode);
+        $this->assertStringContainsString('success', $response->body);
+    }
+
+    // -- HTTP compression --
+
+    public function testDecompressesGzipResponse(): void
+    {
+        $client = new DefaultApiClient();
+        $response = $client->sendRequest(
+            'GET',
+            'https://jsonplaceholder.typicode.com/posts/1',
+            ['Accept-Encoding' => 'gzip'],
+            null
+        );
+
+        $this->assertSame(200, $response->statusCode);
+        $this->assertStringContainsString('userId', $response->body);
+    }
+
+    public function testDecompressesBrotliResponse(): void
+    {
+        if (!function_exists('brotli_uncompress')) {
+            $this->markTestSkipped('ext-brotli not available');
+        }
+
+        $client = new DefaultApiClient();
+        $response = $client->sendRequest(
+            'GET',
+            'https://jsonplaceholder.typicode.com/posts/1',
+            ['Accept-Encoding' => 'br'],
+            null
+        );
+
+        $this->assertSame(200, $response->statusCode);
+        $this->assertStringContainsString('userId', $response->body);
+    }
+
+    public function testDecompressesZstdResponse(): void
+    {
+        if (!function_exists('zstd_uncompress')) {
+            $this->markTestSkipped('ext-zstd not available');
+        }
+
+        $client = new DefaultApiClient();
+        $response = $client->sendRequest(
+            'GET',
+            'https://jsonplaceholder.typicode.com/posts/1',
+            ['Accept-Encoding' => 'zstd'],
+            null
+        );
+
+        $this->assertSame(200, $response->statusCode);
+        $this->assertStringContainsString('userId', $response->body);
+    }
+
+    // -- Request timeout --
+
+    public function testTimesOutOnSlowEndpoint(): void
+    {
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL');
+
+        $transport = TransportOptions::builder()
+            ->timeout(1)
+            ->build();
+
+        $client = new DefaultApiClient($transport);
+
+        $this->expectException(\Exception::class);
+        $client->sendRequest('GET', $wiremockUrl . '/api/slow', [], null);
+    }
+
+    // -- User-Agent header --
+
+    public function testInjectsCustomUserAgentHeader(): void
+    {
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL');
+
+        $transport = TransportOptions::builder()
+            ->userAgent('MyApp/1.0')
+            ->build();
+
+        $client = new DefaultApiClient($transport);
+        $response = $client->sendRequest('GET', $wiremockUrl . '/api/echo-headers', [], null);
+
+        $this->assertSame(200, $response->statusCode);
+        $json = json_decode($response->body, true);
+        $this->assertSame('MyApp/1.0', $json['user-agent']);
+    }
+
+    // -- X-Request-ID injection --
+
+    public function testInjectsRequestIdHeaderWithUuidFormat(): void
+    {
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL');
+
+        $transport = TransportOptions::builder()
+            ->injectRequestId(true)
+            ->build();
+
+        $client = new DefaultApiClient($transport);
+        $response = $client->sendRequest('GET', $wiremockUrl . '/api/echo-headers', [], null);
+
+        $this->assertSame(200, $response->statusCode);
+        $json = json_decode($response->body, true);
+        $this->assertArrayHasKey('x-request-id', $json);
+        $this->assertMatchesRegularExpression(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/',
+            $json['x-request-id']
+        );
+    }
+
+    public function testGeneratesUniqueRequestIdPerRequest(): void
+    {
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL');
+
+        $transport = TransportOptions::builder()
+            ->injectRequestId(true)
+            ->build();
+
+        $client = new DefaultApiClient($transport);
+
+        $response1 = $client->sendRequest('GET', $wiremockUrl . '/api/echo-headers', [], null);
+        $json1 = json_decode($response1->body, true);
+        $requestId1 = $json1['x-request-id'];
+
+        $response2 = $client->sendRequest('GET', $wiremockUrl . '/api/echo-headers', [], null);
+        $json2 = json_decode($response2->body, true);
+        $requestId2 = $json2['x-request-id'];
+
+        $this->assertNotSame($requestId1, $requestId2);
+    }
+
+    // -- Default headers --
+
+    public function testIncludesTransportDefaultHeaders(): void
+    {
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL');
+
+        $transport = TransportOptions::builder()
+            ->defaultHeader('X-Custom', 'custom-value')
+            ->build();
+
+        $client = new DefaultApiClient($transport);
+        $response = $client->sendRequest('GET', $wiremockUrl . '/api/echo-headers', [], null);
+
+        $this->assertSame(200, $response->statusCode);
+        $json = json_decode($response->body, true);
+        $this->assertSame('custom-value', $json['x-custom']);
+    }
+
+    public function testCallerHeadersOverrideTransportDefaults(): void
+    {
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL');
+
+        $transport = TransportOptions::builder()
+            ->defaultHeader('Accept', 'text/plain')
+            ->build();
+
+        $client = new DefaultApiClient($transport);
+        $response = $client->sendRequest(
+            'GET',
+            $wiremockUrl . '/api/echo-headers',
+            ['Accept' => 'application/json'],
+            null
+        );
+
+        $this->assertSame(200, $response->statusCode);
+        $json = json_decode($response->body, true);
+        $this->assertSame('application/json', $json['accept']);
+    }
+
+    // -- Redirect handling --
+
+    public function testFollowsRedirectsWhenEnabled(): void
+    {
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL');
+
+        $transport = TransportOptions::builder()
+            ->followRedirects(true)
+            ->build();
+
+        $client = new DefaultApiClient($transport);
+        $response = $client->sendRequest('GET', $wiremockUrl . '/api/redirect', [], null);
+
+        $this->assertSame(200, $response->statusCode);
+        $this->assertStringContainsString('success', $response->body);
+    }
+
+    public function testReturnsRedirectWhenDisabled(): void
+    {
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL');
+
+        $transport = TransportOptions::builder()
+            ->followRedirects(false)
+            ->build();
+
+        $client = new DefaultApiClient($transport);
+        $response = $client->sendRequest('GET', $wiremockUrl . '/api/redirect', [], null);
+
+        $this->assertSame(302, $response->statusCode);
+    }
+}

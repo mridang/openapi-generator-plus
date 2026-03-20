@@ -1,0 +1,25 @@
+import type { ApiResponse } from './api-response.js';
+
+/**
+ * Interface for API HTTP transport.
+ *
+ * Implementations handle the actual HTTP request/response cycle.
+ * The default implementation uses the Fetch API.
+ */
+export interface ApiClient {
+  /**
+   * Send an HTTP request and return the response.
+   *
+   * @param method HTTP method (GET, POST, PUT, DELETE, etc.)
+   * @param url Fully qualified URL
+   * @param headers HTTP headers
+   * @param body Request body (serialized JSON string, raw Buffer, or null)
+   * @returns ApiResponse containing status code, body, and headers
+   */
+  sendRequest(
+    method: string,
+    url: string,
+    headers: Record<string, string>,
+    body: string | Buffer | null
+  ): Promise<ApiResponse>;
+}

@@ -1,0 +1,22 @@
+package com.example.petstore;
+
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Represents an HTTP API response.
+ *
+ * @param statusCode the HTTP status code
+ * @param body the response body
+ * @param headers the response headers (unmodifiable)
+ */
+public record ApiResponse(int statusCode, String body, Map<String, String> headers) {
+
+  /** Creates an ApiResponse with defensively copied headers. */
+  public ApiResponse(int statusCode, String body, Map<String, String> headers) {
+    this.statusCode = statusCode;
+    this.body = body;
+    this.headers = Collections.unmodifiableMap(new HashMap<>(headers));
+  }
+}

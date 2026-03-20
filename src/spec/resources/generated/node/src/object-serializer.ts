@@ -1,0 +1,158 @@
+import 'reflect-metadata';
+import { plainToInstance, type ClassConstructor } from 'class-transformer';
+
+/**
+ * Exception raised when serialization or deserialization fails.
+ */
+export class SerializationError extends Error {
+  public readonly cause?: Error;
+
+  constructor(message: string, cause?: Error) {
+    super(message);
+    this.name = 'SerializationError';
+    this.cause = cause;
+  }
+}
+
+/**
+ * Handles JSON serialization and deserialization for API requests and responses.
+ *
+ * All serde operations in the generated client route through this class.
+ * The parameter encoding methods provide consistent value conversion for
+ * URL path, query string, header, and form parameters.
+ */
+export class ObjectSerializer {
+  /**
+   * Serialize an object to a plain JS object suitable for JSON.stringify.
+   *
+   * @param obj the object to serialize
+   * @returns the object as-is (JSON.stringify handles the conversion)
+   */
+  static serialize(obj: unknown): unknown {
+    if (obj === null || obj === undefined) {
+      return undefined;
+    }
+    return obj;
+  }
+
+  /**
+   * Deserialize a plain JS object to an instance of the specified class.
+   *
+   * @param json the parsed JSON value
+   * @param cls the class constructor to instantiate
+   * @returns the deserialized object
+   */
+  static deserialize<T>(json: unknown, cls: ClassConstructor<T>): T {
+    try {
+      return plainToInstance(cls, json, { excludeExtraneousValues: true });
+    } catch (e) {
+      throw new SerializationError(
+        `Failed to deserialize object: ${e instanceof Error ? e.message : String(e)}`,
+        e instanceof Error ? e : undefined
+      );
+    }
+  }
+
+  /**
+   * Deserialize an array of objects using the provided class constructor.
+   *
+   * @param json the parsed JSON array
+   * @param cls the class constructor to instantiate for each element
+   * @returns array of deserialized objects
+   */
+  static deserializeArray<T>(json: unknown, cls: ClassConstructor<T>): T[] {
+    if (!Array.isArray(json)) {
+      throw new SerializationError('Expected array but received: ' + typeof json);
+    }
+    return json.map((item: unknown) => ObjectSerializer.deserialize(item, cls));
+  }
+
+  /**
+   * Convert a value to a string suitable for use as a URL path parameter.
+   *
+   * @param value the value to convert (may be null or undefined)
+   * @returns string representation, or empty string if null
+   */
+  static toPathValue(value: unknown): string {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    if (typeof value === 'boolean') {
+      return value ? 'true' : 'false';
+    }
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    return String(value);
+  }
+
+  /**
+   * Convert a value to a representation suitable for use as a query parameter.
+   * For collections, joins using the specified collection format delimiter.
+   *
+   * @param value the value to convert (may be null or undefined)
+   * @param collectionFormat the format: csv, ssv, tsv, pipes, or multi
+   * @returns the query value, or undefined if null
+   */
+  static toQueryValue(value: unknown, collectionFormat?: string): string | string[] | undefined {
+    if (value === null || value === undefined) {
+      return undefined;
+    }
+    if (Array.isArray(value)) {
+      const items = value.map((v) => String(v));
+      if (collectionFormat === 'multi') return items;
+      if (collectionFormat === 'ssv') return items.join(' ');
+      if (collectionFormat === 'tsv') return items.join('\t');
+      if (collectionFormat === 'pipes') return items.join('|');
+      return items.join(',');
+    }
+    if (typeof value === 'boolean') {
+      return value ? 'true' : 'false';
+    }
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    return String(value);
+  }
+
+  /**
+   * Convert a value to a string suitable for use as an HTTP header value.
+   *
+   * @param value the value to convert (may be null or undefined)
+   * @returns string representation, or empty string if null
+   */
+  static toHeaderValue(value: unknown): string {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    if (Array.isArray(value)) {
+      return value.map((v) => String(v)).join(',');
+    }
+    if (typeof value === 'boolean') {
+      return value ? 'true' : 'false';
+    }
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    return String(value);
+  }
+
+  /**
+   * Convert a value to a representation suitable for use as a form parameter.
+   *
+   * @param value the value to convert (may be null or undefined)
+   * @returns string representation, or empty string if null
+   */
+  static toFormValue(value: unknown): string {
+    if (value === null || value === undefined) {
+      return '';
+    }
+    if (typeof value === 'boolean') {
+      return value ? 'true' : 'false';
+    }
+    if (value instanceof Date) {
+      return value.toISOString();
+    }
+    return String(value);
+  }
+}

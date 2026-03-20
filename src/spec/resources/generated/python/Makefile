@@ -1,0 +1,22 @@
+.PHONY: install build test lint format typecheck clean
+
+install:
+	pip install --quiet -r requirements.txt
+
+build: install
+
+test: install
+	python -m pytest tests/ -v
+
+lint: install
+	ruff check .
+
+format: install
+	ruff format .
+
+typecheck: install
+	mypy petstore_client/
+
+clean:
+	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+	rm -rf .pytest_cache .mypy_cache .ruff_cache
