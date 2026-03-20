@@ -230,6 +230,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "ObjectSerializerTest.php"));
             supportingFiles.add(
                     new SupportingFile(
+                            "test/ValueSerializerTest.mustache",
+                            "tests",
+                            "ValueSerializerTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/TraceContextUtilTest.mustache",
                             "tests",
                             "TraceContextUtilTest.php"));

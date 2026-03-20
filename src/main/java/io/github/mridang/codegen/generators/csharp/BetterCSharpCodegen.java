@@ -186,6 +186,11 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             "ObjectSerializerTest.cs"));
             supportingFiles.add(
                     new SupportingFile(
+                            "test/ValueSerializerTest.mustache",
+                            "Tests",
+                            "ValueSerializerTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/PrismFixture.mustache", "Tests", "PrismFixture.cs"));
             supportingFiles.add(
                     new SupportingFile(

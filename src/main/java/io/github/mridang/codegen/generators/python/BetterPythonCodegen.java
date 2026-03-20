@@ -212,6 +212,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                             "test_object_serializer.py"));
             supportingFiles.add(
                     new SupportingFile(
+                            "test/test_value_serializer.mustache",
+                            "tests",
+                            "test_value_serializer.py"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/test_trace_context_util.mustache",
                             "tests",
                             "test_trace_context_util.py"));

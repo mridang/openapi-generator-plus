@@ -181,6 +181,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                             "object-serializer.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
+                            "test/value-serializer.test.ts",
+                            "tests",
+                            "value-serializer.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/trace-context-util.test.ts",
                             "tests",
                             "trace-context-util.test.ts"));

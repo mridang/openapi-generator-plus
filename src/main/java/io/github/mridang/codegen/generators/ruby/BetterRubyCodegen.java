@@ -212,6 +212,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                             "object_serializer_spec.rb"));
             supportingFiles.add(
                     new SupportingFile(
+                            "test/value_serializer_spec.mustache",
+                            "spec",
+                            "value_serializer_spec.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/trace_context_util_spec.mustache",
                             "spec",
                             "trace_context_util_spec.rb"));

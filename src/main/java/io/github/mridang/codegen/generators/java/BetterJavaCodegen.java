@@ -235,6 +235,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "ObjectSerializerTest.java"));
             supportingFiles.add(
                     new SupportingFile(
+                            "test/ValueSerializerTest.mustache",
+                            testFolder,
+                            "ValueSerializerTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/TraceContextUtilTest.mustache",
                             testFolder,
                             "TraceContextUtilTest.java"));
