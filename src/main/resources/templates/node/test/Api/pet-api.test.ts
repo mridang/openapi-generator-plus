@@ -28,7 +28,7 @@ describe('PetApi', () => {
   });
 
   test('findPetsByStatus', async () => {
-    const result = await api.findPetsByStatus('available');
+    const result = await api.findPetsByStatus({ status: 'available' });
 
     expect(Array.isArray(result)).toBe(true);
     expect(result.length).toBeGreaterThan(0);
@@ -86,7 +86,7 @@ describe('PetApi', () => {
   test('uploadPetCertificate', async () => {
     const file = new Blob([new Uint8Array([0x25, 0x50, 0x44, 0x46])], { type: 'application/pdf' });
 
-    const result = await api.uploadPetCertificate(1, file);
+    const result = await api.uploadPetCertificate(1, { file });
 
     expect(result).toBeDefined();
   });
@@ -94,7 +94,7 @@ describe('PetApi', () => {
   test('uploadPetDocument', async () => {
     const file = new Blob([new Uint8Array([0x25, 0x50, 0x44, 0x46])], { type: 'application/pdf' });
 
-    const result = await api.uploadPetDocument(1, file, UploadPetDocumentDocumentTypeEnum.HealthCertificate, 'Annual checkup document');
+    const result = await api.uploadPetDocument(1, { file, documentType: UploadPetDocumentDocumentTypeEnum.HealthCertificate, notes: 'Annual checkup document' });
 
     expect(result).toBeDefined();
   });
@@ -109,7 +109,7 @@ describe('PetApi', () => {
       isPrimary: true,
     });
 
-    const result = await api.addPetPhotos(1, files, metadata);
+    const result = await api.addPetPhotos(1, { files, metadata });
 
     expect(Array.isArray(result)).toBe(true);
   });

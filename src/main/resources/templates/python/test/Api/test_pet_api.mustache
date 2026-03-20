@@ -38,7 +38,7 @@ class TestPetApi:
         assert result.name is not None
 
     def test_find_pets_by_status(self):
-        result = self.api.find_pets_by_status('available')
+        result = self.api.find_pets_by_status(status='available')
 
         assert isinstance(result, list)
         assert len(result) > 0
@@ -91,13 +91,13 @@ class TestPetApi:
         assert True
 
     def test_upload_pet_certificate(self):
-        result = self.api.upload_pet_certificate(1, b'cert-data')
+        result = self.api.upload_pet_certificate(1, file=b'cert-data')
 
         assert result is not None
         assert isinstance(result, ApiResponse)
 
     def test_upload_pet_document(self):
-        result = self.api.upload_pet_document(1, b'doc-data', document_type='vaccination_record', notes='Annual checkup')
+        result = self.api.upload_pet_document(1, file=b'doc-data', document_type='vaccination_record', notes='Annual checkup')
 
         assert result is not None
         assert isinstance(result, ApiResponse)
@@ -106,7 +106,7 @@ class TestPetApi:
     def test_add_pet_photos(self):
         metadata = PhotoMetadata(caption='Test photo', is_primary=True)
 
-        result = self.api.add_pet_photos(1, [b'photo1'], metadata)
+        result = self.api.add_pet_photos(1, files=[b'photo1'], metadata=metadata)
 
         assert result is not None
         assert isinstance(result, list)

@@ -60,7 +60,7 @@ class PetApiTest {
 
     @Test
     void testFindPetsByStatus() throws Exception {
-        List<Pet> result = api.findPetsByStatus("available");
+        List<Pet> result = api.findPetsByStatus(new PetApi.FindPetsByStatusOptions().status("available"));
         assertNotNull(result);
 
         assertThat(result).isNotEmpty();
@@ -128,7 +128,7 @@ class PetApiTest {
     @Test
     void testUploadPetCertificate() throws Exception {
         InputStream fakeFile = new ByteArrayInputStream("fake-pdf-data".getBytes(StandardCharsets.UTF_8));
-        ApiResponse result = api.uploadPetCertificate(1L, fakeFile);
+        ApiResponse result = api.uploadPetCertificate(1L, new PetApi.UploadPetCertificateOptions(fakeFile));
         assertNotNull(result);
     }
 
@@ -136,7 +136,7 @@ class PetApiTest {
     void testUploadPetDocument() throws Exception {
         InputStream fakeDoc = new ByteArrayInputStream("fake-doc-data".getBytes(StandardCharsets.UTF_8));
         ApiResponse result = api.uploadPetDocument(
-                1L, fakeDoc, "vaccination_record", "Annual checkup");
+                1L, new PetApi.UploadPetDocumentOptions(fakeDoc).documentType("vaccination_record").notes("Annual checkup"));
         assertNotNull(result);
     }
 
@@ -149,7 +149,7 @@ class PetApiTest {
 
         List<InputStream> files = List.of(new ByteArrayInputStream("fake-image-data".getBytes(StandardCharsets.UTF_8)));
         List<Photo> result = api.addPetPhotos(
-                1L, files, metadata);
+                1L, new PetApi.AddPetPhotosOptions(files, metadata));
         assertNotNull(result);
     }
 

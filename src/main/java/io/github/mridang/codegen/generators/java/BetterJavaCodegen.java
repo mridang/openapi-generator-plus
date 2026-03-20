@@ -172,6 +172,9 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                         "object_serializer.mustache", invokerFolder, "ObjectSerializer.java"));
         supportingFiles.add(
                 new SupportingFile(
+                        "value_serializer.mustache", invokerFolder, "ValueSerializer.java"));
+        supportingFiles.add(
+                new SupportingFile(
                         "header_selector.mustache", invokerFolder, "HeaderSelector.java"));
         supportingFiles.add(
                 new SupportingFile(

@@ -1,0 +1,104 @@
+<?php
+
+{{>partial_header}}
+namespace {{invokerPackage}};
+
+/**
+ * Converts scalar values, arrays, and objects into string representations
+ * suitable for different HTTP parameter locations (path, query, header).
+ * Handles collection format serialization (csv, ssv, tsv, pipes, multi)
+ * and URL-encoding for path parameters.
+ */
+final class ValueSerializer
+{
+    /**
+     * Serialize a value for use in an HTTP request parameter.
+     *
+     * Converts the given value to a string (or array of strings for multi-valued
+     * query parameters) appropriate for the specified HTTP parameter location.
+     * Path values are URL-encoded. Query values support collection formats.
+     * Header values are comma-joined for arrays.
+     *
+     * @param mixed       $value            the value to serialize
+     * @param string      $location         the HTTP parameter location ('path', 'query', or 'header')
+     * @param string      $schemaType       the OpenAPI schema type (e.g. 'string', 'integer', 'array')
+     * @param string|null $collectionFormat the collection format for array values ('csv', 'ssv', 'tsv', 'pipes', 'multi')
+     *
+     * @return string|array<int, string>|null the serialized value
+     */
+    public static function serialize(mixed $value, string $location, string $schemaType, ?string $collectionFormat = null): string|array|null
+    {
+        if ($value === null) {
+            if ($location === 'query') {
+                return null;
+            }
+
+            return '';
+        }
+
+        if (is_array($value)) {
+            if ($location === 'query') {
+                $items = array_map([self::class, 'stringify'], $value);
+
+                return match ($collectionFormat) {
+                    'multi' => $items,
+                    'ssv' => implode(' ', $items),
+                    'tsv' => implode("\t", $items),
+                    'pipes' => implode('|', $items),
+                    default => implode(',', $items), // csv or default
+                };
+            }
+
+            if ($location === 'header') {
+                return implode(',', array_map([self::class, 'stringify'], $value));
+            }
+        }
+
+        $str = self::stringify($value);
+
+        if ($location === 'path') {
+            return rawurlencode($str);
+        }
+
+        return $str;
+    }
+
+    /**
+     * Convert a single value to its string representation.
+     *
+     * Handles null, boolean, DateTimeInterface, numeric, string, and
+     * SplFileObject values. Returns an empty string for unrecognized types.
+     *
+     * @param mixed $value the value to convert
+     *
+     * @return string the string representation
+     */
+    private static function stringify(mixed $value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format(\DateTimeInterface::ATOM);
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+
+        if (is_string($value)) {
+            return $value;
+        }
+
+        if ($value instanceof \SplFileObject) {
+            return $value->getRealPath();
+        }
+
+        return '';
+    }
+}

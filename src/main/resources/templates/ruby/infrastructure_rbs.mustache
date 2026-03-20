@@ -106,6 +106,17 @@ module {{moduleName}}
   class SchemaMismatchError < StandardError
   end
 
+  class ValueSerializer
+    def self.serialize: (untyped, Symbol, String, ?collection_format: Symbol?) -> untyped
+
+    private
+
+    def self.serialize_nil: (Symbol) -> untyped
+    def self.serialize_array: (Array[untyped], Symbol, Symbol?) -> untyped
+    def self.serialize_query_array: (Array[untyped], Symbol?) -> untyped
+    def self.stringify: (untyped) -> String
+  end
+
   class ObjectSerializer
     DEFAULT_DATETIME_FORMAT: String
     def self.serialize: (untyped) -> String

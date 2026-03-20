@@ -134,6 +134,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                         "object_serializer.mustache", packagePath, "object_serializer.py"));
         supportingFiles.add(
                 new SupportingFile(
+                        "value_serializer.mustache", packagePath, "value_serializer.py"));
+        supportingFiles.add(
+                new SupportingFile(
                         "header_selector.mustache", packagePath, "header_selector.py"));
         supportingFiles.add(
                 new SupportingFile(

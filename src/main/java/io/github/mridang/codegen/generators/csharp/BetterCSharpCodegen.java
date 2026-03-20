@@ -126,6 +126,9 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                         "object_serializer.mustache", invokerFolder, "ObjectSerializer.cs"));
         supportingFiles.add(
                 new SupportingFile(
+                        "value_serializer.mustache", invokerFolder, "ValueSerializer.cs"));
+        supportingFiles.add(
+                new SupportingFile(
                         "header_selector.mustache", invokerFolder, "HeaderSelector.cs"));
         supportingFiles.add(
                 new SupportingFile(

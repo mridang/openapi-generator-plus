@@ -1,0 +1,63 @@
+# frozen_string_literal: true
+
+require 'cgi'
+
+module {{moduleName}}
+  # Serializes parameter values for HTTP requests based on their location.
+  class ValueSerializer
+    def self.serialize(value, location, _schema_type, collection_format: nil)
+      return serialize_nil(location) if value.nil?
+      return serialize_array(value, location, collection_format) if value.is_a?(Array)
+
+      str_val = stringify(value)
+
+      return CGI.escape(str_val) if location == :path
+
+      str_val
+    end
+
+    def self.serialize_nil(location)
+      return nil if location == :query
+
+      ''
+    end
+
+    def self.serialize_array(value, location, collection_format)
+      if location == :query
+        serialize_query_array(value, collection_format)
+      elsif location == :header
+        value.map { |v| stringify(v) }.join(',')
+      end
+    end
+
+    def self.serialize_query_array(value, collection_format) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
+      case collection_format
+      when :multi
+        value.map { |v| stringify(v) }
+      when :ssv
+        value.map { |v| stringify(v) }.join(' ')
+      when :tsv
+        value.map { |v| stringify(v) }.join("\t")
+      when :pipes
+        value.map { |v| stringify(v) }.join('|')
+      else
+        value.map { |v| stringify(v) }.join(',')
+      end
+    end
+
+    private_class_method def self.stringify(value)
+      return '' if value.nil?
+
+      case value
+      when TrueClass, FalseClass
+        value ? 'true' : 'false'
+      when Time, DateTime
+        value.strftime('%Y-%m-%dT%H:%M:%S.%L%z')
+      else
+        value.to_s
+      end
+    end
+
+    private_class_method :serialize_nil, :serialize_array, :serialize_query_array
+  end
+end

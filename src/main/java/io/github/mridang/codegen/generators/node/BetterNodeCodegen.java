@@ -120,6 +120,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                         "object_serializer.mustache", "src", "object-serializer.ts"));
         supportingFiles.add(
                 new SupportingFile(
+                        "value_serializer.mustache", "src", "value-serializer.ts"));
+        supportingFiles.add(
+                new SupportingFile(
                         "header_selector.mustache", "src", "header-selector.ts"));
         supportingFiles.add(
                 new SupportingFile(

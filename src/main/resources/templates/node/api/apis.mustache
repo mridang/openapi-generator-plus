@@ -5,6 +5,7 @@ import type { Authenticator } from '../auth/authenticator{{importFileExtension}}
 import { BaseApi } from './base-api{{importFileExtension}}';
 import { Configuration } from '../configuration{{importFileExtension}}';
 import { ObjectSerializer } from '../object-serializer{{importFileExtension}}';
+import { ValueSerializer } from '../value-serializer{{importFileExtension}}';
 {{#imports.0}}
 import { {{#imports}}{{className}}{{^-last}}, {{/-last}}{{/imports}} } from '../models/index{{importFileExtension}}';
 {{/imports.0}}
@@ -35,9 +36,21 @@ export class {{classname}} extends BaseApi {
 {{#hasAuthMethods}}
    * @param auth authenticator for this operation
 {{/hasAuthMethods}}
-{{#allParams}}
+{{#pathParams}}
    * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
-{{/allParams}}
+{{/pathParams}}
+{{#bodyParam}}
+   * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/bodyParam}}
+{{#queryParams}}
+   * @param options.{{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/queryParams}}
+{{#headerParams}}
+   * @param options.{{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/headerParams}}
+{{#formParams}}
+   * @param options.{{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/formParams}}
 {{#returnType}}
    * @return {{{returnType}}}
 {{/returnType}}
@@ -48,14 +61,42 @@ export class {{classname}} extends BaseApi {
    * @see {@link {{url}}} {{description}}
 {{/externalDocs}}
    */
-  async {{nickname}}({{#hasAuthMethods}}auth: Authenticator, {{/hasAuthMethods}}{{#allParams}}{{paramName}}{{^required}}?{{/required}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/isEnum}}{{^-last}}, {{/-last}}{{/allParams}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}> {
-{{#allParams}}
+  async {{nickname}}({{#hasAuthMethods}}auth: Authenticator{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options: { {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options: { {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options: { {{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#queryParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{^-last}}; {{/-last}}{{#-last}}{{#headerParams}}{{#-first}}; {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}; {{/-first}}{{/formParams}}{{/headerParams}}{{/-last}}{{/queryParams}}{{#headerParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{^-last}}; {{/-last}}{{#-last}}{{#formParams}}{{#-first}}; {{/-first}}{{/formParams}}{{/-last}}{{/headerParams}}{{#formParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{^-last}}; {{/-last}}{{/formParams}}{{#queryParams}}{{#-first}} }{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}} }{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}} }{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}> {
+{{#pathParams}}
 {{#required}}
     if ({{paramName}} == null) {
       throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
-{{/allParams}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#required}}
+    if ({{paramName}} == null) {
+      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+    }
+{{/required}}
+{{/bodyParam}}
+{{#queryParams}}
+{{#required}}
+    if (options.{{paramName}} == null) {
+      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+    }
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+    if (options.{{paramName}} == null) {
+      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+    }
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+    if (options.{{paramName}} == null) {
+      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+    }
+{{/required}}
+{{/formParams}}
 {{^pathParams}}
     const path = `{{{path}}}`;
 {{/pathParams}}
@@ -63,25 +104,25 @@ export class {{classname}} extends BaseApi {
 {{#-first}}
     let path = `{{{path}}}`;
 {{/-first}}
-    path = path.replace(`{${'{{baseName}}'}}`, encodeURIComponent(ObjectSerializer.toPathValue({{paramName}})));
+    path = path.replace(`{${'{{baseName}}'}}`, ValueSerializer.serialize({{paramName}}, 'path', '{{dataType}}') as string);
 {{/pathParams}}
     const queryParams: Record<string, unknown> = {};
 {{#queryParams}}
-    if ({{paramName}} != null) {
-      queryParams['{{baseName}}'] = ObjectSerializer.toQueryValue({{paramName}}{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}});
+    if (options.{{paramName}} != null) {
+      queryParams['{{baseName}}'] = ValueSerializer.serialize(options.{{paramName}}, 'query', '{{dataType}}'{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}});
     }
 {{/queryParams}}
     const headerParams: Record<string, string> = {};
 {{#headerParams}}
-    if ({{paramName}} != null) {
-      headerParams['{{baseName}}'] = ObjectSerializer.toHeaderValue({{paramName}});
+    if (options.{{paramName}} != null) {
+      headerParams['{{baseName}}'] = ValueSerializer.serialize(options.{{paramName}}, 'header', '{{dataType}}') as string;
     }
 {{/headerParams}}
 {{#hasFormParams}}
     const formBody: Record<string, unknown> = {};
 {{#formParams}}
-    if ({{paramName}} != null) {
-      formBody['{{baseName}}'] = {{paramName}};
+    if (options.{{paramName}} != null) {
+      formBody['{{baseName}}'] = options.{{paramName}};
     }
 {{/formParams}}
 

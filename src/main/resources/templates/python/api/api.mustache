@@ -9,7 +9,7 @@ from ..api_client import ApiClient
 from ..default_api_client import DefaultApiClient
 from ..configuration import Configuration
 from .base_api import BaseApi
-from ..object_serializer import ObjectSerializer
+from ..value_serializer import ValueSerializer
 {{#hasAnyAuthMethods}}
 from ..auth.authenticator import Authenticator
 {{/hasAnyAuthMethods}}
@@ -41,9 +41,34 @@ class {{classname}}(BaseApi):
 {{#hasAuthMethods}}
         auth: Authenticator,
 {{/hasAuthMethods}}
-        {{#allParams}}
+{{#pathParams}}
+        {{paramName}}: {{{dataType}}},
+{{/pathParams}}
+{{#bodyParam}}
         {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
-        {{/allParams}}
+{{/bodyParam}}
+{{#queryParams}}
+{{#-first}}
+        *,
+{{/-first}}
+        {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
+{{/queryParams}}
+{{^queryParams}}
+{{#headerParams}}
+{{#-first}}
+        *,
+{{/-first}}
+        {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
+{{/headerParams}}
+{{^headerParams}}
+{{#formParams}}
+{{#-first}}
+        *,
+{{/-first}}
+        {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
+{{/formParams}}
+{{/headerParams}}
+{{/queryParams}}
     ) -> {{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}:
         """{{summary}}
 {{#notes}}
@@ -75,16 +100,16 @@ class {{classname}}(BaseApi):
 {{/required}}
 {{/allParams}}
         path = '{{{path}}}'{{#pathParams}}
-        path = path.replace('{' + '{{baseName}}' + '}', quote(ObjectSerializer.to_path_value({{paramName}}), safe='')){{/pathParams}}
+        path = path.replace('{' + '{{baseName}}' + '}', str(ValueSerializer.serialize({{paramName}}, 'path', '{{dataType}}'))){{/pathParams}}
         query_params: Dict[str, Any] = {}
 {{#queryParams}}
         if {{paramName}} is not None:
-            query_params['{{baseName}}'] = ObjectSerializer.to_query_value({{paramName}}{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}})
+            query_params['{{baseName}}'] = ValueSerializer.serialize({{paramName}}, 'query', '{{dataType}}'{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}})
 {{/queryParams}}
         header_params: Dict[str, str] = {}
 {{#headerParams}}
         if {{paramName}} is not None:
-            header_params['{{baseName}}'] = ObjectSerializer.to_header_value({{paramName}})
+            header_params['{{baseName}}'] = ValueSerializer.serialize({{paramName}}, 'header', '{{dataType}}')
 {{/headerParams}}
 {{#hasFormParams}}
         body: Dict[str, Any] = {}

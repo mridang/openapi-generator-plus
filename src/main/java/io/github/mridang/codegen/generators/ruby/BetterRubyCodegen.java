@@ -142,6 +142,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         supportingFiles.add(new SupportingFile("version.mustache", libPath, "version.rb"));
         supportingFiles.add(new SupportingFile("header_selector.mustache", libPath, "header_selector.rb"));
         supportingFiles.add(new SupportingFile("object_serializer.mustache", libPath, "object_serializer.rb"));
+        supportingFiles.add(new SupportingFile("value_serializer.mustache", libPath, "value_serializer.rb"));
         supportingFiles.add(new SupportingFile("trace_context_util.mustache", libPath, "trace_context_util.rb"));
         supportingFiles.add(new SupportingFile("api_response.mustache", libPath, "api_response.rb"));
         supportingFiles.add(new SupportingFile("api_client.mustache", libPath, "api_client.rb"));

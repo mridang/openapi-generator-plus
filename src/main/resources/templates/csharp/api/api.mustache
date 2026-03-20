@@ -8,6 +8,100 @@ using {{packageName}}.Models;
 namespace {{packageName}}.{{apiPackage}};
 
 {{#operations}}
+{{#operation}}
+{{#queryParams}}
+{{#-first}}
+/// <summary>
+/// Options for the {{operationId}} operation.
+/// </summary>
+public sealed class {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options
+{
+{{/-first}}
+{{/queryParams}}
+{{^queryParams}}
+{{#headerParams}}
+{{#-first}}
+/// <summary>
+/// Options for the {{operationId}} operation.
+/// </summary>
+public sealed class {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options
+{
+{{/-first}}
+{{/headerParams}}
+{{^headerParams}}
+{{#formParams}}
+{{#-first}}
+/// <summary>
+/// Options for the {{operationId}} operation.
+/// </summary>
+public sealed class {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options
+{
+{{/-first}}
+{{/formParams}}
+{{/headerParams}}
+{{/queryParams}}
+{{#queryParams}}
+{{^-first}}
+
+{{/-first}}
+{{#required}}
+    /// <summary>{{#description}} {{.}}{{/description}}</summary>
+    public required {{{dataType}}} {{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} { get; init; }
+{{/required}}
+{{^required}}
+    /// <summary>{{#description}} {{.}}{{/description}}</summary>
+    public {{{dataType}}}? {{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} { get; init; }
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{^-first}}
+
+{{/-first}}
+{{#required}}
+    /// <summary>{{#description}} {{.}}{{/description}}</summary>
+    public required {{{dataType}}} {{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} { get; init; }
+{{/required}}
+{{^required}}
+    /// <summary>{{#description}} {{.}}{{/description}}</summary>
+    public {{{dataType}}}? {{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} { get; init; }
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{^-first}}
+
+{{/-first}}
+{{#required}}
+    /// <summary>{{#description}} {{.}}{{/description}}</summary>
+    public required {{{dataType}}} {{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} { get; init; }
+{{/required}}
+{{^required}}
+    /// <summary>{{#description}} {{.}}{{/description}}</summary>
+    public {{{dataType}}}? {{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} { get; init; }
+{{/required}}
+{{/formParams}}
+{{#queryParams}}
+{{#-first}}
+}
+
+{{/-first}}
+{{/queryParams}}
+{{^queryParams}}
+{{#headerParams}}
+{{#-first}}
+}
+
+{{/-first}}
+{{/headerParams}}
+{{^headerParams}}
+{{#formParams}}
+{{#-first}}
+}
+
+{{/-first}}
+{{/formParams}}
+{{/headerParams}}
+{{/queryParams}}
+{{/operation}}
 /// <summary>
 /// {{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
@@ -38,9 +132,31 @@ public class {{classname}} : BaseApi
 {{#hasAuthMethods}}
     /// <param name="auth">Authenticator for this operation.</param>
 {{/hasAuthMethods}}
-    {{#allParams}}
+    {{#pathParams}}
     /// <param name="{{paramName}}">{{description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
-    {{/allParams}}
+    {{/pathParams}}
+    {{#bodyParam}}
+    /// <param name="{{paramName}}">{{description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}</param>
+    {{/bodyParam}}
+{{#queryParams}}
+{{#-first}}
+    /// <param name="options">Options for query, header, and form parameters.</param>
+{{/-first}}
+{{/queryParams}}
+{{^queryParams}}
+{{#headerParams}}
+{{#-first}}
+    /// <param name="options">Options for query, header, and form parameters.</param>
+{{/-first}}
+{{/headerParams}}
+{{^headerParams}}
+{{#formParams}}
+{{#-first}}
+    /// <param name="options">Options for query, header, and form parameters.</param>
+{{/-first}}
+{{/formParams}}
+{{/headerParams}}
+{{/queryParams}}
     {{#returnType}}
     /// <returns><![CDATA[{{{returnType}}}]]></returns>
     {{/returnType}}
@@ -50,41 +166,70 @@ public class {{classname}} : BaseApi
 {{#isDeprecated}}
     [Obsolete("This operation is deprecated.")]
 {{/isDeprecated}}
-    public async {{#returnType}}Task<{{{returnType}}}>{{/returnType}}{{^returnType}}Task{{/returnType}} {{operationId}}Async({{#hasAuthMethods}}IAuthenticator auth, {{/hasAuthMethods}}{{#allParams}}{{{dataType}}}{{^required}}?{{/required}} {{paramName}}{{^required}} = default{{/required}}{{^-last}}, {{/-last}}{{/allParams}})
+    public async {{#returnType}}Task<{{{returnType}}}>{{/returnType}}{{^returnType}}Task{{/returnType}} {{operationId}}Async({{#hasAuthMethods}}IAuthenticator auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{{dataType}}}{{^required}}?{{/required}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}})
     {
+{{#queryParams}}
+{{#-first}}
+        ArgumentNullException.ThrowIfNull(options);
+{{/-first}}
+{{/queryParams}}
+{{^queryParams}}
+{{#headerParams}}
+{{#-first}}
+        ArgumentNullException.ThrowIfNull(options);
+{{/-first}}
+{{/headerParams}}
+{{^headerParams}}
+{{#formParams}}
+{{#-first}}
+        ArgumentNullException.ThrowIfNull(options);
+{{/-first}}
+{{/formParams}}
+{{/headerParams}}
+{{/queryParams}}
         string path = "{{{path}}}";
         {{#pathParams}}
         path = path.Replace(
             "{" + "{{baseName}}" + "}",
-            Uri.EscapeDataString(ObjectSerializer.ToPathValue({{paramName}})),
+            (string)ValueSerializer.Serialize({{paramName}}, "path", "{{dataType}}")!,
             StringComparison.Ordinal
         );
         {{/pathParams}}
 
         Dictionary<string, object?> queryParams = [];
 {{#queryParams}}
-        if ({{paramName}} != null)
+        if (options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
         {
-            queryParams["{{baseName}}"] = ObjectSerializer.ToQueryValue({{paramName}}, {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}});
+            queryParams["{{baseName}}"] = ValueSerializer.Serialize(
+                options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}},
+                "query",
+                "{{dataType}}",
+                {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}
+            );
         }
 {{/queryParams}}
         Dictionary<string, string> headerParams = [];
 {{#headerParams}}
-        if ({{paramName}} != null)
+        if (options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
         {
-            headerParams["{{baseName}}"] = ObjectSerializer.ToHeaderValue({{paramName}});
+            headerParams["{{baseName}}"] = (string)
+                ValueSerializer.Serialize(
+                    options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}},
+                    "header",
+                    "{{dataType}}"
+                )!;
         }
 {{/headerParams}}
 {{#hasFormParams}}
         Dictionary<string, object> formBody = [];
 {{#formParams}}
 {{#required}}
-        formBody["{{baseName}}"] = {{paramName}};
+        formBody["{{baseName}}"] = options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}};
 {{/required}}
 {{^required}}
-        if ({{paramName}} != null)
+        if (options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
         {
-            formBody["{{baseName}}"] = {{paramName}};
+            formBody["{{baseName}}"] = options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}};
         }
 {{/required}}
 {{/formParams}}

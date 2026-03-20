@@ -2,6 +2,7 @@
 
 # rubocop:disable Lint/RedundantCopDisableDirective, Layout/LineLength
 # rubocop:disable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:disable Style/DefWithParentheses
 # rubocop:disable Style/StringConcatenation
 
 require 'cgi'
@@ -30,19 +31,21 @@ module {{moduleName}}
 {{#hasAuthMethods}}
       # @param auth [Auth::Authenticator] authenticator for this operation
 {{/hasAuthMethods}}
-{{#allParams}}
-{{#required}}
+{{#pathParams}}
       # @param {{paramName}} [{{{dataType}}}]{{#description}} {{.}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
-{{/required}}
-{{/allParams}}
-{{#hasOptionalParams}}
-      # @param [Hash] opts the optional parameters
-{{/hasOptionalParams}}
-{{#allParams}}
-{{^required}}
-      # @option opts [{{{dataType}}}] :{{paramName}}{{#description}} {{.}}{{/description}}{{#defaultValue}} (default to {{{.}}}){{/defaultValue}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
-{{/required}}
-{{/allParams}}
+{{/pathParams}}
+{{#bodyParam}}
+      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{.}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/bodyParam}}
+{{#queryParams}}
+      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{.}}{{/description}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/queryParams}}
+{{#headerParams}}
+      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{.}}{{/description}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/headerParams}}
+{{#formParams}}
+      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{.}}{{/description}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/formParams}}
       # @return [{{{returnType}}}{{^returnType}}nil{{/returnType}}]
 {{#isDeprecated}}
       # @deprecated This operation is deprecated.
@@ -50,7 +53,7 @@ module {{moduleName}}
 {{#externalDocs}}
       # @see {{url}} {{description}}
 {{/externalDocs}}
-      def {{operationId}}{{#hasAuthMethods}}(auth{{#requiredParams}}, {{paramName}}{{/requiredParams}}{{#hasOptionalParams}}, opts = {}{{/hasOptionalParams}}){{/hasAuthMethods}}{{^hasAuthMethods}}{{#hasOptionalParams}}({{#requiredParams}}{{paramName}}, {{/requiredParams}}opts = {}){{/hasOptionalParams}}{{^hasOptionalParams}}{{#requiredParams}}{{#-first}}({{/-first}}{{paramName}}{{^-last}}, {{/-last}}{{#-last}}){{/-last}}{{/requiredParams}}{{/hasOptionalParams}}{{/hasAuthMethods}}
+      def {{operationId}}({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{^required}} = nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#queryParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#headerParams}}{{#-first}}, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{/headerParams}}{{/-last}}{{/queryParams}}{{#headerParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{/-last}}{{/headerParams}}{{#formParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{/formParams}})
 {{#allParams}}
 {{#required}}
         if {{{paramName}}}.nil?
@@ -63,32 +66,21 @@ module {{moduleName}}
         path = '{{{path}}}'
 {{#pathParams}}
 {{=<% %>=}}
-        path = path.sub('{<%baseName%>}', CGI.escape(<%moduleName%>::ObjectSerializer.to_path_value(<%paramName%>)))
+        path = path.sub('{<%baseName%>}', <%moduleName%>::ValueSerializer.serialize(<%paramName%>, :path, '<%dataType%>').to_s)
 <%={{ }}=%>
 {{/pathParams}}
         # @type var query_params: Hash[String, untyped]
         query_params = {}
 {{#queryParams}}
-{{#required}}
-        query_params['{{baseName}}'] =
-          {{moduleName}}::ObjectSerializer.to_query_value({{paramName}}{{#collectionFormat}}, :{{collectionFormat}}{{/collectionFormat}})
-{{/required}}
-{{^required}}
-        unless opts[:{{paramName}}].nil?
+        unless {{paramName}}.nil?
           query_params['{{baseName}}'] =
-            {{moduleName}}::ObjectSerializer.to_query_value(opts[:{{paramName}}]{{#collectionFormat}}, :{{collectionFormat}}{{/collectionFormat}})
+            {{moduleName}}::ValueSerializer.serialize({{paramName}}, :query, '{{dataType}}'{{#collectionFormat}}, collection_format: :{{collectionFormat}}{{/collectionFormat}})
         end
-{{/required}}
 {{/queryParams}}
         # @type var header_params: Hash[String, String]
         header_params = {}
 {{#headerParams}}
-{{#required}}
-        header_params['{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_header_value({{paramName}})
-{{/required}}
-{{^required}}
-        header_params['{{baseName}}'] = {{moduleName}}::ObjectSerializer.to_header_value(opts[:{{paramName}}]) unless opts[:{{paramName}}].nil?
-{{/required}}
+        header_params['{{baseName}}'] = {{moduleName}}::ValueSerializer.serialize({{paramName}}, :header, '{{dataType}}').to_s unless {{paramName}}.nil?
 {{/headerParams}}
 {{#hasFormParams}}
         # @type var request_body: Hash[String, untyped]
@@ -98,18 +90,13 @@ module {{moduleName}}
         request_body['{{baseName}}'] = {{paramName}}
 {{/required}}
 {{^required}}
-        request_body['{{baseName}}'] = opts[:{{paramName}}] unless opts[:{{paramName}}].nil?
+        request_body['{{baseName}}'] = {{paramName}} unless {{paramName}}.nil?
 {{/required}}
 {{/formParams}}
 {{/hasFormParams}}
 {{^hasFormParams}}
 {{#bodyParam}}
-{{#required}}
-        request_body = {{{paramName}}} # rubocop:disable Lint/SelfAssignment
-{{/required}}
-{{^required}}
-        request_body = opts[:{{{paramName}}}]
-{{/required}}
+        request_body = {{{paramName}}}{{^required}} # rubocop:disable Lint/SelfAssignment{{/required}}
 {{/bodyParam}}
 {{^bodyParam}}
         request_body = nil
@@ -131,4 +118,5 @@ module {{moduleName}}
 end
 # rubocop:enable Lint/RedundantCopDisableDirective, Layout/LineLength
 # rubocop:enable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:enable Style/DefWithParentheses
 # rubocop:enable Style/StringConcatenation

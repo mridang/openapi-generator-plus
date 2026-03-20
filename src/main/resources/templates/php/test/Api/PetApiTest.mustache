@@ -81,9 +81,14 @@ class PetApiTest extends TestCase
 
     public function testSetPetAvatar(): void
     {
-        $this->api->setPetAvatar(1, "\xFF\xD8\xFF");
+        $tmpFile = tempnam(sys_get_temp_dir(), 'avatar');
+        file_put_contents($tmpFile, "\xFF\xD8\xFF");
+        $body = new \SplFileObject($tmpFile, 'r');
+
+        $this->api->setPetAvatar(1, $body);
 
         $this->assertTrue(true);
+        unlink($tmpFile);
     }
 
     public function testGetPetAvatar(): void
@@ -112,16 +117,26 @@ class PetApiTest extends TestCase
 
     public function testUploadPetCertificate(): void
     {
-        $result = $this->api->uploadPetCertificate(1, 'certificate-content');
+        $tmpFile = tempnam(sys_get_temp_dir(), 'cert');
+        file_put_contents($tmpFile, 'certificate-content');
+        $file = new \SplFileObject($tmpFile, 'r');
+
+        $result = $this->api->uploadPetCertificate(1, $file);
 
         $this->assertInstanceOf(ApiResponse::class, $result);
+        unlink($tmpFile);
     }
 
     public function testUploadPetDocument(): void
     {
-        $result = $this->api->uploadPetDocument(1, 'document-content', 'vaccination_record', 'Annual checkup');
+        $tmpFile = tempnam(sys_get_temp_dir(), 'doc');
+        file_put_contents($tmpFile, 'document-content');
+        $file = new \SplFileObject($tmpFile, 'r');
+
+        $result = $this->api->uploadPetDocument(1, $file, 'vaccination_record', 'Annual checkup');
 
         $this->assertInstanceOf(ApiResponse::class, $result);
+        unlink($tmpFile);
     }
 
     /**
