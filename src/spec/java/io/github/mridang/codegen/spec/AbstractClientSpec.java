@@ -55,5 +55,7 @@ public abstract class AbstractClientSpec extends AbstractIntegrationSpec {
     assertThat(result.isSuccess())
         .withFailMessage("Client tests failed:\n%s", result.output())
         .isTrue();
+
+    syncToGeneratedDir();
   }
 }

@@ -3,9 +3,12 @@ package io.github.mridang.codegen.spec;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -94,6 +97,46 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
       Files.createDirectories(targetPath.getParent());
       Files.copy(is, targetPath, StandardCopyOption.REPLACE_EXISTING);
       logger.info("Copied classpath resource {} to {}", resourcePath, targetPath);
+    }
+  }
+
+  private static final java.util.Set<String> EXCLUDED_DIRS =
+      java.util.Set.of("certs", "proxy", "specs", "wiremock");
+
+  /**
+   * Syncs the contents of the temp output directory to the persistent generated directory
+   * at src/spec/resources/generated/{lang}/. This makes generated code and coverage reports
+   * available for inspection and committing. Test fixture directories (certs, proxy, specs,
+   * wiremock) are excluded since they are copies of shared classpath resources.
+   */
+  protected void syncToGeneratedDir() {
+    String lang = getGeneratorName().replace("-plus", "");
+    Path generatedDir = Path.of("src/spec/resources/generated/" + lang).toAbsolutePath();
+
+    try {
+      Files.createDirectories(generatedDir);
+      Files.walkFileTree(tempOutputDir, new SimpleFileVisitor<>() {
+        @Override
+        public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
+            throws IOException {
+          Path relative = tempOutputDir.relativize(dir);
+          if (EXCLUDED_DIRS.contains(relative.toString())) {
+            return FileVisitResult.SKIP_SUBTREE;
+          }
+          Files.createDirectories(generatedDir.resolve(relative));
+          return FileVisitResult.CONTINUE;
+        }
+
+        @Override
+        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+          Path relative = tempOutputDir.relativize(file);
+          Files.copy(file, generatedDir.resolve(relative), StandardCopyOption.REPLACE_EXISTING);
+          return FileVisitResult.CONTINUE;
+        }
+      });
+      logger.info("Synced output to {}", generatedDir);
+    } catch (IOException e) {
+      logger.warn("Failed to sync to generated dir: {}", e.getMessage());
     }
   }
 
