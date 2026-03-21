@@ -107,7 +107,8 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
    * Syncs the contents of the temp output directory to the persistent generated directory
    * at src/spec/resources/generated/{lang}/. This makes generated code and coverage reports
    * available for inspection and committing. Test fixture directories (certs, proxy, specs,
-   * wiremock) are excluded since they are copies of shared classpath resources.
+   * wiremock) are excluded since they are copies of shared classpath resources. From the
+   * .out/ directory, only coverage.xml is synced.
    */
   protected void syncToGeneratedDir() {
     String lang = getGeneratorName().replace("-plus", "");
@@ -130,6 +131,10 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
         @Override
         public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
           Path relative = tempOutputDir.relativize(file);
+          String relStr = relative.toString();
+          if (relStr.startsWith(".out/") && !relStr.equals(".out/coverage.xml")) {
+            return FileVisitResult.CONTINUE;
+          }
           Files.copy(file, generatedDir.resolve(relative), StandardCopyOption.REPLACE_EXISTING);
           return FileVisitResult.CONTINUE;
         }
