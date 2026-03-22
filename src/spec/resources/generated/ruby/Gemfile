@@ -18,6 +18,5 @@ group :development, :test do
   gem 'simplecov', require: false
   gem 'simplecov-cobertura', require: false
   gem 'steep', require: false
-  gem 'testcontainers', '~> 0.2'
   gem 'zstd-ruby', '~> 1.5'
 end

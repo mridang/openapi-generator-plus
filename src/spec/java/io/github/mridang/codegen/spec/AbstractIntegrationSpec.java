@@ -13,7 +13,6 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
-import org.junit.jupiter.api.io.TempDir;
 import org.openapitools.codegen.DefaultGenerator;
 import org.openapitools.codegen.config.CodegenConfigurator;
 import org.slf4j.Logger;
@@ -32,7 +31,7 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
 
   @Nullable protected Network sharedNetwork;
 
-  @TempDir protected Path tempOutputDir;
+  protected Path tempOutputDir;
 
   @SuppressWarnings("SameReturnValue")
   protected String getSpecResourcePath() {
@@ -40,6 +39,44 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
   }
 
   protected abstract String[] getBuildCommands();
+
+  @BeforeEach
+  void resolveOutputDir() throws IOException {
+    String lang = getGeneratorName().replace("-plus", "");
+    tempOutputDir = Path.of("src/spec/resources/generated/" + lang).toAbsolutePath();
+    // Clean everything except .out/ (coverage reports) so each spec starts fresh
+    if (Files.exists(tempOutputDir)) {
+      try (var entries = Files.list(tempOutputDir)) {
+        for (Path entry : entries.collect(java.util.stream.Collectors.toList())) {
+          if (entry.getFileName().toString().equals(".out")) {
+            continue;
+          }
+          if (Files.isDirectory(entry)) {
+            deleteRecursively(entry);
+          } else {
+            Files.delete(entry);
+          }
+        }
+      }
+    }
+    Files.createDirectories(tempOutputDir);
+  }
+
+  private static void deleteRecursively(Path dir) throws IOException {
+    Files.walkFileTree(dir, new SimpleFileVisitor<>() {
+      @Override
+      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+        Files.delete(file);
+        return FileVisitResult.CONTINUE;
+      }
+
+      @Override
+      public FileVisitResult postVisitDirectory(Path d, IOException exc) throws IOException {
+        Files.delete(d);
+        return FileVisitResult.CONTINUE;
+      }
+    });
+  }
 
   @BeforeEach
   void setupNetwork() {
@@ -100,51 +137,6 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
     }
   }
 
-  private static final java.util.Set<String> EXCLUDED_DIRS =
-      java.util.Set.of("certs", "proxy", "specs", "wiremock");
-
-  /**
-   * Syncs the contents of the temp output directory to the persistent generated directory
-   * at src/spec/resources/generated/{lang}/. This makes generated code and coverage reports
-   * available for inspection and committing. Test fixture directories (certs, proxy, specs,
-   * wiremock) are excluded since they are copies of shared classpath resources. From the
-   * .out/ directory, only coverage.xml is synced.
-   */
-  protected void syncToGeneratedDir() {
-    String lang = getGeneratorName().replace("-plus", "");
-    Path generatedDir = Path.of("src/spec/resources/generated/" + lang).toAbsolutePath();
-
-    try {
-      Files.createDirectories(generatedDir);
-      Files.walkFileTree(tempOutputDir, new SimpleFileVisitor<>() {
-        @Override
-        public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
-            throws IOException {
-          Path relative = tempOutputDir.relativize(dir);
-          if (EXCLUDED_DIRS.contains(relative.toString())) {
-            return FileVisitResult.SKIP_SUBTREE;
-          }
-          Files.createDirectories(generatedDir.resolve(relative));
-          return FileVisitResult.CONTINUE;
-        }
-
-        @Override
-        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-          Path relative = tempOutputDir.relativize(file);
-          String relStr = relative.toString();
-          if (relStr.startsWith(".out/") && !relStr.equals(".out/coverage.xml")) {
-            return FileVisitResult.CONTINUE;
-          }
-          Files.copy(file, generatedDir.resolve(relative), StandardCopyOption.REPLACE_EXISTING);
-          return FileVisitResult.CONTINUE;
-        }
-      });
-      logger.info("Synced output to {}", generatedDir);
-    } catch (IOException e) {
-      logger.warn("Failed to sync to generated dir: {}", e.getMessage());
-    }
-  }
-
   protected ExecResult executeInRuntimeContainer(String[] commands) {
     try (GenericContainer<?> runtimeContainer =
         new GenericContainer<>(getRuntimeImage())
@@ -202,13 +194,12 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
         }
       }
 
-      // Copy output artifacts (coverage reports, etc.) back to the bind mount
-      runtimeContainer.execInContainer("sh", "-c", "cp -a /work/.out /app/.out 2>/dev/null || true");
+      // Copy only coverage.xml back to the bind mount
+      runtimeContainer.execInContainer("sh", "-c",
+          "mkdir -p /app/.out && cp /work/.out/coverage.xml /app/.out/coverage.xml 2>/dev/null || true");
 
-      // Fix file permissions before container exits so JUnit can clean up @TempDir
-      // Docker containers run as root and create files owned by root, which the
-      // host user cannot delete. This makes all files world-writable.
-      runtimeContainer.execInContainer("sh", "-c", "chmod -R 777 /app || true");
+      // Fix permissions on the .out directory so subsequent runs can overwrite
+      runtimeContainer.execInContainer("sh", "-c", "chmod -R 777 /app/.out 2>/dev/null || true");
 
       return new ExecResult(exitCode, output.toString());
     } catch (Exception e) {

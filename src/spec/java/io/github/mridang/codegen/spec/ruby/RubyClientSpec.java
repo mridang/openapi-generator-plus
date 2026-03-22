@@ -4,10 +4,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.mridang.codegen.spec.AbstractClientSpec;
 import java.nio.file.Path;
+import org.junit.jupiter.api.parallel.ResourceLock;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SuppressWarnings("NewClassNamingConvention")
 @Testcontainers
+@ResourceLock("generated-ruby")
 public class RubyClientSpec extends AbstractClientSpec implements RubySpec {
 
   @Override
