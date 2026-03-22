@@ -38,6 +38,17 @@ public abstract class AbstractClientSpec extends AbstractIntegrationSpec {
     copyClasspathResource("wiremock/mappings/redirect.json", tempOutputDir.resolve("wiremock/mappings/redirect.json"));
     copyClasspathResource("wiremock/mappings/slow.json", tempOutputDir.resolve("wiremock/mappings/slow.json"));
     copyClasspathResource("wiremock/mappings/echo-headers.json", tempOutputDir.resolve("wiremock/mappings/echo-headers.json"));
+    copyClasspathResource("wiremock/mappings/error-400.json", tempOutputDir.resolve("wiremock/mappings/error-400.json"));
+    copyClasspathResource("wiremock/mappings/error-401.json", tempOutputDir.resolve("wiremock/mappings/error-401.json"));
+    copyClasspathResource("wiremock/mappings/error-403.json", tempOutputDir.resolve("wiremock/mappings/error-403.json"));
+    copyClasspathResource("wiremock/mappings/error-404.json", tempOutputDir.resolve("wiremock/mappings/error-404.json"));
+    copyClasspathResource("wiremock/mappings/error-409.json", tempOutputDir.resolve("wiremock/mappings/error-409.json"));
+    copyClasspathResource("wiremock/mappings/error-418.json", tempOutputDir.resolve("wiremock/mappings/error-418.json"));
+    copyClasspathResource("wiremock/mappings/error-422.json", tempOutputDir.resolve("wiremock/mappings/error-422.json"));
+    copyClasspathResource("wiremock/mappings/error-500.json", tempOutputDir.resolve("wiremock/mappings/error-500.json"));
+    copyClasspathResource("wiremock/mappings/error-502.json", tempOutputDir.resolve("wiremock/mappings/error-502.json"));
+    copyClasspathResource("wiremock/mappings/text-plain.json", tempOutputDir.resolve("wiremock/mappings/text-plain.json"));
+    copyClasspathResource("wiremock/mappings/echo-body.json", tempOutputDir.resolve("wiremock/mappings/echo-body.json"));
     copyClasspathResource("proxy/squid.conf", tempOutputDir.resolve("proxy/squid.conf"));
   }
 

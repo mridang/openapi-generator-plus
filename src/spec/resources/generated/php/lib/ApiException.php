@@ -32,17 +32,24 @@ class ApiException extends Exception
     protected ?array $responseHeaders;
 
     /**
+     * The deserialized error body.
+     */
+    protected mixed $errorBody;
+
+    /**
      * @param string[][]|null $responseHeaders HTTP response headers
      */
     public function __construct(
         string $message = "",
         int $code = 0,
         ?array $responseHeaders = [],
-        ?string $responseBody = null
+        ?string $responseBody = null,
+        mixed $errorBody = null
     ) {
         parent::__construct($message, $code);
         $this->responseHeaders = $responseHeaders;
         $this->responseBody = $responseBody;
+        $this->errorBody = $errorBody;
     }
 
     /**
@@ -61,5 +68,13 @@ class ApiException extends Exception
     public function getResponseBody(): ?string
     {
         return $this->responseBody;
+    }
+
+    /**
+     * Gets the deserialized error body.
+     */
+    public function getErrorBody(): mixed
+    {
+        return $this->errorBody;
     }
 }

@@ -11,7 +11,7 @@ module PetstoreClient
   # Represents an error returned by the API, including the HTTP status code,
   # response headers, and response body.
   class ApiError < StandardError
-    attr_reader :code, :response_headers, :response_body
+    attr_reader :code, :response_headers, :response_body, :error_body
 
     # Usage examples:
     #   ApiError.new

@@ -9,6 +9,15 @@ from ..object_serializer import ObjectSerializer
 from ..header_selector import HeaderSelector
 from ..trace_context_util import inject_trace_context
 from ..exceptions import ApiException
+from ..exceptions.client_exception import ClientException
+from ..exceptions.server_exception import ServerException
+from ..exceptions.bad_request_exception import BadRequestException
+from ..exceptions.unauthorized_exception import UnauthorizedException
+from ..exceptions.forbidden_exception import ForbiddenException
+from ..exceptions.not_found_exception import NotFoundException
+from ..exceptions.conflict_exception import ConflictException
+from ..exceptions.unprocessable_entity_exception import UnprocessableEntityException
+from ..exceptions.internal_server_error_exception import InternalServerErrorException
 from ..auth.authenticator import Authenticator
 
 T = TypeVar('T')
@@ -122,11 +131,7 @@ class BaseApi:
         response = self._api_client.send_request(method, url, headers, serialized_body)
 
         if response.status_code < 200 or response.status_code >= 300:
-            raise ApiException(
-                status=response.status_code,
-                reason=f'API returned status code {response.status_code}',
-                body=response.body,
-            )
+            self._throw_api_exception(response)
 
         if return_type is not None and response.body:
             resp_content_type = ''
@@ -139,3 +144,30 @@ class BaseApi:
             return self._object_serializer.deserialize(response.body, return_type)
 
         return None
+
+    @staticmethod
+    def _throw_api_exception(response: 'ApiResponse') -> None:
+        """Throw the appropriate exception subclass for the given error response."""
+        code = response.status_code
+        message = f'API returned status code {code}'
+        body = response.body
+
+        if 400 <= code < 500:
+            if code == 400:
+                raise BadRequestException(reason=message, body=body)
+            if code == 401:
+                raise UnauthorizedException(reason=message, body=body)
+            if code == 403:
+                raise ForbiddenException(reason=message, body=body)
+            if code == 404:
+                raise NotFoundException(reason=message, body=body)
+            if code == 409:
+                raise ConflictException(reason=message, body=body)
+            if code == 422:
+                raise UnprocessableEntityException(reason=message, body=body)
+            raise ClientException(status=code, reason=message, body=body)
+        if code >= 500:
+            if code == 500:
+                raise InternalServerErrorException(reason=message, body=body)
+            raise ServerException(status=code, reason=message, body=body)
+        raise ApiException(status=code, reason=message, body=body)

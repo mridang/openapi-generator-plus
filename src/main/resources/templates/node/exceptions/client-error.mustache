@@ -1,0 +1,17 @@
+import { ApiError } from '../api-error{{importFileExtension}}';
+
+/**
+ * Exception for HTTP 4xx client errors.
+ */
+export class ClientError<T = unknown> extends ApiError<T> {
+  constructor(
+    statusCode: number,
+    message: string,
+    responseHeaders: Record<string, string> = {},
+    responseBody: string | null = null,
+    errorBody: T | null = null
+  ) {
+    super(statusCode, message, responseHeaders, responseBody, errorBody);
+    this.name = 'ClientError';
+  }
+}

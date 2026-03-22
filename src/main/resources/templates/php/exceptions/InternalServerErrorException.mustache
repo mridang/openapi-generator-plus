@@ -1,0 +1,19 @@
+<?php
+
+{{>partial_header}}
+namespace {{invokerPackage}}\Exceptions;
+
+/**
+ * Exception for HTTP 500 Internal Server Error.
+ */
+class InternalServerErrorException extends ServerException
+{
+    public function __construct(
+        string $message = "",
+        ?array $responseHeaders = [],
+        ?string $responseBody = null,
+        mixed $errorBody = null
+    ) {
+        parent::__construct($message, 500, $responseHeaders, $responseBody, $errorBody);
+    }
+}

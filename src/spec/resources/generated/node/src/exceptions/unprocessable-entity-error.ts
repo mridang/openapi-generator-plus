@@ -1,0 +1,16 @@
+import { ClientError } from './client-error.js';
+
+/**
+ * Exception for HTTP 422 Unprocessable Entity.
+ */
+export class UnprocessableEntityError<T = unknown> extends ClientError<T> {
+  constructor(
+    message: string,
+    responseHeaders: Record<string, string> = {},
+    responseBody: string | null = null,
+    errorBody: T | null = null
+  ) {
+    super(422, message, responseHeaders, responseBody, errorBody);
+    this.name = 'UnprocessableEntityError';
+  }
+}

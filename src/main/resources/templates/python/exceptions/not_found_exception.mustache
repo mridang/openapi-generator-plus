@@ -1,0 +1,18 @@
+{{>partial_header}}
+from typing import Any, Optional
+
+from {{packageName}}.exceptions.client_exception import ClientException
+
+
+class NotFoundException(ClientException):
+    """Exception for HTTP 404 Not Found."""
+
+    def __init__(
+        self,
+        reason: Optional[str] = None,
+        http_resp: Optional[Any] = None,
+        *,
+        body: Optional[str] = None,
+        data: Optional[Any] = None,
+    ) -> None:
+        super().__init__(status=404, reason=reason, http_resp=http_resp, body=body, data=data)

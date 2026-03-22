@@ -3,6 +3,7 @@
 #pragma warning disable IDE0046 // Convert to conditional expression
 
 using PetstoreClient.Auth;
+using PetstoreClient.Exceptions;
 
 namespace PetstoreClient.Api;
 
@@ -137,12 +138,7 @@ public abstract class BaseApi
 
         if (response.StatusCode is < 200 or >= 300)
         {
-            throw new ApiException(
-                response.StatusCode,
-                $"API returned status code {response.StatusCode}",
-                response.Headers,
-                response.Body
-            );
+            ThrowApiException(response);
         }
 
         if (string.IsNullOrEmpty(response.Body))
@@ -172,6 +168,39 @@ public abstract class BaseApi
         }
 
         return Serializer.Deserialize<T>(response.Body);
+    }
+
+    private static void ThrowApiException(ApiResponse response)
+    {
+        int code = response.StatusCode;
+        string message = $"API returned status code {code}";
+        Dictionary<string, string>? headers = response.Headers;
+        string? body = response.Body;
+
+        if (code is >= 400 and < 500)
+        {
+            throw code switch
+            {
+                400 => new BadRequestException(message, headers, body),
+                401 => new UnauthorizedException(message, headers, body),
+                403 => new ForbiddenException(message, headers, body),
+                404 => new NotFoundException(message, headers, body),
+                409 => new ConflictException(message, headers, body),
+                422 => new UnprocessableEntityException(message, headers, body),
+                _ => new ClientException(code, message, headers, body),
+            };
+        }
+
+        if (code >= 500)
+        {
+            throw code switch
+            {
+                500 => new InternalServerErrorException(message, headers, body),
+                _ => new ServerException(code, message, headers, body),
+            };
+        }
+
+        throw new ApiException(code, message, headers, body);
     }
 
     private static string BuildQueryString(Dictionary<string, object?> queryParams)

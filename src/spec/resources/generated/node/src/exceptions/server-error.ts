@@ -1,0 +1,17 @@
+import { ApiError } from '../api-error.js';
+
+/**
+ * Exception for HTTP 5xx server errors.
+ */
+export class ServerError<T = unknown> extends ApiError<T> {
+  constructor(
+    statusCode: number,
+    message: string,
+    responseHeaders: Record<string, string> = {},
+    responseBody: string | null = null,
+    errorBody: T | null = null
+  ) {
+    super(statusCode, message, responseHeaders, responseBody, errorBody);
+    this.name = 'ServerError';
+  }
+}

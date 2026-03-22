@@ -58,25 +58,14 @@ module PetstoreClient
           headers['Cookie'] = existing ? "#{existing}; #{cookie_str}" : cookie_str
         end
         PetstoreClient::TraceContextUtil.inject_trace_context(headers)
-
         serialized_body = serialize_body(body, content_type)
-
         response = @api_client.send_request(method, url, headers, serialized_body)
-
-        if response.status_code < 200 || response.status_code >= 300
-          raise PetstoreClient::ApiError.new(code: response.status_code, response_body: response.body)
-        end
-
+        throw_api_error(response) if response.status_code < 200 || response.status_code >= 300
         return unless return_type && response.body && !response.body.empty?
 
         # @type var resp_content_type: String?
-        resp_content_type = nil
-        response.headers.each do |k, v|
-          if k.downcase == 'content-type'
-            resp_content_type = v.split(';').first&.strip
-            break
-          end
-        end
+        ct_pair = response.headers.find { |k, _| k.downcase == 'content-type' }
+        resp_content_type = ct_pair ? ct_pair.last.split(';').first.strip : nil
         return response.body if resp_content_type && !resp_content_type.start_with?('application/json')
 
         PetstoreClient::ObjectSerializer.deserialize(response.body, return_type)
@@ -95,6 +84,30 @@ module PetstoreClient
       end
 
       private
+
+      def throw_api_error(response) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
+        code = response.status_code
+        msg = "API returned status code #{code}"
+        body = response.body
+        if code >= 400 && code < 500
+          raise case code
+                when 400 then PetstoreClient::Errors::BadRequestError.new(message: msg, response_body: body)
+                when 401 then PetstoreClient::Errors::UnauthorizedError.new(message: msg, response_body: body)
+                when 403 then PetstoreClient::Errors::ForbiddenError.new(message: msg, response_body: body)
+                when 404 then PetstoreClient::Errors::NotFoundError.new(message: msg, response_body: body)
+                when 409 then PetstoreClient::Errors::ConflictError.new(message: msg, response_body: body)
+                when 422 then PetstoreClient::Errors::UnprocessableEntityError.new(message: msg, response_body: body)
+                else PetstoreClient::Errors::ClientError.new(code: code, message: msg, response_body: body)
+                end
+        end
+        if code >= 500
+          raise case code
+                when 500 then PetstoreClient::Errors::InternalServerError.new(message: msg, response_body: body)
+                else PetstoreClient::Errors::ServerError.new(code: code, message: msg, response_body: body)
+                end
+        end
+        raise PetstoreClient::ApiError.new(code: code, message: msg, response_body: body)
+      end
 
       def build_query_string(query_params) # rubocop:disable Metrics/MethodLength
         pairs = query_params.compact.map do |k, v|

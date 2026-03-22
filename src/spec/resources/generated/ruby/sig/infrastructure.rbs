@@ -83,6 +83,42 @@ module PetstoreClient
     def message: () -> String
   end
 
+  module Errors
+    class ClientError < ApiError
+    end
+
+    class BadRequestError < ClientError
+      def initialize: (?message: untyped, ?response_body: untyped, ?error_body: untyped) -> void
+    end
+
+    class UnauthorizedError < ClientError
+      def initialize: (?message: untyped, ?response_body: untyped, ?error_body: untyped) -> void
+    end
+
+    class ForbiddenError < ClientError
+      def initialize: (?message: untyped, ?response_body: untyped, ?error_body: untyped) -> void
+    end
+
+    class NotFoundError < ClientError
+      def initialize: (?message: untyped, ?response_body: untyped, ?error_body: untyped) -> void
+    end
+
+    class ConflictError < ClientError
+      def initialize: (?message: untyped, ?response_body: untyped, ?error_body: untyped) -> void
+    end
+
+    class UnprocessableEntityError < ClientError
+      def initialize: (?message: untyped, ?response_body: untyped, ?error_body: untyped) -> void
+    end
+
+    class ServerError < ApiError
+    end
+
+    class InternalServerError < ServerError
+      def initialize: (?message: untyped, ?response_body: untyped, ?error_body: untyped) -> void
+    end
+  end
+
   class ApiClient
     def send_request: (Symbol, String, Hash[String, String], untyped) -> ApiResponse
   end
@@ -238,6 +274,7 @@ module PetstoreClient
       def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, Auth::Authenticator?) -> untyped
       def build_collection_param: (Array[untyped], Symbol) -> untyped
       private
+      def throw_api_error: (ApiResponse) -> void
       def build_query_string: (Hash[String, untyped]) -> String
       def serialize_body: (untyped, String?) -> untyped
     end

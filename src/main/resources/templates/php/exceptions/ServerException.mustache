@@ -1,0 +1,13 @@
+<?php
+
+{{>partial_header}}
+namespace {{invokerPackage}}\Exceptions;
+
+use {{invokerPackage}}\ApiException;
+
+/**
+ * Exception for HTTP 5xx server errors.
+ */
+class ServerException extends ApiException
+{
+}

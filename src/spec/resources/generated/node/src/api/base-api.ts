@@ -1,5 +1,15 @@
 import type { ApiClient } from '../api-client.js';
 import type { Authenticator } from '../auth/authenticator.js';
+import { ApiError } from '../api-error.js';
+import { BadRequestError } from '../exceptions/bad-request-error.js';
+import { ClientError } from '../exceptions/client-error.js';
+import { ConflictError } from '../exceptions/conflict-error.js';
+import { ForbiddenError } from '../exceptions/forbidden-error.js';
+import { InternalServerError } from '../exceptions/internal-server-error.js';
+import { NotFoundError } from '../exceptions/not-found-error.js';
+import { ServerError } from '../exceptions/server-error.js';
+import { UnauthorizedError } from '../exceptions/unauthorized-error.js';
+import { UnprocessableEntityError } from '../exceptions/unprocessable-entity-error.js';
 import { Configuration } from '../configuration.js';
 import { DefaultApiClient } from '../default-api-client.js';
 import { HeaderSelector } from '../header-selector.js';
@@ -97,7 +107,7 @@ export abstract class BaseApi {
     const response = await this.apiClient.sendRequest(method, url, headers, serializedBody);
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw new Error(`API returned status code ${response.statusCode}: ${response.body}`);
+      this.throwApiError(response);
     }
 
     if (returnType != null && response.body) {
@@ -112,6 +122,44 @@ export abstract class BaseApi {
       const json = JSON.parse(response.body);
       return returnType(json);
     }
+  }
+
+  /**
+   * Throw the appropriate error subclass for the given error response.
+   */
+  private throwApiError(response: { statusCode: number; body: string | null; headers: Record<string, string> }): never {
+    const code = response.statusCode;
+    const message = `API returned status code ${code}`;
+    const headers = response.headers;
+    const body = response.body;
+
+    if (code >= 400 && code < 500) {
+      switch (code) {
+        case 400:
+          throw new BadRequestError(message, headers, body);
+        case 401:
+          throw new UnauthorizedError(message, headers, body);
+        case 403:
+          throw new ForbiddenError(message, headers, body);
+        case 404:
+          throw new NotFoundError(message, headers, body);
+        case 409:
+          throw new ConflictError(message, headers, body);
+        case 422:
+          throw new UnprocessableEntityError(message, headers, body);
+        default:
+          throw new ClientError(code, message, headers, body);
+      }
+    }
+    if (code >= 500) {
+      switch (code) {
+        case 500:
+          throw new InternalServerError(message, headers, body);
+        default:
+          throw new ServerError(code, message, headers, body);
+      }
+    }
+    throw new ApiError(code, message, headers, body);
   }
 
   /**

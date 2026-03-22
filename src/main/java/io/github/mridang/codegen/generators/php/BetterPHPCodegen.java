@@ -142,6 +142,53 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                         "value_serializer.mustache", invokerFolder, "ValueSerializer.php"));
         supportingFiles.add(
                 new SupportingFile("api_exception.mustache", invokerFolder, "ApiException.php"));
+
+        String exceptionsFolder = invokerFolder + File.separator + "Exceptions";
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/ClientException.mustache",
+                        exceptionsFolder,
+                        "ClientException.php"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/ServerException.mustache",
+                        exceptionsFolder,
+                        "ServerException.php"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/BadRequestException.mustache",
+                        exceptionsFolder,
+                        "BadRequestException.php"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/UnauthorizedException.mustache",
+                        exceptionsFolder,
+                        "UnauthorizedException.php"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/ForbiddenException.mustache",
+                        exceptionsFolder,
+                        "ForbiddenException.php"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/NotFoundException.mustache",
+                        exceptionsFolder,
+                        "NotFoundException.php"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/ConflictException.mustache",
+                        exceptionsFolder,
+                        "ConflictException.php"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/UnprocessableEntityException.mustache",
+                        exceptionsFolder,
+                        "UnprocessableEntityException.php"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/InternalServerErrorException.mustache",
+                        exceptionsFolder,
+                        "InternalServerErrorException.php"));
         supportingFiles.add(
                 new SupportingFile(
                         "header_selector.mustache", invokerFolder, "HeaderSelector.php"));
@@ -238,6 +285,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "test/TraceContextUtilTest.mustache",
                             "tests",
                             "TraceContextUtilTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/BaseApiTest.mustache",
+                            "tests",
+                            "BaseApiTest.php"));
         }
     }
 

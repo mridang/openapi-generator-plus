@@ -11,11 +11,13 @@ public class ApiException extends Exception {
   private final int code;
   @Nullable private final transient Map<String, List<String>> responseHeaders;
   @Nullable private final String responseBody;
+  @Nullable private final transient Object errorBody;
 
   public ApiException() {
     this.code = 0;
     this.responseHeaders = null;
     this.responseBody = null;
+    this.errorBody = null;
   }
 
   public ApiException(Throwable throwable) {
@@ -23,6 +25,7 @@ public class ApiException extends Exception {
     this.code = 0;
     this.responseHeaders = null;
     this.responseBody = null;
+    this.errorBody = null;
   }
 
   public ApiException(String message) {
@@ -30,6 +33,7 @@ public class ApiException extends Exception {
     this.code = 0;
     this.responseHeaders = null;
     this.responseBody = null;
+    this.errorBody = null;
   }
 
   public ApiException(
@@ -42,6 +46,7 @@ public class ApiException extends Exception {
     this.code = code;
     this.responseHeaders = responseHeaders;
     this.responseBody = responseBody;
+    this.errorBody = null;
   }
 
   public ApiException(
@@ -81,6 +86,19 @@ public class ApiException extends Exception {
     this(message, null, code, responseHeaders, responseBody);
   }
 
+  public ApiException(
+      int code,
+      String message,
+      @Nullable Map<String, List<String>> responseHeaders,
+      @Nullable String responseBody,
+      @Nullable Object errorBody) {
+    super(message);
+    this.code = code;
+    this.responseHeaders = responseHeaders;
+    this.responseBody = responseBody;
+    this.errorBody = errorBody;
+  }
+
   /**
    * Get the HTTP status code.
    *
@@ -108,6 +126,29 @@ public class ApiException extends Exception {
   @Nullable
   public String getResponseBody() {
     return responseBody;
+  }
+
+  /**
+   * Get the deserialized error body.
+   *
+   * @return The deserialized error body, or null if not available
+   */
+  @Nullable
+  public Object getErrorBody() {
+    return errorBody;
+  }
+
+  /**
+   * Get the deserialized error body cast to the specified type.
+   *
+   * @param clazz the expected type of the error body
+   * @param <T> the type parameter
+   * @return the error body cast to the specified type, or null if not an instance
+   */
+  @SuppressWarnings("unchecked")
+  @Nullable
+  public <T> T getTypedErrorBody(Class<T> clazz) {
+    return clazz.isInstance(errorBody) ? (T) errorBody : null;
   }
 
   @Override

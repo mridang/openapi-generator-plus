@@ -140,6 +140,53 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 sourceFolder + File.separator + invokerPackage.replace(".", File.separator);
         supportingFiles.add(
                 new SupportingFile("api_exception.mustache", invokerFolder, "ApiException.java"));
+
+        String exceptionsFolder = invokerFolder + File.separator + "exceptions";
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/ClientException.mustache",
+                        exceptionsFolder,
+                        "ClientException.java"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/ServerException.mustache",
+                        exceptionsFolder,
+                        "ServerException.java"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/BadRequestException.mustache",
+                        exceptionsFolder,
+                        "BadRequestException.java"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/UnauthorizedException.mustache",
+                        exceptionsFolder,
+                        "UnauthorizedException.java"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/ForbiddenException.mustache",
+                        exceptionsFolder,
+                        "ForbiddenException.java"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/NotFoundException.mustache",
+                        exceptionsFolder,
+                        "NotFoundException.java"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/ConflictException.mustache",
+                        exceptionsFolder,
+                        "ConflictException.java"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/UnprocessableEntityException.mustache",
+                        exceptionsFolder,
+                        "UnprocessableEntityException.java"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/InternalServerErrorException.mustache",
+                        exceptionsFolder,
+                        "InternalServerErrorException.java"));
         supportingFiles.add(
                 new SupportingFile("api_client.mustache", invokerFolder, "ApiClient.java"));
         supportingFiles.add(
@@ -254,6 +301,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "test/WireMockContainer.mustache",
                             testFolder,
                             "WireMockContainer.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/BaseApiTest.mustache",
+                            testFolder,
+                            "BaseApiTest.java"));
             supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
         }
     }

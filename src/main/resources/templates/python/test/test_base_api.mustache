@@ -1,0 +1,149 @@
+{{>partial_header}}
+import pytest
+
+from {{packageName}}.api.base_api import BaseApi
+from {{packageName}}.configuration import Configuration
+from {{packageName}}.default_api_client import DefaultApiClient
+from {{packageName}}.auth.authenticator import Authenticator
+from {{packageName}}.exceptions import ApiException
+from {{packageName}}.exceptions.client_exception import ClientException
+from {{packageName}}.exceptions.server_exception import ServerException
+from {{packageName}}.exceptions.bad_request_exception import BadRequestException
+from {{packageName}}.exceptions.unauthorized_exception import UnauthorizedException
+from {{packageName}}.exceptions.forbidden_exception import ForbiddenException
+from {{packageName}}.exceptions.not_found_exception import NotFoundException
+from {{packageName}}.exceptions.conflict_exception import ConflictException
+from {{packageName}}.exceptions.unprocessable_entity_exception import UnprocessableEntityException
+from {{packageName}}.exceptions.internal_server_error_exception import InternalServerErrorException
+
+
+class TestableApi(BaseApi):
+    """Concrete subclass exposing _invoke_api for direct testing."""
+
+    def call(self, method, path, query_params, header_params, body,
+             accepts, content_type, return_type, auth=None):
+        return self._invoke_api(
+            method, path, query_params, header_params, body,
+            accepts, content_type, return_type, auth)
+
+
+class TestAuthenticator(Authenticator):
+    """Test authenticator that returns known headers, query params, cookies."""
+
+    def __init__(self, headers=None, query_params=None, cookies=None):
+        self._headers = headers or {}
+        self._query_params = query_params or {}
+        self._cookies = cookies or {}
+
+    def get_host(self):
+        return ''
+
+    def get_auth_headers(self):
+        return self._headers
+
+    def get_query_params(self):
+        return self._query_params
+
+    def get_cookie_params(self):
+        return self._cookies
+
+
+@pytest.fixture
+def api(wiremock_http_url):
+    config = Configuration(base_url=wiremock_http_url)
+    return TestableApi(api_client=DefaultApiClient(), config=config)
+
+
+class TestExceptionDispatch:
+
+    @pytest.mark.parametrize('status,expected_class', [
+        (400, BadRequestException),
+        (401, UnauthorizedException),
+        (403, ForbiddenException),
+        (404, NotFoundException),
+        (409, ConflictException),
+        (422, UnprocessableEntityException),
+        (418, ClientException),
+        (500, InternalServerErrorException),
+        (502, ServerException),
+    ])
+    def test_throws_correct_exception(self, api, status, expected_class):
+        with pytest.raises(expected_class) as exc_info:
+            api.call('GET', f'/api/error/{status}', {}, {}, None,
+                     ['application/json'], 'application/json', None)
+        assert exc_info.value.status == status
+        assert exc_info.value.body is not None
+        assert len(exc_info.value.body) > 0
+
+
+class TestExceptionHierarchy:
+
+    def test_not_found_hierarchy(self, api):
+        with pytest.raises(NotFoundException) as exc_info:
+            api.call('GET', '/api/error/404', {}, {}, None,
+                     ['application/json'], 'application/json', None)
+        assert isinstance(exc_info.value, ClientException)
+        assert isinstance(exc_info.value, ApiException)
+
+    def test_internal_server_error_hierarchy(self, api):
+        with pytest.raises(InternalServerErrorException) as exc_info:
+            api.call('GET', '/api/error/500', {}, {}, None,
+                     ['application/json'], 'application/json', None)
+        assert isinstance(exc_info.value, ServerException)
+        assert isinstance(exc_info.value, ApiException)
+
+
+class TestSuccessDeserialization:
+
+    def test_deserializes_json_response(self, api):
+        result = api.call('GET', '/api/test', {}, {}, None,
+                          ['application/json'], 'application/json', 'object')
+        assert result is not None
+        assert result['message'] == 'success'
+
+    def test_returns_raw_string_for_non_json(self, api):
+        result = api.call('GET', '/api/text', {}, {}, None,
+                          ['text/plain'], 'application/json', 'str')
+        assert result is not None
+        assert 'hello plain text' in result
+
+    def test_returns_none_when_return_type_is_none(self, api):
+        result = api.call('GET', '/api/test', {}, {}, None,
+                          ['application/json'], 'application/json', None)
+        assert result is None
+
+
+class TestQueryParameters:
+
+    def test_appends_query_params(self, api):
+        result = api.call('GET', '/api/test', {'foo': 'bar'}, {}, None,
+                          ['application/json'], 'application/json', None)
+        assert result is None
+
+
+class TestAuthInjection:
+
+    def test_forwards_auth_headers(self, api):
+        auth = TestAuthenticator(headers={'X-Custom': 'auth-value'})
+        result = api.call('GET', '/api/echo-headers', {}, {}, None,
+                          ['application/json'], 'application/json', 'object', auth)
+        assert result is not None
+        assert result['x-custom'] == 'auth-value'
+
+    def test_sets_cookie_header(self, api):
+        auth = TestAuthenticator(cookies={'session': 'abc123'})
+        api.call('GET', '/api/test', {}, {}, None,
+                 ['application/json'], 'application/json', None, auth)
+
+
+class TestBodySerialization:
+
+    def test_serializes_json_body(self, api):
+        result = api.call('POST', '/api/echo-body', {}, {}, {'key': 'value'},
+                          ['application/json'], 'application/json', 'object')
+        assert result is not None
+        assert result['key'] == 'value'
+
+    def test_sends_no_body_when_none(self, api):
+        api.call('GET', '/api/test', {}, {}, None,
+                 ['application/json'], 'application/json', None)

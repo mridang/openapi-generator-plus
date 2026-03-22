@@ -1,0 +1,24 @@
+namespace PetstoreClient.Exceptions;
+
+/// <summary>
+/// Exception for HTTP 404 Not Found.
+/// </summary>
+public class NotFoundException : ClientException
+{
+    public NotFoundException()
+        : this("Not Found") { }
+
+    public NotFoundException(string message)
+        : this(message, null, null, null) { }
+
+    public NotFoundException(string message, Exception innerException)
+        : base(message, innerException) { }
+
+    public NotFoundException(
+        string message,
+        Dictionary<string, string>? responseHeaders = null,
+        string? responseBody = null,
+        object? errorBody = null
+    )
+        : base(404, message, responseHeaders, responseBody, errorBody) { }
+}

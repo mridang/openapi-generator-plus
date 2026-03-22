@@ -1,0 +1,18 @@
+{{>partial_header}}
+from typing import Any, Optional
+
+from {{packageName}}.exceptions.client_exception import ClientException
+
+
+class ConflictException(ClientException):
+    """Exception for HTTP 409 Conflict."""
+
+    def __init__(
+        self,
+        reason: Optional[str] = None,
+        http_resp: Optional[Any] = None,
+        *,
+        body: Optional[str] = None,
+        data: Optional[Any] = None,
+    ) -> None:
+        super().__init__(status=409, reason=reason, http_resp=http_resp, body=body, data=data)

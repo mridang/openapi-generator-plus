@@ -10,7 +10,6 @@ Do not edit the class manually.
 """
 
 from typing import Any, List, Optional
-from typing_extensions import Self
 
 
 class OpenApiException(Exception):
@@ -120,6 +119,7 @@ class ApiException(OpenApiException):
         self.body = body
         self.data = data
         self.headers: Optional[Any] = None
+        self.error_body = None
 
         if http_resp:
             if self.status is None:
@@ -133,37 +133,6 @@ class ApiException(OpenApiException):
                     pass
             self.headers = http_resp.getheaders()
 
-    @classmethod
-    def from_response(
-        cls,
-        *,
-        http_resp: Any,
-        body: Optional[str],
-        data: Optional[Any],
-    ) -> Self:
-        if http_resp.status == 400:
-            raise BadRequestException(http_resp=http_resp, body=body, data=data)
-
-        if http_resp.status == 401:
-            raise UnauthorizedException(http_resp=http_resp, body=body, data=data)
-
-        if http_resp.status == 403:
-            raise ForbiddenException(http_resp=http_resp, body=body, data=data)
-
-        if http_resp.status == 404:
-            raise NotFoundException(http_resp=http_resp, body=body, data=data)
-
-        # Added new conditions for 409 and 422
-        if http_resp.status == 409:
-            raise ConflictException(http_resp=http_resp, body=body, data=data)
-
-        if http_resp.status == 422:
-            raise UnprocessableEntityException(http_resp=http_resp, body=body, data=data)
-
-        if 500 <= http_resp.status <= 599:
-            raise ServiceException(http_resp=http_resp, body=body, data=data)
-        raise ApiException(http_resp=http_resp, body=body, data=data)
-
     def __str__(self) -> str:
         """Custom error messages for exception"""
         error_message = '({0})\nReason: {1}\n'.format(self.status, self.reason)
@@ -176,38 +145,6 @@ class ApiException(OpenApiException):
         return error_message
 
 
-class BadRequestException(ApiException):
-    pass
-
-
-class NotFoundException(ApiException):
-    pass
-
-
-class UnauthorizedException(ApiException):
-    pass
-
-
-class ForbiddenException(ApiException):
-    pass
-
-
-class ServiceException(ApiException):
-    pass
-
-
-class ConflictException(ApiException):
-    """Exception for HTTP 409 Conflict."""
-
-    pass
-
-
-class UnprocessableEntityException(ApiException):
-    """Exception for HTTP 422 Unprocessable Entity."""
-
-    pass
-
-
 def render_path(path_to_item: List[str]) -> str:
     """Returns a string representation of a path"""
     result = ''
@@ -217,3 +154,33 @@ def render_path(path_to_item: List[str]) -> str:
         else:
             result += "['{0}']".format(pth)
     return result
+
+
+# Re-export exception subclasses for convenience
+from petstore_client.exceptions.client_exception import ClientException  # noqa: E402
+from petstore_client.exceptions.server_exception import ServerException  # noqa: E402
+from petstore_client.exceptions.bad_request_exception import BadRequestException  # noqa: E402
+from petstore_client.exceptions.unauthorized_exception import UnauthorizedException  # noqa: E402
+from petstore_client.exceptions.forbidden_exception import ForbiddenException  # noqa: E402
+from petstore_client.exceptions.not_found_exception import NotFoundException  # noqa: E402
+from petstore_client.exceptions.conflict_exception import ConflictException  # noqa: E402
+from petstore_client.exceptions.unprocessable_entity_exception import UnprocessableEntityException  # noqa: E402
+from petstore_client.exceptions.internal_server_error_exception import InternalServerErrorException  # noqa: E402
+
+__all__ = [
+    'OpenApiException',
+    'ApiTypeError',
+    'ApiValueError',
+    'ApiAttributeError',
+    'ApiKeyError',
+    'ApiException',
+    'ClientException',
+    'ServerException',
+    'BadRequestException',
+    'UnauthorizedException',
+    'ForbiddenException',
+    'NotFoundException',
+    'ConflictException',
+    'UnprocessableEntityException',
+    'InternalServerErrorException',
+]

@@ -62,25 +62,14 @@ module {{moduleName}}
           headers['Cookie'] = existing ? "#{existing}; #{cookie_str}" : cookie_str
         end
         {{moduleName}}::TraceContextUtil.inject_trace_context(headers)
-
         serialized_body = serialize_body(body, content_type)
-
         response = @api_client.send_request(method, url, headers, serialized_body)
-
-        if response.status_code < 200 || response.status_code >= 300
-          raise {{moduleName}}::ApiError.new(code: response.status_code, response_body: response.body)
-        end
-
+        throw_api_error(response) if response.status_code < 200 || response.status_code >= 300
         return unless return_type && response.body && !response.body.empty?
 
         # @type var resp_content_type: String?
-        resp_content_type = nil
-        response.headers.each do |k, v|
-          if k.downcase == 'content-type'
-            resp_content_type = v.split(';').first&.strip
-            break
-          end
-        end
+        ct_pair = response.headers.find { |k, _| k.downcase == 'content-type' }
+        resp_content_type = ct_pair ? ct_pair.last.split(';').first.strip : nil
         return response.body if resp_content_type && !resp_content_type.start_with?('application/json')
 
         {{moduleName}}::ObjectSerializer.deserialize(response.body, return_type)
@@ -99,6 +88,30 @@ module {{moduleName}}
       end
 
       private
+
+      def throw_api_error(response) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
+        code = response.status_code
+        msg = "API returned status code #{code}"
+        body = response.body
+        if code >= 400 && code < 500
+          raise case code
+                when 400 then {{moduleName}}::Errors::BadRequestError.new(message: msg, response_body: body)
+                when 401 then {{moduleName}}::Errors::UnauthorizedError.new(message: msg, response_body: body)
+                when 403 then {{moduleName}}::Errors::ForbiddenError.new(message: msg, response_body: body)
+                when 404 then {{moduleName}}::Errors::NotFoundError.new(message: msg, response_body: body)
+                when 409 then {{moduleName}}::Errors::ConflictError.new(message: msg, response_body: body)
+                when 422 then {{moduleName}}::Errors::UnprocessableEntityError.new(message: msg, response_body: body)
+                else {{moduleName}}::Errors::ClientError.new(code: code, message: msg, response_body: body)
+                end
+        end
+        if code >= 500
+          raise case code
+                when 500 then {{moduleName}}::Errors::InternalServerError.new(message: msg, response_body: body)
+                else {{moduleName}}::Errors::ServerError.new(code: code, message: msg, response_body: body)
+                end
+        end
+        raise {{moduleName}}::ApiError.new(code: code, message: msg, response_body: body)
+      end
 
       def build_query_string(query_params) # rubocop:disable Metrics/MethodLength
         pairs = query_params.compact.map do |k, v|

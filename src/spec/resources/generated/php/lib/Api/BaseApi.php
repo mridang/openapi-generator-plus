@@ -21,6 +21,15 @@ use PetstoreClient\HeaderSelector;
 use PetstoreClient\ObjectSerializer;
 use PetstoreClient\TraceContextUtil;
 use PetstoreClient\Auth\Authenticator;
+use PetstoreClient\Exceptions\BadRequestException;
+use PetstoreClient\Exceptions\ClientException;
+use PetstoreClient\Exceptions\ConflictException;
+use PetstoreClient\Exceptions\ForbiddenException;
+use PetstoreClient\Exceptions\InternalServerErrorException;
+use PetstoreClient\Exceptions\NotFoundException;
+use PetstoreClient\Exceptions\ServerException;
+use PetstoreClient\Exceptions\UnauthorizedException;
+use PetstoreClient\Exceptions\UnprocessableEntityException;
 
 /**
  * Base class for all API classes. Provides the invokeApi method that
@@ -120,12 +129,7 @@ class BaseApi
         $response = $this->apiClient->sendRequest($method, $url, $headers, $serializedBody);
 
         if ($response->statusCode < 200 || $response->statusCode >= 300) {
-            throw new ApiException(
-                sprintf('[%d] Error', $response->statusCode),
-                $response->statusCode,
-                $response->headers,
-                $response->body
-            );
+            $this->throwApiException($response);
         }
 
         if ($returnType !== null && trim($response->body) !== '') {
@@ -146,6 +150,40 @@ class BaseApi
         }
 
         return null;
+    }
+
+    /**
+     * Throw the appropriate exception subclass for the given error response.
+     *
+     * @throws ApiException always
+     */
+    private function throwApiException(ApiResponse $response): never
+    {
+        $code = $response->statusCode;
+        $message = sprintf('[%d] Error', $code);
+        $headers = $response->headers;
+        $body = $response->body;
+
+        if ($code >= 400 && $code < 500) {
+            throw match ($code) {
+                400 => new BadRequestException($message, $headers, $body),
+                401 => new UnauthorizedException($message, $headers, $body),
+                403 => new ForbiddenException($message, $headers, $body),
+                404 => new NotFoundException($message, $headers, $body),
+                409 => new ConflictException($message, $headers, $body),
+                422 => new UnprocessableEntityException($message, $headers, $body),
+                default => new ClientException($message, $code, $headers, $body),
+            };
+        }
+
+        if ($code >= 500) {
+            throw match ($code) {
+                500 => new InternalServerErrorException($message, $headers, $body),
+                default => new ServerException($message, $code, $headers, $body),
+            };
+        }
+
+        throw new ApiException($message, $code, $headers, $body);
     }
 
     /**

@@ -8,6 +8,7 @@ public class ApiException : Exception
     public int StatusCode { get; }
     public string? ResponseBody { get; }
     public Dictionary<string, string>? ResponseHeaders { get; }
+    public object? ErrorBody { get; }
 
     public ApiException() { }
 
@@ -21,13 +22,21 @@ public class ApiException : Exception
         int statusCode,
         string message,
         Dictionary<string, string>? responseHeaders = null,
-        string? responseBody = null
+        string? responseBody = null,
+        object? errorBody = null
     )
         : base(message)
     {
         StatusCode = statusCode;
         ResponseHeaders = responseHeaders;
         ResponseBody = responseBody;
+        ErrorBody = errorBody;
+    }
+
+    public T? GetTypedErrorBody<T>()
+        where T : class
+    {
+        return ErrorBody as T;
     }
 
     public override string ToString()

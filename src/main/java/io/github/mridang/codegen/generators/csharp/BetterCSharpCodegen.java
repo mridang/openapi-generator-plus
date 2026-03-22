@@ -102,6 +102,53 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                         "default_api_client.mustache", invokerFolder, "DefaultApiClient.cs"));
         supportingFiles.add(
                 new SupportingFile("api_exception.mustache", invokerFolder, "ApiException.cs"));
+
+        String exceptionsFolder = invokerFolder + File.separator + "Exceptions";
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/ClientException.mustache",
+                        exceptionsFolder,
+                        "ClientException.cs"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/ServerException.mustache",
+                        exceptionsFolder,
+                        "ServerException.cs"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/BadRequestException.mustache",
+                        exceptionsFolder,
+                        "BadRequestException.cs"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/UnauthorizedException.mustache",
+                        exceptionsFolder,
+                        "UnauthorizedException.cs"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/ForbiddenException.mustache",
+                        exceptionsFolder,
+                        "ForbiddenException.cs"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/NotFoundException.mustache",
+                        exceptionsFolder,
+                        "NotFoundException.cs"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/ConflictException.mustache",
+                        exceptionsFolder,
+                        "ConflictException.cs"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/UnprocessableEntityException.mustache",
+                        exceptionsFolder,
+                        "UnprocessableEntityException.cs"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/InternalServerErrorException.mustache",
+                        exceptionsFolder,
+                        "InternalServerErrorException.cs"));
         supportingFiles.add(
                 new SupportingFile("api_response.mustache", invokerFolder, "ApiResponse.cs"));
         supportingFiles.add(
@@ -197,6 +244,11 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             "test/WireMockSquidFixture.mustache",
                             "Tests",
                             "WireMockSquidFixture.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/BaseApiTest.mustache",
+                            "Tests",
+                            "BaseApiTest.cs"));
         }
     }
 

@@ -114,7 +114,50 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                 new SupportingFile(
                         "server_configuration.mustache", "src", "server-configuration.ts"));
         supportingFiles.add(new SupportingFile("servers.mustache", "src", "servers.ts"));
+        supportingFiles.add(new SupportingFile("api_error.mustache", "src", "api-error.ts"));
         supportingFiles.add(new SupportingFile("base_api.mustache", "src/api", "base-api.ts"));
+
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/client-error.mustache", "src/exceptions", "client-error.ts"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/server-error.mustache", "src/exceptions", "server-error.ts"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/bad-request-error.mustache",
+                        "src/exceptions",
+                        "bad-request-error.ts"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/unauthorized-error.mustache",
+                        "src/exceptions",
+                        "unauthorized-error.ts"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/forbidden-error.mustache",
+                        "src/exceptions",
+                        "forbidden-error.ts"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/not-found-error.mustache",
+                        "src/exceptions",
+                        "not-found-error.ts"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/conflict-error.mustache",
+                        "src/exceptions",
+                        "conflict-error.ts"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/unprocessable-entity-error.mustache",
+                        "src/exceptions",
+                        "unprocessable-entity-error.ts"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/internal-server-error.mustache",
+                        "src/exceptions",
+                        "internal-server-error.ts"));
         supportingFiles.add(
                 new SupportingFile(
                         "object_serializer.mustache", "src", "object-serializer.ts"));
@@ -189,6 +232,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                             "test/trace-context-util.test.ts",
                             "tests",
                             "trace-context-util.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/base-api.test.mustache",
+                            "tests",
+                            "base-api.test.ts"));
         }
     }
 

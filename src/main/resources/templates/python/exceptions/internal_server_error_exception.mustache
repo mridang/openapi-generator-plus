@@ -1,0 +1,18 @@
+{{>partial_header}}
+from typing import Any, Optional
+
+from {{packageName}}.exceptions.server_exception import ServerException
+
+
+class InternalServerErrorException(ServerException):
+    """Exception for HTTP 500 Internal Server Error."""
+
+    def __init__(
+        self,
+        reason: Optional[str] = None,
+        http_resp: Optional[Any] = None,
+        *,
+        body: Optional[str] = None,
+        data: Optional[Any] = None,
+    ) -> None:
+        super().__init__(status=500, reason=reason, http_resp=http_resp, body=body, data=data)

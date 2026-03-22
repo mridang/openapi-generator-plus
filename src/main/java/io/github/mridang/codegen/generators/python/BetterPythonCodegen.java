@@ -127,8 +127,54 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                 new SupportingFile("base_api.mustache", apiPath, "base_api.py"));
         supportingFiles.add(
                 new SupportingFile("configuration.mustache", packagePath, "configuration.py"));
+        String exceptionsPath = packagePath + File.separator + "exceptions";
         supportingFiles.add(
-                new SupportingFile("exceptions.mustache", packagePath, "exceptions.py"));
+                new SupportingFile("exceptions.mustache", exceptionsPath, "__init__.py"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/client_exception.mustache",
+                        exceptionsPath,
+                        "client_exception.py"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/server_exception.mustache",
+                        exceptionsPath,
+                        "server_exception.py"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/bad_request_exception.mustache",
+                        exceptionsPath,
+                        "bad_request_exception.py"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/unauthorized_exception.mustache",
+                        exceptionsPath,
+                        "unauthorized_exception.py"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/forbidden_exception.mustache",
+                        exceptionsPath,
+                        "forbidden_exception.py"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/not_found_exception.mustache",
+                        exceptionsPath,
+                        "not_found_exception.py"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/conflict_exception.mustache",
+                        exceptionsPath,
+                        "conflict_exception.py"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/unprocessable_entity_exception.mustache",
+                        exceptionsPath,
+                        "unprocessable_entity_exception.py"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "exceptions/internal_server_error_exception.mustache",
+                        exceptionsPath,
+                        "internal_server_error_exception.py"));
         supportingFiles.add(
                 new SupportingFile(
                         "object_serializer.mustache", packagePath, "object_serializer.py"));
@@ -220,6 +266,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                             "test/test_trace_context_util.mustache",
                             "tests",
                             "test_trace_context_util.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_base_api.mustache",
+                            "tests",
+                            "test_base_api.py"));
         }
     }
 

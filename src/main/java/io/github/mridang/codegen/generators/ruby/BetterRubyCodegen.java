@@ -139,6 +139,43 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         supportingFiles.add(new SupportingFile("server_configuration.mustache", libPath, "server_configuration.rb"));
         supportingFiles.add(new SupportingFile("servers.mustache", libPath, "servers.rb"));
         supportingFiles.add(new SupportingFile("api_error.mustache", libPath, "api_error.rb"));
+
+        String errorsPath = libPath + File.separator + "errors";
+        supportingFiles.add(
+                new SupportingFile(
+                        "errors/client_error.mustache", errorsPath, "client_error.rb"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "errors/server_error.mustache", errorsPath, "server_error.rb"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "errors/bad_request_error.mustache",
+                        errorsPath,
+                        "bad_request_error.rb"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "errors/unauthorized_error.mustache",
+                        errorsPath,
+                        "unauthorized_error.rb"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "errors/forbidden_error.mustache", errorsPath, "forbidden_error.rb"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "errors/not_found_error.mustache", errorsPath, "not_found_error.rb"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "errors/conflict_error.mustache", errorsPath, "conflict_error.rb"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "errors/unprocessable_entity_error.mustache",
+                        errorsPath,
+                        "unprocessable_entity_error.rb"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "errors/internal_server_error.mustache",
+                        errorsPath,
+                        "internal_server_error.rb"));
         supportingFiles.add(new SupportingFile("version.mustache", libPath, "version.rb"));
         supportingFiles.add(new SupportingFile("header_selector.mustache", libPath, "header_selector.rb"));
         supportingFiles.add(new SupportingFile("object_serializer.mustache", libPath, "object_serializer.rb"));
@@ -220,6 +257,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                             "test/trace_context_util_spec.mustache",
                             "spec",
                             "trace_context_util_spec.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/base_api_spec.mustache",
+                            "spec",
+                            "base_api_spec.rb"));
         }
     }
 

@@ -9,6 +9,15 @@ import com.example.petstore.HeaderSelector;
 import com.example.petstore.ObjectSerializer;
 import com.example.petstore.TraceContextUtil;
 import com.example.petstore.auth.Authenticator;
+import com.example.petstore.exceptions.BadRequestException;
+import com.example.petstore.exceptions.ClientException;
+import com.example.petstore.exceptions.ConflictException;
+import com.example.petstore.exceptions.ForbiddenException;
+import com.example.petstore.exceptions.InternalServerErrorException;
+import com.example.petstore.exceptions.NotFoundException;
+import com.example.petstore.exceptions.ServerException;
+import com.example.petstore.exceptions.UnauthorizedException;
+import com.example.petstore.exceptions.UnprocessableEntityException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -155,11 +164,7 @@ public abstract class BaseApi {
     ApiResponse response = apiClient.sendRequest(method, url, headers, requestBody);
 
     if (response.statusCode() < 200 || response.statusCode() >= 300) {
-      throw new ApiException(
-          response.statusCode(),
-          "API returned status code " + response.statusCode(),
-          null,
-          response.body());
+      throwApiException(response);
     }
 
     if (returnType != null && response.body() != null && !response.body().isEmpty()) {
@@ -185,6 +190,37 @@ public abstract class BaseApi {
       return objectSerializer.deserialize(response.body(), returnType);
     }
     return null;
+  }
+
+  /**
+   * Throw the appropriate exception subclass for the given error response.
+   *
+   * @param response the API response with a non-2xx status code
+   * @throws ApiException always
+   */
+  private void throwApiException(ApiResponse response) throws ApiException {
+    int code = response.statusCode();
+    String message = "API returned status code " + code;
+    String body = response.body();
+
+    if (code >= 400 && code < 500) {
+      throw switch (code) {
+        case 400 -> new BadRequestException(message, null, body, null);
+        case 401 -> new UnauthorizedException(message, null, body, null);
+        case 403 -> new ForbiddenException(message, null, body, null);
+        case 404 -> new NotFoundException(message, null, body, null);
+        case 409 -> new ConflictException(message, null, body, null);
+        case 422 -> new UnprocessableEntityException(message, null, body, null);
+        default -> new ClientException(code, message, null, body, null);
+      };
+    }
+    if (code >= 500) {
+      throw switch (code) {
+        case 500 -> new InternalServerErrorException(message, null, body, null);
+        default -> new ServerException(code, message, null, body, null);
+      };
+    }
+    throw new ApiException(code, message, null, body);
   }
 
   /**
