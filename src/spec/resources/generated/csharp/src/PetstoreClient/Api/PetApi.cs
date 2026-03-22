@@ -89,12 +89,22 @@ public class PetApi : BaseApi
     /// <returns><![CDATA[Pet]]></returns>
     public async Task<Pet> AddPetAsync(IAuthenticator auth, Pet pet)
     {
+        Task<ApiResult<Pet>> task = AddPetWithHttpInfoAsync(auth, pet);
+        ApiResult<Pet> result = await task.ConfigureAwait(false);
+        return result.Data
+            ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Add a new pet to the store (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<Pet>> AddPetWithHttpInfoAsync(IAuthenticator auth, Pet pet)
+    {
         string path = "/pet";
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
-
-        Pet? result = await InvokeApiAsync<Pet>(
+        return await InvokeApiForResultAsync<Pet>(
                 "POST",
                 path,
                 queryParams,
@@ -105,7 +115,6 @@ public class PetApi : BaseApi
                 auth
             )
             .ConfigureAwait(false);
-        return result ?? throw new InvalidOperationException("Expected non-null response body");
     }
 
     /// <summary>
@@ -116,6 +125,20 @@ public class PetApi : BaseApi
     /// <param name="options">Options for query, header, and form parameters.</param>
     /// <returns><![CDATA[List<Photo>]]></returns>
     public async Task<List<Photo>> AddPetPhotosAsync(long petId, AddPetPhotosOptions options)
+    {
+        Task<ApiResult<List<Photo>>> task = AddPetPhotosWithHttpInfoAsync(petId, options);
+        ApiResult<List<Photo>> result = await task.ConfigureAwait(false);
+        return result.Data
+            ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Add photos to the pet&#39;s gallery (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<List<Photo>>> AddPetPhotosWithHttpInfoAsync(
+        long petId,
+        AddPetPhotosOptions options
+    )
     {
         ArgumentNullException.ThrowIfNull(options);
         string path = "/pet/{petId}/photos";
@@ -130,8 +153,7 @@ public class PetApi : BaseApi
         Dictionary<string, object> formBody = [];
         formBody["files"] = options.Files;
         formBody["metadata"] = options.Metadata;
-
-        List<Photo>? result = await InvokeApiAsync<List<Photo>>(
+        return await InvokeApiForResultAsync<List<Photo>>(
                 "POST",
                 path,
                 queryParams,
@@ -142,7 +164,6 @@ public class PetApi : BaseApi
                 null
             )
             .ConfigureAwait(false);
-        return result ?? throw new InvalidOperationException("Expected non-null response body");
     }
 
     /// <summary>
@@ -151,6 +172,18 @@ public class PetApi : BaseApi
     /// <param name="auth">Authenticator for this operation.</param>
     /// <param name="petId">Pet id to delete</param>
     public async Task DeletePetAsync(IAuthenticator auth, long petId)
+    {
+        Task<ApiResult<object?>> task = DeletePetWithHttpInfoAsync(auth, petId);
+        _ = await task.ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Deletes a pet (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<object?>> DeletePetWithHttpInfoAsync(
+        IAuthenticator auth,
+        long petId
+    )
     {
         string path = "/pet/{petId}";
         path = path.Replace(
@@ -161,8 +194,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
-
-        _ = await InvokeApiAsync<object>(
+        return await InvokeApiForResultAsync<object?>(
                 "DELETE",
                 path,
                 queryParams,
@@ -184,6 +216,23 @@ public class PetApi : BaseApi
     /// <returns><![CDATA[System.IO.Stream]]></returns>
     public async Task<System.IO.Stream> DownloadPetDocumentAsync(long petId, long documentId)
     {
+        Task<ApiResult<System.IO.Stream>> task = DownloadPetDocumentWithHttpInfoAsync(
+            petId,
+            documentId
+        );
+        ApiResult<System.IO.Stream> result = await task.ConfigureAwait(false);
+        return result.Data
+            ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Download a vet document (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<System.IO.Stream>> DownloadPetDocumentWithHttpInfoAsync(
+        long petId,
+        long documentId
+    )
+    {
         string path = "/pet/{petId}/documents/{documentId}";
         path = path.Replace(
             "{" + "petId" + "}",
@@ -198,8 +247,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
-
-        System.IO.Stream? result = await InvokeApiAsync<System.IO.Stream>(
+        return await InvokeApiForResultAsync<System.IO.Stream>(
                 "GET",
                 path,
                 queryParams,
@@ -210,7 +258,6 @@ public class PetApi : BaseApi
                 null
             )
             .ConfigureAwait(false);
-        return result ?? throw new InvalidOperationException("Expected non-null response body");
     }
 
     /// <summary>
@@ -221,6 +268,19 @@ public class PetApi : BaseApi
     /// <seealso href="https://example.com/docs/filtering">Find out more about filtering</seealso>
     [Obsolete("This operation is deprecated.")]
     public async Task<List<Pet>> FindPetsByStatusAsync(FindPetsByStatusOptions options)
+    {
+        Task<ApiResult<List<Pet>>> task = FindPetsByStatusWithHttpInfoAsync(options);
+        ApiResult<List<Pet>> result = await task.ConfigureAwait(false);
+        return result.Data
+            ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Finds Pets by status (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<List<Pet>>> FindPetsByStatusWithHttpInfoAsync(
+        FindPetsByStatusOptions options
+    )
     {
         ArgumentNullException.ThrowIfNull(options);
         string path = "/pet/findByStatus";
@@ -236,8 +296,7 @@ public class PetApi : BaseApi
             );
         }
         Dictionary<string, string> headerParams = [];
-
-        List<Pet>? result = await InvokeApiAsync<List<Pet>>(
+        return await InvokeApiForResultAsync<List<Pet>>(
                 "GET",
                 path,
                 queryParams,
@@ -248,7 +307,6 @@ public class PetApi : BaseApi
                 null
             )
             .ConfigureAwait(false);
-        return result ?? throw new InvalidOperationException("Expected non-null response body");
     }
 
     /// <summary>
@@ -259,6 +317,17 @@ public class PetApi : BaseApi
     /// <returns><![CDATA[System.IO.Stream]]></returns>
     public async Task<System.IO.Stream> GetPetAvatarAsync(long petId)
     {
+        Task<ApiResult<System.IO.Stream>> task = GetPetAvatarWithHttpInfoAsync(petId);
+        ApiResult<System.IO.Stream> result = await task.ConfigureAwait(false);
+        return result.Data
+            ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Get the pet&#39;s profile photo (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<System.IO.Stream>> GetPetAvatarWithHttpInfoAsync(long petId)
+    {
         string path = "/pet/{petId}/avatar";
         path = path.Replace(
             "{" + "petId" + "}",
@@ -268,8 +337,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
-
-        System.IO.Stream? result = await InvokeApiAsync<System.IO.Stream>(
+        return await InvokeApiForResultAsync<System.IO.Stream>(
                 "GET",
                 path,
                 queryParams,
@@ -280,7 +348,6 @@ public class PetApi : BaseApi
                 null
             )
             .ConfigureAwait(false);
-        return result ?? throw new InvalidOperationException("Expected non-null response body");
     }
 
     /// <summary>
@@ -291,6 +358,17 @@ public class PetApi : BaseApi
     /// <returns><![CDATA[byte[]]]></returns>
     public async Task<byte[]> GetPetAvatarThumbnailAsync(long petId)
     {
+        Task<ApiResult<byte[]>> task = GetPetAvatarThumbnailWithHttpInfoAsync(petId);
+        ApiResult<byte[]> result = await task.ConfigureAwait(false);
+        return result.Data
+            ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Get the pet&#39;s avatar thumbnail as base64 (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<byte[]>> GetPetAvatarThumbnailWithHttpInfoAsync(long petId)
+    {
         string path = "/pet/{petId}/avatar/thumbnail";
         path = path.Replace(
             "{" + "petId" + "}",
@@ -300,8 +378,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
-
-        byte[]? result = await InvokeApiAsync<byte[]>(
+        return await InvokeApiForResultAsync<byte[]>(
                 "GET",
                 path,
                 queryParams,
@@ -312,7 +389,6 @@ public class PetApi : BaseApi
                 null
             )
             .ConfigureAwait(false);
-        return result ?? throw new InvalidOperationException("Expected non-null response body");
     }
 
     /// <summary>
@@ -324,6 +400,17 @@ public class PetApi : BaseApi
     [Obsolete("This operation is deprecated.")]
     public async Task<Pet> GetPetByIdAsync(long petId)
     {
+        Task<ApiResult<Pet>> task = GetPetByIdWithHttpInfoAsync(petId);
+        ApiResult<Pet> result = await task.ConfigureAwait(false);
+        return result.Data
+            ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Find pet by ID (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<Pet>> GetPetByIdWithHttpInfoAsync(long petId)
+    {
         string path = "/pet/{petId}";
         path = path.Replace(
             "{" + "petId" + "}",
@@ -333,8 +420,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
-
-        Pet? result = await InvokeApiAsync<Pet>(
+        return await InvokeApiForResultAsync<Pet>(
                 "GET",
                 path,
                 queryParams,
@@ -345,7 +431,6 @@ public class PetApi : BaseApi
                 null
             )
             .ConfigureAwait(false);
-        return result ?? throw new InvalidOperationException("Expected non-null response body");
     }
 
     /// <summary>
@@ -356,6 +441,17 @@ public class PetApi : BaseApi
     /// <returns><![CDATA[PetPassport]]></returns>
     public async Task<PetPassport> GetPetPassportAsync(long petId)
     {
+        Task<ApiResult<PetPassport>> task = GetPetPassportWithHttpInfoAsync(petId);
+        ApiResult<PetPassport> result = await task.ConfigureAwait(false);
+        return result.Data
+            ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Get the pet&#39;s passport (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<PetPassport>> GetPetPassportWithHttpInfoAsync(long petId)
+    {
         string path = "/pet/{petId}/passport";
         path = path.Replace(
             "{" + "petId" + "}",
@@ -365,8 +461,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
-
-        PetPassport? result = await InvokeApiAsync<PetPassport>(
+        return await InvokeApiForResultAsync<PetPassport>(
                 "GET",
                 path,
                 queryParams,
@@ -377,7 +472,6 @@ public class PetApi : BaseApi
                 null
             )
             .ConfigureAwait(false);
-        return result ?? throw new InvalidOperationException("Expected non-null response body");
     }
 
     /// <summary>
@@ -388,6 +482,20 @@ public class PetApi : BaseApi
     /// <param name="photoId"></param>
     /// <returns><![CDATA[System.IO.Stream]]></returns>
     public async Task<System.IO.Stream> GetPetPhotoAsync(long petId, long photoId)
+    {
+        Task<ApiResult<System.IO.Stream>> task = GetPetPhotoWithHttpInfoAsync(petId, photoId);
+        ApiResult<System.IO.Stream> result = await task.ConfigureAwait(false);
+        return result.Data
+            ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Get a photo or its metadata (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<System.IO.Stream>> GetPetPhotoWithHttpInfoAsync(
+        long petId,
+        long photoId
+    )
     {
         string path = "/pet/{petId}/photos/{photoId}";
         path = path.Replace(
@@ -403,8 +511,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
-
-        System.IO.Stream? result = await InvokeApiAsync<System.IO.Stream>(
+        return await InvokeApiForResultAsync<System.IO.Stream>(
                 "GET",
                 path,
                 queryParams,
@@ -415,7 +522,6 @@ public class PetApi : BaseApi
                 null
             )
             .ConfigureAwait(false);
-        return result ?? throw new InvalidOperationException("Expected non-null response body");
     }
 
     /// <summary>
@@ -426,6 +532,18 @@ public class PetApi : BaseApi
     /// <param name="body"></param>
     public async Task SetPetAvatarAsync(long petId, System.IO.Stream body)
     {
+        Task<ApiResult<object?>> task = SetPetAvatarWithHttpInfoAsync(petId, body);
+        _ = await task.ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Set the pet&#39;s profile photo (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<object?>> SetPetAvatarWithHttpInfoAsync(
+        long petId,
+        System.IO.Stream body
+    )
+    {
         string path = "/pet/{petId}/avatar";
         path = path.Replace(
             "{" + "petId" + "}",
@@ -435,8 +553,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
-
-        _ = await InvokeApiAsync<object>(
+        return await InvokeApiForResultAsync<object?>(
                 "PUT",
                 path,
                 queryParams,
@@ -460,6 +577,21 @@ public class PetApi : BaseApi
         SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest
     )
     {
+        Task<ApiResult<object?>> task = SetPetAvatarThumbnailWithHttpInfoAsync(
+            petId,
+            setPetAvatarThumbnailRequest
+        );
+        _ = await task.ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Set the pet&#39;s avatar thumbnail as base64 (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<object?>> SetPetAvatarThumbnailWithHttpInfoAsync(
+        long petId,
+        SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest
+    )
+    {
         string path = "/pet/{petId}/avatar/thumbnail";
         path = path.Replace(
             "{" + "petId" + "}",
@@ -469,8 +601,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
-
-        _ = await InvokeApiAsync<object>(
+        return await InvokeApiForResultAsync<object?>(
                 "PUT",
                 path,
                 queryParams,
@@ -491,6 +622,17 @@ public class PetApi : BaseApi
     /// <returns><![CDATA[Pet]]></returns>
     public async Task<Pet> UpdatePetAsync(long petId, Pet pet)
     {
+        Task<ApiResult<Pet>> task = UpdatePetWithHttpInfoAsync(petId, pet);
+        ApiResult<Pet> result = await task.ConfigureAwait(false);
+        return result.Data
+            ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Update an existing pet (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<Pet>> UpdatePetWithHttpInfoAsync(long petId, Pet pet)
+    {
         string path = "/pet/{petId}";
         path = path.Replace(
             "{" + "petId" + "}",
@@ -500,8 +642,7 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
-
-        Pet? result = await InvokeApiAsync<Pet>(
+        return await InvokeApiForResultAsync<Pet>(
                 "PUT",
                 path,
                 queryParams,
@@ -512,7 +653,6 @@ public class PetApi : BaseApi
                 null
             )
             .ConfigureAwait(false);
-        return result ?? throw new InvalidOperationException("Expected non-null response body");
     }
 
     /// <summary>
@@ -523,6 +663,20 @@ public class PetApi : BaseApi
     /// <param name="options">Options for query, header, and form parameters.</param>
     /// <returns><![CDATA[ApiResponse]]></returns>
     public async Task<ApiResponse> UploadPetCertificateAsync(
+        long petId,
+        UploadPetCertificateOptions options
+    )
+    {
+        Task<ApiResult<ApiResponse>> task = UploadPetCertificateWithHttpInfoAsync(petId, options);
+        ApiResult<ApiResponse> result = await task.ConfigureAwait(false);
+        return result.Data
+            ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Upload the pet&#39;s adoption certificate (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<ApiResponse>> UploadPetCertificateWithHttpInfoAsync(
         long petId,
         UploadPetCertificateOptions options
     )
@@ -539,8 +693,7 @@ public class PetApi : BaseApi
         Dictionary<string, string> headerParams = [];
         Dictionary<string, object> formBody = [];
         formBody["file"] = options.File;
-
-        ApiResponse? result = await InvokeApiAsync<ApiResponse>(
+        return await InvokeApiForResultAsync<ApiResponse>(
                 "POST",
                 path,
                 queryParams,
@@ -551,7 +704,6 @@ public class PetApi : BaseApi
                 null
             )
             .ConfigureAwait(false);
-        return result ?? throw new InvalidOperationException("Expected non-null response body");
     }
 
     /// <summary>
@@ -562,6 +714,20 @@ public class PetApi : BaseApi
     /// <param name="options">Options for query, header, and form parameters.</param>
     /// <returns><![CDATA[ApiResponse]]></returns>
     public async Task<ApiResponse> UploadPetDocumentAsync(
+        long petId,
+        UploadPetDocumentOptions options
+    )
+    {
+        Task<ApiResult<ApiResponse>> task = UploadPetDocumentWithHttpInfoAsync(petId, options);
+        ApiResult<ApiResponse> result = await task.ConfigureAwait(false);
+        return result.Data
+            ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Attach a vet document or health record (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<ApiResponse>> UploadPetDocumentWithHttpInfoAsync(
         long petId,
         UploadPetDocumentOptions options
     )
@@ -586,8 +752,7 @@ public class PetApi : BaseApi
         {
             formBody["notes"] = options.Notes;
         }
-
-        ApiResponse? result = await InvokeApiAsync<ApiResponse>(
+        return await InvokeApiForResultAsync<ApiResponse>(
                 "POST",
                 path,
                 queryParams,
@@ -598,6 +763,5 @@ public class PetApi : BaseApi
                 null
             )
             .ConfigureAwait(false);
-        return result ?? throw new InvalidOperationException("Expected non-null response body");
     }
 }

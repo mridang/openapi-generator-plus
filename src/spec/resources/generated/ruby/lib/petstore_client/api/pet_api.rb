@@ -2,6 +2,7 @@
 
 # rubocop:disable Lint/RedundantCopDisableDirective, Layout/LineLength
 # rubocop:disable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:disable Style/MethodCallWithoutArgsParentheses
 # rubocop:disable Style/DefWithParentheses
 # rubocop:disable Style/StringConcatenation
 
@@ -28,6 +29,16 @@ module PetstoreClient
                 "Missing the required parameter 'pet' when calling PetApi.add_pet"
         end
 
+        add_pet_with_http_info(auth, pet).data
+      end
+
+      # @return [ApiResult]
+      def add_pet_with_http_info(auth, pet)
+        if pet.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet' when calling PetApi.add_pet"
+        end
+
         path = '/pet'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -35,7 +46,7 @@ module PetstoreClient
         header_params = {}
         request_body = pet
 
-        invoke_api(
+        invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
           ['application/json'],
           'application/json',
@@ -66,6 +77,26 @@ module PetstoreClient
                 "Missing the required parameter 'metadata' when calling PetApi.add_pet_photos"
         end
 
+        add_pet_photos_with_http_info(pet_id, files: files, metadata: metadata).data
+      end
+
+      # @return [ApiResult]
+      def add_pet_photos_with_http_info(pet_id, files:, metadata:)
+        if pet_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
+        end
+
+        if files.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'files' when calling PetApi.add_pet_photos"
+        end
+
+        if metadata.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'metadata' when calling PetApi.add_pet_photos"
+        end
+
         path = '/pet/{petId}/photos'
         path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize(pet_id, :path, 'Integer').to_s)
         # @type var query_params: Hash[String, untyped]
@@ -77,7 +108,7 @@ module PetstoreClient
         request_body['files'] = files
         request_body['metadata'] = metadata
 
-        invoke_api(
+        invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
           ['application/json'],
           'multipart/form-data',
@@ -96,6 +127,16 @@ module PetstoreClient
                 "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
         end
 
+        delete_pet_with_http_info(auth, pet_id).data
+      end
+
+      # @return [ApiResult]
+      def delete_pet_with_http_info(auth, pet_id)
+        if pet_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
+        end
+
         path = '/pet/{petId}'
         path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize(pet_id, :path, 'Integer').to_s)
         # @type var query_params: Hash[String, untyped]
@@ -104,7 +145,7 @@ module PetstoreClient
         header_params = {}
         request_body = nil
 
-        invoke_api(
+        invoke_api_for_result(
           :DELETE, path, query_params, header_params, request_body,
           [],
           'application/json',
@@ -129,6 +170,21 @@ module PetstoreClient
                 "Missing the required parameter 'document_id' when calling PetApi.download_pet_document"
         end
 
+        download_pet_document_with_http_info(pet_id, document_id).data
+      end
+
+      # @return [ApiResult]
+      def download_pet_document_with_http_info(pet_id, document_id)
+        if pet_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_id' when calling PetApi.download_pet_document"
+        end
+
+        if document_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'document_id' when calling PetApi.download_pet_document"
+        end
+
         path = '/pet/{petId}/documents/{documentId}'
         path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize(pet_id, :path, 'Integer').to_s)
         path = path.sub('{documentId}', PetstoreClient::ValueSerializer.serialize(document_id, :path, 'Integer').to_s)
@@ -138,7 +194,7 @@ module PetstoreClient
         header_params = {}
         request_body = nil
 
-        invoke_api(
+        invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/octet-stream'],
           'application/json',
@@ -153,6 +209,11 @@ module PetstoreClient
       # @deprecated This operation is deprecated.
       # @see https://example.com/docs/filtering Find out more about filtering
       def find_pets_by_status(status: nil)
+        find_pets_by_status_with_http_info(status: status).data
+      end
+
+      # @return [ApiResult]
+      def find_pets_by_status_with_http_info(status: nil)
         path = '/pet/findByStatus'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -164,7 +225,7 @@ module PetstoreClient
         header_params = {}
         request_body = nil
 
-        invoke_api(
+        invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
           'application/json',
@@ -183,6 +244,16 @@ module PetstoreClient
                 "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar"
         end
 
+        get_pet_avatar_with_http_info(pet_id).data
+      end
+
+      # @return [ApiResult]
+      def get_pet_avatar_with_http_info(pet_id)
+        if pet_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar"
+        end
+
         path = '/pet/{petId}/avatar'
         path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize(pet_id, :path, 'Integer').to_s)
         # @type var query_params: Hash[String, untyped]
@@ -191,7 +262,7 @@ module PetstoreClient
         header_params = {}
         request_body = nil
 
-        invoke_api(
+        invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['image/jpeg', 'image/png'],
           'application/json',
@@ -210,6 +281,16 @@ module PetstoreClient
                 "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar_thumbnail"
         end
 
+        get_pet_avatar_thumbnail_with_http_info(pet_id).data
+      end
+
+      # @return [ApiResult]
+      def get_pet_avatar_thumbnail_with_http_info(pet_id)
+        if pet_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar_thumbnail"
+        end
+
         path = '/pet/{petId}/avatar/thumbnail'
         path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize(pet_id, :path, 'Integer').to_s)
         # @type var query_params: Hash[String, untyped]
@@ -218,7 +299,7 @@ module PetstoreClient
         header_params = {}
         request_body = nil
 
-        invoke_api(
+        invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
           'application/json',
@@ -238,6 +319,16 @@ module PetstoreClient
                 "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
         end
 
+        get_pet_by_id_with_http_info(pet_id).data
+      end
+
+      # @return [ApiResult]
+      def get_pet_by_id_with_http_info(pet_id)
+        if pet_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
+        end
+
         path = '/pet/{petId}'
         path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize(pet_id, :path, 'Integer').to_s)
         # @type var query_params: Hash[String, untyped]
@@ -246,7 +337,7 @@ module PetstoreClient
         header_params = {}
         request_body = nil
 
-        invoke_api(
+        invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
           'application/json',
@@ -265,6 +356,16 @@ module PetstoreClient
                 "Missing the required parameter 'pet_id' when calling PetApi.get_pet_passport"
         end
 
+        get_pet_passport_with_http_info(pet_id).data
+      end
+
+      # @return [ApiResult]
+      def get_pet_passport_with_http_info(pet_id)
+        if pet_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_passport"
+        end
+
         path = '/pet/{petId}/passport'
         path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize(pet_id, :path, 'Integer').to_s)
         # @type var query_params: Hash[String, untyped]
@@ -273,7 +374,7 @@ module PetstoreClient
         header_params = {}
         request_body = nil
 
-        invoke_api(
+        invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
           'application/json',
@@ -298,6 +399,21 @@ module PetstoreClient
                 "Missing the required parameter 'photo_id' when calling PetApi.get_pet_photo"
         end
 
+        get_pet_photo_with_http_info(pet_id, photo_id).data
+      end
+
+      # @return [ApiResult]
+      def get_pet_photo_with_http_info(pet_id, photo_id)
+        if pet_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_id' when calling PetApi.get_pet_photo"
+        end
+
+        if photo_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'photo_id' when calling PetApi.get_pet_photo"
+        end
+
         path = '/pet/{petId}/photos/{photoId}'
         path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize(pet_id, :path, 'Integer').to_s)
         path = path.sub('{photoId}', PetstoreClient::ValueSerializer.serialize(photo_id, :path, 'Integer').to_s)
@@ -307,7 +423,7 @@ module PetstoreClient
         header_params = {}
         request_body = nil
 
-        invoke_api(
+        invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['image/jpeg', 'image/png', 'application/json'],
           'application/json',
@@ -332,6 +448,21 @@ module PetstoreClient
                 "Missing the required parameter 'body' when calling PetApi.set_pet_avatar"
         end
 
+        set_pet_avatar_with_http_info(pet_id, body).data
+      end
+
+      # @return [ApiResult]
+      def set_pet_avatar_with_http_info(pet_id, body)
+        if pet_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar"
+        end
+
+        if body.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'body' when calling PetApi.set_pet_avatar"
+        end
+
         path = '/pet/{petId}/avatar'
         path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize(pet_id, :path, 'Integer').to_s)
         # @type var query_params: Hash[String, untyped]
@@ -340,7 +471,7 @@ module PetstoreClient
         header_params = {}
         request_body = body
 
-        invoke_api(
+        invoke_api_for_result(
           :PUT, path, query_params, header_params, request_body,
           [],
           'image/jpeg',
@@ -365,6 +496,21 @@ module PetstoreClient
                 "Missing the required parameter 'set_pet_avatar_thumbnail_request' when calling PetApi.set_pet_avatar_thumbnail"
         end
 
+        set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request).data
+      end
+
+      # @return [ApiResult]
+      def set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request)
+        if pet_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar_thumbnail"
+        end
+
+        if set_pet_avatar_thumbnail_request.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'set_pet_avatar_thumbnail_request' when calling PetApi.set_pet_avatar_thumbnail"
+        end
+
         path = '/pet/{petId}/avatar/thumbnail'
         path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize(pet_id, :path, 'Integer').to_s)
         # @type var query_params: Hash[String, untyped]
@@ -373,7 +519,7 @@ module PetstoreClient
         header_params = {}
         request_body = set_pet_avatar_thumbnail_request
 
-        invoke_api(
+        invoke_api_for_result(
           :PUT, path, query_params, header_params, request_body,
           [],
           'application/json',
@@ -397,6 +543,21 @@ module PetstoreClient
                 "Missing the required parameter 'pet' when calling PetApi.update_pet"
         end
 
+        update_pet_with_http_info(pet_id, pet).data
+      end
+
+      # @return [ApiResult]
+      def update_pet_with_http_info(pet_id, pet)
+        if pet_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_id' when calling PetApi.update_pet"
+        end
+
+        if pet.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet' when calling PetApi.update_pet"
+        end
+
         path = '/pet/{petId}'
         path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize(pet_id, :path, 'Integer').to_s)
         # @type var query_params: Hash[String, untyped]
@@ -405,7 +566,7 @@ module PetstoreClient
         header_params = {}
         request_body = pet
 
-        invoke_api(
+        invoke_api_for_result(
           :PUT, path, query_params, header_params, request_body,
           ['application/json'],
           'application/json',
@@ -430,6 +591,21 @@ module PetstoreClient
                 "Missing the required parameter 'file' when calling PetApi.upload_pet_certificate"
         end
 
+        upload_pet_certificate_with_http_info(pet_id, file: file).data
+      end
+
+      # @return [ApiResult]
+      def upload_pet_certificate_with_http_info(pet_id, file:)
+        if pet_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
+        end
+
+        if file.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'file' when calling PetApi.upload_pet_certificate"
+        end
+
         path = '/pet/{petId}/certificate'
         path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize(pet_id, :path, 'Integer').to_s)
         # @type var query_params: Hash[String, untyped]
@@ -440,7 +616,7 @@ module PetstoreClient
         request_body = {}
         request_body['file'] = file
 
-        invoke_api(
+        invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
           ['application/json'],
           'multipart/form-data',
@@ -467,6 +643,21 @@ module PetstoreClient
                 "Missing the required parameter 'file' when calling PetApi.upload_pet_document"
         end
 
+        upload_pet_document_with_http_info(pet_id, file: file, document_type: document_type, notes: notes).data
+      end
+
+      # @return [ApiResult]
+      def upload_pet_document_with_http_info(pet_id, file:, document_type: nil, notes: nil)
+        if pet_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
+        end
+
+        if file.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'file' when calling PetApi.upload_pet_document"
+        end
+
         path = '/pet/{petId}/documents'
         path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize(pet_id, :path, 'Integer').to_s)
         # @type var query_params: Hash[String, untyped]
@@ -479,7 +670,7 @@ module PetstoreClient
         request_body['documentType'] = document_type unless document_type.nil?
         request_body['notes'] = notes unless notes.nil?
 
-        invoke_api(
+        invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
           ['application/json'],
           'multipart/form-data',
@@ -492,5 +683,6 @@ module PetstoreClient
 end
 # rubocop:enable Lint/RedundantCopDisableDirective, Layout/LineLength
 # rubocop:enable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:enable Style/MethodCallWithoutArgsParentheses
 # rubocop:enable Style/DefWithParentheses
 # rubocop:enable Style/StringConcatenation

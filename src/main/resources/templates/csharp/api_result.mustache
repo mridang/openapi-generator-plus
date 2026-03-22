@@ -1,0 +1,26 @@
+namespace {{packageName}};
+
+/// <summary>
+/// Represents a typed API response with deserialized data, status code,
+/// raw body, and headers. Returned by <c>WithHttpInfoAsync</c> methods.
+/// </summary>
+/// <typeparam name="T">The type of the deserialized response data.</typeparam>
+public class ApiResult<T>(
+    int statusCode,
+    T? data,
+    string? rawBody,
+    Dictionary<string, string> headers
+)
+{
+    /// <summary>The HTTP status code.</summary>
+    public int StatusCode { get; } = statusCode;
+
+    /// <summary>The deserialized response body (null for void responses).</summary>
+    public T? Data { get; } = data;
+
+    /// <summary>The raw response body string.</summary>
+    public string? RawBody { get; } = rawBody;
+
+    /// <summary>The response headers (unmodifiable).</summary>
+    public Dictionary<string, string> Headers { get; } = new(headers);
+}

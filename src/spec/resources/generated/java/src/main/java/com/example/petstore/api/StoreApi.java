@@ -2,6 +2,7 @@ package com.example.petstore.api;
 
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiException;
+import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
 import com.example.petstore.ValueSerializer;
 import com.example.petstore.models.Order;
@@ -36,6 +37,10 @@ public class StoreApi extends BaseApi {
    * @throws ApiException if fails to make API call
    */
   public void deleteOrder(Long orderId) throws ApiException {
+    deleteOrderWithHttpInfo(orderId);
+  }
+
+  public ApiResult<Void> deleteOrderWithHttpInfo(Long orderId) throws ApiException {
     if (orderId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'orderId' when calling deleteOrder");
@@ -47,7 +52,7 @@ public class StoreApi extends BaseApi {
                 (String) ValueSerializer.serialize(orderId, "path", "Long", null));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
-    invokeApi(
+    return invokeApiForResult(
         "DELETE",
         path,
         queryParams,
@@ -67,10 +72,14 @@ public class StoreApi extends BaseApi {
    */
   @Nullable
   public Map<String, Integer> getInventory() throws ApiException {
+    return getInventoryWithHttpInfo().data();
+  }
+
+  public ApiResult<Map<String, Integer>> getInventoryWithHttpInfo() throws ApiException {
     String path = "/store/inventory";
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
-    return invokeApi(
+    return invokeApiForResult(
         "GET",
         path,
         queryParams,
@@ -91,6 +100,10 @@ public class StoreApi extends BaseApi {
    */
   @Nullable
   public Order getOrderById(Long orderId) throws ApiException {
+    return getOrderByIdWithHttpInfo(orderId).data();
+  }
+
+  public ApiResult<Order> getOrderByIdWithHttpInfo(Long orderId) throws ApiException {
     if (orderId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'orderId' when calling getOrderById");
@@ -102,7 +115,7 @@ public class StoreApi extends BaseApi {
                 (String) ValueSerializer.serialize(orderId, "path", "Long", null));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
-    return invokeApi(
+    return invokeApiForResult(
         "GET",
         path,
         queryParams,
@@ -123,10 +136,14 @@ public class StoreApi extends BaseApi {
    */
   @Nullable
   public Order placeOrder(Order order) throws ApiException {
+    return placeOrderWithHttpInfo(order).data();
+  }
+
+  public ApiResult<Order> placeOrderWithHttpInfo(Order order) throws ApiException {
     String path = "/store/order";
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
-    return invokeApi(
+    return invokeApiForResult(
         "POST",
         path,
         queryParams,

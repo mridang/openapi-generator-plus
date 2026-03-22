@@ -6,6 +6,7 @@ from urllib.parse import quote
 {{/imports}}
 
 from ..api_client import ApiClient
+from ..api_result import ApiResult
 from ..default_api_client import DefaultApiClient
 from ..configuration import Configuration
 from .base_api import BaseApi
@@ -99,6 +100,65 @@ class {{classname}}(BaseApi):
 
 {{/required}}
 {{/allParams}}
+        result = self.{{operationId}}_with_http_info({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/formParams}}{{/headerParams}}{{/queryParams}})
+{{#returnType}}
+        assert result.data is not None
+{{/returnType}}
+        return result.data
+
+    def {{operationId}}_with_http_info(
+        self,
+{{#hasAuthMethods}}
+        auth: Authenticator,
+{{/hasAuthMethods}}
+{{#pathParams}}
+        {{paramName}}: {{{dataType}}},
+{{/pathParams}}
+{{#bodyParam}}
+        {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
+{{/bodyParam}}
+{{#queryParams}}
+{{#-first}}
+        *,
+{{/-first}}
+        {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
+{{/queryParams}}
+{{^queryParams}}
+{{#headerParams}}
+{{#-first}}
+        *,
+{{/-first}}
+        {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
+{{/headerParams}}
+{{^headerParams}}
+{{#formParams}}
+{{#-first}}
+        *,
+{{/-first}}
+        {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
+{{/formParams}}
+{{/headerParams}}
+{{/queryParams}}
+    ) -> 'ApiResult[{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}]':
+        """{{summary}} (with HTTP info)
+{{#notes}}
+        {{.}}
+{{/notes}}
+{{#hasAuthMethods}}
+        :param auth: authenticator for this operation
+{{/hasAuthMethods}}
+{{#allParams}}
+        :param {{paramName}}: {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}
+{{/allParams}}
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        """
+{{#allParams}}
+{{#required}}
+        if {{paramName}} is None:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/allParams}}
         path = '{{{path}}}'{{#pathParams}}
         path = path.replace('{' + '{{baseName}}' + '}', str(ValueSerializer.serialize({{paramName}}, 'path', '{{dataType}}'))){{/pathParams}}
         query_params: Dict[str, Any] = {}
@@ -127,7 +187,7 @@ class {{classname}}(BaseApi):
         body = {{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}None{{/bodyParam}}
 {{/hasFormParams}}
 
-        return self._invoke_api(  # type: ignore[no-any-return]
+        return self._invoke_api_for_result(
             '{{httpMethod}}',
             path,
             query_params,

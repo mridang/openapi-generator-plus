@@ -198,6 +198,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile("api_response.mustache", invokerFolder, "ApiResponse.php"));
         supportingFiles.add(
+                new SupportingFile("api_result.mustache", invokerFolder, "ApiResult.php"));
+        supportingFiles.add(
                 new SupportingFile("api_client.mustache", invokerFolder, "ApiClient.php"));
         supportingFiles.add(
                 new SupportingFile(

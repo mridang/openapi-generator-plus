@@ -2,21 +2,36 @@ module PetstoreClient
   module Api
     class PetApi < BaseApi
       def initialize: (?::PetstoreClient::ApiClient? api_client, ?::PetstoreClient::Configuration config) -> void
-      def add_pet: (::PetstoreClient::Auth::Authenticator auth, untyped pet) -> untyped
-      def add_pet_photos: (untyped pet_id, files: untyped, metadata: untyped) -> untyped
-      def delete_pet: (::PetstoreClient::Auth::Authenticator auth, untyped pet_id) -> untyped
-      def download_pet_document: (untyped pet_id, untyped document_id) -> untyped
-      def find_pets_by_status: (?status: untyped?) -> untyped
-      def get_pet_avatar: (untyped pet_id) -> untyped
-      def get_pet_avatar_thumbnail: (untyped pet_id) -> untyped
-      def get_pet_by_id: (untyped pet_id) -> untyped
-      def get_pet_passport: (untyped pet_id) -> untyped
-      def get_pet_photo: (untyped pet_id, untyped photo_id) -> untyped
-      def set_pet_avatar: (untyped pet_id, untyped body) -> untyped
-      def set_pet_avatar_thumbnail: (untyped pet_id, untyped set_pet_avatar_thumbnail_request) -> untyped
-      def update_pet: (untyped pet_id, untyped pet) -> untyped
-      def upload_pet_certificate: (untyped pet_id, file: untyped) -> untyped
-      def upload_pet_document: (untyped pet_id, file: untyped, ?document_type: untyped?, ?notes: untyped?) -> untyped
+      def add_pet: (::PetstoreClient::Auth::Authenticator auth, Models::Pet pet) -> untyped
+      def add_pet_with_http_info: (::PetstoreClient::Auth::Authenticator auth, Models::Pet pet) -> ::PetstoreClient::ApiResult
+      def add_pet_photos: (Integer pet_id, files: Array[File], metadata: Models::PhotoMetadata) -> untyped
+      def add_pet_photos_with_http_info: (Integer pet_id, files: Array[File], metadata: Models::PhotoMetadata) -> ::PetstoreClient::ApiResult
+      def delete_pet: (::PetstoreClient::Auth::Authenticator auth, Integer pet_id) -> untyped
+      def delete_pet_with_http_info: (::PetstoreClient::Auth::Authenticator auth, Integer pet_id) -> ::PetstoreClient::ApiResult
+      def download_pet_document: (Integer pet_id, Integer document_id) -> untyped
+      def download_pet_document_with_http_info: (Integer pet_id, Integer document_id) -> ::PetstoreClient::ApiResult
+      def find_pets_by_status: (?status: String?) -> untyped
+      def find_pets_by_status_with_http_info: (?status: String?) -> ::PetstoreClient::ApiResult
+      def get_pet_avatar: (Integer pet_id) -> untyped
+      def get_pet_avatar_with_http_info: (Integer pet_id) -> ::PetstoreClient::ApiResult
+      def get_pet_avatar_thumbnail: (Integer pet_id) -> untyped
+      def get_pet_avatar_thumbnail_with_http_info: (Integer pet_id) -> ::PetstoreClient::ApiResult
+      def get_pet_by_id: (Integer pet_id) -> untyped
+      def get_pet_by_id_with_http_info: (Integer pet_id) -> ::PetstoreClient::ApiResult
+      def get_pet_passport: (Integer pet_id) -> untyped
+      def get_pet_passport_with_http_info: (Integer pet_id) -> ::PetstoreClient::ApiResult
+      def get_pet_photo: (Integer pet_id, Integer photo_id) -> untyped
+      def get_pet_photo_with_http_info: (Integer pet_id, Integer photo_id) -> ::PetstoreClient::ApiResult
+      def set_pet_avatar: (Integer pet_id, File body) -> untyped
+      def set_pet_avatar_with_http_info: (Integer pet_id, File body) -> ::PetstoreClient::ApiResult
+      def set_pet_avatar_thumbnail: (Integer pet_id, Models::SetPetAvatarThumbnailRequest set_pet_avatar_thumbnail_request) -> untyped
+      def set_pet_avatar_thumbnail_with_http_info: (Integer pet_id, Models::SetPetAvatarThumbnailRequest set_pet_avatar_thumbnail_request) -> ::PetstoreClient::ApiResult
+      def update_pet: (Integer pet_id, Models::Pet pet) -> untyped
+      def update_pet_with_http_info: (Integer pet_id, Models::Pet pet) -> ::PetstoreClient::ApiResult
+      def upload_pet_certificate: (Integer pet_id, file: File) -> untyped
+      def upload_pet_certificate_with_http_info: (Integer pet_id, file: File) -> ::PetstoreClient::ApiResult
+      def upload_pet_document: (Integer pet_id, file: File, ?document_type: String?, ?notes: String?) -> untyped
+      def upload_pet_document_with_http_info: (Integer pet_id, file: File, ?document_type: String?, ?notes: String?) -> ::PetstoreClient::ApiResult
     end
   end
 end

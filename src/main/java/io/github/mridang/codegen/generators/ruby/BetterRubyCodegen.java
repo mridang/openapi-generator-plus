@@ -4,6 +4,8 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.openapitools.codegen.utils.StringUtils.camelize;
 import static org.openapitools.codegen.utils.StringUtils.underscore;
 
+import com.google.common.collect.ImmutableMap;
+import com.samskivert.mustache.Mustache;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -17,20 +19,12 @@ import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
-import org.openapitools.codegen.CodegenModel;
-import org.openapitools.codegen.CodegenOperation;
-import org.openapitools.codegen.CodegenParameter;
-import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
-import org.openapitools.codegen.model.ModelMap;
-import org.openapitools.codegen.model.ModelsMap;
-import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -182,6 +176,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         supportingFiles.add(new SupportingFile("value_serializer.mustache", libPath, "value_serializer.rb"));
         supportingFiles.add(new SupportingFile("trace_context_util.mustache", libPath, "trace_context_util.rb"));
         supportingFiles.add(new SupportingFile("api_response.mustache", libPath, "api_response.rb"));
+        supportingFiles.add(new SupportingFile("api_result.mustache", libPath, "api_result.rb"));
         supportingFiles.add(new SupportingFile("api_client.mustache", libPath, "api_client.rb"));
         supportingFiles.add(new SupportingFile("default_api_client.mustache", libPath, "default_api_client.rb"));
         supportingFiles.add(
@@ -392,36 +387,14 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     }
 
     @Override
-    public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
-        Map<String, ModelsMap> result = super.postProcessAllModels(objs);
-        for (ModelsMap models : result.values()) {
-            for (ModelMap modelMap : models.getModels()) {
-                CodegenModel model = modelMap.getModel();
-                for (CodegenProperty var : model.vars) {
-                    String rbsType = toRbsType(var.dataType);
-                    var.vendorExtensions.put("x-rbs-type", var.required ? rbsType : rbsType + "?");
-                }
-            }
-        }
-        return result;
-    }
-
-    @Override
-    public OperationsMap postProcessOperationsWithModels(
-            OperationsMap objs, List<ModelMap> allModels) {
-        OperationsMap result = super.postProcessOperationsWithModels(objs, allModels);
-        for (CodegenOperation op : result.getOperations().getOperation()) {
-            addRbsTypeToParams(op.allParams);
-            addRbsTypeToParams(op.requiredParams);
-            addRbsTypeToParams(op.optionalParams);
-        }
-        return result;
-    }
-
-    private void addRbsTypeToParams(List<CodegenParameter> params) {
-        for (CodegenParameter param : params) {
-            param.vendorExtensions.put("x-rbs-type", toRbsApiType(param.dataType));
-        }
+    protected ImmutableMap.Builder<String, Mustache.Lambda> addMustacheLambdas() {
+        return super.addMustacheLambdas()
+                .put(
+                        "rbsType",
+                        (fragment, writer) -> writer.write(toRbsType(fragment.execute())))
+                .put(
+                        "rbsApiType",
+                        (fragment, writer) -> writer.write(toRbsApiType(fragment.execute())));
     }
 
     private String toRbsApiType(@Nullable String type) {

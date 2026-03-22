@@ -4,6 +4,7 @@ namespace PetstoreClient\Api;
 
 use PetstoreClient\ApiClient;
 use PetstoreClient\ApiException;
+use PetstoreClient\ApiResult;
 use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\ValueSerializer;
@@ -21,6 +22,16 @@ class StoreApi extends BaseApi
      */
     public function deleteOrder(int $orderId): void
     {
+        $this->deleteOrderWithHttpInfo($orderId);
+    }
+
+    /**
+     * @param int $orderId ID of the order to delete
+     * @return ApiResult<null>
+     * @throws ApiException
+     */
+    public function deleteOrderWithHttpInfo(int $orderId): ApiResult
+    {
         $path = '/store/order/{orderId}';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serialize($orderId, 'path', 'int');
@@ -29,7 +40,8 @@ class StoreApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        $this->invokeApi(
+        /** @var ApiResult<null> $result */
+        $result = $this->invokeApiForResult(
             'DELETE',
             $path,
             $queryParams,
@@ -39,6 +51,7 @@ class StoreApi extends BaseApi
             'application/json',
             null,
         );
+        return $result;
     }
 
     /**
@@ -48,13 +61,24 @@ class StoreApi extends BaseApi
      */
     public function getInventory()
     {
+        /** @var array<string,int> $result */
+        $result = $this->getInventoryWithHttpInfo()->data;
+        return $result;
+    }
+
+    /**
+     * @return ApiResult<array<string,int>>
+     * @throws ApiException
+     */
+    public function getInventoryWithHttpInfo(): ApiResult
+    {
         $path = '/store/inventory';
         $queryParams = [];
         $headerParams = [];
         $requestBody = null;
 
-        /** @var array<string,int> $result */
-        $result = $this->invokeApi(
+        /** @var ApiResult<array<string,int>> $result */
+        $result = $this->invokeApiForResult(
             'GET',
             $path,
             $queryParams,
@@ -75,6 +99,18 @@ class StoreApi extends BaseApi
      */
     public function getOrderById(int $orderId)
     {
+        /** @var \PetstoreClient\Models\Order $result */
+        $result = $this->getOrderByIdWithHttpInfo($orderId)->data;
+        return $result;
+    }
+
+    /**
+     * @param int $orderId ID of order to return
+     * @return ApiResult<\PetstoreClient\Models\Order>
+     * @throws ApiException
+     */
+    public function getOrderByIdWithHttpInfo(int $orderId): ApiResult
+    {
         $path = '/store/order/{orderId}';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serialize($orderId, 'path', 'int');
@@ -83,8 +119,8 @@ class StoreApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var \PetstoreClient\Models\Order $result */
-        $result = $this->invokeApi(
+        /** @var ApiResult<\PetstoreClient\Models\Order> $result */
+        $result = $this->invokeApiForResult(
             'GET',
             $path,
             $queryParams,
@@ -104,13 +140,24 @@ class StoreApi extends BaseApi
      */
     public function placeOrder(\PetstoreClient\Models\Order|null $order = null)
     {
+        /** @var \PetstoreClient\Models\Order $result */
+        $result = $this->placeOrderWithHttpInfo($order)->data;
+        return $result;
+    }
+
+    /**
+     * @return ApiResult<\PetstoreClient\Models\Order>
+     * @throws ApiException
+     */
+    public function placeOrderWithHttpInfo(\PetstoreClient\Models\Order|null $order = null): ApiResult
+    {
         $path = '/store/order';
         $queryParams = [];
         $headerParams = [];
         $requestBody = $order;
 
-        /** @var \PetstoreClient\Models\Order $result */
-        $result = $this->invokeApi(
+        /** @var ApiResult<\PetstoreClient\Models\Order> $result */
+        $result = $this->invokeApiForResult(
             'POST',
             $path,
             $queryParams,

@@ -2,6 +2,7 @@ package com.example.petstore.api;
 
 import com.example.petstore.ApiClient;
 import com.example.petstore.ApiException;
+import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
 import com.example.petstore.ValueSerializer;
 import com.example.petstore.auth.AdminBasicAuthenticator;
@@ -75,16 +76,25 @@ public class PetApi extends BaseApi {
    */
   @Nullable
   public Pet addPet(PetStoreBearerAuthenticator auth, Pet pet) throws ApiException {
+    return addPetWithHttpInfo(auth, pet).data();
+  }
+
+  public ApiResult<Pet> addPetWithHttpInfo(PetStoreBearerAuthenticator auth, Pet pet)
+      throws ApiException {
     return addPetInternal(auth, pet);
   }
 
   @Nullable
   public Pet addPet(ApiKeyHeaderAuthenticator auth, Pet pet) throws ApiException {
+    return addPetWithHttpInfo(auth, pet).data();
+  }
+
+  public ApiResult<Pet> addPetWithHttpInfo(ApiKeyHeaderAuthenticator auth, Pet pet)
+      throws ApiException {
     return addPetInternal(auth, pet);
   }
 
-  @Nullable
-  private Pet addPetInternal(Authenticator auth, Pet pet) throws ApiException {
+  private ApiResult<Pet> addPetInternal(Authenticator auth, Pet pet) throws ApiException {
     if (pet == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'pet' when calling addPet");
@@ -92,7 +102,7 @@ public class PetApi extends BaseApi {
     String path = "/pet";
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
-    return invokeApi(
+    return invokeApiForResult(
         "POST",
         path,
         queryParams,
@@ -136,6 +146,11 @@ public class PetApi extends BaseApi {
    */
   @Nullable
   public List<Photo> addPetPhotos(Long petId, AddPetPhotosOptions options) throws ApiException {
+    return addPetPhotosWithHttpInfo(petId, options).data();
+  }
+
+  public ApiResult<List<Photo>> addPetPhotosWithHttpInfo(Long petId, AddPetPhotosOptions options)
+      throws ApiException {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling addPetPhotos");
@@ -151,7 +166,7 @@ public class PetApi extends BaseApi {
     formBody.put("files", options.files());
     formBody.put("metadata", options.metadata());
 
-    return invokeApi(
+    return invokeApiForResult(
         "POST",
         path,
         queryParams,
@@ -171,14 +186,24 @@ public class PetApi extends BaseApi {
    */
   public void deletePet(MachineAuthClientCredentialsAuthenticator auth, Long petId)
       throws ApiException {
-    deletePetInternal(auth, petId);
+    deletePetWithHttpInfo(auth, petId);
+  }
+
+  public ApiResult<Void> deletePetWithHttpInfo(
+      MachineAuthClientCredentialsAuthenticator auth, Long petId) throws ApiException {
+    return deletePetInternal(auth, petId);
   }
 
   public void deletePet(AdminBasicAuthenticator auth, Long petId) throws ApiException {
-    deletePetInternal(auth, petId);
+    deletePetWithHttpInfo(auth, petId);
   }
 
-  private void deletePetInternal(Authenticator auth, Long petId) throws ApiException {
+  public ApiResult<Void> deletePetWithHttpInfo(AdminBasicAuthenticator auth, Long petId)
+      throws ApiException {
+    return deletePetInternal(auth, petId);
+  }
+
+  private ApiResult<Void> deletePetInternal(Authenticator auth, Long petId) throws ApiException {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling deletePet");
@@ -190,7 +215,7 @@ public class PetApi extends BaseApi {
                 (String) ValueSerializer.serialize(petId, "path", "Long", null));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
-    invokeApi(
+    return invokeApiForResult(
         "DELETE",
         path,
         queryParams,
@@ -213,6 +238,11 @@ public class PetApi extends BaseApi {
    */
   @Nullable
   public InputStream downloadPetDocument(Long petId, Long documentId) throws ApiException {
+    return downloadPetDocumentWithHttpInfo(petId, documentId).data();
+  }
+
+  public ApiResult<InputStream> downloadPetDocumentWithHttpInfo(Long petId, Long documentId)
+      throws ApiException {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling downloadPetDocument");
@@ -231,7 +261,7 @@ public class PetApi extends BaseApi {
                 (String) ValueSerializer.serialize(documentId, "path", "Long", null));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
-    return invokeApi(
+    return invokeApiForResult(
         "GET",
         path,
         queryParams,
@@ -271,8 +301,14 @@ public class PetApi extends BaseApi {
    * @see <a href="https://example.com/docs/filtering">Finds Pets by status Documentation</a>
    */
   @Deprecated
+  @SuppressWarnings("InlineMeSuggester")
   @Nullable
   public List<Pet> findPetsByStatus(FindPetsByStatusOptions options) throws ApiException {
+    return findPetsByStatusWithHttpInfo(options).data();
+  }
+
+  public ApiResult<List<Pet>> findPetsByStatusWithHttpInfo(FindPetsByStatusOptions options)
+      throws ApiException {
     String path = "/pet/findByStatus";
     Map<String, Object> queryParams = new HashMap<>();
     if (options.status() != null) {
@@ -280,7 +316,7 @@ public class PetApi extends BaseApi {
           "status", ValueSerializer.serialize(options.status(), "query", "String", null));
     }
     Map<String, String> headerParams = new HashMap<>();
-    return invokeApi(
+    return invokeApiForResult(
         "GET",
         path,
         queryParams,
@@ -301,6 +337,10 @@ public class PetApi extends BaseApi {
    */
   @Nullable
   public InputStream getPetAvatar(Long petId) throws ApiException {
+    return getPetAvatarWithHttpInfo(petId).data();
+  }
+
+  public ApiResult<InputStream> getPetAvatarWithHttpInfo(Long petId) throws ApiException {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling getPetAvatar");
@@ -312,7 +352,7 @@ public class PetApi extends BaseApi {
                 (String) ValueSerializer.serialize(petId, "path", "Long", null));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
-    return invokeApi(
+    return invokeApiForResult(
         "GET",
         path,
         queryParams,
@@ -334,6 +374,10 @@ public class PetApi extends BaseApi {
    */
   @Nullable
   public byte[] getPetAvatarThumbnail(Long petId) throws ApiException {
+    return getPetAvatarThumbnailWithHttpInfo(petId).data();
+  }
+
+  public ApiResult<byte[]> getPetAvatarThumbnailWithHttpInfo(Long petId) throws ApiException {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling getPetAvatarThumbnail");
@@ -345,7 +389,7 @@ public class PetApi extends BaseApi {
                 (String) ValueSerializer.serialize(petId, "path", "Long", null));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
-    return invokeApi(
+    return invokeApiForResult(
         "GET",
         path,
         queryParams,
@@ -366,8 +410,13 @@ public class PetApi extends BaseApi {
    * @deprecated This operation is deprecated.
    */
   @Deprecated
+  @SuppressWarnings("InlineMeSuggester")
   @Nullable
   public Pet getPetById(Long petId) throws ApiException {
+    return getPetByIdWithHttpInfo(petId).data();
+  }
+
+  public ApiResult<Pet> getPetByIdWithHttpInfo(Long petId) throws ApiException {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling getPetById");
@@ -379,7 +428,7 @@ public class PetApi extends BaseApi {
                 (String) ValueSerializer.serialize(petId, "path", "Long", null));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
-    return invokeApi(
+    return invokeApiForResult(
         "GET",
         path,
         queryParams,
@@ -402,6 +451,10 @@ public class PetApi extends BaseApi {
    */
   @Nullable
   public PetPassport getPetPassport(Long petId) throws ApiException {
+    return getPetPassportWithHttpInfo(petId).data();
+  }
+
+  public ApiResult<PetPassport> getPetPassportWithHttpInfo(Long petId) throws ApiException {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling getPetPassport");
@@ -413,7 +466,7 @@ public class PetApi extends BaseApi {
                 (String) ValueSerializer.serialize(petId, "path", "Long", null));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
-    return invokeApi(
+    return invokeApiForResult(
         "GET",
         path,
         queryParams,
@@ -436,6 +489,11 @@ public class PetApi extends BaseApi {
    */
   @Nullable
   public InputStream getPetPhoto(Long petId, Long photoId) throws ApiException {
+    return getPetPhotoWithHttpInfo(petId, photoId).data();
+  }
+
+  public ApiResult<InputStream> getPetPhotoWithHttpInfo(Long petId, Long photoId)
+      throws ApiException {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling getPetPhoto");
@@ -454,7 +512,7 @@ public class PetApi extends BaseApi {
                 (String) ValueSerializer.serialize(photoId, "path", "Long", null));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
-    return invokeApi(
+    return invokeApiForResult(
         "GET",
         path,
         queryParams,
@@ -475,6 +533,11 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    */
   public void setPetAvatar(Long petId, InputStream body) throws ApiException {
+    setPetAvatarWithHttpInfo(petId, body);
+  }
+
+  public ApiResult<Void> setPetAvatarWithHttpInfo(Long petId, InputStream body)
+      throws ApiException {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling setPetAvatar");
@@ -490,7 +553,7 @@ public class PetApi extends BaseApi {
                 (String) ValueSerializer.serialize(petId, "path", "Long", null));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
-    invokeApi(
+    return invokeApiForResult(
         "PUT", path, queryParams, headerParams, body, new String[] {}, "image/jpeg", null, null);
   }
 
@@ -503,6 +566,11 @@ public class PetApi extends BaseApi {
    * @throws ApiException if fails to make API call
    */
   public void setPetAvatarThumbnail(
+      Long petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest) throws ApiException {
+    setPetAvatarThumbnailWithHttpInfo(petId, setPetAvatarThumbnailRequest);
+  }
+
+  public ApiResult<Void> setPetAvatarThumbnailWithHttpInfo(
       Long petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest) throws ApiException {
     if (petId == null) {
       throw new IllegalArgumentException(
@@ -519,7 +587,7 @@ public class PetApi extends BaseApi {
                 (String) ValueSerializer.serialize(petId, "path", "Long", null));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
-    invokeApi(
+    return invokeApiForResult(
         "PUT",
         path,
         queryParams,
@@ -541,6 +609,10 @@ public class PetApi extends BaseApi {
    */
   @Nullable
   public Pet updatePet(Long petId, Pet pet) throws ApiException {
+    return updatePetWithHttpInfo(petId, pet).data();
+  }
+
+  public ApiResult<Pet> updatePetWithHttpInfo(Long petId, Pet pet) throws ApiException {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling updatePet");
@@ -556,7 +628,7 @@ public class PetApi extends BaseApi {
                 (String) ValueSerializer.serialize(petId, "path", "Long", null));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
-    return invokeApi(
+    return invokeApiForResult(
         "PUT",
         path,
         queryParams,
@@ -595,6 +667,11 @@ public class PetApi extends BaseApi {
   @Nullable
   public ApiResponse uploadPetCertificate(Long petId, UploadPetCertificateOptions options)
       throws ApiException {
+    return uploadPetCertificateWithHttpInfo(petId, options).data();
+  }
+
+  public ApiResult<ApiResponse> uploadPetCertificateWithHttpInfo(
+      Long petId, UploadPetCertificateOptions options) throws ApiException {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling uploadPetCertificate");
@@ -609,7 +686,7 @@ public class PetApi extends BaseApi {
     Map<String, Object> formBody = new HashMap<>();
     formBody.put("file", options.file());
 
-    return invokeApi(
+    return invokeApiForResult(
         "POST",
         path,
         queryParams,
@@ -671,6 +748,11 @@ public class PetApi extends BaseApi {
   @Nullable
   public ApiResponse uploadPetDocument(Long petId, UploadPetDocumentOptions options)
       throws ApiException {
+    return uploadPetDocumentWithHttpInfo(petId, options).data();
+  }
+
+  public ApiResult<ApiResponse> uploadPetDocumentWithHttpInfo(
+      Long petId, UploadPetDocumentOptions options) throws ApiException {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling uploadPetDocument");
@@ -691,7 +773,7 @@ public class PetApi extends BaseApi {
       formBody.put("notes", options.notes());
     }
 
-    return invokeApi(
+    return invokeApiForResult(
         "POST",
         path,
         queryParams,

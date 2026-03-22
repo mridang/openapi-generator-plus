@@ -1,4 +1,5 @@
 import type { ApiClient } from '../api-client.js';
+import type { ApiResult } from '../api-result.js';
 import { BaseApi } from './base-api.js';
 import { Configuration } from '../configuration.js';
 import { ObjectSerializer } from '../object-serializer.js';
@@ -22,11 +23,31 @@ export class StoreApi extends BaseApi {
     if (orderId == null) {
       throw new Error('Missing required parameter "orderId" when calling deleteOrder');
     }
+    await this.deleteOrderWithHttpInfo(orderId);
+  }
+
+  /**
+   * Delete purchase order by ID (with HTTP info)
+   */
+  async deleteOrderWithHttpInfo(orderId: number): Promise<ApiResult<void>> {
+    if (orderId == null) {
+      throw new Error('Missing required parameter "orderId" when calling deleteOrder');
+    }
     let path = `/store/order/{orderId}`;
     path = path.replace(`{${'orderId'}}`, ValueSerializer.serialize(orderId, 'path', 'number') as string);
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
-    (await this.invokeApi('DELETE', path, queryParams, headerParams, null, [], 'application/json', null, null)) as void;
+    return await this.invokeApiForResult(
+      'DELETE',
+      path,
+      queryParams,
+      headerParams,
+      null,
+      [],
+      'application/json',
+      null,
+      null
+    );
   }
 
   /**
@@ -34,10 +55,17 @@ export class StoreApi extends BaseApi {
    * @return { [key: string]: number }
    */
   async getInventory(): Promise<{ [key: string]: number }> {
+    return (await this.getInventoryWithHttpInfo()).data as { [key: string]: number };
+  }
+
+  /**
+   * Returns pet inventories by status (with HTTP info)
+   */
+  async getInventoryWithHttpInfo(): Promise<ApiResult<{ [key: string]: number }>> {
     const path = `/store/inventory`;
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
-    return (await this.invokeApi(
+    return await this.invokeApiForResult(
       'GET',
       path,
       queryParams,
@@ -47,7 +75,7 @@ export class StoreApi extends BaseApi {
       'application/json',
       (json: unknown) => json as { [key: string]: number },
       null
-    )) as { [key: string]: number };
+    );
   }
 
   /**
@@ -59,11 +87,21 @@ export class StoreApi extends BaseApi {
     if (orderId == null) {
       throw new Error('Missing required parameter "orderId" when calling getOrderById');
     }
+    return (await this.getOrderByIdWithHttpInfo(orderId)).data as Order;
+  }
+
+  /**
+   * Find purchase order by ID (with HTTP info)
+   */
+  async getOrderByIdWithHttpInfo(orderId: number): Promise<ApiResult<Order>> {
+    if (orderId == null) {
+      throw new Error('Missing required parameter "orderId" when calling getOrderById');
+    }
     let path = `/store/order/{orderId}`;
     path = path.replace(`{${'orderId'}}`, ValueSerializer.serialize(orderId, 'path', 'number') as string);
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
-    return (await this.invokeApi(
+    return await this.invokeApiForResult(
       'GET',
       path,
       queryParams,
@@ -73,7 +111,7 @@ export class StoreApi extends BaseApi {
       'application/json',
       (json: unknown) => ObjectSerializer.deserialize(json, Order),
       null
-    )) as Order;
+    );
   }
 
   /**
@@ -82,10 +120,17 @@ export class StoreApi extends BaseApi {
    * @return Order
    */
   async placeOrder(order?: Order): Promise<Order> {
+    return (await this.placeOrderWithHttpInfo(order)).data as Order;
+  }
+
+  /**
+   * Place an order for a pet (with HTTP info)
+   */
+  async placeOrderWithHttpInfo(order?: Order): Promise<ApiResult<Order>> {
     const path = `/store/order`;
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
-    return (await this.invokeApi(
+    return await this.invokeApiForResult(
       'POST',
       path,
       queryParams,
@@ -95,6 +140,6 @@ export class StoreApi extends BaseApi {
       'application/json',
       (json: unknown) => ObjectSerializer.deserialize(json, Order),
       null
-    )) as Order;
+    );
   }
 }

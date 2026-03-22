@@ -1,4 +1,5 @@
 import type { ApiClient } from '../api-client{{importFileExtension}}';
+import type { ApiResult } from '../api-result{{importFileExtension}}';
 {{#hasAnyAuthMethods}}
 import type { Authenticator } from '../auth/authenticator{{importFileExtension}}';
 {{/hasAnyAuthMethods}}
@@ -97,6 +98,53 @@ export class {{classname}} extends BaseApi {
     }
 {{/required}}
 {{/formParams}}
+{{#returnType}}
+    return (await this.{{nickname}}WithHttpInfo({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}})).data as {{{returnType}}};
+{{/returnType}}
+{{^returnType}}
+    await this.{{nickname}}WithHttpInfo({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}});
+{{/returnType}}
+  }
+
+  /**
+   * {{&summary}} (with HTTP info)
+   */
+  async {{nickname}}WithHttpInfo({{#hasAuthMethods}}auth: Authenticator{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options: { {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options: { {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options: { {{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#queryParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{^-last}}; {{/-last}}{{#-last}}{{#headerParams}}{{#-first}}; {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}; {{/-first}}{{/formParams}}{{/headerParams}}{{/-last}}{{/queryParams}}{{#headerParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{^-last}}; {{/-last}}{{#-last}}{{#formParams}}{{#-first}}; {{/-first}}{{/formParams}}{{/-last}}{{/headerParams}}{{#formParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{^-last}}; {{/-last}}{{/formParams}}{{#queryParams}}{{#-first}} }{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}} }{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}} }{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
+{{#pathParams}}
+{{#required}}
+    if ({{paramName}} == null) {
+      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+    }
+{{/required}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#required}}
+    if ({{paramName}} == null) {
+      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+    }
+{{/required}}
+{{/bodyParam}}
+{{#queryParams}}
+{{#required}}
+    if (options.{{paramName}} == null) {
+      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+    }
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+    if (options.{{paramName}} == null) {
+      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+    }
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+    if (options.{{paramName}} == null) {
+      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+    }
+{{/required}}
+{{/formParams}}
 {{^pathParams}}
     const path = `{{{path}}}`;
 {{/pathParams}}
@@ -127,8 +175,7 @@ export class {{classname}} extends BaseApi {
 {{/formParams}}
 
 {{/hasFormParams}}
-{{#returnType}}
-    return (await this.invokeApi(
+    return await this.invokeApiForResult(
       '{{httpMethod}}',
       path,
       queryParams,
@@ -136,13 +183,9 @@ export class {{classname}} extends BaseApi {
       {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
       [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
       {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
-      {{#isArray}}(json: unknown) => ObjectSerializer.deserializeArray(json, {{returnBaseType}}){{/isArray}}{{#isMap}}(json: unknown) => json as {{{returnType}}}{{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}(json: unknown) => json as {{{returnType}}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}(json: unknown) => ObjectSerializer.deserialize(json, {{returnBaseType}}){{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}},
+      {{#returnType}}{{#isArray}}(json: unknown) => ObjectSerializer.deserializeArray(json, {{returnBaseType}}){{/isArray}}{{#isMap}}(json: unknown) => json as {{{returnType}}}{{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}(json: unknown) => json as {{{returnType}}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}(json: unknown) => ObjectSerializer.deserialize(json, {{returnBaseType}}){{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}}{{/returnType}}{{^returnType}}null{{/returnType}},
       {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}}
-    )) as {{{returnType}}};
-{{/returnType}}
-{{^returnType}}
-    (await this.invokeApi('{{httpMethod}}', path, queryParams, headerParams, {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}}, [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}], {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}}, null, {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}})) as void;
-{{/returnType}}
+    );
   }
   {{/operation}}
 }

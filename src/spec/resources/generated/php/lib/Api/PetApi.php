@@ -4,6 +4,7 @@ namespace PetstoreClient\Api;
 
 use PetstoreClient\ApiClient;
 use PetstoreClient\ApiException;
+use PetstoreClient\ApiResult;
 use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
 use PetstoreClient\ValueSerializer;
@@ -25,13 +26,25 @@ class PetApi extends BaseApi
      */
     public function addPet(Authenticator $auth, \PetstoreClient\Models\Pet $pet)
     {
+        /** @var \PetstoreClient\Models\Pet $result */
+        $result = $this->addPetWithHttpInfo($auth, $pet)->data;
+        return $result;
+    }
+
+    /**
+     * @param \PetstoreClient\Models\Pet $pet Create a new pet in the store
+     * @return ApiResult<\PetstoreClient\Models\Pet>
+     * @throws ApiException
+     */
+    public function addPetWithHttpInfo(Authenticator $auth, \PetstoreClient\Models\Pet $pet): ApiResult
+    {
         $path = '/pet';
         $queryParams = [];
         $headerParams = [];
         $requestBody = $pet;
 
-        /** @var \PetstoreClient\Models\Pet $result */
-        $result = $this->invokeApi(
+        /** @var ApiResult<\PetstoreClient\Models\Pet> $result */
+        $result = $this->invokeApiForResult(
             'POST',
             $path,
             $queryParams,
@@ -54,6 +67,18 @@ class PetApi extends BaseApi
      */
     public function addPetPhotos(int $petId, array $files, \PetstoreClient\Models\PhotoMetadata $metadata)
     {
+        /** @var \PetstoreClient\Models\Photo[] $result */
+        $result = $this->addPetPhotosWithHttpInfo($petId, $files, $metadata)->data;
+        return $result;
+    }
+
+    /**
+     * @param \SplFileObject[] $files
+     * @return ApiResult<\PetstoreClient\Models\Photo[]>
+     * @throws ApiException
+     */
+    public function addPetPhotosWithHttpInfo(int $petId, array $files, \PetstoreClient\Models\PhotoMetadata $metadata): ApiResult
+    {
         $path = '/pet/{petId}/photos';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
@@ -64,8 +89,8 @@ class PetApi extends BaseApi
         $requestBody['files'] = $files;
         $requestBody['metadata'] = $metadata;
 
-        /** @var \PetstoreClient\Models\Photo[] $result */
-        $result = $this->invokeApi(
+        /** @var ApiResult<\PetstoreClient\Models\Photo[]> $result */
+        $result = $this->invokeApiForResult(
             'POST',
             $path,
             $queryParams,
@@ -86,6 +111,16 @@ class PetApi extends BaseApi
      */
     public function deletePet(Authenticator $auth, int $petId): void
     {
+        $this->deletePetWithHttpInfo($auth, $petId);
+    }
+
+    /**
+     * @param int $petId Pet id to delete
+     * @return ApiResult<null>
+     * @throws ApiException
+     */
+    public function deletePetWithHttpInfo(Authenticator $auth, int $petId): ApiResult
+    {
         $path = '/pet/{petId}';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
@@ -94,7 +129,8 @@ class PetApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        $this->invokeApi(
+        /** @var ApiResult<null> $result */
+        $result = $this->invokeApiForResult(
             'DELETE',
             $path,
             $queryParams,
@@ -105,6 +141,7 @@ class PetApi extends BaseApi
             null,
             $auth
         );
+        return $result;
     }
 
     /**
@@ -114,6 +151,17 @@ class PetApi extends BaseApi
      * @throws ApiException
      */
     public function downloadPetDocument(int $petId, int $documentId)
+    {
+        /** @var \SplFileObject $result */
+        $result = $this->downloadPetDocumentWithHttpInfo($petId, $documentId)->data;
+        return $result;
+    }
+
+    /**
+     * @return ApiResult<\SplFileObject>
+     * @throws ApiException
+     */
+    public function downloadPetDocumentWithHttpInfo(int $petId, int $documentId): ApiResult
     {
         $path = '/pet/{petId}/documents/{documentId}';
         /** @var string $pathValue */
@@ -126,8 +174,8 @@ class PetApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var \SplFileObject $result */
-        $result = $this->invokeApi(
+        /** @var ApiResult<\SplFileObject> $result */
+        $result = $this->invokeApiForResult(
             'GET',
             $path,
             $queryParams,
@@ -150,6 +198,18 @@ class PetApi extends BaseApi
      */
     public function findPetsByStatus(?string $status = null)
     {
+        /** @var \PetstoreClient\Models\Pet[] $result */
+        $result = $this->findPetsByStatusWithHttpInfo($status)->data;
+        return $result;
+    }
+
+    /**
+     * @param string|null $status Status values that need to be considered for filter
+     * @return ApiResult<\PetstoreClient\Models\Pet[]>
+     * @throws ApiException
+     */
+    public function findPetsByStatusWithHttpInfo(?string $status = null): ApiResult
+    {
         $path = '/pet/findByStatus';
         $queryParams = [];
         if ($status !== null) {
@@ -158,8 +218,8 @@ class PetApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var \PetstoreClient\Models\Pet[] $result */
-        $result = $this->invokeApi(
+        /** @var ApiResult<\PetstoreClient\Models\Pet[]> $result */
+        $result = $this->invokeApiForResult(
             'GET',
             $path,
             $queryParams,
@@ -180,6 +240,17 @@ class PetApi extends BaseApi
      */
     public function getPetAvatar(int $petId)
     {
+        /** @var \SplFileObject $result */
+        $result = $this->getPetAvatarWithHttpInfo($petId)->data;
+        return $result;
+    }
+
+    /**
+     * @return ApiResult<\SplFileObject>
+     * @throws ApiException
+     */
+    public function getPetAvatarWithHttpInfo(int $petId): ApiResult
+    {
         $path = '/pet/{petId}/avatar';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
@@ -188,8 +259,8 @@ class PetApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var \SplFileObject $result */
-        $result = $this->invokeApi(
+        /** @var ApiResult<\SplFileObject> $result */
+        $result = $this->invokeApiForResult(
             'GET',
             $path,
             $queryParams,
@@ -210,6 +281,17 @@ class PetApi extends BaseApi
      */
     public function getPetAvatarThumbnail(int $petId)
     {
+        /** @var string $result */
+        $result = $this->getPetAvatarThumbnailWithHttpInfo($petId)->data;
+        return $result;
+    }
+
+    /**
+     * @return ApiResult<string>
+     * @throws ApiException
+     */
+    public function getPetAvatarThumbnailWithHttpInfo(int $petId): ApiResult
+    {
         $path = '/pet/{petId}/avatar/thumbnail';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
@@ -218,8 +300,8 @@ class PetApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var string $result */
-        $result = $this->invokeApi(
+        /** @var ApiResult<string> $result */
+        $result = $this->invokeApiForResult(
             'GET',
             $path,
             $queryParams,
@@ -242,6 +324,18 @@ class PetApi extends BaseApi
      */
     public function getPetById(int $petId)
     {
+        /** @var \PetstoreClient\Models\Pet $result */
+        $result = $this->getPetByIdWithHttpInfo($petId)->data;
+        return $result;
+    }
+
+    /**
+     * @param int $petId ID of pet to return
+     * @return ApiResult<\PetstoreClient\Models\Pet>
+     * @throws ApiException
+     */
+    public function getPetByIdWithHttpInfo(int $petId): ApiResult
+    {
         $path = '/pet/{petId}';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
@@ -250,8 +344,8 @@ class PetApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var \PetstoreClient\Models\Pet $result */
-        $result = $this->invokeApi(
+        /** @var ApiResult<\PetstoreClient\Models\Pet> $result */
+        $result = $this->invokeApiForResult(
             'GET',
             $path,
             $queryParams,
@@ -272,6 +366,17 @@ class PetApi extends BaseApi
      */
     public function getPetPassport(int $petId)
     {
+        /** @var \PetstoreClient\Models\PetPassport $result */
+        $result = $this->getPetPassportWithHttpInfo($petId)->data;
+        return $result;
+    }
+
+    /**
+     * @return ApiResult<\PetstoreClient\Models\PetPassport>
+     * @throws ApiException
+     */
+    public function getPetPassportWithHttpInfo(int $petId): ApiResult
+    {
         $path = '/pet/{petId}/passport';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
@@ -280,8 +385,8 @@ class PetApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var \PetstoreClient\Models\PetPassport $result */
-        $result = $this->invokeApi(
+        /** @var ApiResult<\PetstoreClient\Models\PetPassport> $result */
+        $result = $this->invokeApiForResult(
             'GET',
             $path,
             $queryParams,
@@ -302,6 +407,17 @@ class PetApi extends BaseApi
      */
     public function getPetPhoto(int $petId, int $photoId)
     {
+        /** @var \SplFileObject $result */
+        $result = $this->getPetPhotoWithHttpInfo($petId, $photoId)->data;
+        return $result;
+    }
+
+    /**
+     * @return ApiResult<\SplFileObject>
+     * @throws ApiException
+     */
+    public function getPetPhotoWithHttpInfo(int $petId, int $photoId): ApiResult
+    {
         $path = '/pet/{petId}/photos/{photoId}';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
@@ -313,8 +429,8 @@ class PetApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var \SplFileObject $result */
-        $result = $this->invokeApi(
+        /** @var ApiResult<\SplFileObject> $result */
+        $result = $this->invokeApiForResult(
             'GET',
             $path,
             $queryParams,
@@ -334,6 +450,15 @@ class PetApi extends BaseApi
      */
     public function setPetAvatar(int $petId, \SplFileObject $body): void
     {
+        $this->setPetAvatarWithHttpInfo($petId, $body);
+    }
+
+    /**
+     * @return ApiResult<null>
+     * @throws ApiException
+     */
+    public function setPetAvatarWithHttpInfo(int $petId, \SplFileObject $body): ApiResult
+    {
         $path = '/pet/{petId}/avatar';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
@@ -342,7 +467,8 @@ class PetApi extends BaseApi
         $headerParams = [];
         $requestBody = $body;
 
-        $this->invokeApi(
+        /** @var ApiResult<null> $result */
+        $result = $this->invokeApiForResult(
             'PUT',
             $path,
             $queryParams,
@@ -352,6 +478,7 @@ class PetApi extends BaseApi
             'image/jpeg',
             null,
         );
+        return $result;
     }
 
     /**
@@ -361,6 +488,15 @@ class PetApi extends BaseApi
      */
     public function setPetAvatarThumbnail(int $petId, \PetstoreClient\Models\SetPetAvatarThumbnailRequest $setPetAvatarThumbnailRequest): void
     {
+        $this->setPetAvatarThumbnailWithHttpInfo($petId, $setPetAvatarThumbnailRequest);
+    }
+
+    /**
+     * @return ApiResult<null>
+     * @throws ApiException
+     */
+    public function setPetAvatarThumbnailWithHttpInfo(int $petId, \PetstoreClient\Models\SetPetAvatarThumbnailRequest $setPetAvatarThumbnailRequest): ApiResult
+    {
         $path = '/pet/{petId}/avatar/thumbnail';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
@@ -369,7 +505,8 @@ class PetApi extends BaseApi
         $headerParams = [];
         $requestBody = $setPetAvatarThumbnailRequest;
 
-        $this->invokeApi(
+        /** @var ApiResult<null> $result */
+        $result = $this->invokeApiForResult(
             'PUT',
             $path,
             $queryParams,
@@ -379,6 +516,7 @@ class PetApi extends BaseApi
             'application/json',
             null,
         );
+        return $result;
     }
 
     /**
@@ -390,6 +528,19 @@ class PetApi extends BaseApi
      */
     public function updatePet(int $petId, \PetstoreClient\Models\Pet $pet)
     {
+        /** @var \PetstoreClient\Models\Pet $result */
+        $result = $this->updatePetWithHttpInfo($petId, $pet)->data;
+        return $result;
+    }
+
+    /**
+     * @param int $petId ID of pet to update
+     * @param \PetstoreClient\Models\Pet $pet Pet object that needs to be updated
+     * @return ApiResult<\PetstoreClient\Models\Pet>
+     * @throws ApiException
+     */
+    public function updatePetWithHttpInfo(int $petId, \PetstoreClient\Models\Pet $pet): ApiResult
+    {
         $path = '/pet/{petId}';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
@@ -398,8 +549,8 @@ class PetApi extends BaseApi
         $headerParams = [];
         $requestBody = $pet;
 
-        /** @var \PetstoreClient\Models\Pet $result */
-        $result = $this->invokeApi(
+        /** @var ApiResult<\PetstoreClient\Models\Pet> $result */
+        $result = $this->invokeApiForResult(
             'PUT',
             $path,
             $queryParams,
@@ -420,6 +571,17 @@ class PetApi extends BaseApi
      */
     public function uploadPetCertificate(int $petId, \SplFileObject $file)
     {
+        /** @var \PetstoreClient\Models\ApiResponse $result */
+        $result = $this->uploadPetCertificateWithHttpInfo($petId, $file)->data;
+        return $result;
+    }
+
+    /**
+     * @return ApiResult<\PetstoreClient\Models\ApiResponse>
+     * @throws ApiException
+     */
+    public function uploadPetCertificateWithHttpInfo(int $petId, \SplFileObject $file): ApiResult
+    {
         $path = '/pet/{petId}/certificate';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
@@ -429,8 +591,8 @@ class PetApi extends BaseApi
         $requestBody = [];
         $requestBody['file'] = $file;
 
-        /** @var \PetstoreClient\Models\ApiResponse $result */
-        $result = $this->invokeApi(
+        /** @var ApiResult<\PetstoreClient\Models\ApiResponse> $result */
+        $result = $this->invokeApiForResult(
             'POST',
             $path,
             $queryParams,
@@ -451,6 +613,17 @@ class PetApi extends BaseApi
      */
     public function uploadPetDocument(int $petId, \SplFileObject $file, ?string $documentType = null, ?string $notes = null)
     {
+        /** @var \PetstoreClient\Models\ApiResponse $result */
+        $result = $this->uploadPetDocumentWithHttpInfo($petId, $file, $documentType, $notes)->data;
+        return $result;
+    }
+
+    /**
+     * @return ApiResult<\PetstoreClient\Models\ApiResponse>
+     * @throws ApiException
+     */
+    public function uploadPetDocumentWithHttpInfo(int $petId, \SplFileObject $file, ?string $documentType = null, ?string $notes = null): ApiResult
+    {
         $path = '/pet/{petId}/documents';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
@@ -466,8 +639,8 @@ class PetApi extends BaseApi
             $requestBody['notes'] = $notes;
         }
 
-        /** @var \PetstoreClient\Models\ApiResponse $result */
-        $result = $this->invokeApi(
+        /** @var ApiResult<\PetstoreClient\Models\ApiResponse> $result */
+        $result = $this->invokeApiForResult(
             'POST',
             $path,
             $queryParams,

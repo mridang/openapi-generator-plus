@@ -6,6 +6,7 @@ namespace {{apiPackage}};
 use {{invokerPackage}}\ApiClient;
 use {{invokerPackage}}\ApiException;
 use {{invokerPackage}}\ApiResponse;
+use {{invokerPackage}}\ApiResult;
 use {{invokerPackage}}\Configuration;
 use {{invokerPackage}}\DefaultApiClient;
 use {{invokerPackage}}\HeaderSelector;
@@ -57,7 +58,7 @@ class BaseApi
     }
 
     /**
-     * Invoke an API operation.
+     * Invoke an API operation and return the full result.
      *
      * @param string                $method       HTTP method
      * @param string                $path         URL path (with path params already substituted)
@@ -69,10 +70,10 @@ class BaseApi
      * @param string|null           $returnType   Return type for deserialization
      * @param Authenticator|null    $auth         Optional authenticator for operation-specific auth
      *
-     * @return mixed Deserialized response or null
+     * @return ApiResult<mixed> Result containing deserialized data, status code, raw body, and headers
      * @throws ApiException
      */
-    protected function invokeApi(
+    protected function invokeApiForResult(
         string $method,
         string $path,
         array $queryParams,
@@ -82,7 +83,7 @@ class BaseApi
         ?string $contentType,
         ?string $returnType,
         ?Authenticator $auth = null
-    ): mixed {
+    ): ApiResult {
         $url = $this->config->baseUrl . $path;
 
         if ($auth instanceof Authenticator) {
@@ -123,6 +124,7 @@ class BaseApi
             $this->throwApiException($response);
         }
 
+        $data = null;
         if ($returnType !== null && trim($response->body) !== '') {
             $respContentType = null;
             foreach ($response->headers as $name => $values) {
@@ -134,13 +136,53 @@ class BaseApi
             }
 
             if ($respContentType !== null && !str_starts_with($respContentType, 'application/json')) {
-                return $response->body;
+                $data = $response->body;
+            } else {
+                $data = ObjectSerializer::deserialize($response->body, $returnType, []);
             }
-
-            return ObjectSerializer::deserialize($response->body, $returnType, []);
         }
 
-        return null;
+        return new ApiResult($response->statusCode, $data, $response->body, $response->headers);
+    }
+
+    /**
+     * Invoke an API operation.
+     *
+     * @param string                $method       HTTP method
+     * @param string                $path         URL path (with path params already substituted)
+     * @param array<string, mixed>  $queryParams  Query parameters
+     * @param array<string, string> $headerParams Custom header parameters
+     * @param mixed                 $body         Request body (model object or form params array)
+     * @param string[]              $accepts      Acceptable response content types
+     * @param string|null           $contentType  Request content type
+     * @param string|null           $returnType   Return type for deserialization
+     * @param Authenticator|null    $auth         Optional authenticator for operation-specific auth
+     *
+     * @return mixed Deserialized response or null
+     * @throws ApiException
+     */
+    protected function invokeApi(
+        string $method,
+        string $path,
+        array $queryParams,
+        array $headerParams,
+        mixed $body,
+        array $accepts,
+        ?string $contentType,
+        ?string $returnType,
+        ?Authenticator $auth = null
+    ): mixed {
+        return $this->invokeApiForResult(
+            $method,
+            $path,
+            $queryParams,
+            $headerParams,
+            $body,
+            $accepts,
+            $contentType,
+            $returnType,
+            $auth
+        )->data;
     }
 
     /**
@@ -235,6 +277,11 @@ class BaseApi
         }
 
         if (str_starts_with($contentType ?? '', 'image/') || $contentType === 'application/octet-stream') {
+            return $body;
+        }
+
+        if ($contentType === 'text/plain') {
+            assert(is_string($body));
             return $body;
         }
 

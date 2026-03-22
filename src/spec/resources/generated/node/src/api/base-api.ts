@@ -1,4 +1,5 @@
 import type { ApiClient } from '../api-client.js';
+import type { ApiResult } from '../api-result.js';
 import type { Authenticator } from '../auth/authenticator.js';
 import { ApiError } from '../api-error.js';
 import { BadRequestError } from '../exceptions/bad-request-error.js';
@@ -45,7 +46,8 @@ export abstract class BaseApi {
   }
 
   /**
-   * Invoke an API operation.
+   * Invoke an API operation and return the full result including status code,
+   * headers, and raw body alongside the deserialized data.
    *
    * @param method HTTP method
    * @param path URL path (with path params already substituted)
@@ -56,9 +58,9 @@ export abstract class BaseApi {
    * @param contentType request content type
    * @param returnType deserialization function (or null for void)
    * @param auth optional authenticator for operation-specific auth
-   * @returns deserialized response or void
+   * @returns ApiResult containing deserialized data, status code, raw body, and headers
    */
-  protected async invokeApi<T>(
+  protected async invokeApiForResult<T>(
     method: string,
     path: string,
     queryParams: Record<string, unknown>,
@@ -68,7 +70,7 @@ export abstract class BaseApi {
     contentType: string,
     returnType: ((json: unknown) => T) | null,
     auth?: Authenticator | null
-  ): Promise<T | void> {
+  ): Promise<ApiResult<T>> {
     let url = this.config.baseUrl + path;
 
     if (auth) {
@@ -110,6 +112,7 @@ export abstract class BaseApi {
       this.throwApiError(response);
     }
 
+    let data: T | undefined;
     if (returnType != null && response.body) {
       const respContentType =
         Object.entries(response.headers)
@@ -117,11 +120,58 @@ export abstract class BaseApi {
           ?.split(';')[0]
           ?.trim() ?? '';
       if (respContentType && !respContentType.startsWith('application/json')) {
-        return response.body as unknown as T;
+        data = response.body as unknown as T;
+      } else {
+        const json = JSON.parse(response.body);
+        data = returnType(json);
       }
-      const json = JSON.parse(response.body);
-      return returnType(json);
     }
+
+    return {
+      statusCode: response.statusCode,
+      data,
+      rawBody: response.body,
+      headers: response.headers
+    };
+  }
+
+  /**
+   * Invoke an API operation.
+   *
+   * @param method HTTP method
+   * @param path URL path (with path params already substituted)
+   * @param queryParams query parameters
+   * @param headerParams custom header parameters
+   * @param body request body (pre-serialized to plain JS object, or null)
+   * @param accepts acceptable response content types
+   * @param contentType request content type
+   * @param returnType deserialization function (or null for void)
+   * @param auth optional authenticator for operation-specific auth
+   * @returns deserialized response or void
+   */
+  protected async invokeApi<T>(
+    method: string,
+    path: string,
+    queryParams: Record<string, unknown>,
+    headerParams: Record<string, string>,
+    body: unknown,
+    accepts: string[],
+    contentType: string,
+    returnType: ((json: unknown) => T) | null,
+    auth?: Authenticator | null
+  ): Promise<T | void> {
+    const result = await this.invokeApiForResult(
+      method,
+      path,
+      queryParams,
+      headerParams,
+      body,
+      accepts,
+      contentType,
+      returnType,
+      auth
+    );
+    return result.data;
   }
 
   /**
@@ -182,6 +232,12 @@ export abstract class BaseApi {
     }
     if (contentType.startsWith('image/') || contentType === 'application/octet-stream') {
       return body as Buffer;
+    }
+    if (contentType === 'text/plain') {
+      return String(body);
+    }
+    if (contentType === 'application/x-www-form-urlencoded') {
+      return new URLSearchParams(body as Record<string, string>).toString();
     }
     return JSON.stringify(body);
   }

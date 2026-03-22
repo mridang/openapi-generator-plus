@@ -45,7 +45,7 @@ module {{moduleName}}::Models
     JSON_KEY_MAP: Hash[String, Symbol]
     OPENAPI_TYPES: Hash[Symbol, String]
 {{#vars}}
-    attr_reader {{name}}: {{{vendorExtensions.x-rbs-type}}}
+    attr_reader {{name}}: {{#lambda.rbsType}}{{{dataType}}}{{/lambda.rbsType}}{{^required}}?{{/required}}
 {{/vars}}
   end
 {{/anyOf}}

@@ -4,6 +4,7 @@ namespace {{apiPackage}};
 
 use {{invokerPackage}}\ApiClient;
 use {{invokerPackage}}\ApiException;
+use {{invokerPackage}}\ApiResult;
 use {{invokerPackage}}\Configuration;
 use {{invokerPackage}}\DefaultApiClient;
 use {{invokerPackage}}\ValueSerializer;
@@ -96,65 +97,66 @@ class {{classname}} extends BaseApi
 {{#returnType}}
     public function {{operationId}}({{#hasAuthMethods}}Authenticator $auth{{/hasAuthMethods}}{{#pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{^hasAuthMethods}}{{^-first}}, {{/-first}}{{/hasAuthMethods}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}}{{^required}}|null{{/required}} ${{paramName}}{{^required}} = null{{/required}}{{/bodyParam}}{{#queryParams}}{{#required}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/-first}}{{^-first}}, {{/-first}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}}{{/required}}{{/queryParams}}{{#headerParams}}{{#required}}{{#-first}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasQueryParams}}{{/-first}}{{^-first}}, {{/-first}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}}{{/required}}{{/headerParams}}{{#formParams}}{{#required}}{{#-first}}{{#hasHeaderParams}}, {{/hasHeaderParams}}{{^hasHeaderParams}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasQueryParams}}{{/hasHeaderParams}}{{/-first}}{{^-first}}, {{/-first}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}}{{/required}}{{/formParams}}{{#queryParams}}{{^required}}{{#-first}}{{#hasFormParams}}, {{/hasFormParams}}{{^hasFormParams}}{{#hasHeaderParams}}, {{/hasHeaderParams}}{{^hasHeaderParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasHeaderParams}}{{/hasFormParams}}{{/-first}}{{^-first}}, {{/-first}}?{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}} = null{{/required}}{{/queryParams}}{{#headerParams}}{{^required}}{{#-first}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasFormParams}}, {{/hasFormParams}}{{^hasFormParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasFormParams}}{{/hasQueryParams}}{{/-first}}{{^-first}}, {{/-first}}?{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}} = null{{/required}}{{/headerParams}}{{#formParams}}{{^required}}{{#-first}}{{#hasHeaderParams}}, {{/hasHeaderParams}}{{^hasHeaderParams}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasQueryParams}}{{/hasHeaderParams}}{{/-first}}{{^-first}}, {{/-first}}?{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}} = null{{/required}}{{/formParams}})
     {
-        $path = '{{{path}}}';
-{{#pathParams}}
-        /** @var string $pathValue */
-        $pathValue = ValueSerializer::serialize(${{paramName}}, 'path', '{{dataType}}');
-        $path = str_replace('{' . '{{baseName}}' . '}', $pathValue, $path);
-{{/pathParams}}
-        $queryParams = [];
-{{#queryParams}}
-        if (${{paramName}} !== null) {
-            $queryParams['{{baseName}}'] = ValueSerializer::serialize(${{paramName}}, 'query', '{{dataType}}'{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}});
-        }
-{{/queryParams}}
-        $headerParams = [];
-{{#headerParams}}
-        if (${{paramName}} !== null) {
-            $headerParams['{{baseName}}'] = ValueSerializer::serialize(${{paramName}}, 'header', '{{dataType}}');
-        }
-{{/headerParams}}
-{{#hasFormParams}}
-        $requestBody = [];
-{{#formParams}}
-{{#required}}
-        $requestBody['{{baseName}}'] = ${{paramName}};
-{{/required}}
-{{^required}}
-        if (${{paramName}} !== null) {
-            $requestBody['{{baseName}}'] = ${{paramName}};
-        }
-{{/required}}
-{{/formParams}}
-{{/hasFormParams}}
-{{^hasFormParams}}
-{{#bodyParam}}
-        $requestBody = ${{paramName}};
-{{/bodyParam}}
-{{^bodyParam}}
-        $requestBody = null;
-{{/bodyParam}}
-{{/hasFormParams}}
-
         /** @var {{{returnType}}} $result */
-        $result = $this->invokeApi(
-            '{{httpMethod}}',
-            $path,
-            $queryParams,
-            $headerParams,
-            $requestBody,
-            [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
-            {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
-            '{{{returnType}}}',
-{{#hasAuthMethods}}
-            $auth
-{{/hasAuthMethods}}
-        );
+        $result = $this->{{operationId}}WithHttpInfo({{#hasAuthMethods}}$auth{{/hasAuthMethods}}{{#pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{^hasAuthMethods}}{{^-first}}, {{/-first}}{{/hasAuthMethods}}${{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}${{paramName}}{{/bodyParam}}{{#queryParams}}{{#required}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/-first}}{{^-first}}, {{/-first}}${{paramName}}{{/required}}{{/queryParams}}{{#headerParams}}{{#required}}{{#-first}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasQueryParams}}{{/-first}}{{^-first}}, {{/-first}}${{paramName}}{{/required}}{{/headerParams}}{{#formParams}}{{#required}}{{#-first}}{{#hasHeaderParams}}, {{/hasHeaderParams}}{{^hasHeaderParams}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasQueryParams}}{{/hasHeaderParams}}{{/-first}}{{^-first}}, {{/-first}}${{paramName}}{{/required}}{{/formParams}}{{#queryParams}}{{^required}}{{#-first}}{{#hasFormParams}}, {{/hasFormParams}}{{^hasFormParams}}{{#hasHeaderParams}}, {{/hasHeaderParams}}{{^hasHeaderParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasHeaderParams}}{{/hasFormParams}}{{/-first}}{{^-first}}, {{/-first}}${{paramName}}{{/required}}{{/queryParams}}{{#headerParams}}{{^required}}{{#-first}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasFormParams}}, {{/hasFormParams}}{{^hasFormParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasFormParams}}{{/hasQueryParams}}{{/-first}}{{^-first}}, {{/-first}}${{paramName}}{{/required}}{{/headerParams}}{{#formParams}}{{^required}}{{#-first}}{{#hasHeaderParams}}, {{/hasHeaderParams}}{{^hasHeaderParams}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasQueryParams}}{{/hasHeaderParams}}{{/-first}}{{^-first}}, {{/-first}}${{paramName}}{{/required}}{{/formParams}})->data;
         return $result;
     }
-{{/returnType}}
-{{^returnType}}
-    public function {{operationId}}({{#hasAuthMethods}}Authenticator $auth{{/hasAuthMethods}}{{#pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{^hasAuthMethods}}{{^-first}}, {{/-first}}{{/hasAuthMethods}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}}{{^required}}|null{{/required}} ${{paramName}}{{^required}} = null{{/required}}{{/bodyParam}}{{#queryParams}}{{#required}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/-first}}{{^-first}}, {{/-first}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}}{{/required}}{{/queryParams}}{{#headerParams}}{{#required}}{{#-first}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasQueryParams}}{{/-first}}{{^-first}}, {{/-first}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}}{{/required}}{{/headerParams}}{{#formParams}}{{#required}}{{#-first}}{{#hasHeaderParams}}, {{/hasHeaderParams}}{{^hasHeaderParams}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasQueryParams}}{{/hasHeaderParams}}{{/-first}}{{^-first}}, {{/-first}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}}{{/required}}{{/formParams}}{{#queryParams}}{{^required}}{{#-first}}{{#hasFormParams}}, {{/hasFormParams}}{{^hasFormParams}}{{#hasHeaderParams}}, {{/hasHeaderParams}}{{^hasHeaderParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasHeaderParams}}{{/hasFormParams}}{{/-first}}{{^-first}}, {{/-first}}?{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}} = null{{/required}}{{/queryParams}}{{#headerParams}}{{^required}}{{#-first}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasFormParams}}, {{/hasFormParams}}{{^hasFormParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasFormParams}}{{/hasQueryParams}}{{/-first}}{{^-first}}, {{/-first}}?{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}} = null{{/required}}{{/headerParams}}{{#formParams}}{{^required}}{{#-first}}{{#hasHeaderParams}}, {{/hasHeaderParams}}{{^hasHeaderParams}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasQueryParams}}{{/hasHeaderParams}}{{/-first}}{{^-first}}, {{/-first}}?{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}} = null{{/required}}{{/formParams}}): void
+
+    /**
+{{#pathParams}}
+{{#description}}
+     * @param {{{dataType}}} ${{paramName}} {{.}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#description}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{.}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/bodyParam}}
+{{#queryParams}}
+{{#description}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{.}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/queryParams}}
+{{#headerParams}}
+{{#description}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{.}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/headerParams}}
+{{#formParams}}
+{{#description}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{.}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/formParams}}
+     * @return ApiResult<{{{returnType}}}>
+     * @throws ApiException
+     */
+    public function {{operationId}}WithHttpInfo({{#hasAuthMethods}}Authenticator $auth{{/hasAuthMethods}}{{#pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{^hasAuthMethods}}{{^-first}}, {{/-first}}{{/hasAuthMethods}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}}{{^required}}|null{{/required}} ${{paramName}}{{^required}} = null{{/required}}{{/bodyParam}}{{#queryParams}}{{#required}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/-first}}{{^-first}}, {{/-first}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}}{{/required}}{{/queryParams}}{{#headerParams}}{{#required}}{{#-first}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasQueryParams}}{{/-first}}{{^-first}}, {{/-first}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}}{{/required}}{{/headerParams}}{{#formParams}}{{#required}}{{#-first}}{{#hasHeaderParams}}, {{/hasHeaderParams}}{{^hasHeaderParams}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasQueryParams}}{{/hasHeaderParams}}{{/-first}}{{^-first}}, {{/-first}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}}{{/required}}{{/formParams}}{{#queryParams}}{{^required}}{{#-first}}{{#hasFormParams}}, {{/hasFormParams}}{{^hasFormParams}}{{#hasHeaderParams}}, {{/hasHeaderParams}}{{^hasHeaderParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasHeaderParams}}{{/hasFormParams}}{{/-first}}{{^-first}}, {{/-first}}?{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}} = null{{/required}}{{/queryParams}}{{#headerParams}}{{^required}}{{#-first}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasFormParams}}, {{/hasFormParams}}{{^hasFormParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasFormParams}}{{/hasQueryParams}}{{/-first}}{{^-first}}, {{/-first}}?{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}} = null{{/required}}{{/headerParams}}{{#formParams}}{{^required}}{{#-first}}{{#hasHeaderParams}}, {{/hasHeaderParams}}{{^hasHeaderParams}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasQueryParams}}{{/hasHeaderParams}}{{/-first}}{{^-first}}, {{/-first}}?{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}} = null{{/required}}{{/formParams}}): ApiResult
     {
         $path = '{{{path}}}';
 {{#pathParams}}
@@ -196,7 +198,127 @@ class {{classname}} extends BaseApi
 {{/bodyParam}}
 {{/hasFormParams}}
 
-        $this->invokeApi(
+        /** @var ApiResult<{{{returnType}}}> $result */
+        $result = $this->invokeApiForResult(
+            '{{httpMethod}}',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
+            {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
+            '{{{returnType}}}',
+{{#hasAuthMethods}}
+            $auth
+{{/hasAuthMethods}}
+        );
+        return $result;
+    }
+{{/returnType}}
+{{^returnType}}
+    public function {{operationId}}({{#hasAuthMethods}}Authenticator $auth{{/hasAuthMethods}}{{#pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{^hasAuthMethods}}{{^-first}}, {{/-first}}{{/hasAuthMethods}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}}{{^required}}|null{{/required}} ${{paramName}}{{^required}} = null{{/required}}{{/bodyParam}}{{#queryParams}}{{#required}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/-first}}{{^-first}}, {{/-first}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}}{{/required}}{{/queryParams}}{{#headerParams}}{{#required}}{{#-first}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasQueryParams}}{{/-first}}{{^-first}}, {{/-first}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}}{{/required}}{{/headerParams}}{{#formParams}}{{#required}}{{#-first}}{{#hasHeaderParams}}, {{/hasHeaderParams}}{{^hasHeaderParams}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasQueryParams}}{{/hasHeaderParams}}{{/-first}}{{^-first}}, {{/-first}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}}{{/required}}{{/formParams}}{{#queryParams}}{{^required}}{{#-first}}{{#hasFormParams}}, {{/hasFormParams}}{{^hasFormParams}}{{#hasHeaderParams}}, {{/hasHeaderParams}}{{^hasHeaderParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasHeaderParams}}{{/hasFormParams}}{{/-first}}{{^-first}}, {{/-first}}?{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}} = null{{/required}}{{/queryParams}}{{#headerParams}}{{^required}}{{#-first}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasFormParams}}, {{/hasFormParams}}{{^hasFormParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasFormParams}}{{/hasQueryParams}}{{/-first}}{{^-first}}, {{/-first}}?{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}} = null{{/required}}{{/headerParams}}{{#formParams}}{{^required}}{{#-first}}{{#hasHeaderParams}}, {{/hasHeaderParams}}{{^hasHeaderParams}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasQueryParams}}{{/hasHeaderParams}}{{/-first}}{{^-first}}, {{/-first}}?{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}} = null{{/required}}{{/formParams}}): void
+    {
+        $this->{{operationId}}WithHttpInfo({{#hasAuthMethods}}$auth{{/hasAuthMethods}}{{#pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{^hasAuthMethods}}{{^-first}}, {{/-first}}{{/hasAuthMethods}}${{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}${{paramName}}{{/bodyParam}}{{#queryParams}}{{#required}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/-first}}{{^-first}}, {{/-first}}${{paramName}}{{/required}}{{/queryParams}}{{#headerParams}}{{#required}}{{#-first}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasQueryParams}}{{/-first}}{{^-first}}, {{/-first}}${{paramName}}{{/required}}{{/headerParams}}{{#formParams}}{{#required}}{{#-first}}{{#hasHeaderParams}}, {{/hasHeaderParams}}{{^hasHeaderParams}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasQueryParams}}{{/hasHeaderParams}}{{/-first}}{{^-first}}, {{/-first}}${{paramName}}{{/required}}{{/formParams}}{{#queryParams}}{{^required}}{{#-first}}{{#hasFormParams}}, {{/hasFormParams}}{{^hasFormParams}}{{#hasHeaderParams}}, {{/hasHeaderParams}}{{^hasHeaderParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasHeaderParams}}{{/hasFormParams}}{{/-first}}{{^-first}}, {{/-first}}${{paramName}}{{/required}}{{/queryParams}}{{#headerParams}}{{^required}}{{#-first}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasFormParams}}, {{/hasFormParams}}{{^hasFormParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasFormParams}}{{/hasQueryParams}}{{/-first}}{{^-first}}, {{/-first}}${{paramName}}{{/required}}{{/headerParams}}{{#formParams}}{{^required}}{{#-first}}{{#hasHeaderParams}}, {{/hasHeaderParams}}{{^hasHeaderParams}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasQueryParams}}{{/hasHeaderParams}}{{/-first}}{{^-first}}, {{/-first}}${{paramName}}{{/required}}{{/formParams}});
+    }
+
+    /**
+{{#pathParams}}
+{{#description}}
+     * @param {{{dataType}}} ${{paramName}} {{.}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#description}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{.}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/bodyParam}}
+{{#queryParams}}
+{{#description}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{.}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/queryParams}}
+{{#headerParams}}
+{{#description}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{.}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/headerParams}}
+{{#formParams}}
+{{#description}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}} {{.}}
+{{/description}}
+{{^description}}
+{{#isArray}}
+     * @param {{{dataType}}}{{^required}}|null{{/required}} ${{paramName}}
+{{/isArray}}
+{{/description}}
+{{/formParams}}
+     * @return ApiResult<null>
+     * @throws ApiException
+     */
+    public function {{operationId}}WithHttpInfo({{#hasAuthMethods}}Authenticator $auth{{/hasAuthMethods}}{{#pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{^hasAuthMethods}}{{^-first}}, {{/-first}}{{/hasAuthMethods}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}}{{^required}}|null{{/required}} ${{paramName}}{{^required}} = null{{/required}}{{/bodyParam}}{{#queryParams}}{{#required}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/-first}}{{^-first}}, {{/-first}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}}{{/required}}{{/queryParams}}{{#headerParams}}{{#required}}{{#-first}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasQueryParams}}{{/-first}}{{^-first}}, {{/-first}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}}{{/required}}{{/headerParams}}{{#formParams}}{{#required}}{{#-first}}{{#hasHeaderParams}}, {{/hasHeaderParams}}{{^hasHeaderParams}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasQueryParams}}{{/hasHeaderParams}}{{/-first}}{{^-first}}, {{/-first}}{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}}{{/required}}{{/formParams}}{{#queryParams}}{{^required}}{{#-first}}{{#hasFormParams}}, {{/hasFormParams}}{{^hasFormParams}}{{#hasHeaderParams}}, {{/hasHeaderParams}}{{^hasHeaderParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasHeaderParams}}{{/hasFormParams}}{{/-first}}{{^-first}}, {{/-first}}?{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}} = null{{/required}}{{/queryParams}}{{#headerParams}}{{^required}}{{#-first}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasFormParams}}, {{/hasFormParams}}{{^hasFormParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasFormParams}}{{/hasQueryParams}}{{/-first}}{{^-first}}, {{/-first}}?{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}} = null{{/required}}{{/headerParams}}{{#formParams}}{{^required}}{{#-first}}{{#hasHeaderParams}}, {{/hasHeaderParams}}{{^hasHeaderParams}}{{#hasQueryParams}}, {{/hasQueryParams}}{{^hasQueryParams}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasBodyParam}}, {{/hasBodyParam}}{{^hasBodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasBodyParam}}{{/hasPathParams}}{{/hasQueryParams}}{{/hasHeaderParams}}{{/-first}}{{^-first}}, {{/-first}}?{{#isArray}}array{{/isArray}}{{^isArray}}{{{dataType}}}{{/isArray}} ${{paramName}} = null{{/required}}{{/formParams}}): ApiResult
+    {
+        $path = '{{{path}}}';
+{{#pathParams}}
+        /** @var string $pathValue */
+        $pathValue = ValueSerializer::serialize(${{paramName}}, 'path', '{{dataType}}');
+        $path = str_replace('{' . '{{baseName}}' . '}', $pathValue, $path);
+{{/pathParams}}
+        $queryParams = [];
+{{#queryParams}}
+        if (${{paramName}} !== null) {
+            $queryParams['{{baseName}}'] = ValueSerializer::serialize(${{paramName}}, 'query', '{{dataType}}'{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}});
+        }
+{{/queryParams}}
+        $headerParams = [];
+{{#headerParams}}
+        if (${{paramName}} !== null) {
+            $headerParams['{{baseName}}'] = ValueSerializer::serialize(${{paramName}}, 'header', '{{dataType}}');
+        }
+{{/headerParams}}
+{{#hasFormParams}}
+        $requestBody = [];
+{{#formParams}}
+{{#required}}
+        $requestBody['{{baseName}}'] = ${{paramName}};
+{{/required}}
+{{^required}}
+        if (${{paramName}} !== null) {
+            $requestBody['{{baseName}}'] = ${{paramName}};
+        }
+{{/required}}
+{{/formParams}}
+{{/hasFormParams}}
+{{^hasFormParams}}
+{{#bodyParam}}
+        $requestBody = ${{paramName}};
+{{/bodyParam}}
+{{^bodyParam}}
+        $requestBody = null;
+{{/bodyParam}}
+{{/hasFormParams}}
+
+        /** @var ApiResult<null> $result */
+        $result = $this->invokeApiForResult(
             '{{httpMethod}}',
             $path,
             $queryParams,
@@ -209,6 +331,7 @@ class {{classname}} extends BaseApi
             $auth
 {{/hasAuthMethods}}
         );
+        return $result;
     }
 {{/returnType}}
 {{^-last}}

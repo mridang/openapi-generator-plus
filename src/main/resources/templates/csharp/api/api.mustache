@@ -168,6 +168,23 @@ public class {{classname}} : BaseApi
 {{/isDeprecated}}
     public async {{#returnType}}Task<{{{returnType}}}>{{/returnType}}{{^returnType}}Task{{/returnType}} {{operationId}}Async({{#hasAuthMethods}}IAuthenticator auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{{dataType}}}{{^required}}?{{/required}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}})
     {
+        {{#returnType}}
+        Task<ApiResult<{{{returnType}}}>> task = {{operationId}}WithHttpInfoAsync({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/pathParams}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/pathParams}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/pathParams}}options{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}});
+        ApiResult<{{{returnType}}}> result = await task.ConfigureAwait(false);
+        return result.Data
+            ?? throw new InvalidOperationException("Expected non-null response body");
+        {{/returnType}}
+        {{^returnType}}
+        Task<ApiResult<object?>> task = {{operationId}}WithHttpInfoAsync({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/pathParams}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/pathParams}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/pathParams}}options{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}});
+        _ = await task.ConfigureAwait(false);
+        {{/returnType}}
+    }
+
+    /// <summary>
+    /// {{summary}} (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>> {{operationId}}WithHttpInfoAsync({{#hasAuthMethods}}IAuthenticator auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{{dataType}}}{{^required}}?{{/required}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}})
+    {
 {{#queryParams}}
 {{#-first}}
         ArgumentNullException.ThrowIfNull(options);
@@ -234,9 +251,7 @@ public class {{classname}} : BaseApi
 {{/required}}
 {{/formParams}}
 {{/hasFormParams}}
-        {{#returnType}}
-
-        {{{returnType}}}? result = await InvokeApiAsync<{{{returnType}}}>(
+        return await InvokeApiForResultAsync<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>(
                 "{{httpMethod}}",
                 path,
                 queryParams,
@@ -247,22 +262,6 @@ public class {{classname}} : BaseApi
                 {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}}
             )
             .ConfigureAwait(false);
-        return result ?? throw new InvalidOperationException("Expected non-null response body");
-        {{/returnType}}
-        {{^returnType}}
-
-        _ = await InvokeApiAsync<object>(
-                "{{httpMethod}}",
-                path,
-                queryParams,
-                headerParams,
-                {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
-{{^produces}}                [],{{/produces}}{{#produces}}{{#-first}}                {{operationId}}Accepts,{{/-first}}{{/produces}}
-                {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
-                {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}}
-            )
-            .ConfigureAwait(false);
-        {{/returnType}}
     }
     {{/operation}}
 }

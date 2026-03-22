@@ -1,0 +1,16 @@
+from dataclasses import dataclass
+from typing import Dict, Generic, Optional, TypeVar
+
+T = TypeVar('T')
+
+
+@dataclass(frozen=True)
+class ApiResult(Generic[T]):
+    """Represents a typed API response with deserialized data, status code,
+    raw body, and headers. Returned by ``with_http_info`` methods.
+    """
+
+    status_code: int
+    data: Optional[T]
+    raw_body: Optional[str]
+    headers: Dict[str, str]

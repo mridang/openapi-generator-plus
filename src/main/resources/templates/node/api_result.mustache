@@ -1,0 +1,10 @@
+/**
+ * Represents a typed API response with deserialized data, status code,
+ * raw body, and headers. Returned by {@code withHttpInfo} methods.
+ */
+export interface ApiResult<T> {
+  readonly statusCode: number;
+  readonly data: T | undefined;
+  readonly rawBody: string | null;
+  readonly headers: Readonly<Record<string, string>>;
+}

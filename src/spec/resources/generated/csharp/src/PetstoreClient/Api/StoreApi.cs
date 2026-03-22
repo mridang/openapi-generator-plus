@@ -26,6 +26,15 @@ public class StoreApi : BaseApi
     /// <param name="orderId">ID of the order to delete</param>
     public async Task DeleteOrderAsync(long orderId)
     {
+        Task<ApiResult<object?>> task = DeleteOrderWithHttpInfoAsync(orderId);
+        _ = await task.ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Delete purchase order by ID (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<object?>> DeleteOrderWithHttpInfoAsync(long orderId)
+    {
         string path = "/store/order/{orderId}";
         path = path.Replace(
             "{" + "orderId" + "}",
@@ -35,8 +44,7 @@ public class StoreApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
-
-        _ = await InvokeApiAsync<object>(
+        return await InvokeApiForResultAsync<object?>(
                 "DELETE",
                 path,
                 queryParams,
@@ -55,12 +63,22 @@ public class StoreApi : BaseApi
     /// <returns><![CDATA[Dictionary<string, int>]]></returns>
     public async Task<Dictionary<string, int>> GetInventoryAsync()
     {
+        Task<ApiResult<Dictionary<string, int>>> task = GetInventoryWithHttpInfoAsync();
+        ApiResult<Dictionary<string, int>> result = await task.ConfigureAwait(false);
+        return result.Data
+            ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Returns pet inventories by status (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<Dictionary<string, int>>> GetInventoryWithHttpInfoAsync()
+    {
         string path = "/store/inventory";
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
-
-        Dictionary<string, int>? result = await InvokeApiAsync<Dictionary<string, int>>(
+        return await InvokeApiForResultAsync<Dictionary<string, int>>(
                 "GET",
                 path,
                 queryParams,
@@ -71,7 +89,6 @@ public class StoreApi : BaseApi
                 null
             )
             .ConfigureAwait(false);
-        return result ?? throw new InvalidOperationException("Expected non-null response body");
     }
 
     /// <summary>
@@ -80,6 +97,17 @@ public class StoreApi : BaseApi
     /// <param name="orderId">ID of order to return</param>
     /// <returns><![CDATA[Order]]></returns>
     public async Task<Order> GetOrderByIdAsync(long orderId)
+    {
+        Task<ApiResult<Order>> task = GetOrderByIdWithHttpInfoAsync(orderId);
+        ApiResult<Order> result = await task.ConfigureAwait(false);
+        return result.Data
+            ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Find purchase order by ID (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<Order>> GetOrderByIdWithHttpInfoAsync(long orderId)
     {
         string path = "/store/order/{orderId}";
         path = path.Replace(
@@ -90,8 +118,7 @@ public class StoreApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
-
-        Order? result = await InvokeApiAsync<Order>(
+        return await InvokeApiForResultAsync<Order>(
                 "GET",
                 path,
                 queryParams,
@@ -102,7 +129,6 @@ public class StoreApi : BaseApi
                 null
             )
             .ConfigureAwait(false);
-        return result ?? throw new InvalidOperationException("Expected non-null response body");
     }
 
     /// <summary>
@@ -112,12 +138,22 @@ public class StoreApi : BaseApi
     /// <returns><![CDATA[Order]]></returns>
     public async Task<Order> PlaceOrderAsync(Order? order)
     {
+        Task<ApiResult<Order>> task = PlaceOrderWithHttpInfoAsync(order);
+        ApiResult<Order> result = await task.ConfigureAwait(false);
+        return result.Data
+            ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Place an order for a pet (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<Order>> PlaceOrderWithHttpInfoAsync(Order? order)
+    {
         string path = "/store/order";
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
-
-        Order? result = await InvokeApiAsync<Order>(
+        return await InvokeApiForResultAsync<Order>(
                 "POST",
                 path,
                 queryParams,
@@ -128,6 +164,5 @@ public class StoreApi : BaseApi
                 null
             )
             .ConfigureAwait(false);
-        return result ?? throw new InvalidOperationException("Expected non-null response body");
     }
 }

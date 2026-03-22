@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'uri'
+
 # Swagger Petstore - OpenAPI 3.0
 # A simplified Pet Store API for integration testing.
 #
@@ -16,7 +18,7 @@ module PetstoreClient
     # Base class for all API classes. Provides the invoke_api method that
     # handles URL construction, header selection, body serialization, request
     # dispatch, and response deserialization.
-    class BaseApi
+    class BaseApi # rubocop:disable Metrics/ClassLength
       # @return [Configuration]
       attr_reader :config
 
@@ -32,9 +34,11 @@ module PetstoreClient
 
       protected
 
-      # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
-      # rubocop:disable Metrics/ParameterLists, Metrics/PerceivedComplexity
-      def invoke_api(method, path, query_params, header_params, body, accepts, content_type, return_type, auth = nil)
+      # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
+      def invoke_api_for_result( # rubocop:disable Metrics/ParameterLists
+        method, path, query_params, header_params, body,
+        accepts, content_type, return_type, auth = nil
+      )
         url = "#{@config.base_url}#{path}"
 
         auth&.query_params&.each { |k, v| query_params[k] = v }
@@ -61,17 +65,37 @@ module PetstoreClient
         serialized_body = serialize_body(body, content_type)
         response = @api_client.send_request(method, url, headers, serialized_body)
         throw_api_error(response) if response.status_code < 200 || response.status_code >= 300
-        return unless return_type && response.body && !response.body.empty?
 
-        # @type var resp_content_type: String?
-        ct_pair = response.headers.find { |k, _| k.downcase == 'content-type' }
-        resp_content_type = ct_pair ? ct_pair.last.split(';').first.strip : nil
-        return response.body if resp_content_type && !resp_content_type.start_with?('application/json')
+        data = nil
+        if return_type && response.body && !response.body.empty?
+          # @type var resp_content_type: String?
+          ct_pair = response.headers.find { |k, _| k.downcase == 'content-type' }
+          resp_content_type = ct_pair ? ct_pair.last.split(';').first.strip : nil
+          data = if resp_content_type && !resp_content_type.start_with?('application/json')
+                   response.body
+                 else
+                   PetstoreClient::ObjectSerializer.deserialize(response.body, return_type)
+                 end
+        end
 
-        PetstoreClient::ObjectSerializer.deserialize(response.body, return_type)
+        PetstoreClient::ApiResult.new(
+          status_code: response.status_code,
+          data: data,
+          raw_body: response.body,
+          headers: response.headers
+        )
       end
-      # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
-      # rubocop:enable Metrics/ParameterLists, Metrics/PerceivedComplexity
+
+      def invoke_api( # rubocop:disable Metrics/ParameterLists
+        method, path, query_params, header_params, body,
+        accepts, content_type, return_type, auth = nil
+      )
+        invoke_api_for_result(
+          method, path, query_params, header_params, body,
+          accepts, content_type, return_type, auth
+        ).data
+      end
+      # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 
       def build_collection_param(param, format)
         case format
@@ -124,13 +148,18 @@ module PetstoreClient
         pairs.join('&')
       end
 
-      def serialize_body(body, content_type)
+      def serialize_body(body, content_type) # rubocop:disable Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
         return nil if body.nil?
 
         if content_type == 'multipart/form-data'
           body
-        elsif content_type&.start_with?('image/') || content_type == 'application/octet-stream'
+        elsif content_type&.start_with?('image/') ||
+              content_type == 'application/octet-stream'
           body.respond_to?(:read) ? body.read : body
+        elsif content_type == 'text/plain'
+          body.to_s
+        elsif content_type == 'application/x-www-form-urlencoded'
+          URI.encode_www_form(body)
         else
           PetstoreClient::ObjectSerializer.serialize(body)
         end

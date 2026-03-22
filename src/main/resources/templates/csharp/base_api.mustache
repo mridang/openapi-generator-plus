@@ -1,5 +1,6 @@
 #pragma warning disable CA1062 // Validate arguments of public methods
 #pragma warning disable CA2000 // Dispose objects before losing scope
+#pragma warning disable IDE0045 // Convert to conditional expression
 #pragma warning disable IDE0046 // Convert to conditional expression
 
 using {{packageName}}.Auth;
@@ -51,9 +52,10 @@ public abstract class BaseApi
     }
 
     /// <summary>
-    /// Invoke an API operation.
+    /// Invoke an API operation and return the full result including status code,
+    /// headers, and raw body alongside the deserialized data.
     /// </summary>
-    protected async Task<T?> InvokeApiAsync<T>(
+    protected async Task<ApiResult<T>> InvokeApiForResultAsync<T>(
         string method,
         string path,
         Dictionary<string, object?> queryParams,
@@ -129,7 +131,38 @@ public abstract class BaseApi
                     StringComparison.OrdinalIgnoreCase
                 );
 
-            requestBody = (isBinary || isMultipart) ? body : Serializer.Serialize(body);
+            if (isBinary || isMultipart)
+            {
+                requestBody = body;
+            }
+            else if (string.Equals(contentType, "text/plain", StringComparison.OrdinalIgnoreCase))
+            {
+                requestBody = body.ToString();
+            }
+            else if (
+                string.Equals(
+                    contentType,
+                    "application/x-www-form-urlencoded",
+                    StringComparison.OrdinalIgnoreCase
+                ) && body is Dictionary<string, object> formParams
+            )
+            {
+                List<string> parts = [];
+                foreach (KeyValuePair<string, object> kv in formParams)
+                {
+                    parts.Add(
+                        Uri.EscapeDataString(kv.Key)
+                            + "="
+                            + Uri.EscapeDataString(kv.Value?.ToString() ?? "")
+                    );
+                }
+
+                requestBody = string.Join("&", parts);
+            }
+            else
+            {
+                requestBody = Serializer.Serialize(body);
+            }
         }
 
         ApiResponse response = await ApiClient
@@ -141,33 +174,66 @@ public abstract class BaseApi
             ThrowApiException(response);
         }
 
-        if (string.IsNullOrEmpty(response.Body))
+        T? data = default;
+        if (!string.IsNullOrEmpty(response.Body))
         {
-            return default;
-        }
+            string? responseContentType = response
+                .Headers.Where(h =>
+                    string.Equals(h.Key, "Content-Type", StringComparison.OrdinalIgnoreCase)
+                )
+                .Select(h => h.Value)
+                .FirstOrDefault();
 
-        string? responseContentType = response
-            .Headers.Where(h =>
-                string.Equals(h.Key, "Content-Type", StringComparison.OrdinalIgnoreCase)
-            )
-            .Select(h => h.Value)
-            .FirstOrDefault();
-
-        if (responseContentType != null && !HeaderSelector.IsJsonMime(responseContentType))
-        {
-            if (typeof(T) == typeof(System.IO.Stream))
+            if (responseContentType != null && !HeaderSelector.IsJsonMime(responseContentType))
             {
-                return (T)
-                    (object)
-                        new System.IO.MemoryStream(
-                            System.Text.Encoding.UTF8.GetBytes(response.Body)
-                        );
+                if (typeof(T) == typeof(System.IO.Stream))
+                {
+                    data = (T)
+                        (object)
+                            new System.IO.MemoryStream(
+                                System.Text.Encoding.UTF8.GetBytes(response.Body)
+                            );
+                }
+                else
+                {
+                    data = (T)(object)response.Body;
+                }
             }
-
-            return (T)(object)response.Body;
+            else
+            {
+                data = Serializer.Deserialize<T>(response.Body);
+            }
         }
 
-        return Serializer.Deserialize<T>(response.Body);
+        return new ApiResult<T>(response.StatusCode, data, response.Body, response.Headers);
+    }
+
+    /// <summary>
+    /// Invoke an API operation.
+    /// </summary>
+    protected async Task<T?> InvokeApiAsync<T>(
+        string method,
+        string path,
+        Dictionary<string, object?> queryParams,
+        Dictionary<string, string> headerParams,
+        object? body,
+        string[] accepts,
+        string contentType,
+        IAuthenticator? auth = null
+    )
+    {
+        ApiResult<T> result = await InvokeApiForResultAsync<T>(
+                method,
+                path,
+                queryParams,
+                headerParams,
+                body,
+                accepts,
+                contentType,
+                auth
+            )
+            .ConfigureAwait(false);
+        return result.Data;
     }
 
     private static void ThrowApiException(ApiResponse response)

@@ -3,6 +3,7 @@ package {{apiPackage}};
 import {{invokerPackage}}.ApiClient;
 import {{invokerPackage}}.ApiException;
 import {{invokerPackage}}.ApiResponse;
+import {{invokerPackage}}.ApiResult;
 import {{invokerPackage}}.Configuration;
 import {{invokerPackage}}.DefaultApiClient;
 import {{invokerPackage}}.HeaderSelector;
@@ -85,7 +86,8 @@ public abstract class BaseApi {
     }
 
     /**
-     * Invoke an API operation.
+     * Invoke an API operation and return the full result including status code,
+     * headers, and raw body alongside the deserialized data.
      *
      * @param <T>         the return type
      * @param method      HTTP method (GET, POST, PUT, DELETE, etc.)
@@ -97,11 +99,10 @@ public abstract class BaseApi {
      * @param contentType request content type
      * @param returnType  return type for deserialization (null for void)
      * @param auth        optional authenticator for operation-specific auth
-     * @return deserialized response or null
+     * @return ApiResult containing deserialized data, status code, raw body, and headers
      * @throws ApiException if the API call fails
      */
-    @Nullable
-    protected <T> T invokeApi(
+    protected <T> ApiResult<T> invokeApiForResult(
             String method,
             String path,
             Map<String, Object> queryParams,
@@ -159,6 +160,22 @@ public abstract class BaseApi {
                 requestBody = body;
             } else if ("multipart/form-data".equals(contentType) && body instanceof Map) {
                 requestBody = body;
+            } else if ("text/plain".equals(contentType)) {
+                requestBody = body.toString();
+            } else if ("application/x-www-form-urlencoded".equals(contentType)
+                    && body instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> formParams = (Map<String, Object>) body;
+                StringJoiner joiner = new StringJoiner("&");
+                for (Map.Entry<String, Object> entry : formParams.entrySet()) {
+                    joiner.add(
+                            URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8)
+                                    + "="
+                                    + URLEncoder.encode(
+                                            String.valueOf(entry.getValue()),
+                                            StandardCharsets.UTF_8));
+                }
+                requestBody = joiner.toString();
             } else {
                 requestBody = objectSerializer.serialize(body);
             }
@@ -170,6 +187,7 @@ public abstract class BaseApi {
             throwApiException(response);
         }
 
+        T data = null;
         if (returnType != null && response.body() != null && !response.body().isEmpty()) {
             String responseContentType = response.headers() != null
                     ? response.headers().getOrDefault("content-type",
@@ -185,15 +203,54 @@ public abstract class BaseApi {
                                     new ByteArrayInputStream(
                                             response.body()
                                                     .getBytes(StandardCharsets.UTF_8));
-                    return streamBody;
+                    data = streamBody;
+                } else {
+                    @SuppressWarnings("unchecked")
+                    T rawBody = (T) response.body();
+                    data = rawBody;
                 }
-                @SuppressWarnings("unchecked")
-                T rawBody = (T) response.body();
-                return rawBody;
+            } else {
+                data = objectSerializer.deserialize(response.body(), returnType);
             }
-            return objectSerializer.deserialize(response.body(), returnType);
         }
-        return null;
+        return new ApiResult<>(
+                response.statusCode(),
+                data,
+                response.body(),
+                response.headers() != null ? response.headers() : Map.of());
+    }
+
+    /**
+     * Invoke an API operation.
+     *
+     * @param <T>         the return type
+     * @param method      HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param path        URL path (with path params already substituted)
+     * @param queryParams query parameters
+     * @param headerParams custom header parameters
+     * @param body        request body (model object or null)
+     * @param accepts     acceptable response content types
+     * @param contentType request content type
+     * @param returnType  return type for deserialization (null for void)
+     * @param auth        optional authenticator for operation-specific auth
+     * @return deserialized response or null
+     * @throws ApiException if the API call fails
+     */
+    @Nullable
+    protected <T> T invokeApi(
+            String method,
+            String path,
+            Map<String, Object> queryParams,
+            Map<String, String> headerParams,
+            @Nullable Object body,
+            String[] accepts,
+            String contentType,
+            @Nullable TypeReference<T> returnType,
+            @Nullable Authenticator auth)
+            throws ApiException {
+        return invokeApiForResult(
+                method, path, queryParams, headerParams, body, accepts,
+                contentType, returnType, auth).data();
     }
 
     /**

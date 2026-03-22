@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 public class BetterNodeCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterNodeCodegen.class);
+    private static final int PRETTIER_PRINT_WIDTH = 120;
 
     public BetterNodeCodegen() {
         outputFolder = "generated-code/typescript";
@@ -105,6 +106,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                 new SupportingFile(
                         "default_api_client.mustache", "src", "default-api-client.ts"));
         supportingFiles.add(new SupportingFile("api_response.mustache", "src", "api-response.ts"));
+        supportingFiles.add(new SupportingFile("api_result.mustache", "src", "api-result.ts"));
         supportingFiles.add(
                 new SupportingFile("configuration.mustache", "src", "configuration.ts"));
         supportingFiles.add(
@@ -566,6 +568,39 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                 formatted.add(line);
             }
             result = formatted;
+
+            // Collapse short multi-line invokeApiForResult calls to match prettier output
+            List<String> collapsed = new ArrayList<>(result.size());
+            for (int i = 0; i < result.size(); i++) {
+                String line = result.get(i);
+                if (line.stripTrailing().endsWith("this.invokeApiForResult(")) {
+                    String indent = line.substring(0, line.indexOf(line.stripLeading()));
+                    StringBuilder sb = new StringBuilder(line.stripTrailing());
+                    int j = i + 1;
+                    while (j < result.size()) {
+                        String next = result.get(j).trim();
+                        if (next.equals(");")) {
+                            sb.append(");");
+                            break;
+                        }
+                        if (next.endsWith(",")) {
+                            sb.append(next, 0, next.length() - 1).append(", ");
+                        } else {
+                            sb.append(next);
+                        }
+                        j++;
+                    }
+                    String oneLine = indent + sb.toString().stripLeading();
+                    if (oneLine.length() <= PRETTIER_PRINT_WIDTH && j < result.size()) {
+                        collapsed.add(oneLine);
+                        i = j;
+                        changed = true;
+                        continue;
+                    }
+                }
+                collapsed.add(line);
+            }
+            result = collapsed;
 
             if (changed) {
                 Files.write(file.toPath(), result, StandardCharsets.UTF_8);

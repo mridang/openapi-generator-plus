@@ -75,6 +75,14 @@ module PetstoreClient
     def initialize: (status_code: Integer, body: String, headers: Hash[String, String]) -> void
   end
 
+  class ApiResult
+    attr_reader status_code: Integer
+    attr_reader data: untyped
+    attr_reader raw_body: String?
+    attr_reader headers: Hash[String, String]
+    def initialize: (status_code: Integer, data: untyped, raw_body: String?, headers: Hash[String, String]) -> void
+  end
+
   class ApiError < StandardError
     attr_reader code: Integer?
     attr_reader response_headers: Hash[String, String]?
@@ -271,6 +279,7 @@ module PetstoreClient
     class BaseApi
       attr_reader config: Configuration
       def initialize: (?ApiClient?, ?Configuration) -> void
+      def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, Auth::Authenticator?) -> ApiResult
       def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, Auth::Authenticator?) -> untyped
       def build_collection_param: (Array[untyped], Symbol) -> untyped
       private

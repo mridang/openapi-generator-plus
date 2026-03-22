@@ -124,6 +124,8 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile("api_response.mustache", packagePath, "api_response.py"));
         supportingFiles.add(
+                new SupportingFile("api_result.mustache", packagePath, "api_result.py"));
+        supportingFiles.add(
                 new SupportingFile("base_api.mustache", apiPath, "base_api.py"));
         supportingFiles.add(
                 new SupportingFile("configuration.mustache", packagePath, "configuration.py"));

@@ -195,6 +195,8 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile("api_response.mustache", invokerFolder, "ApiResponse.java"));
         supportingFiles.add(
+                new SupportingFile("api_result.mustache", invokerFolder, "ApiResult.java"));
+        supportingFiles.add(
                 new SupportingFile(
                         "base_api.mustache",
                         invokerFolder + File.separator + "api",

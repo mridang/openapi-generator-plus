@@ -152,6 +152,8 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile("api_response.mustache", invokerFolder, "ApiResponse.cs"));
         supportingFiles.add(
+                new SupportingFile("api_result.mustache", invokerFolder, "ApiResult.cs"));
+        supportingFiles.add(
                 new SupportingFile(
                         "base_api.mustache",
                         invokerFolder + File.separator + apiPackage,
@@ -471,6 +473,10 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             Pattern.compile(
                     "^(    public async \\S+ \\w+)\\((.+)\\)$", Pattern.MULTILINE);
 
+    private static final Pattern LONG_TASK_PATTERN =
+            Pattern.compile(
+                    "^(        Task<.+> task = \\w+)\\((.+)\\);$", Pattern.MULTILINE);
+
     @Override
     public void postProcessFile(File file, String fileType) {
         super.postProcessFile(file, fileType);
@@ -488,6 +494,8 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             trimmed = breakLongLines(LONG_ARRAY_PATTERN, trimmed, BetterCSharpCodegen::breakArray);
             // Break long method signatures to multi-line
             trimmed = breakLongLines(LONG_METHOD_PATTERN, trimmed, BetterCSharpCodegen::breakMethod);
+            // Break long task assignment lines to multi-line
+            trimmed = breakLongLines(LONG_TASK_PATTERN, trimmed, BetterCSharpCodegen::breakTask);
             if (!trimmed.equals(content)) {
                 Files.write(file.toPath(), trimmed.getBytes(StandardCharsets.UTF_8));
             }
@@ -525,6 +533,21 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             sb.append("        ").append(part).append(",\n");
         }
         sb.append("    ];");
+        return sb.toString();
+    }
+
+    private static String breakTask(String prefix, String params) {
+        String[] parts = params.split(", ");
+        StringBuilder sb = new StringBuilder(prefix);
+        sb.append("(\n");
+        for (int i = 0; i < parts.length; i++) {
+            sb.append("            ").append(parts[i]);
+            if (i < parts.length - 1) {
+                sb.append(",");
+            }
+            sb.append("\n");
+        }
+        sb.append("        );");
         return sb.toString();
     }
 

@@ -2,6 +2,7 @@
 
 # rubocop:disable Lint/RedundantCopDisableDirective, Layout/LineLength
 # rubocop:disable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:disable Style/MethodCallWithoutArgsParentheses
 # rubocop:disable Style/DefWithParentheses
 # rubocop:disable Style/StringConcatenation
 
@@ -63,6 +64,20 @@ module {{moduleName}}
 
 {{/required}}
 {{/allParams}}
+        {{operationId}}_with_http_info({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{^required}}{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#queryParams}}{{paramName}}: {{paramName}}{{^-last}}, {{/-last}}{{#-last}}{{#headerParams}}{{#-first}}, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{/headerParams}}{{/-last}}{{/queryParams}}{{#headerParams}}{{paramName}}: {{paramName}}{{^-last}}, {{/-last}}{{#-last}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{/-last}}{{/headerParams}}{{#formParams}}{{paramName}}: {{paramName}}{{^-last}}, {{/-last}}{{/formParams}}).data
+      end
+
+      # @return [ApiResult]
+      def {{operationId}}_with_http_info({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{^required}} = nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#queryParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#headerParams}}{{#-first}}, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{/headerParams}}{{/-last}}{{/queryParams}}{{#headerParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{/-last}}{{/headerParams}}{{#formParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{/formParams}})
+{{#allParams}}
+{{#required}}
+        if {{{paramName}}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+
+{{/required}}
+{{/allParams}}
         path = '{{{path}}}'
 {{#pathParams}}
 {{=<% %>=}}
@@ -103,7 +118,7 @@ module {{moduleName}}
 {{/bodyParam}}
 {{/hasFormParams}}
 
-        invoke_api(
+        invoke_api_for_result(
           :{{httpMethod}}, path, query_params, header_params, request_body,
           [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
           {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
@@ -118,5 +133,6 @@ module {{moduleName}}
 end
 # rubocop:enable Lint/RedundantCopDisableDirective, Layout/LineLength
 # rubocop:enable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:enable Style/MethodCallWithoutArgsParentheses
 # rubocop:enable Style/DefWithParentheses
 # rubocop:enable Style/StringConcatenation

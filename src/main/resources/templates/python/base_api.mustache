@@ -3,6 +3,7 @@ from urllib.parse import quote, urlencode
 
 from ..api_client import ApiClient
 from ..api_response import ApiResponse
+from ..api_result import ApiResult
 from ..default_api_client import DefaultApiClient
 from ..configuration import Configuration
 from ..object_serializer import ObjectSerializer
@@ -59,7 +60,7 @@ class BaseApi:
         self._object_serializer = ObjectSerializer()
         self._header_selector = HeaderSelector()
 
-    def _invoke_api(
+    def _invoke_api_for_result(
         self,
         method: str,
         path: str,
@@ -70,8 +71,8 @@ class BaseApi:
         content_type: Optional[str],
         return_type: Optional[str],
         auth: Optional[Authenticator] = None,
-    ) -> Any:
-        """Invoke an API operation.
+    ) -> 'ApiResult[Any]':
+        """Invoke an API operation and return the full result.
 
         Args:
             method: HTTP method (GET, POST, PUT, DELETE, etc.).
@@ -85,7 +86,8 @@ class BaseApi:
             auth: Optional authenticator for operation-specific auth.
 
         Returns:
-            Deserialized response or None.
+            ApiResult containing deserialized data, status code, raw body,
+            and headers.
 
         Raises:
             ApiException: If the API call fails.
@@ -125,6 +127,10 @@ class BaseApi:
                 content_type.startswith('image/') or content_type == 'application/octet-stream'
             ):
                 serialized_body = body
+            elif content_type == 'text/plain':
+                serialized_body = str(body)
+            elif content_type == 'application/x-www-form-urlencoded':
+                serialized_body = urlencode(body)
             else:
                 serialized_body = self._object_serializer.serialize(body)
 
@@ -133,6 +139,7 @@ class BaseApi:
         if response.status_code < 200 or response.status_code >= 300:
             self._throw_api_exception(response)
 
+        data = None
         if return_type is not None and response.body:
             resp_content_type = ''
             for k, v in response.headers.items():
@@ -140,10 +147,59 @@ class BaseApi:
                     resp_content_type = v.split(';')[0].strip()
                     break
             if resp_content_type and not resp_content_type.startswith('application/json'):
-                return response.body
-            return self._object_serializer.deserialize(response.body, return_type)
+                data = response.body
+            else:
+                data = self._object_serializer.deserialize(response.body, return_type)
 
-        return None
+        return ApiResult(
+            status_code=response.status_code,
+            data=data,
+            raw_body=response.body,
+            headers=response.headers,
+        )
+
+    def _invoke_api(
+        self,
+        method: str,
+        path: str,
+        query_params: Dict[str, Any],
+        header_params: Dict[str, str],
+        body: Any,
+        accepts: List[str],
+        content_type: Optional[str],
+        return_type: Optional[str],
+        auth: Optional[Authenticator] = None,
+    ) -> Any:
+        """Invoke an API operation.
+
+        Args:
+            method: HTTP method (GET, POST, PUT, DELETE, etc.).
+            path: URL path (with path params already substituted).
+            query_params: Query parameters.
+            header_params: Custom header parameters.
+            body: Request body (model object or None).
+            accepts: Acceptable response content types.
+            content_type: Request content type.
+            return_type: Return type for deserialization (None for void).
+            auth: Optional authenticator for operation-specific auth.
+
+        Returns:
+            Deserialized response or None.
+
+        Raises:
+            ApiException: If the API call fails.
+        """
+        return self._invoke_api_for_result(
+            method,
+            path,
+            query_params,
+            header_params,
+            body,
+            accepts,
+            content_type,
+            return_type,
+            auth,
+        ).data
 
     @staticmethod
     def _throw_api_exception(response: 'ApiResponse') -> None:

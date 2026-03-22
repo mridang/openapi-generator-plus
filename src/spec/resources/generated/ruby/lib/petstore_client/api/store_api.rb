@@ -2,6 +2,7 @@
 
 # rubocop:disable Lint/RedundantCopDisableDirective, Layout/LineLength
 # rubocop:disable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:disable Style/MethodCallWithoutArgsParentheses
 # rubocop:disable Style/DefWithParentheses
 # rubocop:disable Style/StringConcatenation
 
@@ -26,6 +27,16 @@ module PetstoreClient
                 "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
         end
 
+        delete_order_with_http_info(order_id).data
+      end
+
+      # @return [ApiResult]
+      def delete_order_with_http_info(order_id)
+        if order_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
+        end
+
         path = '/store/order/{orderId}'
         path = path.sub('{orderId}', PetstoreClient::ValueSerializer.serialize(order_id, :path, 'Integer').to_s)
         # @type var query_params: Hash[String, untyped]
@@ -34,7 +45,7 @@ module PetstoreClient
         header_params = {}
         request_body = nil
 
-        invoke_api(
+        invoke_api_for_result(
           :DELETE, path, query_params, header_params, request_body,
           [],
           'application/json',
@@ -46,6 +57,11 @@ module PetstoreClient
       # Returns pet inventories by status
       # @return [Hash<String, Integer>]
       def get_inventory()
+        get_inventory_with_http_info().data
+      end
+
+      # @return [ApiResult]
+      def get_inventory_with_http_info()
         path = '/store/inventory'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -53,7 +69,7 @@ module PetstoreClient
         header_params = {}
         request_body = nil
 
-        invoke_api(
+        invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
           'application/json',
@@ -71,6 +87,16 @@ module PetstoreClient
                 "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
         end
 
+        get_order_by_id_with_http_info(order_id).data
+      end
+
+      # @return [ApiResult]
+      def get_order_by_id_with_http_info(order_id)
+        if order_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
+        end
+
         path = '/store/order/{orderId}'
         path = path.sub('{orderId}', PetstoreClient::ValueSerializer.serialize(order_id, :path, 'Integer').to_s)
         # @type var query_params: Hash[String, untyped]
@@ -79,7 +105,7 @@ module PetstoreClient
         header_params = {}
         request_body = nil
 
-        invoke_api(
+        invoke_api_for_result(
           :GET, path, query_params, header_params, request_body,
           ['application/json'],
           'application/json',
@@ -92,6 +118,11 @@ module PetstoreClient
       # @param order [Order]
       # @return [Order]
       def place_order(order = nil)
+        place_order_with_http_info(order).data
+      end
+
+      # @return [ApiResult]
+      def place_order_with_http_info(order = nil)
         path = '/store/order'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -99,7 +130,7 @@ module PetstoreClient
         header_params = {}
         request_body = order # rubocop:disable Lint/SelfAssignment
 
-        invoke_api(
+        invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
           ['application/json'],
           'application/json',
@@ -112,5 +143,6 @@ module PetstoreClient
 end
 # rubocop:enable Lint/RedundantCopDisableDirective, Layout/LineLength
 # rubocop:enable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:enable Style/MethodCallWithoutArgsParentheses
 # rubocop:enable Style/DefWithParentheses
 # rubocop:enable Style/StringConcatenation
