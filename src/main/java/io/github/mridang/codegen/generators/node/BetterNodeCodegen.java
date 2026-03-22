@@ -119,6 +119,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
 
         supportingFiles.add(
                 new SupportingFile(
+                        "exceptions/index.mustache", "src/exceptions", "index.ts"));
+        supportingFiles.add(
+                new SupportingFile(
                         "exceptions/client-error.mustache", "src/exceptions", "client-error.ts"));
         supportingFiles.add(
                 new SupportingFile(
