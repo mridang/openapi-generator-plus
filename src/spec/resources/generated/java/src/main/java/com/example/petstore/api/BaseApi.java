@@ -35,6 +35,8 @@ import javax.annotation.Nullable;
  */
 public abstract class BaseApi {
 
+  private static final TypeReference<Object> OBJECT_TYPE_REF = new TypeReference<>() {};
+
   /** The HTTP transport client used for sending requests. */
   protected final ApiClient apiClient;
 
@@ -249,6 +251,9 @@ public abstract class BaseApi {
   /**
    * Throw the appropriate exception subclass for the given error response.
    *
+   * <p>Attempts to deserialize the response body as JSON so that structured error data (e.g. from a
+   * {@code default} response schema) is available via {@link ApiException#getErrorBody()}.
+   *
    * @param response the API response with a non-2xx status code
    * @throws ApiException always
    */
@@ -257,21 +262,30 @@ public abstract class BaseApi {
     String message = "API returned status code " + code;
     String body = response.body();
 
+    Object errorBody = null;
+    if (body != null && !body.isEmpty()) {
+      try {
+        errorBody = objectSerializer.deserialize(body, OBJECT_TYPE_REF);
+      } catch (Exception e) {
+        errorBody = null;
+      }
+    }
+
     if (code >= 400 && code < 500) {
       throw switch (code) {
-        case 400 -> new BadRequestException(message, null, body, null);
-        case 401 -> new UnauthorizedException(message, null, body, null);
-        case 403 -> new ForbiddenException(message, null, body, null);
-        case 404 -> new NotFoundException(message, null, body, null);
-        case 409 -> new ConflictException(message, null, body, null);
-        case 422 -> new UnprocessableEntityException(message, null, body, null);
-        default -> new ClientException(code, message, null, body, null);
+        case 400 -> new BadRequestException(message, null, body, errorBody);
+        case 401 -> new UnauthorizedException(message, null, body, errorBody);
+        case 403 -> new ForbiddenException(message, null, body, errorBody);
+        case 404 -> new NotFoundException(message, null, body, errorBody);
+        case 409 -> new ConflictException(message, null, body, errorBody);
+        case 422 -> new UnprocessableEntityException(message, null, body, errorBody);
+        default -> new ClientException(code, message, null, body, errorBody);
       };
     }
     if (code >= 500) {
       throw switch (code) {
-        case 500 -> new InternalServerErrorException(message, null, body, null);
-        default -> new ServerException(code, message, null, body, null);
+        case 500 -> new InternalServerErrorException(message, null, body, errorBody);
+        default -> new ServerException(code, message, null, body, errorBody);
       };
     }
     throw new ApiException(code, message, null, body);

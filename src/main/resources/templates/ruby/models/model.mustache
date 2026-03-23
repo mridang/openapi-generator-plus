@@ -204,15 +204,31 @@ module {{moduleName}}
         JSON_KEY_MAP[key.to_s] || key.to_sym
       end
 
+{{#isAdditionalPropertiesTrue}}
+      # Whether this model accepts additional properties not defined in the schema.
+      ADDITIONAL_PROPERTIES = true
+{{/isAdditionalPropertiesTrue}}
       {{#vars}}
+      {{#description}}
+      # {{{.}}}
+      {{/description}}
+      {{#example}}
+      # @example {{{.}}}
+      {{/example}}
       {{#deprecated}}
       # @deprecated This property is deprecated.
       {{/deprecated}}
+      {{#isReadOnly}}
+      # @return [Object] Read-only property.
+      {{/isReadOnly}}
+      {{#isWriteOnly}}
+      # @return [Object] Write-only property.
+      {{/isWriteOnly}}
       {{#required}}
-      attribute :{{name}}, Types::Any
+      attribute :{{name}}, Types::Any{{#defaultValue}}.default({{{.}}}.freeze){{/defaultValue}}
       {{/required}}
       {{^required}}
-      attribute :{{name}}, Types::Any.optional.meta(omittable: true)
+      attribute :{{name}}, Types::Any.optional.meta(omittable: true){{#defaultValue}}.default({{{.}}}.freeze){{/defaultValue}}
       {{/required}}
       {{/vars}}
     end

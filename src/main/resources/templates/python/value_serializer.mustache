@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from urllib.parse import quote
 
 
@@ -52,6 +52,31 @@ class ValueSerializer:
             return quote(str_val, safe='')
 
         return str_val
+
+    @classmethod
+    def serialize_deep_object(
+        cls,
+        param_name: str,
+        value: Optional[Dict[str, Any]],
+    ) -> Dict[str, str]:
+        """Serialize a deepObject-style query parameter.
+
+        Produces a dict of flattened keys in the form ``param_name[key]`` to
+        stringified values, suitable for inclusion in a query string.
+
+        Args:
+            param_name: The parameter name (e.g. 'filter').
+            value: The dict value to serialize.
+
+        Returns:
+            A dict of expanded keys to serialized values.
+        """
+        result: Dict[str, str] = {}
+        if value is None:
+            return result
+        for key, val in value.items():
+            result[f'{param_name}[{key}]'] = cls._stringify(val)
+        return result
 
     @classmethod
     def _stringify(cls, value: Any) -> str:

@@ -215,6 +215,20 @@ public class {{classname}} : BaseApi
 
         Dictionary<string, object?> queryParams = [];
 {{#queryParams}}
+{{#isDeepObject}}
+        if (options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
+        {
+            Dictionary<string, string> deepObj = ValueSerializer.SerializeDeepObject(
+                "{{baseName}}",
+                options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} as IDictionary<string, object?>
+            );
+            foreach (KeyValuePair<string, string> entry in deepObj)
+            {
+                queryParams[entry.Key] = entry.Value;
+            }
+        }
+{{/isDeepObject}}
+{{^isDeepObject}}
         if (options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
         {
             queryParams["{{baseName}}"] = ValueSerializer.Serialize(
@@ -224,6 +238,7 @@ public class {{classname}} : BaseApi
                 {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}
             );
         }
+{{/isDeepObject}}
 {{/queryParams}}
         Dictionary<string, string> headerParams = [];
 {{#headerParams}}

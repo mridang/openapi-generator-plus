@@ -152,6 +152,7 @@ module {{moduleName}}
 
   class ValueSerializer
     def self.serialize: (untyped, Symbol, String, ?collection_format: Symbol?) -> untyped
+    def self.serialize_deep_object: (String, Hash[String, untyped]?) -> Hash[String, String]
 
     private
 

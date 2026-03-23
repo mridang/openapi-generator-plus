@@ -150,7 +150,7 @@ public sealed class TransportOptionsBuilder
     private int? _timeout;
     private bool _followRedirects = true;
     private int? _maxRedirects;
-    private string? _userAgent;
+    private string? _userAgent = "PetstoreClient/1.0.0 (csharp)";
     private readonly Dictionary<string, string> _defaultHeaders = [];
     private bool _injectRequestId;
 

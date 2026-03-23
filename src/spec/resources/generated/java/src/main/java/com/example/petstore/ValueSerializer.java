@@ -7,7 +7,9 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
 import java.util.Collection;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -103,6 +105,30 @@ public final class ValueSerializer {
    * @param value the value to stringify (must not be null)
    * @return the string representation
    */
+  /**
+   * Serialize a deepObject-style query parameter.
+   *
+   * <p>Produces a map of flattened keys in the form {@code paramName[key]} to URL-encoded string
+   * values, suitable for inclusion in a query string.
+   *
+   * @param paramName the parameter name (e.g. "filter")
+   * @param value the map value to serialize
+   * @return a map of expanded keys to serialized values, or an empty map if value is null
+   */
+  public static Map<String, String> serializeDeepObject(
+      String paramName, @Nullable Map<?, ?> value) {
+    Map<String, String> result = new LinkedHashMap<>();
+    if (value == null) {
+      return result;
+    }
+    for (Map.Entry<?, ?> entry : value.entrySet()) {
+      String key = paramName + "[" + entry.getKey() + "]";
+      String val = stringify(entry.getValue());
+      result.put(key, val);
+    }
+    return result;
+  }
+
   private static String stringify(Object value) {
     if (value instanceof Boolean b) {
       return b ? "true" : "false";

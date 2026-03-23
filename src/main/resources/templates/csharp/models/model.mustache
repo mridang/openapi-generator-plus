@@ -159,6 +159,15 @@ public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/
     /// {{{.}}}
     /// </summary>
     {{/description}}
+{{#example}}
+    /// <example>{{{.}}}</example>
+{{/example}}
+{{#isReadOnly}}
+    /// <remarks>This property is read-only.</remarks>
+{{/isReadOnly}}
+{{#isWriteOnly}}
+    /// <remarks>This property is write-only.</remarks>
+{{/isWriteOnly}}
 {{#deprecated}}
     /// <remarks>Deprecated.</remarks>
     [Obsolete("This property is deprecated.")]
@@ -169,6 +178,11 @@ public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/
 
 {{/-last}}
     {{/vars}}
+{{#isAdditionalPropertiesTrue}}
+
+    [JsonExtensionData]
+    public Dictionary<string, object>? AdditionalProperties { get; set; }
+{{/isAdditionalPropertiesTrue}}
 }
 {{/hasRequired}}
 {{^hasRequired}}
@@ -205,6 +219,15 @@ public class {{classname}}{{#parent}} : {{{.}}}{{/parent}}
     /// {{{.}}}
     /// </summary>
     {{/description}}
+{{#example}}
+    /// <example>{{{.}}}</example>
+{{/example}}
+{{#isReadOnly}}
+    /// <remarks>This property is read-only.</remarks>
+{{/isReadOnly}}
+{{#isWriteOnly}}
+    /// <remarks>This property is write-only.</remarks>
+{{/isWriteOnly}}
 {{#deprecated}}
     /// <remarks>Deprecated.</remarks>
     [Obsolete("This property is deprecated.")]
@@ -215,6 +238,11 @@ public class {{classname}}{{#parent}} : {{{.}}}{{/parent}}
 
 {{/-last}}
     {{/vars}}
+{{#isAdditionalPropertiesTrue}}
+
+    [JsonExtensionData]
+    public Dictionary<string, object>? AdditionalProperties { get; set; }
+{{/isAdditionalPropertiesTrue}}
 }
 {{/hasRequired}}
 {{/anyOf}}

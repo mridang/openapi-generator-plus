@@ -232,6 +232,15 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
      * @var {{{dataType}}}|null
 {{/required}}
 {{/isContainer}}
+{{#example}}
+     * @example {{{.}}}
+{{/example}}
+{{#isReadOnly}}
+     * @readonly
+{{/isReadOnly}}
+{{#isWriteOnly}}
+     * @writeOnly
+{{/isWriteOnly}}
 {{#deprecated}}
      * @deprecated This property is deprecated.
 {{/deprecated}}
@@ -263,29 +272,45 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{#deprecated}}
     /** @deprecated This property is deprecated. */
 {{/deprecated}}
+{{^deprecated}}
+{{#example}}
+    /** @example {{{.}}} */
+{{/example}}
+{{#isReadOnly}}
+    /** @readonly */
+{{/isReadOnly}}
+{{#isWriteOnly}}
+    /** @writeOnly */
+{{/isWriteOnly}}
+{{/deprecated}}
 {{/isContainer}}
 {{/description}}
     #[SerializedName('{{{baseName}}}')]
 {{#required}}
 {{#isContainer}}
-    public array ${{name}};
+    public array ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
 {{/isContainer}}
 {{^isContainer}}
-    public {{{dataType}}} ${{name}};
+    public {{{dataType}}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
 {{/isContainer}}
 {{/required}}
 {{^required}}
 {{#isContainer}}
-    public ?array ${{name}} = null;
+    public ?array ${{name}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}};
 {{/isContainer}}
 {{^isContainer}}
-    public ?{{{dataType}}} ${{name}} = null;
+    public ?{{{dataType}}} ${{name}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}};
 {{/isContainer}}
 {{/required}}
 {{^-last}}
 
 {{/-last}}
 {{/vars}}
+{{#isAdditionalPropertiesTrue}}
+
+    /** @var array<string, mixed> */
+    public array $additionalProperties = [];
+{{/isAdditionalPropertiesTrue}}
 
     /**
 {{#requiredVars}}
@@ -302,18 +327,18 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
     public function __construct(
 {{#requiredVars}}
 {{#isContainer}}
-        array ${{name}},
+        array ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}},
 {{/isContainer}}
 {{^isContainer}}
-        {{{dataType}}} ${{name}},
+        {{{dataType}}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}},
 {{/isContainer}}
 {{/requiredVars}}
 {{#optionalVars}}
 {{#isContainer}}
-        ?array ${{name}} = null,
+        ?array ${{name}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}},
 {{/isContainer}}
 {{^isContainer}}
-        ?{{{dataType}}} ${{name}} = null,
+        ?{{{dataType}}} ${{name}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}},
 {{/isContainer}}
 {{/optionalVars}}
     ) {

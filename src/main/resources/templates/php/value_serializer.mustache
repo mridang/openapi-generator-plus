@@ -73,6 +73,32 @@ final class ValueSerializer
      *
      * @return string the string representation
      */
+    /**
+     * Serialize a deepObject-style query parameter.
+     *
+     * Produces an associative array of flattened keys in the form
+     * `paramName[key]` to stringified values, suitable for inclusion
+     * in a query string.
+     *
+     * @param string              $paramName the parameter name (e.g. 'filter')
+     * @param array<string,mixed>|null $value the associative array to serialize
+     *
+     * @return array<string,string> expanded keys to serialized values
+     */
+    public static function serializeDeepObject(string $paramName, ?array $value): array
+    {
+        $result = [];
+        if ($value === null) {
+            return $result;
+        }
+
+        foreach ($value as $key => $val) {
+            $result[$paramName . '[' . $key . ']'] = self::stringify($val);
+        }
+
+        return $result;
+    }
+
     private static function stringify(mixed $value): string
     {
         if ($value === null) {

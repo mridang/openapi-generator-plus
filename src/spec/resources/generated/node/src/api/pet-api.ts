@@ -199,22 +199,30 @@ export class PetApi extends BaseApi {
   /**
    * Finds Pets by status
    * @param options.status Status values that need to be considered for filter (optional) (deprecated)
+   * @param options.filter Filter criteria as key-value pairs (optional)
    * @return Array<Pet>
    * @deprecated This operation is deprecated.
    * @see {@link https://example.com/docs/filtering} Find out more about filtering
    */
-  async findPetsByStatus(options: { status?: string }): Promise<Array<Pet>> {
+  async findPetsByStatus(options: { status?: string; filter?: { [key: string]: string } }): Promise<Array<Pet>> {
     return (await this.findPetsByStatusWithHttpInfo(options)).data as Array<Pet>;
   }
 
   /**
    * Finds Pets by status (with HTTP info)
    */
-  async findPetsByStatusWithHttpInfo(options: { status?: string }): Promise<ApiResult<Array<Pet>>> {
+  async findPetsByStatusWithHttpInfo(options: {
+    status?: string;
+    filter?: { [key: string]: string };
+  }): Promise<ApiResult<Array<Pet>>> {
     const path = `/pet/findByStatus`;
     const queryParams: Record<string, unknown> = {};
     if (options.status != null) {
       queryParams['status'] = ValueSerializer.serialize(options.status, 'query', 'string');
+    }
+    if (options.filter != null) {
+      const deepObj = ValueSerializer.serializeDeepObject('filter', options.filter as Record<string, unknown>);
+      Object.assign(queryParams, deepObj);
     }
     const headerParams: Record<string, string> = {};
     return await this.invokeApiForResult(

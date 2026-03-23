@@ -10,8 +10,8 @@ module PetstoreClient
       def delete_pet_with_http_info: (::PetstoreClient::Auth::Authenticator auth, Integer pet_id) -> ::PetstoreClient::ApiResult
       def download_pet_document: (Integer pet_id, Integer document_id) -> untyped
       def download_pet_document_with_http_info: (Integer pet_id, Integer document_id) -> ::PetstoreClient::ApiResult
-      def find_pets_by_status: (?status: String?) -> untyped
-      def find_pets_by_status_with_http_info: (?status: String?) -> ::PetstoreClient::ApiResult
+      def find_pets_by_status: (?status: String?, ?filter: Hash[String, String]?) -> untyped
+      def find_pets_by_status_with_http_info: (?status: String?, ?filter: Hash[String, String]?) -> ::PetstoreClient::ApiResult
       def get_pet_avatar: (Integer pet_id) -> untyped
       def get_pet_avatar_with_http_info: (Integer pet_id) -> ::PetstoreClient::ApiResult
       def get_pet_avatar_thumbnail: (Integer pet_id) -> untyped

@@ -191,29 +191,34 @@ class PetApi extends BaseApi
     /**
      * Finds Pets by status
      * @param string|null $status Status values that need to be considered for filter
+     * @param array<string,string>|null $filter Filter criteria as key-value pairs
      * @return \PetstoreClient\Models\Pet[]
      * @throws ApiException
      * @deprecated This operation is deprecated.
      * @see https://example.com/docs/filtering Find out more about filtering
      */
-    public function findPetsByStatus(?string $status = null)
+    public function findPetsByStatus(?string $status = null, ?array $filter = null)
     {
         /** @var \PetstoreClient\Models\Pet[] $result */
-        $result = $this->findPetsByStatusWithHttpInfo($status)->data;
+        $result = $this->findPetsByStatusWithHttpInfo($status, $filter)->data;
         return $result;
     }
 
     /**
      * @param string|null $status Status values that need to be considered for filter
+     * @param array<string,string>|null $filter Filter criteria as key-value pairs
      * @return ApiResult<\PetstoreClient\Models\Pet[]>
      * @throws ApiException
      */
-    public function findPetsByStatusWithHttpInfo(?string $status = null): ApiResult
+    public function findPetsByStatusWithHttpInfo(?string $status = null, ?array $filter = null): ApiResult
     {
         $path = '/pet/findByStatus';
         $queryParams = [];
         if ($status !== null) {
             $queryParams['status'] = ValueSerializer::serialize($status, 'query', 'string');
+        }
+        if ($filter !== null) {
+            $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('filter', $filter));
         }
         $headerParams = [];
         $requestBody = null;

@@ -163,8 +163,14 @@ class {{classname}}(BaseApi):
         path = path.replace('{' + '{{baseName}}' + '}', str(ValueSerializer.serialize({{paramName}}, 'path', '{{dataType}}'))){{/pathParams}}
         query_params: Dict[str, Any] = {}
 {{#queryParams}}
+{{#isDeepObject}}
+        if {{paramName}} is not None:
+            query_params.update(ValueSerializer.serialize_deep_object('{{baseName}}', {{paramName}}))
+{{/isDeepObject}}
+{{^isDeepObject}}
         if {{paramName}} is not None:
             query_params['{{baseName}}'] = ValueSerializer.serialize({{paramName}}, 'query', '{{dataType}}'{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}})
+{{/isDeepObject}}
 {{/queryParams}}
         header_params: Dict[str, str] = {}
 {{#headerParams}}

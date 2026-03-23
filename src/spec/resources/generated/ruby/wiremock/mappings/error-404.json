@@ -1,0 +1,16 @@
+{
+  "request": {
+    "method": "GET",
+    "url": "/api/error/404"
+  },
+  "response": {
+    "status": 404,
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "jsonBody": {
+      "code": 404,
+      "message": "not found"
+    }
+  }
+}

@@ -26,7 +26,7 @@ public class PetApiTest
     [Fact]
     public async Task TestAddPet()
     {
-        var pet = new Pet("TestDog", new List<string> { "http://example.com/photo.jpg" })
+        var pet = new Pet("TestDog", new HashSet<string> { "http://example.com/photo.jpg" })
         {
             Id = 12345L,
             Status = Pet.StatusEnum.Available,
@@ -61,7 +61,7 @@ public class PetApiTest
     [Fact]
     public async Task TestUpdatePet()
     {
-        var pet = new Pet("UpdatedDog", new List<string> { "http://example.com/updated.jpg" })
+        var pet = new Pet("UpdatedDog", new HashSet<string> { "http://example.com/updated.jpg" })
         {
             Id = 1L,
             Status = Pet.StatusEnum.Pending,

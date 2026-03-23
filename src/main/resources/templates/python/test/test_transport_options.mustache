@@ -13,7 +13,7 @@ class TestTransportOptions:
         assert opts.timeout is None
         assert opts.follow_redirects is True
         assert opts.max_redirects is None
-        assert opts.user_agent is None
+        assert opts.user_agent == "{{userAgentDefault}}"
         assert len(opts.default_headers) == 0
         assert opts.inject_request_id is False
 

@@ -277,6 +277,7 @@ public class PetApi extends BaseApi {
   public static final class FindPetsByStatusOptions {
 
     @Nullable private String status;
+    @Nullable private Map<String, String> filter;
 
     public FindPetsByStatusOptions() {}
 
@@ -288,6 +289,16 @@ public class PetApi extends BaseApi {
     @Nullable
     public String status() {
       return status;
+    }
+
+    public FindPetsByStatusOptions filter(Map<String, String> filter) {
+      this.filter = filter;
+      return this;
+    }
+
+    @Nullable
+    public Map<String, String> filter() {
+      return filter;
     }
   }
 
@@ -314,6 +325,9 @@ public class PetApi extends BaseApi {
     if (options.status() != null) {
       queryParams.put(
           "status", ValueSerializer.serialize(options.status(), "query", "String", null));
+    }
+    if (options.filter() != null) {
+      queryParams.putAll(ValueSerializer.serializeDeepObject("filter", options.filter()));
     }
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(

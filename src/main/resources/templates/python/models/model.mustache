@@ -192,10 +192,10 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
     # .. deprecated:: This property is deprecated.
 {{/deprecated}}
 {{#required}}
-    {{name}}: {{{dataType}}} = Field(alias='{{{baseName}}}')
+    {{name}}: {{{dataType}}} = Field(alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#example}}, examples=[{{{.}}}]{{/example}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#defaultValue}}, default={{{.}}}{{/defaultValue}})
 {{/required}}
 {{^required}}
-    {{name}}: Optional[{{{dataType}}}] = Field(default=None, alias='{{{baseName}}}')
+    {{name}}: Optional[{{{dataType}}}] = Field(default={{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}None{{/defaultValue}}, alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#example}}, examples=[{{{.}}}]{{/example}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}})
 {{/required}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}

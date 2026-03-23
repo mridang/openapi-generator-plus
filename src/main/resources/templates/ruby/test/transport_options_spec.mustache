@@ -13,7 +13,7 @@ describe {{moduleName}}::TransportOptions do
     _(opts.timeout).must_be_nil
     _(opts.follow_redirects).must_equal true
     _(opts.max_redirects).must_be_nil
-    _(opts.user_agent).must_be_nil
+    _(opts.user_agent).must_equal '{{userAgentDefault}}'
     _(opts.default_headers).must_be_empty
     _(opts.inject_request_id).must_equal false
   end

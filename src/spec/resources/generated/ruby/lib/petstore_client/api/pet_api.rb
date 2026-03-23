@@ -205,15 +205,16 @@ module PetstoreClient
 
       # Finds Pets by status
       # @param status [String] Status values that need to be considered for filter (optional) (deprecated)
+      # @param filter [Hash<String, String>] Filter criteria as key-value pairs (optional)
       # @return [Array<Pet>]
       # @deprecated This operation is deprecated.
       # @see https://example.com/docs/filtering Find out more about filtering
-      def find_pets_by_status(status: nil)
-        find_pets_by_status_with_http_info(status: status).data
+      def find_pets_by_status(status: nil, filter: nil)
+        find_pets_by_status_with_http_info(status: status, filter: filter).data
       end
 
       # @return [ApiResult]
-      def find_pets_by_status_with_http_info(status: nil)
+      def find_pets_by_status_with_http_info(status: nil, filter: nil)
         path = '/pet/findByStatus'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -221,6 +222,7 @@ module PetstoreClient
           query_params['status'] =
             PetstoreClient::ValueSerializer.serialize(status, :query, 'String')
         end
+        query_params.merge!(PetstoreClient::ValueSerializer.serialize_deep_object('filter', filter)) unless filter.nil?
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil

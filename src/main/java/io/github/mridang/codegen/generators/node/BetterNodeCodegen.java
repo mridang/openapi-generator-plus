@@ -37,8 +37,6 @@ import org.slf4j.LoggerFactory;
 public class BetterNodeCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterNodeCodegen.class);
-    private static final int PRETTIER_PRINT_WIDTH = 120;
-
     public BetterNodeCodegen() {
         outputFolder = "generated-code/typescript";
         embeddedTemplateDir = templateDir = "templates/node";
@@ -98,6 +96,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     @Override
     public void processOpts() {
         super.processOpts();
+        additionalProperties.put("userAgentDefault", "openapi-typescript-client/1.0.0 (node)");
 
         this.apiPackage = "api";
 
@@ -219,7 +218,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                             "default-api-client-unit.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/transport-options.test.ts",
+                            "test/transport-options.test.mustache",
                             "tests",
                             "transport-options.test.ts"));
             supportingFiles.add(
@@ -375,6 +374,16 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
             }
         }
         return sb.length() > 0 ? sb.toString() : value;
+    }
+
+    @Override
+    public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
+        super.postProcessModelProperty(model, property);
+        if (property.isArray && property.getUniqueItems()) {
+            property.datatypeWithEnum =
+                    property.datatypeWithEnum.replaceFirst("^Array<", "Set<");
+            property.dataType = property.dataType.replaceFirst("^Array<", "Set<");
+        }
     }
 
     @Override
@@ -554,54 +563,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                 changed = true;
             }
 
-            // Reformat lines exceeding 120 chars to match prettier output
-            List<String> formatted = new ArrayList<>(result.size());
-            for (String line : result) {
-                if (line.length() > 120) {
-                    List<String> broken = breakLongLine(line);
-                    if (broken.size() > 1) {
-                        formatted.addAll(broken);
-                        changed = true;
-                        continue;
-                    }
-                }
-                formatted.add(line);
-            }
-            result = formatted;
-
-            // Collapse short multi-line invokeApiForResult calls to match prettier output
-            List<String> collapsed = new ArrayList<>(result.size());
-            for (int i = 0; i < result.size(); i++) {
-                String line = result.get(i);
-                if (line.stripTrailing().endsWith("this.invokeApiForResult(")) {
-                    String indent = line.substring(0, line.indexOf(line.stripLeading()));
-                    StringBuilder sb = new StringBuilder(line.stripTrailing());
-                    int j = i + 1;
-                    while (j < result.size()) {
-                        String next = result.get(j).trim();
-                        if (next.equals(");")) {
-                            sb.append(");");
-                            break;
-                        }
-                        if (next.endsWith(",")) {
-                            sb.append(next, 0, next.length() - 1).append(", ");
-                        } else {
-                            sb.append(next);
-                        }
-                        j++;
-                    }
-                    String oneLine = indent + sb.toString().stripLeading();
-                    if (oneLine.length() <= PRETTIER_PRINT_WIDTH && j < result.size()) {
-                        collapsed.add(oneLine);
-                        i = j;
-                        changed = true;
-                        continue;
-                    }
-                }
-                collapsed.add(line);
-            }
-            result = collapsed;
-
             if (changed) {
                 Files.write(file.toPath(), result, StandardCharsets.UTF_8);
             }
@@ -610,65 +571,12 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
         }
     }
 
-    private static final java.util.regex.Pattern METHOD_SIG_PATTERN =
-            java.util.regex.Pattern.compile(
-                    "^(\\s+async\\s+\\w+)\\((.+)\\):\\s*(Promise<.+>)\\s*\\{$");
-
-    private static final java.util.regex.Pattern VOID_INVOKE_PATTERN =
-            java.util.regex.Pattern.compile(
-                    "^(\\s+)\\(await this\\.invokeApi\\((.+)\\)\\) as void;$");
-
-    private static final java.util.regex.Pattern TYPE_EXPORT_PATTERN =
-            java.util.regex.Pattern.compile(
-                    "^(export type \\w+) = (.+);$");
-
-    private List<String> breakLongLine(String line) {
-        java.util.regex.Matcher m;
-
-        // Break long method signatures: async foo(p1: T1, p2: T2): Promise<R> {
-        m = METHOD_SIG_PATTERN.matcher(line);
-        if (m.matches()) {
-            String prefix = m.group(1);
-            String params = m.group(2);
-            String returnType = m.group(3);
-            String indent = prefix.replaceAll("\\S.*", "");
-            List<String> broken = new ArrayList<>();
-            broken.add(prefix + "(");
-            String[] parts = params.split(",\\s*");
-            for (int i = 0; i < parts.length; i++) {
-                broken.add(indent + "  " + parts[i] + (i < parts.length - 1 ? "," : ""));
-            }
-            broken.add(indent + "): " + returnType + " {");
-            return broken;
-        }
-
-        // Break long void invokeApi calls
-        m = VOID_INVOKE_PATTERN.matcher(line);
-        if (m.matches()) {
-            String indent = m.group(1);
-            String args = m.group(2);
-            List<String> broken = new ArrayList<>();
-            broken.add(indent + "(await this.invokeApi(");
-            String[] parts = args.split(",\\s*");
-            for (int i = 0; i < parts.length; i++) {
-                broken.add(indent + "  " + parts[i] + (i < parts.length - 1 ? "," : ""));
-            }
-            broken.add(indent + ")) as void;");
-            return broken;
-        }
-
-        // Break long type exports: export type X = (typeof X)[keyof typeof X];
-        m = TYPE_EXPORT_PATTERN.matcher(line);
-        if (m.matches()) {
-            String prefix = m.group(1);
-            String value = m.group(2);
-            List<String> broken = new ArrayList<>();
-            broken.add(prefix + " =");
-            broken.add("  " + value + ";");
-            return broken;
-        }
-
-        return List.of(line);
+    @Override
+    public void postProcess() {
+        runFormatterInDocker(
+                "node:24-slim",
+                "npm install --ignore-scripts",
+                "npx prettier --write 'src/**/*.ts'",
+                "rm -rf node_modules");
     }
-
 }

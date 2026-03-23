@@ -100,6 +100,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         packageName = getPropertyOrDefault("packageName", packageName);
         packageVersion =
                 getPropertyOrDefault(CodegenConstants.PACKAGE_VERSION, packageVersion);
+        additionalProperties.put("userAgentDefault", packageName + "/" + packageVersion + " (python)");
 
         modelPackage = packageName + ".models";
         apiPackage = packageName + ".api";
@@ -284,6 +285,16 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     @Override
     protected String formatMapType(String containerType, String keyType, String valueType) {
         return containerType + "[" + keyType + ", " + valueType + "]";
+    }
+
+    @Override
+    public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
+        super.postProcessModelProperty(model, property);
+        if (property.isArray && property.getUniqueItems()) {
+            property.datatypeWithEnum =
+                    property.datatypeWithEnum.replaceFirst("^[Ll]ist\\[", "set[");
+            property.dataType = property.dataType.replaceFirst("^[Ll]ist\\[", "set[");
+        }
     }
 
     @Override
@@ -473,11 +484,8 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         }
         try {
             String content = Files.readString(file.toPath());
+            // Fix Mustache whitespace in f-string braces: { 'string' } → {'string'}
             String trimmed = content.replaceAll("\\{ ('.*?') }", "{$1}");
-            trimmed = trimmed.replaceAll("(?m)[ \\t]+$", "");
-            trimmed = trimmed.replaceAll("\\n{4,}", "\n\n\n");
-            trimmed = breakLongRaises(trimmed);
-            trimmed = trimmed.replaceAll("\\n+$", "\n");
             if (!trimmed.equals(content)) {
                 Files.write(file.toPath(), trimmed.getBytes(StandardCharsets.UTF_8));
             }
@@ -486,30 +494,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         }
     }
 
-    private static String breakLongRaises(String content) {
-        if (content.isEmpty()) {
-            return content;
-        }
-        StringBuilder sb = new StringBuilder();
-        for (String line : content.split("\n", -1)) {
-            if (line.length() > 120
-                    && line.stripLeading().startsWith("raise ValueError(\"")
-                    && line.stripTrailing().endsWith("\")")) {
-                String indent = line.substring(0, line.indexOf('r'));
-                int msgStart = line.indexOf("(\"") + 1;
-                int msgEnd = line.lastIndexOf("\")") + 1;
-                String msg = line.substring(msgStart, msgEnd);
-                sb.append(indent).append("raise ValueError(\n");
-                sb.append(indent).append("    ").append(msg).append("\n");
-                sb.append(indent).append(")");
-            } else {
-                sb.append(line);
-            }
-            sb.append("\n");
-        }
-        if (sb.length() > 0 && content.charAt(content.length() - 1) != '\n') {
-            sb.setLength(sb.length() - 1);
-        }
-        return sb.toString();
+    @Override
+    public void postProcess() {
+        runFormatterInDocker(
+                "python:3-slim",
+                "pip install --quiet ruff",
+                "ruff format .");
     }
 }

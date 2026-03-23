@@ -45,7 +45,7 @@ final class TransportOptionsBuilder
     private ?int $maxRedirects = null;
 
     /** @var string|null Custom User-Agent header value. */
-    private ?string $userAgent = null;
+    private ?string $userAgent = 'PetstoreClient/1.0.0 (php)';
 
     /** @var array<string, string> Transport-level default headers. */
     private array $defaultHeaders = [];

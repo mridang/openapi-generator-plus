@@ -5,16 +5,13 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.HashSet;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenModel;
+import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.utils.StringUtils;
 import org.slf4j.Logger;
@@ -55,6 +52,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         typeMapping.put("object", "Object");
         typeMapping.put("AnyType", "Object");
         typeMapping.put("array", "List");
+        typeMapping.put("set", "HashSet");
         typeMapping.put("map", "Dictionary");
         typeMapping.put("File", "System.IO.Stream");
         typeMapping.put("file", "System.IO.Stream");
@@ -66,6 +64,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                                 "byte[]", "void", "Object", "DateOnly", "DateTimeOffset", "Guid"));
 
         instantiationTypes.put("array", "List");
+        instantiationTypes.put("set", "HashSet");
         instantiationTypes.put("map", "Dictionary");
 
         reservedWords = loadReservedWords("/reserved-words/csharp.txt");
@@ -88,6 +87,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         sourceFolder = getPropertyOrDefault(CodegenConstants.SOURCE_FOLDER, sourceFolder);
         packageName = getPropertyOrDefault(CodegenConstants.PACKAGE_NAME, packageName);
         additionalProperties.put("packageName", packageName);
+        additionalProperties.put("userAgentDefault", packageName + "/1.0.0 (csharp)");
 
         modelPackage = "Models";
         apiPackage = "Api";
@@ -277,6 +277,16 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     }
 
     @Override
+    public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
+        super.postProcessModelProperty(model, property);
+        if (property.isArray && property.getUniqueItems()) {
+            property.datatypeWithEnum =
+                    property.datatypeWithEnum.replaceFirst("^List<", "HashSet<");
+            property.dataType = property.dataType.replaceFirst("^List<", "HashSet<");
+        }
+    }
+
+    @Override
     protected String applyVarNameCasing(String name) {
         return StringUtils.camelize(name);
     }
@@ -462,107 +472,11 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         // Per-scheme authenticators are not generated for C#
     }
 
-    private static final int CSHARPIER_PRINT_WIDTH = 100;
-
-    private static final Pattern LONG_ARRAY_PATTERN =
-            Pattern.compile(
-                    "^(    private static readonly string\\[\\] \\w+ =) \\[(.+)\\];$",
-                    Pattern.MULTILINE);
-
-    private static final Pattern LONG_METHOD_PATTERN =
-            Pattern.compile(
-                    "^(    public async \\S+ \\w+)\\((.+)\\)$", Pattern.MULTILINE);
-
-    private static final Pattern LONG_TASK_PATTERN =
-            Pattern.compile(
-                    "^(        Task<.+> task = \\w+)\\((.+)\\);$", Pattern.MULTILINE);
-
     @Override
-    public void postProcessFile(File file, String fileType) {
-        super.postProcessFile(file, fileType);
-        if (file == null || !file.getName().endsWith(".cs")) {
-            return;
-        }
-        try {
-            String content = Files.readString(file.toPath());
-            String trimmed = content;
-            // Remove blank line after opening brace before field declarations
-            trimmed = trimmed.replaceAll("\\{\n\n(    private static)", "{\n$1");
-            // Remove blank lines between consecutive field declarations
-            trimmed = trimmed.replaceAll("(\\];\n)\n(    private static)", "$1$2");
-            // Break long inline array declarations to multi-line
-            trimmed = breakLongLines(LONG_ARRAY_PATTERN, trimmed, BetterCSharpCodegen::breakArray);
-            // Break long method signatures to multi-line
-            trimmed = breakLongLines(LONG_METHOD_PATTERN, trimmed, BetterCSharpCodegen::breakMethod);
-            // Break long task assignment lines to multi-line
-            trimmed = breakLongLines(LONG_TASK_PATTERN, trimmed, BetterCSharpCodegen::breakTask);
-            if (!trimmed.equals(content)) {
-                Files.write(file.toPath(), trimmed.getBytes(StandardCharsets.UTF_8));
-            }
-        } catch (IOException e) {
-            LOGGER.warn("Failed to post-process file: {}", file.getAbsolutePath(), e);
-        }
-    }
-
-    @FunctionalInterface
-    private interface LineBreaker {
-        String breakLine(String prefix, String inner);
-    }
-
-    private static String breakLongLines(Pattern pattern, String content, LineBreaker breaker) {
-        Matcher matcher = pattern.matcher(content);
-        StringBuilder result = new StringBuilder();
-        while (matcher.find()) {
-            if (matcher.group(0).length() <= CSHARPIER_PRINT_WIDTH) {
-                matcher.appendReplacement(result, Matcher.quoteReplacement(matcher.group(0)));
-            } else {
-                matcher.appendReplacement(
-                        result,
-                        Matcher.quoteReplacement(breaker.breakLine(matcher.group(1), matcher.group(2))));
-            }
-        }
-        matcher.appendTail(result);
-        return result.toString();
-    }
-
-    private static String breakArray(String prefix, String elements) {
-        String[] parts = elements.split(", ");
-        StringBuilder sb = new StringBuilder(prefix);
-        sb.append("\n    [\n");
-        for (String part : parts) {
-            sb.append("        ").append(part).append(",\n");
-        }
-        sb.append("    ];");
-        return sb.toString();
-    }
-
-    private static String breakTask(String prefix, String params) {
-        String[] parts = params.split(", ");
-        StringBuilder sb = new StringBuilder(prefix);
-        sb.append("(\n");
-        for (int i = 0; i < parts.length; i++) {
-            sb.append("            ").append(parts[i]);
-            if (i < parts.length - 1) {
-                sb.append(",");
-            }
-            sb.append("\n");
-        }
-        sb.append("        );");
-        return sb.toString();
-    }
-
-    private static String breakMethod(String prefix, String params) {
-        String[] parts = params.split(", ");
-        StringBuilder sb = new StringBuilder(prefix);
-        sb.append("(\n");
-        for (int i = 0; i < parts.length; i++) {
-            sb.append("        ").append(parts[i]);
-            if (i < parts.length - 1) {
-                sb.append(",");
-            }
-            sb.append("\n");
-        }
-        sb.append("    )");
-        return sb.toString();
+    public void postProcess() {
+        runFormatterInDocker(
+                "mcr.microsoft.com/dotnet/sdk:9.0",
+                "dotnet tool restore",
+                "dotnet csharpier .");
     }
 }

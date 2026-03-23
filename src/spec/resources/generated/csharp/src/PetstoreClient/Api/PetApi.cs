@@ -24,6 +24,9 @@ public sealed class FindPetsByStatusOptions
 {
     /// <summary> Status values that need to be considered for filter</summary>
     public string? Status { get; init; }
+
+    /// <summary> Filter criteria as key-value pairs</summary>
+    public Dictionary<string, string>? Filter { get; init; }
 }
 
 /// <summary>
@@ -58,21 +61,32 @@ public sealed class UploadPetDocumentOptions
 public class PetApi : BaseApi
 {
     private static readonly string[] AddPetAccepts = ["application/json"];
+
     private static readonly string[] AddPetPhotosAccepts = ["application/json"];
+
     private static readonly string[] DownloadPetDocumentAccepts = ["application/octet-stream"];
+
     private static readonly string[] FindPetsByStatusAccepts = ["application/json"];
+
     private static readonly string[] GetPetAvatarAccepts = ["image/jpeg", "image/png"];
+
     private static readonly string[] GetPetAvatarThumbnailAccepts = ["application/json"];
+
     private static readonly string[] GetPetByIdAccepts = ["application/json"];
+
     private static readonly string[] GetPetPassportAccepts = ["application/json"];
+
     private static readonly string[] GetPetPhotoAccepts =
     [
         "image/jpeg",
         "image/png",
         "application/json",
     ];
+
     private static readonly string[] UpdatePetAccepts = ["application/json"];
+
     private static readonly string[] UploadPetCertificateAccepts = ["application/json"];
+
     private static readonly string[] UploadPetDocumentAccepts = ["application/json"];
 
     public PetApi()
@@ -294,6 +308,17 @@ public class PetApi : BaseApi
                 "string",
                 null
             );
+        }
+        if (options.Filter != null)
+        {
+            Dictionary<string, string> deepObj = ValueSerializer.SerializeDeepObject(
+                "filter",
+                options.Filter as IDictionary<string, object?>
+            );
+            foreach (KeyValuePair<string, string> entry in deepObj)
+            {
+                queryParams[entry.Key] = entry.Value;
+            }
         }
         Dictionary<string, string> headerParams = [];
         return await InvokeApiForResultAsync<List<Pet>>(

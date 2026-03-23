@@ -255,24 +255,75 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   /**
    * {{{.}}}
    *
+  {{#example}}
+   * <p>Example: {@code {{{.}}}}
+   *
+  {{/example}}
    * @deprecated This property is deprecated.
    */
   {{/description}}
   {{^description}}
+  {{#example}}
+  /**
+   * Example: {@code {{{.}}}}
+   *
+   * @deprecated This property is deprecated.
+   */
+  {{/example}}
+  {{^example}}
   /** @deprecated This property is deprecated. */
+  {{/example}}
   {{/description}}
   @Deprecated
   {{/deprecated}}
   {{^deprecated}}
   {{#description}}
+  {{#example}}
+  /**
+   * {{{description}}}
+   *
+   * <p>Example: {@code {{{example}}}}
+   */
+  {{/example}}
+  {{^example}}
   /** {{{.}}} */
+  {{/example}}
+  {{/description}}
+  {{^description}}
+  {{#example}}
+  /** Example: {@code {{{.}}}} */
+  {{/example}}
   {{/description}}
   {{/deprecated}}
+  {{#isReadOnly}}
+  @JsonProperty(value = "{{baseName}}", access = JsonProperty.Access.READ_ONLY)
+  {{/isReadOnly}}
+  {{#isWriteOnly}}
+  @JsonProperty(value = "{{baseName}}", access = JsonProperty.Access.WRITE_ONLY)
+  {{/isWriteOnly}}
+  {{^isReadOnly}}
+  {{^isWriteOnly}}
   @JsonProperty("{{baseName}}")
+  {{/isWriteOnly}}
+  {{/isReadOnly}}
   @Nullable
   public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
 
 {{/vars}}
+{{#isAdditionalPropertiesTrue}}
+
+  private java.util.Map<String, Object> additionalProperties = new java.util.LinkedHashMap<>();
+
+  @JsonAnySetter
+  public void setAdditionalProperty(String key, Object value) {
+    this.additionalProperties.put(key, value);
+  }
+
+  @JsonAnyGetter
+  public java.util.Map<String, Object> getAdditionalProperties() {
+    return this.additionalProperties;
+  }
+{{/isAdditionalPropertiesTrue}}
 {{#hasRequired}}
 
   public {{classname}}() {}

@@ -9,6 +9,7 @@ import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.oas.models.servers.ServerVariable;
 import io.swagger.v3.oas.models.tags.Tag;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -32,6 +33,8 @@ import org.openapitools.codegen.utils.ModelUtils;
 import org.openapitools.codegen.utils.StringUtils;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Abstract base class for all language-specific code generators. Provides type resolution, enum
@@ -45,6 +48,8 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  */
 public abstract class AbstractBetterCodegen extends DefaultCodegen
         implements UnsupportedFeaturesValidator {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractBetterCodegen.class);
 
     private final Set<String> globalAuthOperationIds = new HashSet<>();
 
@@ -497,5 +502,60 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
             globalAuthOperationIds.add(op.operationId);
         }
         return op;
+    }
+
+    /**
+     * Run formatter commands inside a Docker container. The output directory is bind-mounted into
+     * the container at {@code /app}. Commands are joined with {@code &&} and executed via {@code
+     * sh -c}. Logs output at DEBUG level and warns on failure without throwing, so code generation
+     * succeeds even if Docker is not available.
+     *
+     * @param dockerImage the Docker image to use (e.g. "node:24-slim")
+     * @param commands shell commands to run sequentially inside the container
+     */
+    @SuppressFBWarnings(
+            value = {"COMMAND_INJECTION", "PATH_TRAVERSAL_IN"},
+            justification = "Commands and paths are hardcoded by subclasses, not user input")
+    protected void runFormatterInDocker(String dockerImage, String... commands) {
+        String workDir = getOutputDir();
+        String script = String.join(" && ", commands);
+        List<String> dockerCmd =
+                List.of(
+                        "docker",
+                        "run",
+                        "--rm",
+                        "-v",
+                        workDir + ":/app",
+                        "-w",
+                        "/app",
+                        dockerImage,
+                        "sh",
+                        "-c",
+                        script);
+        try {
+            LOGGER.debug("Running formatter in Docker: {}", dockerCmd);
+            ProcessBuilder pb =
+                    new ProcessBuilder(dockerCmd).directory(new File(workDir)).redirectErrorStream(true);
+            Process process = pb.start();
+            try (BufferedReader reader =
+                    new BufferedReader(
+                            new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                reader.lines().forEach(line -> LOGGER.debug("[formatter] {}", line));
+            }
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                LOGGER.debug(
+                        "Docker formatter {} exited with code {} in {}",
+                        dockerImage,
+                        exitCode,
+                        workDir);
+            }
+        } catch (IOException e) {
+            LOGGER.warn(
+                    "Docker formatter {} failed in {}: {}", dockerImage, workDir, e.getMessage());
+        } catch (InterruptedException e) {
+            LOGGER.warn("Docker formatter {} interrupted in {}", dockerImage, workDir);
+            Thread.currentThread().interrupt();
+        }
     }
 }

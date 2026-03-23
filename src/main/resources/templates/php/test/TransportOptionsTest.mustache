@@ -19,7 +19,7 @@ class TransportOptionsTest extends TestCase
         $this->assertNull($opts->timeout);
         $this->assertTrue($opts->followRedirects);
         $this->assertNull($opts->maxRedirects);
-        $this->assertNull($opts->userAgent);
+        $this->assertSame('{{userAgentDefault}}', $opts->userAgent);
         $this->assertSame([], $opts->defaultHeaders);
         $this->assertFalse($opts->injectRequestId);
     }

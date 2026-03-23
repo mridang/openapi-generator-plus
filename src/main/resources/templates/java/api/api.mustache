@@ -274,9 +274,16 @@ public class {{classname}} extends BaseApi {
                                 (String) ValueSerializer.serialize({{{paramName}}}, "path", "{{dataType}}", null)){{/pathParams}}{{#pathParams}}{{#-last}};{{/-last}}{{/pathParams}}
         Map<String, Object> queryParams = new HashMap<>();
 {{#queryParams}}
+{{#isDeepObject}}
+        if (options.{{paramName}}() != null) {
+            queryParams.putAll(ValueSerializer.serializeDeepObject("{{baseName}}", options.{{paramName}}()));
+        }
+{{/isDeepObject}}
+{{^isDeepObject}}
         if (options.{{paramName}}() != null) {
             queryParams.put("{{baseName}}", ValueSerializer.serialize(options.{{paramName}}(), "query", "{{dataType}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}));
         }
+{{/isDeepObject}}
 {{/queryParams}}
         Map<String, String> headerParams = new HashMap<>();
 {{#headerParams}}

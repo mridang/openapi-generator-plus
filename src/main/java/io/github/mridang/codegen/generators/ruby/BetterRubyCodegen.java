@@ -23,6 +23,8 @@ import java.util.Locale;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenModel;
+import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.utils.ModelUtils;
@@ -87,7 +89,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
 
         instantiationTypes.put("map", "Hash");
         instantiationTypes.put("array", "Array");
-        instantiationTypes.put("set", "Set");
 
         reservedWords = loadReservedWords("/reserved-words/ruby.txt");
     }
@@ -120,6 +121,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         }
         additionalProperties.put(CodegenConstants.GEM_NAME, gemName);
         additionalProperties.put("gemVersion", GEM_VERSION);
+        additionalProperties.put("userAgentDefault", gemName + "/" + GEM_VERSION + " (ruby)");
 
         setModelPackage("models");
         setApiPackage("api");
@@ -520,5 +522,15 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                 LOGGER.warn("Failed to move RBS file {} to {}: {}", filePath, sigPath, e.getMessage());
             }
         }
+    }
+
+    @Override
+    public void postProcess() {
+        runFormatterInDocker(
+                "ruby:3.4",
+                "bundle config set --local path vendor/bundle",
+                "bundle install --quiet",
+                "bundle exec rubocop -A --only Layout",
+                "rm -rf vendor .bundle");
     }
 }

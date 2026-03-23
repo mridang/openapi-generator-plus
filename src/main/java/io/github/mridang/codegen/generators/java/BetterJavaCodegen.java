@@ -135,6 +135,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         sourceFolder = getPropertyOrDefault(CodegenConstants.SOURCE_FOLDER, sourceFolder);
         invokerPackage = getPropertyOrDefault(CodegenConstants.INVOKER_PACKAGE, invokerPackage);
         additionalProperties.put("invokerPackage", invokerPackage);
+        additionalProperties.put("userAgentDefault", invokerPackage + "/1.0.0 (java)");
 
         String invokerFolder =
                 sourceFolder + File.separator + invokerPackage.replace(".", File.separator);
@@ -371,8 +372,22 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             }
             if (property.isContainer) {
                 if (property.isArray) {
-                    model.imports.add("ArrayList");
-                    model.imports.add("Arrays");
+                    if (property.getUniqueItems()) {
+                        property.datatypeWithEnum =
+                                property.datatypeWithEnum.replaceFirst("^List<", "LinkedHashSet<");
+                        property.dataType =
+                                property.dataType.replaceFirst("^List<", "LinkedHashSet<");
+                        property.defaultValue =
+                                property.defaultValue != null
+                                        ? property.defaultValue.replace(
+                                                "new ArrayList<>(",
+                                                "new LinkedHashSet<>(")
+                                        : property.defaultValue;
+                        model.imports.add("LinkedHashSet");
+                    } else {
+                        model.imports.add("ArrayList");
+                        model.imports.add("Arrays");
+                    }
                 }
                 if (property.isMap) {
                     model.imports.add("HashMap");

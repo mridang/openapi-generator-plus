@@ -56,6 +56,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         typeMapping.put("object", "object");
         typeMapping.put("AnyType", "mixed");
         typeMapping.put("array", "array");
+        typeMapping.put("set", "array");
         typeMapping.put("map", "array");
         typeMapping.put("list", "array");
         typeMapping.put("file", "\\SplFileObject");
@@ -102,6 +103,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
 
         invokerPackage = getPropertyOrDefault(CodegenConstants.INVOKER_PACKAGE, invokerPackage);
         additionalProperties.put("invokerPackage", invokerPackage);
+        additionalProperties.put("userAgentDefault", invokerPackage + "/1.0.0 (php)");
 
         apiPackage = invokerPackage + "\\" + API_DIR_NAME;
         modelPackage = invokerPackage + "\\" + MODEL_DIR_NAME;
@@ -550,5 +552,14 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             return input;
         }
         return super.escapeText(input).trim();
+    }
+
+    @Override
+    public void postProcess() {
+        runFormatterInDocker(
+                "composer:2",
+                "COMPOSER_PROCESS_TIMEOUT=600 composer install --no-interaction --prefer-dist",
+                "vendor/bin/phpcbf || true",
+                "rm -rf vendor");
     }
 }

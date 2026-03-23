@@ -87,10 +87,15 @@ module {{moduleName}}
         # @type var query_params: Hash[String, untyped]
         query_params = {}
 {{#queryParams}}
+{{#isDeepObject}}
+        query_params.merge!({{moduleName}}::ValueSerializer.serialize_deep_object('{{baseName}}', {{paramName}})) unless {{paramName}}.nil?
+{{/isDeepObject}}
+{{^isDeepObject}}
         unless {{paramName}}.nil?
           query_params['{{baseName}}'] =
             {{moduleName}}::ValueSerializer.serialize({{paramName}}, :query, '{{dataType}}'{{#collectionFormat}}, collection_format: :{{collectionFormat}}{{/collectionFormat}})
         end
+{{/isDeepObject}}
 {{/queryParams}}
         # @type var header_params: Hash[String, String]
         header_params = {}

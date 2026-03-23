@@ -49,6 +49,30 @@ export class ValueSerializer {
     return str;
   }
 
+  /**
+   * Serialize a deepObject-style query parameter.
+   *
+   * Produces a record of flattened keys in the form `paramName[key]` to
+   * stringified values, suitable for inclusion in a query string.
+   *
+   * @param paramName the parameter name (e.g. 'filter')
+   * @param value the object value to serialize
+   * @returns a record of expanded keys to serialized values
+   */
+  static serializeDeepObject(
+    paramName: string,
+    value: Record<string, unknown> | null | undefined
+  ): Record<string, string> {
+    const result: Record<string, string> = {};
+    if (value == null) {
+      return result;
+    }
+    for (const [key, val] of Object.entries(value)) {
+      result[`${paramName}[${key}]`] = ValueSerializer.stringify(val);
+    }
+    return result;
+  }
+
   private static stringify(value: unknown): string {
     if (value === null || value === undefined) {
       return '';

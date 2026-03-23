@@ -4,7 +4,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import javax.annotation.Nullable;
 
 /**
@@ -56,7 +58,7 @@ public class Pet {
 
   @JsonProperty("photoUrls")
   @Nullable
-  public List<String> photoUrls = new ArrayList<>();
+  public Set<String> photoUrls = new LinkedHashSet<>();
 
   @JsonProperty("tags")
   @Nullable
@@ -74,7 +76,7 @@ public class Pet {
 
   public Pet() {}
 
-  public Pet(String name, List<String> photoUrls) {
+  public Pet(String name, Set<String> photoUrls) {
     this.name = name;
     this.photoUrls = photoUrls;
   }

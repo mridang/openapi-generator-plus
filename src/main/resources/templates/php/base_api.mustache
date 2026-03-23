@@ -188,6 +188,10 @@ class BaseApi
     /**
      * Throw the appropriate exception subclass for the given error response.
      *
+     * Attempts to deserialize the response body as JSON so that structured
+     * error data (e.g. from a default response schema) is available
+     * via ApiException::getErrorBody().
+     *
      * @throws ApiException always
      */
     private function throwApiException(ApiResponse $response): never
@@ -197,26 +201,35 @@ class BaseApi
         $headers = $response->headers;
         $body = $response->body;
 
+        $errorBody = null;
+        if (trim($body) !== '') {
+            try {
+                $errorBody = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
+            } catch (\JsonException) {
+                /* non-JSON body, errorBody stays null */
+            }
+        }
+
         if ($code >= 400 && $code < 500) {
             throw match ($code) {
-                400 => new BadRequestException($message, $headers, $body),
-                401 => new UnauthorizedException($message, $headers, $body),
-                403 => new ForbiddenException($message, $headers, $body),
-                404 => new NotFoundException($message, $headers, $body),
-                409 => new ConflictException($message, $headers, $body),
-                422 => new UnprocessableEntityException($message, $headers, $body),
-                default => new ClientException($message, $code, $headers, $body),
+                400 => new BadRequestException($message, $headers, $body, $errorBody),
+                401 => new UnauthorizedException($message, $headers, $body, $errorBody),
+                403 => new ForbiddenException($message, $headers, $body, $errorBody),
+                404 => new NotFoundException($message, $headers, $body, $errorBody),
+                409 => new ConflictException($message, $headers, $body, $errorBody),
+                422 => new UnprocessableEntityException($message, $headers, $body, $errorBody),
+                default => new ClientException($message, $code, $headers, $body, $errorBody),
             };
         }
 
         if ($code >= 500) {
             throw match ($code) {
-                500 => new InternalServerErrorException($message, $headers, $body),
-                default => new ServerException($message, $code, $headers, $body),
+                500 => new InternalServerErrorException($message, $headers, $body, $errorBody),
+                default => new ServerException($message, $code, $headers, $body, $errorBody),
             };
         }
 
-        throw new ApiException($message, $code, $headers, $body);
+        throw new ApiException($message, $code, $headers, $body, $errorBody);
     }
 
     /**

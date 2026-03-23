@@ -20,7 +20,7 @@ class TransportOptionsTest {
         assertNull(opts.getTimeout());
         assertTrue(opts.isFollowRedirects());
         assertNull(opts.getMaxRedirects());
-        assertNull(opts.getUserAgent());
+        assertEquals("{{userAgentDefault}}", opts.getUserAgent());
         assertTrue(opts.getDefaultHeaders().isEmpty());
         assertFalse(opts.isInjectRequestId());
     }

@@ -236,24 +236,42 @@ public abstract class BaseApi
         return result.Data;
     }
 
-    private static void ThrowApiException(ApiResponse response)
+    /// <summary>
+    /// Attempts to deserialize the response body as JSON so that structured
+    /// error data (e.g. from a <c>default</c> response schema) is available
+    /// via <see cref="ApiException.ErrorBody"/>.
+    /// </summary>
+    private void ThrowApiException(ApiResponse response)
     {
         int code = response.StatusCode;
         string message = $"API returned status code {code}";
         Dictionary<string, string>? headers = response.Headers;
         string? body = response.Body;
 
+        object? errorBody = null;
+        if (!string.IsNullOrEmpty(body))
+        {
+            try
+            {
+                errorBody = Serializer.Deserialize<object>(body);
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                /* non-JSON body, errorBody stays null */
+            }
+        }
+
         if (code is >= 400 and < 500)
         {
             throw code switch
             {
-                400 => new BadRequestException(message, headers, body),
-                401 => new UnauthorizedException(message, headers, body),
-                403 => new ForbiddenException(message, headers, body),
-                404 => new NotFoundException(message, headers, body),
-                409 => new ConflictException(message, headers, body),
-                422 => new UnprocessableEntityException(message, headers, body),
-                _ => new ClientException(code, message, headers, body),
+                400 => new BadRequestException(message, headers, body, errorBody),
+                401 => new UnauthorizedException(message, headers, body, errorBody),
+                403 => new ForbiddenException(message, headers, body, errorBody),
+                404 => new NotFoundException(message, headers, body, errorBody),
+                409 => new ConflictException(message, headers, body, errorBody),
+                422 => new UnprocessableEntityException(message, headers, body, errorBody),
+                _ => new ClientException(code, message, headers, body, errorBody),
             };
         }
 
@@ -261,12 +279,12 @@ public abstract class BaseApi
         {
             throw code switch
             {
-                500 => new InternalServerErrorException(message, headers, body),
-                _ => new ServerException(code, message, headers, body),
+                500 => new InternalServerErrorException(message, headers, body, errorBody),
+                _ => new ServerException(code, message, headers, body, errorBody),
             };
         }
 
-        throw new ApiException(code, message, headers, body);
+        throw new ApiException(code, message, headers, body, errorBody);
     }
 
     private static string BuildQueryString(Dictionary<string, object?> queryParams)

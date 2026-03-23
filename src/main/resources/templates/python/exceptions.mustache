@@ -103,13 +103,14 @@ class ApiException(OpenApiException):
         *,
         body: Optional[str] = None,
         data: Optional[Any] = None,
+        error_body: Optional[Any] = None,
     ) -> None:
         self.status = status
         self.reason = reason
         self.body = body
         self.data = data
         self.headers: Optional[Any] = None
-        self.error_body = None
+        self.error_body = error_body
 
         if http_resp:
             if self.status is None:

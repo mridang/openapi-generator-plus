@@ -1,0 +1,158 @@
+# frozen_string_literal: true
+
+require 'spec_helper'
+
+describe PetstoreClient::ValueSerializer do
+  describe 'path location' do
+    it 'null returns empty string' do
+      _(PetstoreClient::ValueSerializer.serialize(nil, :path, 'string')).must_equal('')
+    end
+
+    it 'string returns URL-encoded value' do
+      _(PetstoreClient::ValueSerializer.serialize('hello', :path, 'string')).must_equal('hello')
+    end
+
+    it 'string with spaces is URL-encoded' do
+      _(PetstoreClient::ValueSerializer.serialize('hello world', :path, 'string')).must_equal('hello+world')
+    end
+
+    it 'string with slash is URL-encoded' do
+      _(PetstoreClient::ValueSerializer.serialize('a/b', :path, 'string')).must_equal('a%2Fb')
+    end
+
+    it 'integer returns string' do
+      _(PetstoreClient::ValueSerializer.serialize(42, :path, 'integer')).must_equal('42')
+    end
+
+    it 'boolean true returns true' do
+      _(PetstoreClient::ValueSerializer.serialize(true, :path, 'boolean')).must_equal('true')
+    end
+
+    it 'boolean false returns false' do
+      _(PetstoreClient::ValueSerializer.serialize(false, :path, 'boolean')).must_equal('false')
+    end
+  end
+
+  describe 'query location' do
+    it 'null returns nil' do
+      _(PetstoreClient::ValueSerializer.serialize(nil, :query, 'string')).must_be_nil
+    end
+
+    it 'string returns as-is' do
+      _(PetstoreClient::ValueSerializer.serialize('hello', :query, 'string')).must_equal('hello')
+    end
+
+    it 'integer returns string' do
+      _(PetstoreClient::ValueSerializer.serialize(42, :query, 'integer')).must_equal('42')
+    end
+
+    it 'boolean true returns true' do
+      _(PetstoreClient::ValueSerializer.serialize(true, :query, 'boolean')).must_equal('true')
+    end
+
+    it 'boolean false returns false' do
+      _(PetstoreClient::ValueSerializer.serialize(false, :query, 'boolean')).must_equal('false')
+    end
+
+    it 'array joins with comma by default' do
+      _(PetstoreClient::ValueSerializer.serialize(%w[a b c], :query, 'array')).must_equal('a,b,c')
+    end
+
+    it 'array joins with comma for csv' do
+      _(PetstoreClient::ValueSerializer.serialize(%w[a b c], :query, 'array',
+                                                  collection_format: :csv)).must_equal('a,b,c')
+    end
+
+    it 'array joins with space for ssv' do
+      _(PetstoreClient::ValueSerializer.serialize(%w[a b c], :query, 'array',
+                                                  collection_format: :ssv)).must_equal('a b c')
+    end
+
+    it 'array joins with tab for tsv' do
+      _(PetstoreClient::ValueSerializer.serialize(%w[a b c], :query, 'array',
+                                                  collection_format: :tsv)).must_equal("a\tb\tc")
+    end
+
+    it 'array joins with pipe for pipes' do
+      _(PetstoreClient::ValueSerializer.serialize(%w[a b c], :query, 'array',
+                                                  collection_format: :pipes)).must_equal('a|b|c')
+    end
+
+    it 'array returns list for multi' do
+      _(PetstoreClient::ValueSerializer.serialize(%w[a b c], :query, 'array',
+                                                  collection_format: :multi)).must_equal(%w[a b c])
+    end
+
+    it 'empty array returns empty string for csv' do
+      _(PetstoreClient::ValueSerializer.serialize([], :query, 'array')).must_equal('')
+    end
+
+    it 'empty array returns empty list for multi' do
+      _(PetstoreClient::ValueSerializer.serialize([], :query, 'array', collection_format: :multi)).must_equal([])
+    end
+
+    it 'single-element array returns single value' do
+      _(PetstoreClient::ValueSerializer.serialize(['a'], :query, 'array')).must_equal('a')
+    end
+
+    it 'array of integers stringifies elements' do
+      _(PetstoreClient::ValueSerializer.serialize([1, 2, 3], :query, 'array')).must_equal('1,2,3')
+    end
+
+    it 'array of booleans stringifies elements' do
+      _(PetstoreClient::ValueSerializer.serialize([true, false], :query, 'array')).must_equal('true,false')
+    end
+  end
+
+  describe 'header location' do
+    it 'null returns empty string' do
+      _(PetstoreClient::ValueSerializer.serialize(nil, :header, 'string')).must_equal('')
+    end
+
+    it 'string returns as-is' do
+      _(PetstoreClient::ValueSerializer.serialize('hello', :header, 'string')).must_equal('hello')
+    end
+
+    it 'integer returns string' do
+      _(PetstoreClient::ValueSerializer.serialize(42, :header, 'integer')).must_equal('42')
+    end
+
+    it 'boolean true returns true' do
+      _(PetstoreClient::ValueSerializer.serialize(true, :header, 'boolean')).must_equal('true')
+    end
+
+    it 'array joins with comma' do
+      _(PetstoreClient::ValueSerializer.serialize(%w[a b c], :header, 'array')).must_equal('a,b,c')
+    end
+
+    it 'empty array joins to empty string' do
+      _(PetstoreClient::ValueSerializer.serialize([], :header, 'array')).must_equal('')
+    end
+
+    it 'array of integers stringifies and joins' do
+      _(PetstoreClient::ValueSerializer.serialize([1, 2, 3], :header, 'array')).must_equal('1,2,3')
+    end
+  end
+
+  describe 'form location' do
+    it 'null returns empty string' do
+      _(PetstoreClient::ValueSerializer.serialize(nil, :form, 'string')).must_equal('')
+    end
+
+    it 'string returns as-is' do
+      _(PetstoreClient::ValueSerializer.serialize('hello', :form, 'string')).must_equal('hello')
+    end
+
+    it 'integer returns string' do
+      _(PetstoreClient::ValueSerializer.serialize(42, :form, 'integer')).must_equal('42')
+    end
+
+    it 'boolean true returns true' do
+      _(PetstoreClient::ValueSerializer.serialize(true, :form, 'boolean')).must_equal('true')
+    end
+
+    it 'boolean false returns false' do
+      _(PetstoreClient::ValueSerializer.serialize(false, :form, 'boolean')).must_equal('false')
+    end
+  end
+end

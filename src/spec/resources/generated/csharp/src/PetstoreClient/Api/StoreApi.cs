@@ -11,7 +11,9 @@ namespace PetstoreClient.Api;
 public class StoreApi : BaseApi
 {
     private static readonly string[] GetInventoryAccepts = ["application/json"];
+
     private static readonly string[] GetOrderByIdAccepts = ["application/json"];
+
     private static readonly string[] PlaceOrderAccepts = ["application/json"];
 
     public StoreApi()

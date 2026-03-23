@@ -145,7 +145,7 @@ class TransportOptionsBuilder:
         self._timeout: Optional[int] = None
         self._follow_redirects: bool = True
         self._max_redirects: Optional[int] = None
-        self._user_agent: Optional[str] = None
+        self._user_agent: Optional[str] = 'petstore_client/1.0.0 (python)'
         self._default_headers: Dict[str, str] = {}
         self._inject_request_id: bool = False
 

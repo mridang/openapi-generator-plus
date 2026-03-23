@@ -10,7 +10,7 @@ describe('TransportOptions', () => {
     expect(opts.timeout).toBeNull();
     expect(opts.followRedirects).toBe(true);
     expect(opts.maxRedirects).toBeNull();
-    expect(opts.userAgent).toBeNull();
+    expect(opts.userAgent).toBe('{{userAgentDefault}}');
     expect(opts.defaultHeaders).toEqual({});
     expect(opts.injectRequestId).toBe(false);
   });

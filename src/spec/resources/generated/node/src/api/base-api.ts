@@ -176,6 +176,10 @@ export abstract class BaseApi {
 
   /**
    * Throw the appropriate error subclass for the given error response.
+   *
+   * Attempts to parse the response body as JSON so that structured error
+   * data (e.g. from a `default` response schema) is available via
+   * {@link ApiError.errorBody}.
    */
   private throwApiError(response: { statusCode: number; body: string | null; headers: Record<string, string> }): never {
     const code = response.statusCode;
@@ -183,33 +187,42 @@ export abstract class BaseApi {
     const headers = response.headers;
     const body = response.body;
 
+    let errorBody: unknown = null;
+    if (body) {
+      try {
+        errorBody = JSON.parse(body);
+      } catch {
+        /* non-JSON body, errorBody stays null */
+      }
+    }
+
     if (code >= 400 && code < 500) {
       switch (code) {
         case 400:
-          throw new BadRequestError(message, headers, body);
+          throw new BadRequestError(message, headers, body, errorBody);
         case 401:
-          throw new UnauthorizedError(message, headers, body);
+          throw new UnauthorizedError(message, headers, body, errorBody);
         case 403:
-          throw new ForbiddenError(message, headers, body);
+          throw new ForbiddenError(message, headers, body, errorBody);
         case 404:
-          throw new NotFoundError(message, headers, body);
+          throw new NotFoundError(message, headers, body, errorBody);
         case 409:
-          throw new ConflictError(message, headers, body);
+          throw new ConflictError(message, headers, body, errorBody);
         case 422:
-          throw new UnprocessableEntityError(message, headers, body);
+          throw new UnprocessableEntityError(message, headers, body, errorBody);
         default:
-          throw new ClientError(code, message, headers, body);
+          throw new ClientError(code, message, headers, body, errorBody);
       }
     }
     if (code >= 500) {
       switch (code) {
         case 500:
-          throw new InternalServerError(message, headers, body);
+          throw new InternalServerError(message, headers, body, errorBody);
         default:
-          throw new ServerError(code, message, headers, body);
+          throw new ServerError(code, message, headers, body, errorBody);
       }
     }
-    throw new ApiError(code, message, headers, body);
+    throw new ApiError(code, message, headers, body, errorBody);
   }
 
   /**

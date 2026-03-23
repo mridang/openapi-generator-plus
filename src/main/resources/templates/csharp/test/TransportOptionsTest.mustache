@@ -16,7 +16,7 @@ public class TransportOptionsTest
         Assert.Null(opts.Timeout);
         Assert.True(opts.FollowRedirects);
         Assert.Null(opts.MaxRedirects);
-        Assert.Null(opts.UserAgent);
+        Assert.Equal("{{userAgentDefault}}", opts.UserAgent);
         Assert.Empty(opts.DefaultHeaders);
         Assert.False(opts.InjectRequestId);
     }

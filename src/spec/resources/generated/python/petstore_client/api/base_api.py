@@ -203,27 +203,41 @@ class BaseApi:
 
     @staticmethod
     def _throw_api_exception(response: 'ApiResponse') -> None:
-        """Throw the appropriate exception subclass for the given error response."""
+        """Throw the appropriate exception subclass for the given error response.
+
+        Attempts to parse the response body as JSON so that structured error
+        data (e.g. from a ``default`` response schema) is available via
+        :attr:`ApiException.error_body`.
+        """
+        import json as _json
+
         code = response.status_code
         message = f'API returned status code {code}'
         body = response.body
 
+        error_body = None
+        if body:
+            try:
+                error_body = _json.loads(body)
+            except (ValueError, TypeError):
+                pass
+
         if 400 <= code < 500:
             if code == 400:
-                raise BadRequestException(reason=message, body=body)
+                raise BadRequestException(reason=message, body=body, error_body=error_body)
             if code == 401:
-                raise UnauthorizedException(reason=message, body=body)
+                raise UnauthorizedException(reason=message, body=body, error_body=error_body)
             if code == 403:
-                raise ForbiddenException(reason=message, body=body)
+                raise ForbiddenException(reason=message, body=body, error_body=error_body)
             if code == 404:
-                raise NotFoundException(reason=message, body=body)
+                raise NotFoundException(reason=message, body=body, error_body=error_body)
             if code == 409:
-                raise ConflictException(reason=message, body=body)
+                raise ConflictException(reason=message, body=body, error_body=error_body)
             if code == 422:
-                raise UnprocessableEntityException(reason=message, body=body)
-            raise ClientException(status=code, reason=message, body=body)
+                raise UnprocessableEntityException(reason=message, body=body, error_body=error_body)
+            raise ClientException(status=code, reason=message, body=body, error_body=error_body)
         if code >= 500:
             if code == 500:
-                raise InternalServerErrorException(reason=message, body=body)
-            raise ServerException(status=code, reason=message, body=body)
-        raise ApiException(status=code, reason=message, body=body)
+                raise InternalServerErrorException(reason=message, body=body, error_body=error_body)
+            raise ServerException(status=code, reason=message, body=body, error_body=error_body)
+        raise ApiException(status=code, reason=message, body=body, error_body=error_body)

@@ -18,6 +18,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -49,7 +50,7 @@ class PetApiTest {
         Pet pet = new Pet();
         pet.id = 12345L;
         pet.name = "TestDog";
-        pet.photoUrls = List.of("http://example.com/photo.jpg");
+        pet.photoUrls = Set.of("http://example.com/photo.jpg");
         pet.status = Pet.StatusEnum.AVAILABLE;
 
         Pet result = api.addPet(bearerAuth, pet);
@@ -81,7 +82,7 @@ class PetApiTest {
         Pet pet = new Pet();
         pet.id = 1L;
         pet.name = "UpdatedDog";
-        pet.photoUrls = List.of("http://example.com/updated.jpg");
+        pet.photoUrls = Set.of("http://example.com/updated.jpg");
         pet.status = Pet.StatusEnum.PENDING;
 
         Pet result = api.updatePet(1L, pet);

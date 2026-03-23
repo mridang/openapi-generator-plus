@@ -62,6 +62,33 @@ public static class ValueSerializer
     }
 
     /// <summary>
+    /// Serializes a deepObject-style query parameter.
+    /// Produces a dictionary of flattened keys in the form <c>paramName[key]</c> to
+    /// stringified values, suitable for inclusion in a query string.
+    /// </summary>
+    /// <param name="paramName">The parameter name (e.g. "filter").</param>
+    /// <param name="value">The dictionary value to serialize.</param>
+    /// <returns>A dictionary of expanded keys to serialized values.</returns>
+    public static Dictionary<string, string> SerializeDeepObject(
+        string paramName,
+        IDictionary<string, object?>? value
+    )
+    {
+        Dictionary<string, string> result = [];
+        if (value == null)
+        {
+            return result;
+        }
+
+        foreach (KeyValuePair<string, object?> entry in value)
+        {
+            result[$"{paramName}[{entry.Key}]"] = Stringify(entry.Value);
+        }
+
+        return result;
+    }
+
+    /// <summary>
     /// Converts a scalar value to its string representation suitable for HTTP parameter use.
     /// </summary>
     /// <param name="value">The value to convert.</param>

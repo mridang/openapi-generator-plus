@@ -24,5 +24,6 @@ class ConflictException(ClientException):
         *,
         body: Optional[str] = None,
         data: Optional[Any] = None,
+        error_body: Optional[Any] = None,
     ) -> None:
-        super().__init__(status=409, reason=reason, http_resp=http_resp, body=body, data=data)
+        super().__init__(status=409, reason=reason, http_resp=http_resp, body=body, data=data, error_body=error_body)

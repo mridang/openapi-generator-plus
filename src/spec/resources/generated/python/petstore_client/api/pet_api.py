@@ -256,16 +256,18 @@ class PetApi(BaseApi):
         self,
         *,
         status: Optional[str] = None,
+        filter: Optional[Dict[str, str]] = None,
     ) -> List[Pet]:
         """Finds Pets by status
         :param status: Status values that need to be considered for filter (optional, default to available) (deprecated)
+        :param filter: Filter criteria as key-value pairs (optional)
         :return: List[Pet]
         .. deprecated::
             This operation is deprecated.
         .. seealso::
             `Find out more about filtering <https://example.com/docs/filtering>`_
         """
-        result = self.find_pets_by_status_with_http_info(status=status)
+        result = self.find_pets_by_status_with_http_info(status=status, filter=filter)
         assert result.data is not None
         return result.data
 
@@ -273,15 +275,19 @@ class PetApi(BaseApi):
         self,
         *,
         status: Optional[str] = None,
+        filter: Optional[Dict[str, str]] = None,
     ) -> 'ApiResult[List[Pet]]':
         """Finds Pets by status (with HTTP info)
         :param status: Status values that need to be considered for filter (optional)
+        :param filter: Filter criteria as key-value pairs (optional)
         :return: ApiResult containing the response data, status code, raw body, and headers
         """
         path = '/pet/findByStatus'
         query_params: Dict[str, Any] = {}
         if status is not None:
             query_params['status'] = ValueSerializer.serialize(status, 'query', 'str')
+        if filter is not None:
+            query_params.update(ValueSerializer.serialize_deep_object('filter', filter))
         header_params: Dict[str, str] = {}
         body = None
 

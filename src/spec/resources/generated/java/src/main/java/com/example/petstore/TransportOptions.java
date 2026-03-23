@@ -194,7 +194,7 @@ public final class TransportOptions {
     @Nullable private Integer timeout = null;
     private boolean followRedirects = true;
     @Nullable private Integer maxRedirects = null;
-    @Nullable private String userAgent = null;
+    @Nullable private String userAgent = "com.example.petstore/1.0.0 (java)";
     private final Map<String, String> defaultHeaders = new HashMap<>();
     private boolean injectRequestId = false;
 

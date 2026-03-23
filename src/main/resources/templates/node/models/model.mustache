@@ -169,9 +169,39 @@ import { Expose{{#hasTypeDecorator}}, Type{{/hasTypeDecorator}} } from 'class-tr
 {{/isDeprecated}}
 export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#vars}}
+{{#description}}
+  /**
+   * {{{.}}}
+{{#example}}
+   * @example {{{.}}}
+{{/example}}
+{{#isReadOnly}}
+   * @readonly
+{{/isReadOnly}}
+{{#isWriteOnly}}
+   * @writeOnly
+{{/isWriteOnly}}
+{{#deprecated}}
+   * @deprecated This property is deprecated.
+{{/deprecated}}
+   */
+{{/description}}
+{{^description}}
 {{#deprecated}}
   /** @deprecated This property is deprecated. */
 {{/deprecated}}
+{{^deprecated}}
+{{#example}}
+  /** @example {{{.}}} */
+{{/example}}
+{{#isReadOnly}}
+  /** @readonly */
+{{/isReadOnly}}
+{{#isWriteOnly}}
+  /** @writeOnly */
+{{/isWriteOnly}}
+{{/deprecated}}
+{{/description}}
   @Expose({ name: '{{baseName}}' })
 {{^isPrimitiveType}}
 {{^isArray}}
@@ -197,10 +227,14 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/isPrimitiveType}}
 {{/items}}
 {{/isArray}}
-  {{name}}{{^required}}?{{/required}}{{#required}}!{{/required}}: {{{dataType}}};
+  {{name}}{{^required}}?{{/required}}{{#required}}!{{/required}}: {{{dataType}}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
 {{^-last}}
 {{/-last}}
 {{/vars}}
+{{#isAdditionalPropertiesTrue}}
+
+  [key: string]: unknown;
+{{/isAdditionalPropertiesTrue}}
 
   constructor(data?: Partial<{{classname}}>) {
 {{#parent}}

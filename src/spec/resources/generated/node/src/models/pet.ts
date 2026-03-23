@@ -14,7 +14,7 @@ export class Pet {
   @Type(() => Category)
   category?: Category;
   @Expose({ name: 'photoUrls' })
-  photoUrls!: Array<string>;
+  photoUrls!: Set<string>;
   @Expose({ name: 'tags' })
   @Type(() => Tag)
   tags?: Array<Tag>;

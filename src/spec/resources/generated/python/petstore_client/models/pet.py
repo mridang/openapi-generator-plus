@@ -27,7 +27,7 @@ class Pet(BaseModel):
     id: Optional[int] = Field(default=None, alias='id')
     name: str = Field(alias='name')
     category: Optional[Category] = Field(default=None, alias='category')
-    photo_urls: List[str] = Field(alias='photoUrls')
+    photo_urls: Set[str] = Field(alias='photoUrls')
     tags: Optional[List[Tag]] = Field(default=None, alias='tags')
     # .. deprecated:: This property is deprecated.
     status: Optional[str] = Field(default=None, alias='status')

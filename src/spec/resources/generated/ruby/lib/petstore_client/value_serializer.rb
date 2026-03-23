@@ -45,6 +45,26 @@ module PetstoreClient
       end
     end
 
+    # Serialize a deepObject-style query parameter.
+    #
+    # Produces a hash of flattened keys in the form +param_name[key]+ to
+    # stringified values, suitable for inclusion in a query string.
+    #
+    # @param param_name [String] the parameter name (e.g. 'filter')
+    # @param value [Hash, nil] the hash value to serialize
+    # @return [Hash{String => String}] expanded keys to serialized values
+    def self.serialize_deep_object(param_name, value)
+      # @type var empty: Hash[String, String]
+      empty = {}
+      return empty if value.nil?
+
+      # @type var acc: Hash[String, String]
+      acc = {}
+      value.each_with_object(acc) do |(key, val), result|
+        result["#{param_name}[#{key}]"] = stringify(val)
+      end
+    end
+
     private_class_method def self.stringify(value)
       return '' if value.nil?
 

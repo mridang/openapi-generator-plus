@@ -107,7 +107,7 @@ module PetstoreClient
         @timeout = nil
         @follow_redirects = true
         @max_redirects = nil
-        @user_agent = nil
+        @user_agent = 'petstore_client/1.0.0 (ruby)'
         @default_headers = {} #: Hash[String, String] # rubocop:disable Layout/LeadingCommentSpace
         @inject_request_id = false
       end
