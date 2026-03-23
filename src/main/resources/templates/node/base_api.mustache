@@ -71,7 +71,12 @@ export abstract class BaseApi {
     returnType: ((json: unknown) => T) | null,
     auth?: Authenticator | null
   ): Promise<ApiResult<T>> {
-    let url = this.config.baseUrl + path;
+    let url: string;
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      url = path;
+    } else {
+      url = this.config.baseUrl + path;
+    }
 
     if (auth) {
       const authQueryParams = auth.getQueryParams();

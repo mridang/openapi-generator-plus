@@ -6,10 +6,12 @@ import javax.annotation.Nullable;
 @SuppressWarnings("deprecation")
 public class WetFood {
 
+  /** Example: {@code null} */
   @JsonProperty("foodType")
   @Nullable
   public String foodType;
 
+  /** Example: {@code null} */
   @JsonProperty("volumeMl")
   @Nullable
   public Integer volumeMl;

@@ -16,9 +16,11 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class Category
 {
+    /** @example 1 */
     #[SerializedName('id')]
     public ?int $id = null;
 
+    /** @example Dogs */
     #[SerializedName('name')]
     public ?string $name = null;
 

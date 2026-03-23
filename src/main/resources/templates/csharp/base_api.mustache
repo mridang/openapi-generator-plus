@@ -68,7 +68,15 @@ public abstract class BaseApi
     {
         ArgumentNullException.ThrowIfNull(queryParams);
         ArgumentNullException.ThrowIfNull(headerParams);
-        string url = Config.BaseUrl + path;
+        string url;
+        if (path.StartsWith("http://", StringComparison.Ordinal) || path.StartsWith("https://", StringComparison.Ordinal))
+        {
+            url = path;
+        }
+        else
+        {
+            url = Config.BaseUrl + path;
+        }
 
         if (auth is not null)
         {

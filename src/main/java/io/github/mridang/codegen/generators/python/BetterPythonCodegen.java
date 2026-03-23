@@ -295,6 +295,18 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                     property.datatypeWithEnum.replaceFirst("^[Ll]ist\\[", "set[");
             property.dataType = property.dataType.replaceFirst("^[Ll]ist\\[", "set[");
         }
+
+        // Sanitize example values for valid Python syntax
+        if (property.example != null) {
+            if ("null".equals(property.example) || property.example.startsWith("[B@")) {
+                // Java null literal or byte-array toString — not valid Python
+                property.example = null;
+            } else if (property.isString
+                    && !property.example.startsWith("'")
+                    && !property.example.startsWith("\"")) {
+                property.example = "'" + property.example.replace("'", "\\'") + "'";
+            }
+        }
     }
 
     @Override

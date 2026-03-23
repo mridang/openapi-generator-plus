@@ -11,9 +11,11 @@ namespace PetstoreClient.Models;
 
 public class Category
 {
+    /// <example>1</example>
     [JsonPropertyName("id")]
     public long? Id { get; set; }
 
+    /// <example>Dogs</example>
     [JsonPropertyName("name")]
     public string? Name { get; set; }
 }

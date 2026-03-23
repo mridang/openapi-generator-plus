@@ -44,7 +44,10 @@ module PetstoreClient
         JSON_KEY_MAP[key.to_s] || key.to_sym
       end
 
+      # Base64-encoded image data
+      # @example null
       attribute :data, Types::Any
+      # @example image/jpeg
       attribute :mime_type, Types::Any
     end
   end

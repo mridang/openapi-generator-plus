@@ -24,13 +24,13 @@ class Pet(BaseModel):
         `Learn more about the Pet model <https://example.com/docs/pet>`_
     """
 
-    id: Optional[int] = Field(default=None, alias='id')
-    name: str = Field(alias='name')
+    id: Optional[int] = Field(default=None, alias='id', examples=[10])
+    name: str = Field(alias='name', examples=['doggie'])
     category: Optional[Category] = Field(default=None, alias='category')
     photo_urls: Set[str] = Field(alias='photoUrls')
     tags: Optional[List[Tag]] = Field(default=None, alias='tags')
     # .. deprecated:: This property is deprecated.
-    status: Optional[str] = Field(default=None, alias='status')
+    status: Optional[str] = Field(default=None, alias='status', description='pet status in the store')
     additional_properties: Dict[str, Any] = {}
 
     @field_validator('status')

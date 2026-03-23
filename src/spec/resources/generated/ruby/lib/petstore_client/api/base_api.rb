@@ -39,7 +39,11 @@ module PetstoreClient
         method, path, query_params, header_params, body,
         accepts, content_type, return_type, auth = nil
       )
-        url = "#{@config.base_url}#{path}"
+        url = if path.start_with?('http://', 'https://')
+                path
+              else
+                "#{@config.base_url}#{path}"
+              end
 
         auth&.query_params&.each { |k, v| query_params[k] = v }
 

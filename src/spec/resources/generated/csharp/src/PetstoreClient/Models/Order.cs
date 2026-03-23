@@ -24,24 +24,30 @@ public class Order
         Delivered,
     }
 
+    /// <example>10</example>
     [JsonPropertyName("id")]
     public long? Id { get; set; }
 
+    /// <example>198772</example>
     [JsonPropertyName("petId")]
     public long? PetId { get; set; }
 
+    /// <example>7</example>
     [JsonPropertyName("quantity")]
     public int? Quantity { get; set; }
 
+    /// <example>null</example>
     [JsonPropertyName("shipDate")]
     public DateTimeOffset? ShipDate { get; set; }
 
     /// <summary>
     /// Order Status
     /// </summary>
+    /// <example>approved</example>
     [JsonPropertyName("status")]
     public StatusEnum? Status { get; set; }
 
+    /// <example>null</example>
     [JsonPropertyName("complete")]
     public bool? Complete { get; set; }
 }

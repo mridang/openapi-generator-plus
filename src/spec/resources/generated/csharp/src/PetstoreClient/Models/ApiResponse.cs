@@ -11,12 +11,15 @@ namespace PetstoreClient.Models;
 
 public class ApiResponse
 {
+    /// <example>null</example>
     [JsonPropertyName("code")]
     public int? Code { get; set; }
 
+    /// <example>null</example>
     [JsonPropertyName("type")]
     public string? Type { get; set; }
 
+    /// <example>null</example>
     [JsonPropertyName("message")]
     public string? Message { get; set; }
 }

@@ -116,7 +116,12 @@ public abstract class BaseApi {
             @Nullable Authenticator auth)
             throws ApiException {
 
-        String url = config.getBaseUrl() + path;
+        String url;
+        if (path.startsWith("http://") || path.startsWith("https://")) {
+            url = path;
+        } else {
+            url = config.getBaseUrl() + path;
+        }
 
         if (auth != null) {
             for (Map.Entry<String, String> entry : auth.getQueryParams().entrySet()) {

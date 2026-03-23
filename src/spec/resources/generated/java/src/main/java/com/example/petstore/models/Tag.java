@@ -12,10 +12,12 @@ import javax.annotation.Nullable;
 @SuppressWarnings("deprecation")
 public class Tag {
 
+  /** Example: {@code null} */
   @JsonProperty("id")
   @Nullable
   public Long id;
 
+  /** Example: {@code null} */
   @JsonProperty("name")
   @Nullable
   public String name;

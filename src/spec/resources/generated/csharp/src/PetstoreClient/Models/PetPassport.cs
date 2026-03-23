@@ -11,21 +11,25 @@ namespace PetstoreClient.Models;
 
 public class PetPassport
 {
+    /// <example>null</example>
     [JsonPropertyName("pet")]
     public Pet? Pet { get; set; }
 
     /// <summary>
     /// Base64-encoded primary thumbnail
     /// </summary>
+    /// <example>[B@6c149326</example>
     [JsonPropertyName("thumbnail")]
     public byte[]? Thumbnail { get; set; }
 
     /// <summary>
     /// Base64-encoded scans of each passport page
     /// </summary>
+    /// <example>null</example>
     [JsonPropertyName("scans")]
     public List<byte[]>? Scans { get; set; }
 
+    /// <example>null</example>
     [JsonPropertyName("issuedAt")]
     public DateTimeOffset? IssuedAt { get; set; }
 }

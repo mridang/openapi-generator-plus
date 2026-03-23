@@ -11,9 +11,11 @@ namespace PetstoreClient.Models;
 
 public class PhotoMetadataLocation
 {
+    /// <example>null</example>
     [JsonPropertyName("lat")]
     public double? Lat { get; set; }
 
+    /// <example>null</example>
     [JsonPropertyName("lng")]
     public double? Lng { get; set; }
 }

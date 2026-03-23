@@ -140,7 +140,7 @@ public class PetApi extends BaseApi {
    * metadata part is serialised as JSON within the multipart body.
    *
    * @param petId (required)
-   * @param options options for query, header, and form parameters
+   * @param options options for query, header, form, and cookie parameters
    * @return List<Photo>
    * @throws ApiException if fails to make API call
    */
@@ -305,7 +305,7 @@ public class PetApi extends BaseApi {
   /**
    * Finds Pets by status
    *
-   * @param options options for query, header, and form parameters
+   * @param options options for query, header, form, and cookie parameters
    * @return List<Pet>
    * @throws ApiException if fails to make API call
    * @deprecated This operation is deprecated. Find out more about filtering
@@ -674,7 +674,7 @@ public class PetApi extends BaseApi {
    * metadata fields are required alongside the file.
    *
    * @param petId (required)
-   * @param options options for query, header, and form parameters
+   * @param options options for query, header, form, and cookie parameters
    * @return ApiResponse
    * @throws ApiException if fails to make API call
    */
@@ -755,7 +755,7 @@ public class PetApi extends BaseApi {
    * to stream bytes directly.
    *
    * @param petId (required)
-   * @param options options for query, header, and form parameters
+   * @param options options for query, header, form, and cookie parameters
    * @return ApiResponse
    * @throws ApiException if fails to make API call
    */

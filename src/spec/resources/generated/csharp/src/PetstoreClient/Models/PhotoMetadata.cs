@@ -11,15 +11,19 @@ namespace PetstoreClient.Models;
 
 public class PhotoMetadata
 {
+    /// <example>null</example>
     [JsonPropertyName("caption")]
     public string? Caption { get; set; }
 
+    /// <example>null</example>
     [JsonPropertyName("isPrimary")]
     public bool? IsPrimary { get; set; }
 
+    /// <example>null</example>
     [JsonPropertyName("takenAt")]
     public DateTimeOffset? TakenAt { get; set; }
 
+    /// <example>null</example>
     [JsonPropertyName("location")]
     public PhotoMetadataLocation? Location { get; set; }
 }

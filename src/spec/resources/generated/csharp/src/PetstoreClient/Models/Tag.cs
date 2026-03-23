@@ -16,9 +16,11 @@ namespace PetstoreClient.Models;
 [Obsolete("This schema is deprecated.")]
 public class Tag
 {
+    /// <example>null</example>
     [JsonPropertyName("id")]
     public long? Id { get; set; }
 
+    /// <example>null</example>
     [JsonPropertyName("name")]
     public string? Name { get; set; }
 }

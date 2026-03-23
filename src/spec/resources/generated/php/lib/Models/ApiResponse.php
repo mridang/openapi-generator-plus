@@ -16,12 +16,15 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class ApiResponse
 {
+    /** @example null */
     #[SerializedName('code')]
     public ?int $code = null;
 
+    /** @example null */
     #[SerializedName('type')]
     public ?string $type = null;
 
+    /** @example null */
     #[SerializedName('message')]
     public ?string $message = null;
 

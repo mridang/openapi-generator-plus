@@ -6,19 +6,28 @@ import { Expose, Type } from 'class-transformer';
  * @see {@link https://example.com/docs/pet} Learn more about the Pet model
  */
 export class Pet {
+  /** @example 10 */
   @Expose({ name: 'id' })
   id?: number;
+  /** @example doggie */
   @Expose({ name: 'name' })
   name!: string;
+  /** @example null */
   @Expose({ name: 'category' })
   @Type(() => Category)
   category?: Category;
+  /** @example null */
   @Expose({ name: 'photoUrls' })
   photoUrls!: Set<string>;
+  /** @example null */
   @Expose({ name: 'tags' })
   @Type(() => Tag)
   tags?: Array<Tag>;
-  /** @deprecated This property is deprecated. */
+  /**
+   * pet status in the store
+   * @example null
+   * @deprecated This property is deprecated.
+   */
   @Expose({ name: 'status' })
   status?: string;
 

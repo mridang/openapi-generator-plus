@@ -44,7 +44,9 @@ module PetstoreClient
         JSON_KEY_MAP[key.to_s] || key.to_sym
       end
 
+      # @example null
       attribute :food_type, Types::Any
+      # @example null
       attribute :volume_ml, Types::Any
     end
   end

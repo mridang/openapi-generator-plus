@@ -21,8 +21,8 @@ class SetPetAvatarRequest(BaseModel):
     SetPetAvatarRequest
     """
 
-    data: bytes = Field(alias='data')
-    mime_type: str = Field(alias='mimeType')
+    data: bytes = Field(alias='data', description='Base64-encoded image data')
+    mime_type: str = Field(alias='mimeType', examples=['image/jpeg'])
     additional_properties: Dict[str, Any] = {}
 
     model_config = ConfigDict(

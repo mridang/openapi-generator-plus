@@ -25,24 +25,30 @@ public class Pet(string Name, HashSet<string> PhotoUrls)
         Sold,
     }
 
+    /// <example>10</example>
     [JsonPropertyName("id")]
     public long? Id { get; set; }
 
+    /// <example>doggie</example>
     [JsonPropertyName("name")]
     public string Name { get; set; } = Name;
 
+    /// <example>null</example>
     [JsonPropertyName("category")]
     public Category? Category { get; set; }
 
+    /// <example>null</example>
     [JsonPropertyName("photoUrls")]
     public HashSet<string> PhotoUrls { get; set; } = PhotoUrls;
 
+    /// <example>null</example>
     [JsonPropertyName("tags")]
     public List<Tag>? Tags { get; set; }
 
     /// <summary>
     /// pet status in the store
     /// </summary>
+    /// <example>null</example>
     /// <remarks>Deprecated.</remarks>
     [Obsolete("This property is deprecated.")]
     [JsonPropertyName("status")]

@@ -23,12 +23,15 @@ class Pet
     public const STATUS_PENDING = 'pending';
     public const STATUS_SOLD = 'sold';
 
+    /** @example 10 */
     #[SerializedName('id')]
     public ?int $id = null;
 
+    /** @example doggie */
     #[SerializedName('name')]
     public string $name;
 
+    /** @example null */
     #[SerializedName('category')]
     public ?\PetstoreClient\Models\Category $category = null;
 
@@ -42,6 +45,7 @@ class Pet
 
     /**
      * pet status in the store
+     * @example null
      * @deprecated This property is deprecated.
      */
     #[SerializedName('status')]

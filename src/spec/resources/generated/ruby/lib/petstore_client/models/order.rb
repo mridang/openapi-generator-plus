@@ -52,11 +52,18 @@ module PetstoreClient
         JSON_KEY_MAP[key.to_s] || key.to_sym
       end
 
+      # @example 10
       attribute :id, Types::Any.optional.meta(omittable: true)
+      # @example 198772
       attribute :pet_id, Types::Any.optional.meta(omittable: true)
+      # @example 7
       attribute :quantity, Types::Any.optional.meta(omittable: true)
+      # @example null
       attribute :ship_date, Types::Any.optional.meta(omittable: true)
+      # Order Status
+      # @example approved
       attribute :status, Types::Any.optional.meta(omittable: true)
+      # @example null
       attribute :complete, Types::Any.optional.meta(omittable: true)
     end
   end

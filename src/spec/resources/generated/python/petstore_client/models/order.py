@@ -21,11 +21,11 @@ class Order(BaseModel):
     Order
     """
 
-    id: Optional[int] = Field(default=None, alias='id')
-    pet_id: Optional[int] = Field(default=None, alias='petId')
-    quantity: Optional[int] = Field(default=None, alias='quantity')
+    id: Optional[int] = Field(default=None, alias='id', examples=[10])
+    pet_id: Optional[int] = Field(default=None, alias='petId', examples=[198772])
+    quantity: Optional[int] = Field(default=None, alias='quantity', examples=[7])
     ship_date: Optional[datetime] = Field(default=None, alias='shipDate')
-    status: Optional[str] = Field(default=None, alias='status')
+    status: Optional[str] = Field(default=None, alias='status', description='Order Status', examples=['approved'])
     complete: Optional[bool] = Field(default=None, alias='complete')
     additional_properties: Dict[str, Any] = {}
 

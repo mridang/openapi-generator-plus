@@ -16,15 +16,19 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class PhotoMetadata
 {
+    /** @example null */
     #[SerializedName('caption')]
     public ?string $caption = null;
 
+    /** @example null */
     #[SerializedName('isPrimary')]
     public ?bool $isPrimary = null;
 
+    /** @example null */
     #[SerializedName('takenAt')]
     public ?\DateTime $takenAt = null;
 
+    /** @example null */
     #[SerializedName('location')]
     public ?\PetstoreClient\Models\PhotoMetadataLocation $location = null;
 

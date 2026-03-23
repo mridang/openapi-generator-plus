@@ -52,6 +52,9 @@ export class {{classname}} extends BaseApi {
 {{#formParams}}
    * @param options.{{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{/formParams}}
+{{#cookieParams}}
+   * @param options.{{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/cookieParams}}
 {{#returnType}}
    * @return {{{returnType}}}
 {{/returnType}}
@@ -62,7 +65,7 @@ export class {{classname}} extends BaseApi {
    * @see {@link {{url}}} {{description}}
 {{/externalDocs}}
    */
-  async {{nickname}}({{#hasAuthMethods}}auth: Authenticator{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options: { {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options: { {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options: { {{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#queryParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{^-last}}; {{/-last}}{{#-last}}{{#headerParams}}{{#-first}}; {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}; {{/-first}}{{/formParams}}{{/headerParams}}{{/-last}}{{/queryParams}}{{#headerParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{^-last}}; {{/-last}}{{#-last}}{{#formParams}}{{#-first}}; {{/-first}}{{/formParams}}{{/-last}}{{/headerParams}}{{#formParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{^-last}}; {{/-last}}{{/formParams}}{{#queryParams}}{{#-first}} }{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}} }{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}} }{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}> {
+  async {{nickname}}({{#hasAuthMethods}}auth: Authenticator{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options: { {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options: { {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options: { {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options: { {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#queryParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{^-last}}; {{/-last}}{{#-last}}{{#headerParams}}{{#-first}}; {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}; {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}; {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/-last}}{{/queryParams}}{{#headerParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{^-last}}; {{/-last}}{{#-last}}{{#formParams}}{{#-first}}; {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}; {{/-first}}{{/cookieParams}}{{/formParams}}{{/-last}}{{/headerParams}}{{#formParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{^-last}}; {{/-last}}{{#-last}}{{#cookieParams}}{{#-first}}; {{/-first}}{{/cookieParams}}{{/-last}}{{/formParams}}{{#cookieParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{^-last}}; {{/-last}}{{/cookieParams}}{{#queryParams}}{{#-first}} }{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}} }{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}} }{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}} }{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}> {
 {{#pathParams}}
 {{#required}}
     if ({{paramName}} == null) {
@@ -98,18 +101,25 @@ export class {{classname}} extends BaseApi {
     }
 {{/required}}
 {{/formParams}}
+{{#cookieParams}}
+{{#required}}
+    if (options.{{paramName}} == null) {
+      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+    }
+{{/required}}
+{{/cookieParams}}
 {{#returnType}}
-    return (await this.{{nickname}}WithHttpInfo({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}})).data as {{{returnType}}};
+    return (await this.{{nickname}}WithHttpInfo({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}})).data as {{{returnType}}};
 {{/returnType}}
 {{^returnType}}
-    await this.{{nickname}}WithHttpInfo({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}});
+    await this.{{nickname}}WithHttpInfo({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}});
 {{/returnType}}
   }
 
   /**
    * {{&summary}} (with HTTP info)
    */
-  async {{nickname}}WithHttpInfo({{#hasAuthMethods}}auth: Authenticator{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options: { {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options: { {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options: { {{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#queryParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{^-last}}; {{/-last}}{{#-last}}{{#headerParams}}{{#-first}}; {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}; {{/-first}}{{/formParams}}{{/headerParams}}{{/-last}}{{/queryParams}}{{#headerParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{^-last}}; {{/-last}}{{#-last}}{{#formParams}}{{#-first}}; {{/-first}}{{/formParams}}{{/-last}}{{/headerParams}}{{#formParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{^-last}}; {{/-last}}{{/formParams}}{{#queryParams}}{{#-first}} }{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}} }{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}} }{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
+  async {{nickname}}WithHttpInfo({{#hasAuthMethods}}auth: Authenticator{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options: { {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options: { {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options: { {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}options: { {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#queryParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{^-last}}; {{/-last}}{{#-last}}{{#headerParams}}{{#-first}}; {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}; {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}; {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/-last}}{{/queryParams}}{{#headerParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{^-last}}; {{/-last}}{{#-last}}{{#formParams}}{{#-first}}; {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}; {{/-first}}{{/cookieParams}}{{/formParams}}{{/-last}}{{/headerParams}}{{#formParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{^-last}}; {{/-last}}{{#-last}}{{#cookieParams}}{{#-first}}; {{/-first}}{{/cookieParams}}{{/-last}}{{/formParams}}{{#cookieParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{^-last}}; {{/-last}}{{/cookieParams}}{{#queryParams}}{{#-first}} }{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}} }{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}} }{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}} }{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
 {{#pathParams}}
 {{#required}}
     if ({{paramName}} == null) {
@@ -145,6 +155,13 @@ export class {{classname}} extends BaseApi {
     }
 {{/required}}
 {{/formParams}}
+{{#cookieParams}}
+{{#required}}
+    if (options.{{paramName}} == null) {
+      throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
+    }
+{{/required}}
+{{/cookieParams}}
 {{^pathParams}}
     const path = `{{{path}}}`;
 {{/pathParams}}
@@ -154,6 +171,11 @@ export class {{classname}} extends BaseApi {
 {{/-first}}
     path = path.replace(`{${'{{baseName}}'}}`, ValueSerializer.serialize({{paramName}}, 'path', '{{dataType}}') as string);
 {{/pathParams}}
+{{#servers}}
+{{#-first}}
+    const serverUrl = '{{url}}';
+{{/-first}}
+{{/servers}}
     const queryParams: Record<string, unknown> = {};
 {{#queryParams}}
 {{#isDeepObject}}
@@ -163,9 +185,16 @@ export class {{classname}} extends BaseApi {
     }
 {{/isDeepObject}}
 {{^isDeepObject}}
+{{#content}}
+    if (options.{{paramName}} != null) {
+      queryParams['{{baseName}}'] = JSON.stringify(options.{{paramName}});
+    }
+{{/content}}
+{{^content}}
     if (options.{{paramName}} != null) {
       queryParams['{{baseName}}'] = ValueSerializer.serialize(options.{{paramName}}, 'query', '{{dataType}}'{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}});
     }
+{{/content}}
 {{/isDeepObject}}
 {{/queryParams}}
     const headerParams: Record<string, string> = {};
@@ -174,6 +203,17 @@ export class {{classname}} extends BaseApi {
       headerParams['{{baseName}}'] = ValueSerializer.serialize(options.{{paramName}}, 'header', '{{dataType}}') as string;
     }
 {{/headerParams}}
+{{#hasCookieParams}}
+    const cookieParts: string[] = [];
+{{#cookieParams}}
+    if (options.{{paramName}} != null) {
+      cookieParts.push(`{{baseName}}=${ValueSerializer.serialize(options.{{paramName}}, 'cookie', '{{dataType}}')}`);
+    }
+{{/cookieParams}}
+    if (cookieParts.length > 0) {
+      headerParams['Cookie'] = cookieParts.join('; ');
+    }
+{{/hasCookieParams}}
 {{#hasFormParams}}
     const formBody: Record<string, unknown> = {};
 {{#formParams}}
@@ -185,7 +225,7 @@ export class {{classname}} extends BaseApi {
 {{/hasFormParams}}
     return await this.invokeApiForResult(
       '{{httpMethod}}',
-      path,
+      {{#servers}}{{#-first}}serverUrl.startsWith('http://') || serverUrl.startsWith('https://') ? serverUrl + path : {{/-first}}{{/servers}}path,
       queryParams,
       headerParams,
       {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},

@@ -11,15 +11,19 @@ namespace PetstoreClient.Models;
 
 public class Photo
 {
+    /// <example>null</example>
     [JsonPropertyName("id")]
     public long? Id { get; set; }
 
+    /// <example>null</example>
     [JsonPropertyName("caption")]
     public string? Caption { get; set; }
 
+    /// <example>null</example>
     [JsonPropertyName("isPrimary")]
     public bool? IsPrimary { get; set; }
 
+    /// <example>null</example>
     [JsonPropertyName("url")]
     public string? Url { get; set; }
 }

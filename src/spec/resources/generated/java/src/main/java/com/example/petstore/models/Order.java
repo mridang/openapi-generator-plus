@@ -36,27 +36,36 @@ public class Order {
     }
   }
 
+  /** Example: {@code 10} */
   @JsonProperty("id")
   @Nullable
   public Long id;
 
+  /** Example: {@code 198772} */
   @JsonProperty("petId")
   @Nullable
   public Long petId;
 
+  /** Example: {@code 7} */
   @JsonProperty("quantity")
   @Nullable
   public Integer quantity;
 
+  /** Example: {@code null} */
   @JsonProperty("shipDate")
   @Nullable
   public OffsetDateTime shipDate;
 
-  /** Order Status */
+  /**
+   * Order Status
+   *
+   * <p>Example: {@code approved}
+   */
   @JsonProperty("status")
   @Nullable
   public StatusEnum status;
 
+  /** Example: {@code null} */
   @JsonProperty("complete")
   @Nullable
   public Boolean complete;

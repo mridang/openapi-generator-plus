@@ -68,8 +68,18 @@ class {{classname}}(BaseApi):
 {{/-first}}
         {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
 {{/formParams}}
+{{^formParams}}
+{{#cookieParams}}
+{{#-first}}
+        *,
+{{/-first}}
+{{/cookieParams}}
+{{/formParams}}
 {{/headerParams}}
 {{/queryParams}}
+{{#cookieParams}}
+        {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
+{{/cookieParams}}
     ) -> {{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}:
         """{{summary}}
 {{#notes}}
@@ -100,7 +110,7 @@ class {{classname}}(BaseApi):
 
 {{/required}}
 {{/allParams}}
-        result = self.{{operationId}}_with_http_info({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/formParams}}{{/headerParams}}{{/queryParams}})
+        result = self.{{operationId}}_with_http_info({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#cookieParams}}{{#-first}}{{#queryParams}}, {{/queryParams}}{{^queryParams}}{{#headerParams}}, {{/headerParams}}{{^headerParams}}{{#formParams}}, {{/formParams}}{{^formParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/cookieParams}})
 {{#returnType}}
         assert result.data is not None
 {{/returnType}}
@@ -137,8 +147,18 @@ class {{classname}}(BaseApi):
 {{/-first}}
         {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
 {{/formParams}}
+{{^formParams}}
+{{#cookieParams}}
+{{#-first}}
+        *,
+{{/-first}}
+{{/cookieParams}}
+{{/formParams}}
 {{/headerParams}}
 {{/queryParams}}
+{{#cookieParams}}
+        {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
+{{/cookieParams}}
     ) -> 'ApiResult[{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}]':
         """{{summary}} (with HTTP info)
 {{#notes}}
@@ -161,6 +181,13 @@ class {{classname}}(BaseApi):
 {{/allParams}}
         path = '{{{path}}}'{{#pathParams}}
         path = path.replace('{' + '{{baseName}}' + '}', str(ValueSerializer.serialize({{paramName}}, 'path', '{{dataType}}'))){{/pathParams}}
+{{#servers}}
+{{#-first}}
+        _server_url = '{{url}}'
+        if _server_url.startswith('http://') or _server_url.startswith('https://'):
+            path = _server_url + path
+{{/-first}}
+{{/servers}}
         query_params: Dict[str, Any] = {}
 {{#queryParams}}
 {{#isDeepObject}}
@@ -168,8 +195,15 @@ class {{classname}}(BaseApi):
             query_params.update(ValueSerializer.serialize_deep_object('{{baseName}}', {{paramName}}))
 {{/isDeepObject}}
 {{^isDeepObject}}
+{{#content}}
+        if {{paramName}} is not None:
+            import json
+            query_params['{{baseName}}'] = json.dumps({{paramName}})
+{{/content}}
+{{^content}}
         if {{paramName}} is not None:
             query_params['{{baseName}}'] = ValueSerializer.serialize({{paramName}}, 'query', '{{dataType}}'{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}})
+{{/content}}
 {{/isDeepObject}}
 {{/queryParams}}
         header_params: Dict[str, str] = {}
@@ -177,6 +211,15 @@ class {{classname}}(BaseApi):
         if {{paramName}} is not None:
             header_params['{{baseName}}'] = ValueSerializer.serialize({{paramName}}, 'header', '{{dataType}}')
 {{/headerParams}}
+{{#hasCookieParams}}
+        cookie_parts = []
+{{#cookieParams}}
+        if {{paramName}} is not None:
+            cookie_parts.append(f'{{baseName}}={ValueSerializer.serialize({{paramName}}, "cookie", "{{dataType}}")}')
+{{/cookieParams}}
+        if cookie_parts:
+            header_params['Cookie'] = '; '.join(cookie_parts)
+{{/hasCookieParams}}
 {{#hasFormParams}}
         body: Dict[str, Any] = {}
 {{#formParams}}

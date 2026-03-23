@@ -21,8 +21,8 @@ class Category(BaseModel):
     Category
     """
 
-    id: Optional[int] = Field(default=None, alias='id')
-    name: Optional[str] = Field(default=None, alias='name')
+    id: Optional[int] = Field(default=None, alias='id', examples=[1])
+    name: Optional[str] = Field(default=None, alias='name', examples=['Dogs'])
     additional_properties: Dict[str, Any] = {}
 
     model_config = ConfigDict(

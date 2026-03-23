@@ -44,28 +44,35 @@ public class Pet {
     }
   }
 
+  /** Example: {@code 10} */
   @JsonProperty("id")
   @Nullable
   public Long id;
 
+  /** Example: {@code doggie} */
   @JsonProperty("name")
   @Nullable
   public String name;
 
+  /** Example: {@code null} */
   @JsonProperty("category")
   @Nullable
   public Category category;
 
+  /** Example: {@code null} */
   @JsonProperty("photoUrls")
   @Nullable
   public Set<String> photoUrls = new LinkedHashSet<>();
 
+  /** Example: {@code null} */
   @JsonProperty("tags")
   @Nullable
   public List<Tag> tags = new ArrayList<>();
 
   /**
    * pet status in the store
+   *
+   * <p>Example: {@code null}
    *
    * @deprecated This property is deprecated.
    */

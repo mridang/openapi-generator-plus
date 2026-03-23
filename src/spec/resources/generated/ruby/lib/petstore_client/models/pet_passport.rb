@@ -48,9 +48,15 @@ module PetstoreClient
         JSON_KEY_MAP[key.to_s] || key.to_sym
       end
 
+      # @example null
       attribute :pet, Types::Any.optional.meta(omittable: true)
+      # Base64-encoded primary thumbnail
+      # @example [B@4487788
       attribute :thumbnail, Types::Any.optional.meta(omittable: true)
+      # Base64-encoded scans of each passport page
+      # @example null
       attribute :scans, Types::Any.optional.meta(omittable: true)
+      # @example null
       attribute :issued_at, Types::Any.optional.meta(omittable: true)
     end
   end

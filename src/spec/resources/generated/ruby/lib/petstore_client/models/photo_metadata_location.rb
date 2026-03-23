@@ -44,7 +44,9 @@ module PetstoreClient
         JSON_KEY_MAP[key.to_s] || key.to_sym
       end
 
+      # @example null
       attribute :lat, Types::Any.optional.meta(omittable: true)
+      # @example null
       attribute :lng, Types::Any.optional.meta(omittable: true)
     end
   end

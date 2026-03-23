@@ -20,24 +20,30 @@ class Order
     public const STATUS_APPROVED = 'approved';
     public const STATUS_DELIVERED = 'delivered';
 
+    /** @example 10 */
     #[SerializedName('id')]
     public ?int $id = null;
 
+    /** @example 198772 */
     #[SerializedName('petId')]
     public ?int $petId = null;
 
+    /** @example 7 */
     #[SerializedName('quantity')]
     public ?int $quantity = null;
 
+    /** @example null */
     #[SerializedName('shipDate')]
     public ?\DateTime $shipDate = null;
 
     /**
      * Order Status
+     * @example approved
      */
     #[SerializedName('status')]
     public ?string $status = null;
 
+    /** @example null */
     #[SerializedName('complete')]
     public ?bool $complete = null;
 

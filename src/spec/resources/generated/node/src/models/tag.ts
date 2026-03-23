@@ -6,8 +6,10 @@ import { Expose } from 'class-transformer';
  * @deprecated This schema is deprecated.
  */
 export class Tag {
+  /** @example null */
   @Expose({ name: 'id' })
   id?: number;
+  /** @example null */
   @Expose({ name: 'name' })
   name?: string;
 

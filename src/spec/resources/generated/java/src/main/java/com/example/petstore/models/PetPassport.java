@@ -9,20 +9,30 @@ import javax.annotation.Nullable;
 @SuppressWarnings("deprecation")
 public class PetPassport {
 
+  /** Example: {@code null} */
   @JsonProperty("pet")
   @Nullable
   public Pet pet;
 
-  /** Base64-encoded primary thumbnail */
+  /**
+   * Base64-encoded primary thumbnail
+   *
+   * <p>Example: {@code [B@4bdf591e}
+   */
   @JsonProperty("thumbnail")
   @Nullable
   public byte[] thumbnail;
 
-  /** Base64-encoded scans of each passport page */
+  /**
+   * Base64-encoded scans of each passport page
+   *
+   * <p>Example: {@code null}
+   */
   @JsonProperty("scans")
   @Nullable
   public List<byte[]> scans = new ArrayList<>();
 
+  /** Example: {@code null} */
   @JsonProperty("issuedAt")
   @Nullable
   public OffsetDateTime issuedAt;

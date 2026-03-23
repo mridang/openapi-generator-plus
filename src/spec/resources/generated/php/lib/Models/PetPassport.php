@@ -16,11 +16,13 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 
 class PetPassport
 {
+    /** @example null */
     #[SerializedName('pet')]
     public ?\PetstoreClient\Models\Pet $pet = null;
 
     /**
      * Base64-encoded primary thumbnail
+     * @example [B@6f7e040b
      */
     #[SerializedName('thumbnail')]
     public ?string $thumbnail = null;
@@ -28,10 +30,12 @@ class PetPassport
     /**
      * Base64-encoded scans of each passport page
      * @var string[]|null
+     * @example null
      */
     #[SerializedName('scans')]
     public ?array $scans = null;
 
+    /** @example null */
     #[SerializedName('issuedAt')]
     public ?\DateTime $issuedAt = null;
 

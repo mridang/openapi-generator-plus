@@ -14,9 +14,11 @@ public class SetPetAvatarRequest(byte[] Data, string MimeType)
     /// <summary>
     /// Base64-encoded image data
     /// </summary>
+    /// <example>null</example>
     [JsonPropertyName("data")]
     public byte[] Data { get; set; } = Data;
 
+    /// <example>image/jpeg</example>
     [JsonPropertyName("mimeType")]
     public string MimeType { get; set; } = MimeType;
 }

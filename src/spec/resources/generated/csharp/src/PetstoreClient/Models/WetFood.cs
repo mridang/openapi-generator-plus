@@ -11,9 +11,11 @@ namespace PetstoreClient.Models;
 
 public class WetFood(string FoodType, int VolumeMl)
 {
+    /// <example>null</example>
     [JsonPropertyName("foodType")]
     public string FoodType { get; set; } = FoodType;
 
+    /// <example>null</example>
     [JsonPropertyName("volumeMl")]
     public int VolumeMl { get; set; } = VolumeMl;
 }

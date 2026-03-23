@@ -47,6 +47,9 @@ module {{moduleName}}
 {{#formParams}}
       # @param {{paramName}} [{{{dataType}}}]{{#description}} {{.}}{{/description}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{/formParams}}
+{{#cookieParams}}
+      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{.}}{{/description}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/cookieParams}}
       # @return [{{{returnType}}}{{^returnType}}nil{{/returnType}}]
 {{#isDeprecated}}
       # @deprecated This operation is deprecated.
@@ -54,7 +57,7 @@ module {{moduleName}}
 {{#externalDocs}}
       # @see {{url}} {{description}}
 {{/externalDocs}}
-      def {{operationId}}({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{^required}} = nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#queryParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#headerParams}}{{#-first}}, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{/headerParams}}{{/-last}}{{/queryParams}}{{#headerParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{/-last}}{{/headerParams}}{{#formParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{/formParams}})
+      def {{operationId}}({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{^required}} = nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#queryParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#headerParams}}{{#-first}}, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/-last}}{{/queryParams}}{{#headerParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{/-first}}{{/cookieParams}}{{/formParams}}{{/-last}}{{/headerParams}}{{#formParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#cookieParams}}{{#-first}}, {{/-first}}{{/cookieParams}}{{/-last}}{{/formParams}}{{#cookieParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{/cookieParams}})
 {{#allParams}}
 {{#required}}
         if {{{paramName}}}.nil?
@@ -64,11 +67,11 @@ module {{moduleName}}
 
 {{/required}}
 {{/allParams}}
-        {{operationId}}_with_http_info({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{^required}}{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#queryParams}}{{paramName}}: {{paramName}}{{^-last}}, {{/-last}}{{#-last}}{{#headerParams}}{{#-first}}, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{/headerParams}}{{/-last}}{{/queryParams}}{{#headerParams}}{{paramName}}: {{paramName}}{{^-last}}, {{/-last}}{{#-last}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{/-last}}{{/headerParams}}{{#formParams}}{{paramName}}: {{paramName}}{{^-last}}, {{/-last}}{{/formParams}}).data
+        {{operationId}}_with_http_info({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{^required}}{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#queryParams}}{{paramName}}: {{paramName}}{{^-last}}, {{/-last}}{{#-last}}{{#headerParams}}{{#-first}}, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/-last}}{{/queryParams}}{{#headerParams}}{{paramName}}: {{paramName}}{{^-last}}, {{/-last}}{{#-last}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{/-first}}{{/cookieParams}}{{/formParams}}{{/-last}}{{/headerParams}}{{#formParams}}{{paramName}}: {{paramName}}{{^-last}}, {{/-last}}{{#-last}}{{#cookieParams}}{{#-first}}, {{/-first}}{{/cookieParams}}{{/-last}}{{/formParams}}{{#cookieParams}}{{paramName}}: {{paramName}}{{^-last}}, {{/-last}}{{/cookieParams}}).data
       end
 
       # @return [ApiResult]
-      def {{operationId}}_with_http_info({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{^required}} = nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#queryParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#headerParams}}{{#-first}}, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{/headerParams}}{{/-last}}{{/queryParams}}{{#headerParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{/-last}}{{/headerParams}}{{#formParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{/formParams}})
+      def {{operationId}}_with_http_info({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{^required}} = nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#queryParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#headerParams}}{{#-first}}, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/-last}}{{/queryParams}}{{#headerParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{/-first}}{{/cookieParams}}{{/formParams}}{{/-last}}{{/headerParams}}{{#formParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#cookieParams}}{{#-first}}, {{/-first}}{{/cookieParams}}{{/-last}}{{/formParams}}{{#cookieParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{/cookieParams}})
 {{#allParams}}
 {{#required}}
         if {{{paramName}}}.nil?
@@ -84,6 +87,12 @@ module {{moduleName}}
         path = path.sub('{<%baseName%>}', <%moduleName%>::ValueSerializer.serialize(<%paramName%>, :path, '<%dataType%>').to_s)
 <%={{ }}=%>
 {{/pathParams}}
+{{#servers}}
+{{#-first}}
+        server_url = '{{url}}'
+        path = server_url + path if server_url.start_with?('http://', 'https://')
+{{/-first}}
+{{/servers}}
         # @type var query_params: Hash[String, untyped]
         query_params = {}
 {{#queryParams}}
@@ -91,10 +100,15 @@ module {{moduleName}}
         query_params.merge!({{moduleName}}::ValueSerializer.serialize_deep_object('{{baseName}}', {{paramName}})) unless {{paramName}}.nil?
 {{/isDeepObject}}
 {{^isDeepObject}}
+{{#content}}
+        query_params['{{baseName}}'] = JSON.generate({{paramName}}) unless {{paramName}}.nil?
+{{/content}}
+{{^content}}
         unless {{paramName}}.nil?
           query_params['{{baseName}}'] =
             {{moduleName}}::ValueSerializer.serialize({{paramName}}, :query, '{{dataType}}'{{#collectionFormat}}, collection_format: :{{collectionFormat}}{{/collectionFormat}})
         end
+{{/content}}
 {{/isDeepObject}}
 {{/queryParams}}
         # @type var header_params: Hash[String, String]
@@ -102,6 +116,15 @@ module {{moduleName}}
 {{#headerParams}}
         header_params['{{baseName}}'] = {{moduleName}}::ValueSerializer.serialize({{paramName}}, :header, '{{dataType}}').to_s unless {{paramName}}.nil?
 {{/headerParams}}
+{{#hasCookieParams}}
+        cookie_parts = []
+{{#cookieParams}}
+{{=<% %>=}}
+        cookie_parts << "<%baseName%>=#{<%moduleName%>::ValueSerializer.serialize(<%paramName%>, :cookie, '<%dataType%>')}" unless <%paramName%>.nil?
+<%={{ }}=%>
+{{/cookieParams}}
+        header_params['Cookie'] = cookie_parts.join('; ') unless cookie_parts.empty?
+{{/hasCookieParams}}
 {{#hasFormParams}}
         # @type var request_body: Hash[String, untyped]
         request_body = {}

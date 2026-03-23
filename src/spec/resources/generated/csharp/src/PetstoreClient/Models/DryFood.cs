@@ -11,9 +11,11 @@ namespace PetstoreClient.Models;
 
 public class DryFood(string FoodType, double WeightKg)
 {
+    /// <example>null</example>
     [JsonPropertyName("foodType")]
     public string FoodType { get; set; } = FoodType;
 
+    /// <example>null</example>
     [JsonPropertyName("weightKg")]
     public double WeightKg { get; set; } = WeightKg;
 }

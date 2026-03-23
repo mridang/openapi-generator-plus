@@ -84,7 +84,13 @@ public class {{classname}} extends BaseApi {
      * Options for the {{operationId}} operation.
      */
     public static final class {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options {
-{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
+
+    /**
+     * Options for the {{operationId}} operation.
+     */
+    public static final class {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options {
+{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{#queryParams}}
 {{#required}}
         private final {{{dataType}}} {{paramName}};
@@ -109,16 +115,27 @@ public class {{classname}} extends BaseApi {
         @Nullable private {{{dataType}}} {{paramName}};
 {{/required}}
 {{/formParams}}
+{{#cookieParams}}
+{{#required}}
+        private final {{{dataType}}} {{paramName}};
+{{/required}}
+{{^required}}
+        @Nullable private {{{dataType}}} {{paramName}};
+{{/required}}
+{{/cookieParams}}
 {{#queryParams}}{{#-first}}
 
         public {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options({{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
 
         public {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options({{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
 
-        public {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options({{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#queryParams}}{{#required}}{{^-first}}, {{/-first}}{{{dataType}}} {{paramName}}{{/required}}{{/queryParams}}{{#headerParams}}{{#required}}{{^-first}}, {{/-first}}{{{dataType}}} {{paramName}}{{/required}}{{/headerParams}}{{#formParams}}{{#required}}{{^-first}}, {{/-first}}{{{dataType}}} {{paramName}}{{/required}}{{/formParams}}{{#queryParams}}{{#-first}}) {
+        public {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options({{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
+
+        public {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options({{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#queryParams}}{{#required}}{{^-first}}, {{/-first}}{{{dataType}}} {{paramName}}{{/required}}{{/queryParams}}{{#headerParams}}{{#required}}{{^-first}}, {{/-first}}{{{dataType}}} {{paramName}}{{/required}}{{/headerParams}}{{#formParams}}{{#required}}{{^-first}}, {{/-first}}{{{dataType}}} {{paramName}}{{/required}}{{/formParams}}{{#cookieParams}}{{#required}}{{^-first}}, {{/-first}}{{{dataType}}} {{paramName}}{{/required}}{{/cookieParams}}{{#queryParams}}{{#-first}}) {
 {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}) {
 {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}) {
-{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}) {
+{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{#queryParams}}
 {{#required}}
             this.{{paramName}} = {{paramName}};
@@ -134,13 +151,20 @@ public class {{classname}} extends BaseApi {
             this.{{paramName}} = {{paramName}};
 {{/required}}
 {{/formParams}}
+{{#cookieParams}}
+{{#required}}
+            this.{{paramName}} = {{paramName}};
+{{/required}}
+{{/cookieParams}}
 {{#queryParams}}{{#-first}}
         }
 {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
         }
 {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
         }
-{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
+        }
+{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{#queryParams}}
 {{^required}}
 
@@ -183,13 +207,29 @@ public class {{classname}} extends BaseApi {
             return {{paramName}};
         }
 {{/formParams}}
+{{#cookieParams}}
+{{^required}}
+
+        public {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options {{paramName}}({{{dataType}}} {{paramName}}) {
+            this.{{paramName}} = {{paramName}};
+            return this;
+        }
+
+        @Nullable
+{{/required}}
+        public {{{dataType}}} {{paramName}}() {
+            return {{paramName}};
+        }
+{{/cookieParams}}
 {{#queryParams}}{{#-first}}
     }
 {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
     }
 {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
     }
-{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
+    }
+{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 
     /**
      * {{summary}}
@@ -203,12 +243,14 @@ public class {{classname}} extends BaseApi {
      * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{/bodyParam}}
 {{#queryParams}}{{#-first}}
-     * @param options options for query, header, and form parameters
+     * @param options options for query, header, form, and cookie parameters
 {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-     * @param options options for query, header, and form parameters
+     * @param options options for query, header, form, and cookie parameters
 {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-     * @param options options for query, header, and form parameters
-{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+     * @param options options for query, header, form, and cookie parameters
+{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
+     * @param options options for query, header, form, and cookie parameters
+{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{#returnType}}
      * @return {{{returnType}}}
 {{/returnType}}
@@ -230,26 +272,26 @@ public class {{classname}} extends BaseApi {
 {{#returnType}}
     @Nullable
 {{/returnType}}
-    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}{{#isCode}}AuthorizationCode{{/isCode}}{{#isPassword}}Password{{/isPassword}}{{#isApplication}}ClientCredentials{{/isApplication}}{{#isImplicit}}Implicit{{/isImplicit}}Authenticator auth{{#pathParams}}, {{{dataType}}} {{paramName}}{{/pathParams}}{{#bodyParam}}, {{{dataType}}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}) throws ApiException {
-        {{#returnType}}return {{operationId}}WithHttpInfo(auth{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}).data();{{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo(auth{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}});{{/returnType}}
+    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}{{#isCode}}AuthorizationCode{{/isCode}}{{#isPassword}}Password{{/isPassword}}{{#isApplication}}ClientCredentials{{/isApplication}}{{#isImplicit}}Implicit{{/isImplicit}}Authenticator auth{{#pathParams}}, {{{dataType}}} {{paramName}}{{/pathParams}}{{#bodyParam}}, {{{dataType}}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}) throws ApiException {
+        {{#returnType}}return {{operationId}}WithHttpInfo(auth{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}).data();{{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo(auth{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}});{{/returnType}}
     }
 
-    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}{{#isCode}}AuthorizationCode{{/isCode}}{{#isPassword}}Password{{/isPassword}}{{#isApplication}}ClientCredentials{{/isApplication}}{{#isImplicit}}Implicit{{/isImplicit}}Authenticator auth{{#pathParams}}, {{{dataType}}} {{paramName}}{{/pathParams}}{{#bodyParam}}, {{{dataType}}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}) throws ApiException {
-        return {{operationId}}Internal(auth{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}});
+    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}{{#isCode}}AuthorizationCode{{/isCode}}{{#isPassword}}Password{{/isPassword}}{{#isApplication}}ClientCredentials{{/isApplication}}{{#isImplicit}}Implicit{{/isImplicit}}Authenticator auth{{#pathParams}}, {{{dataType}}} {{paramName}}{{/pathParams}}{{#bodyParam}}, {{{dataType}}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}) throws ApiException {
+        return {{operationId}}Internal(auth{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}});
     }
 
     {{/authMethods}}
-    private ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}Internal(Authenticator auth{{#pathParams}}, {{{dataType}}} {{paramName}}{{/pathParams}}{{#bodyParam}}, {{{dataType}}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}) throws ApiException {
+    private ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}Internal(Authenticator auth{{#pathParams}}, {{{dataType}}} {{paramName}}{{/pathParams}}{{#bodyParam}}, {{{dataType}}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}) throws ApiException {
 {{/hasAuthMethods}}
 {{^hasAuthMethods}}
 {{#returnType}}
     @Nullable
 {{/returnType}}
-    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#pathParams}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{{dataType}}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}) throws ApiException {
-        {{#returnType}}return {{operationId}}WithHttpInfo({{#pathParams}}{{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}).data();{{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo({{#pathParams}}{{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}});{{/returnType}}
+    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#pathParams}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{{dataType}}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}) throws ApiException {
+        {{#returnType}}return {{operationId}}WithHttpInfo({{#pathParams}}{{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}).data();{{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo({{#pathParams}}{{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}});{{/returnType}}
     }
 
-    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#pathParams}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{{dataType}}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{/headerParams}}{{/queryParams}}) throws ApiException {
+    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#pathParams}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{{dataType}}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}) throws ApiException {
 {{/hasAuthMethods}}
 {{#pathParams}}
 {{#required}}
@@ -272,6 +314,13 @@ public class {{classname}} extends BaseApi {
                         .replace(
                                 "{" + "{{baseName}}" + "}",
                                 (String) ValueSerializer.serialize({{{paramName}}}, "path", "{{dataType}}", null)){{/pathParams}}{{#pathParams}}{{#-last}};{{/-last}}{{/pathParams}}
+{{#servers}}
+{{#-first}}
+        if ("{{url}}".startsWith("http://") || "{{url}}".startsWith("https://")) {
+            path = "{{url}}" + path;
+        }
+{{/-first}}
+{{/servers}}
         Map<String, Object> queryParams = new HashMap<>();
 {{#queryParams}}
 {{#isDeepObject}}
@@ -280,9 +329,16 @@ public class {{classname}} extends BaseApi {
         }
 {{/isDeepObject}}
 {{^isDeepObject}}
+{{#content}}
+        if (options.{{paramName}}() != null) {
+            queryParams.put("{{baseName}}", objectSerializer.serialize(options.{{paramName}}()));
+        }
+{{/content}}
+{{^content}}
         if (options.{{paramName}}() != null) {
             queryParams.put("{{baseName}}", ValueSerializer.serialize(options.{{paramName}}(), "query", "{{dataType}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}));
         }
+{{/content}}
 {{/isDeepObject}}
 {{/queryParams}}
         Map<String, String> headerParams = new HashMap<>();
@@ -292,6 +348,17 @@ public class {{classname}} extends BaseApi {
                     "{{baseName}}", (String) ValueSerializer.serialize(options.{{paramName}}(), "header", "{{dataType}}", null));
         }
 {{/headerParams}}
+{{#hasCookieParams}}
+        java.util.StringJoiner cookieJoiner = new java.util.StringJoiner("; ");
+{{#cookieParams}}
+        if (options.{{paramName}}() != null) {
+            cookieJoiner.add("{{baseName}}=" + ValueSerializer.serialize(options.{{paramName}}(), "cookie", "{{dataType}}", null));
+        }
+{{/cookieParams}}
+        if (cookieJoiner.length() > 0) {
+            headerParams.put("Cookie", cookieJoiner.toString());
+        }
+{{/hasCookieParams}}
 {{#hasFormParams}}
         Map<String, Object> formBody = new HashMap<>();
 {{#formParams}}

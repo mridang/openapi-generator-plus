@@ -92,7 +92,10 @@ class BaseApi:
         Raises:
             ApiException: If the API call fails.
         """
-        url = self._config.base_url + path
+        if path.startswith('http://') or path.startswith('https://'):
+            url = path
+        else:
+            url = self._config.base_url + path
 
         if auth is not None:
             query_params.update(auth.get_query_params())

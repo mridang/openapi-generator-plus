@@ -53,11 +53,18 @@ module PetstoreClient
         JSON_KEY_MAP[key.to_s] || key.to_sym
       end
 
+      # @example 10
       attribute :id, Types::Any.optional.meta(omittable: true)
+      # @example doggie
       attribute :name, Types::Any
+      # @example null
       attribute :category, Types::Any.optional.meta(omittable: true)
+      # @example null
       attribute :photo_urls, Types::Any
+      # @example null
       attribute :tags, Types::Any.optional.meta(omittable: true)
+      # pet status in the store
+      # @example null
       # @deprecated This property is deprecated.
       attribute :status, Types::Any.optional.meta(omittable: true)
     end

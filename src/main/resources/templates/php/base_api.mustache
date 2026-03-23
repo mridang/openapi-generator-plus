@@ -84,7 +84,7 @@ class BaseApi
         ?string $returnType,
         ?Authenticator $auth = null
     ): ApiResult {
-        $url = $this->config->baseUrl . $path;
+        $url = str_starts_with($path, 'http://') || str_starts_with($path, 'https://') ? $path : $this->config->baseUrl . $path;
 
         if ($auth instanceof Authenticator) {
             foreach ($auth->getQueryParams() as $k => $v) {
