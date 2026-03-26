@@ -24,8 +24,6 @@ public class JavaBuildSpec extends AbstractIntegrationSpec implements JavaSpec {
 
   @Test
   void generatedCodeShouldCompileWithErrorProne() {
-    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
-
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 
     assertThat(result.isSuccess())

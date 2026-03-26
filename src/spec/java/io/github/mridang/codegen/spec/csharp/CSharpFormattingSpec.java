@@ -28,6 +28,11 @@ public class CSharpFormattingSpec extends AbstractFormattingSpec implements CSha
   }
 
   @Override
+  protected Path getSourceRoot() {
+    return tempOutputDir.resolve("src/PetstoreClient");
+  }
+
+  @Override
   protected String getInlineCommentPattern() {
     return "^\\s*//(?!/)";
   }
@@ -39,8 +44,6 @@ public class CSharpFormattingSpec extends AbstractFormattingSpec implements CSha
 
   @Test
   void generatedCodeShouldBeProperlyFormatted() {
-    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
-
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 
     assertThat(result.isSuccess())

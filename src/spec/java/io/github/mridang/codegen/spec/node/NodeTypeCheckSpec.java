@@ -23,8 +23,6 @@ public class NodeTypeCheckSpec extends AbstractIntegrationSpec implements NodeSp
 
   @Test
   void generatedCodeShouldPassTypeChecking() {
-    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
-
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 
     assertThat(result.isSuccess())

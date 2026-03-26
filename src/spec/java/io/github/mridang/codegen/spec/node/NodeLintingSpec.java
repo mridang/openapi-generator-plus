@@ -23,8 +23,6 @@ public class NodeLintingSpec extends AbstractIntegrationSpec implements NodeSpec
 
   @Test
   void generatedCodeShouldPassLinting() {
-    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
-
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 
     assertThat(result.isSuccess())

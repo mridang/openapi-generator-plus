@@ -57,6 +57,14 @@
       </testResource>
       <testResource>
         <directory>src/spec/resources</directory>
+        <excludes>
+          <exclude>**/target/**</exclude>
+          <exclude>**/node_modules/**</exclude>
+          <exclude>**/vendor/**</exclude>
+          <exclude>**/__pycache__/**</exclude>
+          <exclude>**/.out/**</exclude>
+          <exclude>**/*.class</exclude>
+        </excludes>
       </testResource>
     </testResources>
     <plugins>

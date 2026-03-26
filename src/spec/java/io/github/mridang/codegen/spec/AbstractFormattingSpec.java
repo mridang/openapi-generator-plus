@@ -23,6 +23,15 @@ public abstract class AbstractFormattingSpec extends AbstractIntegrationSpec {
   protected abstract String getFileExtension();
 
   /**
+   * Return the root directory containing generated source code. Only files under this path
+   * will be scanned for HTML entities and inline comments. Override in each language spec
+   * to point at the generated source directory (e.g. "lib", "src/main", "petstore_client").
+   */
+  protected Path getSourceRoot() {
+    return tempOutputDir;
+  }
+
+  /**
    * Return the regex pattern for detecting inline comments, or null to skip the test. Default
    * matches C-style inline comments. Override to return null for languages that use hash comments
    * (Python, Ruby). Override to return a custom pattern for C# to exclude XML doc comments.
@@ -42,12 +51,10 @@ public abstract class AbstractFormattingSpec extends AbstractIntegrationSpec {
 
   @Test
   void generatedCodeShouldNotContainHtmlEntities() throws IOException {
-    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
-
     Pattern htmlEntity = Pattern.compile("&(lt|gt|amp|quot);");
     List<String> violations = new ArrayList<>();
 
-    try (Stream<Path> files = Files.walk(tempOutputDir)) {
+    try (Stream<Path> files = Files.walk(getSourceRoot())) {
       files
           .filter(p -> p.toString().endsWith(getFileExtension()))
           .forEach(
@@ -79,12 +86,10 @@ public abstract class AbstractFormattingSpec extends AbstractIntegrationSpec {
       return;
     }
 
-    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
-
     Pattern inlineComment = Pattern.compile(commentPattern);
     List<String> violations = new ArrayList<>();
 
-    try (Stream<Path> files = Files.walk(tempOutputDir)) {
+    try (Stream<Path> files = Files.walk(getSourceRoot())) {
       files
           .filter(p -> p.toString().endsWith(getFileExtension()))
           .filter(this::includeFileForInlineCommentCheck)

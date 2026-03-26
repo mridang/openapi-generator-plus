@@ -4,53 +4,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.HashMap;
-import java.util.Map;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 
 /**
- * Base class for client integration specs. Provides the shared test structure:
- * generate client code, assert structure, then run tests against Prism.
+ * Base class for client integration specs. Validates that the pre-generated SDK
+ * (committed to git) has the expected structure, then runs language-native tests
+ * inside a Docker container. No code generation happens here — that is done once
+ * via {@code GenerateClientsTest}.
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 public abstract class AbstractClientSpec extends AbstractIntegrationSpec {
 
   protected abstract void assertGeneratedStructure(Path outputDir);
-
-  @BeforeEach
-  void generateAndPrepare() throws IOException {
-    Map<String, Object> props = new HashMap<>(getCodegenProperties());
-    props.put("generateTests", "true");
-    generateClientToDirectory(props, tempOutputDir);
-
-    // Copy shared test resources so language-native Testcontainers can access them
-    copyClasspathResource("specs/petstore/openapi.yaml", tempOutputDir.resolve("specs/openapi.yaml"));
-    copyClasspathResource("certs/ca.pem", tempOutputDir.resolve("certs/ca.pem"));
-    copyClasspathResource("certs/ca-key.pem", tempOutputDir.resolve("certs/ca-key.pem"));
-    copyClasspathResource("certs/server.pem", tempOutputDir.resolve("certs/server.pem"));
-    copyClasspathResource("certs/server-key.pem", tempOutputDir.resolve("certs/server-key.pem"));
-    copyClasspathResource("certs/server-keystore.p12", tempOutputDir.resolve("certs/server-keystore.p12"));
-    copyClasspathResource("wiremock/mappings/test.json", tempOutputDir.resolve("wiremock/mappings/test.json"));
-    copyClasspathResource("wiremock/mappings/redirect.json", tempOutputDir.resolve("wiremock/mappings/redirect.json"));
-    copyClasspathResource("wiremock/mappings/slow.json", tempOutputDir.resolve("wiremock/mappings/slow.json"));
-    copyClasspathResource("wiremock/mappings/echo-headers.json", tempOutputDir.resolve("wiremock/mappings/echo-headers.json"));
-    copyClasspathResource("wiremock/mappings/error-400.json", tempOutputDir.resolve("wiremock/mappings/error-400.json"));
-    copyClasspathResource("wiremock/mappings/error-401.json", tempOutputDir.resolve("wiremock/mappings/error-401.json"));
-    copyClasspathResource("wiremock/mappings/error-403.json", tempOutputDir.resolve("wiremock/mappings/error-403.json"));
-    copyClasspathResource("wiremock/mappings/error-404.json", tempOutputDir.resolve("wiremock/mappings/error-404.json"));
-    copyClasspathResource("wiremock/mappings/error-409.json", tempOutputDir.resolve("wiremock/mappings/error-409.json"));
-    copyClasspathResource("wiremock/mappings/error-418.json", tempOutputDir.resolve("wiremock/mappings/error-418.json"));
-    copyClasspathResource("wiremock/mappings/error-422.json", tempOutputDir.resolve("wiremock/mappings/error-422.json"));
-    copyClasspathResource("wiremock/mappings/error-500.json", tempOutputDir.resolve("wiremock/mappings/error-500.json"));
-    copyClasspathResource("wiremock/mappings/error-502.json", tempOutputDir.resolve("wiremock/mappings/error-502.json"));
-    copyClasspathResource("wiremock/mappings/text-plain.json", tempOutputDir.resolve("wiremock/mappings/text-plain.json"));
-    copyClasspathResource("wiremock/mappings/echo-body.json", tempOutputDir.resolve("wiremock/mappings/echo-body.json"));
-    copyClasspathResource("proxy/squid.conf", tempOutputDir.resolve("proxy/squid.conf"));
-  }
 
   @Test
   @Order(1)

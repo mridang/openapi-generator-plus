@@ -26,8 +26,6 @@ public class PhpStaticAnalysisSpec extends AbstractIntegrationSpec implements Ph
 
   @Test
   void generatedCodeShouldPassStaticAnalysis() {
-    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
-
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 
     assertThat(result.isSuccess())

@@ -26,8 +26,6 @@ public class RubyLintingSpec extends AbstractIntegrationSpec implements RubySpec
 
   @Test
   void generatedCodeShouldPassLinting() {
-    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
-
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 
     assertThat(result.isSuccess())

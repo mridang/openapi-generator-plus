@@ -31,14 +31,17 @@ public class PhpFormattingSpec extends AbstractFormattingSpec implements PhpSpec
   }
 
   @Override
+  protected Path getSourceRoot() {
+    return tempOutputDir.resolve("lib");
+  }
+
+  @Override
   protected boolean includeFileForInlineCommentCheck(Path file) {
     return !file.getFileName().toString().equals("rector.php");
   }
 
   @Test
   void generatedCodeShouldBeProperlyFormatted() {
-    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
-
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 
     assertThat(result.isSuccess())

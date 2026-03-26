@@ -1,20 +1,9 @@
 package io.github.mridang.codegen.spec;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
-import org.openapitools.codegen.DefaultGenerator;
-import org.openapitools.codegen.config.CodegenConfigurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.BindMode;
@@ -24,6 +13,12 @@ import org.testcontainers.containers.output.Slf4jLogConsumer;
 
 import javax.annotation.Nullable;
 
+/**
+ * Base class for integration specs. Each generated SDK lives in
+ * {@code src/spec/resources/generated/{lang}/} and is already fully self-contained
+ * (source, tests, wiremock mappings, certs, specs). Code generation is done once
+ * via {@code GenerateClientsTest}; this class only runs tests against the committed code.
+ */
 @SuppressWarnings("NullAway.Init")
 public abstract class AbstractIntegrationSpec implements LanguageSpec {
 
@@ -33,49 +28,12 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
 
   protected Path tempOutputDir;
 
-  @SuppressWarnings("SameReturnValue")
-  protected String getSpecResourcePath() {
-    return "specs/petstore/openapi.yaml";
-  }
-
   protected abstract String[] getBuildCommands();
 
   @BeforeEach
-  void resolveOutputDir() throws IOException {
+  void resolveOutputDir() {
     String lang = getGeneratorName().replace("-plus", "");
     tempOutputDir = Path.of("src/spec/resources/generated/" + lang).toAbsolutePath();
-    // Clean everything except .out/ (coverage reports) so each spec starts fresh
-    if (Files.exists(tempOutputDir)) {
-      try (var entries = Files.list(tempOutputDir)) {
-        for (Path entry : entries.collect(java.util.stream.Collectors.toList())) {
-          if (entry.getFileName().toString().equals(".out")) {
-            continue;
-          }
-          if (Files.isDirectory(entry)) {
-            deleteRecursively(entry);
-          } else {
-            Files.delete(entry);
-          }
-        }
-      }
-    }
-    Files.createDirectories(tempOutputDir);
-  }
-
-  private static void deleteRecursively(Path dir) throws IOException {
-    Files.walkFileTree(dir, new SimpleFileVisitor<>() {
-      @Override
-      public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-        Files.delete(file);
-        return FileVisitResult.CONTINUE;
-      }
-
-      @Override
-      public FileVisitResult postVisitDirectory(Path d, IOException exc) throws IOException {
-        Files.delete(d);
-        return FileVisitResult.CONTINUE;
-      }
-    });
   }
 
   @BeforeEach
@@ -97,44 +55,8 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
     logger.info("========================================");
     logger.info("Test: {}", testInfo.getDisplayName());
     logger.info("Generator: {}", getGeneratorName());
-    logger.info("Spec: {}", getSpecResourcePath());
     logger.info("Output directory: {}", tempOutputDir.toAbsolutePath());
     logger.info("========================================");
-  }
-
-  protected void generateClientToDirectory(
-      Map<String, Object> additionalProperties, Path outputDir) {
-    URL specUrl = getClass().getClassLoader().getResource(getSpecResourcePath());
-    if (specUrl == null) {
-      throw new IllegalStateException("Could not find spec resource: " + getSpecResourcePath());
-    }
-
-    String specPath = specUrl.getPath();
-    logger.info("Generating {} client from spec: {}", getGeneratorName(), specPath);
-
-    CodegenConfigurator configurator =
-        new CodegenConfigurator()
-            .setGeneratorName(getGeneratorName())
-            .setInputSpec(specPath)
-            .setOutputDir(outputDir.toString().replace("\\", "/"))
-            .setAdditionalProperties(additionalProperties);
-
-    DefaultGenerator generator = new DefaultGenerator();
-    generator.setGenerateMetadata(false);
-    generator.opts(configurator.toClientOptInput()).generate();
-
-    logger.info("Code generation complete.");
-  }
-
-  protected void copyClasspathResource(String resourcePath, Path targetPath) throws IOException {
-    try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
-      if (is == null) {
-        throw new IllegalStateException("Could not find classpath resource: " + resourcePath);
-      }
-      Files.createDirectories(targetPath.getParent());
-      Files.copy(is, targetPath, StandardCopyOption.REPLACE_EXISTING);
-      logger.info("Copied classpath resource {} to {}", resourcePath, targetPath);
-    }
   }
 
   protected ExecResult executeInRuntimeContainer(String[] commands) {

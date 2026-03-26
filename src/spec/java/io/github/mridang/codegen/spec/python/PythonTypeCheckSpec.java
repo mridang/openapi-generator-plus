@@ -26,8 +26,6 @@ public class PythonTypeCheckSpec extends AbstractIntegrationSpec implements Pyth
 
   @Test
   void generatedCodeShouldPassTypeChecking() {
-    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
-
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 
     assertThat(result.isSuccess())

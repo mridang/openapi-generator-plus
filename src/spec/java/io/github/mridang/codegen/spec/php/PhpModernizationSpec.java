@@ -27,8 +27,6 @@ public class PhpModernizationSpec extends AbstractIntegrationSpec implements Php
 
   @Test
   void generatedCodeShouldBeModern() {
-    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
-
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 
     assertThat(result.isSuccess())

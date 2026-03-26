@@ -24,8 +24,6 @@ public class CSharpBuildSpec extends AbstractIntegrationSpec implements CSharpSp
 
   @Test
   void generatedCodeShouldCompileWithStrictSettings() {
-    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
-
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 
     assertThat(result.isSuccess())

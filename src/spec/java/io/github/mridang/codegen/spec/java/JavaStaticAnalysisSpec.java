@@ -23,8 +23,6 @@ public class JavaStaticAnalysisSpec extends AbstractIntegrationSpec implements J
 
   @Test
   void generatedCodeShouldPassStaticAnalysis() {
-    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
-
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 
     assertThat(result.isSuccess())

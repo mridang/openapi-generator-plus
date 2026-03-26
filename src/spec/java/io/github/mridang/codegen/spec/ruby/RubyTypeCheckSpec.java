@@ -26,8 +26,6 @@ public class RubyTypeCheckSpec extends AbstractIntegrationSpec implements RubySp
 
   @Test
   void generatedCodeShouldPassTypeChecking() {
-    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
-
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 
     assertThat(result.isSuccess())

@@ -24,8 +24,6 @@ public class CSharpStaticAnalysisSpec extends AbstractIntegrationSpec implements
 
   @Test
   void generatedCodeShouldPassStaticAnalysis() {
-    generateClientToDirectory(getCodegenProperties(), tempOutputDir);
-
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 
     assertThat(result.isSuccess())
