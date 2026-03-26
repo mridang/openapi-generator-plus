@@ -30,12 +30,6 @@ class DryFood
         string $foodType,
         float $weightKg,
     ) {
-        if ($foodType === null) {
-            throw new \InvalidArgumentException('foodType is required');
-        }
-        if ($weightKg === null) {
-            throw new \InvalidArgumentException('weightKg is required');
-        }
         $this->foodType = $foodType;
         $this->weightKg = $weightKg;
     }

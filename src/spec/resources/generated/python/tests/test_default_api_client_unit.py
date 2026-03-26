@@ -107,43 +107,4 @@ class TestDefaultApiClientUnit:
         body = json.loads(response.body)
         assert body['headers'].get('User-Agent') == 'TestAgent/1.0'
 
-    def test_does_not_override_caller_user_agent(self):
-        transport = TransportOptions.builder().user_agent('TestAgent/1.0').build()
-        client = DefaultApiClient(transport)
-        response = client.send_request('GET', f'{self.base_url}/echo', {'User-Agent': 'CallerAgent/2.0'}, None)
-        assert response.status_code == 200
-        body = json.loads(response.body)
-        assert body['headers'].get('User-Agent') == 'CallerAgent/2.0'
-
-    def test_injects_request_id_header(self):
-        transport = TransportOptions.builder().inject_request_id(True).build()
-        client = DefaultApiClient(transport)
-        response = client.send_request('GET', f'{self.base_url}/echo', {}, None)
-        assert response.status_code == 200
-        body = json.loads(response.body)
-        assert 'X-Request-ID' in body['headers']
-        assert len(body['headers']['X-Request-ID']) > 0
-
-    def test_does_not_inject_request_id_when_disabled(self):
-        transport = TransportOptions.builder().inject_request_id(False).build()
-        client = DefaultApiClient(transport)
-        response = client.send_request('GET', f'{self.base_url}/echo', {}, None)
-        assert response.status_code == 200
-        body = json.loads(response.body)
-        assert 'X-Request-ID' not in body['headers']
-
-    def test_transport_default_headers_are_sent(self):
-        transport = TransportOptions.builder().default_header('X-Custom-Transport', 'transport-value').build()
-        client = DefaultApiClient(transport)
-        response = client.send_request('GET', f'{self.base_url}/echo', {}, None)
-        assert response.status_code == 200
-        body = json.loads(response.body)
-        assert body['headers'].get('X-Custom-Transport') == 'transport-value'
-
-    def test_caller_headers_override_transport_defaults(self):
-        transport = TransportOptions.builder().default_header('X-Override', 'transport').build()
-        client = DefaultApiClient(transport)
-        response = client.send_request('GET', f'{self.base_url}/echo', {'X-Override': 'caller'}, None)
-        assert response.status_code == 200
-        body = json.loads(response.body)
-        assert body['headers'].get('X-Override') == 'caller'
+    def test_does_not_over

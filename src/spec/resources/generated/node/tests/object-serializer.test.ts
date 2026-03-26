@@ -111,7 +111,7 @@ describe('ObjectSerializer', () => {
       const category = new Category();
       category.id = 1;
       category.name = 'Dogs';
-      const result = ObjectSerializer.serialize(category);
+      const result = ObjectSerializer.serialize(category) as Record<string, unknown>;
       expect(result).toBeDefined();
       expect(result.id).toBe(1);
       expect(result.name).toBe('Dogs');

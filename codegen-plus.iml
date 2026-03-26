@@ -6,6 +6,11 @@
       <excludeFolder url="file://$MODULE_DIR$/.idea" />
       <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/testprojects" />
       <excludeFolder url="file://$MODULE_DIR$/.claude" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/java/.out" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/node/.out" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/php/.out" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/python/.out" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/ruby/.out" />
     </content>
   </component>
 </module>

@@ -14,7 +14,7 @@ class DefaultApiClientTest extends TestCase
 
     public function testMakesHttpsRequestWithVerifySslFalse(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTPS_URL');
+        $wiremockUrl = getenv('WIREMOCK_HTTPS_URL') ?: '';
 
         $transport = TransportOptions::builder()
             ->verifySsl(false)
@@ -31,8 +31,8 @@ class DefaultApiClientTest extends TestCase
 
     public function testMakesHttpsRequestWithCustomCaCert(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTPS_URL');
-        $caCertPath = getenv('CA_CERT_PATH');
+        $wiremockUrl = getenv('WIREMOCK_HTTPS_URL') ?: '';
+        $caCertPath = getenv('CA_CERT_PATH') ?: null;
 
         $transport = TransportOptions::builder()
             ->verifySsl(true)
@@ -50,8 +50,8 @@ class DefaultApiClientTest extends TestCase
 
     public function testMakesHttpRequestThroughProxy(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL');
-        $proxyUrl = getenv('PROXY_URL');
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
+        $proxyUrl = getenv('PROXY_URL') ?: null;
 
         $transport = TransportOptions::builder()
             ->proxy($proxyUrl)
@@ -68,8 +68,8 @@ class DefaultApiClientTest extends TestCase
 
     public function testMakesHttpsRequestThroughProxyWithVerifySslFalse(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTPS_URL');
-        $proxyUrl = getenv('PROXY_URL');
+        $wiremockUrl = getenv('WIREMOCK_HTTPS_URL') ?: '';
+        $proxyUrl = getenv('PROXY_URL') ?: null;
 
         $transport = TransportOptions::builder()
             ->proxy($proxyUrl)
@@ -139,7 +139,7 @@ class DefaultApiClientTest extends TestCase
 
     public function testTimesOutOnSlowEndpoint(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL');
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
 
         $transport = TransportOptions::builder()
             ->timeout(1)
@@ -155,7 +155,7 @@ class DefaultApiClientTest extends TestCase
 
     public function testInjectsCustomUserAgentHeader(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL');
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
 
         $transport = TransportOptions::builder()
             ->userAgent('MyApp/1.0')
@@ -165,6 +165,7 @@ class DefaultApiClientTest extends TestCase
         $response = $client->sendRequest('GET', $wiremockUrl . '/api/echo-headers', [], null);
 
         $this->assertSame(200, $response->statusCode);
+        /** @var array<string, mixed> $json */
         $json = json_decode($response->body, true);
         $this->assertSame('MyApp/1.0', $json['user-agent']);
     }
@@ -173,7 +174,7 @@ class DefaultApiClientTest extends TestCase
 
     public function testInjectsRequestIdHeaderWithUuidFormat(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL');
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
 
         $transport = TransportOptions::builder()
             ->injectRequestId(true)
@@ -183,6 +184,7 @@ class DefaultApiClientTest extends TestCase
         $response = $client->sendRequest('GET', $wiremockUrl . '/api/echo-headers', [], null);
 
         $this->assertSame(200, $response->statusCode);
+        /** @var array<string, mixed> $json */
         $json = json_decode($response->body, true);
         $this->assertArrayHasKey('x-request-id', $json);
         $this->assertMatchesRegularExpression(
@@ -193,7 +195,7 @@ class DefaultApiClientTest extends TestCase
 
     public function testGeneratesUniqueRequestIdPerRequest(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL');
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
 
         $transport = TransportOptions::builder()
             ->injectRequestId(true)
@@ -202,10 +204,12 @@ class DefaultApiClientTest extends TestCase
         $client = new DefaultApiClient($transport);
 
         $response1 = $client->sendRequest('GET', $wiremockUrl . '/api/echo-headers', [], null);
+        /** @var array<string, mixed> $json1 */
         $json1 = json_decode($response1->body, true);
         $requestId1 = $json1['x-request-id'];
 
         $response2 = $client->sendRequest('GET', $wiremockUrl . '/api/echo-headers', [], null);
+        /** @var array<string, mixed> $json2 */
         $json2 = json_decode($response2->body, true);
         $requestId2 = $json2['x-request-id'];
 
@@ -216,7 +220,7 @@ class DefaultApiClientTest extends TestCase
 
     public function testIncludesTransportDefaultHeaders(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL');
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
 
         $transport = TransportOptions::builder()
             ->defaultHeader('X-Custom', 'custom-value')
@@ -226,13 +230,14 @@ class DefaultApiClientTest extends TestCase
         $response = $client->sendRequest('GET', $wiremockUrl . '/api/echo-headers', [], null);
 
         $this->assertSame(200, $response->statusCode);
+        /** @var array<string, mixed> $json */
         $json = json_decode($response->body, true);
         $this->assertSame('custom-value', $json['x-custom']);
     }
 
     public function testCallerHeadersOverrideTransportDefaults(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL');
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
 
         $transport = TransportOptions::builder()
             ->defaultHeader('Accept', 'text/plain')
@@ -247,6 +252,7 @@ class DefaultApiClientTest extends TestCase
         );
 
         $this->assertSame(200, $response->statusCode);
+        /** @var array<string, mixed> $json */
         $json = json_decode($response->body, true);
         $this->assertSame('application/json', $json['accept']);
     }
@@ -255,7 +261,7 @@ class DefaultApiClientTest extends TestCase
 
     public function testFollowsRedirectsWhenEnabled(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL');
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
 
         $transport = TransportOptions::builder()
             ->followRedirects(true)
@@ -270,7 +276,7 @@ class DefaultApiClientTest extends TestCase
 
     public function testReturnsRedirectWhenDisabled(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL');
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
 
         $transport = TransportOptions::builder()
             ->followRedirects(false)

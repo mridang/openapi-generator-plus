@@ -2,7 +2,7 @@ import { PetApi } from '../../src/api/pet-api';
 import { UploadPetDocumentDocumentTypeEnum } from '../../src/api/pet-api';
 import { BearerAuthenticator } from '../../src/auth/bearer-authenticator';
 import { Configuration } from '../../src/configuration';
-import { ApiResponse, Pet, PetPassport, Photo, PhotoMetadata, SetPetAvatarThumbnailRequest } from '../../src/models';
+import { Pet, PhotoMetadata, SetPetAvatarThumbnailRequest } from '../../src/models';
 
 const baseUrl = process.env.API_BASE_URL || 'http://localhost:4010';
 const config = Configuration.builder()
@@ -17,7 +17,7 @@ describe('PetApi', () => {
     const pet: Pet = {
       id: 12345,
       name: 'TestDog',
-      photoUrls: ['http://example.com/photo.jpg'],
+      photoUrls: new Set(['http://example.com/photo.jpg']),
       status: 'available',
     };
 
@@ -46,7 +46,7 @@ describe('PetApi', () => {
     const pet: Pet = {
       id: 1,
       name: 'UpdatedDog',
-      photoUrls: ['http://example.com/updated.jpg'],
+      photoUrls: new Set(['http://example.com/updated.jpg']),
       status: 'pending',
     };
 
@@ -60,7 +60,7 @@ describe('PetApi', () => {
   });
 
   test('setPetAvatar', async () => {
-    const body = new Blob([new Uint8Array([0xFF, 0xD8, 0xFF])], { type: 'image/jpeg' });
+    const body = Buffer.from([0xFF, 0xD8, 0xFF]);
 
     await api.setPetAvatar(1, body);
   });
@@ -84,7 +84,7 @@ describe('PetApi', () => {
   });
 
   test('uploadPetCertificate', async () => {
-    const file = new Blob([new Uint8Array([0x25, 0x50, 0x44, 0x46])], { type: 'application/pdf' });
+    const file = Buffer.from([0x25, 0x50, 0x44, 0x46]);
 
     const result = await api.uploadPetCertificate(1, { file });
 
@@ -92,7 +92,7 @@ describe('PetApi', () => {
   });
 
   test('uploadPetDocument', async () => {
-    const file = new Blob([new Uint8Array([0x25, 0x50, 0x44, 0x46])], { type: 'application/pdf' });
+    const file = Buffer.from([0x25, 0x50, 0x44, 0x46]);
 
     const result = await api.uploadPetDocument(1, { file, documentType: UploadPetDocumentDocumentTypeEnum.HealthCertificate, notes: 'Annual checkup document' });
 
@@ -102,7 +102,7 @@ describe('PetApi', () => {
   // Prism does not validate multipart array fields correctly
   test.skip('addPetPhotos', async () => {
     const files = [
-      new Blob([new Uint8Array([0xFF, 0xD8, 0xFF])], { type: 'image/jpeg' }),
+      Buffer.from([0xFF, 0xD8, 0xFF]),
     ];
     const metadata = new PhotoMetadata({
       caption: 'Test photo',

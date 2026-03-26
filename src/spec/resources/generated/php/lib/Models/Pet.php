@@ -63,12 +63,6 @@ class Pet
         ?array $tags = null,
         ?string $status = null,
     ) {
-        if ($name === null) {
-            throw new \InvalidArgumentException('name is required');
-        }
-        if ($photoUrls === null) {
-            throw new \InvalidArgumentException('photoUrls is required');
-        }
         $this->id = $id;
         $this->name = $name;
         $this->category = $category;

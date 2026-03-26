@@ -17,7 +17,7 @@ public class PetPassport {
   /**
    * Base64-encoded primary thumbnail
    *
-   * <p>Example: {@code [B@611b18bb}
+   * <p>Example: {@code [B@3236fd64}
    */
   @JsonProperty("thumbnail")
   @Nullable

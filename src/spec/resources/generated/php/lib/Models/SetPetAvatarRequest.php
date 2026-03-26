@@ -33,12 +33,6 @@ class SetPetAvatarRequest
         string $data,
         string $mimeType,
     ) {
-        if ($data === null) {
-            throw new \InvalidArgumentException('data is required');
-        }
-        if ($mimeType === null) {
-            throw new \InvalidArgumentException('mimeType is required');
-        }
         $this->data = $data;
         $this->mimeType = $mimeType;
     }

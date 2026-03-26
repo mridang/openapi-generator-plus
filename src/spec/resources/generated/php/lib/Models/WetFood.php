@@ -30,12 +30,6 @@ class WetFood
         string $foodType,
         int $volumeMl,
     ) {
-        if ($foodType === null) {
-            throw new \InvalidArgumentException('foodType is required');
-        }
-        if ($volumeMl === null) {
-            throw new \InvalidArgumentException('volumeMl is required');
-        }
         $this->foodType = $foodType;
         $this->volumeMl = $volumeMl;
     }

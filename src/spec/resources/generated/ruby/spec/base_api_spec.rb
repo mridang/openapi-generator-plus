@@ -4,29 +4,40 @@ require 'minitest/autorun'
 require 'json'
 require 'petstore_client'
 
+class TestableApi < PetstoreClient::Api::BaseApi
+  def call(method, path, query_params, header_params, body,
+           accepts, content_type, return_type, auth = nil)
+    invoke_api(method, path, query_params, header_params, body,
+               accepts, content_type, return_type, auth)
+  end
+end
+
+class TestAuthenticator < PetstoreClient::Auth::Authenticator
+  def initialize(headers: {}, query_params: {}, cookies: {})
+    super()
+    @headers = headers
+    @query = query_params
+    @cookies = cookies
+  end
+
+  def host
+    ''
+  end
+
+  def auth_headers
+    @headers
+  end
+
+  def query_params
+    @query
+  end
+
+  def cookie_params
+    @cookies
+  end
+end
+
 describe PetstoreClient::Api::BaseApi do
-  class TestableApi < PetstoreClient::Api::BaseApi
-    def call(method, path, query_params, header_params, body,
-             accepts, content_type, return_type, auth = nil)
-      invoke_api(method, path, query_params, header_params, body,
-                 accepts, content_type, return_type, auth)
-    end
-  end
-
-  class TestAuthenticator < PetstoreClient::Auth::Authenticator
-    def initialize(headers: {}, query_params: {}, cookies: {})
-      super()
-      @headers = headers
-      @query = query_params
-      @cookies = cookies
-    end
-
-    def host = ''
-    def auth_headers = @headers
-    def query_params = @query
-    def cookie_params = @cookies
-  end
-
   let(:wiremock_url) { ENV.fetch('WIREMOCK_HTTP_URL') }
 
   let(:api) do

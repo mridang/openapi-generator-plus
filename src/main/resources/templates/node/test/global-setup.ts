@@ -62,7 +62,10 @@ export default async function globalSetup() {
     caCertPath,
   }));
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (globalThis as any).__PRISM_CONTAINER__ = prism;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (globalThis as any).__WIREMOCK_CONTAINER__ = wiremock;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (globalThis as any).__SQUID_CONTAINER__ = squid;
 }

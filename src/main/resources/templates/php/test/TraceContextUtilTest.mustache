@@ -27,6 +27,6 @@ class TraceContextUtilTest extends TestCase
         $headers = [];
         TraceContextUtil::injectTraceContext($headers);
         // If we get here, no exception was thrown
-        $this->assertTrue(true);
+        $this->addToAssertionCount(1);
     }
 }

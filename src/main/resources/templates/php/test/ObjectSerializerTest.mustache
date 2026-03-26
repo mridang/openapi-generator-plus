@@ -147,6 +147,7 @@ class ObjectSerializerTest extends TestCase
         $category->name = 'Dogs';
         $json = ObjectSerializer::serialize($category);
         $this->assertJson($json);
+        /** @var array<string, mixed> $data */
         $data = json_decode($json, true);
         $this->assertSame(1, $data['id']);
         $this->assertSame('Dogs', $data['name']);

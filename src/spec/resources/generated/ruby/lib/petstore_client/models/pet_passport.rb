@@ -53,7 +53,7 @@ module PetstoreClient
       # @example null
       attribute :pet, Types::Any.optional.meta(omittable: true)
       # Base64-encoded primary thumbnail
-      # @example [B@20355f91
+      # @example [B@3aa36692
       attribute :thumbnail, Types::Any.optional.meta(omittable: true)
       # Base64-encoded scans of each passport page
       # @example null

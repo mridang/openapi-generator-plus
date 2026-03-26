@@ -4,29 +4,40 @@ require 'minitest/autorun'
 require 'json'
 require '{{gemName}}'
 
+class TestableApi < {{moduleName}}::Api::BaseApi
+  def call(method, path, query_params, header_params, body,
+           accepts, content_type, return_type, auth = nil)
+    invoke_api(method, path, query_params, header_params, body,
+               accepts, content_type, return_type, auth)
+  end
+end
+
+class TestAuthenticator < {{moduleName}}::Auth::Authenticator
+  def initialize(headers: {}, query_params: {}, cookies: {})
+    super()
+    @headers = headers
+    @query = query_params
+    @cookies = cookies
+  end
+
+  def host
+    ''
+  end
+
+  def auth_headers
+    @headers
+  end
+
+  def query_params
+    @query
+  end
+
+  def cookie_params
+    @cookies
+  end
+end
+
 describe {{moduleName}}::Api::BaseApi do
-  class TestableApi < {{moduleName}}::Api::BaseApi
-    def call(method, path, query_params, header_params, body,
-             accepts, content_type, return_type, auth = nil)
-      invoke_api(method, path, query_params, header_params, body,
-                 accepts, content_type, return_type, auth)
-    end
-  end
-
-  class TestAuthenticator < {{moduleName}}::Auth::Authenticator
-    def initialize(headers: {}, query_params: {}, cookies: {})
-      super()
-      @headers = headers
-      @query = query_params
-      @cookies = cookies
-    end
-
-    def host = ''
-    def auth_headers = @headers
-    def query_params = @query
-    def cookie_params = @cookies
-  end
-
   let(:wiremock_url) { ENV.fetch('WIREMOCK_HTTP_URL') }
 
   let(:api) do

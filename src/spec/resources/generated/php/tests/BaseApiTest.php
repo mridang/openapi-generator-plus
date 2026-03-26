@@ -22,6 +22,11 @@ use PetstoreClient\Exceptions\InternalServerErrorException;
 
 class TestableApi extends BaseApi
 {
+    /**
+     * @param array<string, mixed> $queryParams
+     * @param array<string, string> $headerParams
+     * @param array<string> $accepts
+     */
     public function call(
         string $method,
         string $path,
@@ -41,6 +46,11 @@ class TestableApi extends BaseApi
 
 class TestAuthenticator implements Authenticator
 {
+    /**
+     * @param array<string, string> $headers
+     * @param array<string, string> $queryParams
+     * @param array<string, string> $cookies
+     */
     public function __construct(
         private readonly array $headers = [],
         private readonly array $queryParams = [],
@@ -57,11 +67,12 @@ class BaseApiTest extends TestCase
 {
     private function api(): TestableApi
     {
-        $url = getenv('WIREMOCK_HTTP_URL');
+        $url = getenv('WIREMOCK_HTTP_URL') ?: '';
         $config = new Configuration($url);
         return new TestableApi(new DefaultApiClient(), $config);
     }
 
+    /** @return array<array{int, class-string<ApiException>}> */
     public static function statusToExceptionProvider(): array
     {
         return [
@@ -77,7 +88,10 @@ class BaseApiTest extends TestCase
         ];
     }
 
-    /** @dataProvider statusToExceptionProvider */
+    /**
+     * @dataProvider statusToExceptionProvider
+     * @param class-string<ApiException> $expectedClass
+     */
     public function testThrowsCorrectException(int $status, string $expectedClass): void
     {
         try {
@@ -168,7 +182,7 @@ class BaseApiTest extends TestCase
         $this->api()->call(
             'GET', '/api/test', [], [], null,
             ['application/json'], 'application/json', null, $auth);
-        $this->assertTrue(true);
+        $this->addToAssertionCount(1);
     }
 
     public function testSerializesJsonBody(): void
@@ -185,6 +199,6 @@ class BaseApiTest extends TestCase
         $this->api()->call(
             'GET', '/api/test', [], [], null,
             ['application/json'], 'application/json', null);
-        $this->assertTrue(true);
+        $this->addToAssertionCount(1);
     }
 }

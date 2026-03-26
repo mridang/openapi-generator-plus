@@ -254,7 +254,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     if (this.{{name}} != null) {
       const {{name}}Values = Object.values({{classname}}{{enumName}});
       if (!({{name}}Values as readonly unknown[]).includes(this.{{name}})) {
-        this.{{name}} = {{name}}Values[{{name}}Values.length - 1] as any;
+        this.{{name}} = {{name}}Values[{{name}}Values.length - 1] as (typeof {{name}}Values)[number];
       }
     }
 {{/isEnum}}

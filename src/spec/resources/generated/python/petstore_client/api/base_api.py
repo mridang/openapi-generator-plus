@@ -103,7 +103,7 @@ class BaseApi:
         if query_params:
             filtered = {k: v for k, v in query_params.items() if v is not None}
             if filtered:
-                normalized = {}
+                normalized: Dict[str, Any] = {}
                 for k, v in filtered.items():
                     if isinstance(v, bool):
                         normalized[k] = str(v).lower()
