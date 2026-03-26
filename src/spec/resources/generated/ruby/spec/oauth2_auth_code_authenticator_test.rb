@@ -87,20 +87,20 @@ class OAuth2AuthCodeAuthenticatorTest < Minitest::Test
     assert_equal @redirect_uri, parsed_body['redirect_uri']
   end
 
-  def test_auth_headers_after_exchange
-    # First exchange the code
+  def test_refresh_includes_refresh_token
+    # Initial code exchange - token expires immediately (expires_in=1)
     @mock_client.add_response(
       status_code: 200,
       body: JSON.generate({
         'access_token' => 'access_123',
-        'expires_in' => 3600,
-        'refresh_token' => 'refresh_456'
+        'refresh_token' => 'refresh_456',
+        'expires_in' => 1
       })
     )
     @authenticator.exchange_code('auth_code_xyz')
+    assert_equal 1, @mock_client.calls.length
 
-    # Now call auth_headers which should attempt a refresh.
-    # Add another response for the refresh request.
+    # auth_headers triggers refresh since token is expired
     @mock_client.add_response(
       status_code: 200,
       body: JSON.generate({
@@ -108,9 +108,11 @@ class OAuth2AuthCodeAuthenticatorTest < Minitest::Test
         'expires_in' => 3600
       })
     )
+    @authenticator.auth_headers
+    assert_equal 2, @mock_client.calls.length
 
-    headers = @authenticator.auth_headers
-    assert headers.key?('Authorization')
-    assert headers['Authorization'].start_with?('Bearer ')
+    # The refresh request body should include the actual refresh_token value
+    refresh_body = @mock_client.calls.last[:body]
+    assert_includes refresh_body, 'refresh_token=refresh_456'
   end
 end

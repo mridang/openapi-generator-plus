@@ -85,7 +85,7 @@ class OpenIdConnectAuthenticatorTest < Minitest::Test
     assert_equal 'csrf_state_123', params['state']
   end
 
-  def test_exchange_code_obtains_token
+  def test_obtains_token
     stub_discovery_response
 
     token_url = 'https://auth.example.com/oauth/token'
