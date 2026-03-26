@@ -16,6 +16,8 @@ require 'dry-struct'
 # :nodoc:
 module Types
   include Dry.Types()
+
+  Required = Types::Any.constructor { |v| raise Dry::Types::CoercionError, 'value cannot be nil' if v.nil?; v }
 end
 
 # :nodoc:
@@ -56,11 +58,11 @@ module PetstoreClient
       # @example 10
       attribute :id, Types::Any.optional.meta(omittable: true)
       # @example doggie
-      attribute :name, Types::Any
+      attribute :name, Types::Required
       # @example null
       attribute :category, Types::Any.optional.meta(omittable: true)
       # @example null
-      attribute :photo_urls, Types::Any
+      attribute :photo_urls, Types::Required
       # @example null
       attribute :tags, Types::Any.optional.meta(omittable: true)
       # pet status in the store

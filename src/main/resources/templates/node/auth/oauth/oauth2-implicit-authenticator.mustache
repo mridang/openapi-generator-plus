@@ -17,6 +17,7 @@ import type { HttpAwareAuthenticator } from '../http-aware-authenticator{{import
  */
 export class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator {
   private readonly host: string;
+  private readonly clientId: string;
   private readonly authorizationUrl: string;
   private readonly scopes: readonly string[];
   private accessToken: string | null = null;
@@ -25,11 +26,13 @@ export class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator {
    * Create a new implicit flow authenticator.
    *
    * @param host API base URL
+   * @param clientId OAuth2 client ID
    * @param authorizationUrl authorization endpoint URL
    * @param scopes requested scopes
    */
-  constructor(host: string, authorizationUrl: string, scopes: string[]) {
+  constructor(host: string, clientId: string, authorizationUrl: string, scopes: string[]) {
     this.host = host;
+    this.clientId = clientId;
     this.authorizationUrl = authorizationUrl;
     this.scopes = Object.freeze([...scopes]);
   }
@@ -52,6 +55,7 @@ export class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator {
    */
   buildAuthorizationUrl(state?: string): string {
     const params = new URLSearchParams({ response_type: 'token' });
+    params.set('client_id', this.clientId);
     if (this.scopes.length > 0) {
       params.set('scope', this.scopes.join(' '));
     }

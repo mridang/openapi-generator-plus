@@ -33,6 +33,18 @@ export class Pet {
 
   constructor(data?: Partial<Pet>) {
     Object.assign(this, data);
+    if (this.name == null) {
+      throw new Error('name is required');
+    }
+    if (this.photoUrls == null) {
+      throw new Error('photoUrls is required');
+    }
+    if (this.status != null) {
+      const statusValues = Object.values(PetStatusEnum);
+      if (!(statusValues as readonly unknown[]).includes(this.status)) {
+        this.status = statusValues[statusValues.length - 1] as any;
+      }
+    }
   }
 }
 

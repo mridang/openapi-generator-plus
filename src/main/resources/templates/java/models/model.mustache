@@ -306,7 +306,7 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   @JsonProperty("{{baseName}}")
   {{/isWriteOnly}}
   {{/isReadOnly}}
-  @Nullable
+  {{^required}}@Nullable{{/required}}
   public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
 
 {{/vars}}
@@ -326,11 +326,13 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/isAdditionalPropertiesTrue}}
 {{#hasRequired}}
 
+  @SuppressWarnings("NullAway.Init")
   public {{classname}}() {}
 
-  public {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{^-last}}, {{/-last}}{{/requiredVars}}) {
+  @com.fasterxml.jackson.annotation.JsonCreator
+  public {{classname}}({{#requiredVars}}@JsonProperty(value = "{{baseName}}", required = true) {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{^-last}}, {{/-last}}{{/requiredVars}}) {
 {{#requiredVars}}
-    this.{{name}} = {{name}};
+    this.{{name}} = java.util.Objects.requireNonNull({{name}}, "{{name}} is required");
 {{/requiredVars}}
   }
 {{/hasRequired}}

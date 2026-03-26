@@ -133,6 +133,10 @@ public sealed class OAuth2AuthorizationCodeAuthenticator
         }
 
         Dictionary<string, string> parameters = new() { ["grant_type"] = "refresh_token" };
+        if (_tokenManager.RefreshToken is not null)
+        {
+            parameters["refresh_token"] = _tokenManager.RefreshToken;
+        }
         string token = _tokenManager
             .GetAccessTokenAsync(_tokenUrl, parameters)
             .GetAwaiter()

@@ -25,6 +25,12 @@ export class Order {
 
   constructor(data?: Partial<Order>) {
     Object.assign(this, data);
+    if (this.status != null) {
+      const statusValues = Object.values(OrderStatusEnum);
+      if (!(statusValues as readonly unknown[]).includes(this.status)) {
+        this.status = statusValues[statusValues.length - 1] as any;
+      }
+    }
   }
 }
 

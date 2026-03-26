@@ -9,13 +9,23 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class DryFood(string FoodType, double WeightKg)
+public class DryFood
 {
     /// <example>null</example>
+    [JsonRequired]
     [JsonPropertyName("foodType")]
-    public string FoodType { get; set; } = FoodType;
+    public string FoodType { get; set; }
 
     /// <example>null</example>
+    [JsonRequired]
     [JsonPropertyName("weightKg")]
-    public double WeightKg { get; set; } = WeightKg;
+    public double WeightKg { get; set; }
+
+    [System.Text.Json.Serialization.JsonConstructor]
+    public DryFood(string FoodType, double WeightKg)
+    {
+        ArgumentNullException.ThrowIfNull(FoodType, nameof(FoodType));
+        this.FoodType = FoodType;
+        this.WeightKg = WeightKg;
+    }
 }

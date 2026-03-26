@@ -16,6 +16,7 @@ module {{moduleName}}
         #
         # @param client [ApiClient] the shared API client instance
         # @return [void]
+        attr_reader :refresh_token
         attr_writer :api_client
 
         # Create a new token manager.
@@ -26,6 +27,7 @@ module {{moduleName}}
           @mutex = Mutex.new
           @api_client = nil
           @access_token = nil
+          @refresh_token = nil
           @token_expiry = nil
         end
 
@@ -83,6 +85,7 @@ module {{moduleName}}
 
           parsed = JSON.parse(response.body)
           @access_token = parsed['access_token']
+          @refresh_token = parsed['refresh_token'] if parsed.key?('refresh_token')
           @token_expiry = Time.now.to_f + parsed['expires_in'].to_i - 30 if parsed.key?('expires_in')
         end
       end

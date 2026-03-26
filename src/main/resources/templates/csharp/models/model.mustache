@@ -133,7 +133,7 @@ namespace {{packageName}}.Models;
 {{#externalDocumentation}}
 /// <seealso href="{{url}}">{{description}}</seealso>
 {{/externalDocumentation}}
-public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{^-last}}, {{/-last}}{{/requiredVars}}){{#parent}} : {{{.}}}{{/parent}}
+public class {{classname}}{{#parent}} : {{{.}}}{{/parent}}
 {
     {{#vars}}
     {{#isEnum}}
@@ -172,8 +172,11 @@ public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/
     /// <remarks>Deprecated.</remarks>
     [Obsolete("This property is deprecated.")]
 {{/deprecated}}
+{{#required}}
+    [JsonRequired]
+{{/required}}
     [JsonPropertyName("{{baseName}}")]
-    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}} {{name}} { get; set; }{{#required}} = {{name}};{{/required}}{{^required}}{{#defaultValue}} = {{{.}}};{{/defaultValue}}{{/required}}
+    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}} {{name}} { get; set; }{{^required}}{{#defaultValue}} = {{{.}}};{{/defaultValue}}{{/required}}
 {{^-last}}
 
 {{/-last}}
@@ -183,6 +186,20 @@ public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/
     [JsonExtensionData]
     public Dictionary<string, object>? AdditionalProperties { get; set; }
 {{/isAdditionalPropertiesTrue}}
+
+    [System.Text.Json.Serialization.JsonConstructor]
+    public {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{^-last}}, {{/-last}}{{/requiredVars}})
+    {
+{{#requiredVars}}
+{{^isPrimitiveType}}
+        ArgumentNullException.ThrowIfNull({{name}}, nameof({{name}}));
+{{/isPrimitiveType}}
+{{#isString}}
+        ArgumentNullException.ThrowIfNull({{name}}, nameof({{name}}));
+{{/isString}}
+        this.{{name}} = {{name}};
+{{/requiredVars}}
+    }
 }
 {{/hasRequired}}
 {{^hasRequired}}

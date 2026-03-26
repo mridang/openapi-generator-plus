@@ -166,6 +166,9 @@ final class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator imple
             throw new \RuntimeException('Must call exchangeCode() before making API requests');
         }
         $params = ['grant_type' => 'refresh_token'];
+        if ($this->tokenManager->getRefreshToken() !== null) {
+            $params['refresh_token'] = $this->tokenManager->getRefreshToken();
+        }
         $token = $this->tokenManager->getAccessToken($this->tokenUrl, $params);
 
         return ['Authorization' => 'Bearer ' . $token];

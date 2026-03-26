@@ -90,6 +90,7 @@ module {{moduleName}}
           raise 'Must call exchange_code before making API requests' unless @token_exchanged
 
           params = { 'grant_type' => 'refresh_token' }
+          params['refresh_token'] = @token_manager.refresh_token if @token_manager.refresh_token
           token = @token_manager.get_access_token(@token_url, params)
           { 'Authorization' => "Bearer #{token}" }
         end

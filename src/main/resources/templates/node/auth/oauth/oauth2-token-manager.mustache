@@ -11,6 +11,7 @@ export class OAuth2TokenManager {
   private apiClient: ApiClient | null = null;
   private accessToken: string | null = null;
   private tokenExpiry: number | null = null;
+  private refreshToken: string | null = null;
 
   /**
    * Inject the shared API client for making token requests.
@@ -48,6 +49,15 @@ export class OAuth2TokenManager {
   }
 
   /**
+   * Get the refresh token, if one was returned by the token endpoint.
+   *
+   * @returns the refresh token, or null if not available
+   */
+  getRefreshToken(): string | null {
+    return this.refreshToken;
+  }
+
+  /**
    * Fetch a new token from the token endpoint using the injected ApiClient.
    *
    * @param tokenUrl the OAuth2 token endpoint URL
@@ -75,6 +85,9 @@ export class OAuth2TokenManager {
     }
     const json = JSON.parse(response.body) as Record<string, unknown>;
     this.accessToken = json.access_token as string;
+    if (json.refresh_token) {
+      this.refreshToken = json.refresh_token as string;
+    }
     if (json.expires_in) {
       this.tokenExpiry = Date.now() + ((json.expires_in as number) - 30) * 1000;
     }

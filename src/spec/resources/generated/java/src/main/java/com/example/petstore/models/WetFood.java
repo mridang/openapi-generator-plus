@@ -1,25 +1,26 @@
 package com.example.petstore.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import javax.annotation.Nullable;
 
 @SuppressWarnings("deprecation")
 public class WetFood {
 
   /** Example: {@code null} */
   @JsonProperty("foodType")
-  @Nullable
   public String foodType;
 
   /** Example: {@code null} */
   @JsonProperty("volumeMl")
-  @Nullable
   public Integer volumeMl;
 
+  @SuppressWarnings("NullAway.Init")
   public WetFood() {}
 
-  public WetFood(String foodType, Integer volumeMl) {
-    this.foodType = foodType;
-    this.volumeMl = volumeMl;
+  @com.fasterxml.jackson.annotation.JsonCreator
+  public WetFood(
+      @JsonProperty(value = "foodType", required = true) String foodType,
+      @JsonProperty(value = "volumeMl", required = true) Integer volumeMl) {
+    this.foodType = java.util.Objects.requireNonNull(foodType, "foodType is required");
+    this.volumeMl = java.util.Objects.requireNonNull(volumeMl, "volumeMl is required");
   }
 }

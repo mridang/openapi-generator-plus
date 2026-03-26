@@ -30,11 +30,13 @@ module PetstoreClient
         # Create a new implicit flow authenticator.
         #
         # @param host [String] API base URL
+        # @param client_id [String] OAuth2 client ID
         # @param authorization_url [String] authorization endpoint URL
         # @param scopes [Array<String>] requested scopes
-        def initialize(host, authorization_url, scopes)
+        def initialize(host, client_id, authorization_url, scopes)
           super()
           @host = host
+          @client_id = client_id
           @authorization_url = authorization_url
           @scopes = scopes.freeze
           @access_token = nil
@@ -58,6 +60,7 @@ module PetstoreClient
         # @return [String] the authorization URL
         def build_authorization_url(state = nil)
           params = { 'response_type' => 'token' }
+          params['client_id'] = @client_id
           params['scope'] = @scopes.join(' ') unless @scopes.empty?
           params['state'] = state if state
           "#{@authorization_url}?#{URI.encode_www_form(params)}"

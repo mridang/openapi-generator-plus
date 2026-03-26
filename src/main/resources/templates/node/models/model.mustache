@@ -241,6 +241,25 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     super(data);
 {{/parent}}
     Object.assign(this, data);
+{{#hasRequired}}
+{{#requiredVars}}
+    if (this.{{name}} == null) {
+      throw new Error('{{name}} is required');
+    }
+{{/requiredVars}}
+{{/hasRequired}}
+{{#hasEnums}}
+{{#vars}}
+{{#isEnum}}
+    if (this.{{name}} != null) {
+      const {{name}}Values = Object.values({{classname}}{{enumName}});
+      if (!({{name}}Values as readonly unknown[]).includes(this.{{name}})) {
+        this.{{name}} = {{name}}Values[{{name}}Values.length - 1] as any;
+      }
+    }
+{{/isEnum}}
+{{/vars}}
+{{/hasEnums}}
   }
 }
 {{#hasEnums}}

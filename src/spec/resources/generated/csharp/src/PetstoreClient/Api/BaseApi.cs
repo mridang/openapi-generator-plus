@@ -305,11 +305,25 @@ public abstract class BaseApi
         {
             if (entry.Value != null)
             {
-                parts.Add(
-                    Uri.EscapeDataString(entry.Key)
-                        + "="
-                        + Uri.EscapeDataString(entry.Value.ToString()!)
-                );
+                if (entry.Value is System.Collections.IEnumerable enumerable and not string)
+                {
+                    foreach (object? item in enumerable)
+                    {
+                        parts.Add(
+                            Uri.EscapeDataString(entry.Key)
+                                + "="
+                                + Uri.EscapeDataString(item?.ToString() ?? "")
+                        );
+                    }
+                }
+                else
+                {
+                    parts.Add(
+                        Uri.EscapeDataString(entry.Key)
+                            + "="
+                            + Uri.EscapeDataString(entry.Value.ToString()!)
+                    );
+                }
             }
         }
         return string.Join("&", parts);

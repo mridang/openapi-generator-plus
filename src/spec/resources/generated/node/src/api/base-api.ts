@@ -87,7 +87,11 @@ export abstract class BaseApi {
 
     const filteredParams = Object.entries(queryParams)
       .filter(([, v]) => v != null)
-      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+      .flatMap(([k, v]) =>
+        Array.isArray(v)
+          ? v.map((item) => `${encodeURIComponent(k)}=${encodeURIComponent(String(item))}`)
+          : [`${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`]
+      )
       .join('&');
     if (filteredParams) {
       url += '?' + filteredParams;

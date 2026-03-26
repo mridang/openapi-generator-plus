@@ -24,6 +24,7 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 import javax.annotation.Nullable;
@@ -317,7 +318,13 @@ public abstract class BaseApi {
         StringJoiner joiner = new StringJoiner("&");
         for (Map.Entry<String, Object> entry : queryParams.entrySet()) {
             if (entry.getValue() != null) {
-                joiner.add(encode(entry.getKey()) + "=" + encode(String.valueOf(entry.getValue())));
+                if (entry.getValue() instanceof List<?> list) {
+                    for (Object item : list) {
+                        joiner.add(encode(entry.getKey()) + "=" + encode(String.valueOf(item)));
+                    }
+                } else {
+                    joiner.add(encode(entry.getKey()) + "=" + encode(String.valueOf(entry.getValue())));
+                }
             }
         }
         return joiner.toString();

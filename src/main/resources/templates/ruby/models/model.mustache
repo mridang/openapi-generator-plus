@@ -10,6 +10,7 @@ require 'dry-struct'
 # :nodoc:
 module Types
   include Dry.Types()
+  Required = Types::Any.constructor { |v| raise Dry::Types::CoercionError, 'value cannot be nil' if v.nil?; v }
 end
 
 # :nodoc:
@@ -225,7 +226,7 @@ module {{moduleName}}
       # @return [Object] Write-only property.
       {{/isWriteOnly}}
       {{#required}}
-      attribute :{{name}}, Types::Any{{#defaultValue}}.default({{{.}}}.freeze){{/defaultValue}}
+      attribute :{{name}}, Types::Required{{#defaultValue}}.default({{{.}}}.freeze){{/defaultValue}}
       {{/required}}
       {{^required}}
       attribute :{{name}}, Types::Any.optional.meta(omittable: true){{#defaultValue}}.default({{{.}}}.freeze){{/defaultValue}}

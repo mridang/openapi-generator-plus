@@ -114,6 +114,7 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
         }
         Map<String, String> params = new HashMap<>();
         params.put("grant_type", "refresh_token");
+        params.put("refresh_token", tokenManager.getRefreshToken());
         String token = tokenManager.getAccessToken(tokenUrl, params);
         return Collections.singletonMap("Authorization", "Bearer " + token);
     }

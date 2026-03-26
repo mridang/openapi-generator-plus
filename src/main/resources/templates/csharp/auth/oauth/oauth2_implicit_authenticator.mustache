@@ -20,6 +20,7 @@ namespace {{packageName}}.Auth.OAuth;
 public sealed class OAuth2ImplicitAuthenticator : BaseAuthenticator, IHttpAwareAuthenticator
 {
     private readonly string _host;
+    private readonly string _clientId;
     private readonly Uri _authorizationUrl;
     private readonly string[] _scopes;
     private string? _accessToken;
@@ -28,11 +29,13 @@ public sealed class OAuth2ImplicitAuthenticator : BaseAuthenticator, IHttpAwareA
     /// Create a new implicit flow authenticator.
     /// </summary>
     /// <param name="host">API base URL.</param>
+    /// <param name="clientId">OAuth2 client identifier.</param>
     /// <param name="authorizationUrl">Authorization endpoint URL.</param>
     /// <param name="scopes">Requested scopes.</param>
-    public OAuth2ImplicitAuthenticator(string host, Uri authorizationUrl, string[] scopes)
+    public OAuth2ImplicitAuthenticator(string host, string clientId, Uri authorizationUrl, string[] scopes)
     {
         _host = host;
+        _clientId = clientId;
         _authorizationUrl = authorizationUrl;
         _scopes = [.. scopes];
     }
@@ -48,6 +51,7 @@ public sealed class OAuth2ImplicitAuthenticator : BaseAuthenticator, IHttpAwareA
     public Uri BuildAuthorizationUrl(string? state = null)
     {
         Dictionary<string, string> parameters = new() { ["response_type"] = "token" };
+        parameters["client_id"] = _clientId;
         if (_scopes.Length > 0)
         {
             parameters["scope"] = string.Join(" ", _scopes);

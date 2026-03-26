@@ -123,5 +123,7 @@ class OAuth2AuthorizationCodeAuthenticator(HttpAwareAuthenticator):
         if not self._token_exchanged:
             raise RuntimeError('Must call exchange_code() before making API requests')
         params = {'grant_type': 'refresh_token'}
+        if self._token_manager.refresh_token:
+            params['refresh_token'] = self._token_manager.refresh_token
         token = self._token_manager.get_access_token(self._token_url, params)
         return {'Authorization': f'Bearer {token}'}

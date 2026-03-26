@@ -616,8 +616,8 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                     + "import " + pkg + ".auth.Authenticator;\n"
                     + "import java.util.List;\n\n"
                     + "public final class " + className + "ImplicitAuthenticator extends OAuth2ImplicitAuthenticator {\n"
-                    + "    public " + className + "ImplicitAuthenticator(String host) {\n"
-                    + "        super(host, \"" + authUrl + "\",\n"
+                    + "    public " + className + "ImplicitAuthenticator(String host, String clientId) {\n"
+                    + "        super(host, clientId, \"" + authUrl + "\",\n"
                     + "              List.of(" + scopes + "));\n"
                     + "    }\n"
                     + "}\n";

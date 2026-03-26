@@ -32,15 +32,17 @@ class OAuth2ImplicitAuthenticator(HttpAwareAuthenticator):
     4. Use the authenticator normally.
     """
 
-    def __init__(self, host: str, authorization_url: str, scopes: Sequence[str]) -> None:
+    def __init__(self, host: str, client_id: str, authorization_url: str, scopes: Sequence[str]) -> None:
         """Create a new implicit flow authenticator.
 
         Args:
             host: API base URL.
+            client_id: OAuth2 client ID.
             authorization_url: Authorization endpoint URL.
             scopes: Requested scopes.
         """
         self._host = host
+        self._client_id = client_id
         self._authorization_url = authorization_url
         self._scopes = tuple(scopes)
         self._access_token: Optional[str] = None
@@ -67,6 +69,7 @@ class OAuth2ImplicitAuthenticator(HttpAwareAuthenticator):
             The authorization URL.
         """
         params: Dict[str, str] = {'response_type': 'token'}
+        params['client_id'] = self._client_id
         if self._scopes:
             params['scope'] = ' '.join(self._scopes)
         if state:

@@ -26,6 +26,7 @@ public class OAuth2TokenManager {
   @Nullable private ApiClient apiClient;
   @Nullable private String accessToken;
   @Nullable private Instant tokenExpiry;
+  @Nullable private String refreshToken;
 
   /**
    * Create a new token manager.
@@ -77,6 +78,15 @@ public class OAuth2TokenManager {
     this.tokenExpiry = null;
   }
 
+  /**
+   * Get the refresh token, if one was returned by the token endpoint.
+   *
+   * @return the refresh token, or null if not available
+   */
+  public @Nullable String getRefreshToken() {
+    return refreshToken;
+  }
+
   private void fetchToken(String tokenUrl, Map<String, String> params) {
     if (apiClient == null) {
       throw new IllegalStateException(
@@ -104,6 +114,9 @@ public class OAuth2TokenManager {
       }
       JsonNode json = objectMapper.readTree(response.body());
       this.accessToken = json.get("access_token").asText();
+      if (json.has("refresh_token")) {
+        this.refreshToken = json.get("refresh_token").asText();
+      }
       if (json.has("expires_in")) {
         long expiresIn = json.get("expires_in").asLong();
         this.tokenExpiry = Instant.now().plusSeconds(expiresIn - 30);

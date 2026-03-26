@@ -51,7 +51,6 @@ public class Pet {
 
   /** Example: {@code doggie} */
   @JsonProperty("name")
-  @Nullable
   public String name;
 
   /** Example: {@code null} */
@@ -61,7 +60,6 @@ public class Pet {
 
   /** Example: {@code null} */
   @JsonProperty("photoUrls")
-  @Nullable
   public Set<String> photoUrls = new LinkedHashSet<>();
 
   /** Example: {@code null} */
@@ -81,10 +79,14 @@ public class Pet {
   @Nullable
   public StatusEnum status;
 
+  @SuppressWarnings("NullAway.Init")
   public Pet() {}
 
-  public Pet(String name, Set<String> photoUrls) {
-    this.name = name;
-    this.photoUrls = photoUrls;
+  @com.fasterxml.jackson.annotation.JsonCreator
+  public Pet(
+      @JsonProperty(value = "name", required = true) String name,
+      @JsonProperty(value = "photoUrls", required = true) Set<String> photoUrls) {
+    this.name = java.util.Objects.requireNonNull(name, "name is required");
+    this.photoUrls = java.util.Objects.requireNonNull(photoUrls, "photoUrls is required");
   }
 }

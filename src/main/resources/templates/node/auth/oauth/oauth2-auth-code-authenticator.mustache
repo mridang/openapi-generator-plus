@@ -135,7 +135,10 @@ export class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     if (!this.tokenExchanged) {
       throw new Error('Must call exchangeCode() before making API requests');
     }
-    const params = { grant_type: 'refresh_token' };
+    const params: Record<string, string> = { grant_type: 'refresh_token' };
+    if (this.tokenManager.getRefreshToken()) {
+      params.refresh_token = this.tokenManager.getRefreshToken()!;
+    }
     const token = await this.tokenManager.getAccessToken(this.tokenUrl, params);
     return { Authorization: `Bearer ${token}` };
   }

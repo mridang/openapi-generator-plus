@@ -1,7 +1,6 @@
 package com.example.petstore.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import javax.annotation.Nullable;
 
 @SuppressWarnings("deprecation")
 public class SetPetAvatarRequest {
@@ -12,18 +11,20 @@ public class SetPetAvatarRequest {
    * <p>Example: {@code null}
    */
   @JsonProperty("data")
-  @Nullable
   public byte[] data;
 
   /** Example: {@code image/jpeg} */
   @JsonProperty("mimeType")
-  @Nullable
   public String mimeType;
 
+  @SuppressWarnings("NullAway.Init")
   public SetPetAvatarRequest() {}
 
-  public SetPetAvatarRequest(byte[] data, String mimeType) {
-    this.data = data;
-    this.mimeType = mimeType;
+  @com.fasterxml.jackson.annotation.JsonCreator
+  public SetPetAvatarRequest(
+      @JsonProperty(value = "data", required = true) byte[] data,
+      @JsonProperty(value = "mimeType", required = true) String mimeType) {
+    this.data = java.util.Objects.requireNonNull(data, "data is required");
+    this.mimeType = java.util.Objects.requireNonNull(mimeType, "mimeType is required");
   }
 }

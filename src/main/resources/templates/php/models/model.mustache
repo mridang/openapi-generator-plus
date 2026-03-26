@@ -342,6 +342,11 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{/isContainer}}
 {{/optionalVars}}
     ) {
+{{#requiredVars}}
+        if (${{name}} === null) {
+            throw new \InvalidArgumentException('{{name}} is required');
+        }
+{{/requiredVars}}
 {{#vars}}
         $this->{{name}} = ${{name}};
 {{/vars}}

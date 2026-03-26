@@ -99,9 +99,15 @@ public sealed class OAuth2TokenManager
         _accessToken =
             root.GetProperty("access_token").GetString()
             ?? throw new InvalidOperationException("Token response missing access_token");
+        if (root.TryGetProperty("refresh_token", out JsonElement refreshTokenElement))
+        {
+            RefreshToken = refreshTokenElement.GetString();
+        }
         if (root.TryGetProperty("expires_in", out JsonElement expiresIn))
         {
             _tokenExpiry = DateTimeOffset.UtcNow.AddSeconds(expiresIn.GetInt32() - 30);
         }
     }
+
+    internal string? RefreshToken { get; private set; }
 }

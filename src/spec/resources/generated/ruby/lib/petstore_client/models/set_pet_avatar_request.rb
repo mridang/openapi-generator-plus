@@ -16,6 +16,8 @@ require 'dry-struct'
 # :nodoc:
 module Types
   include Dry.Types()
+
+  Required = Types::Any.constructor { |v| raise Dry::Types::CoercionError, 'value cannot be nil' if v.nil?; v }
 end
 
 # :nodoc:
@@ -46,9 +48,9 @@ module PetstoreClient
 
       # Base64-encoded image data
       # @example null
-      attribute :data, Types::Any
+      attribute :data, Types::Required
       # @example image/jpeg
-      attribute :mime_type, Types::Any
+      attribute :mime_type, Types::Required
     end
   end
 end

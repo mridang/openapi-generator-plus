@@ -33,6 +33,9 @@ final class OAuth2TokenManager
     /** @var string|null The current access token. */
     private ?string $accessToken = null;
 
+    /** @var string|null The refresh token. */
+    private ?string $refreshToken = null;
+
     /** @var float|null The token expiry time as a Unix timestamp. */
     private ?float $tokenExpiry = null;
 
@@ -80,6 +83,16 @@ final class OAuth2TokenManager
     }
 
     /**
+     * Get the current refresh token.
+     *
+     * @return string|null the refresh token, or null if not available
+     */
+    public function getRefreshToken(): ?string
+    {
+        return $this->refreshToken;
+    }
+
+    /**
      * Fetch a new token from the token endpoint using the injected ApiClient.
      *
      * @param string               $tokenUrl the OAuth2 token endpoint URL
@@ -112,6 +125,9 @@ final class OAuth2TokenManager
             /** @var array{access_token: string, refresh_token?: string, expires_in?: int} $responseBody */
             $responseBody = json_decode($response->body, true);
             $this->accessToken = $responseBody['access_token'];
+            if (isset($responseBody['refresh_token'])) {
+                $this->refreshToken = $responseBody['refresh_token'];
+            }
             if (isset($responseBody['expires_in'])) {
                 $this->tokenExpiry = microtime(true) + (float) $responseBody['expires_in'] - 30;
             }

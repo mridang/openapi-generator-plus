@@ -37,6 +37,9 @@ final class OAuth2ImplicitAuthenticator extends BaseAuthenticator implements Htt
     /** @var string API base URL. */
     private readonly string $host;
 
+    /** @var string OAuth2 client ID. */
+    private readonly string $clientId;
+
     /** @var string Authorization endpoint URL. */
     private readonly string $authorizationUrl;
 
@@ -50,12 +53,14 @@ final class OAuth2ImplicitAuthenticator extends BaseAuthenticator implements Htt
      * Create a new implicit flow authenticator.
      *
      * @param string   $host             API base URL
+     * @param string   $clientId         OAuth2 client ID
      * @param string   $authorizationUrl authorization endpoint URL
      * @param string[] $scopes           requested scopes
      */
-    public function __construct(string $host, string $authorizationUrl, array $scopes)
+    public function __construct(string $host, string $clientId, string $authorizationUrl, array $scopes)
     {
         $this->host = $host;
+        $this->clientId = $clientId;
         $this->authorizationUrl = $authorizationUrl;
         $this->scopes = $scopes;
     }
@@ -81,6 +86,7 @@ final class OAuth2ImplicitAuthenticator extends BaseAuthenticator implements Htt
     public function buildAuthorizationUrl(?string $state = null): string
     {
         $params = ['response_type' => 'token'];
+        $params['client_id'] = $this->clientId;
         if ($this->scopes !== []) {
             $params['scope'] = implode(' ', $this->scopes);
         }

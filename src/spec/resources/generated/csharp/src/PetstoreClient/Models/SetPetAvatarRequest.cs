@@ -9,16 +9,26 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class SetPetAvatarRequest(byte[] Data, string MimeType)
+public class SetPetAvatarRequest
 {
     /// <summary>
     /// Base64-encoded image data
     /// </summary>
     /// <example>null</example>
+    [JsonRequired]
     [JsonPropertyName("data")]
-    public byte[] Data { get; set; } = Data;
+    public byte[] Data { get; set; }
 
     /// <example>image/jpeg</example>
+    [JsonRequired]
     [JsonPropertyName("mimeType")]
-    public string MimeType { get; set; } = MimeType;
+    public string MimeType { get; set; }
+
+    [System.Text.Json.Serialization.JsonConstructor]
+    public SetPetAvatarRequest(byte[] Data, string MimeType)
+    {
+        this.Data = Data;
+        ArgumentNullException.ThrowIfNull(MimeType, nameof(MimeType));
+        this.MimeType = MimeType;
+    }
 }

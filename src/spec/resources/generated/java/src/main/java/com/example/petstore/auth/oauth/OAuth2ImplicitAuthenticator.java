@@ -28,6 +28,7 @@ import javax.annotation.Nullable;
 public class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator {
 
   private final String host;
+  private final String clientId;
   private final String authorizationUrl;
   private final List<String> scopes;
   @Nullable private String accessToken;
@@ -36,11 +37,14 @@ public class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator {
    * Create a new implicit flow authenticator.
    *
    * @param host API base URL
+   * @param clientId OAuth2 client ID
    * @param authorizationUrl authorization endpoint URL
    * @param scopes requested scopes
    */
-  public OAuth2ImplicitAuthenticator(String host, String authorizationUrl, List<String> scopes) {
+  public OAuth2ImplicitAuthenticator(
+      String host, String clientId, String authorizationUrl, List<String> scopes) {
     this.host = host;
+    this.clientId = clientId;
     this.authorizationUrl = authorizationUrl;
     this.scopes = List.copyOf(scopes);
   }
@@ -57,6 +61,7 @@ public class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator {
   public String buildAuthorizationUrl(@Nullable String state) {
     StringBuilder url = new StringBuilder(authorizationUrl);
     url.append("?response_type=token");
+    url.append("&client_id=").append(encode(clientId));
     if (!scopes.isEmpty()) {
       url.append("&scope=").append(encode(String.join(" ", scopes)));
     }

@@ -103,7 +103,15 @@ class BaseApi:
         if query_params:
             filtered = {k: v for k, v in query_params.items() if v is not None}
             if filtered:
-                url += '?' + urlencode(filtered)
+                normalized = {}
+                for k, v in filtered.items():
+                    if isinstance(v, bool):
+                        normalized[k] = str(v).lower()
+                    elif isinstance(v, list):
+                        normalized[k] = [str(i).lower() if isinstance(i, bool) else i for i in v]
+                    else:
+                        normalized[k] = v
+                url += '?' + urlencode(normalized, doseq=True)
 
         is_multipart = content_type == 'multipart/form-data'
         headers = self._header_selector.select_headers(accepts, content_type or '', is_multipart)

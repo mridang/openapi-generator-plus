@@ -23,6 +23,7 @@ class OAuth2TokenManager:
         """
         self._api_client: Optional[ApiClient] = None
         self._access_token: Optional[str] = None
+        self._refresh_token: Optional[str] = None
         self._token_expiry: Optional[float] = None
         self._lock = threading.Lock()
 
@@ -101,5 +102,11 @@ class OAuth2TokenManager:
 
         token_data = json.loads(response.body)
         self._access_token = token_data['access_token']
+        if 'refresh_token' in token_data:
+            self._refresh_token = token_data['refresh_token']
         if 'expires_in' in token_data:
             self._token_expiry = time.time() + token_data['expires_in'] - 30
+
+    @property
+    def refresh_token(self) -> Optional[str]:
+        return self._refresh_token
