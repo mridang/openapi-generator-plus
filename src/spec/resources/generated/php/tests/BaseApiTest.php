@@ -1,0 +1,190 @@
+<?php
+
+declare(strict_types=1);
+
+namespace PetstoreClient\Tests;
+
+use PHPUnit\Framework\TestCase;
+use PetstoreClient\Api\BaseApi;
+use PetstoreClient\Configuration;
+use PetstoreClient\DefaultApiClient;
+use PetstoreClient\Auth\Authenticator;
+use PetstoreClient\ApiException;
+use PetstoreClient\Exceptions\ClientException;
+use PetstoreClient\Exceptions\ServerException;
+use PetstoreClient\Exceptions\BadRequestException;
+use PetstoreClient\Exceptions\UnauthorizedException;
+use PetstoreClient\Exceptions\ForbiddenException;
+use PetstoreClient\Exceptions\NotFoundException;
+use PetstoreClient\Exceptions\ConflictException;
+use PetstoreClient\Exceptions\UnprocessableEntityException;
+use PetstoreClient\Exceptions\InternalServerErrorException;
+
+class TestableApi extends BaseApi
+{
+    public function call(
+        string $method,
+        string $path,
+        array $queryParams,
+        array $headerParams,
+        mixed $body,
+        array $accepts,
+        ?string $contentType,
+        ?string $returnType,
+        ?Authenticator $auth = null
+    ): mixed {
+        return $this->invokeApi(
+            $method, $path, $queryParams, $headerParams, $body,
+            $accepts, $contentType, $returnType, $auth);
+    }
+}
+
+class TestAuthenticator implements Authenticator
+{
+    public function __construct(
+        private readonly array $headers = [],
+        private readonly array $queryParams = [],
+        private readonly array $cookies = []
+    ) {}
+
+    public function getHost(): string { return ''; }
+    public function getAuthHeaders(): array { return $this->headers; }
+    public function getQueryParams(): array { return $this->queryParams; }
+    public function getCookieParams(): array { return $this->cookies; }
+}
+
+class BaseApiTest extends TestCase
+{
+    private function api(): TestableApi
+    {
+        $url = getenv('WIREMOCK_HTTP_URL');
+        $config = new Configuration($url);
+        return new TestableApi(new DefaultApiClient(), $config);
+    }
+
+    public static function statusToExceptionProvider(): array
+    {
+        return [
+            [400, BadRequestException::class],
+            [401, UnauthorizedException::class],
+            [403, ForbiddenException::class],
+            [404, NotFoundException::class],
+            [409, ConflictException::class],
+            [422, UnprocessableEntityException::class],
+            [418, ClientException::class],
+            [500, InternalServerErrorException::class],
+            [502, ServerException::class],
+        ];
+    }
+
+    /** @dataProvider statusToExceptionProvider */
+    public function testThrowsCorrectException(int $status, string $expectedClass): void
+    {
+        try {
+            $this->api()->call(
+                'GET', "/api/error/$status", [], [], null,
+                ['application/json'], 'application/json', null);
+            $this->fail('Expected exception not thrown');
+        } catch (ApiException $e) {
+            $this->assertInstanceOf($expectedClass, $e);
+            $this->assertSame($status, $e->getCode());
+            $this->assertNotEmpty($e->getResponseBody());
+        }
+    }
+
+    public function testNotFoundHierarchy(): void
+    {
+        try {
+            $this->api()->call(
+                'GET', '/api/error/404', [], [], null,
+                ['application/json'], 'application/json', null);
+            $this->fail('Expected exception not thrown');
+        } catch (NotFoundException $e) {
+            $this->assertInstanceOf(ClientException::class, $e);
+            $this->assertInstanceOf(ApiException::class, $e);
+        }
+    }
+
+    public function testInternalServerErrorHierarchy(): void
+    {
+        try {
+            $this->api()->call(
+                'GET', '/api/error/500', [], [], null,
+                ['application/json'], 'application/json', null);
+            $this->fail('Expected exception not thrown');
+        } catch (InternalServerErrorException $e) {
+            $this->assertInstanceOf(ServerException::class, $e);
+            $this->assertInstanceOf(ApiException::class, $e);
+        }
+    }
+
+    public function testDeserializesJsonResponse(): void
+    {
+        $result = $this->api()->call(
+            'GET', '/api/test', [], [], null,
+            ['application/json'], 'application/json', 'array');
+        $this->assertIsArray($result);
+        $this->assertSame('success', $result['message']);
+    }
+
+    public function testReturnsRawStringForNonJson(): void
+    {
+        $result = $this->api()->call(
+            'GET', '/api/text', [], [], null,
+            ['text/plain'], 'application/json', 'string');
+        $this->assertIsString($result);
+        $this->assertStringContainsString('hello plain text', $result);
+    }
+
+    public function testReturnsNullWhenReturnTypeIsNull(): void
+    {
+        $result = $this->api()->call(
+            'GET', '/api/test', [], [], null,
+            ['application/json'], 'application/json', null);
+        $this->assertNull($result);
+    }
+
+    public function testAppendsQueryParams(): void
+    {
+        $result = $this->api()->call(
+            'GET', '/api/test', ['foo' => 'bar'], [], null,
+            ['application/json'], 'application/json', null);
+        $this->assertNull($result);
+    }
+
+    public function testForwardsAuthHeaders(): void
+    {
+        $auth = new TestAuthenticator(headers: ['X-Custom' => 'auth-value']);
+        $result = $this->api()->call(
+            'GET', '/api/echo-headers', [], [], null,
+            ['application/json'], 'application/json', 'array', $auth);
+        $this->assertIsArray($result);
+        $this->assertSame('auth-value', $result['x-custom']);
+    }
+
+    public function testSetsCookieHeader(): void
+    {
+        $auth = new TestAuthenticator(cookies: ['session' => 'abc123']);
+        $this->api()->call(
+            'GET', '/api/test', [], [], null,
+            ['application/json'], 'application/json', null, $auth);
+        $this->assertTrue(true);
+    }
+
+    public function testSerializesJsonBody(): void
+    {
+        $result = $this->api()->call(
+            'POST', '/api/echo-body', [], [], ['key' => 'value'],
+            ['application/json'], 'application/json', 'array');
+        $this->assertIsArray($result);
+        $this->assertSame('value', $result['key']);
+    }
+
+    public function testSendsNoBodyWhenNull(): void
+    {
+        $this->api()->call(
+            'GET', '/api/test', [], [], null,
+            ['application/json'], 'application/json', null);
+        $this->assertTrue(true);
+    }
+}

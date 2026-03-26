@@ -1,0 +1,11 @@
+# Composer dependencies
+/vendor/
+
+# Composer lock file
+composer.lock
+
+# PHPUnit cache
+.phpunit.result.cache
+
+# Coverage output
+.out/

@@ -1,0 +1,149 @@
+# frozen_string_literal: true
+
+# Integration tests for the Pet API endpoints.
+
+require 'spec_helper'
+require 'stringio'
+
+describe PetstoreClient::Api::PetApi do
+  before do
+    @api = PetstoreClient::Api::PetApi.new
+    @base_url = ENV['API_BASE_URL'] || 'http://localhost:4010'
+    @auth = PetstoreClient::Auth::BearerAuthenticator.new(@base_url, 'test-token')
+  end
+
+  describe '#add_pet' do
+    it 'creates a new pet' do
+      pet = PetstoreClient::Models::Pet.new(
+        id: 12345,
+        name: 'TestDog',
+        photo_urls: ['http://example.com/photo.jpg'],
+        status: 'available'
+      )
+
+      result = @api.add_pet(@auth, pet)
+
+      _(result).wont_be_nil
+      _(result.name).wont_be_nil
+    end
+  end
+
+  describe '#find_pets_by_status' do
+    it 'returns pets by status' do
+      result = @api.find_pets_by_status(status: 'available')
+
+      _(result).must_be_kind_of(Array)
+      _(result).wont_be_empty
+      _(result.first).must_be_kind_of(PetstoreClient::Models::Pet)
+    end
+  end
+
+  describe '#get_pet_by_id' do
+    it 'returns a pet by id' do
+      result = @api.get_pet_by_id(1)
+
+      _(result).wont_be_nil
+      _(result.id).wont_be_nil
+      _(result.name).wont_be_nil
+    end
+  end
+
+  describe '#update_pet' do
+    it 'updates an existing pet' do
+      pet = PetstoreClient::Models::Pet.new(
+        id: 1,
+        name: 'UpdatedDog',
+        photo_urls: ['http://example.com/updated.jpg'],
+        status: 'pending'
+      )
+
+      result = @api.update_pet(1, pet)
+
+      _(result).wont_be_nil
+    end
+  end
+
+  describe '#delete_pet' do
+    it 'deletes a pet' do
+      @api.delete_pet(@auth, 1)
+    end
+  end
+
+  describe '#set_pet_avatar' do
+    it 'uploads binary image data' do
+      @api.set_pet_avatar(1, StringIO.new("\xFF\xD8\xFF"))
+    end
+  end
+
+  describe '#get_pet_avatar' do
+    it 'downloads the pet avatar as binary' do
+      result = @api.get_pet_avatar(1)
+
+      _(result).wont_be_nil
+    end
+  end
+
+  describe '#get_pet_avatar_thumbnail' do
+    it 'returns a base64-encoded thumbnail' do
+      result = @api.get_pet_avatar_thumbnail(1)
+
+      _(result).wont_be_nil
+    end
+  end
+
+  describe '#set_pet_avatar_thumbnail' do
+    it 'uploads a base64 thumbnail via JSON' do
+      request = 'iVBORw0KGgoAAAANSUhEUg=='
+
+      @api.set_pet_avatar_thumbnail(1, request)
+    end
+  end
+
+  describe '#upload_pet_certificate' do
+    it 'uploads a certificate via multipart' do
+      result = @api.upload_pet_certificate(1, file: StringIO.new('cert-data'))
+
+      _(result).wont_be_nil
+    end
+  end
+
+  describe '#upload_pet_document' do
+    it 'uploads a document with metadata via multipart' do
+      result = @api.upload_pet_document(1, file: StringIO.new('doc-data'), document_type: 'vaccination_record',
+                                           notes: 'Annual checkup')
+
+      _(result).wont_be_nil
+    end
+  end
+
+  describe '#add_pet_photos' do
+    # Prism mock server does not support multipart array fields
+    it 'uploads photos with metadata via multipart' do
+      skip 'Prism does not validate multipart array fields correctly'
+    end
+  end
+
+  describe '#download_pet_document' do
+    it 'downloads a document as binary' do
+      result = @api.download_pet_document(1, 1)
+
+      _(result).wont_be_nil
+    end
+  end
+
+  describe '#get_pet_photo' do
+    # Prism returns JSON for content negotiation but the return type is File
+    it 'returns a photo via content negotiation' do
+      skip 'Prism returns JSON for image content type'
+    end
+  end
+
+  describe '#get_pet_passport' do
+    it 'returns a passport with embedded byte fields' do
+      result = @api.get_pet_passport(1)
+
+      _(result).wont_be_nil
+      _(result).must_be_kind_of(PetstoreClient::Models::PetPassport)
+    end
+  end
+end

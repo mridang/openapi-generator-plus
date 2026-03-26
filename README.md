@@ -227,7 +227,15 @@ docker run --rm \
 
 ## Caveats
 
-None.
+The following OAS 3.0 features are deliberately out of scope for this project:
+
+| Feature | Notes |
+|---|---|
+| Callbacks | Silently ignored |
+| Links (`links:` in responses) | Silently ignored |
+| Webhooks | OAS 3.1 feature; not targeted |
+| Mutual TLS (mTLS) | Not implemented |
+| XML serialization (`xml:` object) | JSON-only; XML is not supported |
 
 ## Contributing
 
