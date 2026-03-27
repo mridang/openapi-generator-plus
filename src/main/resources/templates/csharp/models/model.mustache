@@ -185,7 +185,7 @@ public class {{classname}}{{#parent}} : {{{.}}}{{/parent}}
 {{#isAdditionalPropertiesTrue}}
 
     [JsonExtensionData]
-    public Dictionary<string, object>? AdditionalProperties { get; set; }
+    public Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>? AdditionalProperties { get; set; }
 {{/isAdditionalPropertiesTrue}}
 
     [System.Text.Json.Serialization.JsonConstructor]
@@ -259,7 +259,7 @@ public class {{classname}}{{#parent}} : {{{.}}}{{/parent}}
 {{#isAdditionalPropertiesTrue}}
 
     [JsonExtensionData]
-    public Dictionary<string, object>? AdditionalProperties { get; set; }
+    public Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>? AdditionalProperties { get; set; }
 {{/isAdditionalPropertiesTrue}}
 }
 {{/hasRequired}}

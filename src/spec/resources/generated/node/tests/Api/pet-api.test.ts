@@ -125,6 +125,13 @@ describe('PetApi', () => {
     expect(result).toBeDefined();
   });
 
+  test.skip('getPetTag sends styled parameters - Prism cannot handle matrix/label path styles', async () => {
+    const result = await api.getPetTag(5, 'cute', { colors: ['blue', 'black'], sizes: ['S', 'M'] });
+
+    expect(result).toBeDefined();
+    expect(result.id).toBeDefined();
+  });
+
   test('getExternalPetInfo uses per-operation server URL', async () => {
     const externalConfig = Configuration.builder().baseUrl(baseUrl).build();
     const externalApi = new PetApi(externalConfig);
