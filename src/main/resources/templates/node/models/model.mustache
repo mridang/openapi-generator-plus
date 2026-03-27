@@ -242,11 +242,13 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/parent}}
     Object.assign(this, data);
 {{#hasRequired}}
+    if (data !== undefined) {
 {{#requiredVars}}
-    if (this.{{name}} == null) {
-      throw new Error('{{name}} is required');
-    }
+      if (this.{{name}} == null) {
+        throw new Error('{{name}} is required');
+      }
 {{/requiredVars}}
+    }
 {{/hasRequired}}
 {{#hasEnums}}
 {{#vars}}

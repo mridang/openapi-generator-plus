@@ -13,11 +13,13 @@ export class SetPetAvatarRequest {
 
   constructor(data?: Partial<SetPetAvatarRequest>) {
     Object.assign(this, data);
-    if (this.data == null) {
-      throw new Error('data is required');
-    }
-    if (this.mimeType == null) {
-      throw new Error('mimeType is required');
+    if (data !== undefined) {
+      if (this.data == null) {
+        throw new Error('data is required');
+      }
+      if (this.mimeType == null) {
+        throw new Error('mimeType is required');
+      }
     }
   }
 }

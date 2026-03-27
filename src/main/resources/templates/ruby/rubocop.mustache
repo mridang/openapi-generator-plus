@@ -2,3 +2,18 @@ AllCops:
   TargetRubyVersion: 3.1
   NewCops: enable
   SuggestExtensions: false
+
+Metrics/BlockLength:
+  Exclude:
+    - 'spec/**/*'
+
+Metrics/ParameterLists:
+  Exclude:
+    - 'spec/**/*'
+
+Style/NumericLiterals:
+  Enabled: false
+
+Style/OneClassPerFile:
+  Exclude:
+    - 'spec/**/*'

@@ -6,6 +6,11 @@ end
 module Dry
   def self.Types: () -> Module
 
+  module Types
+    class CoercionError < StandardError
+    end
+  end
+
   class Struct
     def self.attribute: (Symbol, untyped) -> void
     def self.transform_keys: () { (untyped) -> untyped } -> void
@@ -14,6 +19,7 @@ end
 
 module Types
   Any: untyped
+  Required: untyped
 end
 
 module URI

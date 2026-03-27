@@ -10,11 +10,13 @@ export class DryFood {
 
   constructor(data?: Partial<DryFood>) {
     Object.assign(this, data);
-    if (this.foodType == null) {
-      throw new Error('foodType is required');
-    }
-    if (this.weightKg == null) {
-      throw new Error('weightKg is required');
+    if (data !== undefined) {
+      if (this.foodType == null) {
+        throw new Error('foodType is required');
+      }
+      if (this.weightKg == null) {
+        throw new Error('weightKg is required');
+      }
     }
   }
 }

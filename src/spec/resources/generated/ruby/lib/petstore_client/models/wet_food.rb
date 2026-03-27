@@ -17,7 +17,11 @@ require 'dry-struct'
 module Types
   include Dry.Types()
 
-  Required = Types::Any.constructor { |v| raise Dry::Types::CoercionError, 'value cannot be nil' if v.nil?; v }
+  Required = Types::Any.constructor do |v|
+    raise Dry::Types::CoercionError, 'value cannot be nil' if v.nil?
+
+    v
+  end
 end
 
 # :nodoc:

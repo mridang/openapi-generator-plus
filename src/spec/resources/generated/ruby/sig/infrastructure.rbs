@@ -240,7 +240,7 @@ module PetstoreClient
       end
       class OAuth2ImplicitAuthenticator < Authenticator
         include HttpAwareAuthenticator
-        def initialize: (String, String, Array[String]) -> void
+        def initialize: (String, String, String, Array[String]) -> void
         def api_client=: (ApiClient) -> void
         def build_authorization_url: (?String?) -> String
         def access_token=: (String) -> void

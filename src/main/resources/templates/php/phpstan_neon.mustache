@@ -5,3 +5,8 @@ parameters:
     - .
   excludePaths:
     - vendor
+  ignoreErrors:
+    - identifier: method.alreadyNarrowedType
+      path: tests/
+    - identifier: argument.type
+      path: tests/

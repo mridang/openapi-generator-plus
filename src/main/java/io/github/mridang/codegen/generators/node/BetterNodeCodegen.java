@@ -181,6 +181,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                 new SupportingFile("api/index.mustache", "src/api", "index.ts"));
         supportingFiles.add(new SupportingFile("package.mustache", "", "package.json"));
         supportingFiles.add(new SupportingFile("prettierrc.mustache", "", "prettier.config.mjs"));
+        supportingFiles.add(new SupportingFile("prettierignore.mustache", "", ".prettierignore"));
         supportingFiles.add(
                 new SupportingFile("eslint_config.mustache", "", "eslint.config.mjs"));
         supportingFiles.add(new SupportingFile("authenticator.mustache", "src/auth", "authenticator.ts"));
@@ -576,7 +577,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
         runFormatterInDocker(
                 "node:24-slim",
                 "npm install --ignore-scripts",
-                "npx prettier --write 'src/**/*.ts'",
+                "npx prettier --write .",
                 "rm -rf node_modules");
     }
 }

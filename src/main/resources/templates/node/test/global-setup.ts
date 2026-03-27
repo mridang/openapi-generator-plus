@@ -11,6 +11,7 @@ export default async function globalSetup() {
     .withBindMounts([{ source: specPath, target: '/tmp/openapi.yaml', mode: 'ro' }])
     .withCommand(['mock', '-h', '0.0.0.0', '/tmp/openapi.yaml'])
     .withWaitStrategy(Wait.forLogMessage('Prism is listening'))
+    .withStartupTimeout(120000)
     .start();
 
   const keystorePath = path.join(hostAppPath, 'certs', 'server-keystore.p12');
@@ -32,6 +33,7 @@ export default async function globalSetup() {
       '--verbose',
     ])
     .withWaitStrategy(Wait.forLogMessage('port:'))
+    .withStartupTimeout(120000)
     .start();
 
   const squidConfPath = path.join(hostAppPath, 'proxy', 'squid.conf');
@@ -41,7 +43,7 @@ export default async function globalSetup() {
     .withBindMounts([
       { source: squidConfPath, target: '/etc/squid/squid.conf', mode: 'ro' },
     ])
-    .withStartupTimeout(10000)
+    .withStartupTimeout(120000)
     .start();
 
   // Give Squid a moment to initialize

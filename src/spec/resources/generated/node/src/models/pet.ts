@@ -33,11 +33,13 @@ export class Pet {
 
   constructor(data?: Partial<Pet>) {
     Object.assign(this, data);
-    if (this.name == null) {
-      throw new Error('name is required');
-    }
-    if (this.photoUrls == null) {
-      throw new Error('photoUrls is required');
+    if (data !== undefined) {
+      if (this.name == null) {
+        throw new Error('name is required');
+      }
+      if (this.photoUrls == null) {
+        throw new Error('photoUrls is required');
+      }
     }
     if (this.status != null) {
       const statusValues = Object.values(PetStatusEnum);

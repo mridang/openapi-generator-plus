@@ -97,7 +97,29 @@ These are transport concerns and should stay in ValueSerializer. Only the `strin
 
 ### 0.3 Write tests (before implementation)
 
-**No new tests needed.** The existing ValueSerializer tests and ObjectSerializer tests already cover the public API. The refactoring only changes internal delegation — the external behavior of `ValueSerializer.serialize()` does not change. All existing tests serve as regression tests.
+The existing ValueSerializer and ObjectSerializer tests serve as regression tests for the refactoring (external behavior of `ValueSerializer.serialize()` does not change). However, the new public `ObjectSerializer.stringify()` method needs direct unit test coverage in all 6 languages.
+
+**Files to modify (6 ObjectSerializer test templates):**
+
+| Language | File |
+|----------|------|
+| Java | `src/main/resources/templates/java/test/ObjectSerializerTest.mustache` |
+| Node | `src/main/resources/templates/node/test/object-serializer.test.ts` |
+| Python | `src/main/resources/templates/python/test/test_object_serializer.mustache` |
+| Ruby | `src/main/resources/templates/ruby/test/object_serializer_spec.mustache` |
+| PHP | `src/main/resources/templates/php/test/ObjectSerializerTest.mustache` |
+| C# | `src/main/resources/templates/csharp/test/ObjectSerializerTest.mustache` |
+
+Add a new `"stringify"` test group with these test cases (6 tests per language):
+
+| Test name | Input | Expected |
+|-----------|-------|----------|
+| null returns empty string | `stringify(null)` | `""` |
+| boolean true returns lowercase string | `stringify(true)` | `"true"` |
+| boolean false returns lowercase string | `stringify(false)` | `"false"` |
+| integer returns string representation | `stringify(42)` | `"42"` |
+| date-time returns ISO 8601 string | `stringify(<language-specific datetime>)` | ISO 8601 formatted string (e.g., `"2024-01-15T10:30:00..."`) |
+| plain string passes through unchanged | `stringify("hello")` | `"hello"` |
 
 ### 0.4 Implementation
 
@@ -282,7 +304,30 @@ Add a new `serializeStyled()` test group to each ValueSerializer test template, 
 |-----------|-------|----------|
 | path with null style behaves like simple | `serializeStyled("id", "5", "path", "string", null, null, false)` | `"5"` |
 
-### 1.3 Implementation
+### 1.3 Integration tests for `getPetTag` operation
+
+In addition to the ValueSerializer unit tests above, add an integration test for the new `getPetTag` operation in each PetApi test template. This verifies that the API templates correctly wire `serializeStyled()` with the style/explode values from the spec, and that the full HTTP request is constructed correctly.
+
+**Files to modify (6 PetApi test templates):**
+
+| Language | File |
+|----------|------|
+| Java | `src/main/resources/templates/java/test/api/PetApiTest.mustache` |
+| Node | `src/main/resources/templates/node/test/Api/pet-api.test.ts` |
+| Python | `src/main/resources/templates/python/test/Api/test_pet_api.mustache` |
+| Ruby | `src/main/resources/templates/ruby/test/Api/pet_api_spec.mustache` |
+| PHP | `src/main/resources/templates/php/test/Api/PetApiTest.mustache` |
+| C# | `src/main/resources/templates/csharp/test/Api/PetApiTest.mustache` |
+
+**Test case (1 test per language):**
+
+| Test name | Behavior |
+|-----------|----------|
+| getPetTag sends matrix and label path params and pipe/space query params | Call `getPetTag(petId=5, tagName="cute", colors=["blue","black"], sizes=["S","M"])`, capture the outgoing HTTP request, and assert: (1) path contains `;petId=5` (matrix style) and `.cute` (label style), (2) query string contains `colors=blue|black` (pipeDelimited) and `sizes=blue%20black` or `sizes=blue+black` (spaceDelimited) |
+
+Note: The exact assertion format depends on whether the mock server (WireMock/Prism) captures the raw request URL. If the mock server doesn't support these styles for validation, this test may need to capture the request at the HTTP client level instead.
+
+### 1.4 Implementation
 
 **Add `serializeStyled()` to all 6 ValueSerializer templates:**
 
@@ -315,6 +360,8 @@ switch(style):
 ```
 
 This method calls `ObjectSerializer.stringify()` (from Gap 0) for converting each individual value to a string, then applies the style-specific formatting.
+
+**`deepObject` style is NOT handled by `serializeStyled()`** — it continues to use the existing `serializeDeepObject()` code path. In all 6 API templates, `deepObject` params are already handled via the `{{#isDeepObject}}` conditional, which calls `ValueSerializer.serializeDeepObject()` (a separate method that returns a `Map<String, String>` of expanded key-value pairs). This is architecturally different from the other styles (which return a single serialized string) and should remain as a separate path. The `serializeStyled()` method does not need a `"deepObject"` case.
 
 **Update 6 API templates** to call `serializeStyled()` instead of `serialize()`, passing `"{{style}}"` and `{{isExplode}}` from the native `CodegenParameter` fields:
 
@@ -538,7 +585,9 @@ When `refreshUrl` differs from `tokenUrl`, refresh requests go to the wrong endp
 
 OAuth authenticator tests are generated by the Java codegen classes (`generatePerSchemeAuthenticators()`), not from Mustache test templates. The tests need to be added to the test template files that generate per-scheme authenticator tests.
 
-**Test case:** Construct an auth code authenticator with `tokenUrl="https://auth.example.com/token"` and `refreshUrl="https://auth.example.com/refresh"`. After `exchangeCode()`, call `getAuthHeaders()` and verify the refresh request goes to `refreshUrl`, not `tokenUrl`.
+**Auth code authenticator test case:** Construct an auth code authenticator with `tokenUrl="https://auth.example.com/token"` and `refreshUrl="https://auth.example.com/refresh"`. After `exchangeCode()`, call `getAuthHeaders()` and verify the refresh request goes to `refreshUrl`, not `tokenUrl`.
+
+**Password authenticator test case:** Construct a password authenticator with `tokenUrl="https://auth.example.com/token"` and `refreshUrl="https://auth.example.com/refresh"`. After initial `authenticate(username, password)`, call `getAuthHeaders()` and verify the refresh request goes to `refreshUrl`, not `tokenUrl`.
 
 **Files to modify (auth code authenticator test templates, 6 languages):**
 
@@ -550,6 +599,17 @@ OAuth authenticator tests are generated by the Java codegen classes (`generatePe
 | Ruby | Generated test in `src/spec/resources/generated/ruby/.../oauth2_auth_code_authenticator_test.rb` |
 | PHP | Generated test in `src/spec/resources/generated/php/.../OAuth2AuthorizationCodeAuthenticatorTest.php` |
 | C# | Generated test in `src/spec/resources/generated/csharp/.../OAuth2AuthorizationCodeAuthenticatorTest.cs` |
+
+**Files to modify (password authenticator test templates, 6 languages):**
+
+| Language | File |
+|----------|------|
+| Java | Generated test in `src/spec/resources/generated/java/.../OAuth2PasswordAuthenticatorTest.java` |
+| Node | Generated test in `src/spec/resources/generated/node/.../oauth2-password-authenticator.test.ts` |
+| Python | Generated test in `src/spec/resources/generated/python/.../test_oauth2_password_authenticator.py` |
+| Ruby | Generated test in `src/spec/resources/generated/ruby/.../oauth2_password_authenticator_test.rb` |
+| PHP | Generated test in `src/spec/resources/generated/php/.../OAuth2PasswordAuthenticatorTest.php` |
+| C# | Generated test in `src/spec/resources/generated/csharp/.../OAuth2PasswordAuthenticatorTest.cs` |
 
 ### 5.3 Implementation
 
@@ -648,12 +708,14 @@ Users can override `baseUrl` via the builder, but they must manually construct t
 
 **File:** `src/spec/resources/specs/petstore/openapi.yaml`
 
-Modify the existing `servers` block to include server variables:
+Add a second server with variables to the existing `servers` block. **The relative `/api/v3` server MUST remain first** to preserve `{{{basePath}}}` as `/api/v3` — otherwise, the upstream framework resolves the first server's URL template with defaults and all existing integration tests (which override `baseUrl` to a local WireMock/Prism URL) would see a changed default, and any test that does NOT explicitly override `baseUrl` would break.
 
 ```yaml
 servers:
+  - url: /api/v3
+    description: Relative URL (no variables)
   - url: https://{environment}.example.com/api/{version}
-    description: Main API server
+    description: Main API server with variables
     variables:
       environment:
         default: api
@@ -668,11 +730,9 @@ servers:
         enum:
           - v2
           - v3
-  - url: /api/v3
-    description: Relative URL (no variables)
 ```
 
-This replaces the current single server entry (`/api/v3`) with two servers — one with variables and one without.
+This keeps `/api/v3` as the first server (preserving `{{{basePath}}}`) and adds a second server with variables. Gap 6 tests will explicitly reference `Servers.SERVER_1` (the variable server) to exercise server variable overrides.
 
 ### 6.3 Write tests (before implementation)
 
@@ -696,12 +756,14 @@ Add tests to the Configuration test suite and BaseApi test suite in each languag
 
 **Test cases (4 tests per language):**
 
+Note: `Servers.SERVER_1` is the variable server (`https://{environment}.example.com/api/{version}`). `Servers.SERVER_0` is the relative URL (`/api/v3`, no variables).
+
 | Test name | Behavior |
 |-----------|----------|
-| server variable overrides resolve in base URL | `Configuration.builder().server(Servers.SERVER_0, Map.of("environment", "staging")).build().getBaseUrl()` equals `"https://staging.example.com/api/v3"` |
-| default server variables produce correct base URL | `Configuration.builder().server(Servers.SERVER_0).build().getBaseUrl()` equals `"https://api.example.com/api/v3"` |
-| invalid enum value throws error | `Configuration.builder().server(Servers.SERVER_0, Map.of("environment", "invalid"))` throws `IllegalArgumentException` / `Error` / `ValueError` / etc. |
-| API request uses resolved server URL | Construct Configuration with `environment=staging`, make API call, assert request URL starts with `https://staging.example.com/api/v3` |
+| server variable overrides resolve in base URL | `Configuration.builder().server(Servers.SERVER_1, Map.of("environment", "staging")).build().getBaseUrl()` equals `"https://staging.example.com/api/v3"` |
+| default server variables produce correct base URL | `Configuration.builder().server(Servers.SERVER_1).build().getBaseUrl()` equals `"https://api.example.com/api/v3"` |
+| invalid enum value throws error | `Configuration.builder().server(Servers.SERVER_1, Map.of("environment", "invalid"))` throws `IllegalArgumentException` / `Error` / `ValueError` / etc. |
+| API request uses resolved server URL | Construct Configuration with `server(Servers.SERVER_1, Map.of("environment", "staging"))`, make API call, assert request URL starts with `https://staging.example.com/api/v3` |
 
 ### 6.4 Implementation
 
@@ -745,7 +807,7 @@ Each Configuration template needs to import the `ServerConfiguration` class. The
 
 The `baseUrl` field on Configuration is already used by BaseApi to construct request URLs. Since the `server()` builder method resolves the URL and stores it as `baseUrl`, no changes are needed to BaseApi's URL resolution logic. The existing flow works:
 
-1. User builds Configuration with `server(Servers.SERVER_0, Map.of("environment", "staging"))`
+1. User builds Configuration with `server(Servers.SERVER_1, Map.of("environment", "staging"))`
 2. Builder calls `ServerConfiguration.getUrl({"environment": "staging"})` → `"https://staging.example.com/api/v3"`
 3. Builder stores result as `baseUrl`
 4. BaseApi reads `config.getBaseUrl()` and prepends it to operation paths
@@ -804,7 +866,7 @@ Update the caveats table to have two sections:
 7. Verify generated models use typed `additionalProperties` (e.g., `Map<String, String>` for the Metadata model)
 8. Verify OAuth authenticators accept `refreshUrl` parameter
 9. Verify generated Configuration Builder has `server()` method accepting `ServerConfiguration` + variable overrides in all 6 languages
-10. Verify `Configuration.builder().server(Servers.SERVER_0, Map.of("environment", "staging")).build().getBaseUrl()` resolves correctly
+10. Verify `Configuration.builder().server(Servers.SERVER_1, Map.of("environment", "staging")).build().getBaseUrl()` resolves correctly
 11. `devbox run test` — full test suite passes (all 6 language integration tests)
 
 ---
@@ -815,11 +877,13 @@ Update the caveats table to have two sections:
 
 | File count | Description | New tests |
 |------------|-------------|-----------|
-| 6 ValueSerializer test templates | All 6 languages | 17 new tests for `serializeStyled()`: matrix (4), label (4), spaceDelimited (2), pipeDelimited (2), form+explode (2), simple compat (2), null fallback (1) |
-| 6 BaseApi test templates | All 6 languages | 1 new test each for allowEmptyValue query param + 4 new tests each for server variable overrides via Configuration |
-| 6 PetApi test templates | All 6 languages | 1 new test each for per-operation server URL assertion |
-| 6 new Metadata model test templates | All 6 languages (new files) | 3 new tests each: deserialize, round-trip, type check |
-| 6 OAuth auth code test templates | All 6 languages | 1 new test each for refreshUrl used in refresh requests |
+| 6 ObjectSerializer test templates | All 6 languages | Gap 0: 6 new tests for `stringify()`: null, bool true, bool false, integer, date-time, string |
+| 6 ValueSerializer test templates | All 6 languages | Gap 1: 17 new tests for `serializeStyled()`: matrix (4), label (4), spaceDelimited (2), pipeDelimited (2), form+explode (2), simple compat (2), null fallback (1) |
+| 6 BaseApi test templates | All 6 languages | Gap 2: 1 new test each for allowEmptyValue query param + Gap 6: 4 new tests each for server variable overrides via Configuration |
+| 6 PetApi test templates | All 6 languages | Gap 1: 1 new test each for `getPetTag` styled param integration + Gap 3: 1 new test each for per-operation server URL assertion |
+| 6 new Metadata model test templates | All 6 languages (new files) | Gap 4: 3 new tests each: deserialize, round-trip, type check |
+| 6 OAuth auth code test templates | All 6 languages | Gap 5: 1 new test each for refreshUrl used in refresh requests |
+| 6 OAuth password test templates | All 6 languages | Gap 5: 1 new test each for refreshUrl used in refresh requests |
 
 ### Source templates (implement after tests)
 
@@ -843,7 +907,7 @@ Update the caveats table to have two sections:
 
 ### Total file count
 
-- **Test files:** 30 (6 modified ValueSerializer + 6 modified BaseApi + 6 modified PetApi + 6 new Metadata + 6 modified OAuth)
+- **Test files:** 42 (6 modified ObjectSerializer + 6 modified ValueSerializer + 6 modified BaseApi + 6 modified PetApi + 6 new Metadata + 6 modified OAuth auth code + 6 modified OAuth password)
 - **Source templates:** 42 (6 ObjectSerializer + 6 ValueSerializer + 6 API + 6 model + 12 OAuth + 6 Configuration)
 - **Other files:** 9 (1 spec + 6 codegen classes + 1 AbstractBetterCodegen + 1 README)
-- **Grand total:** ~81 files touched
+- **Grand total:** ~93 files touched

@@ -17,7 +17,11 @@ require 'dry-struct'
 module Types
   include Dry.Types()
 
-  Required = Types::Any.constructor { |v| raise Dry::Types::CoercionError, 'value cannot be nil' if v.nil?; v }
+  Required = Types::Any.constructor do |v|
+    raise Dry::Types::CoercionError, 'value cannot be nil' if v.nil?
+
+    v
+  end
 end
 
 # :nodoc:
@@ -53,7 +57,7 @@ module PetstoreClient
       # @example null
       attribute :pet, Types::Any.optional.meta(omittable: true)
       # Base64-encoded primary thumbnail
-      # @example [B@3aa36692
+      # @example [B@1cd1d0b7
       attribute :thumbnail, Types::Any.optional.meta(omittable: true)
       # Base64-encoded scans of each passport page
       # @example null

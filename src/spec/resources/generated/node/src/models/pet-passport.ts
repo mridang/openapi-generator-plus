@@ -8,7 +8,7 @@ export class PetPassport {
   pet?: Pet;
   /**
    * Base64-encoded primary thumbnail
-   * @example [B@63e6d6ac
+   * @example [B@77a532be
    */
   @Expose({ name: 'thumbnail' })
   thumbnail?: string;
