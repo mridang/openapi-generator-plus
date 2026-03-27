@@ -119,6 +119,12 @@ describe PetstoreClient::Api::BaseApi do
     assert_nil result
   end
 
+  it 'includes empty value param in query string when value is empty string' do
+    result = api.call('GET', '/api/test', { 'filter' => '' }, {}, nil,
+                      ['application/json'], 'application/json', nil)
+    assert_nil result
+  end
+
   # ── Auth injection ──
 
   it 'forwards auth headers' do
@@ -147,5 +153,36 @@ describe PetstoreClient::Api::BaseApi do
   it 'sends no body when body is nil' do
     api.call('GET', '/api/test', {}, {}, nil,
              ['application/json'], 'application/json', nil)
+  end
+
+  # ── Server variable overrides via Configuration ──
+
+  it 'server variable overrides resolve in base URL' do
+    config = PetstoreClient::Configuration.builder
+                                          .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'staging')
+                                          .build
+    _(config.base_url).must_equal('https://staging.example.com/api/v3')
+  end
+
+  it 'default server variables produce correct base URL' do
+    config = PetstoreClient::Configuration.builder
+                                          .server(PetstoreClient::Servers::SERVER_1)
+                                          .build
+    _(config.base_url).must_equal('https://api.example.com/api/v3')
+  end
+
+  it 'invalid enum value raises ArgumentError' do
+    assert_raises(ArgumentError) do
+      PetstoreClient::Configuration.builder
+                                   .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'invalid')
+                                   .build
+    end
+  end
+
+  it 'API request uses resolved server URL' do
+    config = PetstoreClient::Configuration.builder
+                                          .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'staging')
+                                          .build
+    _(config.base_url).must_equal('https://staging.example.com/api/v3')
   end
 end

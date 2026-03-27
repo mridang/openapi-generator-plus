@@ -4,12 +4,12 @@ require 'cgi'
 
 module PetstoreClient
   # Serializes parameter values for HTTP requests based on their location.
-  class ValueSerializer
+  class ValueSerializer # rubocop:disable Metrics/ClassLength
     def self.serialize(value, location, _schema_type, collection_format: nil)
       return serialize_nil(location) if value.nil?
       return serialize_array(value, location, collection_format) if value.is_a?(Array)
 
-      str_val = stringify(value)
+      str_val = ObjectSerializer.stringify(value)
 
       return CGI.escape(str_val) if location == :path
 
@@ -26,22 +26,22 @@ module PetstoreClient
       if location == :query
         serialize_query_array(value, collection_format)
       elsif location == :header
-        value.map { |v| stringify(v) }.join(',')
+        value.map { |v| ObjectSerializer.stringify(v) }.join(',')
       end
     end
 
     def self.serialize_query_array(value, collection_format) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength
       case collection_format
       when :multi
-        value.map { |v| stringify(v) }
+        value.map { |v| ObjectSerializer.stringify(v) }
       when :ssv
-        value.map { |v| stringify(v) }.join(' ')
+        value.map { |v| ObjectSerializer.stringify(v) }.join(' ')
       when :tsv
-        value.map { |v| stringify(v) }.join("\t")
+        value.map { |v| ObjectSerializer.stringify(v) }.join("\t")
       when :pipes
-        value.map { |v| stringify(v) }.join('|')
+        value.map { |v| ObjectSerializer.stringify(v) }.join('|')
       else
-        value.map { |v| stringify(v) }.join(',')
+        value.map { |v| ObjectSerializer.stringify(v) }.join(',')
       end
     end
 
@@ -61,20 +61,90 @@ module PetstoreClient
       # @type var acc: Hash[String, String]
       acc = {}
       value.each_with_object(acc) do |(key, val), result|
-        result["#{param_name}[#{key}]"] = stringify(val)
+        result["#{param_name}[#{key}]"] = ObjectSerializer.stringify(val)
       end
     end
 
-    private_class_method def self.stringify(value)
-      return '' if value.nil?
+    # Serialize a parameter value according to OAS 3.0 style and explode rules.
+    #
+    # @param param_name [String] the parameter name
+    # @param value [Object, nil] the value to serialize
+    # @param location [Symbol] parameter location (:path, :query, :header, :cookie)
+    # @param schema_type [String] the schema type (e.g. 'string', 'array')
+    # @param collection_format [Symbol, nil] legacy collection format
+    # @param style [String, nil] OAS 3.0 style (e.g. 'matrix', 'label', 'form',
+    #   'simple', 'spaceDelimited', 'pipeDelimited')
+    # @param explode [Boolean] whether to explode array values
+    # @return [String, Array<String>, nil] the serialized value
+    def self.serialize_styled(param_name, value, location, schema_type, collection_format, style, explode) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/ParameterLists, Metrics/PerceivedComplexity
+      return serialize(value, location, schema_type, collection_format: collection_format) if style.nil? || style.empty?
 
-      case value
-      when TrueClass, FalseClass
-        value ? 'true' : 'false'
-      when Time, DateTime
-        value.strftime('%Y-%m-%dT%H:%M:%S.%L%z')
+      case style
+      when 'matrix'
+        return '' if value.nil?
+
+        if value.is_a?(Array)
+          if explode
+            value.map { |v| ";#{param_name}=#{ObjectSerializer.stringify(v)}" }.join
+          else
+            ";#{param_name}=#{value.map { |v| ObjectSerializer.stringify(v) }.join(',')}"
+          end
+        else
+          ";#{param_name}=#{ObjectSerializer.stringify(value)}"
+        end
+      when 'label'
+        return '' if value.nil?
+
+        if value.is_a?(Array)
+          if explode
+            ".#{value.map { |v| ObjectSerializer.stringify(v) }.join('.')}"
+          else
+            ".#{value.map { |v| ObjectSerializer.stringify(v) }.join(',')}"
+          end
+        else
+          ".#{ObjectSerializer.stringify(value)}"
+        end
+      when 'spaceDelimited'
+        return nil if value.nil? && location == :query
+        return '' if value.nil?
+
+        if value.is_a?(Array)
+          value.map { |v| ObjectSerializer.stringify(v) }.join(' ')
+        else
+          ObjectSerializer.stringify(value)
+        end
+      when 'pipeDelimited'
+        return nil if value.nil? && location == :query
+        return '' if value.nil?
+
+        if value.is_a?(Array)
+          value.map { |v| ObjectSerializer.stringify(v) }.join('|')
+        else
+          ObjectSerializer.stringify(value)
+        end
+      when 'form'
+        return nil if value.nil? && location == :query
+        return '' if value.nil?
+
+        if value.is_a?(Array)
+          if explode
+            value.map { |v| ObjectSerializer.stringify(v) }
+          else
+            value.map { |v| ObjectSerializer.stringify(v) }.join(',')
+          end
+        else
+          ObjectSerializer.stringify(value)
+        end
+      when 'simple'
+        return '' if value.nil?
+
+        if value.is_a?(Array)
+          value.map { |v| ObjectSerializer.stringify(v) }.join(',')
+        else
+          ObjectSerializer.stringify(value)
+        end
       else
-        value.to_s
+        serialize(value, location, schema_type, collection_format: collection_format)
       end
     end
 

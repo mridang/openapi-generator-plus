@@ -31,20 +31,23 @@ module PetstoreClient
         # @param token_url [String] token endpoint URL
         # @param redirect_uri [String] redirect URI registered with the OAuth2 provider
         # @param scopes [Array<String>] requested scopes
-        # rubocop:disable Metrics/ParameterLists
-        def initialize(host, client_id, client_secret, authorization_url, token_url, redirect_uri, scopes)
+        # @param refresh_url [String, nil] refresh endpoint URL (defaults to token_url)
+        # rubocop:disable Metrics/MethodLength, Metrics/ParameterLists
+        def initialize(host, client_id, client_secret, authorization_url, token_url, redirect_uri, scopes,
+                       refresh_url: nil)
           super()
           @host = host
           @client_id = client_id
           @client_secret = client_secret
           @authorization_url = authorization_url
           @token_url = token_url
+          @refresh_url = refresh_url || token_url
           @redirect_uri = redirect_uri
           @scopes = scopes.freeze
           @token_manager = OAuth2TokenManager.new
           @token_exchanged = false
         end
-        # rubocop:enable Metrics/ParameterLists
+        # rubocop:enable Metrics/MethodLength, Metrics/ParameterLists
 
         # Inject the shared API client for making token requests.
         #
@@ -91,7 +94,7 @@ module PetstoreClient
 
           params = { 'grant_type' => 'refresh_token' }
           params['refresh_token'] = @token_manager.refresh_token if @token_manager.refresh_token
-          token = @token_manager.get_access_token(@token_url, params)
+          token = @token_manager.get_access_token(@refresh_url, params)
           { 'Authorization' => "Bearer #{token}" }
         end
       end

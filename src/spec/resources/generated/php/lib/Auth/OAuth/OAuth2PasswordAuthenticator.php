@@ -40,6 +40,9 @@ final class OAuth2PasswordAuthenticator extends BaseAuthenticator implements Htt
     /** @var string Token endpoint URL. */
     private readonly string $tokenUrl;
 
+    /** @var string Refresh token endpoint URL (falls back to tokenUrl if not set). */
+    private readonly string $refreshUrl;
+
     /** @var string Resource owner username. */
     private readonly string $username;
 
@@ -55,13 +58,14 @@ final class OAuth2PasswordAuthenticator extends BaseAuthenticator implements Htt
     /**
      * Create a new password authenticator.
      *
-     * @param string   $host         API base URL
-     * @param string   $clientId     OAuth2 client ID
-     * @param string   $clientSecret OAuth2 client secret
-     * @param string   $tokenUrl     token endpoint URL
-     * @param string   $username     resource owner username
-     * @param string   $password     resource owner password
-     * @param string[] $scopes       requested scopes
+     * @param string      $host         API base URL
+     * @param string      $clientId     OAuth2 client ID
+     * @param string      $clientSecret OAuth2 client secret
+     * @param string      $tokenUrl     token endpoint URL
+     * @param string      $username     resource owner username
+     * @param string      $password     resource owner password
+     * @param string[]    $scopes       requested scopes
+     * @param string|null $refreshUrl   refresh token endpoint URL (defaults to tokenUrl)
      */
     public function __construct(
         string $host,
@@ -70,12 +74,14 @@ final class OAuth2PasswordAuthenticator extends BaseAuthenticator implements Htt
         string $tokenUrl,
         string $username,
         string $password,
-        array $scopes
+        array $scopes,
+        ?string $refreshUrl = null
     ) {
         $this->host = $host;
         $this->clientId = $clientId;
         $this->clientSecret = $clientSecret;
         $this->tokenUrl = $tokenUrl;
+        $this->refreshUrl = $refreshUrl ?? $tokenUrl;
         $this->username = $username;
         $this->password = $password;
         $this->scopes = $scopes;
@@ -110,17 +116,25 @@ final class OAuth2PasswordAuthenticator extends BaseAuthenticator implements Htt
      */
     public function getAuthHeaders(): array
     {
-        $params = [
-            'grant_type' => 'password',
-            'client_id' => $this->clientId,
-            'client_secret' => $this->clientSecret,
-            'username' => $this->username,
-            'password' => $this->password,
-        ];
-        if ($this->scopes !== []) {
-            $params['scope'] = implode(' ', $this->scopes);
+        if ($this->tokenManager->getRefreshToken() !== null) {
+            $params = [
+                'grant_type' => 'refresh_token',
+                'refresh_token' => $this->tokenManager->getRefreshToken(),
+            ];
+            $token = $this->tokenManager->getAccessToken($this->refreshUrl, $params);
+        } else {
+            $params = [
+                'grant_type' => 'password',
+                'client_id' => $this->clientId,
+                'client_secret' => $this->clientSecret,
+                'username' => $this->username,
+                'password' => $this->password,
+            ];
+            if ($this->scopes !== []) {
+                $params['scope'] = implode(' ', $this->scopes);
+            }
+            $token = $this->tokenManager->getAccessToken($this->tokenUrl, $params);
         }
-        $token = $this->tokenManager->getAccessToken($this->tokenUrl, $params);
 
         return ['Authorization' => 'Bearer ' . $token];
     }

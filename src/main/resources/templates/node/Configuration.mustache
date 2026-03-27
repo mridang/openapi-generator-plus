@@ -1,3 +1,5 @@
+import { ServerConfiguration } from './server-configuration{{importFileExtension}}';
+
 /**
  * API-level configuration for generated client classes.
  *
@@ -101,6 +103,22 @@ export class ConfigurationBuilder {
    */
   defaultHeaders(headers: Record<string, string>): this {
     Object.assign(this._defaultHeaders, headers);
+    return this;
+  }
+
+  /**
+   * Set the base URL by resolving a server configuration with optional variable overrides.
+   *
+   * This is a convenience method that calls {@link ServerConfiguration.getUrl}
+   * with the given overrides and stores the result as the base URL. If the user
+   * also calls {@link baseUrl} after this method, the explicit base URL wins.
+   *
+   * @param serverConfig the server configuration to resolve
+   * @param variables optional variable overrides (defaults are used for omitted variables)
+   * @returns this builder
+   */
+  server(serverConfig: ServerConfiguration, variables?: Record<string, string>): this {
+    this._baseUrl = serverConfig.getUrl(variables ?? {});
     return this;
   }
 

@@ -40,6 +40,8 @@ public class PetApi extends BaseApi {
 
   private static final TypeReference<List<Pet>> findPetsByStatusTypeRef = new TypeReference<>() {};
 
+  private static final TypeReference<Pet> getExternalPetInfoTypeRef = new TypeReference<>() {};
+
   private static final TypeReference<InputStream> getPetAvatarTypeRef = new TypeReference<>() {};
 
   private static final TypeReference<byte[]> getPetAvatarThumbnailTypeRef =
@@ -50,6 +52,8 @@ public class PetApi extends BaseApi {
   private static final TypeReference<PetPassport> getPetPassportTypeRef = new TypeReference<>() {};
 
   private static final TypeReference<InputStream> getPetPhotoTypeRef = new TypeReference<>() {};
+
+  private static final TypeReference<Pet> getPetTagTypeRef = new TypeReference<>() {};
 
   private static final TypeReference<Pet> updatePetTypeRef = new TypeReference<>() {};
 
@@ -159,7 +163,9 @@ public class PetApi extends BaseApi {
         "/pet/{petId}/photos"
             .replace(
                 "{" + "petId" + "}",
-                (String) ValueSerializer.serialize(petId, "path", "Long", null));
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "petId", petId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     Map<String, Object> formBody = new HashMap<>();
@@ -212,7 +218,9 @@ public class PetApi extends BaseApi {
         "/pet/{petId}"
             .replace(
                 "{" + "petId" + "}",
-                (String) ValueSerializer.serialize(petId, "path", "Long", null));
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "petId", petId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
@@ -255,10 +263,14 @@ public class PetApi extends BaseApi {
         "/pet/{petId}/documents/{documentId}"
             .replace(
                 "{" + "petId" + "}",
-                (String) ValueSerializer.serialize(petId, "path", "Long", null))
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "petId", petId, "path", "Long", null, "simple", false))
             .replace(
                 "{" + "documentId" + "}",
-                (String) ValueSerializer.serialize(documentId, "path", "Long", null));
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "documentId", documentId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
@@ -324,7 +336,9 @@ public class PetApi extends BaseApi {
     Map<String, Object> queryParams = new HashMap<>();
     if (options.status() != null) {
       queryParams.put(
-          "status", ValueSerializer.serialize(options.status(), "query", "String", null));
+          "status",
+          ValueSerializer.serializeStyled(
+              "status", options.status(), "query", "String", null, "form", true));
     }
     if (options.filter() != null) {
       queryParams.putAll(ValueSerializer.serializeDeepObject("filter", options.filter()));
@@ -339,6 +353,48 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         findPetsByStatusTypeRef,
+        null);
+  }
+
+  /**
+   * Get external pet info
+   *
+   * @param petId (required)
+   * @return Pet
+   * @throws ApiException if fails to make API call
+   */
+  @Nullable
+  public Pet getExternalPetInfo(Long petId) throws ApiException {
+    return getExternalPetInfoWithHttpInfo(petId).data();
+  }
+
+  public ApiResult<Pet> getExternalPetInfoWithHttpInfo(Long petId) throws ApiException {
+    if (petId == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'petId' when calling getExternalPetInfo");
+    }
+    String path =
+        "/pet/{petId}/external"
+            .replace(
+                "{" + "petId" + "}",
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "petId", petId, "path", "Long", null, "simple", false));
+    if ("https://external-api.example.com/v1".startsWith("http://")
+        || "https://external-api.example.com/v1".startsWith("https://")) {
+      path = "https://external-api.example.com/v1" + path;
+    }
+    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    return invokeApiForResult(
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        getExternalPetInfoTypeRef,
         null);
   }
 
@@ -363,7 +419,9 @@ public class PetApi extends BaseApi {
         "/pet/{petId}/avatar"
             .replace(
                 "{" + "petId" + "}",
-                (String) ValueSerializer.serialize(petId, "path", "Long", null));
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "petId", petId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
@@ -400,7 +458,9 @@ public class PetApi extends BaseApi {
         "/pet/{petId}/avatar/thumbnail"
             .replace(
                 "{" + "petId" + "}",
-                (String) ValueSerializer.serialize(petId, "path", "Long", null));
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "petId", petId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
@@ -439,7 +499,9 @@ public class PetApi extends BaseApi {
         "/pet/{petId}"
             .replace(
                 "{" + "petId" + "}",
-                (String) ValueSerializer.serialize(petId, "path", "Long", null));
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "petId", petId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
@@ -477,7 +539,9 @@ public class PetApi extends BaseApi {
         "/pet/{petId}/passport"
             .replace(
                 "{" + "petId" + "}",
-                (String) ValueSerializer.serialize(petId, "path", "Long", null));
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "petId", petId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
@@ -520,10 +584,14 @@ public class PetApi extends BaseApi {
         "/pet/{petId}/photos/{photoId}"
             .replace(
                 "{" + "petId" + "}",
-                (String) ValueSerializer.serialize(petId, "path", "Long", null))
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "petId", petId, "path", "Long", null, "simple", false))
             .replace(
                 "{" + "photoId" + "}",
-                (String) ValueSerializer.serialize(photoId, "path", "Long", null));
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "photoId", photoId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
@@ -535,6 +603,124 @@ public class PetApi extends BaseApi {
         new String[] {"image/jpeg", "image/png", "application/json"},
         "application/json",
         getPetPhotoTypeRef,
+        null);
+  }
+
+  /** Options for the getPetTag operation. */
+  public static final class GetPetTagOptions {
+
+    @Nullable private List<String> colors;
+    @Nullable private List<String> sizes;
+    @Nullable private String filter;
+
+    public GetPetTagOptions() {}
+
+    public GetPetTagOptions colors(List<String> colors) {
+      this.colors = colors;
+      return this;
+    }
+
+    @Nullable
+    public List<String> colors() {
+      return colors;
+    }
+
+    public GetPetTagOptions sizes(List<String> sizes) {
+      this.sizes = sizes;
+      return this;
+    }
+
+    @Nullable
+    public List<String> sizes() {
+      return sizes;
+    }
+
+    public GetPetTagOptions filter(String filter) {
+      this.filter = filter;
+      return this;
+    }
+
+    @Nullable
+    public String filter() {
+      return filter;
+    }
+  }
+
+  /**
+   * Get a tag for a pet
+   *
+   * @param petId (required)
+   * @param tagName (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return Pet
+   * @throws ApiException if fails to make API call
+   */
+  @Nullable
+  public Pet getPetTag(Long petId, String tagName, GetPetTagOptions options) throws ApiException {
+    return getPetTagWithHttpInfo(petId, tagName, options).data();
+  }
+
+  public ApiResult<Pet> getPetTagWithHttpInfo(Long petId, String tagName, GetPetTagOptions options)
+      throws ApiException {
+    if (petId == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'petId' when calling getPetTag");
+    }
+    if (tagName == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'tagName' when calling getPetTag");
+    }
+    String path =
+        "/pet/{petId}/tag/{tagName}"
+            .replace(
+                "{" + "petId" + "}",
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "petId", petId, "path", "Long", null, "matrix", false))
+            .replace(
+                "{" + "tagName" + "}",
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "tagName", tagName, "path", "String", null, "label", false));
+    Map<String, Object> queryParams = new HashMap<>();
+    if (options.colors() != null) {
+      queryParams.put(
+          "colors",
+          ValueSerializer.serializeStyled(
+              "colors",
+              options.colors(),
+              "query",
+              "List<String>",
+              "pipes",
+              "pipeDelimited",
+              false));
+    }
+    if (options.sizes() != null) {
+      queryParams.put(
+          "sizes",
+          ValueSerializer.serializeStyled(
+              "sizes", options.sizes(), "query", "List<String>", "ssv", "spaceDelimited", false));
+    }
+    {
+      Object _filterVal =
+          ValueSerializer.serializeStyled(
+              "filter", options.filter(), "query", "String", null, "form", true);
+      if (_filterVal != null) {
+        queryParams.put("filter", _filterVal);
+      } else {
+        queryParams.put("filter", "");
+      }
+    }
+    Map<String, String> headerParams = new HashMap<>();
+    return invokeApiForResult(
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        getPetTagTypeRef,
         null);
   }
 
@@ -564,7 +750,9 @@ public class PetApi extends BaseApi {
         "/pet/{petId}/avatar"
             .replace(
                 "{" + "petId" + "}",
-                (String) ValueSerializer.serialize(petId, "path", "Long", null));
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "petId", petId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
@@ -598,7 +786,9 @@ public class PetApi extends BaseApi {
         "/pet/{petId}/avatar/thumbnail"
             .replace(
                 "{" + "petId" + "}",
-                (String) ValueSerializer.serialize(petId, "path", "Long", null));
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "petId", petId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
@@ -639,7 +829,9 @@ public class PetApi extends BaseApi {
         "/pet/{petId}"
             .replace(
                 "{" + "petId" + "}",
-                (String) ValueSerializer.serialize(petId, "path", "Long", null));
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "petId", petId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
@@ -694,7 +886,9 @@ public class PetApi extends BaseApi {
         "/pet/{petId}/certificate"
             .replace(
                 "{" + "petId" + "}",
-                (String) ValueSerializer.serialize(petId, "path", "Long", null));
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "petId", petId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     Map<String, Object> formBody = new HashMap<>();
@@ -775,7 +969,9 @@ public class PetApi extends BaseApi {
         "/pet/{petId}/documents"
             .replace(
                 "{" + "petId" + "}",
-                (String) ValueSerializer.serialize(petId, "path", "Long", null));
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "petId", petId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     Map<String, Object> formBody = new HashMap<>();

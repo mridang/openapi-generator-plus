@@ -110,7 +110,7 @@ class {{classname}}(BaseApi):
 
 {{/required}}
 {{/allParams}}
-        result = self.{{operationId}}_with_http_info({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#cookieParams}}{{#-first}}{{#queryParams}}, {{/queryParams}}{{^queryParams}}{{#headerParams}}, {{/headerParams}}{{^headerParams}}{{#formParams}}, {{/formParams}}{{^formParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/pathParams}}{{/bodyParam}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/cookieParams}})
+        result = self.{{operationId}}_with_http_info({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#cookieParams}}{{#-first}}{{#queryParams}}, {{/queryParams}}{{^queryParams}}{{#headerParams}}, {{/headerParams}}{{^headerParams}}{{#formParams}}, {{/formParams}}{{^formParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/cookieParams}})
 {{#returnType}}
         assert result.data is not None
 {{/returnType}}
@@ -180,7 +180,7 @@ class {{classname}}(BaseApi):
 {{/required}}
 {{/allParams}}
         path = '{{{path}}}'{{#pathParams}}
-        path = path.replace('{' + '{{baseName}}' + '}', str(ValueSerializer.serialize({{paramName}}, 'path', '{{dataType}}'))){{/pathParams}}
+        path = path.replace('{' + '{{baseName}}' + '}', str(ValueSerializer.serialize_styled('{{baseName}}', {{paramName}}, 'path', '{{dataType}}', None, '{{style}}', {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}}))){{/pathParams}}
 {{#servers}}
 {{#-first}}
         _server_url = '{{url}}'
@@ -201,21 +201,29 @@ class {{classname}}(BaseApi):
             query_params['{{baseName}}'] = json.dumps({{paramName}})
 {{/content}}
 {{^content}}
+{{#isAllowEmptyValue}}
         if {{paramName}} is not None:
-            query_params['{{baseName}}'] = ValueSerializer.serialize({{paramName}}, 'query', '{{dataType}}'{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}})
+            query_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', {{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})
+        else:
+            query_params['{{baseName}}'] = ''
+{{/isAllowEmptyValue}}
+{{^isAllowEmptyValue}}
+        if {{paramName}} is not None:
+            query_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', {{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})
+{{/isAllowEmptyValue}}
 {{/content}}
 {{/isDeepObject}}
 {{/queryParams}}
         header_params: Dict[str, str] = {}
 {{#headerParams}}
         if {{paramName}} is not None:
-            header_params['{{baseName}}'] = ValueSerializer.serialize({{paramName}}, 'header', '{{dataType}}')
+            header_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', {{paramName}}, 'header', '{{dataType}}', None, '{{style}}', {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})
 {{/headerParams}}
 {{#hasCookieParams}}
         cookie_parts = []
 {{#cookieParams}}
         if {{paramName}} is not None:
-            cookie_parts.append(f'{{baseName}}={ValueSerializer.serialize({{paramName}}, "cookie", "{{dataType}}")}')
+            cookie_parts.append(f'{{baseName}}={ValueSerializer.serialize_styled("{{baseName}}", {{paramName}}, "cookie", "{{dataType}}", None, "{{style}}", {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})}')
 {{/cookieParams}}
         if cookie_parts:
             header_params['Cookie'] = '; '.join(cookie_parts)

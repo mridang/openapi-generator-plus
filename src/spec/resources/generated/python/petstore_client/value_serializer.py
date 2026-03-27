@@ -1,6 +1,7 @@
-import datetime
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import quote
+
+from .object_serializer import ObjectSerializer
 
 
 class ValueSerializer:
@@ -34,24 +35,108 @@ class ValueSerializer:
         if isinstance(value, list):
             if location == 'query':
                 if collection_format == 'multi':
-                    return [cls._stringify(v) for v in value]
+                    return [ObjectSerializer.stringify(v) for v in value]
                 elif collection_format == 'ssv':
-                    return ' '.join(cls._stringify(v) for v in value)
+                    return ' '.join(ObjectSerializer.stringify(v) for v in value)
                 elif collection_format == 'tsv':
-                    return '\t'.join(cls._stringify(v) for v in value)
+                    return '\t'.join(ObjectSerializer.stringify(v) for v in value)
                 elif collection_format == 'pipes':
-                    return '|'.join(cls._stringify(v) for v in value)
+                    return '|'.join(ObjectSerializer.stringify(v) for v in value)
                 else:
-                    return ','.join(cls._stringify(v) for v in value)
+                    return ','.join(ObjectSerializer.stringify(v) for v in value)
             if location == 'header':
-                return ','.join(cls._stringify(v) for v in value)
+                return ','.join(ObjectSerializer.stringify(v) for v in value)
 
-        str_val = cls._stringify(value)
+        str_val = ObjectSerializer.stringify(value)
 
         if location == 'path':
             return quote(str_val, safe='')
 
         return str_val
+
+    @classmethod
+    def serialize_styled(
+        cls,
+        param_name: str,
+        value: Any,
+        location: str,
+        schema_type: str,
+        collection_format: Optional[str] = None,
+        style: Optional[str] = None,
+        explode: bool = False,
+    ) -> Union[str, List[str], None]:
+        """Serialize a value applying OAS 3.0 parameter style formatting.
+
+        Args:
+            param_name: The parameter name.
+            value: The value to serialize.
+            location: Where the parameter appears ('path', 'query', 'header', 'cookie').
+            schema_type: The OpenAPI schema type of the parameter.
+            collection_format: Legacy collection format (csv/ssv/tsv/pipes/multi).
+            style: OAS 3.0 parameter style (simple, form, matrix, label,
+                spaceDelimited, pipeDelimited). If ``None``, delegates to
+                :meth:`serialize`.
+            explode: Whether to explode array/object values.
+
+        Returns:
+            The serialized string, a list of strings (for exploded form), or None.
+        """
+        if style is None or style == '':
+            return cls.serialize(value, location, schema_type, collection_format)
+
+        if value is None:
+            if location == 'path':
+                return ''
+            return None
+
+        if style == 'matrix':
+            if isinstance(value, list):
+                items = [ObjectSerializer.stringify(v) for v in value]
+                if explode:
+                    return ''.join(f';{param_name}={item}' for item in items)
+                else:
+                    return f';{param_name}={",".join(items)}'
+            return f';{param_name}={ObjectSerializer.stringify(value)}'
+
+        if style == 'label':
+            if isinstance(value, list):
+                items = [ObjectSerializer.stringify(v) for v in value]
+                if explode:
+                    return '.' + '.'.join(items)
+                else:
+                    return '.' + ','.join(items)
+            return f'.{ObjectSerializer.stringify(value)}'
+
+        if style == 'spaceDelimited':
+            if isinstance(value, list):
+                items = [ObjectSerializer.stringify(v) for v in value]
+                return ' '.join(items)
+            return ObjectSerializer.stringify(value)
+
+        if style == 'pipeDelimited':
+            if isinstance(value, list):
+                items = [ObjectSerializer.stringify(v) for v in value]
+                return '|'.join(items)
+            return ObjectSerializer.stringify(value)
+
+        if style == 'form':
+            if isinstance(value, list):
+                items = [ObjectSerializer.stringify(v) for v in value]
+                if explode:
+                    return items
+                return ','.join(items)
+            return ObjectSerializer.stringify(value)
+
+        if style == 'simple':
+            if isinstance(value, list):
+                items = [ObjectSerializer.stringify(v) for v in value]
+                return ','.join(items)
+            str_val = ObjectSerializer.stringify(value)
+            if location == 'path':
+                return quote(str_val, safe='')
+            return str_val
+
+        return cls.serialize(value, location, schema_type, collection_format)
 
     @classmethod
     def serialize_deep_object(
@@ -75,25 +160,5 @@ class ValueSerializer:
         if value is None:
             return result
         for key, val in value.items():
-            result[f'{param_name}[{key}]'] = cls._stringify(val)
+            result[f'{param_name}[{key}]'] = ObjectSerializer.stringify(val)
         return result
-
-    @classmethod
-    def _stringify(cls, value: Any) -> str:
-        """Convert a scalar value to its string representation.
-
-        Args:
-            value: The value to convert.
-
-        Returns:
-            The string representation of the value.
-        """
-        if value is None:
-            return ''
-        if isinstance(value, bool):
-            return 'true' if value else 'false'
-        if isinstance(value, datetime.datetime):
-            return value.isoformat()
-        if isinstance(value, datetime.date):
-            return value.isoformat()
-        return str(value)

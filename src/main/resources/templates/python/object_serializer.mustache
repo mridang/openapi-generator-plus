@@ -160,15 +160,32 @@ class ObjectSerializer:
             return data
 
     @classmethod
-    def to_path_value(cls, value: Any) -> str:
-        """Convert a value to a string suitable for use as a URL path parameter."""
+    def stringify(cls, value: Any) -> str:
+        """Convert a scalar value to its string representation.
+
+        This is the canonical type-conversion method used by all parameter
+        encoding helpers and by :class:`ValueSerializer`.
+
+        Args:
+            value: The value to convert.
+
+        Returns:
+            The string representation of the value.
+        """
         if value is None:
             return ''
         if isinstance(value, bool):
             return 'true' if value else 'false'
-        if isinstance(value, (datetime.datetime, datetime.date)):
+        if isinstance(value, datetime.datetime):
+            return value.isoformat()
+        if isinstance(value, datetime.date):
             return value.isoformat()
         return str(value)
+
+    @classmethod
+    def to_path_value(cls, value: Any) -> str:
+        """Convert a value to a string suitable for use as a URL path parameter."""
+        return cls.stringify(value)
 
     @classmethod
     def to_query_value(cls, value: Any, collection_format: Optional[str] = None) -> Any:
@@ -179,7 +196,7 @@ class ObjectSerializer:
         if value is None:
             return None
         if isinstance(value, list):
-            items = [str(v) for v in value]
+            items = [cls.stringify(v) for v in value]
             if collection_format == 'multi':
                 return items
             if collection_format == 'ssv':
@@ -189,11 +206,7 @@ class ObjectSerializer:
             if collection_format == 'pipes':
                 return '|'.join(items)
             return ','.join(items)
-        if isinstance(value, bool):
-            return 'true' if value else 'false'
-        if isinstance(value, (datetime.datetime, datetime.date)):
-            return value.isoformat()
-        return str(value)
+        return cls.stringify(value)
 
     @classmethod
     def to_header_value(cls, value: Any) -> str:
@@ -201,20 +214,12 @@ class ObjectSerializer:
         if value is None:
             return ''
         if isinstance(value, list):
-            return ','.join(str(v) for v in value)
-        if isinstance(value, bool):
-            return 'true' if value else 'false'
-        if isinstance(value, (datetime.datetime, datetime.date)):
-            return value.isoformat()
-        return str(value)
+            return ','.join(cls.stringify(v) for v in value)
+        return cls.stringify(value)
 
     @classmethod
     def to_form_value(cls, value: Any) -> Any:
         """Convert a value to a representation suitable for use as a form parameter."""
         if value is None:
             return ''
-        if isinstance(value, bool):
-            return 'true' if value else 'false'
-        if isinstance(value, (datetime.datetime, datetime.date)):
-            return value.isoformat()
-        return str(value)
+        return cls.stringify(value)

@@ -181,4 +181,28 @@ public class PetApiTest
         Assert.NotNull(result);
         Assert.IsType<PetPassport>(result);
     }
+
+    [Fact(Skip = "Prism does not support matrix/label parameter styles")]
+    public async Task TestGetPetTagStyledParams()
+    {
+        var result = await _api.GetPetTagAsync(
+            5L,
+            "cute",
+            new GetPetTagOptions
+            {
+                Colors = new List<string> { "blue", "black" },
+                Sizes = new List<string> { "S", "M" },
+            }
+        );
+
+        Assert.NotNull(result);
+    }
+
+    [Fact(Skip = "Per-operation server URL is external and not reachable in test")]
+    public async Task TestGetExternalPetInfoUsesPerOperationServer()
+    {
+        var result = await _api.GetExternalPetInfoAsync(1L);
+
+        Assert.NotNull(result);
+    }
 }

@@ -37,7 +37,7 @@ module {{moduleName}}
 {{#serverVariables}}        '{{{varName}}}' => ServerVariable.new(
           default_value: '{{{varDefault}}}',
           description: {{#varDescription}}'{{{varDescription}}}'{{/varDescription}}{{^varDescription}}nil{{/varDescription}},
-          enum_values: {{#hasEnumValues}}[{{#varEnumValues}}'{{{.}}}'{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}}
+          enum_values: {{#hasEnumValues}}%w[{{#varEnumValues}}{{{.}}}{{^-last}} {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}}
         ){{^-last}},{{/-last}}
 {{/serverVariables}}      }{{/hasVariables}}{{^hasVariables}}{}{{/hasVariables}}
     ).freeze

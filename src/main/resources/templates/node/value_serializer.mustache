@@ -1,3 +1,5 @@
+import { ObjectSerializer } from './object-serializer{{importFileExtension}}';
+
 /**
  * Serializes parameter values for HTTP requests based on their location
  * (path, query, header, form) and handles type-specific conversions.
@@ -27,7 +29,7 @@ export class ValueSerializer {
     }
 
     if (Array.isArray(value)) {
-      const items = value.map((v) => ValueSerializer.stringify(v));
+      const items = value.map((v) => ObjectSerializer.stringify(v));
       if (location === 'query') {
         if (collectionFormat === 'multi') return items;
         if (collectionFormat === 'ssv') return items.join(' ');
@@ -40,13 +42,110 @@ export class ValueSerializer {
       }
     }
 
-    const str = ValueSerializer.stringify(value);
+    const str = ObjectSerializer.stringify(value);
 
     if (location === 'path') {
       return encodeURIComponent(str);
     }
 
     return str;
+  }
+
+  /**
+   * Serialize a parameter value using the OAS 3.0 style/explode conventions.
+   *
+   * When style is null or empty the method falls back to the existing
+   * {@link serialize} behaviour.
+   *
+   * @param paramName the parameter name (used for matrix/label prefixes)
+   * @param value the value to serialize
+   * @param location where the parameter appears: 'path', 'query', 'header', or 'form'
+   * @param schemaType the OpenAPI schema type
+   * @param collectionFormat legacy collection format (csv/ssv/tsv/pipes/multi)
+   * @param style OAS 3.0 style (matrix, label, simple, form, spaceDelimited, pipeDelimited)
+   * @param explode whether to explode array/object values
+   * @returns the serialized value
+   */
+  static serializeStyled(
+    paramName: string,
+    value: unknown,
+    location: string,
+    schemaType: string,
+    collectionFormat: string | null,
+    style: string | null,
+    explode: boolean
+  ): string | string[] | undefined {
+    if (value === null || value === undefined) {
+      if (location === 'query') return undefined;
+      return '';
+    }
+
+    if (!style) {
+      return ValueSerializer.serialize(
+        value,
+        location as 'path' | 'query' | 'header' | 'form',
+        schemaType,
+        collectionFormat ?? undefined
+      );
+    }
+
+    switch (style) {
+      case 'matrix': {
+        if (Array.isArray(value)) {
+          const items = value.map((v) => ObjectSerializer.stringify(v));
+          if (explode) {
+            return items.map((item) => `;${paramName}=${item}`).join('');
+          }
+          return `;${paramName}=${items.join(',')}`;
+        }
+        return `;${paramName}=${ObjectSerializer.stringify(value)}`;
+      }
+      case 'label': {
+        if (Array.isArray(value)) {
+          const items = value.map((v) => ObjectSerializer.stringify(v));
+          if (explode) {
+            return '.' + items.join('.');
+          }
+          return '.' + items.join(',');
+        }
+        return '.' + ObjectSerializer.stringify(value);
+      }
+      case 'simple': {
+        if (Array.isArray(value)) {
+          return value.map((v) => ObjectSerializer.stringify(v)).join(',');
+        }
+        return ObjectSerializer.stringify(value);
+      }
+      case 'form': {
+        if (Array.isArray(value)) {
+          const items = value.map((v) => ObjectSerializer.stringify(v));
+          if (explode) {
+            return items;
+          }
+          return items.join(',');
+        }
+        return ObjectSerializer.stringify(value);
+      }
+      case 'spaceDelimited': {
+        if (Array.isArray(value)) {
+          return value.map((v) => ObjectSerializer.stringify(v)).join(' ');
+        }
+        return ObjectSerializer.stringify(value);
+      }
+      case 'pipeDelimited': {
+        if (Array.isArray(value)) {
+          return value.map((v) => ObjectSerializer.stringify(v)).join('|');
+        }
+        return ObjectSerializer.stringify(value);
+      }
+      default:
+        return ValueSerializer.serialize(
+          value,
+          location as 'path' | 'query' | 'header' | 'form',
+          schemaType,
+          collectionFormat ?? undefined
+        );
+    }
   }
 
   /**
@@ -68,21 +167,9 @@ export class ValueSerializer {
       return result;
     }
     for (const [key, val] of Object.entries(value)) {
-      result[`${paramName}[${key}]`] = ValueSerializer.stringify(val);
+      result[`${paramName}[${key}]`] = ObjectSerializer.stringify(val);
     }
     return result;
   }
 
-  private static stringify(value: unknown): string {
-    if (value === null || value === undefined) {
-      return '';
-    }
-    if (typeof value === 'boolean') {
-      return value ? 'true' : 'false';
-    }
-    if (value instanceof Date) {
-      return value.toISOString();
-    }
-    return String(value);
-  }
 }

@@ -38,7 +38,7 @@ module PetstoreClient
         end
 
         path = '/store/order/{orderId}'
-        path = path.sub('{orderId}', PetstoreClient::ValueSerializer.serialize(order_id, :path, 'Integer').to_s)
+        path = path.sub('{orderId}', PetstoreClient::ValueSerializer.serialize_styled('orderId', order_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -98,7 +98,7 @@ module PetstoreClient
         end
 
         path = '/store/order/{orderId}'
-        path = path.sub('{orderId}', PetstoreClient::ValueSerializer.serialize(order_id, :path, 'Integer').to_s)
+        path = path.sub('{orderId}', PetstoreClient::ValueSerializer.serialize_styled('orderId', order_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]

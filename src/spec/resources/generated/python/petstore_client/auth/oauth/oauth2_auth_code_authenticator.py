@@ -41,6 +41,7 @@ class OAuth2AuthorizationCodeAuthenticator(HttpAwareAuthenticator):
         token_url: str,
         redirect_uri: str,
         scopes: Sequence[str],
+        refresh_url: Optional[str] = None,
     ) -> None:
         """Create a new authorization code authenticator.
 
@@ -52,12 +53,15 @@ class OAuth2AuthorizationCodeAuthenticator(HttpAwareAuthenticator):
             token_url: Token endpoint URL.
             redirect_uri: Redirect URI registered with the OAuth2 provider.
             scopes: Requested scopes.
+            refresh_url: Token refresh endpoint URL. If ``None``, falls back
+                to ``token_url``.
         """
         self._host = host
         self._client_id = client_id
         self._client_secret = client_secret
         self._authorization_url = authorization_url
         self._token_url = token_url
+        self._refresh_url = refresh_url or token_url
         self._redirect_uri = redirect_uri
         self._scopes = tuple(scopes)
         self._token_manager = OAuth2TokenManager()
@@ -125,5 +129,5 @@ class OAuth2AuthorizationCodeAuthenticator(HttpAwareAuthenticator):
         params = {'grant_type': 'refresh_token'}
         if self._token_manager.refresh_token:
             params['refresh_token'] = self._token_manager.refresh_token
-        token = self._token_manager.get_access_token(self._token_url, params)
+        token = self._token_manager.get_access_token(self._refresh_url, params)
         return {'Authorization': f'Bearer {token}'}

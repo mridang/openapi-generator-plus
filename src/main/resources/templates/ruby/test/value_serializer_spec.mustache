@@ -150,4 +150,105 @@ describe {{moduleName}}::ValueSerializer do
       _({{moduleName}}::ValueSerializer.serialize(false, :form, 'boolean')).must_equal('false')
     end
   end
+
+  describe 'serialize_styled' do
+    describe 'matrix style' do
+      it 'scalar returns semicolon-prefixed name=value' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('color', 'blue', :path, 'string', nil, 'matrix', true)
+        _(result).must_equal(';color=blue')
+      end
+
+      it 'array with explode false joins with comma' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('color', %w[blue black], :path, 'array', nil, 'matrix', false)
+        _(result).must_equal(';color=blue,black')
+      end
+
+      it 'array with explode true repeats name' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('color', %w[blue black], :path, 'array', nil, 'matrix', true)
+        _(result).must_equal(';color=blue;color=black')
+      end
+
+      it 'null returns empty string' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('color', nil, :path, 'string', nil, 'matrix', true)
+        _(result).must_equal('')
+      end
+    end
+
+    describe 'label style' do
+      it 'scalar returns dot-prefixed value' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('color', 'blue', :path, 'string', nil, 'label', true)
+        _(result).must_equal('.blue')
+      end
+
+      it 'array with explode false joins with comma after dot' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('color', %w[blue black], :path, 'array', nil, 'label', false)
+        _(result).must_equal('.blue,black')
+      end
+
+      it 'array with explode true joins with dot separator' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('color', %w[blue black], :path, 'array', nil, 'label', true)
+        _(result).must_equal('.blue.black')
+      end
+
+      it 'null returns empty string' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('color', nil, :path, 'string', nil, 'label', true)
+        _(result).must_equal('')
+      end
+    end
+
+    describe 'spaceDelimited style' do
+      it 'array joins with space' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('color', %w[blue black], :query, 'array', nil, 'spaceDelimited', false)
+        _(result).must_equal('blue black')
+      end
+
+      it 'scalar returns stringified value' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('color', 'blue', :query, 'string', nil, 'spaceDelimited', false)
+        _(result).must_equal('blue')
+      end
+    end
+
+    describe 'pipeDelimited style' do
+      it 'array joins with pipe' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('color', %w[blue black], :query, 'array', nil, 'pipeDelimited', false)
+        _(result).must_equal('blue|black')
+      end
+
+      it 'scalar returns stringified value' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('color', 'blue', :query, 'string', nil, 'pipeDelimited', false)
+        _(result).must_equal('blue')
+      end
+    end
+
+    describe 'form style with explode' do
+      it 'array with explode false joins with comma' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('color', %w[blue black], :query, 'array', nil, 'form', false)
+        _(result).must_equal('blue,black')
+      end
+
+      it 'array with explode true returns list' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('color', %w[blue black], :query, 'array', nil, 'form', true)
+        _(result).must_equal(%w[blue black])
+      end
+    end
+
+    describe 'simple style backward compatibility' do
+      it 'scalar returns stringified value' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('id', '5', :path, 'string', nil, 'simple', false)
+        _(result).must_equal('5')
+      end
+
+      it 'array joins with comma' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('id', %w[3 4 5], :path, 'array', nil, 'simple', false)
+        _(result).must_equal('3,4,5')
+      end
+    end
+
+    describe 'null style falls back to location default' do
+      it 'path with null style behaves like simple' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('id', '5', :path, 'string', nil, nil, false)
+        _(result).must_equal('5')
+      end
+    end
+  end
 end

@@ -237,6 +237,19 @@ The following OAS 3.0 features are deliberately out of scope for this project:
 | Mutual TLS (mTLS) | Not implemented |
 | XML serialization (`xml:` object) | JSON-only; XML is not supported |
 
+### Known Limitations
+
+The following OAS 3.0 features are partially supported or have known constraints:
+
+| Feature | Notes |
+|---|---|
+| `allowReserved` on query params | Not exposed on CodegenParameter upstream |
+| Default response / wildcard status codes (`2XX`, `4XX`) | Current exception hierarchy adequate |
+| Typed response headers (schema on Header Object) | Headers returned as `Map<String, String>` |
+| `not` composition | Not supported by upstream framework |
+| Advanced multipart encoding (headers, style, explode in Encoding Object) | Only `contentType` used in encoding object |
+| Path-level `servers` (inherited by all ops in a path) | Upstream framework limitation |
+
 ## Contributing
 
 Contributions are welcome! If you find a bug or have suggestions for improvement,

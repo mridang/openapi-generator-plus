@@ -10,6 +10,7 @@ public final class LegacyAuthPasswordAuthenticator extends OAuth2PasswordAuthent
         clientId,
         clientSecret,
         "https://auth.example.com/oauth/token",
+        "https://auth.example.com/oauth/refresh",
         username,
         password,
         List.of("read"));

@@ -106,6 +106,37 @@ describe('ObjectSerializer', () => {
     });
   });
 
+  describe('stringify', () => {
+    test('null returns empty string', () => {
+      expect(ObjectSerializer.stringify(null)).toBe('');
+    });
+
+    test('undefined returns empty string', () => {
+      expect(ObjectSerializer.stringify(undefined)).toBe('');
+    });
+
+    test('boolean true returns "true"', () => {
+      expect(ObjectSerializer.stringify(true)).toBe('true');
+    });
+
+    test('boolean false returns "false"', () => {
+      expect(ObjectSerializer.stringify(false)).toBe('false');
+    });
+
+    test('integer returns string representation', () => {
+      expect(ObjectSerializer.stringify(42)).toBe('42');
+    });
+
+    test('date-time returns ISO 8601 string', () => {
+      const date = new Date('2024-01-15T10:30:00.000Z');
+      expect(ObjectSerializer.stringify(date)).toBe('2024-01-15T10:30:00.000Z');
+    });
+
+    test('plain string passes through unchanged', () => {
+      expect(ObjectSerializer.stringify('hello')).toBe('hello');
+    });
+  });
+
   describe('serialize', () => {
     test('serializes a model to plain object', () => {
       const category = new Category();

@@ -47,7 +47,7 @@ final class ValueSerializer
 
         if (is_array($value)) {
             if ($location === 'query') {
-                $items = array_map([self::class, 'stringify'], $value);
+                $items = array_map([ObjectSerializer::class, 'stringify'], $value);
 
                 return match ($collectionFormat) {
                     'multi' => $items,
@@ -59,11 +59,11 @@ final class ValueSerializer
             }
 
             if ($location === 'header') {
-                return implode(',', array_map([self::class, 'stringify'], $value));
+                return implode(',', array_map([ObjectSerializer::class, 'stringify'], $value));
             }
         }
 
-        $str = self::stringify($value);
+        $str = ObjectSerializer::stringify($value);
 
         if ($location === 'path') {
             return rawurlencode($str);
@@ -73,15 +73,96 @@ final class ValueSerializer
     }
 
     /**
-     * Convert a single value to its string representation.
+     * Serialize a value using the specified OAS 3.0 parameter style.
      *
-     * Handles null, boolean, DateTimeInterface, numeric, string, and
-     * SplFileObject values. Returns an empty string for unrecognized types.
+     * Supports simple, form, matrix, label, spaceDelimited, and pipeDelimited
+     * styles. Falls back to the existing serialize() method when style is null.
      *
-     * @param mixed $value the value to convert
+     * @param string      $paramName  the parameter name
+     * @param mixed       $value      the value to serialize
+     * @param string      $location   the HTTP parameter location ('path', 'query', 'header', 'cookie')
+     * @param string      $schemaType the OpenAPI schema type (e.g. 'string', 'integer', 'array')
+     * @param string|null $collectionFormat the collection format (legacy, used when style is null)
+     * @param string|null $style      the OAS 3.0 parameter style
+     * @param bool        $explode    whether to explode array values
      *
-     * @return string the string representation
+     * @return string|array<int, string>|null the serialized value
      */
+    public static function serializeStyled(
+        string $paramName,
+        mixed $value,
+        string $location,
+        string $schemaType,
+        ?string $collectionFormat,
+        ?string $style,
+        bool $explode
+    ): string|array|null {
+        if ($style === null || $style === '') {
+            return self::serialize($value, $location, $schemaType, $collectionFormat);
+        }
+
+        if ($value === null) {
+            if ($location === 'query') {
+                return null;
+            }
+            return '';
+        }
+
+        $items = is_array($value)
+            ? array_map([ObjectSerializer::class, 'stringify'], $value)
+            : [ObjectSerializer::stringify($value)];
+
+        return match ($style) {
+            'matrix' => self::serializeMatrix($paramName, $items, $explode),
+            'label' => self::serializeLabel($items, $explode),
+            'form' => self::serializeForm($items, $explode),
+            'spaceDelimited' => implode(' ', $items),
+            'pipeDelimited' => implode('|', $items),
+            'simple' => implode(',', $items),
+            default => self::serialize($value, $location, $schemaType, $collectionFormat),
+        };
+    }
+
+    /**
+     * @param string[] $items
+     */
+    private static function serializeMatrix(string $paramName, array $items, bool $explode): string
+    {
+        if ($explode && count($items) > 1) {
+            return implode('', array_map(
+                static fn (string $v): string => ';' . $paramName . '=' . $v,
+                $items,
+            ));
+        }
+
+        return ';' . $paramName . '=' . implode(',', $items);
+    }
+
+    /**
+     * @param string[] $items
+     */
+    private static function serializeLabel(array $items, bool $explode): string
+    {
+        if ($explode && count($items) > 1) {
+            return '.' . implode('.', $items);
+        }
+
+        return '.' . implode(',', $items);
+    }
+
+    /**
+     * @param string[] $items
+     * @return string|array<int, string>
+     */
+    private static function serializeForm(array $items, bool $explode): string|array
+    {
+        if ($explode && count($items) > 1) {
+            return $items;
+        }
+
+        return implode(',', $items);
+    }
+
     /**
      * Serialize a deepObject-style query parameter.
      *
@@ -102,38 +183,9 @@ final class ValueSerializer
         }
 
         foreach ($value as $key => $val) {
-            $result[$paramName . '[' . $key . ']'] = self::stringify($val);
+            $result[$paramName . '[' . $key . ']'] = ObjectSerializer::stringify($val);
         }
 
         return $result;
-    }
-
-    private static function stringify(mixed $value): string
-    {
-        if ($value === null) {
-            return '';
-        }
-
-        if (is_bool($value)) {
-            return $value ? 'true' : 'false';
-        }
-
-        if ($value instanceof \DateTimeInterface) {
-            return $value->format(\DateTimeInterface::ATOM);
-        }
-
-        if (is_int($value) || is_float($value)) {
-            return (string) $value;
-        }
-
-        if (is_string($value)) {
-            return $value;
-        }
-
-        if ($value instanceof \SplFileObject) {
-            return $value->getRealPath();
-        }
-
-        return '';
     }
 }

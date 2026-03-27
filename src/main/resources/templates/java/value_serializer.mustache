@@ -1,12 +1,9 @@
 package {{invokerPackage}};
 
-import com.fasterxml.jackson.databind.util.StdDateFormat;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.TemporalAccessor;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,7 +61,7 @@ public final class ValueSerializer {
 
         if (value instanceof Collection<?> col) {
             List<String> items = col.stream()
-                    .map(ValueSerializer::stringify)
+                    .map(ObjectSerializer::stringify)
                     .collect(Collectors.toList());
 
             if ("query".equals(location)) {
@@ -89,7 +86,7 @@ public final class ValueSerializer {
             }
         }
 
-        String str = stringify(value);
+        String str = ObjectSerializer.stringify(value);
 
         if ("path".equals(location)) {
             return URLEncoder.encode(str, StandardCharsets.UTF_8).replace("+", "%20");
@@ -98,17 +95,6 @@ public final class ValueSerializer {
         return str;
     }
 
-    /**
-     * Convert a scalar value to its string representation.
-     *
-     * <p>Booleans produce lowercase {@code "true"}/{@code "false"}. Temporal types
-     * are formatted with {@link DateTimeFormatter#ISO_OFFSET_DATE_TIME}. Legacy
-     * {@link Date} instances are formatted with Jackson's {@link StdDateFormat}.
-     * All other values use {@link String#valueOf(Object)}.</p>
-     *
-     * @param value the value to stringify (must not be null)
-     * @return the string representation
-     */
     /**
      * Serialize a deepObject-style query parameter.
      *
@@ -127,22 +113,95 @@ public final class ValueSerializer {
         }
         for (Map.Entry<?, ?> entry : value.entrySet()) {
             String key = paramName + "[" + entry.getKey() + "]";
-            String val = stringify(entry.getValue());
+            String val = ObjectSerializer.stringify(entry.getValue());
             result.put(key, val);
         }
         return result;
     }
 
-    private static String stringify(Object value) {
-        if (value instanceof Boolean b) {
-            return b ? "true" : "false";
+    /**
+     * Serialize a value with OAS 3.0 parameter style formatting.
+     *
+     * <p>Handles matrix, label, simple, form, spaceDelimited, and pipeDelimited
+     * styles. deepObject is handled separately by {@link #serializeDeepObject}.</p>
+     *
+     * @param paramName        the parameter name
+     * @param value            the value to serialize (may be null)
+     * @param location         where the parameter appears: "path", "query", "header", or "cookie"
+     * @param schemaType       the OpenAPI schema type
+     * @param collectionFormat the collection format (may be null)
+     * @param style            the OAS 3.0 parameter style (may be null or empty)
+     * @param explode          whether to explode arrays
+     * @return the serialized value, or {@code null} to omit the parameter
+     */
+    @Nullable
+    public static Object serializeStyled(
+            String paramName,
+            @Nullable Object value,
+            String location,
+            @Nullable String schemaType,
+            @Nullable String collectionFormat,
+            @Nullable String style,
+            boolean explode) {
+
+        if (value == null) {
+            if ("query".equals(location)) {
+                return null;
+            }
+            return "";
         }
-        if (value instanceof TemporalAccessor t) {
-            return DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(t);
+
+        if (style == null || style.isEmpty()) {
+            return serialize(value, location, schemaType, collectionFormat);
         }
-        if (value instanceof Date d) {
-            return new StdDateFormat().format(d);
+
+        List<String> items = toStringList(value);
+
+        return switch (style) {
+            case "matrix" -> {
+                if (items.size() == 1) {
+                    yield ";" + paramName + "=" + items.get(0);
+                }
+                if (explode) {
+                    StringBuilder matrixExploded = new StringBuilder();
+                    for (String item : items) {
+                        matrixExploded.append(";").append(paramName).append("=").append(item);
+                    }
+                    yield matrixExploded.toString();
+                }
+                yield ";" + paramName + "=" + String.join(",", items);
+            }
+            case "label" -> {
+                if (items.size() == 1) {
+                    yield "." + items.get(0);
+                }
+                if (explode) {
+                    yield "." + String.join(".", items);
+                }
+                yield "." + String.join(",", items);
+            }
+            case "simple" -> String.join(",", items);
+            case "form" -> {
+                if (items.size() == 1) {
+                    yield items.get(0);
+                }
+                if (explode) {
+                    yield new ArrayList<>(items);
+                }
+                yield String.join(",", items);
+            }
+            case "spaceDelimited" -> items.size() == 1 ? items.get(0) : String.join(" ", items);
+            case "pipeDelimited" -> items.size() == 1 ? items.get(0) : String.join("|", items);
+            default -> serialize(value, location, schemaType, collectionFormat);
+        };
+    }
+
+    private static List<String> toStringList(@Nullable Object value) {
+        if (value instanceof Collection<?> col) {
+            return col.stream()
+                    .map(ObjectSerializer::stringify)
+                    .collect(Collectors.toList());
         }
-        return String.valueOf(value);
+        return List.of(ObjectSerializer.stringify(value));
     }
 }

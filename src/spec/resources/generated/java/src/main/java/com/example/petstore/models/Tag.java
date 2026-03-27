@@ -9,7 +9,7 @@ import javax.annotation.Nullable;
  * @deprecated This schema is deprecated.
  */
 @Deprecated
-@SuppressWarnings("deprecation")
+@SuppressWarnings({"deprecation", "serial"})
 public class Tag {
 
   /** Example: {@code null} */

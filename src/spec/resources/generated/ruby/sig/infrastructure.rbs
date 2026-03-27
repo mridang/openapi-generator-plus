@@ -16,6 +16,7 @@ module PetstoreClient
       def base_url: (String) -> Builder
       def default_header: (String, String) -> Builder
       def default_headers: (Hash[String, String]) -> Builder
+      def server: (ServerConfiguration, ?Hash[String, String]) -> Builder
       def build: () -> Configuration
     end
   end
@@ -65,6 +66,7 @@ module PetstoreClient
 
   module Servers
     SERVER_0: ServerConfiguration
+    SERVER_1: ServerConfiguration
     ALL: Array[ServerConfiguration]
   end
 
@@ -152,6 +154,7 @@ module PetstoreClient
 
   class ValueSerializer
     def self.serialize: (untyped, Symbol, String, ?collection_format: Symbol?) -> untyped
+    def self.serialize_styled: (String, untyped, Symbol, String, Symbol?, String?, bool) -> untyped
     def self.serialize_deep_object: (String, Hash[String, untyped]?) -> Hash[String, String]
 
     private
@@ -159,11 +162,11 @@ module PetstoreClient
     def self.serialize_nil: (Symbol) -> untyped
     def self.serialize_array: (Array[untyped], Symbol, Symbol?) -> untyped
     def self.serialize_query_array: (Array[untyped], Symbol?) -> untyped
-    def self.stringify: (untyped) -> String
   end
 
   class ObjectSerializer
     DEFAULT_DATETIME_FORMAT: String
+    def self.stringify: (untyped) -> String
     def self.serialize: (untyped) -> String
     def self.deserialize: (untyped, String) -> untyped
     def self.to_path_value: (untyped) -> String

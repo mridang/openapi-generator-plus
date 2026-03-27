@@ -49,7 +49,9 @@ public class StoreApi extends BaseApi {
         "/store/order/{orderId}"
             .replace(
                 "{" + "orderId" + "}",
-                (String) ValueSerializer.serialize(orderId, "path", "Long", null));
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "orderId", orderId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
@@ -112,7 +114,9 @@ public class StoreApi extends BaseApi {
         "/store/order/{orderId}"
             .replace(
                 "{" + "orderId" + "}",
-                (String) ValueSerializer.serialize(orderId, "path", "Long", null));
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "orderId", orderId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(

@@ -175,6 +175,26 @@ class PetApiTest {
   }
 
   @Test
+  @org.junit.jupiter.api.Disabled("Prism does not support matrix/label style parameters")
+  void testGetPetTag() throws Exception {
+    Pet result =
+        api.getPetTag(
+            5L,
+            "cute",
+            new PetApi.GetPetTagOptions()
+                .colors(List.of("blue", "black"))
+                .sizes(List.of("S", "M")));
+    assertNotNull(result);
+  }
+
+  @Test
+  @org.junit.jupiter.api.Disabled("Per-operation server URL points to external host")
+  void testGetExternalPetInfo() throws Exception {
+    Pet result = api.getExternalPetInfo(1L);
+    assertNotNull(result);
+  }
+
+  @Test
   void testGetPetPassport() throws Exception {
     PetPassport result = api.getPetPassport(1L);
     assertNotNull(result);

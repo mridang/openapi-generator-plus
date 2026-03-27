@@ -61,13 +61,30 @@ module PetstoreClient
       raise SerializationError.new("Failed to deserialize JSON to #{target_type}: #{e.message}", e)
     end
 
+    # Convert a single scalar value to its string representation.
+    #
+    # This is the canonical type-conversion method used by all parameter
+    # encoding helpers (+to_path_value+, +to_query_value+, etc.) and by
+    # +ValueSerializer+ for transport formatting.
+    #
+    # @param value [Object, nil] the value to stringify
+    # @return [String] the string representation
+    def self.stringify(value)
+      return '' if value.nil?
+
+      case value
+      when TrueClass, FalseClass
+        value ? 'true' : 'false'
+      when Time, DateTime
+        value.strftime(DEFAULT_DATETIME_FORMAT)
+      else
+        value.to_s
+      end
+    end
+
     # Convert a value to a string suitable for use as a URL path parameter.
     def self.to_path_value(value)
-      return '' if value.nil?
-      return value ? 'true' : 'false' if value.is_a?(TrueClass) || value.is_a?(FalseClass)
-      return value.strftime(DEFAULT_DATETIME_FORMAT) if value.is_a?(Time) || value.is_a?(DateTime)
-
-      value.to_s
+      stringify(value)
     end
 
     # Convert a value to a representation suitable for use as a query parameter.
@@ -77,7 +94,7 @@ module PetstoreClient
 
       case value
       when Array
-        items = value.map(&:to_s)
+        items = value.map { |v| stringify(v) }
         case collection_format
         when :ssv then items.join(' ')
         when :tsv then items.join("\t")
@@ -85,12 +102,8 @@ module PetstoreClient
         when :multi then items
         else items.join(',')
         end
-      when TrueClass, FalseClass
-        value ? 'true' : 'false'
-      when Time, DateTime
-        value.strftime(DEFAULT_DATETIME_FORMAT)
       else
-        value.to_s
+        stringify(value)
       end
     end
 
@@ -100,28 +113,15 @@ module PetstoreClient
 
       case value
       when Array
-        value.join(',')
-      when TrueClass, FalseClass
-        value ? 'true' : 'false'
-      when Time, DateTime
-        value.strftime(DEFAULT_DATETIME_FORMAT)
+        value.map { |v| stringify(v) }.join(',')
       else
-        value.to_s
+        stringify(value)
       end
     end
 
     # Convert a value to a representation suitable for use as a form parameter.
     def self.to_form_value(value)
-      return '' if value.nil?
-
-      case value
-      when TrueClass, FalseClass
-        value ? 'true' : 'false'
-      when Time, DateTime
-        value.strftime(DEFAULT_DATETIME_FORMAT)
-      else
-        value.to_s
-      end
+      stringify(value)
     end
 
     def self.sanitize_for_serialization(object)

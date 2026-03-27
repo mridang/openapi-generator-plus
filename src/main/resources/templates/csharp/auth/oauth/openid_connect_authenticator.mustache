@@ -96,6 +96,7 @@ public sealed class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareAu
             _clientSecret,
             new Uri(authorizationEndpoint),
             new Uri(tokenEndpoint),
+            null,
             _redirectUri,
             _scopes
         );

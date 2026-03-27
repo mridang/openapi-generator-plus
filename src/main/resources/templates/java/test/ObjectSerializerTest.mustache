@@ -2,6 +2,8 @@ package {{invokerPackage}};
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -11,6 +13,49 @@ import org.junit.jupiter.api.Test;
 class ObjectSerializerTest {
 
     private final ObjectSerializer serializer = new ObjectSerializer();
+
+    @Nested
+    @DisplayName("stringify")
+    class StringifyTests {
+
+        @Test
+        @DisplayName("null returns empty string")
+        void nullReturnsEmptyString() {
+            assertEquals("", ObjectSerializer.stringify(null));
+        }
+
+        @Test
+        @DisplayName("boolean true returns \"true\"")
+        void booleanTrueReturnsTrue() {
+            assertEquals("true", ObjectSerializer.stringify(true));
+        }
+
+        @Test
+        @DisplayName("boolean false returns \"false\"")
+        void booleanFalseReturnsFalse() {
+            assertEquals("false", ObjectSerializer.stringify(false));
+        }
+
+        @Test
+        @DisplayName("integer returns string representation")
+        void integerReturnsStringRepresentation() {
+            assertEquals("42", ObjectSerializer.stringify(42));
+        }
+
+        @Test
+        @DisplayName("date-time returns ISO 8601 string")
+        void dateTimeReturnsIso8601String() {
+            OffsetDateTime dt = OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, ZoneOffset.UTC);
+            String result = ObjectSerializer.stringify(dt);
+            assertTrue(result.startsWith("2024-01-15T10:30:00"));
+        }
+
+        @Test
+        @DisplayName("plain string passes through unchanged")
+        void plainStringPassesThrough() {
+            assertEquals("hello", ObjectSerializer.stringify("hello"));
+        }
+    }
 
     @Nested
     @DisplayName("toPathValue")

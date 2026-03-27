@@ -49,17 +49,28 @@ public class ObjectSerializer
     }
 
     /// <summary>
+    /// Convert a scalar value to its canonical string representation.
+    /// Booleans are lowercased, date/time values use ISO 8601 round-trip format,
+    /// and null values return an empty string.
+    /// </summary>
+    public static string Stringify(object? value)
+    {
+        return value switch
+        {
+            null => "",
+            bool b => b ? "true" : "false",
+            DateTimeOffset dto => dto.ToString("o"),
+            DateTime dt => dt.ToString("o"),
+            _ => value.ToString() ?? "",
+        };
+    }
+
+    /// <summary>
     /// Convert a value to a string suitable for use as a URL path parameter.
     /// </summary>
     public static string ToPathValue(object? value)
     {
-        return value == null ? ""
-            : value is bool b
-                ? b ? "true"
-                    : "false"
-            : value is DateTimeOffset dto ? dto.ToString("o")
-            : value is DateTime dt ? dt.ToString("o")
-            : value.ToString() ?? "";
+        return Stringify(value);
     }
 
     /// <summary>
@@ -76,7 +87,7 @@ public class ObjectSerializer
             List<string> items = [];
             foreach (object? item in list)
             {
-                items.Add(item?.ToString() ?? "");
+                items.Add(Stringify(item));
             }
             if (collectionFormat == "multi")
             {
@@ -91,15 +102,7 @@ public class ObjectSerializer
             };
             return string.Join(sep, items);
         }
-        return value is bool b
-            ? b
-                ? "true"
-                : "false"
-            : value is DateTimeOffset dto
-                ? dto.ToString("o")
-                : value is DateTime dt
-                    ? dt.ToString("o")
-                    : value.ToString() ?? "";
+        return Stringify(value);
     }
 
     /// <summary>
@@ -116,19 +119,11 @@ public class ObjectSerializer
             List<string> items = [];
             foreach (object? item in list)
             {
-                items.Add(item?.ToString() ?? "");
+                items.Add(Stringify(item));
             }
             return string.Join(",", items);
         }
-        return value is bool b
-            ? b
-                ? "true"
-                : "false"
-            : value is DateTimeOffset dto
-                ? dto.ToString("o")
-                : value is DateTime dt
-                    ? dt.ToString("o")
-                    : value.ToString() ?? "";
+        return Stringify(value);
     }
 
     /// <summary>
@@ -136,13 +131,7 @@ public class ObjectSerializer
     /// </summary>
     public static string ToFormValue(object? value)
     {
-        return value == null ? ""
-            : value is bool b
-                ? b ? "true"
-                    : "false"
-            : value is DateTimeOffset dto ? dto.ToString("o")
-            : value is DateTime dt ? dt.ToString("o")
-            : value.ToString() ?? "";
+        return Stringify(value);
     }
 
     private static JsonSerializerOptions CreateDefaultOptions()

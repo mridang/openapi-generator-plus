@@ -34,13 +34,40 @@ final class Servers
 {
     /**
      * Server 0: /api/v3
+     *
+     * Relative URL (no variables)
      */
     public static function server0(): ServerConfiguration
     {
         return new ServerConfiguration(
             urlTemplate: '/api/v3',
-            description: null,
+            description: 'Relative URL (no variables)',
             variables: [],
+        );
+    }
+
+    /**
+     * Server 1: https://{environment}.example.com/api/{version}
+     *
+     * Main API server with variables
+     */
+    public static function server1(): ServerConfiguration
+    {
+        return new ServerConfiguration(
+            urlTemplate: 'https://{environment}.example.com/api/{version}',
+            description: 'Main API server with variables',
+            variables: [
+                'environment' => new ServerVariable(
+                    defaultValue: 'api',
+                    description: 'API environment',
+                    enumValues: ['api', 'staging', 'sandbox'],
+                ),
+                'version' => new ServerVariable(
+                    defaultValue: 'v3',
+                    description: 'API version',
+                    enumValues: ['v2', 'v3'],
+                ),
+            ],
         );
     }
 
@@ -53,6 +80,7 @@ final class Servers
     {
         return [
             self::server0(),
+            self::server1(),
         ];
     }
 

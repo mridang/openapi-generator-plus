@@ -274,6 +274,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                             "test/test_base_api.mustache",
                             "tests",
                             "test_base_api.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_metadata.mustache",
+                            "tests",
+                            "test_metadata.py"));
         }
     }
 
@@ -403,6 +408,17 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         for (ModelsMap modelsMap : result.values()) {
             for (ModelMap modelMap : modelsMap.getModels()) {
                 CodegenModel model = modelMap.getModel();
+
+                // Strip primitive parent types (e.g. "str", "int") that the upstream
+                // framework sets when a schema uses additionalProperties with a
+                // primitive type.  Leaving these in causes the Mustache template to
+                // emit `class Foo(str):` instead of `class Foo(BaseModel):`, which
+                // breaks Pydantic's model_rebuild() call in __init__.py.
+                if (model.parent != null
+                        && languageSpecificPrimitives().contains(model.parent)) {
+                    model.parent = null;
+                    model.parentModel = null;
+                }
 
                 TreeSet<String> fullImports = new TreeSet<>();
 

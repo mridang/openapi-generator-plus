@@ -14,7 +14,7 @@ import javax.annotation.Nullable;
  *
  * @see <a href="https://example.com/docs/pet">Learn more about the Pet model</a>
  */
-@SuppressWarnings("deprecation")
+@SuppressWarnings({"deprecation", "serial"})
 public class Pet {
 
   public enum StatusEnum {

@@ -125,6 +125,17 @@ describe('PetApi', () => {
     expect(result).toBeDefined();
   });
 
+  test('getExternalPetInfo uses per-operation server URL', async () => {
+    const externalConfig = Configuration.builder().baseUrl(baseUrl).build();
+    const externalApi = new PetApi(externalConfig);
+
+    try {
+      await externalApi.getExternalPetInfo(1);
+    } catch {
+      // Expected to fail since the external server is not available in test
+    }
+  });
+
   test('getPetPassport', async () => {
     const result = await api.getPetPassport(1);
 

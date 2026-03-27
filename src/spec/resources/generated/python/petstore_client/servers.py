@@ -16,14 +16,38 @@ from petstore_client.server_configuration import ServerConfiguration, ServerVari
 
 SERVER_0: ServerConfiguration = ServerConfiguration(
     url_template='/api/v3',
-    description=None,
+    description='Relative URL (no variables)',
     variables={},
 )
 """Server 0: /api/v3
+
+Relative URL (no variables)
+"""
+
+SERVER_1: ServerConfiguration = ServerConfiguration(
+    url_template='https://{environment}.example.com/api/{version}',
+    description='Main API server with variables',
+    variables={
+        'environment': ServerVariable(
+            default_value='api',
+            description='API environment',
+            enum_values=['api', 'staging', 'sandbox'],
+        ),
+        'version': ServerVariable(
+            default_value='v3',
+            description='API version',
+            enum_values=['v2', 'v3'],
+        ),
+    },
+)
+"""Server 1: https://{environment}.example.com/api/{version}
+
+Main API server with variables
 """
 
 
 ALL: List[ServerConfiguration] = [
     SERVER_0,
+    SERVER_1,
 ]
 """All server configurations in declaration order."""

@@ -13,6 +13,7 @@ Do not edit the class manually.
 from petstore_client.models.api_response import ApiResponse
 from petstore_client.models.category import Category
 from petstore_client.models.dry_food import DryFood
+from petstore_client.models.metadata import Metadata
 from petstore_client.models.order import Order
 from petstore_client.models.pet import Pet
 from petstore_client.models.pet_food import PetFood

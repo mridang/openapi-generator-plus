@@ -233,7 +233,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
 
-  [key: string]: unknown;
+  [key: string]: {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}unknown{{/additionalPropertiesType}};
 {{/isAdditionalPropertiesTrue}}
 
   constructor(data?: Partial<{{classname}}>) {

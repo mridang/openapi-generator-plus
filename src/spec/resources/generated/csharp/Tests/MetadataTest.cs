@@ -1,0 +1,44 @@
+using PetstoreClient;
+using PetstoreClient.Models;
+using Xunit;
+
+namespace Tests;
+
+public class MetadataTest
+{
+    private readonly ObjectSerializer _serializer = new();
+
+    [Fact]
+    public void DeserializesAdditionalStringProperties()
+    {
+        var json = "{\"createdAt\":\"2024-01-01T00:00:00Z\",\"customField\":\"hello\"}";
+        var metadata = _serializer.Deserialize<Metadata>(json);
+        Assert.NotNull(metadata);
+        Assert.NotNull(metadata!.AdditionalProperties);
+        Assert.True(metadata.AdditionalProperties!.ContainsKey("customField"));
+    }
+
+    [Fact]
+    public void RoundTripPreservesAdditionalProperties()
+    {
+        var metadata = new Metadata();
+        metadata.AdditionalProperties = new Dictionary<string, object>
+        {
+            ["customField"] = "hello",
+            ["anotherField"] = "world",
+        };
+        var json = _serializer.Serialize(metadata);
+        var deserialized = _serializer.Deserialize<Metadata>(json);
+        Assert.NotNull(deserialized);
+        Assert.NotNull(deserialized!.AdditionalProperties);
+        Assert.Equal(2, deserialized.AdditionalProperties!.Count);
+    }
+
+    [Fact]
+    public void AdditionalPropertiesContainStringValues()
+    {
+        var metadata = new Metadata();
+        metadata.AdditionalProperties = new Dictionary<string, object> { ["key"] = "value" };
+        Assert.Equal("value", metadata.AdditionalProperties["key"]);
+    }
+}

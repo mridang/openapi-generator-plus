@@ -242,6 +242,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                             "test/base-api.test.mustache",
                             "tests",
                             "base-api.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/metadata.test.ts",
+                            "tests",
+                            "metadata.test.ts"));
         }
     }
 
@@ -393,6 +398,14 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
 
         for (ModelMap modelMap : result.getModels()) {
             CodegenModel model = modelMap.getModel();
+
+            // Strip primitive parent types: the upstream framework may set
+            // parent to a primitive (e.g. "string" for additionalProperties schemas).
+            // In TypeScript you cannot extend a primitive type, so clear it.
+            if (model.parent != null && languageSpecificPrimitives.contains(model.parent)) {
+                model.parent = null;
+                model.parentModel = null;
+            }
             List<Map<String, String>> tsImports = new ArrayList<>();
             for (String importName : model.imports) {
                 if (!languageSpecificPrimitives.contains(importName)

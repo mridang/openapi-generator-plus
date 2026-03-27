@@ -118,3 +118,15 @@ class TestPetApi:
 
         assert result is not None
         assert isinstance(result, PetPassport)
+
+    @pytest.mark.skip(reason='Styled params require compatible mock server')
+    def test_get_pet_tag_styled_params(self):
+        result = self.api.get_pet_tag(5, 'cute', colors=['blue', 'black'], sizes=['S', 'M'])
+
+        assert result is not None
+
+    @pytest.mark.skip(reason='Per-operation server points to external URL')
+    def test_get_external_pet_info_uses_per_operation_server(self):
+        result = self.api.get_external_pet_info(1)
+
+        assert result is not None

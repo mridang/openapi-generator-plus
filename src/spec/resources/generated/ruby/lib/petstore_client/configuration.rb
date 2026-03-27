@@ -87,6 +87,21 @@ module PetstoreClient
         self
       end
 
+      # Set the base URL from a server configuration with optional variable overrides.
+      #
+      # Resolves the server URL template with the given variable values (or
+      # defaults) and uses the result as the base URL for all API requests.
+      # Enum validation is performed by {ServerConfiguration#url}.
+      #
+      # @param server_config [ServerConfiguration] the server configuration to use
+      # @param variables [Hash{String => String}] variable name to value overrides
+      # @return [self]
+      # @raise [ArgumentError] if an override value is not in the variable's enum
+      def server(server_config, variables = {})
+        @base_url = server_config.url(variables)
+        self
+      end
+
       # Build and return an immutable {Configuration} instance.
       # @return [Configuration]
       def build

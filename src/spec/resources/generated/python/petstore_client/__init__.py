@@ -31,6 +31,7 @@ __all__ = [
     'ApiResponse',
     'Category',
     'DryFood',
+    'Metadata',
     'Order',
     'Pet',
     'PetFood',
@@ -72,6 +73,9 @@ from petstore_client.models.category import (
 )
 from petstore_client.models.dry_food import (
     DryFood as DryFood,
+)
+from petstore_client.models.metadata import (
+    Metadata as Metadata,
 )
 from petstore_client.models.order import (
     Order as Order,

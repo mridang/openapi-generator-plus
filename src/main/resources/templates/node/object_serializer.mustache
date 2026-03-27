@@ -68,12 +68,16 @@ export class ObjectSerializer {
   }
 
   /**
-   * Convert a value to a string suitable for use as a URL path parameter.
+   * Convert a single scalar value to its string representation.
    *
-   * @param value the value to convert (may be null or undefined)
-   * @returns string representation, or empty string if null
+   * This is the canonical scalar-to-string conversion used by all parameter
+   * encoding methods. Handles null/undefined, booleans, Dates, and falls
+   * back to String() for everything else.
+   *
+   * @param value the value to stringify
+   * @returns the string representation
    */
-  static toPathValue(value: unknown): string {
+  static stringify(value: unknown): string {
     if (value === null || value === undefined) {
       return '';
     }
@@ -84,6 +88,16 @@ export class ObjectSerializer {
       return value.toISOString();
     }
     return String(value);
+  }
+
+  /**
+   * Convert a value to a string suitable for use as a URL path parameter.
+   *
+   * @param value the value to convert (may be null or undefined)
+   * @returns string representation, or empty string if null
+   */
+  static toPathValue(value: unknown): string {
+    return ObjectSerializer.stringify(value);
   }
 
   /**
@@ -99,20 +113,14 @@ export class ObjectSerializer {
       return undefined;
     }
     if (Array.isArray(value)) {
-      const items = value.map((v) => String(v));
+      const items = value.map((v) => ObjectSerializer.stringify(v));
       if (collectionFormat === 'multi') return items;
       if (collectionFormat === 'ssv') return items.join(' ');
       if (collectionFormat === 'tsv') return items.join('\t');
       if (collectionFormat === 'pipes') return items.join('|');
       return items.join(',');
     }
-    if (typeof value === 'boolean') {
-      return value ? 'true' : 'false';
-    }
-    if (value instanceof Date) {
-      return value.toISOString();
-    }
-    return String(value);
+    return ObjectSerializer.stringify(value);
   }
 
   /**
@@ -126,15 +134,9 @@ export class ObjectSerializer {
       return '';
     }
     if (Array.isArray(value)) {
-      return value.map((v) => String(v)).join(',');
+      return value.map((v) => ObjectSerializer.stringify(v)).join(',');
     }
-    if (typeof value === 'boolean') {
-      return value ? 'true' : 'false';
-    }
-    if (value instanceof Date) {
-      return value.toISOString();
-    }
-    return String(value);
+    return ObjectSerializer.stringify(value);
   }
 
   /**
@@ -144,15 +146,6 @@ export class ObjectSerializer {
    * @returns string representation, or empty string if null
    */
   static toFormValue(value: unknown): string {
-    if (value === null || value === undefined) {
-      return '';
-    }
-    if (typeof value === 'boolean') {
-      return value ? 'true' : 'false';
-    }
-    if (value instanceof Date) {
-      return value.toISOString();
-    }
-    return String(value);
+    return ObjectSerializer.stringify(value);
   }
 }

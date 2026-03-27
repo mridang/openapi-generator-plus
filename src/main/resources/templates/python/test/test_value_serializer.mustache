@@ -113,3 +113,68 @@ class TestValueSerializerForm:
 
     def test_boolean_false_returns_false(self):
         assert ValueSerializer.serialize(False, 'form', 'boolean') == 'false'
+
+
+class TestMatrixStyle:
+    def test_scalar_returns_semicolon_prefixed_name_value(self):
+        assert ValueSerializer.serialize_styled('color', 'blue', 'path', 'string', None, 'matrix', True) == ';color=blue'
+
+    def test_array_with_explode_false_joins_with_comma(self):
+        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'path', 'array', None, 'matrix', False) == ';color=blue,black'
+
+    def test_array_with_explode_true_repeats_name(self):
+        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'path', 'array', None, 'matrix', True) == ';color=blue;color=black'
+
+    def test_null_returns_empty_string(self):
+        assert ValueSerializer.serialize_styled('color', None, 'path', 'string', None, 'matrix', True) == ''
+
+
+class TestLabelStyle:
+    def test_scalar_returns_dot_prefixed_value(self):
+        assert ValueSerializer.serialize_styled('color', 'blue', 'path', 'string', None, 'label', True) == '.blue'
+
+    def test_array_with_explode_false_joins_with_comma(self):
+        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'path', 'array', None, 'label', False) == '.blue,black'
+
+    def test_array_with_explode_true_joins_with_dot(self):
+        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'path', 'array', None, 'label', True) == '.blue.black'
+
+    def test_null_returns_empty_string(self):
+        assert ValueSerializer.serialize_styled('color', None, 'path', 'string', None, 'label', True) == ''
+
+
+class TestSpaceDelimitedStyle:
+    def test_array_joins_with_space(self):
+        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'query', 'array', None, 'spaceDelimited', False) == 'blue black'
+
+    def test_scalar_returns_stringified_value(self):
+        assert ValueSerializer.serialize_styled('color', 'blue', 'query', 'string', None, 'spaceDelimited', False) == 'blue'
+
+
+class TestPipeDelimitedStyle:
+    def test_array_joins_with_pipe(self):
+        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'query', 'array', None, 'pipeDelimited', False) == 'blue|black'
+
+    def test_scalar_returns_stringified_value(self):
+        assert ValueSerializer.serialize_styled('color', 'blue', 'query', 'string', None, 'pipeDelimited', False) == 'blue'
+
+
+class TestFormStyleWithExplode:
+    def test_array_with_explode_false_joins_with_comma(self):
+        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'query', 'array', None, 'form', False) == 'blue,black'
+
+    def test_array_with_explode_true_returns_list(self):
+        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'query', 'array', None, 'form', True) == ['blue', 'black']
+
+
+class TestSimpleStyleBackwardCompatibility:
+    def test_scalar_returns_stringified_value(self):
+        assert ValueSerializer.serialize_styled('id', '5', 'path', 'string', None, 'simple', False) == '5'
+
+    def test_array_joins_with_comma(self):
+        assert ValueSerializer.serialize_styled('id', ['3', '4', '5'], 'path', 'array', None, 'simple', False) == '3,4,5'
+
+
+class TestNullStyleFallback:
+    def test_path_with_null_style_behaves_like_simple(self):
+        assert ValueSerializer.serialize_styled('id', '5', 'path', 'string', None, None, False) == '5'

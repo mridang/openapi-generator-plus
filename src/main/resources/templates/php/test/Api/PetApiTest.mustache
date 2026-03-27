@@ -171,4 +171,14 @@ class PetApiTest extends TestCase
 
         $this->assertInstanceOf(PetPassport::class, $result);
     }
+
+    public function testGetExternalPetInfoUsesPerOperationServerUrl(): void
+    {
+        $this->markTestSkipped('Per-operation server URL cannot be validated against a local mock server');
+    }
+
+    public function testGetPetTagSendsStyledParameters(): void
+    {
+        $this->markTestSkipped('Styled parameter integration requires a mock server that captures raw request URLs');
+    }
 }

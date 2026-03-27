@@ -287,11 +287,11 @@ public class {{classname}} extends BaseApi {
 {{#returnType}}
     @Nullable
 {{/returnType}}
-    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#pathParams}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{{dataType}}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}) throws ApiException {
-        {{#returnType}}return {{operationId}}WithHttpInfo({{#pathParams}}{{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}).data();{{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo({{#pathParams}}{{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}});{{/returnType}}
+    public {{#returnType}}{{{returnType}}} {{/returnType}}{{^returnType}}void {{/returnType}}{{operationId}}({{#pathParams}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{{dataType}}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}) throws ApiException {
+        {{#returnType}}return {{operationId}}WithHttpInfo({{#pathParams}}{{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}).data();{{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo({{#pathParams}}{{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}});{{/returnType}}
     }
 
-    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#pathParams}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#pathParams}}, {{/pathParams}}{{{dataType}}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#pathParams}}, {{/pathParams}}{{^pathParams}}{{#bodyParam}}, {{/bodyParam}}{{/pathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}) throws ApiException {
+    public ApiResult<{{{returnType}}}{{^returnType}}Void{{/returnType}}> {{operationId}}WithHttpInfo({{#pathParams}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{{dataType}}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}) throws ApiException {
 {{/hasAuthMethods}}
 {{#pathParams}}
 {{#required}}
@@ -313,7 +313,7 @@ public class {{classname}} extends BaseApi {
                 "{{{path}}}"{{/-first}}
                         .replace(
                                 "{" + "{{baseName}}" + "}",
-                                (String) ValueSerializer.serialize({{{paramName}}}, "path", "{{dataType}}", null)){{/pathParams}}{{#pathParams}}{{#-last}};{{/-last}}{{/pathParams}}
+                                (String) ValueSerializer.serializeStyled("{{baseName}}", {{{paramName}}}, "path", "{{{dataType}}}", null, "{{style}}", {{isExplode}})){{/pathParams}}{{#pathParams}}{{#-last}};{{/-last}}{{/pathParams}}
 {{#servers}}
 {{#-first}}
         if ("{{url}}".startsWith("http://") || "{{url}}".startsWith("https://")) {
@@ -335,9 +335,21 @@ public class {{classname}} extends BaseApi {
         }
 {{/content}}
 {{^content}}
-        if (options.{{paramName}}() != null) {
-            queryParams.put("{{baseName}}", ValueSerializer.serialize(options.{{paramName}}(), "query", "{{dataType}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}));
+{{#isAllowEmptyValue}}
+        {
+            Object _{{paramName}}Val = ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}});
+            if (_{{paramName}}Val != null) {
+                queryParams.put("{{baseName}}", _{{paramName}}Val);
+            } else {
+                queryParams.put("{{baseName}}", "");
+            }
         }
+{{/isAllowEmptyValue}}
+{{^isAllowEmptyValue}}
+        if (options.{{paramName}}() != null) {
+            queryParams.put("{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}}));
+        }
+{{/isAllowEmptyValue}}
 {{/content}}
 {{/isDeepObject}}
 {{/queryParams}}
@@ -345,14 +357,14 @@ public class {{classname}} extends BaseApi {
 {{#headerParams}}
         if (options.{{paramName}}() != null) {
             headerParams.put(
-                    "{{baseName}}", (String) ValueSerializer.serialize(options.{{paramName}}(), "header", "{{dataType}}", null));
+                    "{{baseName}}", (String) ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "header", "{{{dataType}}}", null, "{{style}}", {{isExplode}}));
         }
 {{/headerParams}}
 {{#hasCookieParams}}
         java.util.StringJoiner cookieJoiner = new java.util.StringJoiner("; ");
 {{#cookieParams}}
         if (options.{{paramName}}() != null) {
-            cookieJoiner.add("{{baseName}}=" + ValueSerializer.serialize(options.{{paramName}}(), "cookie", "{{dataType}}", null));
+            cookieJoiner.add("{{baseName}}=" + ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "cookie", "{{{dataType}}}", null, "{{style}}", {{isExplode}}));
         }
 {{/cookieParams}}
         if (cookieJoiner.length() > 0) {

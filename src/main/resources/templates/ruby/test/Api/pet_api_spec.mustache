@@ -145,4 +145,16 @@ describe {{moduleName}}::Api::PetApi do
       _(result).must_be_kind_of({{moduleName}}::Models::PetPassport)
     end
   end
+
+  describe '#get_pet_tag' do
+    it 'sends styled path and query parameters' do
+      skip 'Prism does not support matrix/label path styles'
+    end
+  end
+
+  describe '#get_external_pet_info' do
+    it 'uses per-operation server URL' do
+      skip 'Per-operation server URL cannot be verified against mock server'
+    end
+  end
 end

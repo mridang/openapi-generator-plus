@@ -27,6 +27,8 @@ import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -259,6 +261,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                             "test/base_api_spec.mustache",
                             "spec",
                             "base_api_spec.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/metadata_test.mustache",
+                            "spec",
+                            "metadata_test.rb"));
         }
     }
 
@@ -396,7 +403,14 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                         (fragment, writer) -> writer.write(toRbsType(fragment.execute())))
                 .put(
                         "rbsApiType",
-                        (fragment, writer) -> writer.write(toRbsApiType(fragment.execute())));
+                        (fragment, writer) -> writer.write(toRbsApiType(fragment.execute())))
+                .put(
+                        "stripGenerics",
+                        (fragment, writer) -> {
+                            String text = fragment.execute();
+                            int idx = text.indexOf('<');
+                            writer.write(idx >= 0 ? text.substring(0, idx) : text);
+                        });
     }
 
     private String toRbsApiType(@Nullable String type) {
@@ -495,6 +509,33 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     @Override
     protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
         // Per-scheme authenticators are not generated for Ruby
+    }
+
+    @Override
+    public ModelsMap postProcessModels(ModelsMap objs) {
+        ModelsMap result = super.postProcessModels(objs);
+
+        for (ModelMap modelMap : result.getModels()) {
+            CodegenModel model = modelMap.getModel();
+
+            // Strip primitive parent types: the upstream framework may set parent
+            // to a generic primitive (e.g. "Hash<String, String>") for schemas
+            // with additionalProperties. In Ruby, models must extend Dry::Struct,
+            // not Hash. Strip generics first, then check against primitives.
+            if (model.parent != null) {
+                String baseParent = model.parent;
+                int idx = baseParent.indexOf('<');
+                if (idx >= 0) {
+                    baseParent = baseParent.substring(0, idx);
+                }
+                if (languageSpecificPrimitives.contains(baseParent)) {
+                    model.parent = null;
+                    model.parentModel = null;
+                }
+            }
+        }
+
+        return result;
     }
 
     @Override

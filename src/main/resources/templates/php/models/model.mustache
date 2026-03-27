@@ -308,7 +308,7 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
 
-    /** @var array<string, mixed> */
+    /** @var array<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}mixed{{/additionalPropertiesType}}> */
     public array $additionalProperties = [];
 {{/isAdditionalPropertiesTrue}}
 

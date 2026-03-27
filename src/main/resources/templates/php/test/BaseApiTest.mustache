@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use {{apiPackage}}\BaseApi;
 use {{invokerPackage}}\Configuration;
 use {{invokerPackage}}\DefaultApiClient;
+use {{invokerPackage}}\Servers;
 use {{invokerPackage}}\Auth\Authenticator;
 use {{invokerPackage}}\ApiException;
 use {{invokerPackage}}\Exceptions\ClientException;
@@ -200,5 +201,47 @@ class BaseApiTest extends TestCase
             'GET', '/api/test', [], [], null,
             ['application/json'], 'application/json', null);
         $this->addToAssertionCount(1);
+    }
+
+    public function testAllowEmptyValueIncludesParamInQueryString(): void
+    {
+        $result = $this->api()->call(
+            'GET', '/api/test', ['filter' => ''], [], null,
+            ['application/json'], 'application/json', null);
+        $this->assertNull($result);
+    }
+
+    // -- server variable overrides via Configuration --
+
+    public function testServerVariableOverridesResolveInBaseUrl(): void
+    {
+        $config = Configuration::builder()
+            ->server(Servers::server1(), ['environment' => 'staging'])
+            ->build();
+        $this->assertSame('https://staging.example.com/api/v3', $config->baseUrl);
+    }
+
+    public function testDefaultServerVariablesProduceCorrectBaseUrl(): void
+    {
+        $config = Configuration::builder()
+            ->server(Servers::server1())
+            ->build();
+        $this->assertSame('https://api.example.com/api/v3', $config->baseUrl);
+    }
+
+    public function testInvalidEnumValueThrowsException(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        Configuration::builder()
+            ->server(Servers::server1(), ['environment' => 'invalid'])
+            ->build();
+    }
+
+    public function testApiRequestUsesResolvedServerUrl(): void
+    {
+        $config = Configuration::builder()
+            ->server(Servers::server1(), ['environment' => 'staging'])
+            ->build();
+        $this->assertStringStartsWith('https://staging.example.com/api/v3', $config->baseUrl);
     }
 }

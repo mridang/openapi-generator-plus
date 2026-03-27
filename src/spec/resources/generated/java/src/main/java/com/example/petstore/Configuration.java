@@ -3,6 +3,7 @@ package com.example.petstore;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 /**
  * API-level configuration for generated client classes.
@@ -128,6 +129,32 @@ public final class Configuration {
     public Builder defaultHeaders(Map<String, String> headers) {
       this.defaultHeaders.putAll(headers);
       return this;
+    }
+
+    /**
+     * Use a server configuration with variable overrides to set the base URL.
+     *
+     * <p>Resolves the server URL template with the given variable overrides and uses the result as
+     * the base URL. Variables not present in the map use their default values. Enum validation is
+     * performed by {@link ServerConfiguration#getUrl(Map)}.
+     *
+     * @param server the server configuration to use
+     * @param variables variable overrides (may be null for defaults)
+     * @return this builder
+     */
+    public Builder server(ServerConfiguration server, @Nullable Map<String, String> variables) {
+      this.baseUrl = server.getUrl(variables != null ? variables : Map.of());
+      return this;
+    }
+
+    /**
+     * Use a server configuration with default variables to set the base URL.
+     *
+     * @param server the server configuration to use
+     * @return this builder
+     */
+    public Builder server(ServerConfiguration server) {
+      return server(server, null);
     }
 
     /**

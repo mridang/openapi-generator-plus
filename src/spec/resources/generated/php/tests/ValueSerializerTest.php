@@ -191,4 +191,103 @@ class ValueSerializerTest extends TestCase
     {
         $this->assertSame('false', ValueSerializer::serialize(false, 'form', 'boolean'));
     }
+
+    // -- serializeStyled: matrix style --
+
+    public function testMatrixScalarReturnsSemicolonPrefixedNameValue(): void
+    {
+        $this->assertSame(';color=blue', ValueSerializer::serializeStyled('color', 'blue', 'path', 'string', null, 'matrix', true));
+    }
+
+    public function testMatrixArrayWithExplodeFalseJoinsWithComma(): void
+    {
+        $this->assertSame(';color=blue,black', ValueSerializer::serializeStyled('color', ['blue', 'black'], 'path', 'array', null, 'matrix', false));
+    }
+
+    public function testMatrixArrayWithExplodeTrueRepeatsName(): void
+    {
+        $this->assertSame(';color=blue;color=black', ValueSerializer::serializeStyled('color', ['blue', 'black'], 'path', 'array', null, 'matrix', true));
+    }
+
+    public function testMatrixNullReturnsEmptyString(): void
+    {
+        $this->assertSame('', ValueSerializer::serializeStyled('color', null, 'path', 'string', null, 'matrix', true));
+    }
+
+    // -- serializeStyled: label style --
+
+    public function testLabelScalarReturnsDotPrefixedValue(): void
+    {
+        $this->assertSame('.blue', ValueSerializer::serializeStyled('color', 'blue', 'path', 'string', null, 'label', true));
+    }
+
+    public function testLabelArrayWithExplodeFalseJoinsWithComma(): void
+    {
+        $this->assertSame('.blue,black', ValueSerializer::serializeStyled('color', ['blue', 'black'], 'path', 'array', null, 'label', false));
+    }
+
+    public function testLabelArrayWithExplodeTrueJoinsWithDot(): void
+    {
+        $this->assertSame('.blue.black', ValueSerializer::serializeStyled('color', ['blue', 'black'], 'path', 'array', null, 'label', true));
+    }
+
+    public function testLabelNullReturnsEmptyString(): void
+    {
+        $this->assertSame('', ValueSerializer::serializeStyled('color', null, 'path', 'string', null, 'label', true));
+    }
+
+    // -- serializeStyled: spaceDelimited style --
+
+    public function testSpaceDelimitedArrayJoinsWithSpace(): void
+    {
+        $this->assertSame('blue black', ValueSerializer::serializeStyled('color', ['blue', 'black'], 'query', 'array', null, 'spaceDelimited', false));
+    }
+
+    public function testSpaceDelimitedScalarReturnsStringifiedValue(): void
+    {
+        $this->assertSame('blue', ValueSerializer::serializeStyled('color', 'blue', 'query', 'string', null, 'spaceDelimited', false));
+    }
+
+    // -- serializeStyled: pipeDelimited style --
+
+    public function testPipeDelimitedArrayJoinsWithPipe(): void
+    {
+        $this->assertSame('blue|black', ValueSerializer::serializeStyled('color', ['blue', 'black'], 'query', 'array', null, 'pipeDelimited', false));
+    }
+
+    public function testPipeDelimitedScalarReturnsStringifiedValue(): void
+    {
+        $this->assertSame('blue', ValueSerializer::serializeStyled('color', 'blue', 'query', 'string', null, 'pipeDelimited', false));
+    }
+
+    // -- serializeStyled: form style with explode --
+
+    public function testFormStyleArrayWithExplodeFalseJoinsWithComma(): void
+    {
+        $this->assertSame('blue,black', ValueSerializer::serializeStyled('color', ['blue', 'black'], 'query', 'array', null, 'form', false));
+    }
+
+    public function testFormStyleArrayWithExplodeTrueReturnsList(): void
+    {
+        $this->assertSame(['blue', 'black'], ValueSerializer::serializeStyled('color', ['blue', 'black'], 'query', 'array', null, 'form', true));
+    }
+
+    // -- serializeStyled: simple style backward compatibility --
+
+    public function testSimpleScalarReturnsStringifiedValue(): void
+    {
+        $this->assertSame('5', ValueSerializer::serializeStyled('id', '5', 'path', 'string', null, 'simple', false));
+    }
+
+    public function testSimpleArrayJoinsWithComma(): void
+    {
+        $this->assertSame('3,4,5', ValueSerializer::serializeStyled('id', ['3', '4', '5'], 'path', 'array', null, 'simple', false));
+    }
+
+    // -- serializeStyled: null style falls back to location default --
+
+    public function testNullStyleBehavesLikeSimpleForPath(): void
+    {
+        $this->assertSame('5', ValueSerializer::serializeStyled('id', '5', 'path', 'string', null, null, false));
+    }
 }

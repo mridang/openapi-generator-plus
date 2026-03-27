@@ -107,8 +107,14 @@ class ObjectSerializer
 
     /**
      * Convert a value to its string representation.
+     *
+     * This is the canonical scalar-to-string conversion method. All parameter
+     * encoding methods delegate to this method for type conversion.
+     *
+     * @param mixed $value the value to convert
+     * @return string the string representation
      */
-    private static function toString(mixed $value): string
+    public static function stringify(mixed $value): string
     {
         if ($value instanceof \DateTime) {
             return $value->format(self::DATE_TIME_FORMAT);
@@ -284,7 +290,7 @@ class ObjectSerializer
      */
     public static function toPathValue(mixed $value): string
     {
-        return self::toString($value);
+        return self::stringify($value);
     }
 
     /**
@@ -300,7 +306,7 @@ class ObjectSerializer
         }
 
         if (is_array($value)) {
-            $items = array_map([self::class, 'toString'], $value);
+            $items = array_map([self::class, 'stringify'], $value);
             return match ($collectionFormat) {
                 'ssv' => implode(' ', $items),
                 'tsv' => implode("\t", $items),
@@ -310,7 +316,7 @@ class ObjectSerializer
             };
         }
 
-        return self::toString($value);
+        return self::stringify($value);
     }
 
     /**
@@ -319,10 +325,10 @@ class ObjectSerializer
     public static function toHeaderValue(mixed $value): string
     {
         if (is_array($value)) {
-            return implode(',', array_map(static fn ($v): string => self::toString($v), $value));
+            return implode(',', array_map(static fn ($v): string => self::stringify($v), $value));
         }
 
-        return self::toString($value);
+        return self::stringify($value);
     }
 
     /**
@@ -353,6 +359,6 @@ class ObjectSerializer
         if ($value instanceof \SplFileObject) {
             return $value->getRealPath();
         }
-        return self::toString($value);
+        return self::stringify($value);
     }
 }

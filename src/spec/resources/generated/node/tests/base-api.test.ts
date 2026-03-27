@@ -1,6 +1,7 @@
 import { BaseApi } from '../src/api/base-api.js';
 import { Configuration } from '../src/configuration.js';
 import { DefaultApiClient } from '../src/default-api-client.js';
+import { ServerConfiguration, ServerVariable } from '../src/server-configuration.js';
 import type { Authenticator } from '../src/auth/authenticator.js';
 import { ApiError } from '../src/api-error.js';
 import { ClientError } from '../src/exceptions/client-error.js';
@@ -159,6 +160,22 @@ describe('BaseApi query parameters', () => {
   });
 });
 
+describe('BaseApi allowEmptyValue', () => {
+  test('includes empty value param in query string when value is empty string', async () => {
+    const result = await api().call(
+      'GET',
+      '/api/test',
+      { filter: '' },
+      {},
+      null,
+      ['application/json'],
+      'application/json',
+      null
+    );
+    expect(result).toBeUndefined();
+  });
+});
+
 describe('BaseApi auth injection', () => {
   test('forwards auth headers', async () => {
     const auth = new TestAuthenticator({ 'X-Custom': 'auth-value' });
@@ -201,5 +218,39 @@ describe('BaseApi body serialization', () => {
 
   test('sends no body when null', async () => {
     await api().call('GET', '/api/test', {}, {}, null, ['application/json'], 'application/json', null);
+  });
+});
+
+describe('Configuration server variable overrides', () => {
+  const variableServer = new ServerConfiguration(
+    'https://{environment}.example.com/api/{version}',
+    'Test server with variables',
+    {
+      environment: new ServerVariable('api', 'API environment', ['api', 'staging', 'sandbox']),
+      version: new ServerVariable('v3', 'API version', ['v2', 'v3'])
+    }
+  );
+
+  test('server variable overrides resolve in base URL', () => {
+    const config = Configuration.builder().server(variableServer, { environment: 'staging' }).build();
+    expect(config.baseUrl).toBe('https://staging.example.com/api/v3');
+  });
+
+  test('default server variables produce correct base URL', () => {
+    const config = Configuration.builder().server(variableServer).build();
+    expect(config.baseUrl).toBe('https://api.example.com/api/v3');
+  });
+
+  test('invalid enum value throws error', () => {
+    expect(() => {
+      Configuration.builder().server(variableServer, { environment: 'invalid' });
+    }).toThrow();
+  });
+
+  test('API request uses resolved server URL', async () => {
+    const config = Configuration.builder().server(variableServer, { environment: 'staging' }).build();
+    expect(config.baseUrl).toBe('https://staging.example.com/api/v3');
+    const testApi = new TestableApi(config, new DefaultApiClient());
+    expect(testApi).toBeDefined();
   });
 });

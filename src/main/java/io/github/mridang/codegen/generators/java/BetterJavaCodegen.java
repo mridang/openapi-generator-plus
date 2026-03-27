@@ -309,6 +309,12 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "test/BaseApiTest.mustache",
                             testFolder,
                             "BaseApiTest.java"));
+            String testModelsFolder = testFolder + File.separator + "models";
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/MetadataTest.mustache",
+                            testModelsFolder,
+                            "MetadataTest.java"));
             supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
         }
     }
@@ -394,6 +400,28 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 }
             }
         }
+    }
+
+    @Override
+    public ModelsMap postProcessModels(ModelsMap objs) {
+        ModelsMap result = super.postProcessModels(objs);
+        for (ModelMap modelMap : result.getModels()) {
+            CodegenModel model = modelMap.getModel();
+            if (model.parent != null) {
+                String baseParent = model.parent;
+                int genericIdx = baseParent.indexOf('<');
+                if (genericIdx >= 0) {
+                    baseParent = baseParent.substring(0, genericIdx);
+                }
+                if (languageSpecificPrimitives.contains(baseParent)
+                        || typeMapping.containsValue(baseParent)
+                        || instantiationTypes.containsValue(baseParent)) {
+                    model.parent = null;
+                    model.parentModel = null;
+                }
+            }
+        }
+        return result;
     }
 
     @Override
@@ -572,16 +600,18 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         if (scheme.getFlows().getPassword() != null) {
             var flow = scheme.getFlows().getPassword();
             String tokenUrl = flow.getTokenUrl();
+            String refreshUrl = flow.getRefreshUrl();
             String scopes = flow.getScopes() != null
                     ? "\"" + String.join("\", \"", flow.getScopes().keySet()) + "\""
                     : "";
+            String refreshUrlArg = refreshUrl != null ? "\"" + refreshUrl + "\"" : "null";
             return "package " + pkg + ".auth.oauth;\n\n"
                     + "import " + pkg + ".auth.Authenticator;\n"
                     + "import java.util.List;\n\n"
                     + "public final class " + className + "PasswordAuthenticator extends OAuth2PasswordAuthenticator {\n"
                     + "    public " + className + "PasswordAuthenticator(String host, String clientId,\n"
                     + "            String clientSecret, String username, String password) {\n"
-                    + "        super(host, clientId, clientSecret, \"" + tokenUrl + "\",\n"
+                    + "        super(host, clientId, clientSecret, \"" + tokenUrl + "\", " + refreshUrlArg + ",\n"
                     + "              username, password, List.of(" + scopes + "));\n"
                     + "    }\n"
                     + "}\n";
@@ -590,9 +620,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             var flow = scheme.getFlows().getAuthorizationCode();
             String authUrl = flow.getAuthorizationUrl();
             String tokenUrl = flow.getTokenUrl();
+            String refreshUrl = flow.getRefreshUrl();
             String scopes = flow.getScopes() != null
                     ? "\"" + String.join("\", \"", flow.getScopes().keySet()) + "\""
                     : "";
+            String refreshUrlArg = refreshUrl != null ? "\"" + refreshUrl + "\"" : "null";
             return "package " + pkg + ".auth.oauth;\n\n"
                     + "import " + pkg + ".auth.Authenticator;\n"
                     + "import java.util.List;\n\n"
@@ -602,6 +634,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                     + "        super(host, clientId, clientSecret,\n"
                     + "              \"" + authUrl + "\",\n"
                     + "              \"" + tokenUrl + "\",\n"
+                    + "              " + refreshUrlArg + ",\n"
                     + "              redirectUri, List.of(" + scopes + "));\n"
                     + "    }\n"
                     + "}\n";

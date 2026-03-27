@@ -82,12 +82,17 @@ public final class ObjectSerializer {
   }
 
   /**
-   * Convert a value to a string suitable for use as a URL path parameter.
+   * Convert a scalar value to its canonical string representation.
    *
-   * @param value the value to convert (may be null)
-   * @return string representation, or empty string if null
+   * <p>Booleans produce lowercase {@code "true"}/{@code "false"}. Temporal types are formatted with
+   * {@link DateTimeFormatter#ISO_OFFSET_DATE_TIME}. Legacy {@link Date} instances are formatted
+   * with Jackson's {@link StdDateFormat}. Null returns the empty string. All other values use
+   * {@link String#valueOf(Object)}.
+   *
+   * @param value the value to stringify (may be null)
+   * @return the string representation, never null
    */
-  public static String toPathValue(@Nullable Object value) {
+  public static String stringify(@Nullable Object value) {
     if (value == null) {
       return "";
     }
@@ -101,6 +106,16 @@ public final class ObjectSerializer {
       return new StdDateFormat().format(d);
     }
     return String.valueOf(value);
+  }
+
+  /**
+   * Convert a value to a string suitable for use as a URL path parameter.
+   *
+   * @param value the value to convert (may be null)
+   * @return string representation, or empty string if null
+   */
+  public static String toPathValue(@Nullable Object value) {
+    return stringify(value);
   }
 
   /**
@@ -119,7 +134,7 @@ public final class ObjectSerializer {
     if (value instanceof java.util.Collection<?> col) {
       java.util.List<String> items = new java.util.ArrayList<>();
       for (Object item : col) {
-        items.add(String.valueOf(item));
+        items.add(stringify(item));
       }
       if ("multi".equals(collectionFormat)) {
         return items;
@@ -136,16 +151,7 @@ public final class ObjectSerializer {
       }
       return String.join(sep, items);
     }
-    if (value instanceof Boolean b) {
-      return b ? "true" : "false";
-    }
-    if (value instanceof TemporalAccessor t) {
-      return DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(t);
-    }
-    if (value instanceof Date d) {
-      return new StdDateFormat().format(d);
-    }
-    return String.valueOf(value);
+    return stringify(value);
   }
 
   /**
@@ -161,20 +167,11 @@ public final class ObjectSerializer {
     if (value instanceof java.util.Collection<?> col) {
       java.util.List<String> items = new java.util.ArrayList<>();
       for (Object item : col) {
-        items.add(String.valueOf(item));
+        items.add(stringify(item));
       }
       return String.join(",", items);
     }
-    if (value instanceof Boolean b) {
-      return b ? "true" : "false";
-    }
-    if (value instanceof TemporalAccessor t) {
-      return DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(t);
-    }
-    if (value instanceof Date d) {
-      return new StdDateFormat().format(d);
-    }
-    return String.valueOf(value);
+    return stringify(value);
   }
 
   /**
@@ -184,19 +181,7 @@ public final class ObjectSerializer {
    * @return string representation, or empty string if null
    */
   public static String toFormValue(@Nullable Object value) {
-    if (value == null) {
-      return "";
-    }
-    if (value instanceof Boolean b) {
-      return b ? "true" : "false";
-    }
-    if (value instanceof TemporalAccessor t) {
-      return DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(t);
-    }
-    if (value instanceof Date d) {
-      return new StdDateFormat().format(d);
-    }
-    return String.valueOf(value);
+    return stringify(value);
   }
 
   private static ObjectMapper createDefaultObjectMapper() {

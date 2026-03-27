@@ -42,23 +42,107 @@ public static class ValueSerializer
             {
                 return collectionFormat switch
                 {
-                    "multi" => list.Cast<object>().Select(Stringify).ToList(),
-                    "ssv" => string.Join(" ", list.Cast<object>().Select(Stringify)),
-                    "tsv" => string.Join("\t", list.Cast<object>().Select(Stringify)),
-                    "pipes" => string.Join("|", list.Cast<object>().Select(Stringify)),
-                    _ => string.Join(",", list.Cast<object>().Select(Stringify)),
+                    "multi" => list.Cast<object>().Select(ObjectSerializer.Stringify).ToList(),
+                    "ssv" => string.Join(" ", list.Cast<object>().Select(ObjectSerializer.Stringify)),
+                    "tsv" => string.Join("\t", list.Cast<object>().Select(ObjectSerializer.Stringify)),
+                    "pipes" => string.Join("|", list.Cast<object>().Select(ObjectSerializer.Stringify)),
+                    _ => string.Join(",", list.Cast<object>().Select(ObjectSerializer.Stringify)),
                 };
             }
 
             if (location == "header")
             {
-                return string.Join(",", list.Cast<object>().Select(Stringify));
+                return string.Join(",", list.Cast<object>().Select(ObjectSerializer.Stringify));
             }
         }
 
-        string str = Stringify(value);
+        string str = ObjectSerializer.Stringify(value);
 
         return location == "path" ? Uri.EscapeDataString(str) : str;
+    }
+
+    /// <summary>
+    /// Serializes a value using OAS 3.0 parameter style formatting.
+    /// Handles matrix, label, form, simple, spaceDelimited, and pipeDelimited styles.
+    /// </summary>
+    /// <param name="paramName">The parameter name.</param>
+    /// <param name="value">The value to serialize.</param>
+    /// <param name="location">The parameter location (e.g. "path", "query", "header", "cookie").</param>
+    /// <param name="schemaType">The OpenAPI schema type of the parameter.</param>
+    /// <param name="collectionFormat">Legacy collection format (ignored when style is set).</param>
+    /// <param name="style">The OAS 3.0 parameter style.</param>
+    /// <param name="explode">Whether to use exploded format.</param>
+    /// <returns>The styled serialized value, or null for query parameters with null input.</returns>
+    public static object? SerializeStyled(
+        string paramName,
+        object? value,
+        string location,
+        string schemaType,
+        string? collectionFormat,
+        string? style,
+        bool explode
+    )
+    {
+        if (string.IsNullOrEmpty(style))
+        {
+            return Serialize(value, location, schemaType, collectionFormat);
+        }
+
+        if (value == null)
+        {
+            return location == "query" ? null : "";
+        }
+
+        List<string>? items = null;
+        if (value is IList list)
+        {
+            items = [.. list.Cast<object>().Select(ObjectSerializer.Stringify)];
+        }
+
+        switch (style)
+        {
+            case "matrix":
+                if (items != null)
+                {
+                    return explode
+                        ? string.Join("", items.Select(i => ";" + paramName + "=" + i))
+                        : ";" + paramName + "=" + string.Join(",", items);
+                }
+                return ";" + paramName + "=" + ObjectSerializer.Stringify(value);
+
+            case "label":
+                if (items != null)
+                {
+                    return explode
+                        ? "." + string.Join(".", items)
+                        : "." + string.Join(",", items);
+                }
+                return "." + ObjectSerializer.Stringify(value);
+
+            case "form":
+                if (items != null)
+                {
+                    return explode
+                        ? items
+                        : string.Join(",", items);
+                }
+                return ObjectSerializer.Stringify(value);
+
+            case "spaceDelimited":
+                return items != null ? string.Join(" ", items) : ObjectSerializer.Stringify(value);
+
+            case "pipeDelimited":
+                return items != null ? string.Join("|", items) : ObjectSerializer.Stringify(value);
+
+            case "simple":
+            default:
+                if (items != null)
+                {
+                    return string.Join(",", items);
+                }
+                string str = ObjectSerializer.Stringify(value);
+                return location == "path" ? Uri.EscapeDataString(str) : str;
+        }
     }
 
     /// <summary>
@@ -82,29 +166,10 @@ public static class ValueSerializer
 
         foreach (KeyValuePair<string, object?> entry in value)
         {
-            result[$"{paramName}[{entry.Key}]"] = Stringify(entry.Value);
+            result[$"{paramName}[{entry.Key}]"] = ObjectSerializer.Stringify(entry.Value);
         }
 
         return result;
     }
 
-    /// <summary>
-    /// Converts a scalar value to its string representation suitable for HTTP parameter use.
-    /// </summary>
-    /// <param name="value">The value to convert.</param>
-    /// <returns>
-    /// A string representation of the value. Booleans are lowercased, date/time values use
-    /// ISO 8601 round-trip format, and <c>null</c> values return an empty string.
-    /// </returns>
-    private static string Stringify(object? value)
-    {
-        return value switch
-        {
-            null => "",
-            bool b => b ? "true" : "false",
-            DateTimeOffset dto => dto.ToString("o"),
-            DateTime dt => dt.ToString("o"),
-            _ => value.ToString() ?? "",
-        };
-    }
 }

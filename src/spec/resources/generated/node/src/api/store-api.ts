@@ -34,7 +34,10 @@ export class StoreApi extends BaseApi {
       throw new Error('Missing required parameter "orderId" when calling deleteOrder');
     }
     let path = `/store/order/{orderId}`;
-    path = path.replace(`{${'orderId'}}`, ValueSerializer.serialize(orderId, 'path', 'number') as string);
+    path = path.replace(
+      `{${'orderId'}}`,
+      ValueSerializer.serializeStyled('orderId', orderId, 'path', 'number', null, 'simple', false) as string
+    );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     return await this.invokeApiForResult(
@@ -98,7 +101,10 @@ export class StoreApi extends BaseApi {
       throw new Error('Missing required parameter "orderId" when calling getOrderById');
     }
     let path = `/store/order/{orderId}`;
-    path = path.replace(`{${'orderId'}}`, ValueSerializer.serialize(orderId, 'path', 'number') as string);
+    path = path.replace(
+      `{${'orderId'}}`,
+      ValueSerializer.serializeStyled('orderId', orderId, 'path', 'number', null, 'simple', false) as string
+    );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     return await this.invokeApiForResult(

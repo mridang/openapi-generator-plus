@@ -213,7 +213,7 @@ public class {{classname}} {
 {{/externalDocumentation}}
 {{/description}}
 {{/isDeprecated}}
-@SuppressWarnings("deprecation")
+@SuppressWarnings({"deprecation", "serial"})
 public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{#vars}}
 {{#isEnum}}
@@ -312,15 +312,15 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
 
-  private java.util.Map<String, Object> additionalProperties = new java.util.LinkedHashMap<>();
+  private java.util.Map<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}}> additionalProperties = new java.util.LinkedHashMap<>();
 
-  @JsonAnySetter
-  public void setAdditionalProperty(String key, Object value) {
+  @com.fasterxml.jackson.annotation.JsonAnySetter
+  public void setAdditionalProperty(String key, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}} value) {
     this.additionalProperties.put(key, value);
   }
 
-  @JsonAnyGetter
-  public java.util.Map<String, Object> getAdditionalProperties() {
+  @com.fasterxml.jackson.annotation.JsonAnyGetter
+  public java.util.Map<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}}> getAdditionalProperties() {
     return this.additionalProperties;
   }
 {{/isAdditionalPropertiesTrue}}

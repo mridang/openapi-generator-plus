@@ -64,6 +64,22 @@ final class ConfigurationBuilder
     }
 
     /**
+     * Set the base URL by resolving a server configuration with optional variable overrides.
+     *
+     * Enum validation is performed by {@see ServerConfiguration::getUrl()}.
+     * If the user also calls baseUrl() after server(), the explicit baseUrl wins (last-write-wins).
+     *
+     * @param ServerConfiguration       $server    the server configuration to resolve
+     * @param array<string, string> $variables variable name to value overrides
+     * @return self this builder
+     */
+    public function server(ServerConfiguration $server, array $variables = []): self
+    {
+        $this->baseUrl = $server->getUrl($variables);
+        return $this;
+    }
+
+    /**
      * Build and return an immutable Configuration instance.
      *
      * @return Configuration the configured instance

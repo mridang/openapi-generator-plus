@@ -48,7 +48,10 @@ class StoreApi(BaseApi):
             raise ValueError("Missing the required parameter 'order_id'")
 
         path = '/store/order/{orderId}'
-        path = path.replace('{' + 'orderId' + '}', str(ValueSerializer.serialize(order_id, 'path', 'int')))
+        path = path.replace(
+            '{' + 'orderId' + '}',
+            str(ValueSerializer.serialize_styled('orderId', order_id, 'path', 'int', None, 'simple', False)),
+        )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -125,7 +128,10 @@ class StoreApi(BaseApi):
             raise ValueError("Missing the required parameter 'order_id'")
 
         path = '/store/order/{orderId}'
-        path = path.replace('{' + 'orderId' + '}', str(ValueSerializer.serialize(order_id, 'path', 'int')))
+        path = path.replace(
+            '{' + 'orderId' + '}',
+            str(ValueSerializer.serialize_styled('orderId', order_id, 'path', 'int', None, 'simple', False)),
+        )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None

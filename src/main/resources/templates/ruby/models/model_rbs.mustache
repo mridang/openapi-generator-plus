@@ -40,10 +40,16 @@ module {{moduleName}}::Models
 {{/-first}}
 {{/anyOf}}
 {{^anyOf}}
-  class {{classname}} < {{#parent}}{{{.}}}{{/parent}}{{^parent}}Dry::Struct{{/parent}}
+  class {{classname}} < {{#parent}}{{#lambda.rbsType}}{{{.}}}{{/lambda.rbsType}}{{/parent}}{{^parent}}Dry::Struct{{/parent}}
     ATTRIBUTE_MAP: Hash[Symbol, String]
     JSON_KEY_MAP: Hash[String, Symbol]
     OPENAPI_TYPES: Hash[Symbol, String]
+{{#isAdditionalPropertiesTrue}}
+    ADDITIONAL_PROPERTIES: bool
+{{#additionalPropertiesType}}
+    ADDITIONAL_PROPERTIES_TYPE: String
+{{/additionalPropertiesType}}
+{{/isAdditionalPropertiesTrue}}
 {{#vars}}
     attr_reader {{name}}: {{#lambda.rbsType}}{{{dataType}}}{{/lambda.rbsType}}{{^required}}?{{/required}}
 {{/vars}}

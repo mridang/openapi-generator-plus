@@ -13,6 +13,23 @@ tags:
     description: Access to Petstore orders
 servers:
   - url: /api/v3
+    description: Relative URL (no variables)
+  - url: https://{environment}.example.com/api/{version}
+    description: Main API server with variables
+    variables:
+      environment:
+        default: api
+        description: API environment
+        enum:
+          - api
+          - staging
+          - sandbox
+      version:
+        default: v3
+        description: API version
+        enum:
+          - v2
+          - v3
 paths:
 
   # ─── Pet CRUD ────────────────────────────────────────────────────────────────
@@ -583,6 +600,83 @@ paths:
         '404':
           description: Pet not found
 
+  # ─── Styled parameters ─────────────────────────────────────────────────────
+
+  /pet/{petId}/tag/{tagName}:
+    get:
+      tags:
+        - pet
+      summary: Get a tag for a pet
+      operationId: getPetTag
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          style: matrix
+          explode: false
+          schema:
+            type: integer
+            format: int64
+        - name: tagName
+          in: path
+          required: true
+          style: label
+          schema:
+            type: string
+        - name: colors
+          in: query
+          style: pipeDelimited
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: sizes
+          in: query
+          style: spaceDelimited
+          explode: false
+          schema:
+            type: array
+            items:
+              type: string
+        - name: filter
+          in: query
+          allowEmptyValue: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+
+  # ─── Per-operation servers ────────────────────────────────────────────────
+
+  /pet/{petId}/external:
+    get:
+      servers:
+        - url: https://external-api.example.com/v1
+      tags:
+        - pet
+      summary: Get external pet info
+      operationId: getExternalPetInfo
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+
   # ─── Store ───────────────────────────────────────────────────────────────────
 
   /store/inventory:
@@ -718,6 +812,7 @@ components:
       flows:
         password:
           tokenUrl: https://auth.example.com/oauth/token
+          refreshUrl: https://auth.example.com/oauth/refresh
           scopes:
             read: Read access
     userAuth:
@@ -726,6 +821,7 @@ components:
         authorizationCode:
           authorizationUrl: https://auth.example.com/authorize
           tokenUrl: https://auth.example.com/oauth/token
+          refreshUrl: https://auth.example.com/oauth/refresh
           scopes:
             pets:read: Read pets
             pets:write: Write pets
@@ -933,3 +1029,12 @@ components:
         issuedAt:
           type: string
           format: date-time
+
+    Metadata:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+      additionalProperties:
+        type: string

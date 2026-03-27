@@ -8,6 +8,47 @@ public class ObjectSerializerTest
 {
     private readonly ObjectSerializer _serializer = new();
 
+    public class StringifyTests
+    {
+        [Fact]
+        public void NullReturnsEmptyString()
+        {
+            Assert.Equal("", ObjectSerializer.Stringify(null));
+        }
+
+        [Fact]
+        public void BooleanTrueReturnsLowercaseString()
+        {
+            Assert.Equal("true", ObjectSerializer.Stringify(true));
+        }
+
+        [Fact]
+        public void BooleanFalseReturnsLowercaseString()
+        {
+            Assert.Equal("false", ObjectSerializer.Stringify(false));
+        }
+
+        [Fact]
+        public void IntegerReturnsStringRepresentation()
+        {
+            Assert.Equal("42", ObjectSerializer.Stringify(42));
+        }
+
+        [Fact]
+        public void DateTimeReturnsIso8601String()
+        {
+            var dt = new DateTimeOffset(2024, 1, 15, 10, 30, 0, TimeSpan.Zero);
+            string result = ObjectSerializer.Stringify(dt);
+            Assert.StartsWith("2024-01-15T10:30:00", result);
+        }
+
+        [Fact]
+        public void PlainStringPassesThroughUnchanged()
+        {
+            Assert.Equal("hello", ObjectSerializer.Stringify("hello"));
+        }
+    }
+
     public class ToPathValueTests
     {
         [Fact]

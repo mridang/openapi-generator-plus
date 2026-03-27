@@ -91,7 +91,10 @@ export class PetApi extends BaseApi {
       throw new Error('Missing required parameter "metadata" when calling addPetPhotos');
     }
     let path = `/pet/{petId}/photos`;
-    path = path.replace(`{${'petId'}}`, ValueSerializer.serialize(petId, 'path', 'number') as string);
+    path = path.replace(
+      `{${'petId'}}`,
+      ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
+    );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     const formBody: Record<string, unknown> = {};
@@ -135,7 +138,10 @@ export class PetApi extends BaseApi {
       throw new Error('Missing required parameter "petId" when calling deletePet');
     }
     let path = `/pet/{petId}`;
-    path = path.replace(`{${'petId'}}`, ValueSerializer.serialize(petId, 'path', 'number') as string);
+    path = path.replace(
+      `{${'petId'}}`,
+      ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
+    );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     return await this.invokeApiForResult(
@@ -179,8 +185,14 @@ export class PetApi extends BaseApi {
       throw new Error('Missing required parameter "documentId" when calling downloadPetDocument');
     }
     let path = `/pet/{petId}/documents/{documentId}`;
-    path = path.replace(`{${'petId'}}`, ValueSerializer.serialize(petId, 'path', 'number') as string);
-    path = path.replace(`{${'documentId'}}`, ValueSerializer.serialize(documentId, 'path', 'number') as string);
+    path = path.replace(
+      `{${'petId'}}`,
+      ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
+    );
+    path = path.replace(
+      `{${'documentId'}}`,
+      ValueSerializer.serializeStyled('documentId', documentId, 'path', 'number', null, 'simple', false) as string
+    );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     return await this.invokeApiForResult(
@@ -218,7 +230,15 @@ export class PetApi extends BaseApi {
     const path = `/pet/findByStatus`;
     const queryParams: Record<string, unknown> = {};
     if (options.status != null) {
-      queryParams['status'] = ValueSerializer.serialize(options.status, 'query', 'string');
+      queryParams['status'] = ValueSerializer.serializeStyled(
+        'status',
+        options.status,
+        'query',
+        'string',
+        null,
+        'form',
+        true
+      );
     }
     if (options.filter != null) {
       const deepObj = ValueSerializer.serializeDeepObject('filter', options.filter as Record<string, unknown>);
@@ -234,6 +254,46 @@ export class PetApi extends BaseApi {
       ['application/json'],
       'application/json',
       (json: unknown) => ObjectSerializer.deserializeArray(json, Pet),
+      null
+    );
+  }
+
+  /**
+   * Get external pet info
+   * @param petId  (required)
+   * @return Pet
+   */
+  async getExternalPetInfo(petId: number): Promise<Pet> {
+    if (petId == null) {
+      throw new Error('Missing required parameter "petId" when calling getExternalPetInfo');
+    }
+    return (await this.getExternalPetInfoWithHttpInfo(petId)).data as Pet;
+  }
+
+  /**
+   * Get external pet info (with HTTP info)
+   */
+  async getExternalPetInfoWithHttpInfo(petId: number): Promise<ApiResult<Pet>> {
+    if (petId == null) {
+      throw new Error('Missing required parameter "petId" when calling getExternalPetInfo');
+    }
+    let path = `/pet/{petId}/external`;
+    path = path.replace(
+      `{${'petId'}}`,
+      ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
+    );
+    const serverUrl = 'https://external-api.example.com/v1';
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      'GET',
+      serverUrl.startsWith('http://') || serverUrl.startsWith('https://') ? serverUrl + path : path,
+      queryParams,
+      headerParams,
+      null,
+      ['application/json'],
+      'application/json',
+      (json: unknown) => ObjectSerializer.deserialize(json, Pet),
       null
     );
   }
@@ -259,7 +319,10 @@ export class PetApi extends BaseApi {
       throw new Error('Missing required parameter "petId" when calling getPetAvatar');
     }
     let path = `/pet/{petId}/avatar`;
-    path = path.replace(`{${'petId'}}`, ValueSerializer.serialize(petId, 'path', 'number') as string);
+    path = path.replace(
+      `{${'petId'}}`,
+      ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
+    );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     return await this.invokeApiForResult(
@@ -296,7 +359,10 @@ export class PetApi extends BaseApi {
       throw new Error('Missing required parameter "petId" when calling getPetAvatarThumbnail');
     }
     let path = `/pet/{petId}/avatar/thumbnail`;
-    path = path.replace(`{${'petId'}}`, ValueSerializer.serialize(petId, 'path', 'number') as string);
+    path = path.replace(
+      `{${'petId'}}`,
+      ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
+    );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     return await this.invokeApiForResult(
@@ -334,7 +400,10 @@ export class PetApi extends BaseApi {
       throw new Error('Missing required parameter "petId" when calling getPetById');
     }
     let path = `/pet/{petId}`;
-    path = path.replace(`{${'petId'}}`, ValueSerializer.serialize(petId, 'path', 'number') as string);
+    path = path.replace(
+      `{${'petId'}}`,
+      ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
+    );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     return await this.invokeApiForResult(
@@ -371,7 +440,10 @@ export class PetApi extends BaseApi {
       throw new Error('Missing required parameter "petId" when calling getPetPassport');
     }
     let path = `/pet/{petId}/passport`;
-    path = path.replace(`{${'petId'}}`, ValueSerializer.serialize(petId, 'path', 'number') as string);
+    path = path.replace(
+      `{${'petId'}}`,
+      ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
+    );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     return await this.invokeApiForResult(
@@ -415,8 +487,14 @@ export class PetApi extends BaseApi {
       throw new Error('Missing required parameter "photoId" when calling getPetPhoto');
     }
     let path = `/pet/{petId}/photos/{photoId}`;
-    path = path.replace(`{${'petId'}}`, ValueSerializer.serialize(petId, 'path', 'number') as string);
-    path = path.replace(`{${'photoId'}}`, ValueSerializer.serialize(photoId, 'path', 'number') as string);
+    path = path.replace(
+      `{${'petId'}}`,
+      ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
+    );
+    path = path.replace(
+      `{${'photoId'}}`,
+      ValueSerializer.serializeStyled('photoId', photoId, 'path', 'number', null, 'simple', false) as string
+    );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     return await this.invokeApiForResult(
@@ -428,6 +506,101 @@ export class PetApi extends BaseApi {
       ['image/jpeg', 'image/png', 'application/json'],
       'application/json',
       (json: unknown) => json as Buffer,
+      null
+    );
+  }
+
+  /**
+   * Get a tag for a pet
+   * @param petId  (required)
+   * @param tagName  (required)
+   * @param options.colors  (optional)
+   * @param options.sizes  (optional)
+   * @param options.filter  (optional)
+   * @return Pet
+   */
+  async getPetTag(
+    petId: number,
+    tagName: string,
+    options: { colors?: Array<string>; sizes?: Array<string>; filter?: string }
+  ): Promise<Pet> {
+    if (petId == null) {
+      throw new Error('Missing required parameter "petId" when calling getPetTag');
+    }
+    if (tagName == null) {
+      throw new Error('Missing required parameter "tagName" when calling getPetTag');
+    }
+    return (await this.getPetTagWithHttpInfo(petId, tagName, options)).data as Pet;
+  }
+
+  /**
+   * Get a tag for a pet (with HTTP info)
+   */
+  async getPetTagWithHttpInfo(
+    petId: number,
+    tagName: string,
+    options: { colors?: Array<string>; sizes?: Array<string>; filter?: string }
+  ): Promise<ApiResult<Pet>> {
+    if (petId == null) {
+      throw new Error('Missing required parameter "petId" when calling getPetTag');
+    }
+    if (tagName == null) {
+      throw new Error('Missing required parameter "tagName" when calling getPetTag');
+    }
+    let path = `/pet/{petId}/tag/{tagName}`;
+    path = path.replace(
+      `{${'petId'}}`,
+      ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'matrix', false) as string
+    );
+    path = path.replace(
+      `{${'tagName'}}`,
+      ValueSerializer.serializeStyled('tagName', tagName, 'path', 'string', null, 'label', false) as string
+    );
+    const queryParams: Record<string, unknown> = {};
+    if (options.colors != null) {
+      queryParams['colors'] = ValueSerializer.serializeStyled(
+        'colors',
+        options.colors,
+        'query',
+        'Array<string>',
+        'pipes',
+        'pipeDelimited',
+        false
+      );
+    }
+    if (options.sizes != null) {
+      queryParams['sizes'] = ValueSerializer.serializeStyled(
+        'sizes',
+        options.sizes,
+        'query',
+        'Array<string>',
+        'ssv',
+        'spaceDelimited',
+        false
+      );
+    }
+    {
+      const serialized = ValueSerializer.serializeStyled(
+        'filter',
+        options.filter,
+        'query',
+        'string',
+        null,
+        'form',
+        true
+      );
+      queryParams['filter'] = serialized ?? '';
+    }
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      'GET',
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ['application/json'],
+      'application/json',
+      (json: unknown) => ObjectSerializer.deserialize(json, Pet),
       null
     );
   }
@@ -459,7 +632,10 @@ export class PetApi extends BaseApi {
       throw new Error('Missing required parameter "body" when calling setPetAvatar');
     }
     let path = `/pet/{petId}/avatar`;
-    path = path.replace(`{${'petId'}}`, ValueSerializer.serialize(petId, 'path', 'number') as string);
+    path = path.replace(
+      `{${'petId'}}`,
+      ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
+    );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     return await this.invokeApiForResult('PUT', path, queryParams, headerParams, body, [], 'image/jpeg', null, null);
@@ -498,7 +674,10 @@ export class PetApi extends BaseApi {
       throw new Error('Missing required parameter "setPetAvatarThumbnailRequest" when calling setPetAvatarThumbnail');
     }
     let path = `/pet/{petId}/avatar/thumbnail`;
-    path = path.replace(`{${'petId'}}`, ValueSerializer.serialize(petId, 'path', 'number') as string);
+    path = path.replace(
+      `{${'petId'}}`,
+      ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
+    );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     return await this.invokeApiForResult(
@@ -541,7 +720,10 @@ export class PetApi extends BaseApi {
       throw new Error('Missing required parameter "pet" when calling updatePet');
     }
     let path = `/pet/{petId}`;
-    path = path.replace(`{${'petId'}}`, ValueSerializer.serialize(petId, 'path', 'number') as string);
+    path = path.replace(
+      `{${'petId'}}`,
+      ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
+    );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     return await this.invokeApiForResult(
@@ -585,7 +767,10 @@ export class PetApi extends BaseApi {
       throw new Error('Missing required parameter "file" when calling uploadPetCertificate');
     }
     let path = `/pet/{petId}/certificate`;
-    path = path.replace(`{${'petId'}}`, ValueSerializer.serialize(petId, 'path', 'number') as string);
+    path = path.replace(
+      `{${'petId'}}`,
+      ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
+    );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     const formBody: Record<string, unknown> = {};
@@ -642,7 +827,10 @@ export class PetApi extends BaseApi {
       throw new Error('Missing required parameter "file" when calling uploadPetDocument');
     }
     let path = `/pet/{petId}/documents`;
-    path = path.replace(`{${'petId'}}`, ValueSerializer.serialize(petId, 'path', 'number') as string);
+    path = path.replace(
+      `{${'petId'}}`,
+      ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
+    );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     const formBody: Record<string, unknown> = {};

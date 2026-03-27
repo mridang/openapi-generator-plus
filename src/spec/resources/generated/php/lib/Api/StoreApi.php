@@ -34,7 +34,7 @@ class StoreApi extends BaseApi
     {
         $path = '/store/order/{orderId}';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serialize($orderId, 'path', 'int');
+        $pathValue = ValueSerializer::serializeStyled('orderId', $orderId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'orderId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -113,7 +113,7 @@ class StoreApi extends BaseApi
     {
         $path = '/store/order/{orderId}';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serialize($orderId, 'path', 'int');
+        $pathValue = ValueSerializer::serializeStyled('orderId', $orderId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'orderId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];

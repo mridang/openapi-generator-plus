@@ -138,6 +138,40 @@ class ObjectSerializerTest extends TestCase
         $this->assertSame('false', ObjectSerializer::toFormValue(false));
     }
 
+    // -- stringify --
+
+    public function testStringifyNullReturnsEmptyString(): void
+    {
+        $this->assertSame('', ObjectSerializer::stringify(null));
+    }
+
+    public function testStringifyBooleanTrueReturnsLowercaseString(): void
+    {
+        $this->assertSame('true', ObjectSerializer::stringify(true));
+    }
+
+    public function testStringifyBooleanFalseReturnsLowercaseString(): void
+    {
+        $this->assertSame('false', ObjectSerializer::stringify(false));
+    }
+
+    public function testStringifyIntegerReturnsStringRepresentation(): void
+    {
+        $this->assertSame('42', ObjectSerializer::stringify(42));
+    }
+
+    public function testStringifyDateTimeReturnsIso8601String(): void
+    {
+        $dt = new \DateTime('2024-01-15T10:30:00+00:00');
+        $result = ObjectSerializer::stringify($dt);
+        $this->assertStringStartsWith('2024-01-15T10:30:00', $result);
+    }
+
+    public function testStringifyPlainStringPassesThroughUnchanged(): void
+    {
+        $this->assertSame('hello', ObjectSerializer::stringify('hello'));
+    }
+
     // -- serialize --
 
     public function testSerializeSerializesModelToValidJson(): void

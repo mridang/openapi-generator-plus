@@ -4,6 +4,8 @@ from typing import ClassVar, Dict, Mapping, Optional
 
 from typing_extensions import Self
 
+from .server_configuration import ServerConfiguration
+
 
 @dataclass(frozen=True)
 class Configuration:
@@ -99,6 +101,31 @@ class ConfigurationBuilder:
             This builder.
         """
         self._default_headers[name] = value
+        return self
+
+    def server(
+        self, server_config: ServerConfiguration, variables: Optional[Dict[str, str]] = None
+    ) -> 'ConfigurationBuilder':
+        """Set the base URL by resolving a server configuration with optional variable overrides.
+
+        Calls :meth:`ServerConfiguration.get_url` to resolve the URL template
+        with the given variable overrides and stores the result as the base URL.
+        If the user also calls :meth:`base_url` after this method, the explicit
+        base URL wins (last-write-wins).
+
+        Args:
+            server_config: The server configuration to resolve.
+            variables: Variable name to value overrides. If ``None``, all
+                variables use their default values.
+
+        Returns:
+            This builder.
+
+        Raises:
+            ValueError: If an override value is not in the variable's
+                enum_values.
+        """
+        self._base_url = server_config.get_url(variables)
         return self
 
     def default_headers(self, headers: Dict[str, str]) -> 'ConfigurationBuilder':

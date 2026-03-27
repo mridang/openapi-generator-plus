@@ -14,6 +14,7 @@ export class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
   private readonly clientId: string;
   private readonly clientSecret: string;
   private readonly tokenUrl: string;
+  private readonly refreshUrl: string;
   private readonly username: string;
   private readonly password: string;
   private readonly scopes: readonly string[];
@@ -29,6 +30,7 @@ export class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
    * @param username resource owner username
    * @param password resource owner password
    * @param scopes requested scopes
+   * @param refreshUrl refresh token endpoint URL (defaults to tokenUrl if null)
    */
   constructor(
     host: string,
@@ -37,12 +39,14 @@ export class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
     tokenUrl: string,
     username: string,
     password: string,
-    scopes: string[]
+    scopes: string[],
+    refreshUrl?: string | null
   ) {
     this.host = host;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     this.tokenUrl = tokenUrl;
+    this.refreshUrl = refreshUrl ?? tokenUrl;
     this.username = username;
     this.password = password;
     this.scopes = Object.freeze([...scopes]);
@@ -86,17 +90,30 @@ export class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
    * @returns a promise resolving to the authorization headers
    */
   async getAuthHeadersAsync(): Promise<Record<string, string>> {
-    const params: Record<string, string> = {
-      grant_type: 'password',
-      client_id: this.clientId,
-      client_secret: this.clientSecret,
-      username: this.username,
-      password: this.password
-    };
-    if (this.scopes.length > 0) {
-      params.scope = this.scopes.join(' ');
+    let url: string;
+    let params: Record<string, string>;
+    if (this.tokenManager.getRefreshToken()) {
+      url = this.refreshUrl;
+      params = {
+        grant_type: 'refresh_token',
+        refresh_token: this.tokenManager.getRefreshToken()!,
+        client_id: this.clientId,
+        client_secret: this.clientSecret
+      };
+    } else {
+      url = this.tokenUrl;
+      params = {
+        grant_type: 'password',
+        client_id: this.clientId,
+        client_secret: this.clientSecret,
+        username: this.username,
+        password: this.password
+      };
+      if (this.scopes.length > 0) {
+        params.scope = this.scopes.join(' ');
+      }
     }
-    const token = await this.tokenManager.getAccessToken(this.tokenUrl, params);
+    const token = await this.tokenManager.getAccessToken(url, params);
     return { Authorization: `Bearer ${token}` };
   }
 

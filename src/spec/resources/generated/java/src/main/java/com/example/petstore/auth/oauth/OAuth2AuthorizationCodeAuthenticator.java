@@ -33,6 +33,7 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
   private final String clientSecret;
   private final String authorizationUrl;
   private final String tokenUrl;
+  private final String refreshUrl;
   private final String redirectUri;
   private final List<String> scopes;
   private final OAuth2TokenManager tokenManager;
@@ -57,11 +58,36 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
       String tokenUrl,
       String redirectUri,
       List<String> scopes) {
+    this(host, clientId, clientSecret, authorizationUrl, tokenUrl, null, redirectUri, scopes);
+  }
+
+  /**
+   * Create a new authorization code authenticator with a refresh URL.
+   *
+   * @param host API base URL
+   * @param clientId OAuth2 client ID
+   * @param clientSecret OAuth2 client secret
+   * @param authorizationUrl authorization endpoint URL
+   * @param tokenUrl token endpoint URL
+   * @param refreshUrl refresh token endpoint URL (falls back to tokenUrl if null)
+   * @param redirectUri redirect URI registered with the OAuth2 provider
+   * @param scopes requested scopes
+   */
+  public OAuth2AuthorizationCodeAuthenticator(
+      String host,
+      String clientId,
+      String clientSecret,
+      String authorizationUrl,
+      String tokenUrl,
+      @Nullable String refreshUrl,
+      String redirectUri,
+      List<String> scopes) {
     this.host = host;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     this.authorizationUrl = authorizationUrl;
     this.tokenUrl = tokenUrl;
+    this.refreshUrl = refreshUrl != null ? refreshUrl : tokenUrl;
     this.redirectUri = redirectUri;
     this.scopes = List.copyOf(scopes);
     this.tokenManager = new OAuth2TokenManager();
@@ -121,7 +147,7 @@ public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     Map<String, String> params = new HashMap<>();
     params.put("grant_type", "refresh_token");
     params.put("refresh_token", tokenManager.getRefreshToken());
-    String token = tokenManager.getAccessToken(tokenUrl, params);
+    String token = tokenManager.getAccessToken(refreshUrl, params);
     return Collections.singletonMap("Authorization", "Bearer " + token);
   }
 

@@ -2,7 +2,7 @@ package com.example.petstore.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-@SuppressWarnings("deprecation")
+@SuppressWarnings({"deprecation", "serial"})
 public class SetPetAvatarRequest {
 
   /**

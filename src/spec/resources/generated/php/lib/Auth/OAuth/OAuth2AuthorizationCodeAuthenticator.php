@@ -49,6 +49,9 @@ final class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator imple
     /** @var string Token endpoint URL. */
     private readonly string $tokenUrl;
 
+    /** @var string Refresh token endpoint URL (falls back to tokenUrl if not set). */
+    private readonly string $refreshUrl;
+
     /** @var string Redirect URI registered with the OAuth2 provider. */
     private readonly string $redirectUri;
 
@@ -64,13 +67,14 @@ final class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator imple
     /**
      * Create a new authorization code authenticator.
      *
-     * @param string   $host             API base URL
-     * @param string   $clientId         OAuth2 client ID
-     * @param string   $clientSecret     OAuth2 client secret
-     * @param string   $authorizationUrl authorization endpoint URL
-     * @param string   $tokenUrl         token endpoint URL
-     * @param string   $redirectUri      redirect URI registered with the OAuth2 provider
-     * @param string[] $scopes           requested scopes
+     * @param string      $host             API base URL
+     * @param string      $clientId         OAuth2 client ID
+     * @param string      $clientSecret     OAuth2 client secret
+     * @param string      $authorizationUrl authorization endpoint URL
+     * @param string      $tokenUrl         token endpoint URL
+     * @param string      $redirectUri      redirect URI registered with the OAuth2 provider
+     * @param string[]    $scopes           requested scopes
+     * @param string|null $refreshUrl       refresh token endpoint URL (defaults to tokenUrl)
      */
     public function __construct(
         string $host,
@@ -79,13 +83,15 @@ final class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator imple
         string $authorizationUrl,
         string $tokenUrl,
         string $redirectUri,
-        array $scopes
+        array $scopes,
+        ?string $refreshUrl = null
     ) {
         $this->host = $host;
         $this->clientId = $clientId;
         $this->clientSecret = $clientSecret;
         $this->authorizationUrl = $authorizationUrl;
         $this->tokenUrl = $tokenUrl;
+        $this->refreshUrl = $refreshUrl ?? $tokenUrl;
         $this->redirectUri = $redirectUri;
         $this->scopes = $scopes;
         $this->tokenManager = new OAuth2TokenManager();
@@ -169,7 +175,7 @@ final class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator imple
         if ($this->tokenManager->getRefreshToken() !== null) {
             $params['refresh_token'] = $this->tokenManager->getRefreshToken();
         }
-        $token = $this->tokenManager->getAccessToken($this->tokenUrl, $params);
+        $token = $this->tokenManager->getAccessToken($this->refreshUrl, $params);
 
         return ['Authorization' => 'Bearer ' . $token];
     }

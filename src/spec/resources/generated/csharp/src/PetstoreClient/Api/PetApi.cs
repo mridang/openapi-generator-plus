@@ -30,6 +30,21 @@ public sealed class FindPetsByStatusOptions
 }
 
 /// <summary>
+/// Options for the GetPetTag operation.
+/// </summary>
+public sealed class GetPetTagOptions
+{
+    /// <summary></summary>
+    public List<string>? Colors { get; init; }
+
+    /// <summary></summary>
+    public List<string>? Sizes { get; init; }
+
+    /// <summary></summary>
+    public string? Filter { get; init; }
+}
+
+/// <summary>
 /// Options for the UploadPetCertificate operation.
 /// </summary>
 public sealed class UploadPetCertificateOptions
@@ -68,6 +83,8 @@ public class PetApi : BaseApi
 
     private static readonly string[] FindPetsByStatusAccepts = ["application/json"];
 
+    private static readonly string[] GetExternalPetInfoAccepts = ["application/json"];
+
     private static readonly string[] GetPetAvatarAccepts = ["image/jpeg", "image/png"];
 
     private static readonly string[] GetPetAvatarThumbnailAccepts = ["application/json"];
@@ -82,6 +99,8 @@ public class PetApi : BaseApi
         "image/png",
         "application/json",
     ];
+
+    private static readonly string[] GetPetTagAccepts = ["application/json"];
 
     private static readonly string[] UpdatePetAccepts = ["application/json"];
 
@@ -157,8 +176,17 @@ public class PetApi : BaseApi
         ArgumentNullException.ThrowIfNull(options);
         string path = "/pet/{petId}/photos";
         path = path.Replace(
-            "{" + "petId" + "}",
-            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            "{" + nameof(petId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -201,8 +229,17 @@ public class PetApi : BaseApi
     {
         string path = "/pet/{petId}";
         path = path.Replace(
-            "{" + "petId" + "}",
-            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            "{" + nameof(petId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -249,13 +286,31 @@ public class PetApi : BaseApi
     {
         string path = "/pet/{petId}/documents/{documentId}";
         path = path.Replace(
-            "{" + "petId" + "}",
-            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            "{" + nameof(petId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
         path = path.Replace(
-            "{" + "documentId" + "}",
-            (string)ValueSerializer.Serialize(documentId, "path", "long")!,
+            "{" + nameof(documentId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(documentId),
+                    documentId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -302,11 +357,14 @@ public class PetApi : BaseApi
         Dictionary<string, object?> queryParams = [];
         if (options.Status != null)
         {
-            queryParams["status"] = ValueSerializer.Serialize(
+            queryParams["status"] = ValueSerializer.SerializeStyled(
+                "status",
                 options.Status,
                 "query",
                 "string",
-                null
+                null,
+                "form",
+                true
             );
         }
         if (options.Filter != null)
@@ -335,6 +393,63 @@ public class PetApi : BaseApi
     }
 
     /// <summary>
+    /// Get external pet info
+    /// </summary>
+    /// <param name="petId"></param>
+    /// <returns><![CDATA[Pet]]></returns>
+    public async Task<Pet> GetExternalPetInfoAsync(long petId)
+    {
+        Task<ApiResult<Pet>> task = GetExternalPetInfoWithHttpInfoAsync(petId);
+        ApiResult<Pet> result = await task.ConfigureAwait(false);
+        return result.Data
+            ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Get external pet info (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<Pet>> GetExternalPetInfoWithHttpInfoAsync(long petId)
+    {
+        string path = "/pet/{petId}/external";
+        path = path.Replace(
+            "{" + nameof(petId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
+            StringComparison.Ordinal
+        );
+        string serverUrl = "https://external-api.example.com/v1";
+        if (
+            serverUrl.StartsWith("http://", StringComparison.Ordinal)
+            || serverUrl.StartsWith("https://", StringComparison.Ordinal)
+        )
+        {
+            path = serverUrl + path;
+        }
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+        return await InvokeApiForResultAsync<Pet>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetExternalPetInfoAccepts,
+                "application/json",
+                null
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Get the pet&#39;s profile photo
     /// </summary>
     /// <remarks>Returns the raw image bytes of the pet&#39;s current avatar.</remarks>
@@ -355,8 +470,17 @@ public class PetApi : BaseApi
     {
         string path = "/pet/{petId}/avatar";
         path = path.Replace(
-            "{" + "petId" + "}",
-            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            "{" + nameof(petId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -396,8 +520,17 @@ public class PetApi : BaseApi
     {
         string path = "/pet/{petId}/avatar/thumbnail";
         path = path.Replace(
-            "{" + "petId" + "}",
-            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            "{" + nameof(petId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -438,8 +571,17 @@ public class PetApi : BaseApi
     {
         string path = "/pet/{petId}";
         path = path.Replace(
-            "{" + "petId" + "}",
-            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            "{" + nameof(petId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -479,8 +621,17 @@ public class PetApi : BaseApi
     {
         string path = "/pet/{petId}/passport";
         path = path.Replace(
-            "{" + "petId" + "}",
-            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            "{" + nameof(petId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -524,13 +675,31 @@ public class PetApi : BaseApi
     {
         string path = "/pet/{petId}/photos/{photoId}";
         path = path.Replace(
-            "{" + "petId" + "}",
-            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            "{" + nameof(petId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
         path = path.Replace(
-            "{" + "photoId" + "}",
-            (string)ValueSerializer.Serialize(photoId, "path", "long")!,
+            "{" + nameof(photoId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(photoId),
+                    photoId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -543,6 +712,112 @@ public class PetApi : BaseApi
                 headerParams,
                 null,
                 GetPetPhotoAccepts,
+                "application/json",
+                null
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Get a tag for a pet
+    /// </summary>
+    /// <param name="petId"></param>
+    /// <param name="tagName"></param>
+    /// <param name="options">Options for query, header, and form parameters.</param>
+    /// <returns><![CDATA[Pet]]></returns>
+    public async Task<Pet> GetPetTagAsync(long petId, string tagName, GetPetTagOptions options)
+    {
+        Task<ApiResult<Pet>> task = GetPetTagWithHttpInfoAsync(petId, tagName, options);
+        ApiResult<Pet> result = await task.ConfigureAwait(false);
+        return result.Data
+            ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Get a tag for a pet (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<Pet>> GetPetTagWithHttpInfoAsync(
+        long petId,
+        string tagName,
+        GetPetTagOptions options
+    )
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        string path = "/pet/{petId}/tag/{tagName}";
+        path = path.Replace(
+            "{" + nameof(petId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "matrix",
+                    false
+                )!,
+            StringComparison.Ordinal
+        );
+        path = path.Replace(
+            "{" + nameof(tagName) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(tagName),
+                    tagName,
+                    "path",
+                    "string",
+                    null,
+                    "label",
+                    false
+                )!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        if (options.Colors != null)
+        {
+            queryParams["colors"] = ValueSerializer.SerializeStyled(
+                "colors",
+                options.Colors,
+                "query",
+                "List<string>",
+                "pipes",
+                "pipeDelimited",
+                false
+            );
+        }
+        if (options.Sizes != null)
+        {
+            queryParams["sizes"] = ValueSerializer.SerializeStyled(
+                "sizes",
+                options.Sizes,
+                "query",
+                "List<string>",
+                "ssv",
+                "spaceDelimited",
+                false
+            );
+        }
+        queryParams["filter"] =
+            options.Filter != null
+                ? ValueSerializer.SerializeStyled(
+                    "filter",
+                    options.Filter,
+                    "query",
+                    "string",
+                    null,
+                    "form",
+                    true
+                )
+                : "";
+        Dictionary<string, string> headerParams = [];
+        return await InvokeApiForResultAsync<Pet>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetPetTagAccepts,
                 "application/json",
                 null
             )
@@ -571,8 +846,17 @@ public class PetApi : BaseApi
     {
         string path = "/pet/{petId}/avatar";
         path = path.Replace(
-            "{" + "petId" + "}",
-            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            "{" + nameof(petId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -619,8 +903,17 @@ public class PetApi : BaseApi
     {
         string path = "/pet/{petId}/avatar/thumbnail";
         path = path.Replace(
-            "{" + "petId" + "}",
-            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            "{" + nameof(petId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -660,8 +953,17 @@ public class PetApi : BaseApi
     {
         string path = "/pet/{petId}";
         path = path.Replace(
-            "{" + "petId" + "}",
-            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            "{" + nameof(petId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -709,8 +1011,17 @@ public class PetApi : BaseApi
         ArgumentNullException.ThrowIfNull(options);
         string path = "/pet/{petId}/certificate";
         path = path.Replace(
-            "{" + "petId" + "}",
-            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            "{" + nameof(petId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 
@@ -760,8 +1071,17 @@ public class PetApi : BaseApi
         ArgumentNullException.ThrowIfNull(options);
         string path = "/pet/{petId}/documents";
         path = path.Replace(
-            "{" + "petId" + "}",
-            (string)ValueSerializer.Serialize(petId, "path", "long")!,
+            "{" + nameof(petId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
             StringComparison.Ordinal
         );
 

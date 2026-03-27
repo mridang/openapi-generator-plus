@@ -241,4 +241,141 @@ class ValueSerializerTest {
             assertEquals("false", ValueSerializer.serialize(false, "form", "boolean", null));
         }
     }
+
+    @Nested
+    @DisplayName("matrix style")
+    class MatrixStyleTests {
+
+        @Test
+        @DisplayName("scalar returns semicolon-prefixed name=value")
+        void scalarReturnsSemicolonPrefixedNameValue() {
+            assertEquals(";color=blue", ValueSerializer.serializeStyled("color", "blue", "path", "string", null, "matrix", true));
+        }
+
+        @Test
+        @DisplayName("array with explode false joins with comma")
+        void arrayExplodeFalseJoinsWithComma() {
+            assertEquals(";color=blue,black", ValueSerializer.serializeStyled("color", Arrays.asList("blue", "black"), "path", "array", null, "matrix", false));
+        }
+
+        @Test
+        @DisplayName("array with explode true repeats name")
+        void arrayExplodeTrueRepeatsName() {
+            assertEquals(";color=blue;color=black", ValueSerializer.serializeStyled("color", Arrays.asList("blue", "black"), "path", "array", null, "matrix", true));
+        }
+
+        @Test
+        @DisplayName("null returns empty string")
+        void nullReturnsEmptyString() {
+            assertEquals("", ValueSerializer.serializeStyled("color", null, "path", "string", null, "matrix", true));
+        }
+    }
+
+    @Nested
+    @DisplayName("label style")
+    class LabelStyleTests {
+
+        @Test
+        @DisplayName("scalar returns dot-prefixed value")
+        void scalarReturnsDotPrefixedValue() {
+            assertEquals(".blue", ValueSerializer.serializeStyled("color", "blue", "path", "string", null, "label", true));
+        }
+
+        @Test
+        @DisplayName("array with explode false joins with comma")
+        void arrayExplodeFalseJoinsWithComma() {
+            assertEquals(".blue,black", ValueSerializer.serializeStyled("color", Arrays.asList("blue", "black"), "path", "array", null, "label", false));
+        }
+
+        @Test
+        @DisplayName("array with explode true joins with dot separator")
+        void arrayExplodeTrueJoinsWithDot() {
+            assertEquals(".blue.black", ValueSerializer.serializeStyled("color", Arrays.asList("blue", "black"), "path", "array", null, "label", true));
+        }
+
+        @Test
+        @DisplayName("null returns empty string")
+        void nullReturnsEmptyString() {
+            assertEquals("", ValueSerializer.serializeStyled("color", null, "path", "string", null, "label", true));
+        }
+    }
+
+    @Nested
+    @DisplayName("spaceDelimited style")
+    class SpaceDelimitedStyleTests {
+
+        @Test
+        @DisplayName("array joins with space")
+        void arrayJoinsWithSpace() {
+            assertEquals("blue black", ValueSerializer.serializeStyled("color", Arrays.asList("blue", "black"), "query", "array", null, "spaceDelimited", false));
+        }
+
+        @Test
+        @DisplayName("scalar returns stringified value")
+        void scalarReturnsStringifiedValue() {
+            assertEquals("blue", ValueSerializer.serializeStyled("color", "blue", "query", "string", null, "spaceDelimited", false));
+        }
+    }
+
+    @Nested
+    @DisplayName("pipeDelimited style")
+    class PipeDelimitedStyleTests {
+
+        @Test
+        @DisplayName("array joins with pipe")
+        void arrayJoinsWithPipe() {
+            assertEquals("blue|black", ValueSerializer.serializeStyled("color", Arrays.asList("blue", "black"), "query", "array", null, "pipeDelimited", false));
+        }
+
+        @Test
+        @DisplayName("scalar returns stringified value")
+        void scalarReturnsStringifiedValue() {
+            assertEquals("blue", ValueSerializer.serializeStyled("color", "blue", "query", "string", null, "pipeDelimited", false));
+        }
+    }
+
+    @Nested
+    @DisplayName("form style with explode")
+    class FormStyleExplodeTests {
+
+        @Test
+        @DisplayName("array with explode false joins with comma")
+        void arrayExplodeFalseJoinsWithComma() {
+            assertEquals("blue,black", ValueSerializer.serializeStyled("color", Arrays.asList("blue", "black"), "query", "array", null, "form", false));
+        }
+
+        @Test
+        @DisplayName("array with explode true returns list")
+        void arrayExplodeTrueReturnsList() {
+            assertEquals(Arrays.asList("blue", "black"), ValueSerializer.serializeStyled("color", Arrays.asList("blue", "black"), "query", "array", null, "form", true));
+        }
+    }
+
+    @Nested
+    @DisplayName("simple style backward compatibility")
+    class SimpleStyleTests {
+
+        @Test
+        @DisplayName("scalar returns stringified value")
+        void scalarReturnsStringifiedValue() {
+            assertEquals("5", ValueSerializer.serializeStyled("id", "5", "path", "string", null, "simple", false));
+        }
+
+        @Test
+        @DisplayName("array joins with comma")
+        void arrayJoinsWithComma() {
+            assertEquals("3,4,5", ValueSerializer.serializeStyled("id", Arrays.asList("3", "4", "5"), "path", "array", null, "simple", false));
+        }
+    }
+
+    @Nested
+    @DisplayName("null style falls back to location default")
+    class NullStyleFallbackTests {
+
+        @Test
+        @DisplayName("path with null style behaves like simple")
+        void pathWithNullStyleBehavesLikeSimple() {
+            assertEquals("5", ValueSerializer.serializeStyled("id", "5", "path", "string", null, null, false));
+        }
+    }
 }

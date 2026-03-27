@@ -3,7 +3,7 @@ package com.example.petstore.models;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import javax.annotation.Nullable;
 
-@SuppressWarnings("deprecation")
+@SuppressWarnings({"deprecation", "serial"})
 public class PhotoMetadataLocation {
 
   /** Example: {@code null} */

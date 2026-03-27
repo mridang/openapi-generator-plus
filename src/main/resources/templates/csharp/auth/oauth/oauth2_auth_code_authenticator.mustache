@@ -26,6 +26,7 @@ public sealed class OAuth2AuthorizationCodeAuthenticator
     private readonly string _clientSecret;
     private readonly Uri _authorizationUrl;
     private readonly Uri _tokenUrl;
+    private readonly Uri _refreshUrl;
     private readonly Uri _redirectUri;
     private readonly string[] _scopes;
     private readonly OAuth2TokenManager _tokenManager = new();
@@ -39,6 +40,7 @@ public sealed class OAuth2AuthorizationCodeAuthenticator
     /// <param name="clientSecret">OAuth2 client secret.</param>
     /// <param name="authorizationUrl">Authorization endpoint URL.</param>
     /// <param name="tokenUrl">Token endpoint URL.</param>
+    /// <param name="refreshUrl">Refresh token endpoint URL. Falls back to tokenUrl if null.</param>
     /// <param name="redirectUri">Redirect URI registered with the OAuth2 provider.</param>
     /// <param name="scopes">Requested scopes.</param>
     public OAuth2AuthorizationCodeAuthenticator(
@@ -47,6 +49,7 @@ public sealed class OAuth2AuthorizationCodeAuthenticator
         string clientSecret,
         Uri authorizationUrl,
         Uri tokenUrl,
+        Uri? refreshUrl,
         Uri redirectUri,
         string[] scopes
     )
@@ -56,6 +59,7 @@ public sealed class OAuth2AuthorizationCodeAuthenticator
         _clientSecret = clientSecret;
         _authorizationUrl = authorizationUrl;
         _tokenUrl = tokenUrl;
+        _refreshUrl = refreshUrl ?? tokenUrl;
         _redirectUri = redirectUri;
         _scopes = [.. scopes];
     }
@@ -138,7 +142,7 @@ public sealed class OAuth2AuthorizationCodeAuthenticator
             parameters["refresh_token"] = _tokenManager.RefreshToken;
         }
         string token = _tokenManager
-            .GetAccessTokenAsync(_tokenUrl, parameters)
+            .GetAccessTokenAsync(_refreshUrl, parameters)
             .GetAwaiter()
             .GetResult();
         return new() { ["Authorization"] = "Bearer " + token };

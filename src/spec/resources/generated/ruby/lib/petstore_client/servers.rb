@@ -23,16 +23,39 @@ module PetstoreClient
   #     url = PetstoreClient::Servers::SERVER_1.url('environment' => 'staging')
   module Servers
     # Server 0: /api/v3
+    #
+    # Relative URL (no variables)
     SERVER_0 = ServerConfiguration.new(
       url_template: '/api/v3',
-      description: nil,
+      description: 'Relative URL (no variables)',
       variables: {}
+    ).freeze
+
+    # Server 1: https://{environment}.example.com/api/{version}
+    #
+    # Main API server with variables
+    SERVER_1 = ServerConfiguration.new(
+      url_template: 'https://{environment}.example.com/api/{version}',
+      description: 'Main API server with variables',
+      variables: {
+        'environment' => ServerVariable.new(
+          default_value: 'api',
+          description: 'API environment',
+          enum_values: %w[api staging sandbox]
+        ),
+        'version' => ServerVariable.new(
+          default_value: 'v3',
+          description: 'API version',
+          enum_values: %w[v2 v3]
+        )
+      }
     ).freeze
 
     # All server configurations in declaration order.
     # @return [Array<ServerConfiguration>]
     ALL = [
-      SERVER_0
+      SERVER_0,
+      SERVER_1
     ].freeze
   end
 end

@@ -181,7 +181,7 @@ class {{classname}} extends BaseApi
         $path = '{{{path}}}';
 {{#pathParams}}
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serialize(${{paramName}}, 'path', '{{dataType}}');
+        $pathValue = ValueSerializer::serializeStyled('{{baseName}}', ${{paramName}}, 'path', '{{dataType}}', null, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
         $path = str_replace('{' . '{{baseName}}' . '}', $pathValue, $path);
 {{/pathParams}}
 {{#servers}}
@@ -206,23 +206,29 @@ class {{classname}} extends BaseApi
         }
 {{/isDeepObject}}
 {{^isDeepObject}}
+{{#isAllowEmptyValue}}
+        $serialized = ValueSerializer::serializeStyled('{{baseName}}', ${{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
+        $queryParams['{{baseName}}'] = $serialized ?? '';
+{{/isAllowEmptyValue}}
+{{^isAllowEmptyValue}}
         if (${{paramName}} !== null) {
-            $queryParams['{{baseName}}'] = ValueSerializer::serialize(${{paramName}}, 'query', '{{dataType}}'{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}});
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', ${{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
         }
+{{/isAllowEmptyValue}}
 {{/isDeepObject}}
 {{/content}}
 {{/queryParams}}
         $headerParams = [];
 {{#headerParams}}
         if (${{paramName}} !== null) {
-            $headerParams['{{baseName}}'] = ValueSerializer::serialize(${{paramName}}, 'header', '{{dataType}}');
+            $headerParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', ${{paramName}}, 'header', '{{dataType}}', null, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
         }
 {{/headerParams}}
 {{#hasCookieParams}}
         $cookieParts = [];
 {{#cookieParams}}
         if (${{paramName}} !== null) {
-            $cookieParts[] = '{{baseName}}=' . ValueSerializer::serialize(${{paramName}}, 'cookie', '{{dataType}}');
+            $cookieParts[] = '{{baseName}}=' . ValueSerializer::serializeStyled('{{baseName}}', ${{paramName}}, 'cookie', '{{dataType}}', null, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
         }
 {{/cookieParams}}
         if (!empty($cookieParts)) {
@@ -343,7 +349,7 @@ class {{classname}} extends BaseApi
         $path = '{{{path}}}';
 {{#pathParams}}
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serialize(${{paramName}}, 'path', '{{dataType}}');
+        $pathValue = ValueSerializer::serializeStyled('{{baseName}}', ${{paramName}}, 'path', '{{dataType}}', null, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
         $path = str_replace('{' . '{{baseName}}' . '}', $pathValue, $path);
 {{/pathParams}}
 {{#servers}}
@@ -368,23 +374,29 @@ class {{classname}} extends BaseApi
         }
 {{/isDeepObject}}
 {{^isDeepObject}}
+{{#isAllowEmptyValue}}
+        $serialized = ValueSerializer::serializeStyled('{{baseName}}', ${{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
+        $queryParams['{{baseName}}'] = $serialized ?? '';
+{{/isAllowEmptyValue}}
+{{^isAllowEmptyValue}}
         if (${{paramName}} !== null) {
-            $queryParams['{{baseName}}'] = ValueSerializer::serialize(${{paramName}}, 'query', '{{dataType}}'{{#collectionFormat}}, '{{collectionFormat}}'{{/collectionFormat}});
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', ${{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
         }
+{{/isAllowEmptyValue}}
 {{/isDeepObject}}
 {{/content}}
 {{/queryParams}}
         $headerParams = [];
 {{#headerParams}}
         if (${{paramName}} !== null) {
-            $headerParams['{{baseName}}'] = ValueSerializer::serialize(${{paramName}}, 'header', '{{dataType}}');
+            $headerParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', ${{paramName}}, 'header', '{{dataType}}', null, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
         }
 {{/headerParams}}
 {{#hasCookieParams}}
         $cookieParts = [];
 {{#cookieParams}}
         if (${{paramName}} !== null) {
-            $cookieParts[] = '{{baseName}}=' . ValueSerializer::serialize(${{paramName}}, 'cookie', '{{dataType}}');
+            $cookieParts[] = '{{baseName}}=' . ValueSerializer::serializeStyled('{{baseName}}', ${{paramName}}, 'cookie', '{{dataType}}', null, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
         }
 {{/cookieParams}}
         if (!empty($cookieParts)) {

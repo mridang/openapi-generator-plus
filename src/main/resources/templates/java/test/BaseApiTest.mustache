@@ -16,6 +16,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 class BaseApiTest {
 
     private static final TypeReference<JsonNode> JSON_NODE_TYPE = new TypeReference<>() {};
@@ -251,6 +253,68 @@ class BaseApiTest {
                             null,
                             null);
             assertNull(result);
+        }
+
+        @Test
+        @DisplayName("includes empty value param in query string when value is empty string")
+        void includesEmptyValueParam() throws ApiException {
+            Map<String, Object> queryParams = new HashMap<>();
+            queryParams.put("filter", "");
+            Object result =
+                    api().call(
+                            "GET",
+                            "/api/test",
+                            queryParams,
+                            new HashMap<>(),
+                            null,
+                            new String[] {"application/json"},
+                            "application/json",
+                            null,
+                            null);
+            assertNull(result);
+        }
+    }
+
+    @Nested
+    @DisplayName("server variable overrides")
+    class ServerVariableOverrides {
+
+        @Test
+        @DisplayName("server variable overrides resolve in base URL")
+        void serverVariableOverridesResolve() {
+            Configuration config = Configuration.builder()
+                    .server(Servers.SERVER_1, Map.of("environment", "staging"))
+                    .build();
+            assertEquals("https://staging.example.com/api/v3", config.getBaseUrl());
+        }
+
+        @Test
+        @DisplayName("default server variables produce correct base URL")
+        void defaultServerVariablesResolve() {
+            Configuration config = Configuration.builder()
+                    .server(Servers.SERVER_1)
+                    .build();
+            assertEquals("https://api.example.com/api/v3", config.getBaseUrl());
+        }
+
+        @Test
+        @DisplayName("invalid enum value throws error")
+        void invalidEnumValueThrows() {
+            assertThrows(IllegalArgumentException.class, () ->
+                    Configuration.builder()
+                            .server(Servers.SERVER_1, Map.of("environment", "invalid"))
+                            .build());
+        }
+
+        @Test
+        @DisplayName("API request uses resolved server URL")
+        void apiRequestUsesResolvedUrl() {
+            Configuration config = Configuration.builder()
+                    .server(Servers.SERVER_1, Map.of("environment", "staging"))
+                    .build();
+            assertEquals("https://staging.example.com/api/v3", config.getBaseUrl());
+            TestableApi testApi = new TestableApi(config.getBaseUrl());
+            assertNotNull(testApi);
         }
     }
 

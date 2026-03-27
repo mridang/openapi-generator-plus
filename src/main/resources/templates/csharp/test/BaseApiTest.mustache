@@ -205,4 +205,50 @@ public class BaseApiTest
             new Dictionary<string, string>(),
             null, ["application/json"], "application/json");
     }
+
+    [Fact]
+    public async Task IncludesEmptyValueParamInQueryString()
+    {
+        await Api().CallAsync<object>(
+            "GET", "/api/test",
+            new Dictionary<string, object?> { { "filter", "" } },
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+    }
+
+    [Fact]
+    public void ServerVariableOverridesResolveInBaseUrl()
+    {
+        var config = Configuration.CreateBuilder()
+            .Server(Servers.Server1, new Dictionary<string, string> { { "environment", "staging" } })
+            .Build();
+        Assert.Equal("https://staging.example.com/api/v3", config.BaseUrl);
+    }
+
+    [Fact]
+    public void DefaultServerVariablesProduceCorrectBaseUrl()
+    {
+        var config = Configuration.CreateBuilder()
+            .Server(Servers.Server1)
+            .Build();
+        Assert.Equal("https://api.example.com/api/v3", config.BaseUrl);
+    }
+
+    [Fact]
+    public void InvalidEnumValueThrowsError()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            Configuration.CreateBuilder()
+                .Server(Servers.Server1, new Dictionary<string, string> { { "environment", "invalid" } })
+                .Build());
+    }
+
+    [Fact]
+    public async Task ApiRequestUsesResolvedServerUrl()
+    {
+        var config = Configuration.CreateBuilder()
+            .Server(Servers.Server1, new Dictionary<string, string> { { "environment", "staging" } })
+            .Build();
+        Assert.Equal("https://staging.example.com/api/v3", config.BaseUrl);
+    }
 }

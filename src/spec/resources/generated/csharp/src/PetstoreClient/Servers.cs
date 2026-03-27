@@ -19,11 +19,36 @@ public static class Servers
 {
     /// <summary>
     /// Server 0: /api/v3
+    ///
+    /// Relative URL (no variables)
     /// </summary>
-    public static readonly ServerConfiguration Server0 = new("/api/v3", null, []);
+    public static readonly ServerConfiguration Server0 = new(
+        "/api/v3",
+        "Relative URL (no variables)",
+        []
+    );
+
+    /// <summary>
+    /// Server 1: https://{environment}.example.com/api/{version}
+    ///
+    /// Main API server with variables
+    /// </summary>
+    public static readonly ServerConfiguration Server1 = new(
+        "https://{environment}.example.com/api/{version}",
+        "Main API server with variables",
+        new Dictionary<string, ServerVariable>
+        {
+            ["environment"] = new ServerVariable(
+                "api",
+                "API environment",
+                ["api", "staging", "sandbox"]
+            ),
+            ["version"] = new ServerVariable("v3", "API version", ["v2", "v3"]),
+        }
+    );
 
     /// <summary>
     /// All server configurations in declaration order.
     /// </summary>
-    public static readonly IReadOnlyList<ServerConfiguration> All = [Server0];
+    public static readonly IReadOnlyList<ServerConfiguration> All = [Server0, Server1];
 }

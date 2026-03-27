@@ -1,5 +1,29 @@
+import datetime
 from petstore_client.object_serializer import ObjectSerializer
 from petstore_client.models.category import Category
+
+
+class TestStringify:
+    def test_none_returns_empty_string(self):
+        assert ObjectSerializer.stringify(None) == ''
+
+    def test_boolean_true_returns_lowercase_string(self):
+        assert ObjectSerializer.stringify(True) == 'true'
+
+    def test_boolean_false_returns_lowercase_string(self):
+        assert ObjectSerializer.stringify(False) == 'false'
+
+    def test_integer_returns_string_representation(self):
+        assert ObjectSerializer.stringify(42) == '42'
+
+    def test_datetime_returns_iso8601_string(self):
+        dt = datetime.datetime(2024, 1, 15, 10, 30, 0, tzinfo=datetime.timezone.utc)
+        result = ObjectSerializer.stringify(dt)
+        assert '2024-01-15' in result
+        assert '10:30:00' in result
+
+    def test_plain_string_passes_through_unchanged(self):
+        assert ObjectSerializer.stringify('hello') == 'hello'
 
 
 class TestToPathValue:

@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nullable;
 
-@SuppressWarnings("deprecation")
+@SuppressWarnings({"deprecation", "serial"})
 public class PetPassport {
 
   /** Example: {@code null} */
@@ -17,7 +17,7 @@ public class PetPassport {
   /**
    * Base64-encoded primary thumbnail
    *
-   * <p>Example: {@code [B@4f2f84c}
+   * <p>Example: {@code [B@21443348}
    */
   @JsonProperty("thumbnail")
   @Nullable

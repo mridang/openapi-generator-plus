@@ -13,6 +13,8 @@ import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.utils.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -251,6 +253,11 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             "test/BaseApiTest.mustache",
                             "Tests",
                             "BaseApiTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/MetadataTest.mustache",
+                            "Tests",
+                            "MetadataTest.cs"));
         }
     }
 
@@ -274,6 +281,27 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 + packageName.replace(".", File.separator)
                 + File.separator
                 + apiPackage;
+    }
+
+    @Override
+    public ModelsMap postProcessModels(ModelsMap objs) {
+        ModelsMap result = super.postProcessModels(objs);
+        for (ModelMap modelMap : result.getModels()) {
+            CodegenModel model = modelMap.getModel();
+            if (model.parent != null) {
+                String baseParent = model.parent;
+                int genericIdx = baseParent.indexOf('<');
+                if (genericIdx >= 0) {
+                    baseParent = baseParent.substring(0, genericIdx);
+                }
+                if (languageSpecificPrimitives.contains(baseParent)
+                        || typeMapping.containsValue(baseParent)) {
+                    model.parent = null;
+                    model.parentModel = null;
+                }
+            }
+        }
+        return result;
     }
 
     @Override

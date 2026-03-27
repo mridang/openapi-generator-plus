@@ -21,6 +21,7 @@ export class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
   private readonly clientSecret: string;
   private readonly authorizationUrl: string;
   private readonly tokenUrl: string;
+  private readonly refreshUrl: string;
   private readonly redirectUri: string;
   private readonly scopes: readonly string[];
   private readonly tokenManager: OAuth2TokenManager;
@@ -36,6 +37,7 @@ export class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
    * @param tokenUrl token endpoint URL
    * @param redirectUri redirect URI registered with the OAuth2 provider
    * @param scopes requested scopes
+   * @param refreshUrl refresh token endpoint URL (defaults to tokenUrl if null)
    */
   constructor(
     host: string,
@@ -44,13 +46,15 @@ export class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     authorizationUrl: string,
     tokenUrl: string,
     redirectUri: string,
-    scopes: string[]
+    scopes: string[],
+    refreshUrl?: string | null
   ) {
     this.host = host;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     this.authorizationUrl = authorizationUrl;
     this.tokenUrl = tokenUrl;
+    this.refreshUrl = refreshUrl ?? tokenUrl;
     this.redirectUri = redirectUri;
     this.scopes = Object.freeze([...scopes]);
     this.tokenManager = new OAuth2TokenManager();
@@ -139,7 +143,7 @@ export class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthentica
     if (this.tokenManager.getRefreshToken()) {
       params.refresh_token = this.tokenManager.getRefreshToken()!;
     }
-    const token = await this.tokenManager.getAccessToken(this.tokenUrl, params);
+    const token = await this.tokenManager.getAccessToken(this.refreshUrl, params);
     return { Authorization: `Bearer ${token}` };
   }
 

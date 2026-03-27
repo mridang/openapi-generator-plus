@@ -81,7 +81,7 @@ class PetApi extends BaseApi
     {
         $path = '/pet/{petId}/photos';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -123,7 +123,7 @@ class PetApi extends BaseApi
     {
         $path = '/pet/{petId}';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -165,10 +165,10 @@ class PetApi extends BaseApi
     {
         $path = '/pet/{petId}/documents/{documentId}';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serialize($documentId, 'path', 'int');
+        $pathValue = ValueSerializer::serializeStyled('documentId', $documentId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'documentId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -215,7 +215,7 @@ class PetApi extends BaseApi
         $path = '/pet/findByStatus';
         $queryParams = [];
         if ($status !== null) {
-            $queryParams['status'] = ValueSerializer::serialize($status, 'query', 'string');
+            $queryParams['status'] = ValueSerializer::serializeStyled('status', $status, 'query', 'string', null, 'form', true);
         }
         if ($filter !== null) {
             $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('filter', $filter));
@@ -233,6 +233,50 @@ class PetApi extends BaseApi
             ['application/json'],
             'application/json',
             '\PetstoreClient\Models\Pet[]',
+        );
+        return $result;
+    }
+
+    /**
+     * Get external pet info
+     * @return \PetstoreClient\Models\Pet
+     * @throws ApiException
+     */
+    public function getExternalPetInfo(int $petId)
+    {
+        /** @var \PetstoreClient\Models\Pet $result */
+        $result = $this->getExternalPetInfoWithHttpInfo($petId)->data;
+        return $result;
+    }
+
+    /**
+     * @return ApiResult<\PetstoreClient\Models\Pet>
+     * @throws ApiException
+     */
+    public function getExternalPetInfoWithHttpInfo(int $petId): ApiResult
+    {
+        $path = '/pet/{petId}/external';
+        /** @var string $pathValue */
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
+        $serverUrl = 'https://external-api.example.com/v1';
+        if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
+            $path = $serverUrl . $path;
+        }
+        $queryParams = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\Pet> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\PetstoreClient\Models\Pet',
         );
         return $result;
     }
@@ -258,7 +302,7 @@ class PetApi extends BaseApi
     {
         $path = '/pet/{petId}/avatar';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -299,7 +343,7 @@ class PetApi extends BaseApi
     {
         $path = '/pet/{petId}/avatar/thumbnail';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -343,7 +387,7 @@ class PetApi extends BaseApi
     {
         $path = '/pet/{petId}';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -384,7 +428,7 @@ class PetApi extends BaseApi
     {
         $path = '/pet/{petId}/passport';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -425,10 +469,10 @@ class PetApi extends BaseApi
     {
         $path = '/pet/{petId}/photos/{photoId}';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serialize($photoId, 'path', 'int');
+        $pathValue = ValueSerializer::serializeStyled('photoId', $photoId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'photoId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -444,6 +488,61 @@ class PetApi extends BaseApi
             ['image/jpeg', 'image/png', 'application/json'],
             'application/json',
             '\SplFileObject',
+        );
+        return $result;
+    }
+
+    /**
+     * Get a tag for a pet
+     * @param string[]|null $colors
+     * @param string[]|null $sizes
+     * @return \PetstoreClient\Models\Pet
+     * @throws ApiException
+     */
+    public function getPetTag(int $petId, string $tagName, ?array $colors = null, ?array $sizes = null, ?string $filter = null)
+    {
+        /** @var \PetstoreClient\Models\Pet $result */
+        $result = $this->getPetTagWithHttpInfo($petId, $tagName, $colors, $sizes, $filter)->data;
+        return $result;
+    }
+
+    /**
+     * @param string[]|null $colors
+     * @param string[]|null $sizes
+     * @return ApiResult<\PetstoreClient\Models\Pet>
+     * @throws ApiException
+     */
+    public function getPetTagWithHttpInfo(int $petId, string $tagName, ?array $colors = null, ?array $sizes = null, ?string $filter = null): ApiResult
+    {
+        $path = '/pet/{petId}/tag/{tagName}';
+        /** @var string $pathValue */
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'matrix', false);
+        $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
+        /** @var string $pathValue */
+        $pathValue = ValueSerializer::serializeStyled('tagName', $tagName, 'path', 'string', null, 'label', false);
+        $path = str_replace('{' . 'tagName' . '}', $pathValue, $path);
+        $queryParams = [];
+        if ($colors !== null) {
+            $queryParams['colors'] = ValueSerializer::serializeStyled('colors', $colors, 'query', 'string[]', 'pipes', 'pipeDelimited', false);
+        }
+        if ($sizes !== null) {
+            $queryParams['sizes'] = ValueSerializer::serializeStyled('sizes', $sizes, 'query', 'string[]', 'ssv', 'spaceDelimited', false);
+        }
+        $serialized = ValueSerializer::serializeStyled('filter', $filter, 'query', 'string', null, 'form', true);
+        $queryParams['filter'] = $serialized ?? '';
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\Pet> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\PetstoreClient\Models\Pet',
         );
         return $result;
     }
@@ -466,7 +565,7 @@ class PetApi extends BaseApi
     {
         $path = '/pet/{petId}/avatar';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -504,7 +603,7 @@ class PetApi extends BaseApi
     {
         $path = '/pet/{petId}/avatar/thumbnail';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -548,7 +647,7 @@ class PetApi extends BaseApi
     {
         $path = '/pet/{petId}';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -589,7 +688,7 @@ class PetApi extends BaseApi
     {
         $path = '/pet/{petId}/certificate';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -631,7 +730,7 @@ class PetApi extends BaseApi
     {
         $path = '/pet/{petId}/documents';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serialize($petId, 'path', 'int');
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
