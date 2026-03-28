@@ -135,6 +135,10 @@ describe('ObjectSerializer', () => {
     test('plain string passes through unchanged', () => {
       expect(ObjectSerializer.stringify('hello')).toBe('hello');
     });
+
+    test('float returns string representation', () => {
+      expect(ObjectSerializer.stringify(3.14)).toBe('3.14');
+    });
   });
 
   describe('serialize', () => {

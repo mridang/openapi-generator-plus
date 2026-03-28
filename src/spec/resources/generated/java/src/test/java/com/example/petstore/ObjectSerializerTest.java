@@ -2,10 +2,12 @@ package com.example.petstore;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -54,6 +56,32 @@ class ObjectSerializerTest {
     @DisplayName("plain string passes through unchanged")
     void plainStringPassesThrough() {
       assertEquals("hello", ObjectSerializer.stringify("hello"));
+    }
+
+    @Test
+    @DisplayName("double returns string representation")
+    void doubleReturnsStringRepresentation() {
+      assertEquals("3.14", ObjectSerializer.stringify(3.14));
+    }
+
+    @Test
+    @DisplayName("long returns string representation")
+    void longReturnsStringRepresentation() {
+      assertEquals("9007199254740993", ObjectSerializer.stringify(9007199254740993L));
+    }
+
+    @Test
+    @DisplayName("UUID returns string representation")
+    void uuidReturnsStringRepresentation() {
+      UUID uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+      assertEquals("550e8400-e29b-41d4-a716-446655440000", ObjectSerializer.stringify(uuid));
+    }
+
+    @Test
+    @DisplayName("LocalDate returns ISO 8601 date string")
+    void localDateReturnsIso8601DateString() {
+      LocalDate date = LocalDate.of(2024, 1, 15);
+      assertEquals("2024-01-15", ObjectSerializer.stringify(date));
     }
   }
 

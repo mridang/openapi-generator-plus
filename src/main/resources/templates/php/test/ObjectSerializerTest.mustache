@@ -172,6 +172,11 @@ class ObjectSerializerTest extends TestCase
         $this->assertSame('hello', ObjectSerializer::stringify('hello'));
     }
 
+    public function testStringifyFloatReturnsStringRepresentation(): void
+    {
+        $this->assertSame('3.14', ObjectSerializer::stringify(3.14));
+    }
+
     // -- serialize --
 
     public function testSerializeSerializesModelToValidJson(): void

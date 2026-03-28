@@ -47,6 +47,32 @@ public class ObjectSerializerTest
         {
             Assert.Equal("hello", ObjectSerializer.Stringify("hello"));
         }
+
+        [Fact]
+        public void DoubleReturnsStringRepresentation()
+        {
+            Assert.Equal("3.14", ObjectSerializer.Stringify(3.14));
+        }
+
+        [Fact]
+        public void LongReturnsStringRepresentation()
+        {
+            Assert.Equal("9007199254740993", ObjectSerializer.Stringify(9007199254740993L));
+        }
+
+        [Fact]
+        public void GuidReturnsStringRepresentation()
+        {
+            var guid = System.Guid.Parse("550e8400-e29b-41d4-a716-446655440000");
+            Assert.Equal("550e8400-e29b-41d4-a716-446655440000", ObjectSerializer.Stringify(guid));
+        }
+
+        [Fact]
+        public void DateOnlyReturnsIso8601DateString()
+        {
+            var date = new DateOnly(2024, 1, 15);
+            Assert.Equal("2024-01-15", ObjectSerializer.Stringify(date));
+        }
     }
 
     public class ToPathValueTests

@@ -25,6 +25,13 @@ class TestStringify:
     def test_plain_string_passes_through_unchanged(self):
         assert ObjectSerializer.stringify('hello') == 'hello'
 
+    def test_float_returns_string_representation(self):
+        assert ObjectSerializer.stringify(3.14) == '3.14'
+
+    def test_date_returns_iso8601_date_string(self):
+        d = datetime.date(2024, 1, 15)
+        assert ObjectSerializer.stringify(d) == '2024-01-15'
+
 
 class TestToPathValue:
     def test_returns_empty_string_for_none(self):

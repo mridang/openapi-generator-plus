@@ -30,6 +30,14 @@ describe {{moduleName}}::ObjectSerializer do
     it 'passes through plain string unchanged' do
       _({{moduleName}}::ObjectSerializer.stringify('hello')).must_equal('hello')
     end
+
+    it 'returns string representation of float' do
+      _({{moduleName}}::ObjectSerializer.stringify(3.14)).must_equal('3.14')
+    end
+
+    it 'returns ISO 8601 date string for Date' do
+      _({{moduleName}}::ObjectSerializer.stringify(Date.new(2024, 1, 15))).must_equal('2024-01-15')
+    end
   end
 
   describe '.to_path_value' do

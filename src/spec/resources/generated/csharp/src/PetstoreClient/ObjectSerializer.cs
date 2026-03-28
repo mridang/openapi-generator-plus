@@ -59,8 +59,15 @@ public class ObjectSerializer
         {
             null => "",
             bool b => b ? "true" : "false",
-            DateTimeOffset dto => dto.ToString("o"),
-            DateTime dt => dt.ToString("o"),
+            DateOnly d => d.ToString(
+                "yyyy-MM-dd",
+                System.Globalization.CultureInfo.InvariantCulture
+            ),
+            DateTimeOffset dto => dto.ToString(
+                "o",
+                System.Globalization.CultureInfo.InvariantCulture
+            ),
+            DateTime dt => dt.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
             _ => value.ToString() ?? "",
         };
     }

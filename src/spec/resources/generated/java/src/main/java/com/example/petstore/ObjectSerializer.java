@@ -99,6 +99,9 @@ public final class ObjectSerializer {
     if (value instanceof Boolean b) {
       return b ? "true" : "false";
     }
+    if (value instanceof java.time.LocalDate ld) {
+      return DateTimeFormatter.ISO_LOCAL_DATE.format(ld);
+    }
     if (value instanceof TemporalAccessor t) {
       return DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(t);
     }
