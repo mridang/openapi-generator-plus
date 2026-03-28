@@ -24,12 +24,15 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenSecurity;
+import org.openapitools.codegen.CodegenServer;
+import org.openapitools.codegen.CodegenServerVariable;
 import org.openapitools.codegen.CodegenType;
 import org.openapitools.codegen.DefaultCodegen;
 import org.openapitools.codegen.model.ModelMap;
 import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
+import org.openapitools.codegen.utils.CamelizeOption;
 import org.openapitools.codegen.utils.StringUtils;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -416,6 +419,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
                 }
             }
             objs.put("hasAnyAuthMethods", anyOpHasAuth);
+            if (ops != null) {
+                enrichOperationServers(ops, operations);
+            }
         }
         cleanupBadImports(objs);
         return objs;
@@ -447,6 +453,90 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
                     String className = importLine.substring(lastSpace + 1);
                     return !className.isEmpty() && Character.isLowerCase(className.charAt(0));
                 });
+    }
+
+    /**
+     * Build structured server type definitions for operations that have per-operation servers.
+     * Puts {@code serverTypeDefs} and {@code hasServerTypeDefs} into the operations map so
+     * templates can generate typesafe server selection types.
+     */
+    @SuppressWarnings("unchecked")
+    private static void enrichOperationServers(
+            List<CodegenOperation> ops, Map<String, Object> operations) {
+        List<Map<String, Object>> serverTypeDefs = new ArrayList<>();
+        for (CodegenOperation op : ops) {
+            if (op.servers == null || op.servers.isEmpty()) {
+                continue;
+            }
+            Map<String, Object> typeDef = new HashMap<>();
+            typeDef.put("operationId", op.operationId);
+            typeDef.put("serverTypeName", StringUtils.camelize(op.operationId) + "Server");
+
+            List<Map<String, Object>> variants = new ArrayList<>();
+            for (int i = 0; i < op.servers.size(); i++) {
+                CodegenServer server = op.servers.get(i);
+                Map<String, Object> variant = new HashMap<>();
+
+                String variantName;
+                if (server.description != null && !server.description.isBlank()) {
+                    // Replace non-alphanumeric with underscore for camelize compatibility
+                    variantName =
+                            StringUtils.camelize(
+                                    server.description.replaceAll("[^a-zA-Z0-9]+", "_").trim());
+                } else {
+                    variantName = "Server" + i;
+                }
+                variant.put("variantName", variantName);
+                variant.put("variantNameLower", Character.toLowerCase(variantName.charAt(0)) + variantName.substring(1));
+                variant.put("url", server.url);
+                variant.put("description", server.description);
+                variant.put("hasDescription", server.description != null && !server.description.isBlank());
+                boolean hasVars =
+                        server.variables != null && !server.variables.isEmpty();
+                variant.put("hasVariables", hasVars);
+
+                if (hasVars) {
+                    List<Map<String, Object>> vars = new ArrayList<>();
+                    for (CodegenServerVariable v : server.variables) {
+                        Map<String, Object> varMap = new HashMap<>();
+                        varMap.put("name", v.name);
+                        varMap.put("camelName", StringUtils.camelize(v.name, CamelizeOption.LOWERCASE_FIRST_LETTER));
+                        varMap.put("pascalName", StringUtils.camelize(v.name));
+                        varMap.put(
+                                "snakeName",
+                                v.name.replaceAll(
+                                        "([a-z])([A-Z])", "$1_$2").toLowerCase(java.util.Locale.ROOT));
+                        varMap.put("defaultValue", v.defaultValue);
+                        boolean hasEnum =
+                                v.enumValues != null && !v.enumValues.isEmpty();
+                        varMap.put("hasEnumValues", hasEnum);
+                        if (hasEnum) {
+                            List<Map<String, String>> enumVals = new ArrayList<>();
+                            for (String e : v.enumValues) {
+                                Map<String, String> ev = new HashMap<>();
+                                ev.put(
+                                        "name",
+                                        e.toUpperCase(java.util.Locale.ROOT)
+                                                .replace("-", "_")
+                                                .replace(".", "_"));
+                                ev.put("value", e);
+                                enumVals.add(ev);
+                            }
+                            varMap.put("enumValues", enumVals);
+                        }
+                        vars.add(varMap);
+                    }
+                    variant.put("serverVariables", vars);
+                }
+                variants.add(variant);
+            }
+            typeDef.put("variants", variants);
+            typeDef.put("multipleVariants", variants.size() > 1);
+            serverTypeDefs.add(typeDef);
+        }
+
+        operations.put("serverTypeDefs", serverTypeDefs);
+        operations.put("hasServerTypeDefs", !serverTypeDefs.isEmpty());
     }
 
     protected String deriveClientPropertyName(String apiClassName) {

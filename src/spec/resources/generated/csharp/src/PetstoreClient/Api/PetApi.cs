@@ -69,6 +69,168 @@ public sealed class UploadPetDocumentOptions
 }
 
 /// <summary>
+/// Server type for the GetExternalPetInfo operation.
+/// </summary>
+public abstract class GetExternalPetInfoServer
+{
+    /// <summary>Returns the server URL.</summary>
+    public abstract string GetUrl();
+
+    public sealed class Server0 : GetExternalPetInfoServer
+    {
+        /// <summary>Creates a new instance.</summary>
+        public Server0() { }
+
+        /// <inheritdoc />
+        public override string GetUrl()
+        {
+            string url = "https://external-api.example.com/v1";
+            return url;
+        }
+    }
+}
+
+/// <summary>
+/// Server type for the GetMultiServerPetInfo operation.
+/// </summary>
+public abstract class GetMultiServerPetInfoServer
+{
+    /// <summary>Returns the server URL.</summary>
+    public abstract string GetUrl();
+
+    /// <summary>Enum for the region server variable.</summary>
+    public sealed class RegionValue
+    {
+        private RegionValue(string value)
+        {
+            Value = value;
+        }
+
+        /// <summary>Gets the string value.</summary>
+        public string Value { get; }
+
+        /// <summary>The us value.</summary>
+        public static RegionValue US { get; } = new("us");
+
+        /// <summary>The eu value.</summary>
+        public static RegionValue EU { get; } = new("eu");
+
+        /// <summary>The ap value.</summary>
+        public static RegionValue AP { get; } = new("ap");
+    }
+
+    /// <summary>Primary</summary>
+    public sealed class Primary : GetMultiServerPetInfoServer
+    {
+        /// <summary>Creates a new instance.</summary>
+        public Primary() { }
+
+        /// <inheritdoc />
+        public override string GetUrl()
+        {
+            string url = "https://primary.example.com/v1";
+            return url;
+        }
+    }
+
+    /// <summary>Regional</summary>
+    public sealed class Regional : GetMultiServerPetInfoServer
+    {
+        /// <summary>Gets the region value.</summary>
+        public RegionValue Region { get; }
+
+        /// <summary>Creates a new instance.</summary>
+        public Regional(RegionValue region)
+        {
+            Region = region;
+        }
+
+        /// <inheritdoc />
+        public override string GetUrl()
+        {
+            string url = "https://{region}.example.com/v1";
+            url = url.Replace("{" + "region" + "}", Region.Value, StringComparison.Ordinal);
+            return url;
+        }
+    }
+}
+
+/// <summary>
+/// Server type for the GetStagingPetInfo operation.
+/// </summary>
+public abstract class GetStagingPetInfoServer
+{
+    /// <summary>Returns the server URL.</summary>
+    public abstract string GetUrl();
+
+    /// <summary>Enum for the environment server variable.</summary>
+    public sealed class EnvironmentValue
+    {
+        private EnvironmentValue(string value)
+        {
+            Value = value;
+        }
+
+        /// <summary>Gets the string value.</summary>
+        public string Value { get; }
+
+        /// <summary>The staging value.</summary>
+        public static EnvironmentValue STAGING { get; } = new("staging");
+
+        /// <summary>The sandbox value.</summary>
+        public static EnvironmentValue SANDBOX { get; } = new("sandbox");
+    }
+
+    /// <summary>Enum for the version server variable.</summary>
+    public sealed class VersionValue
+    {
+        private VersionValue(string value)
+        {
+            Value = value;
+        }
+
+        /// <summary>Gets the string value.</summary>
+        public string Value { get; }
+
+        /// <summary>The v2 value.</summary>
+        public static VersionValue V2 { get; } = new("v2");
+
+        /// <summary>The v3 value.</summary>
+        public static VersionValue V3 { get; } = new("v3");
+    }
+
+    /// <summary>Staging server</summary>
+    public sealed class StagingServer : GetStagingPetInfoServer
+    {
+        /// <summary>Gets the environment value.</summary>
+        public EnvironmentValue Environment { get; }
+
+        /// <summary>Gets the version value.</summary>
+        public VersionValue Version { get; }
+
+        /// <summary>Creates a new instance.</summary>
+        public StagingServer(EnvironmentValue environment, VersionValue version)
+        {
+            Environment = environment;
+            Version = version;
+        }
+
+        /// <inheritdoc />
+        public override string GetUrl()
+        {
+            string url = "https://{environment}.example.com/api/{version}";
+            url = url.Replace(
+                "{" + "environment" + "}",
+                Environment.Value,
+                StringComparison.Ordinal
+            );
+            url = url.Replace("{" + "version" + "}", Version.Value, StringComparison.Ordinal);
+            return url;
+        }
+    }
+}
+
+/// <summary>
 /// PetApi provides methods for the Pet API group.
 /// Everything about your Pets
 /// </summary>
@@ -84,6 +246,8 @@ public class PetApi : BaseApi
     private static readonly string[] FindPetsByStatusAccepts = ["application/json"];
 
     private static readonly string[] GetExternalPetInfoAccepts = ["application/json"];
+
+    private static readonly string[] GetMultiServerPetInfoAccepts = ["application/json"];
 
     private static readonly string[] GetPetAvatarAccepts = ["image/jpeg", "image/png"];
 
@@ -101,6 +265,8 @@ public class PetApi : BaseApi
     ];
 
     private static readonly string[] GetPetTagAccepts = ["application/json"];
+
+    private static readonly string[] GetStagingPetInfoAccepts = ["application/json"];
 
     private static readonly string[] UpdatePetAccepts = ["application/json"];
 
@@ -397,9 +563,12 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="petId"></param>
     /// <returns><![CDATA[Pet]]></returns>
-    public async Task<Pet> GetExternalPetInfoAsync(long petId)
+    public async Task<Pet> GetExternalPetInfoAsync(
+        long petId,
+        GetExternalPetInfoServer? server = null
+    )
     {
-        Task<ApiResult<Pet>> task = GetExternalPetInfoWithHttpInfoAsync(petId);
+        Task<ApiResult<Pet>> task = GetExternalPetInfoWithHttpInfoAsync(petId, server);
         ApiResult<Pet> result = await task.ConfigureAwait(false);
         return result.Data
             ?? throw new InvalidOperationException("Expected non-null response body");
@@ -408,7 +577,10 @@ public class PetApi : BaseApi
     /// <summary>
     /// Get external pet info (with HTTP info)
     /// </summary>
-    public async Task<ApiResult<Pet>> GetExternalPetInfoWithHttpInfoAsync(long petId)
+    public async Task<ApiResult<Pet>> GetExternalPetInfoWithHttpInfoAsync(
+        long petId,
+        GetExternalPetInfoServer? server = null
+    )
     {
         string path = "/pet/{petId}/external";
         path = path.Replace(
@@ -425,7 +597,7 @@ public class PetApi : BaseApi
                 )!,
             StringComparison.Ordinal
         );
-        string serverUrl = "https://external-api.example.com/v1";
+        string serverUrl = server != null ? server.GetUrl() : "https://external-api.example.com/v1";
         if (
             serverUrl.StartsWith("http://", StringComparison.Ordinal)
             || serverUrl.StartsWith("https://", StringComparison.Ordinal)
@@ -443,6 +615,69 @@ public class PetApi : BaseApi
                 headerParams,
                 null,
                 GetExternalPetInfoAccepts,
+                "application/json",
+                null
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Get multi-server pet info
+    /// </summary>
+    /// <param name="petId"></param>
+    /// <returns><![CDATA[Pet]]></returns>
+    public async Task<Pet> GetMultiServerPetInfoAsync(
+        long petId,
+        GetMultiServerPetInfoServer? server = null
+    )
+    {
+        Task<ApiResult<Pet>> task = GetMultiServerPetInfoWithHttpInfoAsync(petId, server);
+        ApiResult<Pet> result = await task.ConfigureAwait(false);
+        return result.Data
+            ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Get multi-server pet info (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<Pet>> GetMultiServerPetInfoWithHttpInfoAsync(
+        long petId,
+        GetMultiServerPetInfoServer? server = null
+    )
+    {
+        string path = "/pet/{petId}/multi";
+        path = path.Replace(
+            "{" + nameof(petId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
+            StringComparison.Ordinal
+        );
+        string serverUrl = server != null ? server.GetUrl() : "https://primary.example.com/v1";
+        if (
+            serverUrl.StartsWith("http://", StringComparison.Ordinal)
+            || serverUrl.StartsWith("https://", StringComparison.Ordinal)
+        )
+        {
+            path = serverUrl + path;
+        }
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+        return await InvokeApiForResultAsync<Pet>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetMultiServerPetInfoAccepts,
                 "application/json",
                 null
             )
@@ -818,6 +1053,70 @@ public class PetApi : BaseApi
                 headerParams,
                 null,
                 GetPetTagAccepts,
+                "application/json",
+                null
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Get staging pet info
+    /// </summary>
+    /// <param name="petId"></param>
+    /// <returns><![CDATA[Pet]]></returns>
+    public async Task<Pet> GetStagingPetInfoAsync(
+        long petId,
+        GetStagingPetInfoServer? server = null
+    )
+    {
+        Task<ApiResult<Pet>> task = GetStagingPetInfoWithHttpInfoAsync(petId, server);
+        ApiResult<Pet> result = await task.ConfigureAwait(false);
+        return result.Data
+            ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Get staging pet info (with HTTP info)
+    /// </summary>
+    public async Task<ApiResult<Pet>> GetStagingPetInfoWithHttpInfoAsync(
+        long petId,
+        GetStagingPetInfoServer? server = null
+    )
+    {
+        string path = "/pet/{petId}/staging";
+        path = path.Replace(
+            "{" + nameof(petId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
+            StringComparison.Ordinal
+        );
+        string serverUrl =
+            server != null ? server.GetUrl() : "https://{environment}.example.com/api/{version}";
+        if (
+            serverUrl.StartsWith("http://", StringComparison.Ordinal)
+            || serverUrl.StartsWith("https://", StringComparison.Ordinal)
+        )
+        {
+            path = serverUrl + path;
+        }
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+        return await InvokeApiForResultAsync<Pet>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetStagingPetInfoAccepts,
                 "application/json",
                 null
             )

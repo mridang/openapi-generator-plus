@@ -1,3 +1,5 @@
+from abc import ABC, abstractmethod
+from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import quote
 
@@ -15,6 +17,97 @@ from ..configuration import Configuration
 from .base_api import BaseApi
 from ..value_serializer import ValueSerializer
 from ..auth.authenticator import Authenticator
+
+
+class GetExternalPetInfoServer(ABC):
+    """Server type for the get_external_pet_info operation."""
+
+    @abstractmethod
+    def get_url(self) -> str:
+        """Returns the server URL."""
+        ...
+
+
+class GetExternalPetInfoServerServer0(GetExternalPetInfoServer):
+    def __init__(self) -> None:
+        pass
+
+    def get_url(self) -> str:
+        url = 'https://external-api.example.com/v1'
+        return url
+
+
+class GetMultiServerPetInfoServer(ABC):
+    """Server type for the get_multi_server_pet_info operation."""
+
+    @abstractmethod
+    def get_url(self) -> str:
+        """Returns the server URL."""
+        ...
+
+
+class GetMultiServerPetInfoServerRegion(str, Enum):
+    US = 'us'
+    EU = 'eu'
+    AP = 'ap'
+
+
+class GetMultiServerPetInfoServerPrimary(GetMultiServerPetInfoServer):
+    """Primary"""
+
+    def __init__(self) -> None:
+        pass
+
+    def get_url(self) -> str:
+        url = 'https://primary.example.com/v1'
+        return url
+
+
+class GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServer):
+    """Regional"""
+
+    def __init__(self, region: GetMultiServerPetInfoServerRegion) -> None:
+        self._region = region
+
+    def get_url(self) -> str:
+        url = 'https://{region}.example.com/v1'
+        url = url.replace('{' + 'region' + '}', self._region.value)
+        return url
+
+
+class GetStagingPetInfoServer(ABC):
+    """Server type for the get_staging_pet_info operation."""
+
+    @abstractmethod
+    def get_url(self) -> str:
+        """Returns the server URL."""
+        ...
+
+
+class GetStagingPetInfoServerEnvironment(str, Enum):
+    STAGING = 'staging'
+    SANDBOX = 'sandbox'
+
+
+class GetStagingPetInfoServerVersion(str, Enum):
+    V2 = 'v2'
+    V3 = 'v3'
+
+
+class GetStagingPetInfoServerStagingServer(GetStagingPetInfoServer):
+    """Staging server"""
+
+    def __init__(
+        self, environment: GetStagingPetInfoServerEnvironment, version: GetStagingPetInfoServerVersion
+    ) -> None:
+        self._environment = environment
+        self._version = version
+
+    def get_url(self) -> str:
+        url = 'https://{environment}.example.com/api/{version}'
+        url = url.replace('{' + 'environment' + '}', self._environment.value)
+        url = url.replace('{' + 'version' + '}', self._version.value)
+        return url
 
 
 class PetApi(BaseApi):
@@ -320,6 +413,7 @@ class PetApi(BaseApi):
     def get_external_pet_info(
         self,
         pet_id: int,
+        server: Optional['GetExternalPetInfoServer'] = None,
     ) -> Pet:
         """Get external pet info
         :param pet_id:  (required)
@@ -328,13 +422,14 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        result = self.get_external_pet_info_with_http_info(pet_id)
+        result = self.get_external_pet_info_with_http_info(pet_id, server=server)
         assert result.data is not None
         return result.data
 
     def get_external_pet_info_with_http_info(
         self,
         pet_id: int,
+        server: Optional['GetExternalPetInfoServer'] = None,
     ) -> 'ApiResult[Pet]':
         """Get external pet info (with HTTP info)
         :param pet_id:  (required)
@@ -348,7 +443,59 @@ class PetApi(BaseApi):
             '{' + 'petId' + '}',
             str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
         )
-        _server_url = 'https://external-api.example.com/v1'
+        _server_url = server.get_url() if server is not None else 'https://external-api.example.com/v1'
+        if _server_url.startswith('http://') or _server_url.startswith('https://'):
+            path = _server_url + path
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+
+        return self._invoke_api_for_result(
+            'GET',
+            path,
+            query_params,
+            header_params,
+            body,
+            ['application/json'],
+            'application/json',
+            'Pet',
+            None,
+        )
+
+    def get_multi_server_pet_info(
+        self,
+        pet_id: int,
+        server: Optional['GetMultiServerPetInfoServer'] = None,
+    ) -> Pet:
+        """Get multi-server pet info
+        :param pet_id:  (required)
+        :return: Pet
+        """
+        if pet_id is None:
+            raise ValueError("Missing the required parameter 'pet_id'")
+
+        result = self.get_multi_server_pet_info_with_http_info(pet_id, server=server)
+        assert result.data is not None
+        return result.data
+
+    def get_multi_server_pet_info_with_http_info(
+        self,
+        pet_id: int,
+        server: Optional['GetMultiServerPetInfoServer'] = None,
+    ) -> 'ApiResult[Pet]':
+        """Get multi-server pet info (with HTTP info)
+        :param pet_id:  (required)
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        """
+        if pet_id is None:
+            raise ValueError("Missing the required parameter 'pet_id'")
+
+        path = '/pet/{petId}/multi'
+        path = path.replace(
+            '{' + 'petId' + '}',
+            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+        )
+        _server_url = server.get_url() if server is not None else 'https://primary.example.com/v1'
         if _server_url.startswith('http://') or _server_url.startswith('https://'):
             path = _server_url + path
         query_params: Dict[str, Any] = {}
@@ -702,6 +849,58 @@ class PetApi(BaseApi):
             )
         else:
             query_params['filter'] = ''
+        header_params: Dict[str, str] = {}
+        body = None
+
+        return self._invoke_api_for_result(
+            'GET',
+            path,
+            query_params,
+            header_params,
+            body,
+            ['application/json'],
+            'application/json',
+            'Pet',
+            None,
+        )
+
+    def get_staging_pet_info(
+        self,
+        pet_id: int,
+        server: Optional['GetStagingPetInfoServer'] = None,
+    ) -> Pet:
+        """Get staging pet info
+        :param pet_id:  (required)
+        :return: Pet
+        """
+        if pet_id is None:
+            raise ValueError("Missing the required parameter 'pet_id'")
+
+        result = self.get_staging_pet_info_with_http_info(pet_id, server=server)
+        assert result.data is not None
+        return result.data
+
+    def get_staging_pet_info_with_http_info(
+        self,
+        pet_id: int,
+        server: Optional['GetStagingPetInfoServer'] = None,
+    ) -> 'ApiResult[Pet]':
+        """Get staging pet info (with HTTP info)
+        :param pet_id:  (required)
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        """
+        if pet_id is None:
+            raise ValueError("Missing the required parameter 'pet_id'")
+
+        path = '/pet/{petId}/staging'
+        path = path.replace(
+            '{' + 'petId' + '}',
+            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+        )
+        _server_url = server.get_url() if server is not None else 'https://{environment}.example.com/api/{version}'
+        if _server_url.startswith('http://') or _server_url.startswith('https://'):
+            path = _server_url + path
+        query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
 

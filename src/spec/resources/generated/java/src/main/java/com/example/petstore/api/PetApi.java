@@ -42,6 +42,8 @@ public class PetApi extends BaseApi {
 
   private static final TypeReference<Pet> getExternalPetInfoTypeRef = new TypeReference<>() {};
 
+  private static final TypeReference<Pet> getMultiServerPetInfoTypeRef = new TypeReference<>() {};
+
   private static final TypeReference<InputStream> getPetAvatarTypeRef = new TypeReference<>() {};
 
   private static final TypeReference<byte[]> getPetAvatarThumbnailTypeRef =
@@ -55,6 +57,8 @@ public class PetApi extends BaseApi {
 
   private static final TypeReference<Pet> getPetTagTypeRef = new TypeReference<>() {};
 
+  private static final TypeReference<Pet> getStagingPetInfoTypeRef = new TypeReference<>() {};
+
   private static final TypeReference<Pet> updatePetTypeRef = new TypeReference<>() {};
 
   private static final TypeReference<ApiResponse> uploadPetCertificateTypeRef =
@@ -62,6 +66,110 @@ public class PetApi extends BaseApi {
 
   private static final TypeReference<ApiResponse> uploadPetDocumentTypeRef =
       new TypeReference<>() {};
+
+  /** Server type for the getExternalPetInfo operation. */
+  public sealed interface GetExternalPetInfoServer {
+    String getUrl();
+
+    record Server0() implements GetExternalPetInfoServer {
+
+      @Override
+      public String getUrl() {
+        String url = "https://external-api.example.com/v1";
+        return url;
+      }
+    }
+  }
+
+  /** Server type for the getMultiServerPetInfo operation. */
+  public sealed interface GetMultiServerPetInfoServer {
+    String getUrl();
+
+    enum Region {
+      US("us"),
+      EU("eu"),
+      AP("ap");
+
+      private final String value;
+
+      Region(String value) {
+        this.value = value;
+      }
+
+      public String getValue() {
+        return value;
+      }
+    }
+
+    /** Primary */
+    record Primary() implements GetMultiServerPetInfoServer {
+
+      @Override
+      public String getUrl() {
+        String url = "https://primary.example.com/v1";
+        return url;
+      }
+    }
+
+    /** Regional */
+    record Regional(Region region) implements GetMultiServerPetInfoServer {
+
+      @Override
+      public String getUrl() {
+        String url = "https://{region}.example.com/v1";
+        url = url.replace("{" + "region" + "}", region.getValue());
+        return url;
+      }
+    }
+  }
+
+  /** Server type for the getStagingPetInfo operation. */
+  public sealed interface GetStagingPetInfoServer {
+    String getUrl();
+
+    enum Environment {
+      STAGING("staging"),
+      SANDBOX("sandbox");
+
+      private final String value;
+
+      Environment(String value) {
+        this.value = value;
+      }
+
+      public String getValue() {
+        return value;
+      }
+    }
+
+    enum Version {
+      V2("v2"),
+      V3("v3");
+
+      private final String value;
+
+      Version(String value) {
+        this.value = value;
+      }
+
+      public String getValue() {
+        return value;
+      }
+    }
+
+    /** Staging server */
+    record StagingServer(Environment environment, Version version)
+        implements GetStagingPetInfoServer {
+
+      @Override
+      public String getUrl() {
+        String url = "https://{environment}.example.com/api/{version}";
+        url = url.replace("{" + "environment" + "}", environment.getValue());
+        url = url.replace("{" + "version" + "}", version.getValue());
+        return url;
+      }
+    }
+  }
 
   public PetApi() {
     super();
@@ -365,10 +473,21 @@ public class PetApi extends BaseApi {
    */
   @Nullable
   public Pet getExternalPetInfo(Long petId) throws ApiException {
-    return getExternalPetInfoWithHttpInfo(petId).data();
+    return getExternalPetInfo(petId, null);
   }
 
   public ApiResult<Pet> getExternalPetInfoWithHttpInfo(Long petId) throws ApiException {
+    return getExternalPetInfoWithHttpInfo(petId, null);
+  }
+
+  @Nullable
+  public Pet getExternalPetInfo(Long petId, @Nullable GetExternalPetInfoServer server)
+      throws ApiException {
+    return getExternalPetInfoWithHttpInfo(petId, server).data();
+  }
+
+  public ApiResult<Pet> getExternalPetInfoWithHttpInfo(
+      Long petId, @Nullable GetExternalPetInfoServer server) throws ApiException {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling getExternalPetInfo");
@@ -380,7 +499,12 @@ public class PetApi extends BaseApi {
                 (String)
                     ValueSerializer.serializeStyled(
                         "petId", petId, "path", "Long", null, "simple", false));
-    if ("https://external-api.example.com/v1".startsWith("http://")
+    if (server != null) {
+      String serverUrl = server.getUrl();
+      if (serverUrl.startsWith("http://") || serverUrl.startsWith("https://")) {
+        path = serverUrl + path;
+      }
+    } else if ("https://external-api.example.com/v1".startsWith("http://")
         || "https://external-api.example.com/v1".startsWith("https://")) {
       path = "https://external-api.example.com/v1" + path;
     }
@@ -395,6 +519,64 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getExternalPetInfoTypeRef,
+        null);
+  }
+
+  /**
+   * Get multi-server pet info
+   *
+   * @param petId (required)
+   * @return Pet
+   * @throws ApiException if fails to make API call
+   */
+  @Nullable
+  public Pet getMultiServerPetInfo(Long petId) throws ApiException {
+    return getMultiServerPetInfo(petId, null);
+  }
+
+  public ApiResult<Pet> getMultiServerPetInfoWithHttpInfo(Long petId) throws ApiException {
+    return getMultiServerPetInfoWithHttpInfo(petId, null);
+  }
+
+  @Nullable
+  public Pet getMultiServerPetInfo(Long petId, @Nullable GetMultiServerPetInfoServer server)
+      throws ApiException {
+    return getMultiServerPetInfoWithHttpInfo(petId, server).data();
+  }
+
+  public ApiResult<Pet> getMultiServerPetInfoWithHttpInfo(
+      Long petId, @Nullable GetMultiServerPetInfoServer server) throws ApiException {
+    if (petId == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'petId' when calling getMultiServerPetInfo");
+    }
+    String path =
+        "/pet/{petId}/multi"
+            .replace(
+                "{" + "petId" + "}",
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "petId", petId, "path", "Long", null, "simple", false));
+    if (server != null) {
+      String serverUrl = server.getUrl();
+      if (serverUrl.startsWith("http://") || serverUrl.startsWith("https://")) {
+        path = serverUrl + path;
+      }
+    } else if ("https://primary.example.com/v1".startsWith("http://")
+        || "https://primary.example.com/v1".startsWith("https://")) {
+      path = "https://primary.example.com/v1" + path;
+    }
+    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    return invokeApiForResult(
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        getMultiServerPetInfoTypeRef,
         null);
   }
 
@@ -721,6 +903,64 @@ public class PetApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getPetTagTypeRef,
+        null);
+  }
+
+  /**
+   * Get staging pet info
+   *
+   * @param petId (required)
+   * @return Pet
+   * @throws ApiException if fails to make API call
+   */
+  @Nullable
+  public Pet getStagingPetInfo(Long petId) throws ApiException {
+    return getStagingPetInfo(petId, null);
+  }
+
+  public ApiResult<Pet> getStagingPetInfoWithHttpInfo(Long petId) throws ApiException {
+    return getStagingPetInfoWithHttpInfo(petId, null);
+  }
+
+  @Nullable
+  public Pet getStagingPetInfo(Long petId, @Nullable GetStagingPetInfoServer server)
+      throws ApiException {
+    return getStagingPetInfoWithHttpInfo(petId, server).data();
+  }
+
+  public ApiResult<Pet> getStagingPetInfoWithHttpInfo(
+      Long petId, @Nullable GetStagingPetInfoServer server) throws ApiException {
+    if (petId == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'petId' when calling getStagingPetInfo");
+    }
+    String path =
+        "/pet/{petId}/staging"
+            .replace(
+                "{" + "petId" + "}",
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "petId", petId, "path", "Long", null, "simple", false));
+    if (server != null) {
+      String serverUrl = server.getUrl();
+      if (serverUrl.startsWith("http://") || serverUrl.startsWith("https://")) {
+        path = serverUrl + path;
+      }
+    } else if ("https://{environment}.example.com/api/{version}".startsWith("http://")
+        || "https://{environment}.example.com/api/{version}".startsWith("https://")) {
+      path = "https://{environment}.example.com/api/{version}" + path;
+    }
+    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    return invokeApiForResult(
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        getStagingPetInfoTypeRef,
         null);
   }
 

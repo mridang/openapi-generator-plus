@@ -13,6 +13,7 @@ use PetstoreClient\ValueSerializer;
  * StoreApi provides methods for the Store API group.
  * Access to Petstore orders
  */
+
 class StoreApi extends BaseApi
 {
     /**

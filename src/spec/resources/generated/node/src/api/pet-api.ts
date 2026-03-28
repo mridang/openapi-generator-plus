@@ -7,6 +7,79 @@ import { ObjectSerializer } from '../object-serializer.js';
 import { ValueSerializer } from '../value-serializer.js';
 import { ApiResponse, Pet, PetPassport, Photo, PhotoMetadata, SetPetAvatarThumbnailRequest } from '../models/index.js';
 
+export abstract class GetExternalPetInfoServer {
+  abstract getUrl(): string;
+}
+
+export class GetExternalPetInfoServerServer0 extends GetExternalPetInfoServer {
+  constructor() {
+    super();
+  }
+  getUrl(): string {
+    let url = 'https://external-api.example.com/v1';
+    return url;
+  }
+}
+export abstract class GetMultiServerPetInfoServer {
+  abstract getUrl(): string;
+}
+
+export enum GetMultiServerPetInfoServerRegion {
+  US = 'us',
+  EU = 'eu',
+  AP = 'ap'
+}
+
+export class GetMultiServerPetInfoServerPrimary extends GetMultiServerPetInfoServer {
+  constructor() {
+    super();
+  }
+  getUrl(): string {
+    let url = 'https://primary.example.com/v1';
+    return url;
+  }
+}
+export class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer {
+  readonly region: GetMultiServerPetInfoServerRegion;
+  constructor(region: GetMultiServerPetInfoServerRegion) {
+    super();
+    this.region = region;
+  }
+  getUrl(): string {
+    let url = 'https://{region}.example.com/v1';
+    url = url.replace('{' + 'region' + '}', this.region);
+    return url;
+  }
+}
+export abstract class GetStagingPetInfoServer {
+  abstract getUrl(): string;
+}
+
+export enum GetStagingPetInfoServerEnvironment {
+  STAGING = 'staging',
+  SANDBOX = 'sandbox'
+}
+
+export enum GetStagingPetInfoServerVersion {
+  V2 = 'v2',
+  V3 = 'v3'
+}
+
+export class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServer {
+  readonly environment: GetStagingPetInfoServerEnvironment;
+  readonly version: GetStagingPetInfoServerVersion;
+  constructor(environment: GetStagingPetInfoServerEnvironment, version: GetStagingPetInfoServerVersion) {
+    super();
+    this.environment = environment;
+    this.version = version;
+  }
+  getUrl(): string {
+    let url = 'https://{environment}.example.com/api/{version}';
+    url = url.replace('{' + 'environment' + '}', this.environment);
+    url = url.replace('{' + 'version' + '}', this.version);
+    return url;
+  }
+}
 /**
  * PetApi provides methods for the Pet API group.
  * Everything about your Pets
@@ -263,17 +336,17 @@ export class PetApi extends BaseApi {
    * @param petId  (required)
    * @return Pet
    */
-  async getExternalPetInfo(petId: number): Promise<Pet> {
+  async getExternalPetInfo(petId: number, server?: GetExternalPetInfoServer): Promise<Pet> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getExternalPetInfo');
     }
-    return (await this.getExternalPetInfoWithHttpInfo(petId)).data as Pet;
+    return (await this.getExternalPetInfoWithHttpInfo(petId, server)).data as Pet;
   }
 
   /**
    * Get external pet info (with HTTP info)
    */
-  async getExternalPetInfoWithHttpInfo(petId: number): Promise<ApiResult<Pet>> {
+  async getExternalPetInfoWithHttpInfo(petId: number, server?: GetExternalPetInfoServer): Promise<ApiResult<Pet>> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getExternalPetInfo');
     }
@@ -282,7 +355,50 @@ export class PetApi extends BaseApi {
       `{${'petId'}}`,
       ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
     );
-    const serverUrl = 'https://external-api.example.com/v1';
+    const serverUrl = server ? server.getUrl() : 'https://external-api.example.com/v1';
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      'GET',
+      serverUrl.startsWith('http://') || serverUrl.startsWith('https://') ? serverUrl + path : path,
+      queryParams,
+      headerParams,
+      null,
+      ['application/json'],
+      'application/json',
+      (json: unknown) => ObjectSerializer.deserialize(json, Pet),
+      null
+    );
+  }
+
+  /**
+   * Get multi-server pet info
+   * @param petId  (required)
+   * @return Pet
+   */
+  async getMultiServerPetInfo(petId: number, server?: GetMultiServerPetInfoServer): Promise<Pet> {
+    if (petId == null) {
+      throw new Error('Missing required parameter "petId" when calling getMultiServerPetInfo');
+    }
+    return (await this.getMultiServerPetInfoWithHttpInfo(petId, server)).data as Pet;
+  }
+
+  /**
+   * Get multi-server pet info (with HTTP info)
+   */
+  async getMultiServerPetInfoWithHttpInfo(
+    petId: number,
+    server?: GetMultiServerPetInfoServer
+  ): Promise<ApiResult<Pet>> {
+    if (petId == null) {
+      throw new Error('Missing required parameter "petId" when calling getMultiServerPetInfo');
+    }
+    let path = `/pet/{petId}/multi`;
+    path = path.replace(
+      `{${'petId'}}`,
+      ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
+    );
+    const serverUrl = server ? server.getUrl() : 'https://primary.example.com/v1';
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     return await this.invokeApiForResult(
@@ -595,6 +711,46 @@ export class PetApi extends BaseApi {
     return await this.invokeApiForResult(
       'GET',
       path,
+      queryParams,
+      headerParams,
+      null,
+      ['application/json'],
+      'application/json',
+      (json: unknown) => ObjectSerializer.deserialize(json, Pet),
+      null
+    );
+  }
+
+  /**
+   * Get staging pet info
+   * @param petId  (required)
+   * @return Pet
+   */
+  async getStagingPetInfo(petId: number, server?: GetStagingPetInfoServer): Promise<Pet> {
+    if (petId == null) {
+      throw new Error('Missing required parameter "petId" when calling getStagingPetInfo');
+    }
+    return (await this.getStagingPetInfoWithHttpInfo(petId, server)).data as Pet;
+  }
+
+  /**
+   * Get staging pet info (with HTTP info)
+   */
+  async getStagingPetInfoWithHttpInfo(petId: number, server?: GetStagingPetInfoServer): Promise<ApiResult<Pet>> {
+    if (petId == null) {
+      throw new Error('Missing required parameter "petId" when calling getStagingPetInfo');
+    }
+    let path = `/pet/{petId}/staging`;
+    path = path.replace(
+      `{${'petId'}}`,
+      ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
+    );
+    const serverUrl = server ? server.getUrl() : 'https://{environment}.example.com/api/{version}';
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      'GET',
+      serverUrl.startsWith('http://') || serverUrl.startsWith('https://') ? serverUrl + path : path,
       queryParams,
       headerParams,
       null,

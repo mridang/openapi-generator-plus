@@ -15,6 +15,129 @@ use PetstoreClient\Auth\Authenticator;
  * Everything about your Pets
  * @see https://example.com/docs/pets Find out more about pets
  */
+
+/**
+ * Server type for the getExternalPetInfo operation.
+ */
+abstract class GetExternalPetInfoServer
+{
+    abstract public function getUrl(): string;
+}
+
+
+final class GetExternalPetInfoServerServer0 extends GetExternalPetInfoServer
+{
+    public function __construct()
+    {
+    }
+
+    public function getUrl(): string
+    {
+        $url = 'https://external-api.example.com/v1';
+        return $url;
+    }
+}
+
+/**
+ * Server type for the getMultiServerPetInfo operation.
+ */
+abstract class GetMultiServerPetInfoServer
+{
+    abstract public function getUrl(): string;
+}
+
+
+
+enum GetMultiServerPetInfoServerRegion: string
+{
+    case US = 'us';
+    case EU = 'eu';
+    case AP = 'ap';
+}
+
+
+/**
+ * Primary
+ */
+final class GetMultiServerPetInfoServerPrimary extends GetMultiServerPetInfoServer
+{
+    public function __construct()
+    {
+    }
+
+    public function getUrl(): string
+    {
+        $url = 'https://primary.example.com/v1';
+        return $url;
+    }
+}
+
+/**
+ * Regional
+ */
+final class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer
+{
+    private readonly GetMultiServerPetInfoServerRegion $region;
+
+    public function __construct(GetMultiServerPetInfoServerRegion $region)
+    {
+        $this->region = $region;
+    }
+
+    public function getUrl(): string
+    {
+        $url = 'https://{region}.example.com/v1';
+        $url = str_replace('{' . 'region' . '}', $this->region->value, $url);
+        return $url;
+    }
+}
+
+/**
+ * Server type for the getStagingPetInfo operation.
+ */
+abstract class GetStagingPetInfoServer
+{
+    abstract public function getUrl(): string;
+}
+
+
+enum GetStagingPetInfoServerEnvironment: string
+{
+    case STAGING = 'staging';
+    case SANDBOX = 'sandbox';
+}
+
+
+enum GetStagingPetInfoServerVersion: string
+{
+    case V2 = 'v2';
+    case V3 = 'v3';
+}
+
+
+/**
+ * Staging server
+ */
+final class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServer
+{
+    private readonly GetStagingPetInfoServerEnvironment $environment;
+    private readonly GetStagingPetInfoServerVersion $version;
+
+    public function __construct(GetStagingPetInfoServerEnvironment $environment, GetStagingPetInfoServerVersion $version)
+    {
+        $this->environment = $environment;
+        $this->version = $version;
+    }
+
+    public function getUrl(): string
+    {
+        $url = 'https://{environment}.example.com/api/{version}';
+        $url = str_replace('{' . 'environment' . '}', $this->environment->value, $url);
+        $url = str_replace('{' . 'version' . '}', $this->version->value, $url);
+        return $url;
+    }
+}
+
 class PetApi extends BaseApi
 {
     /**
@@ -242,10 +365,10 @@ class PetApi extends BaseApi
      * @return \PetstoreClient\Models\Pet
      * @throws ApiException
      */
-    public function getExternalPetInfo(int $petId)
+    public function getExternalPetInfo(int $petId, ?GetExternalPetInfoServer $server = null)
     {
         /** @var \PetstoreClient\Models\Pet $result */
-        $result = $this->getExternalPetInfoWithHttpInfo($petId)->data;
+        $result = $this->getExternalPetInfoWithHttpInfo($petId, $server)->data;
         return $result;
     }
 
@@ -253,13 +376,57 @@ class PetApi extends BaseApi
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws ApiException
      */
-    public function getExternalPetInfoWithHttpInfo(int $petId): ApiResult
+    public function getExternalPetInfoWithHttpInfo(int $petId, ?GetExternalPetInfoServer $server = null): ApiResult
     {
         $path = '/pet/{petId}/external';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
-        $serverUrl = 'https://external-api.example.com/v1';
+        $serverUrl = $server !== null ? $server->getUrl() : 'https://external-api.example.com/v1';
+        if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
+            $path = $serverUrl . $path;
+        }
+        $queryParams = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\Pet> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\PetstoreClient\Models\Pet',
+        );
+        return $result;
+    }
+
+    /**
+     * Get multi-server pet info
+     * @return \PetstoreClient\Models\Pet
+     * @throws ApiException
+     */
+    public function getMultiServerPetInfo(int $petId, ?GetMultiServerPetInfoServer $server = null)
+    {
+        /** @var \PetstoreClient\Models\Pet $result */
+        $result = $this->getMultiServerPetInfoWithHttpInfo($petId, $server)->data;
+        return $result;
+    }
+
+    /**
+     * @return ApiResult<\PetstoreClient\Models\Pet>
+     * @throws ApiException
+     */
+    public function getMultiServerPetInfoWithHttpInfo(int $petId, ?GetMultiServerPetInfoServer $server = null): ApiResult
+    {
+        $path = '/pet/{petId}/multi';
+        /** @var string $pathValue */
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
+        $serverUrl = $server !== null ? $server->getUrl() : 'https://primary.example.com/v1';
         if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
             $path = $serverUrl . $path;
         }
@@ -530,6 +697,50 @@ class PetApi extends BaseApi
         }
         $serialized = ValueSerializer::serializeStyled('filter', $filter, 'query', 'string', null, 'form', true);
         $queryParams['filter'] = $serialized ?? '';
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\Pet> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\PetstoreClient\Models\Pet',
+        );
+        return $result;
+    }
+
+    /**
+     * Get staging pet info
+     * @return \PetstoreClient\Models\Pet
+     * @throws ApiException
+     */
+    public function getStagingPetInfo(int $petId, ?GetStagingPetInfoServer $server = null)
+    {
+        /** @var \PetstoreClient\Models\Pet $result */
+        $result = $this->getStagingPetInfoWithHttpInfo($petId, $server)->data;
+        return $result;
+    }
+
+    /**
+     * @return ApiResult<\PetstoreClient\Models\Pet>
+     * @throws ApiException
+     */
+    public function getStagingPetInfoWithHttpInfo(int $petId, ?GetStagingPetInfoServer $server = null): ApiResult
+    {
+        $path = '/pet/{petId}/staging';
+        /** @var string $pathValue */
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
+        $serverUrl = $server !== null ? $server->getUrl() : 'https://{environment}.example.com/api/{version}';
+        if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
+            $path = $serverUrl . $path;
+        }
+        $queryParams = [];
         $headerParams = [];
         $requestBody = null;
 

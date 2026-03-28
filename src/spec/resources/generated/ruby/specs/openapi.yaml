@@ -677,6 +677,77 @@ paths:
               schema:
                 $ref: '#/components/schemas/Pet'
 
+  /pet/{petId}/staging:
+    get:
+      servers:
+        - url: https://{environment}.example.com/api/{version}
+          description: Staging server
+          variables:
+            environment:
+              default: staging
+              description: Deployment environment
+              enum:
+                - staging
+                - sandbox
+            version:
+              default: v3
+              description: API version
+              enum:
+                - v2
+                - v3
+      tags:
+        - pet
+      summary: Get staging pet info
+      operationId: getStagingPetInfo
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+
+  /pet/{petId}/multi:
+    get:
+      servers:
+        - url: https://primary.example.com/v1
+          description: Primary
+        - url: https://{region}.example.com/v1
+          description: Regional
+          variables:
+            region:
+              default: us
+              description: Geographic region
+              enum:
+                - us
+                - eu
+                - ap
+      tags:
+        - pet
+      summary: Get multi-server pet info
+      operationId: getMultiServerPetInfo
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+
   # ─── Store ───────────────────────────────────────────────────────────────────
 
   /store/inventory:

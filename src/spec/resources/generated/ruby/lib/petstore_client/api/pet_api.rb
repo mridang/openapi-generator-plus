@@ -11,6 +11,90 @@ require 'cgi'
 # :nodoc:
 module PetstoreClient
   module Api
+    # Server type for the get_external_pet_info operation.
+    class GetExternalPetInfoServer
+      # @return [String] the server URL
+      def url
+        raise NotImplementedError
+      end
+    end
+
+    class GetExternalPetInfoServerServer0 < GetExternalPetInfoServer
+      def url
+        'https://external-api.example.com/v1'
+      end
+    end
+
+    # Server type for the get_multi_server_pet_info operation.
+    class GetMultiServerPetInfoServer
+      # @return [String] the server URL
+      def url
+        raise NotImplementedError
+      end
+    end
+
+    # Valid values for region in GetMultiServerPetInfoServer.
+    module GetMultiServerPetInfoServerRegion
+      US = 'us'
+      EU = 'eu'
+      AP = 'ap'
+    end
+
+    # Primary
+    class GetMultiServerPetInfoServerPrimary < GetMultiServerPetInfoServer
+      def url
+        'https://primary.example.com/v1'
+      end
+    end
+
+    # Regional
+    class GetMultiServerPetInfoServerRegional < GetMultiServerPetInfoServer
+      def initialize(region:)
+        @region = region
+      end
+
+      def url
+        url = 'https://{region}.example.com/v1'
+        url = url.sub('{' + 'region' + '}', @region.to_s)
+        url
+      end
+    end
+
+    # Server type for the get_staging_pet_info operation.
+    class GetStagingPetInfoServer
+      # @return [String] the server URL
+      def url
+        raise NotImplementedError
+      end
+    end
+
+    # Valid values for environment in GetStagingPetInfoServer.
+    module GetStagingPetInfoServerEnvironment
+      STAGING = 'staging'
+      SANDBOX = 'sandbox'
+    end
+
+    # Valid values for version in GetStagingPetInfoServer.
+    module GetStagingPetInfoServerVersion
+      V2 = 'v2'
+      V3 = 'v3'
+    end
+
+    # Staging server
+    class GetStagingPetInfoServerStagingServer < GetStagingPetInfoServer
+      def initialize(environment:, version:)
+        @environment = environment
+        @version = version
+      end
+
+      def url
+        url = 'https://{environment}.example.com/api/{version}'
+        url = url.sub('{' + 'environment' + '}', @environment.to_s)
+        url = url.sub('{' + 'version' + '}', @version.to_s)
+        url
+      end
+    end
+
     # PetApi provides methods for the Pet API group.
     # Everything about your Pets
     # @see https://example.com/docs/pets Find out more about pets
@@ -239,17 +323,17 @@ module PetstoreClient
       # Get external pet info
       # @param pet_id [Integer]
       # @return [Pet]
-      def get_external_pet_info(pet_id)
+      def get_external_pet_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.get_external_pet_info"
         end
 
-        get_external_pet_info_with_http_info(pet_id).data
+        get_external_pet_info_with_http_info(pet_id, server: server).data
       end
 
       # @return [ApiResult]
-      def get_external_pet_info_with_http_info(pet_id)
+      def get_external_pet_info_with_http_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.get_external_pet_info"
@@ -257,7 +341,45 @@ module PetstoreClient
 
         path = '/pet/{petId}/external'
         path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
-        server_url = 'https://external-api.example.com/v1'
+        server_url = server ? server.url : 'https://external-api.example.com/v1'
+        path = server_url + path if server_url.start_with?('http://', 'https://')
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+
+        invoke_api_for_result(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'Pet',
+          nil
+        )
+      end
+
+      # Get multi-server pet info
+      # @param pet_id [Integer]
+      # @return [Pet]
+      def get_multi_server_pet_info(pet_id, server: nil)
+        if pet_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_id' when calling PetApi.get_multi_server_pet_info"
+        end
+
+        get_multi_server_pet_info_with_http_info(pet_id, server: server).data
+      end
+
+      # @return [ApiResult]
+      def get_multi_server_pet_info_with_http_info(pet_id, server: nil)
+        if pet_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_id' when calling PetApi.get_multi_server_pet_info"
+        end
+
+        path = '/pet/{petId}/multi'
+        path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        server_url = server ? server.url : 'https://primary.example.com/v1'
         path = server_url + path if server_url.start_with?('http://', 'https://')
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -520,6 +642,44 @@ module PetstoreClient
         end
         query_params['filter'] =
           PetstoreClient::ValueSerializer.serialize_styled('filter', filter, :query, 'String', nil, 'form', true) || ''
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+
+        invoke_api_for_result(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'Pet',
+          nil
+        )
+      end
+
+      # Get staging pet info
+      # @param pet_id [Integer]
+      # @return [Pet]
+      def get_staging_pet_info(pet_id, server: nil)
+        if pet_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_id' when calling PetApi.get_staging_pet_info"
+        end
+
+        get_staging_pet_info_with_http_info(pet_id, server: server).data
+      end
+
+      # @return [ApiResult]
+      def get_staging_pet_info_with_http_info(pet_id, server: nil)
+        if pet_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_id' when calling PetApi.get_staging_pet_info"
+        end
+
+        path = '/pet/{petId}/staging'
+        path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        server_url = server ? server.url : 'https://{environment}.example.com/api/{version}'
+        path = server_url + path if server_url.start_with?('http://', 'https://')
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
