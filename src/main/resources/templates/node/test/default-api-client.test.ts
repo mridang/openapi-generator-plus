@@ -21,7 +21,7 @@ describe('DefaultApiClient', () => {
 
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain('success');
-    });
+    }, 30000);
   });
 
   describe('custom CA bundle', () => {

@@ -51,6 +51,7 @@ enum {{serverTypeName}}{{pascalName}}: string
 {{/hasDescription}}
 final class {{serverTypeName}}{{variantName}} extends {{serverTypeName}}
 {
+{{#hasVariables}}
 {{#serverVariables}}
     private readonly {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} ${{camelName}};
 {{/serverVariables}}
@@ -62,13 +63,23 @@ final class {{serverTypeName}}{{variantName}} extends {{serverTypeName}}
 {{/serverVariables}}
     }
 
+{{/hasVariables}}
     public function getUrl(): string
     {
+{{#hasVariables}}
         $url = '{{url}}';
 {{#serverVariables}}
+{{^-last}}
         $url = str_replace('{' . '{{name}}' . '}', {{#hasEnumValues}}$this->{{camelName}}->value{{/hasEnumValues}}{{^hasEnumValues}}$this->{{camelName}}{{/hasEnumValues}}, $url);
+{{/-last}}
+{{#-last}}
+        return str_replace('{' . '{{name}}' . '}', {{#hasEnumValues}}$this->{{camelName}}->value{{/hasEnumValues}}{{^hasEnumValues}}$this->{{camelName}}{{/hasEnumValues}}, $url);
+{{/-last}}
 {{/serverVariables}}
-        return $url;
+{{/hasVariables}}
+{{^hasVariables}}
+        return '{{url}}';
+{{/hasVariables}}
     }
 }
 {{/variants}}
@@ -238,7 +249,7 @@ class {{classname}} extends BaseApi
 {{/pathParams}}
 {{#servers}}
 {{#-first}}
-        $serverUrl = $server !== null ? $server->getUrl() : '{{url}}';
+        $serverUrl = $server instanceof \{{invokerPackage}}\Api\{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server ? $server->getUrl() : '{{url}}';
         if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
             $path = $serverUrl . $path;
         }
@@ -406,7 +417,7 @@ class {{classname}} extends BaseApi
 {{/pathParams}}
 {{#servers}}
 {{#-first}}
-        $serverUrl = $server !== null ? $server->getUrl() : '{{url}}';
+        $serverUrl = $server instanceof \{{invokerPackage}}\Api\{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server ? $server->getUrl() : '{{url}}';
         if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
             $path = $serverUrl . $path;
         }

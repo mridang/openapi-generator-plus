@@ -16,7 +16,7 @@ public final class PrismContainer {
             .withExposedPorts(4010)
             .withCopyFileToContainer(
                 MountableFile.forHostPath(Path.of("/app/specs/openapi.yaml")), "/tmp/openapi.yaml")
-            .withCommand("mock", "-h", "0.0.0.0", "/tmp/openapi.yaml")
+            .withCommand("mock", "-m", "false", "-h", "0.0.0.0", "/tmp/openapi.yaml")
             .waitingFor(Wait.forLogMessage(".*Prism is listening.*", 1));
     INSTANCE.start();
   }

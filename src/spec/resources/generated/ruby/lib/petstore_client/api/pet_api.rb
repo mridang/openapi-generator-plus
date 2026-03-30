@@ -19,6 +19,7 @@ module PetstoreClient
       end
     end
 
+    # Server0 server variant.
     class GetExternalPetInfoServerServer0 < GetExternalPetInfoServer
       def url
         'https://external-api.example.com/v1'
@@ -50,13 +51,13 @@ module PetstoreClient
     # Regional
     class GetMultiServerPetInfoServerRegional < GetMultiServerPetInfoServer
       def initialize(region:)
+        super()
         @region = region
       end
 
       def url
         url = 'https://{region}.example.com/v1'
-        url = url.sub('{' + 'region' + '}', @region.to_s)
-        url
+        url.sub('{' + 'region' + '}', @region.to_s)
       end
     end
 
@@ -83,6 +84,7 @@ module PetstoreClient
     # Staging server
     class GetStagingPetInfoServerStagingServer < GetStagingPetInfoServer
       def initialize(environment:, version:)
+        super()
         @environment = environment
         @version = version
       end
@@ -90,8 +92,7 @@ module PetstoreClient
       def url
         url = 'https://{environment}.example.com/api/{version}'
         url = url.sub('{' + 'environment' + '}', @environment.to_s)
-        url = url.sub('{' + 'version' + '}', @version.to_s)
-        url
+        url.sub('{' + 'version' + '}', @version.to_s)
       end
     end
 

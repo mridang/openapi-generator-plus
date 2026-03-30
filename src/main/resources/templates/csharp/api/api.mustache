@@ -1,4 +1,5 @@
 #pragma warning disable CA1002 // Do not expose generic lists
+#pragma warning disable CA1056 // URI properties should not be strings
 
 {{#hasAnyAuthMethods}}
 using {{packageName}}.Auth;
@@ -141,50 +142,46 @@ public sealed class {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}O
 /// </summary>
 public abstract class {{serverTypeName}}
 {
-    /// <summary>Returns the server URL.</summary>
-    public abstract string GetUrl();
+    /// <summary>Gets the server URL.</summary>
+    public abstract string Url { get; }
+}
 {{#variants}}
 {{#serverVariables}}
 {{#hasEnumValues}}
 
-    /// <summary>Enum for the {{name}} server variable.</summary>
-    public sealed class {{pascalName}}Value
-    {
-        private {{pascalName}}Value(string value) { Value = value; }
+/// <summary>Enum for the {{name}} server variable.</summary>
+public sealed class {{pascalName}}Value
+{
+    private {{pascalName}}Value(string value) { Value = value; }
 
-        /// <summary>Gets the string value.</summary>
-        public string Value { get; }
+    /// <summary>Gets the string value.</summary>
+    public string Value { get; }
 {{#enumValues}}
 
-        /// <summary>The {{value}} value.</summary>
-        public static {{pascalName}}Value {{name}} { get; } = new("{{value}}");
+    /// <summary>The {{value}} value.</summary>
+    public static {{pascalName}}Value {{name}} { get; } = new("{{value}}");
 {{/enumValues}}
-    }
+}
 {{/hasEnumValues}}
 {{/serverVariables}}
 {{/variants}}
 {{#variants}}
 
 {{#hasDescription}}
-    /// <summary>{{description}}</summary>
+/// <summary>{{description}}</summary>
 {{/hasDescription}}
-    public sealed class {{variantName}} : {{serverTypeName}}
+{{#hasVariables}}
+public sealed class {{variantName}}({{#serverVariables}}{{#hasEnumValues}}{{pascalName}}Value{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} {{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}}) : {{serverTypeName}}
+{
+{{#serverVariables}}
+    /// <summary>Gets the {{name}} value.</summary>
+    public {{#hasEnumValues}}{{pascalName}}Value{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} {{pascalName}} { get; } = {{camelName}};
+
+{{/serverVariables}}
+    /// <inheritdoc />
+    public override string Url
     {
-{{#serverVariables}}
-        /// <summary>Gets the {{name}} value.</summary>
-        public {{#hasEnumValues}}{{pascalName}}Value{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} {{pascalName}} { get; }
-
-{{/serverVariables}}
-        /// <summary>Creates a new instance.</summary>
-        public {{variantName}}({{#serverVariables}}{{#hasEnumValues}}{{pascalName}}Value{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}} {{camelName}}{{^-last}}, {{/-last}}{{/serverVariables}})
-        {
-{{#serverVariables}}
-            {{pascalName}} = {{camelName}};
-{{/serverVariables}}
-        }
-
-        /// <inheritdoc />
-        public override string GetUrl()
+        get
         {
             string url = "{{url}}";
 {{#serverVariables}}
@@ -193,8 +190,16 @@ public abstract class {{serverTypeName}}
             return url;
         }
     }
-{{/variants}}
 }
+{{/hasVariables}}
+{{^hasVariables}}
+public sealed class {{variantName}} : {{serverTypeName}}
+{
+    /// <inheritdoc />
+    public override string Url => "{{url}}";
+}
+{{/hasVariables}}
+{{/variants}}
 {{/serverTypeDefs}}
 
 /// <summary>
@@ -259,6 +264,11 @@ public class {{classname}} : BaseApi
 {{/formParams}}
 {{/headerParams}}
 {{/queryParams}}
+{{#servers}}
+{{#-first}}
+    /// <param name="server">Optional per-operation server override.</param>
+{{/-first}}
+{{/servers}}
     {{#returnType}}
     /// <returns><![CDATA[{{{returnType}}}]]></returns>
     {{/returnType}}
@@ -326,7 +336,7 @@ public class {{classname}} : BaseApi
         {{/pathParams}}
 {{#servers}}
 {{#-first}}
-        string serverUrl = server != null ? server.GetUrl() : "{{url}}";
+        string serverUrl = server != null ? server.Url : "{{url}}";
         if (serverUrl.StartsWith("http://", StringComparison.Ordinal) || serverUrl.StartsWith("https://", StringComparison.Ordinal))
         {
             path = serverUrl + path;

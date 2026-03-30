@@ -37,11 +37,20 @@ export class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
 {{/serverVariables}}
   }
   getUrl(): string {
-    let url = '{{url}}';
 {{#serverVariables}}
+{{#-first}}
+    let url = '{{url}}';
+{{/-first}}
     url = url.replace('{' + '{{name}}' + '}', this.{{camelName}});
 {{/serverVariables}}
+{{^serverVariables}}
+    return '{{url}}';
+{{/serverVariables}}
+{{#serverVariables}}
+{{#-last}}
     return url;
+{{/-last}}
+{{/serverVariables}}
   }
 }
 {{/variants}}

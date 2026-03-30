@@ -31,7 +31,7 @@ $specPath = $hostAppPath . '/specs/openapi.yaml';
 $prism = (new GenericContainer('stoplight/prism:5'))
     ->withExposedPorts(4010)
     ->withMount($specPath, '/tmp/openapi.yaml')
-    ->withCommand(['mock', '-h', '0.0.0.0', '/tmp/openapi.yaml'])
+    ->withCommand(['mock', '-m', 'false', '-h', '0.0.0.0', '/tmp/openapi.yaml'])
     ->withWait(new WaitForLog('Prism is listening', false, 120000))
     ->start();
 

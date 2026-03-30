@@ -1,5 +1,48 @@
 module PetstoreClient
   module Api
+    class GetExternalPetInfoServer
+      def url: () -> String
+    end
+
+    class GetExternalPetInfoServerServer0 < GetExternalPetInfoServer
+      def url: () -> String
+    end
+    class GetMultiServerPetInfoServer
+      def url: () -> String
+    end
+
+
+    module GetMultiServerPetInfoServerRegion
+      US: String
+      EU: String
+      AP: String
+    end
+
+    class GetMultiServerPetInfoServerPrimary < GetMultiServerPetInfoServer
+      def url: () -> String
+    end
+    class GetMultiServerPetInfoServerRegional < GetMultiServerPetInfoServer
+      def initialize: (region: String) -> void
+      def url: () -> String
+    end
+    class GetStagingPetInfoServer
+      def url: () -> String
+    end
+
+    module GetStagingPetInfoServerEnvironment
+      STAGING: String
+      SANDBOX: String
+    end
+
+    module GetStagingPetInfoServerVersion
+      V2: String
+      V3: String
+    end
+
+    class GetStagingPetInfoServerStagingServer < GetStagingPetInfoServer
+      def initialize: (environment: String, version: String) -> void
+      def url: () -> String
+    end
     class PetApi < BaseApi
       def initialize: (?::PetstoreClient::ApiClient? api_client, ?::PetstoreClient::Configuration config) -> void
       def add_pet: (::PetstoreClient::Auth::Authenticator auth, Models::Pet pet) -> untyped
@@ -12,10 +55,10 @@ module PetstoreClient
       def download_pet_document_with_http_info: (Integer pet_id, Integer document_id) -> ::PetstoreClient::ApiResult
       def find_pets_by_status: (?status: String?, ?filter: Hash[String, String]?) -> untyped
       def find_pets_by_status_with_http_info: (?status: String?, ?filter: Hash[String, String]?) -> ::PetstoreClient::ApiResult
-      def get_external_pet_info: (Integer pet_id) -> untyped
-      def get_external_pet_info_with_http_info: (Integer pet_id) -> ::PetstoreClient::ApiResult
-      def get_multi_server_pet_info: (Integer pet_id) -> untyped
-      def get_multi_server_pet_info_with_http_info: (Integer pet_id) -> ::PetstoreClient::ApiResult
+      def get_external_pet_info: (Integer pet_id, ?server: GetExternalPetInfoServer?) -> untyped
+      def get_external_pet_info_with_http_info: (Integer pet_id, ?server: GetExternalPetInfoServer?) -> ::PetstoreClient::ApiResult
+      def get_multi_server_pet_info: (Integer pet_id, ?server: GetMultiServerPetInfoServer?) -> untyped
+      def get_multi_server_pet_info_with_http_info: (Integer pet_id, ?server: GetMultiServerPetInfoServer?) -> ::PetstoreClient::ApiResult
       def get_pet_avatar: (Integer pet_id) -> untyped
       def get_pet_avatar_with_http_info: (Integer pet_id) -> ::PetstoreClient::ApiResult
       def get_pet_avatar_thumbnail: (Integer pet_id) -> untyped
@@ -28,8 +71,8 @@ module PetstoreClient
       def get_pet_photo_with_http_info: (Integer pet_id, Integer photo_id) -> ::PetstoreClient::ApiResult
       def get_pet_tag: (Integer pet_id, String tag_name, ?colors: Array[String]?, ?sizes: Array[String]?, ?filter: String?) -> untyped
       def get_pet_tag_with_http_info: (Integer pet_id, String tag_name, ?colors: Array[String]?, ?sizes: Array[String]?, ?filter: String?) -> ::PetstoreClient::ApiResult
-      def get_staging_pet_info: (Integer pet_id) -> untyped
-      def get_staging_pet_info_with_http_info: (Integer pet_id) -> ::PetstoreClient::ApiResult
+      def get_staging_pet_info: (Integer pet_id, ?server: GetStagingPetInfoServer?) -> untyped
+      def get_staging_pet_info_with_http_info: (Integer pet_id, ?server: GetStagingPetInfoServer?) -> ::PetstoreClient::ApiResult
       def set_pet_avatar: (Integer pet_id, File body) -> untyped
       def set_pet_avatar_with_http_info: (Integer pet_id, File body) -> ::PetstoreClient::ApiResult
       def set_pet_avatar_thumbnail: (Integer pet_id, Models::SetPetAvatarThumbnailRequest set_pet_avatar_thumbnail_request) -> untyped

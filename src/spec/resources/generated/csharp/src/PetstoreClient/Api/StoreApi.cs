@@ -1,4 +1,5 @@
 #pragma warning disable CA1002 // Do not expose generic lists
+#pragma warning disable CA1056 // URI properties should not be strings
 
 using PetstoreClient.Models;
 

@@ -1,4 +1,5 @@
 #pragma warning disable CA1002 // Do not expose generic lists
+#pragma warning disable CA1056 // URI properties should not be strings
 
 using PetstoreClient.Auth;
 using PetstoreClient.Models;
@@ -73,21 +74,14 @@ public sealed class UploadPetDocumentOptions
 /// </summary>
 public abstract class GetExternalPetInfoServer
 {
-    /// <summary>Returns the server URL.</summary>
-    public abstract string GetUrl();
+    /// <summary>Gets the server URL.</summary>
+    public abstract string Url { get; }
+}
 
-    public sealed class Server0 : GetExternalPetInfoServer
-    {
-        /// <summary>Creates a new instance.</summary>
-        public Server0() { }
-
-        /// <inheritdoc />
-        public override string GetUrl()
-        {
-            string url = "https://external-api.example.com/v1";
-            return url;
-        }
-    }
+public sealed class Server0 : GetExternalPetInfoServer
+{
+    /// <inheritdoc />
+    public override string Url => "https://external-api.example.com/v1";
 }
 
 /// <summary>
@@ -95,58 +89,48 @@ public abstract class GetExternalPetInfoServer
 /// </summary>
 public abstract class GetMultiServerPetInfoServer
 {
-    /// <summary>Returns the server URL.</summary>
-    public abstract string GetUrl();
+    /// <summary>Gets the server URL.</summary>
+    public abstract string Url { get; }
+}
 
-    /// <summary>Enum for the region server variable.</summary>
-    public sealed class RegionValue
+/// <summary>Enum for the region server variable.</summary>
+public sealed class RegionValue
+{
+    private RegionValue(string value)
     {
-        private RegionValue(string value)
-        {
-            Value = value;
-        }
-
-        /// <summary>Gets the string value.</summary>
-        public string Value { get; }
-
-        /// <summary>The us value.</summary>
-        public static RegionValue US { get; } = new("us");
-
-        /// <summary>The eu value.</summary>
-        public static RegionValue EU { get; } = new("eu");
-
-        /// <summary>The ap value.</summary>
-        public static RegionValue AP { get; } = new("ap");
+        Value = value;
     }
 
-    /// <summary>Primary</summary>
-    public sealed class Primary : GetMultiServerPetInfoServer
+    /// <summary>Gets the string value.</summary>
+    public string Value { get; }
+
+    /// <summary>The us value.</summary>
+    public static RegionValue US { get; } = new("us");
+
+    /// <summary>The eu value.</summary>
+    public static RegionValue EU { get; } = new("eu");
+
+    /// <summary>The ap value.</summary>
+    public static RegionValue AP { get; } = new("ap");
+}
+
+/// <summary>Primary</summary>
+public sealed class Primary : GetMultiServerPetInfoServer
+{
+    /// <inheritdoc />
+    public override string Url => "https://primary.example.com/v1";
+}
+
+/// <summary>Regional</summary>
+public sealed class Regional(RegionValue region) : GetMultiServerPetInfoServer
+{
+    /// <summary>Gets the region value.</summary>
+    public RegionValue Region { get; } = region;
+
+    /// <inheritdoc />
+    public override string Url
     {
-        /// <summary>Creates a new instance.</summary>
-        public Primary() { }
-
-        /// <inheritdoc />
-        public override string GetUrl()
-        {
-            string url = "https://primary.example.com/v1";
-            return url;
-        }
-    }
-
-    /// <summary>Regional</summary>
-    public sealed class Regional : GetMultiServerPetInfoServer
-    {
-        /// <summary>Gets the region value.</summary>
-        public RegionValue Region { get; }
-
-        /// <summary>Creates a new instance.</summary>
-        public Regional(RegionValue region)
-        {
-            Region = region;
-        }
-
-        /// <inheritdoc />
-        public override string GetUrl()
+        get
         {
             string url = "https://{region}.example.com/v1";
             url = url.Replace("{" + "region" + "}", Region.Value, StringComparison.Ordinal);
@@ -160,63 +144,60 @@ public abstract class GetMultiServerPetInfoServer
 /// </summary>
 public abstract class GetStagingPetInfoServer
 {
-    /// <summary>Returns the server URL.</summary>
-    public abstract string GetUrl();
+    /// <summary>Gets the server URL.</summary>
+    public abstract string Url { get; }
+}
 
-    /// <summary>Enum for the environment server variable.</summary>
-    public sealed class EnvironmentValue
+/// <summary>Enum for the environment server variable.</summary>
+public sealed class EnvironmentValue
+{
+    private EnvironmentValue(string value)
     {
-        private EnvironmentValue(string value)
-        {
-            Value = value;
-        }
-
-        /// <summary>Gets the string value.</summary>
-        public string Value { get; }
-
-        /// <summary>The staging value.</summary>
-        public static EnvironmentValue STAGING { get; } = new("staging");
-
-        /// <summary>The sandbox value.</summary>
-        public static EnvironmentValue SANDBOX { get; } = new("sandbox");
+        Value = value;
     }
 
-    /// <summary>Enum for the version server variable.</summary>
-    public sealed class VersionValue
+    /// <summary>Gets the string value.</summary>
+    public string Value { get; }
+
+    /// <summary>The staging value.</summary>
+    public static EnvironmentValue STAGING { get; } = new("staging");
+
+    /// <summary>The sandbox value.</summary>
+    public static EnvironmentValue SANDBOX { get; } = new("sandbox");
+}
+
+/// <summary>Enum for the version server variable.</summary>
+public sealed class VersionValue
+{
+    private VersionValue(string value)
     {
-        private VersionValue(string value)
-        {
-            Value = value;
-        }
-
-        /// <summary>Gets the string value.</summary>
-        public string Value { get; }
-
-        /// <summary>The v2 value.</summary>
-        public static VersionValue V2 { get; } = new("v2");
-
-        /// <summary>The v3 value.</summary>
-        public static VersionValue V3 { get; } = new("v3");
+        Value = value;
     }
 
-    /// <summary>Staging server</summary>
-    public sealed class StagingServer : GetStagingPetInfoServer
+    /// <summary>Gets the string value.</summary>
+    public string Value { get; }
+
+    /// <summary>The v2 value.</summary>
+    public static VersionValue V2 { get; } = new("v2");
+
+    /// <summary>The v3 value.</summary>
+    public static VersionValue V3 { get; } = new("v3");
+}
+
+/// <summary>Staging server</summary>
+public sealed class StagingServer(EnvironmentValue environment, VersionValue version)
+    : GetStagingPetInfoServer
+{
+    /// <summary>Gets the environment value.</summary>
+    public EnvironmentValue Environment { get; } = environment;
+
+    /// <summary>Gets the version value.</summary>
+    public VersionValue Version { get; } = version;
+
+    /// <inheritdoc />
+    public override string Url
     {
-        /// <summary>Gets the environment value.</summary>
-        public EnvironmentValue Environment { get; }
-
-        /// <summary>Gets the version value.</summary>
-        public VersionValue Version { get; }
-
-        /// <summary>Creates a new instance.</summary>
-        public StagingServer(EnvironmentValue environment, VersionValue version)
-        {
-            Environment = environment;
-            Version = version;
-        }
-
-        /// <inheritdoc />
-        public override string GetUrl()
+        get
         {
             string url = "https://{environment}.example.com/api/{version}";
             url = url.Replace(
@@ -562,6 +543,7 @@ public class PetApi : BaseApi
     /// Get external pet info
     /// </summary>
     /// <param name="petId"></param>
+    /// <param name="server">Optional per-operation server override.</param>
     /// <returns><![CDATA[Pet]]></returns>
     public async Task<Pet> GetExternalPetInfoAsync(
         long petId,
@@ -597,7 +579,7 @@ public class PetApi : BaseApi
                 )!,
             StringComparison.Ordinal
         );
-        string serverUrl = server != null ? server.GetUrl() : "https://external-api.example.com/v1";
+        string serverUrl = server != null ? server.Url : "https://external-api.example.com/v1";
         if (
             serverUrl.StartsWith("http://", StringComparison.Ordinal)
             || serverUrl.StartsWith("https://", StringComparison.Ordinal)
@@ -625,6 +607,7 @@ public class PetApi : BaseApi
     /// Get multi-server pet info
     /// </summary>
     /// <param name="petId"></param>
+    /// <param name="server">Optional per-operation server override.</param>
     /// <returns><![CDATA[Pet]]></returns>
     public async Task<Pet> GetMultiServerPetInfoAsync(
         long petId,
@@ -660,7 +643,7 @@ public class PetApi : BaseApi
                 )!,
             StringComparison.Ordinal
         );
-        string serverUrl = server != null ? server.GetUrl() : "https://primary.example.com/v1";
+        string serverUrl = server != null ? server.Url : "https://primary.example.com/v1";
         if (
             serverUrl.StartsWith("http://", StringComparison.Ordinal)
             || serverUrl.StartsWith("https://", StringComparison.Ordinal)
@@ -1063,6 +1046,7 @@ public class PetApi : BaseApi
     /// Get staging pet info
     /// </summary>
     /// <param name="petId"></param>
+    /// <param name="server">Optional per-operation server override.</param>
     /// <returns><![CDATA[Pet]]></returns>
     public async Task<Pet> GetStagingPetInfoAsync(
         long petId,
@@ -1099,7 +1083,7 @@ public class PetApi : BaseApi
             StringComparison.Ordinal
         );
         string serverUrl =
-            server != null ? server.GetUrl() : "https://{environment}.example.com/api/{version}";
+            server != null ? server.Url : "https://{environment}.example.com/api/{version}";
         if (
             serverUrl.StartsWith("http://", StringComparison.Ordinal)
             || serverUrl.StartsWith("https://", StringComparison.Ordinal)

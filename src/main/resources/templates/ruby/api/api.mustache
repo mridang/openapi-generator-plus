@@ -37,9 +37,13 @@ module {{moduleName}}
 {{#hasDescription}}
     # {{description}}
 {{/hasDescription}}
+{{^hasDescription}}
+    # {{variantName}} server variant.
+{{/hasDescription}}
     class {{serverTypeName}}{{variantName}} < {{serverTypeName}}
 {{#hasVariables}}
       def initialize({{#serverVariables}}{{snakeName}}:{{^-last}}, {{/-last}}{{/serverVariables}})
+        super()
 {{#serverVariables}}
         @{{snakeName}} = {{snakeName}}
 {{/serverVariables}}
@@ -50,9 +54,13 @@ module {{moduleName}}
 {{#hasVariables}}
         url = '{{url}}'
 {{#serverVariables}}
+{{^-last}}
         url = url.sub('{' + '{{name}}' + '}', @{{snakeName}}.to_s)
+{{/-last}}
+{{#-last}}
+        url.sub('{' + '{{name}}' + '}', @{{snakeName}}.to_s)
+{{/-last}}
 {{/serverVariables}}
-        url
 {{/hasVariables}}
 {{^hasVariables}}
         '{{url}}'

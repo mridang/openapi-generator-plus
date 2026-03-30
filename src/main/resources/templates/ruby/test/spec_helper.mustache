@@ -24,7 +24,7 @@ spec_path = File.join(host_app_path, 'specs', 'openapi.yaml')
 PRISM = Testcontainers::DockerContainer.new('stoplight/prism:5')
 PRISM.with_exposed_port(4010)
 PRISM.with_filesystem_binds(["#{spec_path}:/tmp/openapi.yaml:ro"])
-PRISM.with_command('mock', '-h', '0.0.0.0', '/tmp/openapi.yaml')
+PRISM.with_command('mock', '-m', 'false', '-h', '0.0.0.0', '/tmp/openapi.yaml')
 
 PRISM.start
 

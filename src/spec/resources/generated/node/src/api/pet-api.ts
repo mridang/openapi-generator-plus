@@ -16,8 +16,7 @@ export class GetExternalPetInfoServerServer0 extends GetExternalPetInfoServer {
     super();
   }
   getUrl(): string {
-    let url = 'https://external-api.example.com/v1';
-    return url;
+    return 'https://external-api.example.com/v1';
   }
 }
 export abstract class GetMultiServerPetInfoServer {
@@ -35,8 +34,7 @@ export class GetMultiServerPetInfoServerPrimary extends GetMultiServerPetInfoSer
     super();
   }
   getUrl(): string {
-    let url = 'https://primary.example.com/v1';
-    return url;
+    return 'https://primary.example.com/v1';
   }
 }
 export class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer {

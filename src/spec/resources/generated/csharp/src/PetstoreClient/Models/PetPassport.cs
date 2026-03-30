@@ -19,7 +19,7 @@ public class PetPassport
     /// <summary>
     /// Base64-encoded primary thumbnail
     /// </summary>
-    /// <example>[B@4baef087</example>
+    /// <example>[B@9cc6dea</example>
     [JsonPropertyName("thumbnail")]
     public byte[]? Thumbnail { get; set; }
 

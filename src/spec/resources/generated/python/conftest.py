@@ -15,7 +15,7 @@ def prism_container():
         DockerContainer('stoplight/prism:5')
         .with_exposed_ports(4010)
         .with_volume_mapping(spec_path, '/tmp/openapi.yaml', 'ro')
-        .with_command('mock -h 0.0.0.0 /tmp/openapi.yaml')
+        .with_command('mock -m false -h 0.0.0.0 /tmp/openapi.yaml')
     )
     container.start()
     wait_for_logs(container, 'Prism is listening')

@@ -20,7 +20,7 @@ public class PrismFixture : IAsyncLifetime
             .WithImage("stoplight/prism:5")
             .WithPortBinding(4010, true)
             .WithBindMount(specPath, "/tmp/openapi.yaml", AccessMode.ReadOnly)
-            .WithCommand("mock", "-h", "0.0.0.0", "/tmp/openapi.yaml")
+            .WithCommand("mock", "-m", "false", "-h", "0.0.0.0", "/tmp/openapi.yaml")
             .WithWaitStrategy(Wait.ForUnixContainer().UntilMessageIsLogged("Prism is listening"))
             .Build();
 

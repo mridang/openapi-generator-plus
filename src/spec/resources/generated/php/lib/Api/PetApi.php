@@ -27,14 +27,9 @@ abstract class GetExternalPetInfoServer
 
 final class GetExternalPetInfoServerServer0 extends GetExternalPetInfoServer
 {
-    public function __construct()
-    {
-    }
-
     public function getUrl(): string
     {
-        $url = 'https://external-api.example.com/v1';
-        return $url;
+        return 'https://external-api.example.com/v1';
     }
 }
 
@@ -61,14 +56,9 @@ enum GetMultiServerPetInfoServerRegion: string
  */
 final class GetMultiServerPetInfoServerPrimary extends GetMultiServerPetInfoServer
 {
-    public function __construct()
-    {
-    }
-
     public function getUrl(): string
     {
-        $url = 'https://primary.example.com/v1';
-        return $url;
+        return 'https://primary.example.com/v1';
     }
 }
 
@@ -87,8 +77,7 @@ final class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoSer
     public function getUrl(): string
     {
         $url = 'https://{region}.example.com/v1';
-        $url = str_replace('{' . 'region' . '}', $this->region->value, $url);
-        return $url;
+        return str_replace('{' . 'region' . '}', $this->region->value, $url);
     }
 }
 
@@ -133,8 +122,7 @@ final class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServer
     {
         $url = 'https://{environment}.example.com/api/{version}';
         $url = str_replace('{' . 'environment' . '}', $this->environment->value, $url);
-        $url = str_replace('{' . 'version' . '}', $this->version->value, $url);
-        return $url;
+        return str_replace('{' . 'version' . '}', $this->version->value, $url);
     }
 }
 
@@ -382,7 +370,7 @@ class PetApi extends BaseApi
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
-        $serverUrl = $server !== null ? $server->getUrl() : 'https://external-api.example.com/v1';
+        $serverUrl = $server instanceof \PetstoreClient\Api\GetExternalPetInfoServer ? $server->getUrl() : 'https://external-api.example.com/v1';
         if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
             $path = $serverUrl . $path;
         }
@@ -426,7 +414,7 @@ class PetApi extends BaseApi
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
-        $serverUrl = $server !== null ? $server->getUrl() : 'https://primary.example.com/v1';
+        $serverUrl = $server instanceof \PetstoreClient\Api\GetMultiServerPetInfoServer ? $server->getUrl() : 'https://primary.example.com/v1';
         if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
             $path = $serverUrl . $path;
         }
@@ -736,7 +724,7 @@ class PetApi extends BaseApi
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
-        $serverUrl = $server !== null ? $server->getUrl() : 'https://{environment}.example.com/api/{version}';
+        $serverUrl = $server instanceof \PetstoreClient\Api\GetStagingPetInfoServer ? $server->getUrl() : 'https://{environment}.example.com/api/{version}';
         if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
             $path = $serverUrl . $path;
         }

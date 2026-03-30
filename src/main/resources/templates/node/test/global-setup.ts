@@ -9,7 +9,7 @@ export default async function globalSetup() {
   const prism = await new GenericContainer('stoplight/prism:5')
     .withExposedPorts(4010)
     .withBindMounts([{ source: specPath, target: '/tmp/openapi.yaml', mode: 'ro' }])
-    .withCommand(['mock', '-h', '0.0.0.0', '/tmp/openapi.yaml'])
+    .withCommand(['mock', '-m', 'false', '-h', '0.0.0.0', '/tmp/openapi.yaml'])
     .withWaitStrategy(Wait.forLogMessage('Prism is listening'))
     .withStartupTimeout(120000)
     .start();

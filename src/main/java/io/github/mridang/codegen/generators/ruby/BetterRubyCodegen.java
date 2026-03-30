@@ -410,7 +410,10 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                             String text = fragment.execute();
                             int idx = text.indexOf('<');
                             writer.write(idx >= 0 ? text.substring(0, idx) : text);
-                        });
+                        })
+                .put(
+                        "camelize",
+                        (fragment, writer) -> writer.write(camelize(fragment.execute())));
     }
 
     private String toRbsApiType(@Nullable String type) {
