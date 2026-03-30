@@ -22,7 +22,7 @@ class PetPassport
 
     /**
      * Base64-encoded primary thumbnail
-     * @example [B@c58035e
+     * @example [B@6cdc6517
      */
     #[SerializedName('thumbnail')]
     public ?string $thumbnail = null;

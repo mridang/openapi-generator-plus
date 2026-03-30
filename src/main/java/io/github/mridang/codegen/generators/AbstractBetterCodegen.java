@@ -15,6 +15,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -103,6 +106,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         registerAuthSupportingFiles();
         generatePerSchemeAuthenticators(openAPI);
         processServers(openAPI);
+        if (generateTests) {
+            writeTestFixtures();
+        }
     }
 
     /**
@@ -592,6 +598,76 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
             globalAuthOperationIds.add(op.operationId);
         }
         return op;
+    }
+
+    /**
+     * Copy bundled test fixtures and the input OpenAPI spec into the output directory so that the
+     * generated SDK's test suite is self-contained.
+     */
+    private void writeTestFixtures() {
+        Path outputDir = Path.of(getOutputDir());
+
+        // Copy the input OpenAPI spec so Prism can mock the actual API
+        String inputSpec = getInputSpec();
+        if (inputSpec != null) {
+            copyFileToOutput(Path.of(inputSpec), outputDir.resolve("specs/openapi.yaml"));
+        }
+
+        // Copy shared test fixtures bundled in the generator JAR
+        String[] fixtures = {
+            "certs/ca.pem",
+            "certs/ca-key.pem",
+            "certs/server.pem",
+            "certs/server-key.pem",
+            "certs/server-keystore.p12",
+            "wiremock/mappings/test.json",
+            "wiremock/mappings/redirect.json",
+            "wiremock/mappings/slow.json",
+            "wiremock/mappings/echo-headers.json",
+            "wiremock/mappings/echo-body.json",
+            "wiremock/mappings/text-plain.json",
+            "wiremock/mappings/error-400.json",
+            "wiremock/mappings/error-401.json",
+            "wiremock/mappings/error-403.json",
+            "wiremock/mappings/error-404.json",
+            "wiremock/mappings/error-409.json",
+            "wiremock/mappings/error-418.json",
+            "wiremock/mappings/error-422.json",
+            "wiremock/mappings/error-500.json",
+            "wiremock/mappings/error-502.json",
+            "proxy/squid.conf"
+        };
+        for (String fixture : fixtures) {
+            copyClasspathFixture("fixtures/" + fixture, outputDir.resolve(fixture));
+        }
+    }
+
+    private static void copyFileToOutput(Path source, Path target) {
+        try {
+            Path parent = target.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+            Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            LOGGER.warn("Failed to copy {} to {}: {}", source, target, e.getMessage());
+        }
+    }
+
+    private void copyClasspathFixture(String resourcePath, Path target) {
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+            if (is == null) {
+                LOGGER.warn("Test fixture not found on classpath: {}", resourcePath);
+                return;
+            }
+            Path parent = target.getParent();
+            if (parent != null) {
+                Files.createDirectories(parent);
+            }
+            Files.copy(is, target, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            LOGGER.warn("Failed to copy test fixture {}: {}", resourcePath, e.getMessage());
+        }
     }
 
     /**
