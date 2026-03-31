@@ -3,7 +3,7 @@ import time
 
 import pytest
 from testcontainers.core.container import DockerContainer
-from testcontainers.core.waiting_utils import wait_for_logs
+from testcontainers.core.wait_strategies import LogMessageWaitStrategy
 
 
 @pytest.fixture(scope="session")
@@ -16,9 +16,9 @@ def prism_container():
         .with_exposed_ports(4010)
         .with_volume_mapping(spec_path, "/tmp/openapi.yaml", "ro")
         .with_command("mock -m false -h 0.0.0.0 /tmp/openapi.yaml")
+        .waiting_for(LogMessageWaitStrategy("Prism is listening"))
     )
     container.start()
-    wait_for_logs(container, "Prism is listening")
     yield container
     container.stop()
 
@@ -46,9 +46,9 @@ def wiremock_container():
             "--keystore-type PKCS12 --keystore-password changeit "
             "--key-manager-password changeit --verbose"
         )
+        .waiting_for(LogMessageWaitStrategy("port:"))
     )
     container.start()
-    wait_for_logs(container, "port:")
     yield container
     container.stop()
 

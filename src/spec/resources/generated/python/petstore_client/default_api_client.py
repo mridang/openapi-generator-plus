@@ -80,6 +80,7 @@ class DefaultApiClient:
             # --- TLS / SSL ---
             if not transport_options.verify_ssl:
                 kwargs['cert_reqs'] = 'CERT_NONE'
+                urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
             elif transport_options.ca_cert_path:
                 kwargs['ca_certs'] = transport_options.ca_cert_path
                 kwargs['cert_reqs'] = 'CERT_REQUIRED'

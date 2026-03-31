@@ -28,7 +28,7 @@ from petstore_client.exceptions.internal_server_error_exception import InternalS
 from petstore_client import servers as Servers
 
 
-class TestableApi(BaseApi):
+class StubApi(BaseApi):
     """Concrete subclass exposing _invoke_api for direct testing."""
 
     def call(self, method, path, query_params, header_params, body, accepts, content_type, return_type, auth=None):
@@ -37,7 +37,7 @@ class TestableApi(BaseApi):
         )
 
 
-class TestAuthenticator(Authenticator):
+class StubAuthenticator(Authenticator):
     """Test authenticator that returns known headers, query params, cookies."""
 
     def __init__(self, headers=None, query_params=None, cookies=None):
@@ -61,7 +61,7 @@ class TestAuthenticator(Authenticator):
 @pytest.fixture
 def api(wiremock_http_url):
     config = Configuration(base_url=wiremock_http_url)
-    return TestableApi(api_client=DefaultApiClient(), config=config)
+    return StubApi(api_client=DefaultApiClient(), config=config)
 
 
 class TestExceptionDispatch:
@@ -129,7 +129,7 @@ class TestQueryParameters:
 
 class TestAuthInjection:
     def test_forwards_auth_headers(self, api):
-        auth = TestAuthenticator(headers={'X-Custom': 'auth-value'})
+        auth = StubAuthenticator(headers={'X-Custom': 'auth-value'})
         result = api.call(
             'GET', '/api/echo-headers', {}, {}, None, ['application/json'], 'application/json', 'object', auth
         )
@@ -137,7 +137,7 @@ class TestAuthInjection:
         assert result['x-custom'] == 'auth-value'
 
     def test_sets_cookie_header(self, api):
-        auth = TestAuthenticator(cookies={'session': 'abc123'})
+        auth = StubAuthenticator(cookies={'session': 'abc123'})
         api.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', None, auth)
 
 
