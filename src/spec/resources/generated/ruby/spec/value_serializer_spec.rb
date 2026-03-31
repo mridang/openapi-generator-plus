@@ -59,28 +59,28 @@ describe PetstoreClient::ValueSerializer do
     end
 
     it 'array joins with comma for csv' do
-      _(PetstoreClient::ValueSerializer.serialize(%w[a b c], :query, 'array',
-                                                  collection_format: :csv)).must_equal('a,b,c')
+      result = PetstoreClient::ValueSerializer.serialize(%w[a b c], :query, 'array', collection_format: :csv)
+      _(result).must_equal('a,b,c')
     end
 
     it 'array joins with space for ssv' do
-      _(PetstoreClient::ValueSerializer.serialize(%w[a b c], :query, 'array',
-                                                  collection_format: :ssv)).must_equal('a b c')
+      result = PetstoreClient::ValueSerializer.serialize(%w[a b c], :query, 'array', collection_format: :ssv)
+      _(result).must_equal('a b c')
     end
 
     it 'array joins with tab for tsv' do
-      _(PetstoreClient::ValueSerializer.serialize(%w[a b c], :query, 'array',
-                                                  collection_format: :tsv)).must_equal("a\tb\tc")
+      result = PetstoreClient::ValueSerializer.serialize(%w[a b c], :query, 'array', collection_format: :tsv)
+      _(result).must_equal("a\tb\tc")
     end
 
     it 'array joins with pipe for pipes' do
-      _(PetstoreClient::ValueSerializer.serialize(%w[a b c], :query, 'array',
-                                                  collection_format: :pipes)).must_equal('a|b|c')
+      result = PetstoreClient::ValueSerializer.serialize(%w[a b c], :query, 'array', collection_format: :pipes)
+      _(result).must_equal('a|b|c')
     end
 
     it 'array returns list for multi' do
-      _(PetstoreClient::ValueSerializer.serialize(%w[a b c], :query, 'array',
-                                                  collection_format: :multi)).must_equal(%w[a b c])
+      result = PetstoreClient::ValueSerializer.serialize(%w[a b c], :query, 'array', collection_format: :multi)
+      _(result).must_equal(%w[a b c])
     end
 
     it 'empty array returns empty string for csv' do
@@ -164,14 +164,16 @@ describe PetstoreClient::ValueSerializer do
       end
 
       it 'array with explode false joins with comma' do
-        result = PetstoreClient::ValueSerializer.serialize_styled('color', %w[blue black], :path, 'array', nil,
-                                                                  'matrix', false)
+        result = PetstoreClient::ValueSerializer.serialize_styled(
+          'color', %w[blue black], :path, 'array', nil, 'matrix', false
+        )
         _(result).must_equal(';color=blue,black')
       end
 
       it 'array with explode true repeats name' do
-        result = PetstoreClient::ValueSerializer.serialize_styled('color', %w[blue black], :path, 'array', nil,
-                                                                  'matrix', true)
+        result = PetstoreClient::ValueSerializer.serialize_styled(
+          'color', %w[blue black], :path, 'array', nil, 'matrix', true
+        )
         _(result).must_equal(';color=blue;color=black')
       end
 
@@ -188,14 +190,16 @@ describe PetstoreClient::ValueSerializer do
       end
 
       it 'array with explode false joins with comma after dot' do
-        result = PetstoreClient::ValueSerializer.serialize_styled('color', %w[blue black], :path, 'array', nil,
-                                                                  'label', false)
+        result = PetstoreClient::ValueSerializer.serialize_styled(
+          'color', %w[blue black], :path, 'array', nil, 'label', false
+        )
         _(result).must_equal('.blue,black')
       end
 
       it 'array with explode true joins with dot separator' do
-        result = PetstoreClient::ValueSerializer.serialize_styled('color', %w[blue black], :path, 'array', nil,
-                                                                  'label', true)
+        result = PetstoreClient::ValueSerializer.serialize_styled(
+          'color', %w[blue black], :path, 'array', nil, 'label', true
+        )
         _(result).must_equal('.blue.black')
       end
 
@@ -207,42 +211,48 @@ describe PetstoreClient::ValueSerializer do
 
     describe 'spaceDelimited style' do
       it 'array joins with space' do
-        result = PetstoreClient::ValueSerializer.serialize_styled('color', %w[blue black], :query, 'array', nil,
-                                                                  'spaceDelimited', false)
+        result = PetstoreClient::ValueSerializer.serialize_styled(
+          'color', %w[blue black], :query, 'array', nil, 'spaceDelimited', false
+        )
         _(result).must_equal('blue black')
       end
 
       it 'scalar returns stringified value' do
-        result = PetstoreClient::ValueSerializer.serialize_styled('color', 'blue', :query, 'string', nil,
-                                                                  'spaceDelimited', false)
+        result = PetstoreClient::ValueSerializer.serialize_styled(
+          'color', 'blue', :query, 'string', nil, 'spaceDelimited', false
+        )
         _(result).must_equal('blue')
       end
     end
 
     describe 'pipeDelimited style' do
       it 'array joins with pipe' do
-        result = PetstoreClient::ValueSerializer.serialize_styled('color', %w[blue black], :query, 'array', nil,
-                                                                  'pipeDelimited', false)
+        result = PetstoreClient::ValueSerializer.serialize_styled(
+          'color', %w[blue black], :query, 'array', nil, 'pipeDelimited', false
+        )
         _(result).must_equal('blue|black')
       end
 
       it 'scalar returns stringified value' do
-        result = PetstoreClient::ValueSerializer.serialize_styled('color', 'blue', :query, 'string', nil,
-                                                                  'pipeDelimited', false)
+        result = PetstoreClient::ValueSerializer.serialize_styled(
+          'color', 'blue', :query, 'string', nil, 'pipeDelimited', false
+        )
         _(result).must_equal('blue')
       end
     end
 
     describe 'form style with explode' do
       it 'array with explode false joins with comma' do
-        result = PetstoreClient::ValueSerializer.serialize_styled('color', %w[blue black], :query, 'array', nil,
-                                                                  'form', false)
+        result = PetstoreClient::ValueSerializer.serialize_styled(
+          'color', %w[blue black], :query, 'array', nil, 'form', false
+        )
         _(result).must_equal('blue,black')
       end
 
       it 'array with explode true returns list' do
-        result = PetstoreClient::ValueSerializer.serialize_styled('color', %w[blue black], :query, 'array', nil,
-                                                                  'form', true)
+        result = PetstoreClient::ValueSerializer.serialize_styled(
+          'color', %w[blue black], :query, 'array', nil, 'form', true
+        )
         _(result).must_equal(%w[blue black])
       end
     end
@@ -254,7 +264,9 @@ describe PetstoreClient::ValueSerializer do
       end
 
       it 'array joins with comma' do
-        result = PetstoreClient::ValueSerializer.serialize_styled('id', %w[3 4 5], :path, 'array', nil, 'simple', false)
+        result = PetstoreClient::ValueSerializer.serialize_styled(
+          'id', %w[3 4 5], :path, 'array', nil, 'simple', false
+        )
         _(result).must_equal('3,4,5')
       end
     end

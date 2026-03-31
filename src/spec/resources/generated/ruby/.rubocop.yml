@@ -17,3 +17,9 @@ Style/NumericLiterals:
 Style/OneClassPerFile:
   Exclude:
     - 'spec/**/*'
+
+Layout/MultilineMethodCallIndentation:
+  EnforcedStyle: indented
+
+Layout/FirstArrayElementIndentation:
+  EnforcedStyle: consistent

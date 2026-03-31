@@ -109,8 +109,10 @@ describe PetstoreClient::Api::PetApi do
 
   describe '#upload_pet_document' do
     it 'uploads a document with metadata via multipart' do
-      result = @api.upload_pet_document(1, file: StringIO.new('doc-data'), document_type: 'vaccination_record',
-                                           notes: 'Annual checkup')
+      result = @api.upload_pet_document(
+        1, file: StringIO.new('doc-data'),
+           document_type: 'vaccination_record', notes: 'Annual checkup'
+      )
 
       _(result).wont_be_nil
     end

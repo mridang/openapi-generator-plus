@@ -33,8 +33,8 @@ module PetstoreClient
         # @param scopes [Array<String>] requested scopes
         # @param refresh_url [String, nil] refresh endpoint URL (defaults to token_url)
         # rubocop:disable Metrics/MethodLength, Metrics/ParameterLists
-        def initialize(host, client_id, client_secret, authorization_url, token_url, redirect_uri, scopes,
-                       refresh_url: nil)
+        def initialize(host, client_id, client_secret, authorization_url,
+                       token_url, redirect_uri, scopes, refresh_url: nil)
           super()
           @host = host
           @client_id = client_id

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 # rubocop:disable Lint/RedundantCopDisableDirective, Layout/LineLength
+# rubocop:disable Layout/EmptyLinesAroundModuleBody, Layout/EmptyLineBetweenDefs, Layout/EmptyLines
 # rubocop:disable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Naming/AccessorMethodName
 # rubocop:disable Style/MethodCallWithoutArgsParentheses
 # rubocop:disable Style/DefWithParentheses
@@ -11,6 +12,7 @@ require 'cgi'
 # :nodoc:
 module PetstoreClient
   module Api
+
     # Server type for the get_external_pet_info operation.
     class GetExternalPetInfoServer
       # @return [String] the server URL
@@ -18,6 +20,7 @@ module PetstoreClient
         raise NotImplementedError
       end
     end
+
 
     # Server0 server variant.
     class GetExternalPetInfoServerServer0 < GetExternalPetInfoServer
@@ -34,12 +37,15 @@ module PetstoreClient
       end
     end
 
+
+
     # Valid values for region in GetMultiServerPetInfoServer.
     module GetMultiServerPetInfoServerRegion
       US = 'us'
       EU = 'eu'
       AP = 'ap'
     end
+
 
     # Primary
     class GetMultiServerPetInfoServerPrimary < GetMultiServerPetInfoServer
@@ -69,17 +75,20 @@ module PetstoreClient
       end
     end
 
+
     # Valid values for environment in GetStagingPetInfoServer.
     module GetStagingPetInfoServerEnvironment
       STAGING = 'staging'
       SANDBOX = 'sandbox'
     end
 
+
     # Valid values for version in GetStagingPetInfoServer.
     module GetStagingPetInfoServerVersion
       V2 = 'v2'
       V3 = 'v3'
     end
+
 
     # Staging server
     class GetStagingPetInfoServerStagingServer < GetStagingPetInfoServer
@@ -944,6 +953,7 @@ module PetstoreClient
   end
 end
 # rubocop:enable Lint/RedundantCopDisableDirective, Layout/LineLength
+# rubocop:enable Layout/EmptyLinesAroundModuleBody, Layout/EmptyLineBetweenDefs, Layout/EmptyLines
 # rubocop:enable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Naming/AccessorMethodName
 # rubocop:enable Style/MethodCallWithoutArgsParentheses
 # rubocop:enable Style/DefWithParentheses
