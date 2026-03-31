@@ -324,7 +324,28 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
 
     @Override
     public ModelsMap postProcessModels(ModelsMap objs) {
-        return postProcessModelsEnum(super.postProcessModels(objs));
+        ModelsMap result = postProcessModelsEnum(super.postProcessModels(objs));
+        for (ModelMap model : result.getModels()) {
+            for (var prop : model.getModel().vars) {
+                sanitizeByteArrayExample(prop);
+            }
+            for (var prop : model.getModel().allVars) {
+                sanitizeByteArrayExample(prop);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * OpenAPI Generator converts {@code format: byte} example strings into Java {@code byte[]}
+     * objects, whose {@code toString()} produces garbage like {@code [B@67943949}. Strip these
+     * so templates don't render meaningless memory addresses.
+     */
+    private static void sanitizeByteArrayExample(
+            org.openapitools.codegen.CodegenProperty prop) {
+        if (prop.example != null && prop.example.matches("\\[B@[0-9a-fA-F]+")) {
+            prop.example = null;
+        }
     }
 
     @Override
