@@ -58,6 +58,6 @@ class StoreApiTest extends TestCase
     {
         $this->api->deleteOrder(1);
 
-        $this->assertTrue(true);
+        $this->addToAssertionCount(1);
     }
 }

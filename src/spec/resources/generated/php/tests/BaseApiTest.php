@@ -40,8 +40,16 @@ class TestableApi extends BaseApi
         ?Authenticator $auth = null
     ): mixed {
         return $this->invokeApi(
-            $method, $path, $queryParams, $headerParams, $body,
-            $accepts, $contentType, $returnType, $auth);
+            $method,
+            $path,
+            $queryParams,
+            $headerParams,
+            $body,
+            $accepts,
+            $contentType,
+            $returnType,
+            $auth
+        );
     }
 }
 
@@ -56,12 +64,25 @@ class TestAuthenticator implements Authenticator
         private readonly array $headers = [],
         private readonly array $queryParams = [],
         private readonly array $cookies = []
-    ) {}
+    ) {
+    }
 
-    public function getHost(): string { return ''; }
-    public function getAuthHeaders(): array { return $this->headers; }
-    public function getQueryParams(): array { return $this->queryParams; }
-    public function getCookieParams(): array { return $this->cookies; }
+    public function getHost(): string
+    {
+        return '';
+    }
+    public function getAuthHeaders(): array
+    {
+        return $this->headers;
+    }
+    public function getQueryParams(): array
+    {
+        return $this->queryParams;
+    }
+    public function getCookieParams(): array
+    {
+        return $this->cookies;
+    }
 }
 
 class BaseApiTest extends TestCase
@@ -97,8 +118,15 @@ class BaseApiTest extends TestCase
     {
         try {
             $this->api()->call(
-                'GET', "/api/error/$status", [], [], null,
-                ['application/json'], 'application/json', null);
+                'GET',
+                "/api/error/$status",
+                [],
+                [],
+                null,
+                ['application/json'],
+                'application/json',
+                null
+            );
             $this->fail('Expected exception not thrown');
         } catch (ApiException $e) {
             $this->assertInstanceOf($expectedClass, $e);
@@ -111,8 +139,15 @@ class BaseApiTest extends TestCase
     {
         try {
             $this->api()->call(
-                'GET', '/api/error/404', [], [], null,
-                ['application/json'], 'application/json', null);
+                'GET',
+                '/api/error/404',
+                [],
+                [],
+                null,
+                ['application/json'],
+                'application/json',
+                null
+            );
             $this->fail('Expected exception not thrown');
         } catch (NotFoundException $e) {
             $this->assertInstanceOf(ClientException::class, $e);
@@ -124,8 +159,15 @@ class BaseApiTest extends TestCase
     {
         try {
             $this->api()->call(
-                'GET', '/api/error/500', [], [], null,
-                ['application/json'], 'application/json', null);
+                'GET',
+                '/api/error/500',
+                [],
+                [],
+                null,
+                ['application/json'],
+                'application/json',
+                null
+            );
             $this->fail('Expected exception not thrown');
         } catch (InternalServerErrorException $e) {
             $this->assertInstanceOf(ServerException::class, $e);
@@ -136,8 +178,15 @@ class BaseApiTest extends TestCase
     public function testDeserializesJsonResponse(): void
     {
         $result = $this->api()->call(
-            'GET', '/api/test', [], [], null,
-            ['application/json'], 'application/json', 'array');
+            'GET',
+            '/api/test',
+            [],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            'array'
+        );
         $this->assertIsArray($result);
         $this->assertSame('success', $result['message']);
     }
@@ -145,8 +194,15 @@ class BaseApiTest extends TestCase
     public function testReturnsRawStringForNonJson(): void
     {
         $result = $this->api()->call(
-            'GET', '/api/text', [], [], null,
-            ['text/plain'], 'application/json', 'string');
+            'GET',
+            '/api/text',
+            [],
+            [],
+            null,
+            ['text/plain'],
+            'application/json',
+            'string'
+        );
         $this->assertIsString($result);
         $this->assertStringContainsString('hello plain text', $result);
     }
@@ -154,16 +210,30 @@ class BaseApiTest extends TestCase
     public function testReturnsNullWhenReturnTypeIsNull(): void
     {
         $result = $this->api()->call(
-            'GET', '/api/test', [], [], null,
-            ['application/json'], 'application/json', null);
+            'GET',
+            '/api/test',
+            [],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null
+        );
         $this->assertNull($result);
     }
 
     public function testAppendsQueryParams(): void
     {
         $result = $this->api()->call(
-            'GET', '/api/test', ['foo' => 'bar'], [], null,
-            ['application/json'], 'application/json', null);
+            'GET',
+            '/api/test',
+            ['foo' => 'bar'],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null
+        );
         $this->assertNull($result);
     }
 
@@ -171,8 +241,16 @@ class BaseApiTest extends TestCase
     {
         $auth = new TestAuthenticator(headers: ['X-Custom' => 'auth-value']);
         $result = $this->api()->call(
-            'GET', '/api/echo-headers', [], [], null,
-            ['application/json'], 'application/json', 'array', $auth);
+            'GET',
+            '/api/echo-headers',
+            [],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            'array',
+            $auth
+        );
         $this->assertIsArray($result);
         $this->assertSame('auth-value', $result['x-custom']);
     }
@@ -181,16 +259,31 @@ class BaseApiTest extends TestCase
     {
         $auth = new TestAuthenticator(cookies: ['session' => 'abc123']);
         $this->api()->call(
-            'GET', '/api/test', [], [], null,
-            ['application/json'], 'application/json', null, $auth);
+            'GET',
+            '/api/test',
+            [],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null,
+            $auth
+        );
         $this->addToAssertionCount(1);
     }
 
     public function testSerializesJsonBody(): void
     {
         $result = $this->api()->call(
-            'POST', '/api/echo-body', [], [], ['key' => 'value'],
-            ['application/json'], 'application/json', 'array');
+            'POST',
+            '/api/echo-body',
+            [],
+            [],
+            ['key' => 'value'],
+            ['application/json'],
+            'application/json',
+            'array'
+        );
         $this->assertIsArray($result);
         $this->assertSame('value', $result['key']);
     }
@@ -198,16 +291,30 @@ class BaseApiTest extends TestCase
     public function testSendsNoBodyWhenNull(): void
     {
         $this->api()->call(
-            'GET', '/api/test', [], [], null,
-            ['application/json'], 'application/json', null);
+            'GET',
+            '/api/test',
+            [],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null
+        );
         $this->addToAssertionCount(1);
     }
 
     public function testAllowEmptyValueIncludesParamInQueryString(): void
     {
         $result = $this->api()->call(
-            'GET', '/api/test', ['filter' => ''], [], null,
-            ['application/json'], 'application/json', null);
+            'GET',
+            '/api/test',
+            ['filter' => ''],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null
+        );
         $this->assertNull($result);
     }
 

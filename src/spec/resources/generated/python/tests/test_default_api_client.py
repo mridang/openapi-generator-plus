@@ -1,13 +1,14 @@
 import json
 
 import pytest
+from typing import Any
 
 from petstore_client.default_api_client import DefaultApiClient
 from petstore_client.transport_options import TransportOptions
 
 
 class TestTlsVerificationDisabled:
-    def test_makes_https_request_with_verify_ssl_false(self, wiremock_https_url):
+    def test_makes_https_request_with_verify_ssl_false(self, wiremock_https_url: Any) -> None:
         transport = TransportOptions.builder().verify_ssl(False).build()
         client = DefaultApiClient(transport)
         response = client.send_request('GET', wiremock_https_url + '/api/test', {}, None)
@@ -17,7 +18,7 @@ class TestTlsVerificationDisabled:
 
 
 class TestCustomCaBundle:
-    def test_makes_https_request_with_custom_ca_cert(self, wiremock_https_url, ca_cert_path):
+    def test_makes_https_request_with_custom_ca_cert(self, wiremock_https_url: Any, ca_cert_path: Any) -> None:
         transport = TransportOptions.builder().verify_ssl(True).ca_cert_path(ca_cert_path).build()
         client = DefaultApiClient(transport)
         response = client.send_request('GET', wiremock_https_url + '/api/test', {}, None)
@@ -27,7 +28,7 @@ class TestCustomCaBundle:
 
 
 class TestHttpProxy:
-    def test_makes_http_request_through_proxy(self, wiremock_http_url, proxy_url):
+    def test_makes_http_request_through_proxy(self, wiremock_http_url: Any, proxy_url: Any) -> None:
         transport = TransportOptions.builder().proxy(proxy_url).build()
         client = DefaultApiClient(transport)
         response = client.send_request('GET', wiremock_http_url + '/api/test', {}, None)
@@ -37,7 +38,9 @@ class TestHttpProxy:
 
 
 class TestHttpProxyWithTls:
-    def test_makes_https_request_through_proxy_with_verify_ssl_false(self, wiremock_https_url, proxy_url):
+    def test_makes_https_request_through_proxy_with_verify_ssl_false(
+        self, wiremock_https_url: Any, proxy_url: Any
+    ) -> None:
         transport = TransportOptions.builder().proxy(proxy_url).verify_ssl(False).build()
         client = DefaultApiClient(transport)
         response = client.send_request('GET', wiremock_https_url + '/api/test', {}, None)
@@ -47,7 +50,7 @@ class TestHttpProxyWithTls:
 
 
 class TestHttpCompression:
-    def test_decompresses_gzip_response(self):
+    def test_decompresses_gzip_response(self) -> None:
         client = DefaultApiClient()
         response = client.send_request(
             'GET', 'https://jsonplaceholder.typicode.com/posts/1', {'Accept-Encoding': 'gzip'}, None
@@ -56,7 +59,7 @@ class TestHttpCompression:
         assert response.status_code == 200
         assert 'userId' in response.body
 
-    def test_decompresses_brotli_response(self):
+    def test_decompresses_brotli_response(self) -> None:
         client = DefaultApiClient()
         response = client.send_request(
             'GET', 'https://jsonplaceholder.typicode.com/posts/1', {'Accept-Encoding': 'br'}, None
@@ -65,7 +68,7 @@ class TestHttpCompression:
         assert response.status_code == 200
         assert 'userId' in response.body
 
-    def test_decompresses_zstd_response(self):
+    def test_decompresses_zstd_response(self) -> None:
         client = DefaultApiClient()
         response = client.send_request(
             'GET', 'https://jsonplaceholder.typicode.com/posts/1', {'Accept-Encoding': 'zstd'}, None
@@ -76,7 +79,7 @@ class TestHttpCompression:
 
 
 class TestRequestTimeout:
-    def test_times_out_on_slow_endpoint(self, wiremock_http_url):
+    def test_times_out_on_slow_endpoint(self, wiremock_http_url: Any) -> None:
         transport = TransportOptions.builder().timeout(1).build()
         client = DefaultApiClient(transport)
 
@@ -85,7 +88,7 @@ class TestRequestTimeout:
 
 
 class TestUserAgentHeader:
-    def test_injects_custom_user_agent_header(self, wiremock_http_url):
+    def test_injects_custom_user_agent_header(self, wiremock_http_url: Any) -> None:
         transport = TransportOptions.builder().user_agent('MyApp/1.0').build()
         client = DefaultApiClient(transport)
         response = client.send_request('GET', wiremock_http_url + '/api/echo-headers', {}, None)
@@ -96,7 +99,7 @@ class TestUserAgentHeader:
 
 
 class TestRequestIdInjection:
-    def test_injects_request_id_header_with_uuid_format(self, wiremock_http_url):
+    def test_injects_request_id_header_with_uuid_format(self, wiremock_http_url: Any) -> None:
         transport = TransportOptions.builder().inject_request_id(True).build()
         client = DefaultApiClient(transport)
         response = client.send_request('GET', wiremock_http_url + '/api/echo-headers', {}, None)
@@ -112,7 +115,7 @@ class TestRequestIdInjection:
             request_id,
         )
 
-    def test_generates_unique_request_id_per_request(self, wiremock_http_url):
+    def test_generates_unique_request_id_per_request(self, wiremock_http_url: Any) -> None:
         transport = TransportOptions.builder().inject_request_id(True).build()
         client = DefaultApiClient(transport)
 
@@ -126,7 +129,7 @@ class TestRequestIdInjection:
 
 
 class TestDefaultHeaders:
-    def test_includes_transport_default_headers(self, wiremock_http_url):
+    def test_includes_transport_default_headers(self, wiremock_http_url: Any) -> None:
         transport = TransportOptions.builder().default_header('X-Custom', 'custom-value').build()
         client = DefaultApiClient(transport)
         response = client.send_request('GET', wiremock_http_url + '/api/echo-headers', {}, None)
@@ -135,7 +138,7 @@ class TestDefaultHeaders:
         body = json.loads(response.body)
         assert body['x-custom'] == 'custom-value'
 
-    def test_caller_headers_override_transport_defaults(self, wiremock_http_url):
+    def test_caller_headers_override_transport_defaults(self, wiremock_http_url: Any) -> None:
         transport = TransportOptions.builder().default_header('Accept', 'text/plain').build()
         client = DefaultApiClient(transport)
         response = client.send_request(
@@ -148,7 +151,7 @@ class TestDefaultHeaders:
 
 
 class TestRedirectHandling:
-    def test_follows_redirects_when_enabled(self, wiremock_http_url):
+    def test_follows_redirects_when_enabled(self, wiremock_http_url: Any) -> None:
         transport = TransportOptions.builder().follow_redirects(True).build()
         client = DefaultApiClient(transport)
         response = client.send_request('GET', wiremock_http_url + '/api/redirect', {}, None)
@@ -156,7 +159,7 @@ class TestRedirectHandling:
         assert response.status_code == 200
         assert 'success' in response.body
 
-    def test_returns_redirect_when_disabled(self, wiremock_http_url):
+    def test_returns_redirect_when_disabled(self, wiremock_http_url: Any) -> None:
         transport = TransportOptions.builder().follow_redirects(False).build()
         client = DefaultApiClient(transport)
         response = client.send_request('GET', wiremock_http_url + '/api/redirect', {}, None)

@@ -29,7 +29,12 @@ public class JavaFormattingSpec extends AbstractFormattingSpec implements JavaSp
 
   @Override
   protected Path getSourceRoot() {
-    return tempOutputDir.resolve("src/main");
+    return tempOutputDir.resolve("src");
+  }
+
+  @Override
+  protected boolean includeFileForInlineCommentCheck(Path file) {
+    return file.toString().contains("/src/main/");
   }
 
   @Test

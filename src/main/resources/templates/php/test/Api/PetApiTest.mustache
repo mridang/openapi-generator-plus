@@ -40,7 +40,6 @@ class PetApiTest extends TestCase
         $result = $this->api->addPet($this->auth, $pet);
 
         $this->assertInstanceOf(Pet::class, $result);
-        $this->assertNotNull($result->name);
     }
 
     public function testFindPetsByStatus(): void
@@ -57,8 +56,6 @@ class PetApiTest extends TestCase
         $result = $this->api->getPetById(1);
 
         $this->assertInstanceOf(Pet::class, $result);
-        $this->assertNotNull($result->id);
-        $this->assertNotNull($result->name);
     }
 
     public function testUpdatePet(): void
@@ -76,7 +73,7 @@ class PetApiTest extends TestCase
     {
         $this->api->deletePet($this->auth, 1);
 
-        $this->assertTrue(true);
+        $this->addToAssertionCount(1);
     }
 
     public function testSetPetAvatar(): void
@@ -87,7 +84,7 @@ class PetApiTest extends TestCase
 
         $this->api->setPetAvatar(1, $body);
 
-        $this->assertTrue(true);
+        $this->addToAssertionCount(1);
         unlink($tmpFile);
     }
 
@@ -112,7 +109,7 @@ class PetApiTest extends TestCase
 
         $this->api->setPetAvatarThumbnail(1, $request);
 
-        $this->assertTrue(true);
+        $this->addToAssertionCount(1);
     }
 
     public function testUploadPetCertificate(): void

@@ -17,7 +17,8 @@ function safeGetMappedPort(StartedGenericContainer $container, int $port): int
         return $container->getMappedPort($port);
     } catch (\TypeError $e) {
         $containerId = $container->getId();
-        $output = trim(shell_exec("docker port $containerId $port 2>/dev/null") ?? '');
+        $rawOutput = shell_exec("docker port $containerId $port 2>/dev/null");
+        $output = is_string($rawOutput) ? trim($rawOutput) : '';
         if (preg_match('/:(\d+)$/', $output, $matches)) {
             return (int) $matches[1];
         }
@@ -77,7 +78,7 @@ sleep(3);
 putenv('PROXY_URL=http://' . $squid->getHost() . ':' . safeGetMappedPort($squid, 3128));
 putenv('CA_CERT_PATH=' . getcwd() . '/certs/ca.pem');
 
-register_shutdown_function(function () use ($prism, $wiremock, $squid) {
+register_shutdown_function(function () use ($prism, $wiremock, $squid): void {
     $squid->stop();
     $wiremock->stop();
     $prism->stop();

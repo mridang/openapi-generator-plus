@@ -37,4 +37,4 @@ public class PrismFixture : IAsyncLifetime
 }
 
 [CollectionDefinition("Prism")]
-public class PrismCollection : ICollectionFixture<PrismFixture> { }
+public class PrismTestGroup : ICollectionFixture<PrismFixture> { }

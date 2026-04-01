@@ -1,29 +1,30 @@
 import json
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
+from typing import Any
 
 from {{packageName}}.default_api_client import DefaultApiClient
 from {{packageName}}.transport_options import TransportOptions
 
 
 class _EchoHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
+    def do_GET(self) -> None:
         self._respond()
 
-    def do_POST(self):
+    def do_POST(self) -> None:
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length).decode() if length else ""
         self._respond(body)
 
-    def do_PUT(self):
+    def do_PUT(self) -> None:
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length).decode() if length else ""
         self._respond(body)
 
-    def do_DELETE(self):
+    def do_DELETE(self) -> None:
         self._respond()
 
-    def _respond(self, body=""):
+    def _respond(self, body: str = "") -> None:
         if self.path == "/not-found":
             self.send_response(404)
             self.end_headers()
@@ -39,13 +40,18 @@ class _EchoHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data.encode())
 
-    def log_message(self, format, *args):
+    def log_message(self, format: str, *args: Any) -> None:
         pass
 
 
 class TestDefaultApiClientUnit:
+    server: HTTPServer
+    port: int
+    base_url: str
+    thread: Thread
+
     @classmethod
-    def setup_class(cls):
+    def setup_class(cls) -> None:
         cls.server = HTTPServer(("127.0.0.1", 0), _EchoHandler)
         cls.port = cls.server.server_address[1]
         cls.base_url = f"http://127.0.0.1:{cls.port}"
@@ -53,17 +59,17 @@ class TestDefaultApiClientUnit:
         cls.thread.start()
 
     @classmethod
-    def teardown_class(cls):
+    def teardown_class(cls) -> None:
         cls.server.shutdown()
 
-    def test_sends_get_request(self):
+    def test_sends_get_request(self) -> None:
         client = DefaultApiClient()
         response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
         assert response.status_code == 200
         body = json.loads(response.body)
         assert body["method"] == "GET"
 
-    def test_sends_post_with_json_body(self):
+    def test_sends_post_with_json_body(self) -> None:
         client = DefaultApiClient()
         headers = {"Content-Type": "application/json"}
         response = client.send_request(
@@ -74,34 +80,34 @@ class TestDefaultApiClientUnit:
         assert body["method"] == "POST"
         assert "key" in body["body"]
 
-    def test_returns_response_headers(self):
+    def test_returns_response_headers(self) -> None:
         client = DefaultApiClient()
         response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
         lower_headers = {k.lower(): v for k, v in response.headers.items()}
         assert "x-test-header" in lower_headers
         assert lower_headers["x-test-header"] == "test-value"
 
-    def test_returns_non_2xx_status(self):
+    def test_returns_non_2xx_status(self) -> None:
         client = DefaultApiClient()
         response = client.send_request("GET", f"{self.base_url}/not-found", {}, None)
         assert response.status_code == 404
         assert response.body == "not found"
 
-    def test_sends_put_request(self):
+    def test_sends_put_request(self) -> None:
         client = DefaultApiClient()
         response = client.send_request("PUT", f"{self.base_url}/echo", {}, "update")
         assert response.status_code == 200
         body = json.loads(response.body)
         assert body["method"] == "PUT"
 
-    def test_sends_delete_request(self):
+    def test_sends_delete_request(self) -> None:
         client = DefaultApiClient()
         response = client.send_request("DELETE", f"{self.base_url}/echo", {}, None)
         assert response.status_code == 200
         body = json.loads(response.body)
         assert body["method"] == "DELETE"
 
-    def test_injects_user_agent_header(self):
+    def test_injects_user_agent_header(self) -> None:
         transport = TransportOptions.builder().user_agent("TestAgent/1.0").build()
         client = DefaultApiClient(transport)
         response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
@@ -109,7 +115,7 @@ class TestDefaultApiClientUnit:
         body = json.loads(response.body)
         assert body["headers"].get("User-Agent") == "TestAgent/1.0"
 
-    def test_does_not_override_caller_user_agent(self):
+    def test_does_not_override_caller_user_agent(self) -> None:
         transport = TransportOptions.builder().user_agent("TestAgent/1.0").build()
         client = DefaultApiClient(transport)
         response = client.send_request(
@@ -119,7 +125,7 @@ class TestDefaultApiClientUnit:
         body = json.loads(response.body)
         assert body["headers"].get("User-Agent") == "CallerAgent/2.0"
 
-    def test_injects_request_id_header(self):
+    def test_injects_request_id_header(self) -> None:
         transport = TransportOptions.builder().inject_request_id(True).build()
         client = DefaultApiClient(transport)
         response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
@@ -128,7 +134,7 @@ class TestDefaultApiClientUnit:
         assert "X-Request-ID" in body["headers"]
         assert len(body["headers"]["X-Request-ID"]) > 0
 
-    def test_does_not_inject_request_id_when_disabled(self):
+    def test_does_not_inject_request_id_when_disabled(self) -> None:
         transport = TransportOptions.builder().inject_request_id(False).build()
         client = DefaultApiClient(transport)
         response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
@@ -136,7 +142,7 @@ class TestDefaultApiClientUnit:
         body = json.loads(response.body)
         assert "X-Request-ID" not in body["headers"]
 
-    def test_transport_default_headers_are_sent(self):
+    def test_transport_default_headers_are_sent(self) -> None:
         transport = (
             TransportOptions.builder()
             .default_header("X-Custom-Transport", "transport-value")
@@ -148,7 +154,7 @@ class TestDefaultApiClientUnit:
         body = json.loads(response.body)
         assert body["headers"].get("X-Custom-Transport") == "transport-value"
 
-    def test_caller_headers_override_transport_defaults(self):
+    def test_caller_headers_override_transport_defaults(self) -> None:
         transport = (
             TransportOptions.builder()
             .default_header("X-Override", "transport")

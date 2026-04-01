@@ -187,6 +187,7 @@ class DefaultApiClientTest extends TestCase
         /** @var array<string, mixed> $json */
         $json = json_decode($response->body, true);
         $this->assertArrayHasKey('x-request-id', $json);
+        $this->assertIsString($json['x-request-id']);
         $this->assertMatchesRegularExpression(
             '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/',
             $json['x-request-id']

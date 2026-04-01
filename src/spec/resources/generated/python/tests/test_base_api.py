@@ -10,6 +10,7 @@ Do not edit the class manually.
 """
 
 import pytest
+from typing import Any, Optional
 
 from petstore_client.api.base_api import BaseApi
 from petstore_client.configuration import Configuration
@@ -31,7 +32,18 @@ from petstore_client import servers as Servers
 class StubApi(BaseApi):
     """Concrete subclass exposing _invoke_api for direct testing."""
 
-    def call(self, method, path, query_params, header_params, body, accepts, content_type, return_type, auth=None):
+    def call(
+        self,
+        method: str,
+        path: str,
+        query_params: dict[str, Any],
+        header_params: dict[str, str],
+        body: Any,
+        accepts: list[str],
+        content_type: str,
+        return_type: Optional[str],
+        auth: Optional[Authenticator] = None,
+    ) -> Any:
         return self._invoke_api(
             method, path, query_params, header_params, body, accepts, content_type, return_type, auth
         )
@@ -40,26 +52,31 @@ class StubApi(BaseApi):
 class StubAuthenticator(Authenticator):
     """Test authenticator that returns known headers, query params, cookies."""
 
-    def __init__(self, headers=None, query_params=None, cookies=None):
+    def __init__(
+        self,
+        headers: Optional[dict[str, str]] = None,
+        query_params: Optional[dict[str, str]] = None,
+        cookies: Optional[dict[str, str]] = None,
+    ) -> None:
         self._headers = headers or {}
         self._query_params = query_params or {}
         self._cookies = cookies or {}
 
-    def get_host(self):
+    def get_host(self) -> str:
         return ''
 
-    def get_auth_headers(self):
+    def get_auth_headers(self) -> dict[str, str]:
         return self._headers
 
-    def get_query_params(self):
+    def get_query_params(self) -> dict[str, str]:
         return self._query_params
 
-    def get_cookie_params(self):
+    def get_cookie_params(self) -> dict[str, str]:
         return self._cookies
 
 
 @pytest.fixture
-def api(wiremock_http_url):
+def api(wiremock_http_url: Any) -> StubApi:
     config = Configuration(base_url=wiremock_http_url)
     return StubApi(api_client=DefaultApiClient(), config=config)
 
@@ -79,7 +96,7 @@ class TestExceptionDispatch:
             (502, ServerException),
         ],
     )
-    def test_throws_correct_exception(self, api, status, expected_class):
+    def test_throws_correct_exception(self, api: Any, status: Any, expected_class: Any) -> None:
         with pytest.raises(expected_class) as exc_info:
             api.call('GET', f'/api/error/{status}', {}, {}, None, ['application/json'], 'application/json', None)
         assert exc_info.value.status == status
@@ -88,13 +105,13 @@ class TestExceptionDispatch:
 
 
 class TestExceptionHierarchy:
-    def test_not_found_hierarchy(self, api):
+    def test_not_found_hierarchy(self, api: Any) -> None:
         with pytest.raises(NotFoundException) as exc_info:
             api.call('GET', '/api/error/404', {}, {}, None, ['application/json'], 'application/json', None)
         assert isinstance(exc_info.value, ClientException)
         assert isinstance(exc_info.value, ApiException)
 
-    def test_internal_server_error_hierarchy(self, api):
+    def test_internal_server_error_hierarchy(self, api: Any) -> None:
         with pytest.raises(InternalServerErrorException) as exc_info:
             api.call('GET', '/api/error/500', {}, {}, None, ['application/json'], 'application/json', None)
         assert isinstance(exc_info.value, ServerException)
@@ -102,33 +119,33 @@ class TestExceptionHierarchy:
 
 
 class TestSuccessDeserialization:
-    def test_deserializes_json_response(self, api):
+    def test_deserializes_json_response(self, api: Any) -> None:
         result = api.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', 'object')
         assert result is not None
         assert result['message'] == 'success'
 
-    def test_returns_raw_string_for_non_json(self, api):
+    def test_returns_raw_string_for_non_json(self, api: Any) -> None:
         result = api.call('GET', '/api/text', {}, {}, None, ['text/plain'], 'application/json', 'str')
         assert result is not None
         assert 'hello plain text' in result
 
-    def test_returns_none_when_return_type_is_none(self, api):
+    def test_returns_none_when_return_type_is_none(self, api: Any) -> None:
         result = api.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', None)
         assert result is None
 
 
 class TestQueryParameters:
-    def test_appends_query_params(self, api):
+    def test_appends_query_params(self, api: Any) -> None:
         result = api.call('GET', '/api/test', {'foo': 'bar'}, {}, None, ['application/json'], 'application/json', None)
         assert result is None
 
-    def test_includes_empty_value_param_in_query_string(self, api):
+    def test_includes_empty_value_param_in_query_string(self, api: Any) -> None:
         result = api.call('GET', '/api/test', {'filter': ''}, {}, None, ['application/json'], 'application/json', None)
         assert result is None
 
 
 class TestAuthInjection:
-    def test_forwards_auth_headers(self, api):
+    def test_forwards_auth_headers(self, api: Any) -> None:
         auth = StubAuthenticator(headers={'X-Custom': 'auth-value'})
         result = api.call(
             'GET', '/api/echo-headers', {}, {}, None, ['application/json'], 'application/json', 'object', auth
@@ -136,36 +153,36 @@ class TestAuthInjection:
         assert result is not None
         assert result['x-custom'] == 'auth-value'
 
-    def test_sets_cookie_header(self, api):
+    def test_sets_cookie_header(self, api: Any) -> None:
         auth = StubAuthenticator(cookies={'session': 'abc123'})
         api.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', None, auth)
 
 
 class TestBodySerialization:
-    def test_serializes_json_body(self, api):
+    def test_serializes_json_body(self, api: Any) -> None:
         result = api.call(
             'POST', '/api/echo-body', {}, {}, {'key': 'value'}, ['application/json'], 'application/json', 'object'
         )
         assert result is not None
         assert result['key'] == 'value'
 
-    def test_sends_no_body_when_none(self, api):
+    def test_sends_no_body_when_none(self, api: Any) -> None:
         api.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', None)
 
 
 class TestServerVariableOverrides:
-    def test_server_variable_overrides_resolve_in_base_url(self):
+    def test_server_variable_overrides_resolve_in_base_url(self) -> None:
         config = Configuration.builder().server(Servers.SERVER_1, {'environment': 'staging'}).build()
         assert config.base_url == 'https://staging.example.com/api/v3'
 
-    def test_default_server_variables_produce_correct_base_url(self):
+    def test_default_server_variables_produce_correct_base_url(self) -> None:
         config = Configuration.builder().server(Servers.SERVER_1).build()
         assert config.base_url == 'https://api.example.com/api/v3'
 
-    def test_invalid_enum_value_raises_error(self):
+    def test_invalid_enum_value_raises_error(self) -> None:
         with pytest.raises(ValueError):
             Configuration.builder().server(Servers.SERVER_1, {'environment': 'invalid'}).build()
 
-    def test_api_request_uses_resolved_server_url(self, api, wiremock_http_url):
+    def test_api_request_uses_resolved_server_url(self, api: Any, wiremock_http_url: Any) -> None:
         config = Configuration.builder().server(Servers.SERVER_1, {'environment': 'staging'}).build()
         assert config.base_url.startswith('https://staging.example.com')

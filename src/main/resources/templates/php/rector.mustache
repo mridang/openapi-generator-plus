@@ -6,7 +6,7 @@ use Rector\Config\RectorConfig;
 use Rector\Set\ValueObject\SetList;
 
 return RectorConfig::configure()
-    ->withPaths([__DIR__ . '/lib'])
+    ->withPaths([__DIR__ . '/lib', __DIR__ . '/tests'])
     ->withSets([
         SetList::CODE_QUALITY,
         SetList::DEAD_CODE,

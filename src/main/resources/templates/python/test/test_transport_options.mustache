@@ -4,7 +4,7 @@ from {{packageName}}.transport_options import TransportOptions
 
 
 class TestTransportOptions:
-    def test_builder_produces_correct_defaults(self):
+    def test_builder_produces_correct_defaults(self) -> None:
         opts = TransportOptions.builder().build()
 
         assert opts.verify_ssl is True
@@ -17,7 +17,7 @@ class TestTransportOptions:
         assert len(opts.default_headers) == 0
         assert opts.inject_request_id is False
 
-    def test_builder_sets_all_fields(self):
+    def test_builder_sets_all_fields(self) -> None:
         opts = (
             TransportOptions.builder()
             .verify_ssl(False)
@@ -42,7 +42,7 @@ class TestTransportOptions:
         assert opts.default_headers["X-Custom"] == "value"
         assert opts.inject_request_id is True
 
-    def test_default_headers_is_immutable(self):
+    def test_default_headers_is_immutable(self) -> None:
         headers = {"X-Original": "original"}
 
         opts = TransportOptions.builder().default_headers(headers).build()

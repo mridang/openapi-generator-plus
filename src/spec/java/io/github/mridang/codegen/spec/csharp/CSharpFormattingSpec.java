@@ -29,7 +29,7 @@ public class CSharpFormattingSpec extends AbstractFormattingSpec implements CSha
 
   @Override
   protected Path getSourceRoot() {
-    return tempOutputDir.resolve("src/PetstoreClient");
+    return tempOutputDir;
   }
 
   @Override
@@ -39,7 +39,8 @@ public class CSharpFormattingSpec extends AbstractFormattingSpec implements CSha
 
   @Override
   protected boolean includeFileForInlineCommentCheck(Path file) {
-    return !file.toString().contains("/Models/");
+    String path = file.toString();
+    return !path.contains("/Models/") && path.contains("/src/PetstoreClient/");
   }
 
   @Test

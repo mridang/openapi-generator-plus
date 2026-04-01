@@ -18,7 +18,7 @@ public class JavaStaticAnalysisSpec extends AbstractIntegrationSpec implements J
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {"mvn compile spotbugs:check -B"};
+    return new String[] {"mvn compile test-compile spotbugs:check -B"};
   }
 
   @Test

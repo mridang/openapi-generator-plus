@@ -70,4 +70,4 @@ public class WireMockSquidFixture : IAsyncLifetime
 }
 
 [CollectionDefinition("WireMockSquid")]
-public class WireMockSquidCollection : ICollectionFixture<WireMockSquidFixture> { }
+public class WireMockSquidTestGroup : ICollectionFixture<WireMockSquidFixture> { }

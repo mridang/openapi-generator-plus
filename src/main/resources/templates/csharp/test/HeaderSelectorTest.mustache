@@ -60,14 +60,14 @@ public class HeaderSelectorTest
 
     public class SelectHeadersTests
     {
+        private static readonly string[] JsonOnly = ["application/json"];
+        private static readonly string[] HtmlAndPlain = ["text/html", "text/plain"];
+        private static readonly string[] HtmlAndJson = ["text/html", "application/json"];
+
         [Fact]
         public void ShouldSetAcceptHeaderWhenAcceptsProvided()
         {
-            var headers = HeaderSelector.SelectHeaders(
-                new[] { "application/json" },
-                "application/json",
-                false
-            );
+            var headers = HeaderSelector.SelectHeaders(JsonOnly, "application/json", false);
             Assert.Equal("application/json", headers["Accept"]);
         }
 
@@ -85,66 +85,42 @@ public class HeaderSelectorTest
         [Fact]
         public void ShouldSetContentTypeHeaderWhenNotMultipart()
         {
-            var headers = HeaderSelector.SelectHeaders(
-                new[] { "application/json" },
-                "application/json",
-                false
-            );
+            var headers = HeaderSelector.SelectHeaders(JsonOnly, "application/json", false);
             Assert.Equal("application/json", headers["Content-Type"]);
         }
 
         [Fact]
         public void ShouldNotSetContentTypeHeaderWhenMultipart()
         {
-            var headers = HeaderSelector.SelectHeaders(
-                new[] { "application/json" },
-                "application/json",
-                true
-            );
+            var headers = HeaderSelector.SelectHeaders(JsonOnly, "application/json", true);
             Assert.False(headers.ContainsKey("Content-Type"));
         }
 
         [Fact]
         public void ShouldDefaultContentTypeToApplicationJsonWhenEmpty()
         {
-            var headers = HeaderSelector.SelectHeaders(
-                new[] { "application/json" },
-                "",
-                false
-            );
+            var headers = HeaderSelector.SelectHeaders(JsonOnly, "", false);
             Assert.Equal("application/json", headers["Content-Type"]);
         }
 
         [Fact]
         public void ShouldReturnSingleAcceptAsIs()
         {
-            var headers = HeaderSelector.SelectHeaders(
-                new[] { "application/json" },
-                "application/json",
-                false
-            );
+            var headers = HeaderSelector.SelectHeaders(JsonOnly, "application/json", false);
             Assert.Equal("application/json", headers["Accept"]);
         }
 
         [Fact]
         public void ShouldReturnCommaSeparatedListWhenNoJsonTypes()
         {
-            var headers = HeaderSelector.SelectHeaders(
-                new[] { "text/html", "text/plain" },
-                "application/json",
-                false
-            );
+            var headers = HeaderSelector.SelectHeaders(HtmlAndPlain, "application/json", false);
             Assert.Equal("text/html,text/plain", headers["Accept"]);
         }
 
         [Fact]
         public void ShouldPreferJsonType()
         {
-            var headers = HeaderSelector.SelectHeaders(
-                new[] { "text/html", "application/json" },
-                "application/json",
-                false
-            );
+            var headers = HeaderSelector.SelectHeaders(HtmlAndJson, "application/json", false);
             Assert.Equal("application/json", headers["Accept"]);
         }
     }

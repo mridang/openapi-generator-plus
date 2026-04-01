@@ -17,7 +17,7 @@ public class BaseApiTest
         _fixture = fixture;
     }
 
-    private class TestableApi : BaseApi
+    private sealed class TestableApi : BaseApi
     {
         public TestableApi(string baseUrl)
             : base(new DefaultApiClient(), new Configuration(baseUrl)) { }
@@ -38,7 +38,7 @@ public class BaseApiTest
         }
     }
 
-    private class TestAuthenticator : IAuthenticator
+    private sealed class TestAuthenticator : IAuthenticator
     {
         private readonly Dictionary<string, string> _headers;
         private readonly Dictionary<string, string> _queryParams;
@@ -90,7 +90,9 @@ public class BaseApiTest
         }
         catch (ApiException ex)
         {
+#pragma warning disable xUnit2032
             Assert.IsType(expectedType, ex);
+#pragma warning restore xUnit2032
             Assert.Equal(status, ex.StatusCode);
             Assert.NotNull(ex.ResponseBody);
             Assert.NotEmpty(ex.ResponseBody);
@@ -106,8 +108,8 @@ public class BaseApiTest
                 new Dictionary<string, object?>(),
                 new Dictionary<string, string>(),
                 null, ["application/json"], "application/json"));
-        Assert.IsAssignableFrom<ClientException>(ex);
-        Assert.IsAssignableFrom<ApiException>(ex);
+        Assert.IsType<ClientException>(ex, exactMatch: false);
+        Assert.IsType<ApiException>(ex, exactMatch: false);
     }
 
     [Fact]
@@ -119,8 +121,8 @@ public class BaseApiTest
                 new Dictionary<string, object?>(),
                 new Dictionary<string, string>(),
                 null, ["application/json"], "application/json"));
-        Assert.IsAssignableFrom<ServerException>(ex);
-        Assert.IsAssignableFrom<ApiException>(ex);
+        Assert.IsType<ServerException>(ex, exactMatch: false);
+        Assert.IsType<ApiException>(ex, exactMatch: false);
     }
 
     [Fact]
@@ -244,7 +246,7 @@ public class BaseApiTest
     }
 
     [Fact]
-    public async Task ApiRequestUsesResolvedServerUrl()
+    public void ApiRequestUsesResolvedServerUrl()
     {
         var config = Configuration.CreateBuilder()
             .Server(Servers.Server1, new Dictionary<string, string> { { "environment", "staging" } })

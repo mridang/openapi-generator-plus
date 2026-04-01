@@ -4,6 +4,9 @@ using PetstoreClient.Auth;
 using PetstoreClient.Models;
 using Xunit;
 
+#pragma warning disable CS0618 // Intentionally testing deprecated APIs
+#pragma warning disable xUnit1004 // Skips are intentional (Prism limitations)
+
 namespace Tests.Api;
 
 [Collection("Prism")]
@@ -96,7 +99,7 @@ public class PetApiTest
         var result = await _api.GetPetAvatarAsync(1L);
 
         Assert.NotNull(result);
-        Assert.IsAssignableFrom<Stream>(result);
+        Assert.IsType<Stream>(result, exactMatch: false);
     }
 
     [Fact]
@@ -174,7 +177,7 @@ public class PetApiTest
         var result = await _api.DownloadPetDocumentAsync(1L, 100L);
 
         Assert.NotNull(result);
-        Assert.IsAssignableFrom<Stream>(result);
+        Assert.IsType<Stream>(result, exactMatch: false);
     }
 
     [Fact(Skip = "Prism returns JSON for image content type")]
@@ -183,7 +186,7 @@ public class PetApiTest
         var result = await _api.GetPetPhotoAsync(1L, 100L);
 
         Assert.NotNull(result);
-        Assert.IsAssignableFrom<Stream>(result);
+        Assert.IsType<Stream>(result, exactMatch: false);
     }
 
     [Fact]

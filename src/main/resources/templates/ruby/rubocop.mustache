@@ -4,6 +4,11 @@ AllCops:
   SuggestExtensions: false
 
 Metrics/BlockLength:
+  CountAsOne:
+    - 'heredoc'
+    - 'array'
+    - 'hash'
+    - 'method_call'
   Exclude:
     - 'spec/**/*'
 

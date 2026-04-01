@@ -2,6 +2,7 @@
 
 import pytest
 from datetime import datetime, timezone
+from typing import Any
 from {{packageName}}.api.store_api import StoreApi
 from {{packageName}}.configuration import Configuration
 from {{packageName}}.models.order import Order
@@ -11,24 +12,24 @@ class TestStoreApi:
     """Test suite for StoreApi operations."""
 
     @pytest.fixture(autouse=True)
-    def setup(self, api_base_url):
+    def setup(self, api_base_url: Any) -> None:
         config = Configuration.builder() \
             .base_url(api_base_url) \
             .default_header('Authorization', 'Bearer test-token') \
             .build()
         self.api = StoreApi(config=config)
 
-    def test_get_inventory(self):
+    def test_get_inventory(self) -> None:
         result = self.api.get_inventory()
 
         assert isinstance(result, dict)
 
-    def test_place_order(self):
+    def test_place_order(self) -> None:
         order = Order(
             id=1,
-            pet_id=12345,
+            petId=12345,
             quantity=1,
-            ship_date=datetime.now(timezone.utc),
+            shipDate=datetime.now(timezone.utc),
             status='placed',
             complete=False
         )
@@ -38,13 +39,13 @@ class TestStoreApi:
         assert result is not None
         assert result.id is not None
 
-    def test_get_order_by_id(self):
+    def test_get_order_by_id(self) -> None:
         result = self.api.get_order_by_id(1)
 
         assert result is not None
         assert result.id is not None
 
-    def test_delete_order(self):
+    def test_delete_order(self) -> None:
         self.api.delete_order(1)
 
         assert True

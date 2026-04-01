@@ -33,7 +33,7 @@ public class PythonFormattingSpec extends AbstractFormattingSpec implements Pyth
 
   @Override
   protected Path getSourceRoot() {
-    return tempOutputDir.resolve("petstore_client");
+    return tempOutputDir;
   }
 
   @Override

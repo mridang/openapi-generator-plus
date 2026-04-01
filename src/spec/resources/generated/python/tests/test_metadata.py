@@ -3,13 +3,13 @@ from petstore_client.object_serializer import ObjectSerializer
 
 
 class TestMetadataTypedAdditionalProperties:
-    def test_deserializes_known_properties(self):
+    def test_deserializes_known_properties(self) -> None:
         json_str = '{"createdAt":"2024-01-01T00:00:00Z"}'
         metadata = ObjectSerializer().deserialize(json_str, 'Metadata')
         assert metadata is not None
         assert metadata.created_at is not None
 
-    def test_round_trip_preserves_known_properties(self):
+    def test_round_trip_preserves_known_properties(self) -> None:
         json_str = '{"createdAt":"2024-01-15T10:30:00Z"}'
         metadata = ObjectSerializer().deserialize(json_str, 'Metadata')
         assert metadata is not None
@@ -17,7 +17,7 @@ class TestMetadataTypedAdditionalProperties:
         data = json.loads(serialized)
         assert data.get('createdAt') is not None
 
-    def test_additional_properties_field_exists(self):
+    def test_additional_properties_field_exists(self) -> None:
         json_str = '{"createdAt":"2024-01-01T00:00:00Z"}'
         metadata = ObjectSerializer().deserialize(json_str, 'Metadata')
         assert metadata is not None

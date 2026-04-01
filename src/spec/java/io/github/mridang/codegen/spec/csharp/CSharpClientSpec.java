@@ -16,8 +16,7 @@ public class CSharpClientSpec extends AbstractClientSpec implements CSharpSpec {
   protected String[] getBuildCommands() {
     return new String[] {
       "dotnet restore",
-      "dotnet test --verbosity normal",
-      "mv .out/coverage.cobertura.xml .out/coverage.xml"
+      "dotnet test --verbosity normal"
     };
   }
 
