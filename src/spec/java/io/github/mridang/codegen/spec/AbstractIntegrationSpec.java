@@ -116,9 +116,11 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
         }
       }
 
-      // Copy only coverage.xml back to the bind mount
+      // Copy coverage.xml and JUnit XML reports back to the bind mount
       runtimeContainer.execInContainer("sh", "-c",
-          "mkdir -p /app/.out && cp /work/.out/coverage.xml /app/.out/coverage.xml 2>/dev/null || true");
+          "mkdir -p /app/.out/reports && "
+              + "cp /work/.out/coverage.xml /app/.out/coverage.xml 2>/dev/null || true; "
+              + "cp /work/.out/reports/*.xml /app/.out/reports/ 2>/dev/null || true");
 
       // Fix permissions on the .out directory so subsequent runs can overwrite
       runtimeContainer.execInContainer("sh", "-c", "chmod -R 777 /app/.out 2>/dev/null || true");

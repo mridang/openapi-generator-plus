@@ -31,6 +31,9 @@ public abstract class AbstractClientSpec extends AbstractIntegrationSpec {
   void shouldRunClientTests() throws IOException {
     ExecResult result = executeInRuntimeContainer(getBuildCommands());
 
+    Path reportsDir = tempOutputDir.resolve(".out/reports");
+    JUnitReportPrinter.printReport(reportsDir, getGeneratorName(), logger);
+
     assertThat(result.isSuccess())
         .withFailMessage("Client tests failed:\n%s", result.output())
         .isTrue();

@@ -29,4 +29,7 @@
             <cobertura outputFile=".out/coverage.xml"/>
         </report>
     </coverage>
+    <logging>
+        <junit outputFile=".out/reports/junit.xml"/>
+    </logging>
 </phpunit>

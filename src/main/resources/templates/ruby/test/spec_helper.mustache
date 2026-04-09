@@ -12,6 +12,14 @@ end
 
 $LOAD_PATH.unshift File.expand_path('../lib', __dir__)
 
+require 'minitest/reporters'
+require 'better_junit'
+
+Minitest::Reporters.use! [
+  Minitest::Reporters::DefaultReporter.new,
+  MinitestPlus::BetterJUnit.new(path: '.out/reports/junit.xml')
+]
+
 require 'minitest/autorun'
 require 'minitest/pride'
 require 'testcontainers'
