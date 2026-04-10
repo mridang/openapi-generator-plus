@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace PetstoreClient\Test\Api;
 
 use PHPUnit\Framework\TestCase;

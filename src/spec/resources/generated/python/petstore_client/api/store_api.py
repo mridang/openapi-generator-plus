@@ -31,6 +31,7 @@ class StoreApi(BaseApi):
     ) -> None:
         """Delete purchase order by ID
         :param order_id: ID of the order to delete (required)
+        :raises ApiException: if fails to make API call
         """
         if order_id is None:
             raise ValueError("Missing the required parameter 'order_id'")
@@ -45,6 +46,7 @@ class StoreApi(BaseApi):
         """Delete purchase order by ID (with HTTP info)
         :param order_id: ID of the order to delete (required)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         if order_id is None:
             raise ValueError("Missing the required parameter 'order_id'")
@@ -75,6 +77,7 @@ class StoreApi(BaseApi):
     ) -> Dict[str, int]:
         """Returns pet inventories by status
         :return: Dict[str, int]
+        :raises ApiException: if fails to make API call
         """
         result = self.get_inventory_with_http_info()
         assert result.data is not None
@@ -85,6 +88,7 @@ class StoreApi(BaseApi):
     ) -> 'ApiResult[Dict[str, int]]':
         """Returns pet inventories by status (with HTTP info)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         path = '/store/inventory'
         query_params: Dict[str, Any] = {}
@@ -110,6 +114,7 @@ class StoreApi(BaseApi):
         """Find purchase order by ID
         :param order_id: ID of order to return (required)
         :return: Order
+        :raises ApiException: if fails to make API call
         """
         if order_id is None:
             raise ValueError("Missing the required parameter 'order_id'")
@@ -125,6 +130,7 @@ class StoreApi(BaseApi):
         """Find purchase order by ID (with HTTP info)
         :param order_id: ID of order to return (required)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         if order_id is None:
             raise ValueError("Missing the required parameter 'order_id'")
@@ -157,6 +163,7 @@ class StoreApi(BaseApi):
         """Place an order for a pet
         :param order:  (optional)
         :return: Order
+        :raises ApiException: if fails to make API call
         """
         result = self.place_order_with_http_info(order)
         assert result.data is not None
@@ -169,6 +176,7 @@ class StoreApi(BaseApi):
         """Place an order for a pet (with HTTP info)
         :param order:  (optional)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         path = '/store/order'
         query_params: Dict[str, Any] = {}

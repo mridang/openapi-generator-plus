@@ -93,6 +93,7 @@ export class PetApi extends BaseApi {
    * @param auth authenticator for this operation
    * @param pet Create a new pet in the store (required)
    * @return Pet
+   * @throws {ApiError} if fails to make API call
    */
   async addPet(auth: Authenticator, pet: Pet): Promise<Pet> {
     if (pet == null) {
@@ -103,6 +104,7 @@ export class PetApi extends BaseApi {
 
   /**
    * Add a new pet to the store (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async addPetWithHttpInfo(auth: Authenticator, pet: Pet): Promise<ApiResult<Pet>> {
     if (pet == null) {
@@ -131,6 +133,7 @@ export class PetApi extends BaseApi {
    * @param options.files  (required)
    * @param options.metadata  (required)
    * @return Array<Photo>
+   * @throws {ApiError} if fails to make API call
    */
   async addPetPhotos(petId: number, options: { files: Array<Buffer>; metadata: PhotoMetadata }): Promise<Array<Photo>> {
     if (petId == null) {
@@ -147,6 +150,7 @@ export class PetApi extends BaseApi {
 
   /**
    * Add photos to the pet's gallery (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async addPetPhotosWithHttpInfo(
     petId: number,
@@ -193,6 +197,7 @@ export class PetApi extends BaseApi {
    * Deletes a pet
    * @param auth authenticator for this operation
    * @param petId Pet id to delete (required)
+   * @throws {ApiError} if fails to make API call
    */
   async deletePet(auth: Authenticator, petId: number): Promise<void> {
     if (petId == null) {
@@ -203,6 +208,7 @@ export class PetApi extends BaseApi {
 
   /**
    * Deletes a pet (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async deletePetWithHttpInfo(auth: Authenticator, petId: number): Promise<ApiResult<void>> {
     if (petId == null) {
@@ -234,6 +240,7 @@ export class PetApi extends BaseApi {
    * @param petId  (required)
    * @param documentId  (required)
    * @return Buffer
+   * @throws {ApiError} if fails to make API call
    */
   async downloadPetDocument(petId: number, documentId: number): Promise<Buffer> {
     if (petId == null) {
@@ -247,6 +254,7 @@ export class PetApi extends BaseApi {
 
   /**
    * Download a vet document (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async downloadPetDocumentWithHttpInfo(petId: number, documentId: number): Promise<ApiResult<Buffer>> {
     if (petId == null) {
@@ -284,6 +292,7 @@ export class PetApi extends BaseApi {
    * @param options.status Status values that need to be considered for filter (optional) (deprecated)
    * @param options.filter Filter criteria as key-value pairs (optional)
    * @return Array<Pet>
+   * @throws {ApiError} if fails to make API call
    * @deprecated This operation is deprecated.
    * @see {@link https://example.com/docs/filtering} Find out more about filtering
    */
@@ -293,6 +302,7 @@ export class PetApi extends BaseApi {
 
   /**
    * Finds Pets by status (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async findPetsByStatusWithHttpInfo(options: {
     status?: string;
@@ -333,6 +343,7 @@ export class PetApi extends BaseApi {
    * Get external pet info
    * @param petId  (required)
    * @return Pet
+   * @throws {ApiError} if fails to make API call
    */
   async getExternalPetInfo(petId: number, server?: GetExternalPetInfoServer): Promise<Pet> {
     if (petId == null) {
@@ -343,6 +354,7 @@ export class PetApi extends BaseApi {
 
   /**
    * Get external pet info (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async getExternalPetInfoWithHttpInfo(petId: number, server?: GetExternalPetInfoServer): Promise<ApiResult<Pet>> {
     if (petId == null) {
@@ -373,6 +385,7 @@ export class PetApi extends BaseApi {
    * Get multi-server pet info
    * @param petId  (required)
    * @return Pet
+   * @throws {ApiError} if fails to make API call
    */
   async getMultiServerPetInfo(petId: number, server?: GetMultiServerPetInfoServer): Promise<Pet> {
     if (petId == null) {
@@ -383,6 +396,7 @@ export class PetApi extends BaseApi {
 
   /**
    * Get multi-server pet info (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async getMultiServerPetInfoWithHttpInfo(
     petId: number,
@@ -417,6 +431,7 @@ export class PetApi extends BaseApi {
    * Returns the raw image bytes of the pet's current avatar.
    * @param petId  (required)
    * @return Buffer
+   * @throws {ApiError} if fails to make API call
    */
   async getPetAvatar(petId: number): Promise<Buffer> {
     if (petId == null) {
@@ -427,6 +442,7 @@ export class PetApi extends BaseApi {
 
   /**
    * Get the pet's profile photo (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async getPetAvatarWithHttpInfo(petId: number): Promise<ApiResult<Buffer>> {
     if (petId == null) {
@@ -457,6 +473,7 @@ export class PetApi extends BaseApi {
    * Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
    * @param petId  (required)
    * @return string
+   * @throws {ApiError} if fails to make API call
    */
   async getPetAvatarThumbnail(petId: number): Promise<string> {
     if (petId == null) {
@@ -467,6 +484,7 @@ export class PetApi extends BaseApi {
 
   /**
    * Get the pet's avatar thumbnail as base64 (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async getPetAvatarThumbnailWithHttpInfo(petId: number): Promise<ApiResult<string>> {
     if (petId == null) {
@@ -497,6 +515,7 @@ export class PetApi extends BaseApi {
    * Returns a single pet
    * @param petId ID of pet to return (required)
    * @return Pet
+   * @throws {ApiError} if fails to make API call
    * @deprecated This operation is deprecated.
    */
   async getPetById(petId: number): Promise<Pet> {
@@ -508,6 +527,7 @@ export class PetApi extends BaseApi {
 
   /**
    * Find pet by ID (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async getPetByIdWithHttpInfo(petId: number): Promise<ApiResult<Pet>> {
     if (petId == null) {
@@ -538,6 +558,7 @@ export class PetApi extends BaseApi {
    * Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
    * @param petId  (required)
    * @return PetPassport
+   * @throws {ApiError} if fails to make API call
    */
   async getPetPassport(petId: number): Promise<PetPassport> {
     if (petId == null) {
@@ -548,6 +569,7 @@ export class PetApi extends BaseApi {
 
   /**
    * Get the pet's passport (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async getPetPassportWithHttpInfo(petId: number): Promise<ApiResult<PetPassport>> {
     if (petId == null) {
@@ -579,6 +601,7 @@ export class PetApi extends BaseApi {
    * @param petId  (required)
    * @param photoId  (required)
    * @return Buffer
+   * @throws {ApiError} if fails to make API call
    */
   async getPetPhoto(petId: number, photoId: number): Promise<Buffer> {
     if (petId == null) {
@@ -592,6 +615,7 @@ export class PetApi extends BaseApi {
 
   /**
    * Get a photo or its metadata (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async getPetPhotoWithHttpInfo(petId: number, photoId: number): Promise<ApiResult<Buffer>> {
     if (petId == null) {
@@ -632,6 +656,7 @@ export class PetApi extends BaseApi {
    * @param options.sizes  (optional)
    * @param options.filter  (optional)
    * @return Pet
+   * @throws {ApiError} if fails to make API call
    */
   async getPetTag(
     petId: number,
@@ -649,6 +674,7 @@ export class PetApi extends BaseApi {
 
   /**
    * Get a tag for a pet (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async getPetTagWithHttpInfo(
     petId: number,
@@ -723,6 +749,7 @@ export class PetApi extends BaseApi {
    * Get staging pet info
    * @param petId  (required)
    * @return Pet
+   * @throws {ApiError} if fails to make API call
    */
   async getStagingPetInfo(petId: number, server?: GetStagingPetInfoServer): Promise<Pet> {
     if (petId == null) {
@@ -733,6 +760,7 @@ export class PetApi extends BaseApi {
 
   /**
    * Get staging pet info (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async getStagingPetInfoWithHttpInfo(petId: number, server?: GetStagingPetInfoServer): Promise<ApiResult<Pet>> {
     if (petId == null) {
@@ -764,6 +792,7 @@ export class PetApi extends BaseApi {
    * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
    * @param petId  (required)
    * @param body  (required)
+   * @throws {ApiError} if fails to make API call
    */
   async setPetAvatar(petId: number, body: Buffer): Promise<void> {
     if (petId == null) {
@@ -777,6 +806,7 @@ export class PetApi extends BaseApi {
 
   /**
    * Set the pet's profile photo (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async setPetAvatarWithHttpInfo(petId: number, body: Buffer): Promise<ApiResult<void>> {
     if (petId == null) {
@@ -800,6 +830,7 @@ export class PetApi extends BaseApi {
    * Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
    * @param petId  (required)
    * @param setPetAvatarThumbnailRequest  (required)
+   * @throws {ApiError} if fails to make API call
    */
   async setPetAvatarThumbnail(
     petId: number,
@@ -816,6 +847,7 @@ export class PetApi extends BaseApi {
 
   /**
    * Set the pet's avatar thumbnail as base64 (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async setPetAvatarThumbnailWithHttpInfo(
     petId: number,
@@ -852,6 +884,7 @@ export class PetApi extends BaseApi {
    * @param petId ID of pet to update (required)
    * @param pet Pet object that needs to be updated (required)
    * @return Pet
+   * @throws {ApiError} if fails to make API call
    */
   async updatePet(petId: number, pet: Pet): Promise<Pet> {
     if (petId == null) {
@@ -865,6 +898,7 @@ export class PetApi extends BaseApi {
 
   /**
    * Update an existing pet (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async updatePetWithHttpInfo(petId: number, pet: Pet): Promise<ApiResult<Pet>> {
     if (petId == null) {
@@ -899,6 +933,7 @@ export class PetApi extends BaseApi {
    * @param petId  (required)
    * @param options.file  (required)
    * @return ApiResponse
+   * @throws {ApiError} if fails to make API call
    */
   async uploadPetCertificate(petId: number, options: { file: Buffer }): Promise<ApiResponse> {
     if (petId == null) {
@@ -912,6 +947,7 @@ export class PetApi extends BaseApi {
 
   /**
    * Upload the pet's adoption certificate (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async uploadPetCertificateWithHttpInfo(petId: number, options: { file: Buffer }): Promise<ApiResult<ApiResponse>> {
     if (petId == null) {
@@ -953,6 +989,7 @@ export class PetApi extends BaseApi {
    * @param options.documentType  (optional)
    * @param options.notes  (optional)
    * @return ApiResponse
+   * @throws {ApiError} if fails to make API call
    */
   async uploadPetDocument(
     petId: number,
@@ -969,6 +1006,7 @@ export class PetApi extends BaseApi {
 
   /**
    * Attach a vet document or health record (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async uploadPetDocumentWithHttpInfo(
     petId: number,

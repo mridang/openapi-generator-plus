@@ -275,6 +275,7 @@ public class {{classname}} : BaseApi
 {{#externalDocs}}
     /// <seealso href="{{url}}">{{description}}</seealso>
 {{/externalDocs}}
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
 {{#isDeprecated}}
     [Obsolete("This operation is deprecated.")]
 {{/isDeprecated}}
@@ -295,6 +296,7 @@ public class {{classname}} : BaseApi
     /// <summary>
     /// {{summary}} (with HTTP info)
     /// </summary>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>> {{operationId}}WithHttpInfoAsync({{#hasAuthMethods}}IAuthenticator auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{{dataType}}}{{^required}}?{{/required}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server? server = null{{/-first}}{{/servers}})
     {
 {{#queryParams}}

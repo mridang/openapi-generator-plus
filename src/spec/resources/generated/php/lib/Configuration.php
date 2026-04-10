@@ -10,6 +10,8 @@
  * Generator version: 7.14.0
  */
 
+declare(strict_types=1);
+
 namespace PetstoreClient;
 
 /**
@@ -54,7 +56,7 @@ final class Configuration
     /**
      * Return the default configuration instance, creating it lazily if needed.
      */
-    public static function getDefaultConfiguration(): Configuration
+    public static function getDefault(): Configuration
     {
         if (!self::$defaultInstance instanceof Configuration) {
             self::$defaultInstance = new Configuration();
@@ -66,7 +68,7 @@ final class Configuration
     /**
      * Set the default configuration instance.
      */
-    public static function setDefaultConfiguration(Configuration $configuration): void
+    public static function setDefault(Configuration $configuration): void
     {
         self::$defaultInstance = $configuration;
     }

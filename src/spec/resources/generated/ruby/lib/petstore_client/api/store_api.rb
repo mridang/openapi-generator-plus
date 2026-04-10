@@ -23,6 +23,7 @@ module PetstoreClient
       # Delete purchase order by ID
       # @param order_id [Integer] ID of the order to delete
       # @return [nil]
+      # @raise [ApiError] if fails to make API call
       def delete_order(order_id)
         if order_id.nil?
           raise ArgumentError,
@@ -33,6 +34,7 @@ module PetstoreClient
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def delete_order_with_http_info(order_id)
         if order_id.nil?
           raise ArgumentError,
@@ -58,11 +60,13 @@ module PetstoreClient
 
       # Returns pet inventories by status
       # @return [Hash<String, Integer>]
+      # @raise [ApiError] if fails to make API call
       def get_inventory()
         get_inventory_with_http_info().data
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def get_inventory_with_http_info()
         path = '/store/inventory'
         # @type var query_params: Hash[String, untyped]
@@ -83,6 +87,7 @@ module PetstoreClient
       # Find purchase order by ID
       # @param order_id [Integer] ID of order to return
       # @return [Order]
+      # @raise [ApiError] if fails to make API call
       def get_order_by_id(order_id)
         if order_id.nil?
           raise ArgumentError,
@@ -93,6 +98,7 @@ module PetstoreClient
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def get_order_by_id_with_http_info(order_id)
         if order_id.nil?
           raise ArgumentError,
@@ -119,11 +125,13 @@ module PetstoreClient
       # Place an order for a pet
       # @param order [Order]
       # @return [Order]
+      # @raise [ApiError] if fails to make API call
       def place_order(order = nil)
         place_order_with_http_info(order).data
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def place_order_with_http_info(order = nil)
         path = '/store/order'
         # @type var query_params: Hash[String, untyped]

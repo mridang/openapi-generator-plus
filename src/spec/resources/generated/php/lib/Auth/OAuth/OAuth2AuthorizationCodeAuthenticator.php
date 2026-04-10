@@ -10,6 +10,8 @@
  * Generator version: 7.14.0
  */
 
+declare(strict_types=1);
+
 namespace PetstoreClient\Auth\OAuth;
 
 use PetstoreClient\ApiClient;

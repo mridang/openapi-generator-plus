@@ -117,6 +117,7 @@ module PetstoreClient
       # @param auth [Auth::Authenticator] authenticator for this operation
       # @param pet [Pet] Create a new pet in the store
       # @return [Pet]
+      # @raise [ApiError] if fails to make API call
       def add_pet(auth, pet)
         if pet.nil?
           raise ArgumentError,
@@ -127,6 +128,7 @@ module PetstoreClient
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def add_pet_with_http_info(auth, pet)
         if pet.nil?
           raise ArgumentError,
@@ -155,6 +157,7 @@ module PetstoreClient
       # @param files [Array<File>]
       # @param metadata [PhotoMetadata]
       # @return [Array<Photo>]
+      # @raise [ApiError] if fails to make API call
       def add_pet_photos(pet_id, files:, metadata:)
         if pet_id.nil?
           raise ArgumentError,
@@ -175,6 +178,7 @@ module PetstoreClient
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def add_pet_photos_with_http_info(pet_id, files:, metadata:)
         if pet_id.nil?
           raise ArgumentError,
@@ -215,6 +219,7 @@ module PetstoreClient
       # @param auth [Auth::Authenticator] authenticator for this operation
       # @param pet_id [Integer] Pet id to delete
       # @return [nil]
+      # @raise [ApiError] if fails to make API call
       def delete_pet(auth, pet_id)
         if pet_id.nil?
           raise ArgumentError,
@@ -225,6 +230,7 @@ module PetstoreClient
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def delete_pet_with_http_info(auth, pet_id)
         if pet_id.nil?
           raise ArgumentError,
@@ -253,6 +259,7 @@ module PetstoreClient
       # @param pet_id [Integer]
       # @param document_id [Integer]
       # @return [File]
+      # @raise [ApiError] if fails to make API call
       def download_pet_document(pet_id, document_id)
         if pet_id.nil?
           raise ArgumentError,
@@ -268,6 +275,7 @@ module PetstoreClient
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def download_pet_document_with_http_info(pet_id, document_id)
         if pet_id.nil?
           raise ArgumentError,
@@ -301,6 +309,7 @@ module PetstoreClient
       # @param status [String] Status values that need to be considered for filter (optional) (deprecated)
       # @param filter [Hash<String, String>] Filter criteria as key-value pairs (optional)
       # @return [Array<Pet>]
+      # @raise [ApiError] if fails to make API call
       # @deprecated This operation is deprecated.
       # @see https://example.com/docs/filtering Find out more about filtering
       def find_pets_by_status(status: nil, filter: nil)
@@ -308,6 +317,7 @@ module PetstoreClient
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def find_pets_by_status_with_http_info(status: nil, filter: nil)
         path = '/pet/findByStatus'
         # @type var query_params: Hash[String, untyped]
@@ -333,6 +343,7 @@ module PetstoreClient
       # Get external pet info
       # @param pet_id [Integer]
       # @return [Pet]
+      # @raise [ApiError] if fails to make API call
       def get_external_pet_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
@@ -343,6 +354,7 @@ module PetstoreClient
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def get_external_pet_info_with_http_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
@@ -371,6 +383,7 @@ module PetstoreClient
       # Get multi-server pet info
       # @param pet_id [Integer]
       # @return [Pet]
+      # @raise [ApiError] if fails to make API call
       def get_multi_server_pet_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
@@ -381,6 +394,7 @@ module PetstoreClient
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def get_multi_server_pet_info_with_http_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
@@ -410,6 +424,7 @@ module PetstoreClient
       # Returns the raw image bytes of the pet&#39;s current avatar.
       # @param pet_id [Integer]
       # @return [File]
+      # @raise [ApiError] if fails to make API call
       def get_pet_avatar(pet_id)
         if pet_id.nil?
           raise ArgumentError,
@@ -420,6 +435,7 @@ module PetstoreClient
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def get_pet_avatar_with_http_info(pet_id)
         if pet_id.nil?
           raise ArgumentError,
@@ -447,6 +463,7 @@ module PetstoreClient
       # Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
       # @param pet_id [Integer]
       # @return [String]
+      # @raise [ApiError] if fails to make API call
       def get_pet_avatar_thumbnail(pet_id)
         if pet_id.nil?
           raise ArgumentError,
@@ -457,6 +474,7 @@ module PetstoreClient
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def get_pet_avatar_thumbnail_with_http_info(pet_id)
         if pet_id.nil?
           raise ArgumentError,
@@ -484,6 +502,7 @@ module PetstoreClient
       # Returns a single pet
       # @param pet_id [Integer] ID of pet to return
       # @return [Pet]
+      # @raise [ApiError] if fails to make API call
       # @deprecated This operation is deprecated.
       def get_pet_by_id(pet_id)
         if pet_id.nil?
@@ -495,6 +514,7 @@ module PetstoreClient
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def get_pet_by_id_with_http_info(pet_id)
         if pet_id.nil?
           raise ArgumentError,
@@ -522,6 +542,7 @@ module PetstoreClient
       # Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
       # @param pet_id [Integer]
       # @return [PetPassport]
+      # @raise [ApiError] if fails to make API call
       def get_pet_passport(pet_id)
         if pet_id.nil?
           raise ArgumentError,
@@ -532,6 +553,7 @@ module PetstoreClient
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def get_pet_passport_with_http_info(pet_id)
         if pet_id.nil?
           raise ArgumentError,
@@ -560,6 +582,7 @@ module PetstoreClient
       # @param pet_id [Integer]
       # @param photo_id [Integer]
       # @return [File]
+      # @raise [ApiError] if fails to make API call
       def get_pet_photo(pet_id, photo_id)
         if pet_id.nil?
           raise ArgumentError,
@@ -575,6 +598,7 @@ module PetstoreClient
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def get_pet_photo_with_http_info(pet_id, photo_id)
         if pet_id.nil?
           raise ArgumentError,
@@ -611,6 +635,7 @@ module PetstoreClient
       # @param sizes [Array<String>] (optional)
       # @param filter [String] (optional)
       # @return [Pet]
+      # @raise [ApiError] if fails to make API call
       def get_pet_tag(pet_id, tag_name, colors: nil, sizes: nil, filter: nil)
         if pet_id.nil?
           raise ArgumentError,
@@ -626,6 +651,7 @@ module PetstoreClient
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def get_pet_tag_with_http_info(pet_id, tag_name, colors: nil, sizes: nil, filter: nil)
         if pet_id.nil?
           raise ArgumentError,
@@ -668,6 +694,7 @@ module PetstoreClient
       # Get staging pet info
       # @param pet_id [Integer]
       # @return [Pet]
+      # @raise [ApiError] if fails to make API call
       def get_staging_pet_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
@@ -678,6 +705,7 @@ module PetstoreClient
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def get_staging_pet_info_with_http_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
@@ -708,6 +736,7 @@ module PetstoreClient
       # @param pet_id [Integer]
       # @param body [File]
       # @return [nil]
+      # @raise [ApiError] if fails to make API call
       def set_pet_avatar(pet_id, body)
         if pet_id.nil?
           raise ArgumentError,
@@ -723,6 +752,7 @@ module PetstoreClient
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def set_pet_avatar_with_http_info(pet_id, body)
         if pet_id.nil?
           raise ArgumentError,
@@ -756,6 +786,7 @@ module PetstoreClient
       # @param pet_id [Integer]
       # @param set_pet_avatar_thumbnail_request [SetPetAvatarThumbnailRequest]
       # @return [nil]
+      # @raise [ApiError] if fails to make API call
       def set_pet_avatar_thumbnail(pet_id, set_pet_avatar_thumbnail_request)
         if pet_id.nil?
           raise ArgumentError,
@@ -771,6 +802,7 @@ module PetstoreClient
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request)
         if pet_id.nil?
           raise ArgumentError,
@@ -803,6 +835,7 @@ module PetstoreClient
       # @param pet_id [Integer] ID of pet to update
       # @param pet [Pet] Pet object that needs to be updated
       # @return [Pet]
+      # @raise [ApiError] if fails to make API call
       def update_pet(pet_id, pet)
         if pet_id.nil?
           raise ArgumentError,
@@ -818,6 +851,7 @@ module PetstoreClient
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def update_pet_with_http_info(pet_id, pet)
         if pet_id.nil?
           raise ArgumentError,
@@ -851,6 +885,7 @@ module PetstoreClient
       # @param pet_id [Integer]
       # @param file [File]
       # @return [ApiResponse]
+      # @raise [ApiError] if fails to make API call
       def upload_pet_certificate(pet_id, file:)
         if pet_id.nil?
           raise ArgumentError,
@@ -866,6 +901,7 @@ module PetstoreClient
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def upload_pet_certificate_with_http_info(pet_id, file:)
         if pet_id.nil?
           raise ArgumentError,
@@ -903,6 +939,7 @@ module PetstoreClient
       # @param document_type [String] (optional)
       # @param notes [String] (optional)
       # @return [ApiResponse]
+      # @raise [ApiError] if fails to make API call
       def upload_pet_document(pet_id, file:, document_type: nil, notes: nil)
         if pet_id.nil?
           raise ArgumentError,
@@ -918,6 +955,7 @@ module PetstoreClient
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def upload_pet_document_with_http_info(pet_id, file:, document_type: nil, notes: nil)
         if pet_id.nil?
           raise ArgumentError,

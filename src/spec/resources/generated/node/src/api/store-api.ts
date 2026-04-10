@@ -18,6 +18,7 @@ export class StoreApi extends BaseApi {
   /**
    * Delete purchase order by ID
    * @param orderId ID of the order to delete (required)
+   * @throws {ApiError} if fails to make API call
    */
   async deleteOrder(orderId: number): Promise<void> {
     if (orderId == null) {
@@ -28,6 +29,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Delete purchase order by ID (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async deleteOrderWithHttpInfo(orderId: number): Promise<ApiResult<void>> {
     if (orderId == null) {
@@ -56,6 +58,7 @@ export class StoreApi extends BaseApi {
   /**
    * Returns pet inventories by status
    * @return { [key: string]: number }
+   * @throws {ApiError} if fails to make API call
    */
   async getInventory(): Promise<{ [key: string]: number }> {
     return (await this.getInventoryWithHttpInfo()).data as { [key: string]: number };
@@ -63,6 +66,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Returns pet inventories by status (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async getInventoryWithHttpInfo(): Promise<ApiResult<{ [key: string]: number }>> {
     const path = `/store/inventory`;
@@ -85,6 +89,7 @@ export class StoreApi extends BaseApi {
    * Find purchase order by ID
    * @param orderId ID of order to return (required)
    * @return Order
+   * @throws {ApiError} if fails to make API call
    */
   async getOrderById(orderId: number): Promise<Order> {
     if (orderId == null) {
@@ -95,6 +100,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Find purchase order by ID (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async getOrderByIdWithHttpInfo(orderId: number): Promise<ApiResult<Order>> {
     if (orderId == null) {
@@ -124,6 +130,7 @@ export class StoreApi extends BaseApi {
    * Place an order for a pet
    * @param order  (optional)
    * @return Order
+   * @throws {ApiError} if fails to make API call
    */
   async placeOrder(order?: Order): Promise<Order> {
     return (await this.placeOrderWithHttpInfo(order)).data as Order;
@@ -131,6 +138,7 @@ export class StoreApi extends BaseApi {
 
   /**
    * Place an order for a pet (with HTTP info)
+   * @throws {ApiError} if fails to make API call
    */
   async placeOrderWithHttpInfo(order?: Order): Promise<ApiResult<Order>> {
     const path = `/store/order`;

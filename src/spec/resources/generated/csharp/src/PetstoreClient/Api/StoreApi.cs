@@ -27,6 +27,7 @@ public class StoreApi : BaseApi
     /// Delete purchase order by ID
     /// </summary>
     /// <param name="orderId">ID of the order to delete</param>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task DeleteOrderAsync(long orderId)
     {
         Task<ApiResult<object?>> task = DeleteOrderWithHttpInfoAsync(orderId);
@@ -36,6 +37,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Delete purchase order by ID (with HTTP info)
     /// </summary>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<object?>> DeleteOrderWithHttpInfoAsync(long orderId)
     {
         string path = "/store/order/{orderId}";
@@ -73,6 +75,7 @@ public class StoreApi : BaseApi
     /// Returns pet inventories by status
     /// </summary>
     /// <returns><![CDATA[Dictionary<string, int>]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Dictionary<string, int>> GetInventoryAsync()
     {
         Task<ApiResult<Dictionary<string, int>>> task = GetInventoryWithHttpInfoAsync();
@@ -84,6 +87,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Returns pet inventories by status (with HTTP info)
     /// </summary>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Dictionary<string, int>>> GetInventoryWithHttpInfoAsync()
     {
         string path = "/store/inventory";
@@ -108,6 +112,7 @@ public class StoreApi : BaseApi
     /// </summary>
     /// <param name="orderId">ID of order to return</param>
     /// <returns><![CDATA[Order]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Order> GetOrderByIdAsync(long orderId)
     {
         Task<ApiResult<Order>> task = GetOrderByIdWithHttpInfoAsync(orderId);
@@ -119,6 +124,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Find purchase order by ID (with HTTP info)
     /// </summary>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Order>> GetOrderByIdWithHttpInfoAsync(long orderId)
     {
         string path = "/store/order/{orderId}";
@@ -157,6 +163,7 @@ public class StoreApi : BaseApi
     /// </summary>
     /// <param name="order"></param>
     /// <returns><![CDATA[Order]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<Order> PlaceOrderAsync(Order? order)
     {
         Task<ApiResult<Order>> task = PlaceOrderWithHttpInfoAsync(order);
@@ -168,6 +175,7 @@ public class StoreApi : BaseApi
     /// <summary>
     /// Place an order for a pet (with HTTP info)
     /// </summary>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<Order>> PlaceOrderWithHttpInfoAsync(Order? order)
     {
         string path = "/store/order";

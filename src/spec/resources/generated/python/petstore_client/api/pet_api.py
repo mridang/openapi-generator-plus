@@ -134,6 +134,7 @@ class PetApi(BaseApi):
         :param auth: authenticator for this operation
         :param pet: Create a new pet in the store (required)
         :return: Pet
+        :raises ApiException: if fails to make API call
         """
         if pet is None:
             raise ValueError("Missing the required parameter 'pet'")
@@ -151,6 +152,7 @@ class PetApi(BaseApi):
         :param auth: authenticator for this operation
         :param pet: Create a new pet in the store (required)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         if pet is None:
             raise ValueError("Missing the required parameter 'pet'")
@@ -185,6 +187,7 @@ class PetApi(BaseApi):
         :param files:  (required)
         :param metadata:  (required)
         :return: List[Photo]
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -212,6 +215,7 @@ class PetApi(BaseApi):
         :param files:  (required)
         :param metadata:  (required)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -253,6 +257,7 @@ class PetApi(BaseApi):
         """Deletes a pet
         :param auth: authenticator for this operation
         :param pet_id: Pet id to delete (required)
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -269,6 +274,7 @@ class PetApi(BaseApi):
         :param auth: authenticator for this operation
         :param pet_id: Pet id to delete (required)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -304,6 +310,7 @@ class PetApi(BaseApi):
         :param pet_id:  (required)
         :param document_id:  (required)
         :return: bytes
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -325,6 +332,7 @@ class PetApi(BaseApi):
         :param pet_id:  (required)
         :param document_id:  (required)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -367,6 +375,7 @@ class PetApi(BaseApi):
         :param status: Status values that need to be considered for filter (optional, default to available) (deprecated)
         :param filter: Filter criteria as key-value pairs (optional)
         :return: List[Pet]
+        :raises ApiException: if fails to make API call
         .. deprecated::
             This operation is deprecated.
         .. seealso::
@@ -386,6 +395,7 @@ class PetApi(BaseApi):
         :param status: Status values that need to be considered for filter (optional)
         :param filter: Filter criteria as key-value pairs (optional)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         path = '/pet/findByStatus'
         query_params: Dict[str, Any] = {}
@@ -418,6 +428,7 @@ class PetApi(BaseApi):
         """Get external pet info
         :param pet_id:  (required)
         :return: Pet
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -434,6 +445,7 @@ class PetApi(BaseApi):
         """Get external pet info (with HTTP info)
         :param pet_id:  (required)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -470,6 +482,7 @@ class PetApi(BaseApi):
         """Get multi-server pet info
         :param pet_id:  (required)
         :return: Pet
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -486,6 +499,7 @@ class PetApi(BaseApi):
         """Get multi-server pet info (with HTTP info)
         :param pet_id:  (required)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -522,6 +536,7 @@ class PetApi(BaseApi):
         Returns the raw image bytes of the pet&#39;s current avatar.
         :param pet_id:  (required)
         :return: bytes
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -538,6 +553,7 @@ class PetApi(BaseApi):
         Returns the raw image bytes of the pet&#39;s current avatar.
         :param pet_id:  (required)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -571,6 +587,7 @@ class PetApi(BaseApi):
         Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
         :param pet_id:  (required)
         :return: bytes
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -587,6 +604,7 @@ class PetApi(BaseApi):
         Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
         :param pet_id:  (required)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -620,6 +638,7 @@ class PetApi(BaseApi):
         Returns a single pet
         :param pet_id: ID of pet to return (required)
         :return: Pet
+        :raises ApiException: if fails to make API call
         .. deprecated::
             This operation is deprecated.
         """
@@ -638,6 +657,7 @@ class PetApi(BaseApi):
         Returns a single pet
         :param pet_id: ID of pet to return (required)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -671,6 +691,7 @@ class PetApi(BaseApi):
         Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
         :param pet_id:  (required)
         :return: PetPassport
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -687,6 +708,7 @@ class PetApi(BaseApi):
         Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
         :param pet_id:  (required)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -722,6 +744,7 @@ class PetApi(BaseApi):
         :param pet_id:  (required)
         :param photo_id:  (required)
         :return: bytes
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -743,6 +766,7 @@ class PetApi(BaseApi):
         :param pet_id:  (required)
         :param photo_id:  (required)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -791,6 +815,7 @@ class PetApi(BaseApi):
         :param sizes:  (optional)
         :param filter:  (optional)
         :return: Pet
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -818,6 +843,7 @@ class PetApi(BaseApi):
         :param sizes:  (optional)
         :param filter:  (optional)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -872,6 +898,7 @@ class PetApi(BaseApi):
         """Get staging pet info
         :param pet_id:  (required)
         :return: Pet
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -888,6 +915,7 @@ class PetApi(BaseApi):
         """Get staging pet info (with HTTP info)
         :param pet_id:  (required)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -925,6 +953,7 @@ class PetApi(BaseApi):
         Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
         :param pet_id:  (required)
         :param body:  (required)
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -945,6 +974,7 @@ class PetApi(BaseApi):
         :param pet_id:  (required)
         :param body:  (required)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -982,6 +1012,7 @@ class PetApi(BaseApi):
         Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
         :param pet_id:  (required)
         :param set_pet_avatar_thumbnail_request:  (required)
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -1002,6 +1033,7 @@ class PetApi(BaseApi):
         :param pet_id:  (required)
         :param set_pet_avatar_thumbnail_request:  (required)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -1039,6 +1071,7 @@ class PetApi(BaseApi):
         :param pet_id: ID of pet to update (required)
         :param pet: Pet object that needs to be updated (required)
         :return: Pet
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -1059,6 +1092,7 @@ class PetApi(BaseApi):
         :param pet_id: ID of pet to update (required)
         :param pet: Pet object that needs to be updated (required)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -1098,6 +1132,7 @@ class PetApi(BaseApi):
         :param pet_id:  (required)
         :param file:  (required)
         :return: ApiResponse
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -1120,6 +1155,7 @@ class PetApi(BaseApi):
         :param pet_id:  (required)
         :param file:  (required)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -1164,6 +1200,7 @@ class PetApi(BaseApi):
         :param document_type:  (optional)
         :param notes:  (optional)
         :return: ApiResponse
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
@@ -1190,6 +1227,7 @@ class PetApi(BaseApi):
         :param document_type:  (optional)
         :param notes:  (optional)
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")

@@ -10,6 +10,8 @@
  * Generator version: 7.14.0
  */
 
+declare(strict_types=1);
+
 namespace PetstoreClient\Api;
 
 use PetstoreClient\ApiClient;
@@ -56,7 +58,7 @@ class BaseApi
         ?ApiClient $apiClient = null,
         ?Configuration $config = null
     ) {
-        $this->config = $config ?: Configuration::getDefaultConfiguration();
+        $this->config = $config ?: Configuration::getDefault();
         $this->apiClient = $apiClient ?: new DefaultApiClient();
         $this->headerSelector = new HeaderSelector();
     }

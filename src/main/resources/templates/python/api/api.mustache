@@ -141,6 +141,7 @@ class {{classname}}(BaseApi):
 {{#returnType}}
         :return: {{{returnType}}}
 {{/returnType}}
+        :raises ApiException: if fails to make API call
 {{#isDeprecated}}
         .. deprecated::
             This operation is deprecated.
@@ -221,6 +222,7 @@ class {{classname}}(BaseApi):
         :param {{paramName}}: {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}
 {{/allParams}}
         :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
         """
 {{#allParams}}
 {{#required}}

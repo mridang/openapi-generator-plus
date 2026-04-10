@@ -110,6 +110,7 @@ module {{moduleName}}
       # @param {{paramName}} [{{{dataType}}}]{{#description}} {{.}}{{/description}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{/cookieParams}}
       # @return [{{{returnType}}}{{^returnType}}nil{{/returnType}}]
+      # @raise [ApiError] if fails to make API call
 {{#isDeprecated}}
       # @deprecated This operation is deprecated.
 {{/isDeprecated}}
@@ -130,6 +131,7 @@ module {{moduleName}}
       end
 
       # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
       def {{operationId}}_with_http_info({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{paramName}}{{^required}} = nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#queryParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#headerParams}}{{#-first}}, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/-last}}{{/queryParams}}{{#headerParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{/-first}}{{/cookieParams}}{{/formParams}}{{/-last}}{{/headerParams}}{{#formParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#cookieParams}}{{#-first}}, {{/-first}}{{/cookieParams}}{{/-last}}{{/formParams}}{{#cookieParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{/cookieParams}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
 {{#allParams}}
 {{#required}}

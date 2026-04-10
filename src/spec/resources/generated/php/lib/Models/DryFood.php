@@ -10,6 +10,8 @@
  * Generator version: 7.14.0
  */
 
+declare(strict_types=1);
+
 namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
