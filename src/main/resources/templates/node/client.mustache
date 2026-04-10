@@ -80,7 +80,7 @@ export class Client {
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-    this.{{clientPropertyName}} = new {{classname}}(config, apiClient);
+    this.{{clientPropertyName}} = new {{classname}}(apiClient, config);
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}

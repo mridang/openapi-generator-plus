@@ -14,9 +14,9 @@ namespace PetstoreClient;
 /// request. Transport-level settings (TLS, proxy, timeouts) belong in
 /// <see cref="TransportOptions"/> and are configured on the <see cref="DefaultApiClient"/>.
 ///
-/// This class is immutable. Use <see cref="CreateBuilder"/> to create instances:
+/// This class is immutable. Use <see cref="Builder"/> to create instances:
 /// <code>
-/// var config = Configuration.CreateBuilder()
+/// var config = Configuration.Builder()
 ///     .BaseUrl("https://api.example.com")
 ///     .DefaultHeader("Authorization", "Bearer token")
 ///     .Build();
@@ -57,7 +57,7 @@ public sealed class Configuration
     /// <summary>
     /// Create a new builder for constructing Configuration instances.
     /// </summary>
-    public static ConfigurationBuilder CreateBuilder()
+    public static ConfigurationBuilder Builder()
     {
         return new ConfigurationBuilder();
     }

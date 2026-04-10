@@ -14,7 +14,7 @@ public class StoreApiTest
     {
         var baseUrl = prism.BaseUrl;
         var config = Configuration
-            .CreateBuilder()
+            .Builder()
             .BaseUrl(baseUrl)
             .DefaultHeader("Authorization", "Bearer test-token")
             .Build();

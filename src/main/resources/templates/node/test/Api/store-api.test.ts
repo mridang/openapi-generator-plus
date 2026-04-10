@@ -6,7 +6,7 @@ const config = Configuration.builder()
   .baseUrl(process.env.API_BASE_URL || 'http://localhost:4010')
   .defaultHeader('Authorization', 'Bearer test-token')
   .build();
-const api = new StoreApi(config);
+const api = new StoreApi(undefined, config);
 
 describe('StoreApi', () => {
   test('getInventory', async () => {

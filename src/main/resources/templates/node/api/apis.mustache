@@ -65,8 +65,8 @@ export class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
 {{/tagExternalDocs}}
  */
 export class {{classname}} extends BaseApi {
-  constructor(config?: Configuration, apiClient?: ApiClient) {
-    super(config, apiClient);
+  constructor(apiClient?: ApiClient, config?: Configuration) {
+    super(apiClient, config);
   }
   {{#operation}}
 

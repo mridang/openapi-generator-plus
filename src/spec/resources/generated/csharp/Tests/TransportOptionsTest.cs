@@ -8,7 +8,7 @@ public class TransportOptionsTest
     [Fact]
     public void BuilderProducesCorrectDefaults()
     {
-        var opts = TransportOptions.CreateBuilder().Build();
+        var opts = TransportOptions.Builder().Build();
 
         Assert.True(opts.VerifySsl);
         Assert.Null(opts.CaCertPath);
@@ -25,7 +25,7 @@ public class TransportOptionsTest
     public void BuilderSetsAllFields()
     {
         var opts = TransportOptions
-            .CreateBuilder()
+            .Builder()
             .VerifySsl(false)
             .CaCertPath("/path/to/ca.pem")
             .Proxy("http://proxy:8080")
@@ -53,7 +53,7 @@ public class TransportOptionsTest
     {
         var headers = new Dictionary<string, string> { { "X-Original", "original" } };
 
-        var opts = TransportOptions.CreateBuilder().DefaultHeaders(headers).Build();
+        var opts = TransportOptions.Builder().DefaultHeaders(headers).Build();
 
         headers["X-Added"] = "added";
 

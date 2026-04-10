@@ -11,8 +11,8 @@ import { Order } from '../models/index.js';
  * Access to Petstore orders
  */
 export class StoreApi extends BaseApi {
-  constructor(config?: Configuration, apiClient?: ApiClient) {
-    super(config, apiClient);
+  constructor(apiClient?: ApiClient, config?: Configuration) {
+    super(apiClient, config);
   }
 
   /**

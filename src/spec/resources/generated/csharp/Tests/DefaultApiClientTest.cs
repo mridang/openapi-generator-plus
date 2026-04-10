@@ -17,7 +17,7 @@ public class DefaultApiClientTest
     [Fact]
     public async Task MakesHttpsRequestWithVerifySslFalse()
     {
-        var transport = TransportOptions.CreateBuilder().VerifySsl(false).Build();
+        var transport = TransportOptions.Builder().VerifySsl(false).Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
@@ -35,7 +35,7 @@ public class DefaultApiClientTest
     public async Task MakesHttpsRequestWithCustomCaCert()
     {
         var transport = TransportOptions
-            .CreateBuilder()
+            .Builder()
             .VerifySsl(true)
             .CaCertPath(_fixture.CaCertPath)
             .Build();
@@ -55,7 +55,7 @@ public class DefaultApiClientTest
     [Fact]
     public async Task MakesHttpRequestThroughProxy()
     {
-        var transport = TransportOptions.CreateBuilder().Proxy(_fixture.ProxyUrl).Build();
+        var transport = TransportOptions.Builder().Proxy(_fixture.ProxyUrl).Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
@@ -73,7 +73,7 @@ public class DefaultApiClientTest
     public async Task MakesHttpsRequestThroughProxyWithVerifySslFalse()
     {
         var transport = TransportOptions
-            .CreateBuilder()
+            .Builder()
             .Proxy(_fixture.ProxyUrl)
             .VerifySsl(false)
             .Build();
@@ -125,7 +125,7 @@ public class DefaultApiClientTest
     [Fact]
     public async Task TimesOutOnSlowEndpoint()
     {
-        var transport = TransportOptions.CreateBuilder().Timeout(1).Build();
+        var transport = TransportOptions.Builder().Timeout(1).Build();
 
         var client = new DefaultApiClient(transport);
 
@@ -145,7 +145,7 @@ public class DefaultApiClientTest
     [Fact]
     public async Task InjectsCustomUserAgentHeader()
     {
-        var transport = TransportOptions.CreateBuilder().UserAgent("MyApp/1.0").Build();
+        var transport = TransportOptions.Builder().UserAgent("MyApp/1.0").Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
@@ -165,7 +165,7 @@ public class DefaultApiClientTest
     [Fact]
     public async Task InjectsRequestIdHeaderWithUuidFormat()
     {
-        var transport = TransportOptions.CreateBuilder().InjectRequestId(true).Build();
+        var transport = TransportOptions.Builder().InjectRequestId(true).Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
@@ -188,7 +188,7 @@ public class DefaultApiClientTest
     [Fact]
     public async Task GeneratesUniqueRequestIdPerRequest()
     {
-        var transport = TransportOptions.CreateBuilder().InjectRequestId(true).Build();
+        var transport = TransportOptions.Builder().InjectRequestId(true).Build();
 
         var client = new DefaultApiClient(transport);
 
@@ -219,7 +219,7 @@ public class DefaultApiClientTest
     public async Task IncludesTransportDefaultHeaders()
     {
         var transport = TransportOptions
-            .CreateBuilder()
+            .Builder()
             .DefaultHeader("X-Custom", "custom-value")
             .Build();
 
@@ -239,10 +239,7 @@ public class DefaultApiClientTest
     [Fact]
     public async Task CallerHeadersOverrideTransportDefaults()
     {
-        var transport = TransportOptions
-            .CreateBuilder()
-            .DefaultHeader("Accept", "text/plain")
-            .Build();
+        var transport = TransportOptions.Builder().DefaultHeader("Accept", "text/plain").Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
@@ -262,7 +259,7 @@ public class DefaultApiClientTest
     [Fact]
     public async Task FollowsRedirectsWhenEnabled()
     {
-        var transport = TransportOptions.CreateBuilder().FollowRedirects(true).Build();
+        var transport = TransportOptions.Builder().FollowRedirects(true).Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
@@ -279,7 +276,7 @@ public class DefaultApiClientTest
     [Fact]
     public async Task ReturnsRedirectWhenDisabled()
     {
-        var transport = TransportOptions.CreateBuilder().FollowRedirects(false).Build();
+        var transport = TransportOptions.Builder().FollowRedirects(false).Build();
 
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(

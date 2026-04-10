@@ -84,8 +84,8 @@ export class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServe
  * @see {@link https://example.com/docs/pets} Find out more about pets
  */
 export class PetApi extends BaseApi {
-  constructor(config?: Configuration, apiClient?: ApiClient) {
-    super(config, apiClient);
+  constructor(apiClient?: ApiClient, config?: Configuration) {
+    super(apiClient, config);
   }
 
   /**

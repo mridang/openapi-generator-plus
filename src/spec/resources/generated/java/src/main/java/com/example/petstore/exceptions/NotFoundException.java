@@ -1,6 +1,5 @@
 package com.example.petstore.exceptions;
 
-import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -10,7 +9,7 @@ public class NotFoundException extends ClientException {
 
   public NotFoundException(
       String message,
-      @Nullable Map<String, List<String>> responseHeaders,
+      @Nullable Map<String, String> responseHeaders,
       @Nullable String responseBody,
       @Nullable Object errorBody) {
     super(404, message, responseHeaders, responseBody, errorBody);

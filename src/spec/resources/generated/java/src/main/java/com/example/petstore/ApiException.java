@@ -1,6 +1,5 @@
 package com.example.petstore;
 
-import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -9,7 +8,7 @@ public class ApiException extends Exception {
   private static final long serialVersionUID = 1L;
 
   private final int code;
-  @Nullable private final transient Map<String, List<String>> responseHeaders;
+  @Nullable private final transient Map<String, String> responseHeaders;
   @Nullable private final String responseBody;
   @Nullable private final transient Object errorBody;
 
@@ -40,7 +39,7 @@ public class ApiException extends Exception {
       String message,
       @Nullable Throwable throwable,
       int code,
-      @Nullable Map<String, List<String>> responseHeaders,
+      @Nullable Map<String, String> responseHeaders,
       @Nullable String responseBody) {
     super(message, throwable);
     this.code = code;
@@ -52,7 +51,7 @@ public class ApiException extends Exception {
   public ApiException(
       String message,
       int code,
-      @Nullable Map<String, List<String>> responseHeaders,
+      @Nullable Map<String, String> responseHeaders,
       @Nullable String responseBody) {
     this(message, null, code, responseHeaders, responseBody);
   }
@@ -61,11 +60,11 @@ public class ApiException extends Exception {
       String message,
       @Nullable Throwable throwable,
       int code,
-      @Nullable Map<String, List<String>> responseHeaders) {
+      @Nullable Map<String, String> responseHeaders) {
     this(message, throwable, code, responseHeaders, null);
   }
 
-  public ApiException(int code, Map<String, List<String>> responseHeaders, String responseBody) {
+  public ApiException(int code, Map<String, String> responseHeaders, String responseBody) {
     this(
         "Response Code: " + code + " Response Body: " + responseBody,
         null,
@@ -81,7 +80,7 @@ public class ApiException extends Exception {
   public ApiException(
       int code,
       String message,
-      @Nullable Map<String, List<String>> responseHeaders,
+      @Nullable Map<String, String> responseHeaders,
       @Nullable String responseBody) {
     this(message, null, code, responseHeaders, responseBody);
   }
@@ -89,7 +88,7 @@ public class ApiException extends Exception {
   public ApiException(
       int code,
       String message,
-      @Nullable Map<String, List<String>> responseHeaders,
+      @Nullable Map<String, String> responseHeaders,
       @Nullable String responseBody,
       @Nullable Object errorBody) {
     super(message);
@@ -111,10 +110,10 @@ public class ApiException extends Exception {
   /**
    * Get the HTTP response headers.
    *
-   * @return A map of list of string
+   * @return HTTP response headers
    */
   @Nullable
-  public Map<String, List<String>> getResponseHeaders() {
+  public Map<String, String> getResponseHeaders() {
     return responseHeaders;
   }
 

@@ -1,7 +1,6 @@
 package com.example.petstore.exceptions;
 
 import com.example.petstore.ApiException;
-import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -12,7 +11,7 @@ public class ClientException extends ApiException {
   public ClientException(
       int code,
       String message,
-      @Nullable Map<String, List<String>> responseHeaders,
+      @Nullable Map<String, String> responseHeaders,
       @Nullable String responseBody,
       @Nullable Object errorBody) {
     super(code, message, responseHeaders, responseBody, errorBody);

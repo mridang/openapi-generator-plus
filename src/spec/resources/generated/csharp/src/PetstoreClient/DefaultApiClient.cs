@@ -30,10 +30,10 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
 
     /// <summary>
     /// Create a client with default transport settings.
-    /// Equivalent to <c>new DefaultApiClient(TransportOptions.CreateBuilder().Build())</c>.
+    /// Equivalent to <c>new DefaultApiClient(TransportOptions.Builder().Build())</c>.
     /// </summary>
     public DefaultApiClient()
-        : this(TransportOptions.CreateBuilder().Build()) { }
+        : this(TransportOptions.Builder().Build()) { }
 
     /// <summary>
     /// Create a client configured from the given <see cref="TransportOptions"/>.
@@ -111,7 +111,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     public DefaultApiClient(HttpClient httpClient)
     {
         _httpClient = httpClient;
-        _transportOptions = TransportOptions.CreateBuilder().Build();
+        _transportOptions = TransportOptions.Builder().Build();
     }
 
     /// <inheritdoc/>

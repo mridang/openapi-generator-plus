@@ -14,9 +14,9 @@ namespace {{packageName}};
 /// are independent of API-level concerns (base URL, authentication headers)
 /// which belong in <see cref="Configuration"/>.
 ///
-/// This class is immutable and thread-safe. Use <see cref="CreateBuilder"/> to create instances:
+/// This class is immutable and thread-safe. Use <see cref="Builder"/> to create instances:
 /// <code>
-/// var transport = TransportOptions.CreateBuilder()
+/// var transport = TransportOptions.Builder()
 ///     .VerifySsl(false)
 ///     .Proxy("http://proxy.example.com:8080")
 ///     .Timeout(5000)
@@ -125,7 +125,7 @@ public sealed class TransportOptions
     /// Create a new builder for constructing <see cref="TransportOptions"/> instances.
     /// </summary>
     /// <returns>A new builder with sensible defaults.</returns>
-    public static TransportOptionsBuilder CreateBuilder()
+    public static TransportOptionsBuilder Builder()
     {
         return new TransportOptionsBuilder();
     }

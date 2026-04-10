@@ -20,7 +20,7 @@ public class PetApiTest
         var baseUrl = prism.BaseUrl;
         _auth = new BearerAuthenticator(baseUrl, "test-token");
         var config = Configuration
-            .CreateBuilder()
+            .Builder()
             .BaseUrl(baseUrl)
             .DefaultHeader("Authorization", "Bearer test-token")
             .Build();

@@ -55,7 +55,7 @@ const wiremockUrl = process.env.WIREMOCK_HTTP_URL!;
 
 function api(): TestableApi {
   const config = new Configuration({ baseUrl: wiremockUrl });
-  return new TestableApi(config, new DefaultApiClient());
+  return new TestableApi(new DefaultApiClient(), config);
 }
 
 describe('BaseApi exception dispatch', () => {
@@ -250,7 +250,7 @@ describe('Configuration server variable overrides', () => {
   test('API request uses resolved server URL', async () => {
     const config = Configuration.builder().server(variableServer, { environment: 'staging' }).build();
     expect(config.baseUrl).toBe('https://staging.example.com/api/v3');
-    const testApi = new TestableApi(config, new DefaultApiClient());
+    const testApi = new TestableApi(new DefaultApiClient(), config);
     expect(testApi).toBeDefined();
   });
 });

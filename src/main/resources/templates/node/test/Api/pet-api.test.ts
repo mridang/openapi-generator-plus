@@ -9,7 +9,7 @@ const config = Configuration.builder()
   .baseUrl(baseUrl)
   .defaultHeader('Authorization', 'Bearer test-token')
   .build();
-const api = new PetApi(config);
+const api = new PetApi(undefined, config);
 const auth = new BearerAuthenticator(baseUrl, 'test-token');
 
 describe('PetApi', () => {
@@ -137,7 +137,7 @@ describe('PetApi', () => {
     const externalConfig = Configuration.builder()
       .baseUrl(baseUrl)
       .build();
-    const externalApi = new PetApi(externalConfig);
+    const externalApi = new PetApi(undefined, externalConfig);
 
     try {
       await externalApi.getExternalPetInfo(1);

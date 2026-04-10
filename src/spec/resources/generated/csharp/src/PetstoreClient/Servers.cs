@@ -7,7 +7,7 @@ namespace PetstoreClient;
 /// <c>servers</c> array. Use these constants with
 /// <see cref="ConfigurationBuilder.BaseUrl(string)"/> to select a server:
 /// <code>
-/// var config = Configuration.CreateBuilder()
+/// var config = Configuration.Builder()
 ///     .BaseUrl(Servers.Server0.GetUrl())
 ///     .Build();
 /// </code>

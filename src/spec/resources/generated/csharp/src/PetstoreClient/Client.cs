@@ -18,7 +18,7 @@ namespace PetstoreClient;
 /// var client = new Client(authenticator);
 ///
 /// // Custom transport (proxy, timeouts, etc.)
-/// var transport = TransportOptions.CreateBuilder()
+/// var transport = TransportOptions.Builder()
 ///     .Proxy("http://proxy:3128")
 ///     .Timeout(5000)
 ///     .Build();
@@ -40,7 +40,7 @@ public sealed class Client : IDisposable
     /// </summary>
     /// <param name="authenticator">Provides host URL and auth credentials.</param>
     public Client(IAuthenticator authenticator)
-        : this(authenticator, TransportOptions.CreateBuilder().Build()) { }
+        : this(authenticator, TransportOptions.Builder().Build()) { }
 
     /// <summary>
     /// Creates a new client with the given authenticator and transport options.
@@ -64,7 +64,7 @@ public sealed class Client : IDisposable
         }
 
         ConfigurationBuilder configBuilder = Configuration
-            .CreateBuilder()
+            .Builder()
             .BaseUrl(authenticator.GetHost());
         foreach (KeyValuePair<string, string> header in authenticator.GetAuthHeaders())
         {

@@ -34,14 +34,14 @@ export abstract class BaseApi {
   /**
    * Create an API instance.
    *
-   * @param config API-level configuration (base URL and default headers).
-   *   When omitted the {@link Configuration.getDefault default configuration} is used.
    * @param apiClient the HTTP transport client.
    *   When omitted a {@link DefaultApiClient} with default transport options is used.
+   * @param config API-level configuration (base URL and default headers).
+   *   When omitted the {@link Configuration.getDefault default configuration} is used.
    */
-  constructor(config?: Configuration, apiClient?: ApiClient) {
-    this.config = config ?? Configuration.getDefault();
+  constructor(apiClient?: ApiClient, config?: Configuration) {
     this.apiClient = apiClient ?? new DefaultApiClient();
+    this.config = config ?? Configuration.getDefault();
     this.headerSelector = new HeaderSelector();
   }
 

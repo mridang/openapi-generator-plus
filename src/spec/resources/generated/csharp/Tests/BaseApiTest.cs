@@ -297,7 +297,7 @@ public class BaseApiTest
     public void ServerVariableOverridesResolveInBaseUrl()
     {
         var config = Configuration
-            .CreateBuilder()
+            .Builder()
             .Server(
                 Servers.Server1,
                 new Dictionary<string, string> { { "environment", "staging" } }
@@ -309,7 +309,7 @@ public class BaseApiTest
     [Fact]
     public void DefaultServerVariablesProduceCorrectBaseUrl()
     {
-        var config = Configuration.CreateBuilder().Server(Servers.Server1).Build();
+        var config = Configuration.Builder().Server(Servers.Server1).Build();
         Assert.Equal("https://api.example.com/api/v3", config.BaseUrl);
     }
 
@@ -319,7 +319,7 @@ public class BaseApiTest
         Assert.Throws<ArgumentException>(
             () =>
                 Configuration
-                    .CreateBuilder()
+                    .Builder()
                     .Server(
                         Servers.Server1,
                         new Dictionary<string, string> { { "environment", "invalid" } }
@@ -332,7 +332,7 @@ public class BaseApiTest
     public void ApiRequestUsesResolvedServerUrl()
     {
         var config = Configuration
-            .CreateBuilder()
+            .Builder()
             .Server(
                 Servers.Server1,
                 new Dictionary<string, string> { { "environment", "staging" } }

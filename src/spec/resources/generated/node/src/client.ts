@@ -68,8 +68,8 @@ export class Client {
       .baseUrl(authenticator.getHost())
       .defaultHeaders(authenticator.getAuthHeaders())
       .build();
-    this.pet = new PetApi(config, apiClient);
-    this.store = new StoreApi(config, apiClient);
+    this.pet = new PetApi(apiClient, config);
+    this.store = new StoreApi(apiClient, config);
   }
 
   /**
