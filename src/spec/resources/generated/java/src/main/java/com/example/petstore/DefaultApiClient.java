@@ -214,10 +214,10 @@ public final class DefaultApiClient implements ApiClient {
 
       return new ApiResponse(response.statusCode(), responseBody, responseHeaders);
     } catch (IOException e) {
-      throw new ApiException(e);
+      throw new ApiException(e.toString());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      throw new ApiException(e);
+      throw new ApiException(e.toString());
     }
   }
 

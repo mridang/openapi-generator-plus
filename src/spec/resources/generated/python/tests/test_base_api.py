@@ -99,9 +99,9 @@ class TestExceptionDispatch:
     def test_throws_correct_exception(self, api: Any, status: Any, expected_class: Any) -> None:
         with pytest.raises(expected_class) as exc_info:
             api.call('GET', f'/api/error/{status}', {}, {}, None, ['application/json'], 'application/json', None)
-        assert exc_info.value.status == status
-        assert exc_info.value.body is not None
-        assert len(exc_info.value.body) > 0
+        assert exc_info.value.code == status
+        assert exc_info.value.response_body is not None
+        assert len(exc_info.value.response_body) > 0
 
 
 class TestExceptionHierarchy:

@@ -29,7 +29,7 @@ class ApiException extends Exception
     /**
      * The HTTP headers of the server response.
      *
-     * @var string[][]|null
+     * @var array<string, string>|null
      */
     protected ?array $responseHeaders;
 
@@ -39,7 +39,7 @@ class ApiException extends Exception
     protected mixed $errorBody;
 
     /**
-     * @param string[][]|null $responseHeaders HTTP response headers
+     * @param array<string, string>|null $responseHeaders HTTP response headers
      */
     public function __construct(
         string $message = "",
@@ -57,7 +57,7 @@ class ApiException extends Exception
     /**
      * Gets the HTTP response headers.
      *
-     * @return string[][]|null HTTP response headers
+     * @return array<string, string>|null HTTP response headers
      */
     public function getResponseHeaders(): ?array
     {

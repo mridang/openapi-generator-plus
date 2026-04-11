@@ -275,6 +275,7 @@ public abstract class BaseApi {
         int code = response.statusCode();
         String message = "API returned status code " + code;
         String body = response.body();
+        Map<String, String> headers = response.headers();
 
         Object errorBody = null;
         if (body != null && !body.isEmpty()) {
@@ -287,22 +288,22 @@ public abstract class BaseApi {
 
         if (code >= 400 && code < 500) {
             throw switch (code) {
-                case 400 -> new BadRequestException(message, null, body, errorBody);
-                case 401 -> new UnauthorizedException(message, null, body, errorBody);
-                case 403 -> new ForbiddenException(message, null, body, errorBody);
-                case 404 -> new NotFoundException(message, null, body, errorBody);
-                case 409 -> new ConflictException(message, null, body, errorBody);
-                case 422 -> new UnprocessableEntityException(message, null, body, errorBody);
-                default  -> new ClientException(code, message, null, body, errorBody);
+                case 400 -> new BadRequestException(message, headers, body, errorBody);
+                case 401 -> new UnauthorizedException(message, headers, body, errorBody);
+                case 403 -> new ForbiddenException(message, headers, body, errorBody);
+                case 404 -> new NotFoundException(message, headers, body, errorBody);
+                case 409 -> new ConflictException(message, headers, body, errorBody);
+                case 422 -> new UnprocessableEntityException(message, headers, body, errorBody);
+                default  -> new ClientException(code, message, headers, body, errorBody);
             };
         }
         if (code >= 500) {
             throw switch (code) {
-                case 500 -> new InternalServerErrorException(message, null, body, errorBody);
-                default  -> new ServerException(code, message, null, body, errorBody);
+                case 500 -> new InternalServerErrorException(message, headers, body, errorBody);
+                default  -> new ServerException(code, message, headers, body, errorBody);
             };
         }
-        throw new ApiException(code, message, null, body);
+        throw new ApiException(code, message, headers, body);
     }
 
     /**

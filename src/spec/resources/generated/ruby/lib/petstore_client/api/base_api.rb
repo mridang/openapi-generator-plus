@@ -131,7 +131,7 @@ module PetstoreClient
           end
         end
 
-        err_opts = { message: msg, response_body: body, error_body: parsed }
+        err_opts = { message: msg, response_body: body, response_headers: response.headers, error_body: parsed }
 
         if code >= 400 && code < 500
           raise case code

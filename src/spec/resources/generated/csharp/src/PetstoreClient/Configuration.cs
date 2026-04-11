@@ -108,16 +108,16 @@ public sealed class ConfigurationBuilder
     /// <summary>
     /// Set the base URL by resolving a server configuration with optional variable overrides.
     /// </summary>
-    /// <param name="server">The server configuration to resolve.</param>
+    /// <param name="serverConfig">The server configuration to resolve.</param>
     /// <param name="variables">Optional variable overrides. Defaults are used for unspecified variables.</param>
     /// <returns>This builder.</returns>
     public ConfigurationBuilder Server(
-        ServerConfiguration server,
+        ServerConfiguration serverConfig,
         Dictionary<string, string>? variables = null
     )
     {
-        ArgumentNullException.ThrowIfNull(server);
-        _baseUrl = server.GetUrl(variables ?? []);
+        ArgumentNullException.ThrowIfNull(serverConfig);
+        _baseUrl = serverConfig.GetUrl(variables ?? []);
         return this;
     }
 

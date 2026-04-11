@@ -11,8 +11,9 @@ module PetstoreClient
   module Errors
     # Exception for HTTP 404 Not Found.
     class NotFoundError < ClientError
-      def initialize(message: nil, response_body: nil, error_body: nil)
-        super({ code: 404, message: message, response_body: response_body, error_body: error_body })
+      def initialize(message: nil, response_body: nil, response_headers: nil, error_body: nil)
+        super({ code: 404, message: message, response_body: response_body, response_headers: response_headers,
+                error_body: error_body })
       end
     end
   end

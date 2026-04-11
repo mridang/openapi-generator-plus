@@ -9,11 +9,11 @@ class UnprocessableEntityException(ClientException):
 
     def __init__(
         self,
-        reason: Optional[str] = None,
+        message: Optional[str] = None,
         http_resp: Optional[Any] = None,
         *,
-        body: Optional[str] = None,
-        data: Optional[Any] = None,
+        response_body: Optional[str] = None,
+        response_headers: Optional[Any] = None,
         error_body: Optional[Any] = None,
     ) -> None:
-        super().__init__(status=422, reason=reason, http_resp=http_resp, body=body, data=data, error_body=error_body)
+        super().__init__(code=422, message=message, http_resp=http_resp, response_body=response_body, response_headers=response_headers, error_body=error_body)

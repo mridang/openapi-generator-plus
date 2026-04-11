@@ -138,23 +138,24 @@ public final class Configuration {
      * the base URL. Variables not present in the map use their default values. Enum validation is
      * performed by {@link ServerConfiguration#getUrl(Map)}.
      *
-     * @param server the server configuration to use
+     * @param serverConfig the server configuration to use
      * @param variables variable overrides (may be null for defaults)
      * @return this builder
      */
-    public Builder server(ServerConfiguration server, @Nullable Map<String, String> variables) {
-      this.baseUrl = server.getUrl(variables != null ? variables : Map.of());
+    public Builder server(
+        ServerConfiguration serverConfig, @Nullable Map<String, String> variables) {
+      this.baseUrl = serverConfig.getUrl(variables != null ? variables : Map.of());
       return this;
     }
 
     /**
      * Use a server configuration with default variables to set the base URL.
      *
-     * @param server the server configuration to use
+     * @param serverConfig the server configuration to use
      * @return this builder
      */
-    public Builder server(ServerConfiguration server) {
-      return server(server, null);
+    public Builder server(ServerConfiguration serverConfig) {
+      return server(serverConfig, null);
     }
 
     /**

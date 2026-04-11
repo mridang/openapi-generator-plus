@@ -11,8 +11,9 @@ module PetstoreClient
   module Errors
     # Exception for HTTP 422 Unprocessable Entity.
     class UnprocessableEntityError < ClientError
-      def initialize(message: nil, response_body: nil, error_body: nil)
-        super({ code: 422, message: message, response_body: response_body, error_body: error_body })
+      def initialize(message: nil, response_body: nil, response_headers: nil, error_body: nil)
+        super({ code: 422, message: message, response_body: response_body, response_headers: response_headers,
+                error_body: error_body })
       end
     end
   end

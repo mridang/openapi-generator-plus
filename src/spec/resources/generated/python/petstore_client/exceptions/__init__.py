@@ -107,41 +107,40 @@ class ApiKeyError(OpenApiException, KeyError):
 class ApiException(OpenApiException):
     def __init__(
         self,
-        status: Optional[int] = None,
-        reason: Optional[str] = None,
+        code: Optional[int] = None,
+        message: Optional[str] = None,
         http_resp: Optional[Any] = None,
         *,
-        body: Optional[str] = None,
-        data: Optional[Any] = None,
+        response_body: Optional[str] = None,
+        response_headers: Optional[Any] = None,
         error_body: Optional[Any] = None,
     ) -> None:
-        self.status = status
-        self.reason = reason
-        self.body = body
-        self.data = data
-        self.headers: Optional[Any] = None
+        self.code = code
+        self.message = message
+        self.response_body = response_body
+        self.response_headers = response_headers
         self.error_body = error_body
 
         if http_resp:
-            if self.status is None:
-                self.status = http_resp.status
-            if self.reason is None:
-                self.reason = http_resp.reason
-            if self.body is None:
+            if self.code is None:
+                self.code = http_resp.status
+            if self.message is None:
+                self.message = http_resp.reason
+            if self.response_body is None:
                 try:
-                    self.body = http_resp.data.decode('utf-8')
+                    self.response_body = http_resp.data.decode('utf-8')
                 except Exception:
                     pass
-            self.headers = http_resp.getheaders()
+            self.response_headers = http_resp.getheaders()
 
     def __str__(self) -> str:
         """Custom error messages for exception"""
-        error_message = '({0})\nReason: {1}\n'.format(self.status, self.reason)
-        if self.headers:
-            error_message += 'HTTP response headers: {0}\n'.format(self.headers)
+        error_message = '({0})\nReason: {1}\n'.format(self.code, self.message)
+        if self.response_headers:
+            error_message += 'HTTP response headers: {0}\n'.format(self.response_headers)
 
-        if self.data or self.body:
-            error_message += 'HTTP response body: {0}\n'.format(self.data or self.body)
+        if self.response_body:
+            error_message += 'HTTP response body: {0}\n'.format(self.response_body)
 
         return error_message
 

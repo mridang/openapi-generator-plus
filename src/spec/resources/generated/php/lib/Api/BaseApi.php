@@ -208,8 +208,8 @@ class BaseApi
     private function throwApiException(ApiResponse $response): never
     {
         $code = $response->statusCode;
-        $message = sprintf('[%d] Error', $code);
-        $headers = $response->headers;
+        $message = "API returned status code $code";
+        $headers = array_map(fn(array $values): string => $values[0] ?? '', $response->headers);
         $body = $response->body;
 
         $errorBody = null;

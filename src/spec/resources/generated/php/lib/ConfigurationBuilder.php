@@ -71,13 +71,13 @@ final class ConfigurationBuilder
      * Enum validation is performed by {@see ServerConfiguration::getUrl()}.
      * If the user also calls baseUrl() after server(), the explicit baseUrl wins (last-write-wins).
      *
-     * @param ServerConfiguration       $server    the server configuration to resolve
-     * @param array<string, string> $variables variable name to value overrides
+     * @param ServerConfiguration       $serverConfig the server configuration to resolve
+     * @param array<string, string> $variables    variable name to value overrides
      * @return self this builder
      */
-    public function server(ServerConfiguration $server, array $variables = []): self
+    public function server(ServerConfiguration $serverConfig, array $variables = []): self
     {
-        $this->baseUrl = $server->getUrl($variables);
+        $this->baseUrl = $serverConfig->getUrl($variables);
         return $this;
     }
 

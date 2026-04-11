@@ -12,21 +12,6 @@ public class ApiException extends Exception {
   @Nullable private final String responseBody;
   @Nullable private final transient Object errorBody;
 
-  public ApiException() {
-    this.code = 0;
-    this.responseHeaders = null;
-    this.responseBody = null;
-    this.errorBody = null;
-  }
-
-  public ApiException(Throwable throwable) {
-    super(throwable);
-    this.code = 0;
-    this.responseHeaders = null;
-    this.responseBody = null;
-    this.errorBody = null;
-  }
-
   public ApiException(String message) {
     super(message);
     this.code = 0;
@@ -36,53 +21,11 @@ public class ApiException extends Exception {
   }
 
   public ApiException(
-      String message,
-      @Nullable Throwable throwable,
-      int code,
-      @Nullable Map<String, String> responseHeaders,
-      @Nullable String responseBody) {
-    super(message, throwable);
-    this.code = code;
-    this.responseHeaders = responseHeaders;
-    this.responseBody = responseBody;
-    this.errorBody = null;
-  }
-
-  public ApiException(
-      String message,
-      int code,
-      @Nullable Map<String, String> responseHeaders,
-      @Nullable String responseBody) {
-    this(message, null, code, responseHeaders, responseBody);
-  }
-
-  public ApiException(
-      String message,
-      @Nullable Throwable throwable,
-      int code,
-      @Nullable Map<String, String> responseHeaders) {
-    this(message, throwable, code, responseHeaders, null);
-  }
-
-  public ApiException(int code, Map<String, String> responseHeaders, String responseBody) {
-    this(
-        "Response Code: " + code + " Response Body: " + responseBody,
-        null,
-        code,
-        responseHeaders,
-        responseBody);
-  }
-
-  public ApiException(int code, String message) {
-    this(message, null, code, null, null);
-  }
-
-  public ApiException(
       int code,
       String message,
       @Nullable Map<String, String> responseHeaders,
       @Nullable String responseBody) {
-    this(message, null, code, responseHeaders, responseBody);
+    this(code, message, responseHeaders, responseBody, null);
   }
 
   public ApiException(
