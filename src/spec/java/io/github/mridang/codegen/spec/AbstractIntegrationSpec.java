@@ -66,6 +66,7 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
             .withFileSystemBind(
                 tempOutputDir.toAbsolutePath().toString(), "/app", BindMode.READ_WRITE)
             .withFileSystemBind("/var/run/docker.sock", "/var/run/docker.sock", BindMode.READ_WRITE)
+            .withExtraHost("host.docker.internal", "host-gateway")
             .withEnv("TESTCONTAINERS_HOST_OVERRIDE", "host.docker.internal")
             .withEnv("TC_HOST", "host.docker.internal")
             .withEnv("DOCKER_HOST", "unix:///var/run/docker.sock")
