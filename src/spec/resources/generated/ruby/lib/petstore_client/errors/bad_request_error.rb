@@ -12,8 +12,13 @@ module PetstoreClient
     # Exception for HTTP 400 Bad Request.
     class BadRequestError < ClientError
       def initialize(message: nil, response_body: nil, response_headers: nil, error_body: nil)
-        super({ code: 400, message: message, response_body: response_body, response_headers: response_headers,
-                error_body: error_body })
+        super({
+          code: 400,
+          message: message,
+          response_body: response_body,
+          response_headers: response_headers,
+          error_body: error_body
+        })
       end
     end
   end

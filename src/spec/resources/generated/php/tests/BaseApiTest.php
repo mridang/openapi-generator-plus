@@ -71,14 +71,17 @@ class TestAuthenticator implements Authenticator
     {
         return '';
     }
+
     public function getAuthHeaders(): array
     {
         return $this->headers;
     }
+
     public function getQueryParams(): array
     {
         return $this->queryParams;
     }
+
     public function getCookieParams(): array
     {
         return $this->cookies;

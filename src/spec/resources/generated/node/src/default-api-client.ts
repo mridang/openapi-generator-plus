@@ -161,12 +161,14 @@ export class DefaultApiClient implements ApiClient {
           connectReq.on('connect', (_res, socket) => {
             const tlsOptions: https.RequestOptions = {
               host: parsed.hostname,
+              servername: parsed.hostname,
               port: Number(parsed.port) || 443,
               path: parsed.pathname + parsed.search,
               method,
               headers,
               createConnection: () => socket,
-              agent: this.agent ?? new https.Agent({ rejectUnauthorized: this.transportOptions.verifySsl })
+              rejectUnauthorized: this.transportOptions.verifySsl !== false,
+              agent: false
             };
             if (this.transportOptions.timeout != null) {
               tlsOptions.timeout = this.transportOptions.timeout;
