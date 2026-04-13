@@ -40,7 +40,7 @@ describe PetstoreClient::DefaultApiClient do
 
   describe 'HTTP proxy' do
     it 'makes HTTP request through proxy' do
-      wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
+      wiremock_url = ENV.fetch('WIREMOCK_INTERNAL_HTTP_URL')
       proxy_url = ENV.fetch('PROXY_URL')
 
       transport = PetstoreClient::TransportOptions.builder
@@ -57,7 +57,7 @@ describe PetstoreClient::DefaultApiClient do
 
   describe 'HTTP proxy with TLS' do
     it 'makes HTTPS request through proxy with verify_ssl=false' do
-      wiremock_url = ENV.fetch('WIREMOCK_HTTPS_URL')
+      wiremock_url = ENV.fetch('WIREMOCK_INTERNAL_HTTPS_URL')
       proxy_url = ENV.fetch('PROXY_URL')
 
       transport = PetstoreClient::TransportOptions.builder

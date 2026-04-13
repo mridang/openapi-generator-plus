@@ -60,7 +60,7 @@ public class DefaultApiClientTest
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
             "GET",
-            new Uri(_fixture.WireMockHttpUrl + "/api/test"),
+            new Uri(_fixture.WireMockInternalHttpUrl + "/api/test"),
             new Dictionary<string, string>(),
             null
         );
@@ -81,7 +81,7 @@ public class DefaultApiClientTest
         var client = new DefaultApiClient(transport);
         var response = await client.SendRequestAsync(
             "GET",
-            new Uri(_fixture.WireMockHttpsUrl + "/api/test"),
+            new Uri(_fixture.WireMockInternalHttpsUrl + "/api/test"),
             new Dictionary<string, string>(),
             null
         );

@@ -23,6 +23,7 @@ Minitest::Reporters.use! [
 require 'minitest/autorun'
 require 'minitest/pride'
 require 'testcontainers'
+require 'docker'
 require 'net/http'
 require 'petstore_client'
 
@@ -64,6 +65,11 @@ PetstoreClient.configure do |b|
   b.default_header 'Authorization', 'Bearer test-token'
 end
 
+# Create a shared Docker network for proxy tests so Squid can reach WireMock
+# directly via container alias, avoiding host.docker.internal DNS issues.
+PROXY_NETWORK = Docker::Network.create('proxy-test-network')
+Minitest.after_run { PROXY_NETWORK.remove }
+
 # Start WireMock server with HTTPS
 keystore_path = File.join(host_app_path, 'certs', 'server-keystore.p12')
 mappings_path = File.join(host_app_path, 'wiremock', 'mappings')
@@ -95,9 +101,13 @@ Minitest.after_run { WIREMOCK.stop }
   sleep 1
 end
 
+PROXY_NETWORK.connect(WIREMOCK._container.id, {}, { 'EndpointConfig' => { 'Aliases' => ['wiremock'] } })
+
 wiremock_host = ENV['TESTCONTAINERS_HOST_OVERRIDE'] || WIREMOCK.host
 ENV['WIREMOCK_HTTPS_URL'] = "https://#{wiremock_host}:#{WIREMOCK.mapped_port(8443)}"
 ENV['WIREMOCK_HTTP_URL'] = "http://#{wiremock_host}:#{WIREMOCK.mapped_port(8080)}"
+ENV['WIREMOCK_INTERNAL_HTTP_URL'] = 'http://wiremock:8080'
+ENV['WIREMOCK_INTERNAL_HTTPS_URL'] = 'https://wiremock:8443'
 
 # Start Squid proxy
 squid_conf_path = File.join(host_app_path, 'proxy', 'squid.conf')
@@ -108,6 +118,8 @@ SQUID.with_filesystem_binds(["#{squid_conf_path}:/etc/squid/squid.conf:ro"])
 
 SQUID.start
 Minitest.after_run { SQUID.stop }
+
+PROXY_NETWORK.connect(SQUID._container.id)
 
 sleep 3
 

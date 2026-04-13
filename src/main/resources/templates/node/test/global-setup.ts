@@ -1,4 +1,4 @@
-import { GenericContainer, Wait } from 'testcontainers';
+import { GenericContainer, Network, Wait } from 'testcontainers';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -13,6 +13,10 @@ export default async function globalSetup() {
     .withWaitStrategy(Wait.forLogMessage('Prism is listening'))
     .withStartupTimeout(120000)
     .start();
+
+  // Create a shared Docker network so Squid can reach WireMock directly
+  // via container alias, avoiding host.docker.internal DNS issues.
+  const proxyNetwork = await new Network().start();
 
   const keystorePath = path.join(hostAppPath, 'certs', 'server-keystore.p12');
   const mappingsPath = path.join(hostAppPath, 'wiremock', 'mappings');
@@ -32,6 +36,8 @@ export default async function globalSetup() {
       '--key-manager-password', 'changeit',
       '--verbose',
     ])
+    .withNetwork(proxyNetwork)
+    .withNetworkAliases('wiremock')
     .withWaitStrategy(Wait.forLogMessage('port:'))
     .withStartupTimeout(120000)
     .start();
@@ -43,6 +49,7 @@ export default async function globalSetup() {
     .withBindMounts([
       { source: squidConfPath, target: '/etc/squid/squid.conf', mode: 'ro' },
     ])
+    .withNetwork(proxyNetwork)
     .withStartupTimeout(120000)
     .start();
 
@@ -53,6 +60,8 @@ export default async function globalSetup() {
   const wiremockHost = wiremock.getHost();
   const wiremockHttpsUrl = `https://${wiremockHost}:${wiremock.getMappedPort(8443)}`;
   const wiremockHttpUrl = `http://${wiremockHost}:${wiremock.getMappedPort(8080)}`;
+  const wiremockInternalHttpUrl = 'http://wiremock:8080';
+  const wiremockInternalHttpsUrl = 'https://wiremock:8443';
   const proxyUrl = `http://${squid.getHost()}:${squid.getMappedPort(3128)}`;
   const caCertPath = path.join(process.cwd(), 'certs', 'ca.pem');
 
@@ -60,6 +69,8 @@ export default async function globalSetup() {
     baseUrl,
     wiremockHttpsUrl,
     wiremockHttpUrl,
+    wiremockInternalHttpUrl,
+    wiremockInternalHttpsUrl,
     proxyUrl,
     caCertPath,
   }));
@@ -70,4 +81,6 @@ export default async function globalSetup() {
   (globalThis as any).__WIREMOCK_CONTAINER__ = wiremock;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (globalThis as any).__SQUID_CONTAINER__ = squid;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).__PROXY_NETWORK__ = proxyNetwork;
 }

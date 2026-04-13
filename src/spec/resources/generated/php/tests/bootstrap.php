@@ -66,6 +66,15 @@ $wiremockHost = $wiremock->getHost();
 putenv('WIREMOCK_HTTPS_URL=https://' . $wiremockHost . ':' . safeGetMappedPort($wiremock, 8443));
 putenv('WIREMOCK_HTTP_URL=http://' . $wiremockHost . ':' . safeGetMappedPort($wiremock, 8080));
 
+// Create a shared Docker network so Squid can reach WireMock directly
+// via container alias, avoiding host.docker.internal DNS issues.
+$networkName = 'proxy-test-network-' . bin2hex(random_bytes(4));
+shell_exec("docker network create $networkName 2>/dev/null");
+shell_exec("docker network connect --alias wiremock $networkName " . $wiremock->getId());
+
+putenv('WIREMOCK_INTERNAL_HTTP_URL=http://wiremock:8080');
+putenv('WIREMOCK_INTERNAL_HTTPS_URL=https://wiremock:8443');
+
 // Start Squid proxy
 $squidConfPath = $hostAppPath . '/proxy/squid.conf';
 
@@ -74,14 +83,17 @@ $squid = (new GenericContainer('ubuntu/squid:5.2-22.04_beta'))
     ->withMount($squidConfPath, '/etc/squid/squid.conf')
     ->start();
 
+shell_exec("docker network connect $networkName " . $squid->getId());
+
 // Give Squid a moment to initialize
 sleep(3);
 
 putenv('PROXY_URL=http://' . $squid->getHost() . ':' . safeGetMappedPort($squid, 3128));
 putenv('CA_CERT_PATH=' . getcwd() . '/certs/ca.pem');
 
-register_shutdown_function(function () use ($prism, $wiremock, $squid): void {
+register_shutdown_function(function () use ($prism, $wiremock, $squid, $networkName): void {
     $squid->stop();
     $wiremock->stop();
     $prism->stop();
+    shell_exec("docker network rm $networkName 2>/dev/null");
 });

@@ -34,7 +34,7 @@ describe('DefaultApiClient', () => {
 
   describe('HTTP proxy', () => {
     test('makes HTTP request through proxy', async () => {
-      const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
+      const wiremockUrl = process.env['WIREMOCK_INTERNAL_HTTP_URL']!;
       const proxyUrl = process.env['PROXY_URL']!;
 
       const transport = TransportOptions.builder().proxy(proxyUrl).build();
@@ -49,7 +49,7 @@ describe('DefaultApiClient', () => {
 
   describe('HTTP proxy with TLS', () => {
     test('makes HTTPS request through proxy with verifySsl=false', async () => {
-      const wiremockUrl = process.env['WIREMOCK_HTTPS_URL']!;
+      const wiremockUrl = process.env['WIREMOCK_INTERNAL_HTTPS_URL']!;
       const proxyUrl = process.env['PROXY_URL']!;
 
       const transport = TransportOptions.builder().proxy(proxyUrl).verifySsl(false).build();

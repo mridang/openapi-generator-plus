@@ -3,11 +3,15 @@ package com.example.petstore;
 import java.nio.file.Path;
 import java.time.Duration;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.MountableFile;
 
 /** Singleton WireMock container with HTTPS support, shared across all test classes. */
 public final class WireMockContainer {
+
+  /** Shared Docker network so Squid can reach WireMock via container alias. */
+  static final Network PROXY_NETWORK = Network.newNetwork();
 
   private static final GenericContainer<?> INSTANCE;
 
@@ -35,6 +39,8 @@ public final class WireMockContainer {
                 "--key-manager-password",
                 "changeit",
                 "--verbose")
+            .withNetwork(PROXY_NETWORK)
+            .withNetworkAliases("wiremock")
             .waitingFor(Wait.forLogMessage(".*port:.*", 1))
             .withStartupTimeout(Duration.ofSeconds(60));
     INSTANCE.start();
@@ -48,5 +54,13 @@ public final class WireMockContainer {
 
   public static String getHttpUrl() {
     return "http://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(8080);
+  }
+
+  public static String getInternalHttpUrl() {
+    return "http://wiremock:8080";
+  }
+
+  public static String getInternalHttpsUrl() {
+    return "https://wiremock:8443";
   }
 }

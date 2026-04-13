@@ -1,16 +1,20 @@
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Configurations;
 using DotNet.Testcontainers.Containers;
+using DotNet.Testcontainers.Networks;
 using Xunit;
 
 namespace Tests;
 
 public class WireMockSquidFixture : IAsyncLifetime
 {
+    private INetwork _network = null!;
     private IContainer _wiremock = null!;
     private IContainer _squid = null!;
     public string WireMockHttpsUrl { get; private set; } = string.Empty;
     public string WireMockHttpUrl { get; private set; } = string.Empty;
+    public string WireMockInternalHttpUrl { get; private set; } = string.Empty;
+    public string WireMockInternalHttpsUrl { get; private set; } = string.Empty;
     public string ProxyUrl { get; private set; } = string.Empty;
     public string CaCertPath { get; private set; } = string.Empty;
 
@@ -20,6 +24,11 @@ public class WireMockSquidFixture : IAsyncLifetime
         var keystorePath = Path.Combine(hostAppPath, "certs", "server-keystore.p12");
         var mappingsPath = Path.Combine(hostAppPath, "wiremock", "mappings");
         var squidConfPath = Path.Combine(hostAppPath, "proxy", "squid.conf");
+
+        // Create a shared Docker network so Squid can reach WireMock directly
+        // via container alias, avoiding host.docker.internal DNS issues.
+        _network = new NetworkBuilder().Build();
+        await _network.CreateAsync();
 
         _wiremock = new ContainerBuilder()
             .WithImage("wiremock/wiremock:3.13.0")
@@ -35,6 +44,8 @@ public class WireMockSquidFixture : IAsyncLifetime
                 "--keystore-password", "changeit",
                 "--key-manager-password", "changeit",
                 "--verbose")
+            .WithNetwork(_network)
+            .WithNetworkAliases("wiremock")
             .WithWaitStrategy(Wait.ForUnixContainer().UntilMessageIsLogged("port:"))
             .Build();
 
@@ -42,6 +53,7 @@ public class WireMockSquidFixture : IAsyncLifetime
             .WithImage("ubuntu/squid:5.2-22.04_beta")
             .WithPortBinding(3128, true)
             .WithBindMount(squidConfPath, "/etc/squid/squid.conf", AccessMode.ReadOnly)
+            .WithNetwork(_network)
             .Build();
 
         await Task.WhenAll(_wiremock.StartAsync(), _squid.StartAsync());
@@ -51,6 +63,8 @@ public class WireMockSquidFixture : IAsyncLifetime
 
         WireMockHttpsUrl = $"https://{_wiremock.Hostname}:{_wiremock.GetMappedPublicPort(8443)}";
         WireMockHttpUrl = $"http://{_wiremock.Hostname}:{_wiremock.GetMappedPublicPort(8080)}";
+        WireMockInternalHttpUrl = "http://wiremock:8080";
+        WireMockInternalHttpsUrl = "https://wiremock:8443";
         ProxyUrl = $"http://{_squid.Hostname}:{_squid.GetMappedPublicPort(3128)}";
         CaCertPath = "/app/certs/ca.pem";
     }
@@ -58,6 +72,7 @@ public class WireMockSquidFixture : IAsyncLifetime
     public async Task DisposeAsync()
     {
         await Task.WhenAll(_wiremock.DisposeAsync().AsTask(), _squid.DisposeAsync().AsTask());
+        await _network.DisposeAsync();
     }
 }
 

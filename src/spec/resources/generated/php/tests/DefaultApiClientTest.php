@@ -50,7 +50,7 @@ class DefaultApiClientTest extends TestCase
 
     public function testMakesHttpRequestThroughProxy(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
+        $wiremockUrl = getenv('WIREMOCK_INTERNAL_HTTP_URL') ?: '';
         $proxyUrl = getenv('PROXY_URL') ?: null;
 
         $transport = TransportOptions::builder()
@@ -68,7 +68,7 @@ class DefaultApiClientTest extends TestCase
 
     public function testMakesHttpsRequestThroughProxyWithVerifySslFalse(): void
     {
-        $wiremockUrl = getenv('WIREMOCK_HTTPS_URL') ?: '';
+        $wiremockUrl = getenv('WIREMOCK_INTERNAL_HTTPS_URL') ?: '';
         $proxyUrl = getenv('PROXY_URL') ?: null;
 
         $transport = TransportOptions::builder()

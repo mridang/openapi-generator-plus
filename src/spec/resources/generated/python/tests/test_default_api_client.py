@@ -28,10 +28,10 @@ class TestCustomCaBundle:
 
 
 class TestHttpProxy:
-    def test_makes_http_request_through_proxy(self, wiremock_http_url: Any, proxy_url: Any) -> None:
+    def test_makes_http_request_through_proxy(self, wiremock_internal_http_url: Any, proxy_url: Any) -> None:
         transport = TransportOptions.builder().proxy(proxy_url).build()
         client = DefaultApiClient(transport)
-        response = client.send_request('GET', wiremock_http_url + '/api/test', {}, None)
+        response = client.send_request('GET', wiremock_internal_http_url + '/api/test', {}, None)
 
         assert response.status_code == 200
         assert 'success' in response.body
@@ -39,11 +39,11 @@ class TestHttpProxy:
 
 class TestHttpProxyWithTls:
     def test_makes_https_request_through_proxy_with_verify_ssl_false(
-        self, wiremock_https_url: Any, proxy_url: Any
+        self, wiremock_internal_https_url: Any, proxy_url: Any
     ) -> None:
         transport = TransportOptions.builder().proxy(proxy_url).verify_ssl(False).build()
         client = DefaultApiClient(transport)
-        response = client.send_request('GET', wiremock_https_url + '/api/test', {}, None)
+        response = client.send_request('GET', wiremock_internal_https_url + '/api/test', {}, None)
 
         assert response.status_code == 200
         assert 'success' in response.body

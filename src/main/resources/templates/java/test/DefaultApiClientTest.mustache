@@ -66,7 +66,7 @@ class DefaultApiClientTest {
         @Test
         @DisplayName("makes HTTP request through proxy")
         void makesHttpRequestThroughProxy() throws ApiException {
-            String wiremockUrl = WireMockContainer.getHttpUrl();
+            String wiremockUrl = WireMockContainer.getInternalHttpUrl();
             String proxyUrl = SquidContainer.getProxyUrl();
 
             TransportOptions transport = TransportOptions.builder()
@@ -89,7 +89,7 @@ class DefaultApiClientTest {
         @Test
         @DisplayName("makes HTTPS request through proxy with verifySsl=false")
         void makesHttpsRequestThroughProxyWithVerifySslFalse() throws ApiException {
-            String wiremockUrl = WireMockContainer.getHttpsUrl();
+            String wiremockUrl = WireMockContainer.getInternalHttpsUrl();
             String proxyUrl = SquidContainer.getProxyUrl();
 
             TransportOptions transport = TransportOptions.builder()

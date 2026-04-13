@@ -1,6 +1,7 @@
 import os
 import time
 
+import docker
 import pytest
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.wait_strategies import LogMessageWaitStrategy
@@ -31,7 +32,15 @@ def api_base_url(prism_container):
 
 
 @pytest.fixture(scope='session')
-def wiremock_container():
+def proxy_network():
+    client = docker.from_env()
+    network = client.networks.create('proxy-test-network')
+    yield network
+    network.remove()
+
+
+@pytest.fixture(scope='session')
+def wiremock_container(proxy_network):
     host_app_path = os.environ.get('HOST_APP_PATH', os.getcwd())
     keystore_path = os.path.join(host_app_path, 'certs', 'server-keystore.p12')
     mappings_path = os.path.join(host_app_path, 'wiremock', 'mappings')
@@ -49,12 +58,13 @@ def wiremock_container():
         .waiting_for(LogMessageWaitStrategy('port:'))
     )
     container.start()
+    proxy_network.connect(container._container.id, aliases=['wiremock'])
     yield container
     container.stop()
 
 
 @pytest.fixture(scope='session')
-def squid_container():
+def squid_container(proxy_network):
     host_app_path = os.environ.get('HOST_APP_PATH', os.getcwd())
     squid_conf_path = os.path.join(host_app_path, 'proxy', 'squid.conf')
 
@@ -64,6 +74,7 @@ def squid_container():
         .with_volume_mapping(squid_conf_path, '/etc/squid/squid.conf', 'ro')
     )
     container.start()
+    proxy_network.connect(container._container.id)
     time.sleep(3)
     yield container
     container.stop()
@@ -81,6 +92,16 @@ def wiremock_http_url(wiremock_container):
     host = wiremock_container.get_container_host_ip()
     port = wiremock_container.get_exposed_port(8080)
     return f'http://{host}:{port}'
+
+
+@pytest.fixture(scope='session')
+def wiremock_internal_http_url():
+    return 'http://wiremock:8080'
+
+
+@pytest.fixture(scope='session')
+def wiremock_internal_https_url():
+    return 'https://wiremock:8443'
 
 
 @pytest.fixture(scope='session')
