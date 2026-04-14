@@ -56,5 +56,5 @@ jobs:
         if: always()
         uses: mridang/action-test-reporter@v3
         with:
-          results-path: 'target/surefire-reports/*.xml'
+          results-path: 'target/reports/**/*.xml'
           coverage-path: 'target/coverage/jacoco.xml'
