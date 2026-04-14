@@ -4,6 +4,7 @@ import { TransportOptions } from './transport-options{{importFileExtension}}';
 import * as crypto from 'node:crypto';
 import * as https from 'node:https';
 import * as http from 'node:http';
+import * as tls from 'node:tls';
 import * as fs from 'node:fs';
 import * as zlib from 'node:zlib';
 import { promisify } from 'node:util';
@@ -159,21 +160,28 @@ export class DefaultApiClient implements ApiClient {
           });
 
           connectReq.on('connect', (_res, socket) => {
-            const tlsOptions: https.RequestOptions = {
-              host: parsed.hostname,
+            // Wrap the tunnel socket with TLS manually so that
+            // http.request never attempts DNS resolution on the
+            // target hostname (which is only reachable via the proxy).
+            const tlsSocket = tls.connect({
+              socket,
               servername: parsed.hostname,
-              port: Number(parsed.port) || 443,
+              rejectUnauthorized: this.transportOptions.verifySsl !== false,
+              ca: this.transportOptions.caCertPath
+                ? fs.readFileSync(this.transportOptions.caCertPath)
+                : undefined
+            });
+            const reqOptions: http.RequestOptions = {
+              createConnection: () => tlsSocket,
               path: parsed.pathname + parsed.search,
               method,
-              headers,
-              createConnection: () => socket,
-              rejectUnauthorized: this.transportOptions.verifySsl !== false,
+              headers: { ...headers, Host: parsed.host },
               agent: false
             };
             if (this.transportOptions.timeout != null) {
-              tlsOptions.timeout = this.transportOptions.timeout;
+              reqOptions.timeout = this.transportOptions.timeout;
             }
-            const req = https.request(tlsOptions, (res) =>
+            const req = http.request(reqOptions, (res) =>
               this.handleResponse(res, url, method, headers, body, redirectCount, resolve, reject)
             );
             req.on('error', reject);

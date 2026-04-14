@@ -73,26 +73,35 @@ $dockerSocket = getenv('DOCKER_HOST') ?: 'unix:///var/run/docker.sock';
 $socketPath = str_replace('unix://', '', $dockerSocket);
 $networkName = 'proxy-test-network-' . bin2hex(random_bytes(4));
 
-$ch = curl_init("http://localhost/networks/create");
-curl_setopt($ch, CURLOPT_UNIX_SOCKET_PATH, $socketPath);
-curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['Name' => $networkName]));
-curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_exec($ch);
-curl_close($ch);
+/**
+ * Send a request to the Docker Engine API via Unix socket.
+ *
+ * @param string                              $socketPath Unix socket path
+ * @param string                              $endpoint   API path (e.g. "/networks/create")
+ * @param string                              $method     HTTP method
+ * @param array<string, mixed>|null           $body       JSON body to send
+ */
+function dockerApiRequest(string $socketPath, string $endpoint, string $method = 'POST', ?array $body = null): void
+{
+    $ch = curl_init("http://localhost$endpoint");
+    curl_setopt_array($ch, [
+        CURLOPT_UNIX_SOCKET_PATH => $socketPath,
+        CURLOPT_CUSTOMREQUEST => $method,
+        CURLOPT_RETURNTRANSFER => true,
+    ]);
+    if ($body !== null) {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, (string) json_encode($body));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+    }
+    curl_exec($ch);
+    curl_close($ch);
+}
 
-$ch = curl_init("http://localhost/networks/$networkName/connect");
-curl_setopt($ch, CURLOPT_UNIX_SOCKET_PATH, $socketPath);
-curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode([
+dockerApiRequest($socketPath, '/networks/create', 'POST', ['Name' => $networkName]);
+dockerApiRequest($socketPath, "/networks/$networkName/connect", 'POST', [
     'Container' => $wiremock->getId(),
     'EndpointConfig' => ['Aliases' => ['wiremock']],
-]));
-curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_exec($ch);
-curl_close($ch);
+]);
 
 putenv('WIREMOCK_INTERNAL_HTTP_URL=http://wiremock:8080');
 putenv('WIREMOCK_INTERNAL_HTTPS_URL=https://wiremock:8443');
@@ -105,14 +114,9 @@ $squid = (new GenericContainer('ubuntu/squid:5.2-22.04_beta'))
     ->withMount($squidConfPath, '/etc/squid/squid.conf')
     ->start();
 
-$ch = curl_init("http://localhost/networks/$networkName/connect");
-curl_setopt($ch, CURLOPT_UNIX_SOCKET_PATH, $socketPath);
-curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['Container' => $squid->getId()]));
-curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-curl_exec($ch);
-curl_close($ch);
+dockerApiRequest($socketPath, "/networks/$networkName/connect", 'POST', [
+    'Container' => $squid->getId(),
+]);
 
 // Give Squid a moment to initialize
 sleep(3);
@@ -124,10 +128,5 @@ register_shutdown_function(function () use ($prism, $wiremock, $squid, $networkN
     $squid->stop();
     $wiremock->stop();
     $prism->stop();
-    $ch = curl_init("http://localhost/networks/$networkName");
-    curl_setopt($ch, CURLOPT_UNIX_SOCKET_PATH, $socketPath);
-    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_exec($ch);
-    curl_close($ch);
+    dockerApiRequest($socketPath, "/networks/$networkName", 'DELETE');
 });
