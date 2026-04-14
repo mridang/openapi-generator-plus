@@ -84,11 +84,9 @@ $networkName = 'proxy-test-network-' . bin2hex(random_bytes(4));
 function dockerApiRequest(string $socketPath, string $endpoint, string $method = 'POST', ?array $body = null): void
 {
     $ch = curl_init("http://localhost$endpoint");
-    curl_setopt_array($ch, [
-        CURLOPT_UNIX_SOCKET_PATH => $socketPath,
-        CURLOPT_CUSTOMREQUEST => $method,
-        CURLOPT_RETURNTRANSFER => true,
-    ]);
+    curl_setopt($ch, CURLOPT_UNIX_SOCKET_PATH, $socketPath);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     if ($body !== null) {
         curl_setopt($ch, CURLOPT_POSTFIELDS, (string) json_encode($body));
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);

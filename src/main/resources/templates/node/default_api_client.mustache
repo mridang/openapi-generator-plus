@@ -160,23 +160,23 @@ export class DefaultApiClient implements ApiClient {
           });
 
           connectReq.on('connect', (_res, socket) => {
-            // Wrap the tunnel socket with TLS manually so that
-            // http.request never attempts DNS resolution on the
-            // target hostname (which is only reachable via the proxy).
-            const tlsSocket = tls.connect({
-              socket,
-              servername: parsed.hostname,
-              rejectUnauthorized: this.transportOptions.verifySsl !== false,
-              ca: this.transportOptions.caCertPath
-                ? fs.readFileSync(this.transportOptions.caCertPath)
-                : undefined
-            });
+            const proxyAgent = new http.Agent();
+            (proxyAgent as unknown as { createConnection: () => tls.TLSSocket }).createConnection = () =>
+              tls.connect({
+                socket,
+                servername: parsed.hostname,
+                rejectUnauthorized: this.transportOptions.verifySsl !== false,
+                ca: this.transportOptions.caCertPath
+                  ? fs.readFileSync(this.transportOptions.caCertPath)
+                  : undefined
+              });
             const reqOptions: http.RequestOptions = {
-              createConnection: () => tlsSocket,
+              hostname: parsed.hostname,
+              port: Number(parsed.port) || 443,
               path: parsed.pathname + parsed.search,
               method,
-              headers: { ...headers, Host: parsed.host },
-              agent: false
+              headers,
+              agent: proxyAgent
             };
             if (this.transportOptions.timeout != null) {
               reqOptions.timeout = this.transportOptions.timeout;
