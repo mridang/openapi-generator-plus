@@ -20,6 +20,8 @@ group :development, :test do
   gem 'simplecov-cobertura', require: false
   gem 'steep', require: false
 {{#generateTests}}
+  gem 'base64'
+  gem 'docker-api', '~> 2.4'
   gem 'testcontainers', '~> 0.2'
 {{/generateTests}}
   gem 'zstd-ruby', '~> 1.5'
