@@ -1,0 +1,241 @@
+# frozen_string_literal: true
+
+require 'json'
+require 'test_helper'
+
+describe PetstoreClient::DefaultApiClient do
+  describe 'TLS verification disabled' do
+    it 'makes HTTPS request with verify_ssl=false' do
+      wiremock_url = ENV.fetch('WIREMOCK_HTTPS_URL')
+
+      transport = PetstoreClient::TransportOptions.builder
+        .verify_ssl(false)
+        .build
+
+      client = PetstoreClient::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{wiremock_url}/api/test", {}, nil)
+
+      _(response.status_code).must_equal(200)
+      _(response.body).must_include('success')
+    end
+  end
+
+  describe 'custom CA bundle' do
+    it 'makes HTTPS request with custom CA cert' do
+      wiremock_url = ENV.fetch('WIREMOCK_HTTPS_URL')
+      ca_cert_path = ENV.fetch('CA_CERT_PATH')
+
+      transport = PetstoreClient::TransportOptions.builder
+        .verify_ssl(true)
+        .ca_cert_path(ca_cert_path)
+        .build
+
+      client = PetstoreClient::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{wiremock_url}/api/test", {}, nil)
+
+      _(response.status_code).must_equal(200)
+      _(response.body).must_include('success')
+    end
+  end
+
+  describe 'HTTP proxy' do
+    it 'makes HTTP request through proxy' do
+      wiremock_url = ENV.fetch('WIREMOCK_INTERNAL_HTTP_URL')
+      proxy_url = ENV.fetch('PROXY_URL')
+
+      transport = PetstoreClient::TransportOptions.builder
+        .proxy(proxy_url)
+        .build
+
+      client = PetstoreClient::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{wiremock_url}/api/test", {}, nil)
+
+      _(response.status_code).must_equal(200)
+      _(response.body).must_include('success')
+    end
+  end
+
+  describe 'HTTP proxy with TLS' do
+    it 'makes HTTPS request through proxy with verify_ssl=false' do
+      wiremock_url = ENV.fetch('WIREMOCK_INTERNAL_HTTPS_URL')
+      proxy_url = ENV.fetch('PROXY_URL')
+
+      transport = PetstoreClient::TransportOptions.builder
+        .proxy(proxy_url)
+        .verify_ssl(false)
+        .build
+
+      client = PetstoreClient::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{wiremock_url}/api/test", {}, nil)
+
+      _(response.status_code).must_equal(200)
+      _(response.body).must_include('success')
+    end
+  end
+
+  describe 'HTTP compression' do
+    it 'decompresses gzip response' do
+      client = PetstoreClient::DefaultApiClient.new
+      response = client.send_request(
+        :GET, 'https://jsonplaceholder.typicode.com/posts/1',
+        { 'Accept-Encoding' => 'gzip' }, nil
+      )
+
+      _(response.status_code).must_equal(200)
+      _(response.body).must_include('userId')
+    end
+
+    it 'decompresses brotli response' do
+      client = PetstoreClient::DefaultApiClient.new
+      response = client.send_request(
+        :GET, 'https://jsonplaceholder.typicode.com/posts/1',
+        { 'Accept-Encoding' => 'br' }, nil
+      )
+
+      _(response.status_code).must_equal(200)
+      _(response.body).must_include('userId')
+    end
+
+    it 'decompresses zstd response' do
+      client = PetstoreClient::DefaultApiClient.new
+      response = client.send_request(
+        :GET, 'https://jsonplaceholder.typicode.com/posts/1',
+        { 'Accept-Encoding' => 'zstd' }, nil
+      )
+
+      _(response.status_code).must_equal(200)
+      _(response.body).must_include('userId')
+    end
+  end
+
+  describe 'request timeout' do
+    it 'times out on slow endpoint' do
+      wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
+
+      transport = PetstoreClient::TransportOptions.builder
+        .timeout(1)
+        .build
+
+      client = PetstoreClient::DefaultApiClient.new(transport)
+      _ { client.send_request(:GET, "#{wiremock_url}/api/slow", {}, nil) }.must_raise StandardError
+    end
+  end
+
+  describe 'User-Agent header' do
+    it 'injects custom User-Agent header' do
+      wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
+
+      transport = PetstoreClient::TransportOptions.builder
+        .user_agent('MyApp/1.0')
+        .build
+
+      client = PetstoreClient::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{wiremock_url}/api/echo-headers", {}, nil)
+
+      _(response.status_code).must_equal(200)
+      json = JSON.parse(response.body)
+      _(json['user-agent']).must_equal('MyApp/1.0')
+    end
+  end
+
+  describe 'X-Request-ID injection' do
+    it 'injects X-Request-ID header with UUID format' do
+      wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
+
+      transport = PetstoreClient::TransportOptions.builder
+        .inject_request_id(true)
+        .build
+
+      client = PetstoreClient::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{wiremock_url}/api/echo-headers", {}, nil)
+
+      _(response.status_code).must_equal(200)
+      json = JSON.parse(response.body)
+      request_id = json['x-request-id']
+      _(request_id).wont_be_nil
+      _(request_id).must_match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
+    end
+
+    it 'generates unique X-Request-ID per request' do
+      wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
+
+      transport = PetstoreClient::TransportOptions.builder
+        .inject_request_id(true)
+        .build
+
+      client = PetstoreClient::DefaultApiClient.new(transport)
+
+      response1 = client.send_request(:GET, "#{wiremock_url}/api/echo-headers", {}, nil)
+      request_id1 = JSON.parse(response1.body)['x-request-id']
+
+      response2 = client.send_request(:GET, "#{wiremock_url}/api/echo-headers", {}, nil)
+      request_id2 = JSON.parse(response2.body)['x-request-id']
+
+      _(request_id1).wont_equal(request_id2)
+    end
+  end
+
+  describe 'default headers' do
+    it 'includes transport-level default headers' do
+      wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
+
+      transport = PetstoreClient::TransportOptions.builder
+        .default_header('X-Custom', 'custom-value')
+        .build
+
+      client = PetstoreClient::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{wiremock_url}/api/echo-headers", {}, nil)
+
+      _(response.status_code).must_equal(200)
+      json = JSON.parse(response.body)
+      _(json['x-custom']).must_equal('custom-value')
+    end
+
+    it 'caller headers override transport default headers' do
+      wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
+
+      transport = PetstoreClient::TransportOptions.builder
+        .default_header('Accept', 'text/plain')
+        .build
+
+      client = PetstoreClient::DefaultApiClient.new(transport)
+      response = client.send_request(
+        :GET, "#{wiremock_url}/api/echo-headers",
+        { 'Accept' => 'application/json' }, nil
+      )
+
+      _(response.status_code).must_equal(200)
+      json = JSON.parse(response.body)
+      _(json['accept']).must_equal('application/json')
+    end
+  end
+
+  describe 'redirect handling' do
+    it 'follows redirects when enabled' do
+      wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
+
+      transport = PetstoreClient::TransportOptions.builder
+        .follow_redirects(true)
+        .build
+
+      client = PetstoreClient::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{wiremock_url}/api/redirect", {}, nil)
+
+      _(response.status_code).must_equal(200)
+      _(response.body).must_include('success')
+    end
+
+    it 'returns redirect response when disabled' do
+      wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
+
+      transport = PetstoreClient::TransportOptions.builder
+        .follow_redirects(false)
+        .build
+
+      client = PetstoreClient::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{wiremock_url}/api/redirect", {}, nil)
+
+      _(response.status_code).must_equal(302)
+    end
+  end
+end

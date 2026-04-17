@@ -1,15 +1,15 @@
 export default {
   testEnvironment: 'node',
-  testMatch: ['**/tests/**/*.test.ts'],
+  testMatch: ['**/test/**/*.test.ts'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1'
   },
   transform: {
     '^.+\\.tsx?$': ['ts-jest', { diagnostics: false }]
   },
-  globalSetup: '<rootDir>/tests/global-setup.ts',
-  globalTeardown: '<rootDir>/tests/global-teardown.ts',
-  setupFiles: ['<rootDir>/tests/setup.ts'],
+  globalSetup: '<rootDir>/test/global-setup.ts',
+  globalTeardown: '<rootDir>/test/global-teardown.ts',
+  setupFiles: ['<rootDir>/test/setup.ts'],
   collectCoverage: true,
   coverageDirectory: '.out',
   coverageReporters: ['cobertura'],

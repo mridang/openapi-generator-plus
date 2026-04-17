@@ -42,8 +42,8 @@ def proxy_network():
 @pytest.fixture(scope='session')
 def wiremock_container(proxy_network):
     host_app_path = os.environ.get('HOST_APP_PATH', os.getcwd())
-    keystore_path = os.path.join(host_app_path, 'certs', 'server-keystore.p12')
-    mappings_path = os.path.join(host_app_path, 'wiremock', 'mappings')
+    keystore_path = os.path.join(host_app_path, 'test', 'fixtures', 'certs', 'server-keystore.p12')
+    mappings_path = os.path.join(host_app_path, 'test', 'fixtures', 'wiremock', 'mappings')
 
     container = (
         DockerContainer('wiremock/wiremock:3.13.0')
@@ -66,7 +66,7 @@ def wiremock_container(proxy_network):
 @pytest.fixture(scope='session')
 def squid_container(proxy_network):
     host_app_path = os.environ.get('HOST_APP_PATH', os.getcwd())
-    squid_conf_path = os.path.join(host_app_path, 'proxy', 'squid.conf')
+    squid_conf_path = os.path.join(host_app_path, 'test', 'fixtures', 'proxy', 'squid.conf')
 
     container = (
         DockerContainer('ubuntu/squid:5.2-22.04_beta')
@@ -113,4 +113,4 @@ def proxy_url(squid_container):
 
 @pytest.fixture(scope='session')
 def ca_cert_path():
-    return os.path.join(os.getcwd(), 'certs', 'ca.pem')
+    return os.path.join(os.getcwd(), 'test', 'fixtures', 'certs', 'ca.pem')

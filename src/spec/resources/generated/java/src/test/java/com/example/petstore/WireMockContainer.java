@@ -20,10 +20,11 @@ public final class WireMockContainer {
         new GenericContainer<>("wiremock/wiremock:3.13.0")
             .withExposedPorts(8080, 8443)
             .withCopyFileToContainer(
-                MountableFile.forHostPath(Path.of("/app/certs/server-keystore.p12")),
+                MountableFile.forHostPath(
+                    Path.of("/app/src/test/resources/certs/server-keystore.p12")),
                 "/tmp/keystore.p12")
             .withCopyFileToContainer(
-                MountableFile.forHostPath(Path.of("/app/wiremock/mappings")),
+                MountableFile.forHostPath(Path.of("/app/src/test/resources/wiremock/mappings")),
                 "/home/wiremock/mappings/")
             .withCommand(
                 "--port",

@@ -20,7 +20,7 @@ public final class SquidContainer {
         INSTANCE = new GenericContainer<>("ubuntu/squid:5.2-22.04_beta")
             .withExposedPorts(3128)
             .withCopyFileToContainer(
-                MountableFile.forHostPath(Path.of("/app/proxy/squid.conf")),
+                MountableFile.forHostPath(Path.of("/app/src/test/resources/proxy/squid.conf")),
                 "/etc/squid/squid.conf")
             .withNetwork(WireMockContainer.PROXY_NETWORK)
             .withStartupTimeout(Duration.ofSeconds(60));

@@ -124,6 +124,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     }
 
     @Override
+    protected String getTestFixturesDir() {
+        return "src/test/resources";
+    }
+
+    @Override
     public String getHelp() {
         return "Generates a minimal Java client with Jackson and Apache HttpClient.";
     }

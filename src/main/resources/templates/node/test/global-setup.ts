@@ -18,8 +18,8 @@ export default async function globalSetup() {
   // via container alias, avoiding host.docker.internal DNS issues.
   const proxyNetwork = await new Network().start();
 
-  const keystorePath = path.join(hostAppPath, 'certs', 'server-keystore.p12');
-  const mappingsPath = path.join(hostAppPath, 'wiremock', 'mappings');
+  const keystorePath = path.join(hostAppPath, 'test', 'fixtures', 'certs', 'server-keystore.p12');
+  const mappingsPath = path.join(hostAppPath, 'test', 'fixtures', 'wiremock', 'mappings');
 
   const wiremock = await new GenericContainer('wiremock/wiremock:3.13.0')
     .withExposedPorts(8080, 8443)
@@ -42,7 +42,7 @@ export default async function globalSetup() {
     .withStartupTimeout(120000)
     .start();
 
-  const squidConfPath = path.join(hostAppPath, 'proxy', 'squid.conf');
+  const squidConfPath = path.join(hostAppPath, 'test', 'fixtures', 'proxy', 'squid.conf');
 
   const squid = await new GenericContainer('ubuntu/squid:5.2-22.04_beta')
     .withExposedPorts(3128)
@@ -63,7 +63,7 @@ export default async function globalSetup() {
   const wiremockInternalHttpUrl = 'http://wiremock:8080';
   const wiremockInternalHttpsUrl = 'https://wiremock:8443';
   const proxyUrl = `http://${squid.getHost()}:${squid.getMappedPort(3128)}`;
-  const caCertPath = path.join(process.cwd(), 'certs', 'ca.pem');
+  const caCertPath = path.join(process.cwd(), 'test', 'fixtures', 'certs', 'ca.pem');
 
   fs.writeFileSync('/tmp/prism-config.json', JSON.stringify({
     baseUrl,

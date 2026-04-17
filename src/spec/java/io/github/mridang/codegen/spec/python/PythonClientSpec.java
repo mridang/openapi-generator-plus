@@ -16,7 +16,7 @@ public class PythonClientSpec extends AbstractClientSpec implements PythonSpec {
   protected String[] getBuildCommands() {
     return new String[] {
       "pip install --quiet -r requirements.txt",
-      "python -m pytest tests/ -v"
+      "python -m pytest test/ -v"
     };
   }
 

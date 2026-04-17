@@ -101,6 +101,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     }
 
     @Override
+    protected String getTestFixturesDir() {
+        return "test/fixtures";
+    }
+
+    @Override
     public String getHelp() {
         return "Generates a minimal Ruby client with Faraday.";
     }
@@ -210,61 +215,61 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         if (generateTests) {
             supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
             supportingFiles.add(
-                    new SupportingFile("test/spec_helper.mustache", "spec", "spec_helper.rb"));
+                    new SupportingFile("test/test_helper.mustache", "test", "test_helper.rb"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/Api/pet_api_spec.mustache",
-                            "spec" + File.separator + "Api",
-                            "pet_api_spec.rb"));
+                            "test/Api/pet_api_test.mustache",
+                            "test" + File.separator + "Api",
+                            "pet_api_test.rb"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/Api/store_api_spec.mustache",
-                            "spec" + File.separator + "Api",
-                            "store_api_spec.rb"));
+                            "test/Api/store_api_test.mustache",
+                            "test" + File.separator + "Api",
+                            "store_api_test.rb"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/default_api_client_spec.mustache",
-                            "spec",
-                            "default_api_client_spec.rb"));
+                            "test/default_api_client_test.mustache",
+                            "test",
+                            "default_api_client_test.rb"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/default_api_client_unit_spec.mustache",
-                            "spec",
-                            "default_api_client_unit_spec.rb"));
+                            "test/default_api_client_unit_test.mustache",
+                            "test",
+                            "default_api_client_unit_test.rb"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/transport_options_spec.mustache",
-                            "spec",
-                            "transport_options_spec.rb"));
+                            "test/transport_options_test.mustache",
+                            "test",
+                            "transport_options_test.rb"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/header_selector_spec.mustache",
-                            "spec",
-                            "header_selector_spec.rb"));
+                            "test/header_selector_test.mustache",
+                            "test",
+                            "header_selector_test.rb"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/object_serializer_spec.mustache",
-                            "spec",
-                            "object_serializer_spec.rb"));
+                            "test/object_serializer_test.mustache",
+                            "test",
+                            "object_serializer_test.rb"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/value_serializer_spec.mustache",
-                            "spec",
-                            "value_serializer_spec.rb"));
+                            "test/value_serializer_test.mustache",
+                            "test",
+                            "value_serializer_test.rb"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/trace_context_util_spec.mustache",
-                            "spec",
-                            "trace_context_util_spec.rb"));
+                            "test/trace_context_util_test.mustache",
+                            "test",
+                            "trace_context_util_test.rb"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/base_api_spec.mustache",
-                            "spec",
-                            "base_api_spec.rb"));
+                            "test/base_api_test.mustache",
+                            "test",
+                            "base_api_test.rb"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/metadata_test.mustache",
-                            "spec",
+                            "test",
                             "metadata_test.rb"));
         }
     }

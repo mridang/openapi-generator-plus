@@ -1,24 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
-         bootstrap="tests/bootstrap.php"
+         bootstrap="test/bootstrap.php"
          colors="true"
          failOnWarning="true"
          failOnRisky="true"
          cacheResult="false">
     <testsuites>
         <testsuite name="Unit Tests">
-            <file>tests/DefaultApiClientUnitTest.php</file>
-            <file>tests/TransportOptionsTest.php</file>
-            <file>tests/HeaderSelectorTest.php</file>
-            <file>tests/ObjectSerializerTest.php</file>
-            <file>tests/TraceContextUtilTest.php</file>
+            <file>test/DefaultApiClientUnitTest.php</file>
+            <file>test/TransportOptionsTest.php</file>
+            <file>test/HeaderSelectorTest.php</file>
+            <file>test/ObjectSerializerTest.php</file>
+            <file>test/TraceContextUtilTest.php</file>
         </testsuite>
         <testsuite name="Integration Tests">
-            <file>tests/DefaultApiClientTest.php</file>
+            <file>test/DefaultApiClientTest.php</file>
         </testsuite>
         <testsuite name="API Tests">
-            <directory>tests/Api</directory>
+            <directory>test/Api</directory>
         </testsuite>
     </testsuites>
     <coverage>

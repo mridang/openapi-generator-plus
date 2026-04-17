@@ -89,6 +89,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     }
 
     @Override
+    protected String getTestFixturesDir() {
+        return "test/fixtures";
+    }
+
+    @Override
     public String getHelp() {
         return "Generates a minimal TypeScript client using the Fetch API.";
     }
@@ -193,59 +198,59 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
             supportingFiles.add(new SupportingFile("test/jest.config.mjs", "", "jest.config.mjs"));
             supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
             supportingFiles.add(
-                    new SupportingFile("test/global-setup.ts", "tests", "global-setup.ts"));
+                    new SupportingFile("test/global-setup.ts", "test", "global-setup.ts"));
             supportingFiles.add(
-                    new SupportingFile("test/global-teardown.ts", "tests", "global-teardown.ts"));
-            supportingFiles.add(new SupportingFile("test/setup.ts", "tests", "setup.ts"));
+                    new SupportingFile("test/global-teardown.ts", "test", "global-teardown.ts"));
+            supportingFiles.add(new SupportingFile("test/setup.ts", "test", "setup.ts"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/Api/pet-api.test.ts",
-                            "tests" + File.separator + "Api",
+                            "test" + File.separator + "Api",
                             "pet-api.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/Api/store-api.test.ts",
-                            "tests" + File.separator + "Api",
+                            "test" + File.separator + "Api",
                             "store-api.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/default-api-client.test.ts",
-                            "tests",
+                            "test",
                             "default-api-client.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/default-api-client-unit.test.ts",
-                            "tests",
+                            "test",
                             "default-api-client-unit.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/transport-options.test.mustache",
-                            "tests",
+                            "test",
                             "transport-options.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/object-serializer.test.ts",
-                            "tests",
+                            "test",
                             "object-serializer.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/value-serializer.test.ts",
-                            "tests",
+                            "test",
                             "value-serializer.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/trace-context-util.test.ts",
-                            "tests",
+                            "test",
                             "trace-context-util.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/base-api.test.mustache",
-                            "tests",
+                            "test",
                             "base-api.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/metadata.test.ts",
-                            "tests",
+                            "test",
                             "metadata.test.ts"));
         }
     }

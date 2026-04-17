@@ -78,6 +78,11 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     }
 
     @Override
+    protected String getTestFixturesDir() {
+        return "Test/Resources";
+    }
+
+    @Override
     public String getHelp() {
         return "Generates a minimal C# client with System.Text.Json.";
     }
@@ -199,64 +204,64 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/tests_csproj.mustache", "", packageName + ".Tests.csproj"));
+                            "test/tests_csproj.mustache", "", packageName + ".Test.csproj"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/Api/PetApiTest.mustache",
-                            "Tests" + File.separator + "Api",
+                            "Test" + File.separator + "Api",
                             "PetApiTest.cs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/Api/StoreApiTest.mustache",
-                            "Tests" + File.separator + "Api",
+                            "Test" + File.separator + "Api",
                             "StoreApiTest.cs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/DefaultApiClientTest.mustache",
-                            "Tests",
+                            "Test",
                             "DefaultApiClientTest.cs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/DefaultApiClientUnitTest.mustache",
-                            "Tests",
+                            "Test",
                             "DefaultApiClientUnitTest.cs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/TransportOptionsTest.mustache",
-                            "Tests",
+                            "Test",
                             "TransportOptionsTest.cs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/HeaderSelectorTest.mustache",
-                            "Tests",
+                            "Test",
                             "HeaderSelectorTest.cs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/ObjectSerializerTest.mustache",
-                            "Tests",
+                            "Test",
                             "ObjectSerializerTest.cs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/ValueSerializerTest.mustache",
-                            "Tests",
+                            "Test",
                             "ValueSerializerTest.cs"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/PrismFixture.mustache", "Tests", "PrismFixture.cs"));
+                            "test/PrismFixture.mustache", "Test", "PrismFixture.cs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/WireMockSquidFixture.mustache",
-                            "Tests",
+                            "Test",
                             "WireMockSquidFixture.cs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/BaseApiTest.mustache",
-                            "Tests",
+                            "Test",
                             "BaseApiTest.cs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/MetadataTest.mustache",
-                            "Tests",
+                            "Test",
                             "MetadataTest.cs"));
         }
     }

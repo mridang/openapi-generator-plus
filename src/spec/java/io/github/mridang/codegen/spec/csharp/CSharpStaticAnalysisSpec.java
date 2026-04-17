@@ -21,7 +21,7 @@ public class CSharpStaticAnalysisSpec extends AbstractIntegrationSpec implements
   protected String[] getBuildCommands() {
     return new String[] {
       "dotnet build src/PetstoreClient/PetstoreClient.csproj --warnaserror",
-      "dotnet build PetstoreClient.Tests.csproj --warnaserror"
+      "dotnet build PetstoreClient.Test.csproj --warnaserror"
     };
   }
 

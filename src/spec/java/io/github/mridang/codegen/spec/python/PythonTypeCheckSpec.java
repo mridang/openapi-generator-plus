@@ -20,7 +20,7 @@ public class PythonTypeCheckSpec extends AbstractIntegrationSpec implements Pyth
   protected String[] getBuildCommands() {
     return new String[] {
       "pip install --quiet -r requirements.txt",
-      "mypy petstore_client/ tests/"
+      "mypy petstore_client/ test/"
     };
   }
 

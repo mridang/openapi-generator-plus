@@ -3,14 +3,14 @@ using {{packageName}}.Api;
 using {{packageName}}.Models;
 using Xunit;
 
-namespace Tests.Api;
+namespace Test.Api;
 
 [Collection("Prism")]
 public class StoreApiTest
 {
     private readonly StoreApi _api;
 
-    public StoreApiTest(Tests.PrismFixture prism)
+    public StoreApiTest(Test.PrismFixture prism)
     {
         var baseUrl = prism.BaseUrl;
         var config = Configuration.Builder()

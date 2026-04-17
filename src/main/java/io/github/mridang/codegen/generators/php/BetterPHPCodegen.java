@@ -93,6 +93,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     @Override
+    protected String getTestFixturesDir() {
+        return "test/fixtures";
+    }
+
+    @Override
     public String getHelp() {
         return "Generates a minimal PHP client with Symfony HTTP Client and Symfony Serializer.";
     }
@@ -241,63 +246,63 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
 
         if (generateTests) {
-            supportingFiles.add(new SupportingFile("test/bootstrap.php", "tests", "bootstrap.php"));
+            supportingFiles.add(new SupportingFile("test/bootstrap.php", "test", "bootstrap.php"));
             supportingFiles.add(new SupportingFile("test/phpunit.xml", "", "phpunit.xml"));
             supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/Api/PetApiTest.mustache",
-                            "tests" + File.separator + "Api",
+                            "test" + File.separator + "Api",
                             "PetApiTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/Api/StoreApiTest.mustache",
-                            "tests" + File.separator + "Api",
+                            "test" + File.separator + "Api",
                             "StoreApiTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/DefaultApiClientTest.mustache",
-                            "tests",
+                            "test",
                             "DefaultApiClientTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/DefaultApiClientUnitTest.mustache",
-                            "tests",
+                            "test",
                             "DefaultApiClientUnitTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/TransportOptionsTest.mustache",
-                            "tests",
+                            "test",
                             "TransportOptionsTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/HeaderSelectorTest.mustache",
-                            "tests",
+                            "test",
                             "HeaderSelectorTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/ObjectSerializerTest.mustache",
-                            "tests",
+                            "test",
                             "ObjectSerializerTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/ValueSerializerTest.mustache",
-                            "tests",
+                            "test",
                             "ValueSerializerTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/TraceContextUtilTest.mustache",
-                            "tests",
+                            "test",
                             "TraceContextUtilTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/BaseApiTest.mustache",
-                            "tests",
+                            "test",
                             "BaseApiTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/MetadataTest.mustache",
-                            "tests",
+                            "test",
                             "MetadataTest.php"));
         }
     }

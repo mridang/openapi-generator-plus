@@ -622,6 +622,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     }
 
     /**
+     * Return the language-specific base directory (relative to the output root) where test fixtures
+     * (certs, proxy, wiremock) should be placed.
+     */
+    protected abstract String getTestFixturesDir();
+
+    /**
      * Copy bundled test fixtures and the input OpenAPI spec into the output directory so that the
      * generated SDK's test suite is self-contained.
      */
@@ -658,8 +664,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
             "wiremock/mappings/error-502.json",
             "proxy/squid.conf"
         };
+        Path fixturesBase = outputDir.resolve(getTestFixturesDir());
         for (String fixture : fixtures) {
-            copyClasspathFixture("fixtures/" + fixture, outputDir.resolve(fixture));
+            copyClasspathFixture("fixtures/" + fixture, fixturesBase.resolve(fixture));
         }
     }
 

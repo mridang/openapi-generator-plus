@@ -1,0 +1,216 @@
+<?php
+
+declare(strict_types=1);
+
+namespace PetstoreClient\Test;
+
+use PHPUnit\Framework\TestCase;
+use PetstoreClient\ObjectSerializer;
+use PetstoreClient\Models\Category;
+
+class ObjectSerializerTest extends TestCase
+{
+    // -- toPathValue --
+
+    public function testToPathValueReturnsEmptyStringForNull(): void
+    {
+        $this->assertSame('', ObjectSerializer::toPathValue(null));
+    }
+
+    public function testToPathValueReturnsTheStringForAStringValue(): void
+    {
+        $this->assertSame('hello', ObjectSerializer::toPathValue('hello'));
+    }
+
+    public function testToPathValueConvertsIntegerToString(): void
+    {
+        $this->assertSame('42', ObjectSerializer::toPathValue(42));
+    }
+
+    public function testToPathValueConvertsTrueToTrue(): void
+    {
+        $this->assertSame('true', ObjectSerializer::toPathValue(true));
+    }
+
+    public function testToPathValueConvertsFalseToFalse(): void
+    {
+        $this->assertSame('false', ObjectSerializer::toPathValue(false));
+    }
+
+    // -- toQueryValue --
+
+    public function testToQueryValueReturnsNullForNull(): void
+    {
+        $this->assertNull(ObjectSerializer::toQueryValue(null));
+    }
+
+    public function testToQueryValueReturnsTheStringForAStringValue(): void
+    {
+        $this->assertSame('hello', ObjectSerializer::toQueryValue('hello'));
+    }
+
+    public function testToQueryValueConvertsIntegerToString(): void
+    {
+        $this->assertSame('42', ObjectSerializer::toQueryValue(42));
+    }
+
+    public function testToQueryValueConvertsTrueToTrue(): void
+    {
+        $this->assertSame('true', ObjectSerializer::toQueryValue(true));
+    }
+
+    public function testToQueryValueJoinsArrayWithCommaByDefault(): void
+    {
+        $this->assertSame('a,b,c', ObjectSerializer::toQueryValue(['a', 'b', 'c']));
+    }
+
+    public function testToQueryValueJoinsArrayWithCommaForCsv(): void
+    {
+        $this->assertSame('a,b,c', ObjectSerializer::toQueryValue(['a', 'b', 'c'], 'csv'));
+    }
+
+    public function testToQueryValueJoinsArrayWithSpaceForSsv(): void
+    {
+        $this->assertSame('a b c', ObjectSerializer::toQueryValue(['a', 'b', 'c'], 'ssv'));
+    }
+
+    public function testToQueryValueJoinsArrayWithTabForTsv(): void
+    {
+        $this->assertSame("a\tb\tc", ObjectSerializer::toQueryValue(['a', 'b', 'c'], 'tsv'));
+    }
+
+    public function testToQueryValueJoinsArrayWithPipeForPipes(): void
+    {
+        $this->assertSame('a|b|c', ObjectSerializer::toQueryValue(['a', 'b', 'c'], 'pipes'));
+    }
+
+    public function testToQueryValueReturnsArrayForMulti(): void
+    {
+        $this->assertSame(['a', 'b', 'c'], ObjectSerializer::toQueryValue(['a', 'b', 'c'], 'multi'));
+    }
+
+    // -- toHeaderValue --
+
+    public function testToHeaderValueReturnsEmptyStringForNull(): void
+    {
+        $this->assertSame('', ObjectSerializer::toHeaderValue(null));
+    }
+
+    public function testToHeaderValueReturnsTheStringForAStringValue(): void
+    {
+        $this->assertSame('hello', ObjectSerializer::toHeaderValue('hello'));
+    }
+
+    public function testToHeaderValueConvertsIntegerToString(): void
+    {
+        $this->assertSame('42', ObjectSerializer::toHeaderValue(42));
+    }
+
+    public function testToHeaderValueJoinsArrayWithComma(): void
+    {
+        $this->assertSame('a,b,c', ObjectSerializer::toHeaderValue(['a', 'b', 'c']));
+    }
+
+    // -- toFormValue --
+
+    public function testToFormValueReturnsEmptyStringForNull(): void
+    {
+        $this->assertSame('', ObjectSerializer::toFormValue(null));
+    }
+
+    public function testToFormValueReturnsTheStringForAStringValue(): void
+    {
+        $this->assertSame('hello', ObjectSerializer::toFormValue('hello'));
+    }
+
+    public function testToFormValueConvertsIntegerToString(): void
+    {
+        $this->assertSame('42', ObjectSerializer::toFormValue(42));
+    }
+
+    public function testToFormValueConvertsTrueToTrue(): void
+    {
+        $this->assertSame('true', ObjectSerializer::toFormValue(true));
+    }
+
+    public function testToFormValueConvertsFalseToFalse(): void
+    {
+        $this->assertSame('false', ObjectSerializer::toFormValue(false));
+    }
+
+    // -- stringify --
+
+    public function testStringifyNullReturnsEmptyString(): void
+    {
+        $this->assertSame('', ObjectSerializer::stringify(null));
+    }
+
+    public function testStringifyBooleanTrueReturnsLowercaseString(): void
+    {
+        $this->assertSame('true', ObjectSerializer::stringify(true));
+    }
+
+    public function testStringifyBooleanFalseReturnsLowercaseString(): void
+    {
+        $this->assertSame('false', ObjectSerializer::stringify(false));
+    }
+
+    public function testStringifyIntegerReturnsStringRepresentation(): void
+    {
+        $this->assertSame('42', ObjectSerializer::stringify(42));
+    }
+
+    public function testStringifyDateTimeReturnsIso8601String(): void
+    {
+        $dt = new \DateTime('2024-01-15T10:30:00+00:00');
+        $result = ObjectSerializer::stringify($dt);
+        $this->assertStringStartsWith('2024-01-15T10:30:00', $result);
+    }
+
+    public function testStringifyPlainStringPassesThroughUnchanged(): void
+    {
+        $this->assertSame('hello', ObjectSerializer::stringify('hello'));
+    }
+
+    public function testStringifyFloatReturnsStringRepresentation(): void
+    {
+        $this->assertSame('3.14', ObjectSerializer::stringify(3.14));
+    }
+
+    // -- serialize --
+
+    public function testSerializeSerializesModelToValidJson(): void
+    {
+        $category = new Category();
+        $category->id = 1;
+        $category->name = 'Dogs';
+        $json = ObjectSerializer::serialize($category);
+        $this->assertJson($json);
+        /** @var array<string, mixed> $data */
+        $data = json_decode($json, true);
+        $this->assertSame(1, $data['id']);
+        $this->assertSame('Dogs', $data['name']);
+    }
+
+    public function testSerializeHandlesNull(): void
+    {
+        $json = ObjectSerializer::serialize(null);
+        $this->assertSame('null', $json);
+    }
+
+    // -- deserialize --
+
+    public function testDeserializeDeserializesJsonToTypedModel(): void
+    {
+        $json = '{"id":1,"name":"Dogs"}';
+        $category = ObjectSerializer::deserialize($json, Category::class);
+        $this->assertInstanceOf(Category::class, $category);
+        $this->assertSame(1, $category->id);
+        $this->assertSame('Dogs', $category->name);
+    }
+
+    public function testDeserializeReturnsNullForNullInput(): void
+    {
+        $this->assertNull(ObjectSerializer::deserialize(null, Category::class));
+    }
+}

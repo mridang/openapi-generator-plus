@@ -89,6 +89,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     @Override
+    protected String getTestFixturesDir() {
+        return "test/fixtures";
+    }
+
+    @Override
     public String getHelp() {
         return "Generates a minimal Python client with pydantic models.";
     }
@@ -221,63 +226,63 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
             supportingFiles.add(new SupportingFile("test/conftest.py", "", "conftest.py"));
             supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
             supportingFiles.add(
-                    new SupportingFile("test/tests_init.py", "tests", "__init__.py"));
+                    new SupportingFile("test/tests_init.py", "test", "__init__.py"));
             supportingFiles.add(
-                    new SupportingFile("test/Api_init.py", "tests" + File.separator + "Api", "__init__.py"));
+                    new SupportingFile("test/Api_init.py", "test" + File.separator + "Api", "__init__.py"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/Api/test_pet_api.mustache",
-                            "tests" + File.separator + "Api",
+                            "test" + File.separator + "Api",
                             "test_pet_api.py"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/Api/test_store_api.mustache",
-                            "tests" + File.separator + "Api",
+                            "test" + File.separator + "Api",
                             "test_store_api.py"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/test_default_api_client.mustache",
-                            "tests",
+                            "test",
                             "test_default_api_client.py"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/test_default_api_client_unit.mustache",
-                            "tests",
+                            "test",
                             "test_default_api_client_unit.py"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/test_transport_options.mustache",
-                            "tests",
+                            "test",
                             "test_transport_options.py"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/test_header_selector.mustache",
-                            "tests",
+                            "test",
                             "test_header_selector.py"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/test_object_serializer.mustache",
-                            "tests",
+                            "test",
                             "test_object_serializer.py"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/test_value_serializer.mustache",
-                            "tests",
+                            "test",
                             "test_value_serializer.py"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/test_trace_context_util.mustache",
-                            "tests",
+                            "test",
                             "test_trace_context_util.py"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/test_base_api.mustache",
-                            "tests",
+                            "test",
                             "test_base_api.py"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/test_metadata.mustache",
-                            "tests",
+                            "test",
                             "test_metadata.py"));
         }
     }
