@@ -5,6 +5,7 @@ import com.example.petstore.api.StoreApi;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.auth.BearerAuthenticator;
 import com.example.petstore.auth.HttpAwareAuthenticator;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Unified entry point for all API services.
@@ -28,6 +29,7 @@ import com.example.petstore.auth.HttpAwareAuthenticator;
  * Client client = new Client(authenticator, transport);
  * }</pre>
  */
+@SuppressFBWarnings("URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
 public final class Client {
 
   /** API operations for the PetApi group. */

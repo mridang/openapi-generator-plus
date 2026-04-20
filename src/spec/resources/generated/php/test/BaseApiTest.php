@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+/* phpcs:disable PSR1.Classes.ClassDeclaration.MultipleClasses */
+
 namespace PetstoreClient\Test;
 
 use PHPUnit\Framework\TestCase;

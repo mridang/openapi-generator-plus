@@ -3,6 +3,7 @@ package com.example.petstore.models;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -14,6 +15,7 @@ import javax.annotation.Nullable;
  *
  * @see <a href="https://example.com/docs/pet">Learn more about the Pet model</a>
  */
+@SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
 @SuppressWarnings({"deprecation", "serial"})
 public class Pet {
 

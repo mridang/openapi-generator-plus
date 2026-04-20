@@ -1,11 +1,13 @@
 package {{invokerPackage}};
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Map;
 import javax.annotation.Nullable;
 
 /**
  * Exception thrown when an API call fails.
  */
+@SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
 public class ApiException extends Exception {
     private static final long serialVersionUID = 1L;
 

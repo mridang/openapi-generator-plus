@@ -5,6 +5,7 @@
 #pragma warning disable CA1819 // Properties should not return arrays
 #pragma warning disable CA2227 // Collection properties should be read only
 #pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
 using System.Text.Json.Serialization;
 

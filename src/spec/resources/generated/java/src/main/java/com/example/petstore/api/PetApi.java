@@ -17,6 +17,7 @@ import com.example.petstore.models.Photo;
 import com.example.petstore.models.PhotoMetadata;
 import com.example.petstore.models.SetPetAvatarThumbnailRequest;
 import com.fasterxml.jackson.core.type.TypeReference;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
@@ -227,6 +228,7 @@ public class PetApi extends BaseApi {
   }
 
   /** Options for the addPetPhotos operation. */
+  @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
   public static final class AddPetPhotosOptions {
 
     private final List<InputStream> files;
@@ -394,6 +396,7 @@ public class PetApi extends BaseApi {
   }
 
   /** Options for the findPetsByStatus operation. */
+  @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
   public static final class FindPetsByStatusOptions {
 
     @Nullable private String status;
@@ -789,6 +792,7 @@ public class PetApi extends BaseApi {
   }
 
   /** Options for the getPetTag operation. */
+  @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
   public static final class GetPetTagOptions {
 
     @Nullable private List<String> colors;
@@ -1087,6 +1091,7 @@ public class PetApi extends BaseApi {
   }
 
   /** Options for the uploadPetCertificate operation. */
+  @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
   public static final class UploadPetCertificateOptions {
 
     private final InputStream file;
@@ -1147,6 +1152,7 @@ public class PetApi extends BaseApi {
   }
 
   /** Options for the uploadPetDocument operation. */
+  @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
   public static final class UploadPetDocumentOptions {
 
     private final InputStream file;

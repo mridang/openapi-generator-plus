@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+# rubocop:disable Metrics/BlockLength, Lint/MissingCopEnableDirective
+
 # Integration tests for the Store API endpoints.
 
 require 'test_helper'
@@ -21,7 +23,7 @@ describe PetstoreClient::Api::StoreApi do
     it 'places an order' do
       order = PetstoreClient::Models::Order.new(
         id: 1,
-        pet_id: 12345,
+        pet_id: 12_345,
         quantity: 1,
         ship_date: Time.now.utc.iso8601,
         status: 'placed',

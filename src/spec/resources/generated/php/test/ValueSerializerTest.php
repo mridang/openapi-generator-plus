@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+/* phpcs:disable Generic.Files.LineLength.TooLong */
+
 namespace PetstoreClient\Test;
 
 use PHPUnit\Framework\TestCase;

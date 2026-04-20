@@ -1,5 +1,6 @@
 package com.example.petstore;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Map;
 
 /**
@@ -20,6 +21,7 @@ public final class TraceContextUtil {
    *
    * @param headers mutable map of request headers
    */
+  @SuppressFBWarnings("DE_MIGHT_IGNORE")
   @SuppressWarnings("EmptyCatch")
   public static void injectTraceContext(Map<String, String> headers) {
     try {

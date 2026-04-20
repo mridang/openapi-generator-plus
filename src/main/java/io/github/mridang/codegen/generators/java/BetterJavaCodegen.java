@@ -247,8 +247,6 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                         "HttpAwareAuthenticator.java"));
         supportingFiles.add(
                 new SupportingFile("client.mustache", invokerFolder, "Client.java"));
-        supportingFiles.add(
-                new SupportingFile("spotbugs_exclude.mustache", "", "spotbugs-exclude.xml"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
 

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+# rubocop:disable Metrics/BlockLength, Lint/MissingCopEnableDirective
+
 # Integration tests for the Pet API endpoints.
 
 require 'test_helper'
@@ -15,7 +17,7 @@ describe PetstoreClient::Api::PetApi do
   describe '#add_pet' do
     it 'creates a new pet' do
       pet = PetstoreClient::Models::Pet.new(
-        id: 12345,
+        id: 12_345,
         name: 'TestDog',
         photo_urls: ['http://example.com/photo.jpg'],
         status: 'available'

@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+/* phpcs:disable PSR1.Files.SideEffects */
+
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Testcontainers\Container\GenericContainer;

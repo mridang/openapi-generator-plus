@@ -33,6 +33,7 @@ import {{modelPackage}}.*;
 {{#imports}}import {{import}};
 {{/imports}}
 import com.fasterxml.jackson.core.type.TypeReference;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -120,24 +121,28 @@ public class {{classname}} extends BaseApi {
     /**
      * Options for the {{operationId}} operation.
      */
+    @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
     public static final class {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options {
 {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
 
     /**
      * Options for the {{operationId}} operation.
      */
+    @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
     public static final class {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options {
 {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
 
     /**
      * Options for the {{operationId}} operation.
      */
+    @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
     public static final class {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options {
 {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
 
     /**
      * Options for the {{operationId}} operation.
      */
+    @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
     public static final class {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options {
 {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{#queryParams}}

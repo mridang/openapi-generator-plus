@@ -7,6 +7,7 @@ import {{apiPackage}}.{{classname}};
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import {{invokerPackage}}.auth.Authenticator;
 import {{invokerPackage}}.auth.BearerAuthenticator;
 import {{invokerPackage}}.auth.HttpAwareAuthenticator;
@@ -33,6 +34,7 @@ import {{invokerPackage}}.auth.HttpAwareAuthenticator;
  * Client client = new Client(authenticator, transport);
  * }</pre>
  */
+@SuppressFBWarnings("URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
 public final class Client {
 
 {{#apiInfo}}
