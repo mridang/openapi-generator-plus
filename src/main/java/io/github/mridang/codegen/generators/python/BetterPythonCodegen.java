@@ -217,7 +217,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                         "http_aware_authenticator.py"));
         supportingFiles.add(
                 new SupportingFile("client.mustache", packagePath, "client.py"));
-        supportingFiles.add(new SupportingFile("requirements.mustache", "", "requirements.txt"));
         supportingFiles.add(new SupportingFile("pyproject_toml.mustache", "", "pyproject.toml"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));

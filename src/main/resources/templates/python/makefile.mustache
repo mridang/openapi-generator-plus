@@ -1,7 +1,7 @@
 .PHONY: install build test lint format typecheck clean
 
 install:
-	pip install --quiet -r requirements.txt
+	pip install --quiet -e . --group dev
 
 build: install
 
