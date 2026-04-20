@@ -2,16 +2,3 @@ AllCops:
   TargetRubyVersion: 3.1
   NewCops: enable
   SuggestExtensions: false
-
-Metrics/BlockLength:
-  CountAsOne:
-    - 'heredoc'
-    - 'array'
-    - 'hash'
-    - 'method_call'
-
-Layout/MultilineMethodCallIndentation:
-  EnforcedStyle: indented
-
-Layout/FirstArrayElementIndentation:
-  EnforcedStyle: consistent
