@@ -83,6 +83,11 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     }
 
     @Override
+    protected String getSpecDir() {
+        return "Spec";
+    }
+
+    @Override
     public String getHelp() {
         return "Generates a minimal C# client with System.Text.Json.";
     }

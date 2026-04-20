@@ -49,4 +49,6 @@ quote-style = "single"
 strict = true
 
 [tool.pytest.ini_options]
+testpaths = ["test", "spec"]
+python_files = "test_*.py *_spec.py"
 addopts = "--cov={{packageName}} --cov-report=xml:.out/coverage.xml --cov-report=term-missing --junitxml=.out/reports/junit.xml"

@@ -94,6 +94,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     @Override
+    protected String getSpecDir() {
+        return "spec";
+    }
+
+    @Override
     public String getHelp() {
         return "Generates a minimal Python client with pydantic models.";
     }

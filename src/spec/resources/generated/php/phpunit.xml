@@ -20,6 +20,9 @@
         <testsuite name="API Tests">
             <directory>test/Api</directory>
         </testsuite>
+        <testsuite name="Spec Tests">
+            <directory suffix="Spec.php">spec</directory>
+        </testsuite>
     </testsuites>
     <coverage>
         <include>

@@ -98,6 +98,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     @Override
+    protected String getSpecDir() {
+        return "spec";
+    }
+
+    @Override
     public String getHelp() {
         return "Generates a minimal PHP client with Symfony HTTP Client and Symfony Serializer.";
     }

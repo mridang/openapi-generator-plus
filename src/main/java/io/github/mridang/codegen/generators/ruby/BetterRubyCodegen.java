@@ -106,6 +106,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     }
 
     @Override
+    protected String getSpecDir() {
+        return "spec";
+    }
+
+    @Override
     public String getHelp() {
         return "Generates a minimal Ruby client with Faraday.";
     }

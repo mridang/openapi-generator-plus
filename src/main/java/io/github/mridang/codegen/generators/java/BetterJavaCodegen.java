@@ -129,6 +129,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     }
 
     @Override
+    protected String getSpecDir() {
+        return "src/spec/java";
+    }
+
+    @Override
     public String getHelp() {
         return "Generates a minimal Java client with Jackson and Apache HttpClient.";
     }

@@ -628,6 +628,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     protected abstract String getTestFixturesDir();
 
     /**
+     * Return the language-specific directory (relative to the output root) where user-written
+     * spec tests should be placed. An empty directory with a .gitkeep file is created here.
+     */
+    protected abstract String getSpecDir();
+
+    /**
      * Copy bundled test fixtures and the input OpenAPI spec into the output directory so that the
      * generated SDK's test suite is self-contained.
      */
@@ -667,6 +673,18 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         Path fixturesBase = outputDir.resolve(getTestFixturesDir());
         for (String fixture : fixtures) {
             copyClasspathFixture("fixtures/" + fixture, fixturesBase.resolve(fixture));
+        }
+
+        // Create empty spec directory for user-written spec tests
+        try {
+            Path specDir = outputDir.resolve(getSpecDir());
+            Files.createDirectories(specDir);
+            Path gitkeep = specDir.resolve(".gitkeep");
+            if (!Files.exists(gitkeep)) {
+                Files.writeString(gitkeep, "");
+            }
+        } catch (IOException e) {
+            LOGGER.warn("Failed to create spec directory: {}", e.getMessage());
         }
     }
 
