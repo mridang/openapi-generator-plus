@@ -28,7 +28,7 @@ require 'net/http'
 require '{{gemName}}'
 
 host_app_path = ENV['HOST_APP_PATH'] || Dir.pwd
-spec_path = File.join(host_app_path, 'specs', 'openapi.yaml')
+spec_path = File.join(host_app_path, 'test', 'fixtures', 'openapi.yaml')
 
 PRISM = Testcontainers::DockerContainer.new('stoplight/prism:5')
 PRISM.with_exposed_port(4010)

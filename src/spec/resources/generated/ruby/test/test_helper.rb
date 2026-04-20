@@ -28,7 +28,7 @@ require 'net/http'
 require 'petstore_client'
 
 host_app_path = ENV['HOST_APP_PATH'] || Dir.pwd
-spec_path = File.join(host_app_path, 'specs', 'openapi.yaml')
+spec_path = File.join(host_app_path, 'test', 'fixtures', 'openapi.yaml')
 
 PRISM = Testcontainers::DockerContainer.new('stoplight/prism:5')
 PRISM.with_exposed_port(4010)
@@ -78,9 +78,9 @@ WIREMOCK = Testcontainers::DockerContainer.new('wiremock/wiremock:3.13.0')
 WIREMOCK.with_exposed_port(8080)
 WIREMOCK.with_exposed_port(8443)
 WIREMOCK.with_filesystem_binds([
-  "#{keystore_path}:/tmp/keystore.p12:ro",
-  "#{mappings_path}:/home/wiremock/mappings:ro"
-])
+                                 "#{keystore_path}:/tmp/keystore.p12:ro",
+                                 "#{mappings_path}:/home/wiremock/mappings:ro"
+                               ])
 WIREMOCK.with_command(
   '--port', '8080',
   '--https-port', '8443',

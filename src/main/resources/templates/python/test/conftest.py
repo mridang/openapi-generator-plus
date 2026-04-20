@@ -10,7 +10,7 @@ from testcontainers.core.wait_strategies import LogMessageWaitStrategy
 @pytest.fixture(scope="session")
 def prism_container():
     host_app_path = os.environ.get("HOST_APP_PATH", os.getcwd())
-    spec_path = os.path.join(host_app_path, "specs", "openapi.yaml")
+    spec_path = os.path.join(host_app_path, "test", "fixtures", "openapi.yaml")
 
     container = (
         DockerContainer("stoplight/prism:5")

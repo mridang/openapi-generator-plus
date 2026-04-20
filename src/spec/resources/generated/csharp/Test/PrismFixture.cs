@@ -14,7 +14,7 @@ public class PrismFixture : IAsyncLifetime
     {
         var hostAppPath =
             Environment.GetEnvironmentVariable("HOST_APP_PATH") ?? Directory.GetCurrentDirectory();
-        var specPath = Path.Combine(hostAppPath, "specs", "openapi.yaml");
+        var specPath = Path.Combine(hostAppPath, "Test", "Resources", "openapi.yaml");
 
         _container = new ContainerBuilder()
             .WithImage("stoplight/prism:5")

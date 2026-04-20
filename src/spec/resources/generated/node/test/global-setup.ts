@@ -4,7 +4,7 @@ import * as fs from 'fs';
 
 export default async function globalSetup() {
   const hostAppPath = process.env.HOST_APP_PATH || process.cwd();
-  const specPath = path.join(hostAppPath, 'specs', 'openapi.yaml');
+  const specPath = path.join(hostAppPath, 'test', 'fixtures', 'openapi.yaml');
 
   const prism = await new GenericContainer('stoplight/prism:5')
     .withExposedPorts(4010)

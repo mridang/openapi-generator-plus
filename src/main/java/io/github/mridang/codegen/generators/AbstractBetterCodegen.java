@@ -637,7 +637,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         // Copy the input OpenAPI spec so Prism can mock the actual API
         String inputSpec = getInputSpec();
         if (inputSpec != null) {
-            copyFileToOutput(Path.of(inputSpec), outputDir.resolve("specs/openapi.yaml"));
+            copyFileToOutput(Path.of(inputSpec), outputDir.resolve(getTestFixturesDir() + "/openapi.yaml"));
         }
 
         // Copy shared test fixtures bundled in the generator JAR

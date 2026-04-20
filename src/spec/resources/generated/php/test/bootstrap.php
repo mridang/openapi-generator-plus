@@ -31,7 +31,7 @@ function safeGetMappedPort(StartedGenericContainer $container, int $port): int
 }
 
 $hostAppPath = getenv('HOST_APP_PATH') ?: getcwd();
-$specPath = $hostAppPath . '/specs/openapi.yaml';
+$specPath = $hostAppPath . '/test/fixtures/openapi.yaml';
 
 $prism = (new GenericContainer('stoplight/prism:5'))
     ->withExposedPorts(4010)
