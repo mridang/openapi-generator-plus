@@ -3,15 +3,17 @@ package com.example.petstore.exceptions;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-/** Exception for HTTP 404 Not Found. */
+/**
+ * Exception for HTTP 404 Not Found.
+ */
 public class NotFoundException extends ClientException {
-  private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-  public NotFoundException(
-      String message,
-      @Nullable Map<String, String> responseHeaders,
-      @Nullable String responseBody,
-      @Nullable Object errorBody) {
-    super(404, message, responseHeaders, responseBody, errorBody);
-  }
+    public NotFoundException(
+            String message,
+            @Nullable Map<String, String> responseHeaders,
+            @Nullable String responseBody,
+            @Nullable Object errorBody) {
+        super(404, message, responseHeaders, responseBody, errorBody);
+    }
 }

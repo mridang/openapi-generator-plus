@@ -1,6 +1,8 @@
 package com.example.petstore.models;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
 
@@ -23,4 +25,5 @@ public class Tag {
   @JsonProperty("name")
   @Nullable
   public String name;
+
 }

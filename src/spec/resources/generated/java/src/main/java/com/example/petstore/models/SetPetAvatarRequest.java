@@ -1,7 +1,10 @@
 package com.example.petstore.models;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import javax.annotation.Nullable;
 
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
 @SuppressWarnings({"deprecation", "serial"})
@@ -13,19 +16,20 @@ public class SetPetAvatarRequest {
    * <p>Example: {@code null}
    */
   @JsonProperty("data")
+  
   public byte[] data;
 
   /** Example: {@code image/jpeg} */
   @JsonProperty("mimeType")
+  
   public String mimeType;
+
 
   @SuppressWarnings("NullAway.Init")
   public SetPetAvatarRequest() {}
 
   @com.fasterxml.jackson.annotation.JsonCreator
-  public SetPetAvatarRequest(
-      @JsonProperty(value = "data", required = true) byte[] data,
-      @JsonProperty(value = "mimeType", required = true) String mimeType) {
+  public SetPetAvatarRequest(@JsonProperty(value = "data", required = true) byte[] data, @JsonProperty(value = "mimeType", required = true) String mimeType) {
     this.data = java.util.Objects.requireNonNull(data, "data is required");
     this.mimeType = java.util.Objects.requireNonNull(mimeType, "mimeType is required");
   }

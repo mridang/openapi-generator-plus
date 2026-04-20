@@ -12,88 +12,87 @@ import javax.annotation.Nullable;
 /**
  * Authenticator for the OAuth2 Implicit flow.
  *
- * <p>Implements {@link HttpAwareAuthenticator} so that any token refresh requests use the shared
- * {@link ApiClient} with the same transport configuration (proxy, TLS, timeouts) as regular API
- * calls.
+ * <p>Implements {@link HttpAwareAuthenticator} so that any token refresh
+ * requests use the shared {@link ApiClient} with the same transport
+ * configuration (proxy, TLS, timeouts) as regular API calls.
  *
  * <p>Usage:
- *
  * <ol>
- *   <li>Call {@link #buildAuthorizationUrl(String)} to get the authorization URL
- *   <li>Redirect the user to that URL
- *   <li>Extract the access token from the fragment and call {@link #setAccessToken(String)}
- *   <li>Use the authenticator normally
+ *   <li>Call {@link #buildAuthorizationUrl(String)} to get the authorization URL</li>
+ *   <li>Redirect the user to that URL</li>
+ *   <li>Extract the access token from the fragment and call {@link #setAccessToken(String)}</li>
+ *   <li>Use the authenticator normally</li>
  * </ol>
  */
 public class OAuth2ImplicitAuthenticator implements HttpAwareAuthenticator {
 
-  private final String host;
-  private final String clientId;
-  private final String authorizationUrl;
-  private final List<String> scopes;
-  @Nullable private String accessToken;
+    private final String       host;
+    private final String       clientId;
+    private final String       authorizationUrl;
+    private final List<String> scopes;
+    @Nullable private String   accessToken;
 
-  /**
-   * Create a new implicit flow authenticator.
-   *
-   * @param host API base URL
-   * @param clientId OAuth2 client ID
-   * @param authorizationUrl authorization endpoint URL
-   * @param scopes requested scopes
-   */
-  public OAuth2ImplicitAuthenticator(
-      String host, String clientId, String authorizationUrl, List<String> scopes) {
-    this.host = host;
-    this.clientId = clientId;
-    this.authorizationUrl = authorizationUrl;
-    this.scopes = List.copyOf(scopes);
-  }
-
-  @Override
-  public void setApiClient(ApiClient apiClient) {}
-
-  /**
-   * Build the authorization URL to redirect the user to.
-   *
-   * @param state optional CSRF state parameter
-   * @return the authorization URL
-   */
-  public String buildAuthorizationUrl(@Nullable String state) {
-    StringBuilder url = new StringBuilder(authorizationUrl);
-    url.append("?response_type=token");
-    url.append("&client_id=").append(encode(clientId));
-    if (!scopes.isEmpty()) {
-      url.append("&scope=").append(encode(String.join(" ", scopes)));
+    /**
+     * Create a new implicit flow authenticator.
+     *
+     * @param host             API base URL
+     * @param clientId         OAuth2 client ID
+     * @param authorizationUrl authorization endpoint URL
+     * @param scopes           requested scopes
+     */
+    public OAuth2ImplicitAuthenticator(String host, String clientId, String authorizationUrl, List<String> scopes) {
+        this.host             = host;
+        this.clientId         = clientId;
+        this.authorizationUrl = authorizationUrl;
+        this.scopes           = List.copyOf(scopes);
     }
-    if (state != null) {
-      url.append("&state=").append(encode(state));
+
+    @Override
+    public void setApiClient(ApiClient apiClient) {
     }
-    return url.toString();
-  }
 
-  /**
-   * Set the access token obtained from the authorization redirect fragment.
-   *
-   * @param token the access token
-   */
-  public void setAccessToken(String token) {
-    this.accessToken = token;
-  }
-
-  @Override
-  public String getHost() {
-    return host;
-  }
-
-  @Override
-  public Map<String, String> getAuthHeaders() {
-    if (accessToken == null) {
-      throw new IllegalStateException("Must call setAccessToken() before making API requests");
+    /**
+     * Build the authorization URL to redirect the user to.
+     *
+     * @param state optional CSRF state parameter
+     * @return the authorization URL
+     */
+    public String buildAuthorizationUrl(@Nullable String state) {
+        StringBuilder url = new StringBuilder(authorizationUrl);
+        url.append("?response_type=token");
+        url.append("&client_id=").append(encode(clientId));
+        if (!scopes.isEmpty()) {
+            url.append("&scope=").append(encode(String.join(" ", scopes)));
+        }
+        if (state != null) {
+            url.append("&state=").append(encode(state));
+        }
+        return url.toString();
     }
-    return Collections.singletonMap("Authorization", "Bearer " + accessToken);
-  }
 
-  private static String encode(String value) {
-    return URLEncoder.encode(value, StandardCharsets.UTF_8);
-  }
+    /**
+     * Set the access token obtained from the authorization redirect fragment.
+     *
+     * @param token the access token
+     */
+    public void setAccessToken(String token) {
+        this.accessToken = token;
+    }
+
+    @Override
+    public String getHost() {
+        return host;
+    }
+
+    @Override
+    public Map<String, String> getAuthHeaders() {
+        if (accessToken == null) {
+            throw new IllegalStateException("Must call setAccessToken() before making API requests");
+        }
+        return Collections.singletonMap("Authorization", "Bearer " + accessToken);
+    }
+
+    private static String encode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
 }

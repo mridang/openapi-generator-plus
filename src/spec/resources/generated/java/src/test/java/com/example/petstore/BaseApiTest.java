@@ -1,7 +1,6 @@
 package com.example.petstore;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.exceptions.*;
@@ -17,393 +16,388 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 class BaseApiTest {
 
-  private static final TypeReference<JsonNode> JSON_NODE_TYPE = new TypeReference<>() {};
-  private static final TypeReference<String> STRING_TYPE = new TypeReference<>() {};
+    private static final TypeReference<JsonNode> JSON_NODE_TYPE = new TypeReference<>() {};
+    private static final TypeReference<String> STRING_TYPE = new TypeReference<>() {};
 
-  static class TestableApi extends com.example.petstore.api.BaseApi {
+    static class TestableApi extends com.example.petstore.api.BaseApi {
 
-    TestableApi(String baseUrl) {
-      super(new DefaultApiClient(), new Configuration(baseUrl, Map.of()));
+        TestableApi(String baseUrl) {
+            super(new DefaultApiClient(), new Configuration(baseUrl, Map.of()));
+        }
+
+        <T> @Nullable T call(
+                String method,
+                String path,
+                Map<String, Object> queryParams,
+                Map<String, String> headerParams,
+                @Nullable Object body,
+                String[] accepts,
+                String contentType,
+                @Nullable TypeReference<T> returnType,
+                @Nullable Authenticator auth)
+                throws ApiException {
+            return invokeApi(
+                    method, path, queryParams, headerParams, body, accepts, contentType,
+                    returnType, auth);
+        }
     }
 
-    <T> @Nullable T call(
-        String method,
-        String path,
-        Map<String, Object> queryParams,
-        Map<String, String> headerParams,
-        @Nullable Object body,
-        String[] accepts,
-        String contentType,
-        @Nullable TypeReference<T> returnType,
-        @Nullable Authenticator auth)
-        throws ApiException {
-      return invokeApi(
-          method, path, queryParams, headerParams, body, accepts, contentType, returnType, auth);
-    }
-  }
+    static class TestAuthenticator implements Authenticator {
 
-  static class TestAuthenticator implements Authenticator {
+        private final Map<String, String> headers;
+        private final Map<String, String> queryParams;
+        private final Map<String, String> cookies;
 
-    private final Map<String, String> headers;
-    private final Map<String, String> queryParams;
-    private final Map<String, String> cookies;
+        TestAuthenticator(
+                Map<String, String> headers,
+                Map<String, String> queryParams,
+                Map<String, String> cookies) {
+            this.headers = headers;
+            this.queryParams = queryParams;
+            this.cookies = cookies;
+        }
 
-    TestAuthenticator(
-        Map<String, String> headers, Map<String, String> queryParams, Map<String, String> cookies) {
-      this.headers = headers;
-      this.queryParams = queryParams;
-      this.cookies = cookies;
-    }
+        @Override
+        public String getHost() {
+            return "";
+        }
 
-    @Override
-    public String getHost() {
-      return "";
-    }
+        @Override
+        public Map<String, String> getAuthHeaders() {
+            return headers;
+        }
 
-    @Override
-    public Map<String, String> getAuthHeaders() {
-      return headers;
+        @Override
+        public Map<String, String> getQueryParams() {
+            return queryParams;
+        }
+
+        @Override
+        public Map<String, String> getCookieParams() {
+            return cookies;
+        }
     }
 
-    @Override
-    public Map<String, String> getQueryParams() {
-      return queryParams;
+    private TestableApi api() {
+        return new TestableApi(WireMockContainer.getHttpUrl());
     }
 
-    @Override
-    public Map<String, String> getCookieParams() {
-      return cookies;
-    }
-  }
+    @Nested
+    @DisplayName("exception dispatch")
+    class ExceptionDispatch {
 
-  private TestableApi api() {
-    return new TestableApi(WireMockContainer.getHttpUrl());
-  }
+        static Stream<Arguments> statusToException() {
+            return Stream.of(
+                    Arguments.of(400, BadRequestException.class),
+                    Arguments.of(401, UnauthorizedException.class),
+                    Arguments.of(403, ForbiddenException.class),
+                    Arguments.of(404, NotFoundException.class),
+                    Arguments.of(409, ConflictException.class),
+                    Arguments.of(422, UnprocessableEntityException.class),
+                    Arguments.of(418, ClientException.class),
+                    Arguments.of(500, InternalServerErrorException.class),
+                    Arguments.of(502, ServerException.class));
+        }
 
-  @Nested
-  @DisplayName("exception dispatch")
-  class ExceptionDispatch {
-
-    static Stream<Arguments> statusToException() {
-      return Stream.of(
-          Arguments.of(400, BadRequestException.class),
-          Arguments.of(401, UnauthorizedException.class),
-          Arguments.of(403, ForbiddenException.class),
-          Arguments.of(404, NotFoundException.class),
-          Arguments.of(409, ConflictException.class),
-          Arguments.of(422, UnprocessableEntityException.class),
-          Arguments.of(418, ClientException.class),
-          Arguments.of(500, InternalServerErrorException.class),
-          Arguments.of(502, ServerException.class));
-    }
-
-    @ParameterizedTest
-    @MethodSource("statusToException")
-    @DisplayName("throws correct exception for status code")
-    void throwsCorrectException(int status, Class<? extends ApiException> expected) {
-      var ex =
-          assertThrows(
-              expected,
-              () ->
-                  api()
-                      .call(
-                          "GET",
-                          "/api/error/" + status,
-                          new HashMap<>(),
-                          new HashMap<>(),
-                          null,
-                          new String[] {"application/json"},
-                          "application/json",
-                          null,
-                          null));
-      assertEquals(status, ex.getCode());
-      assertNotNull(ex.getResponseBody());
-      assertFalse(ex.getResponseBody().isEmpty());
-    }
-  }
-
-  @Nested
-  @DisplayName("exception hierarchy")
-  class ExceptionHierarchy {
-
-    @Test
-    @DisplayName("NotFoundException is ClientException is ApiException")
-    void notFoundHierarchy() {
-      var ex =
-          assertThrows(
-              NotFoundException.class,
-              () ->
-                  api()
-                      .call(
-                          "GET",
-                          "/api/error/404",
-                          new HashMap<>(),
-                          new HashMap<>(),
-                          null,
-                          new String[] {"application/json"},
-                          "application/json",
-                          null,
-                          null));
-      assertInstanceOf(ClientException.class, ex);
-      assertInstanceOf(ApiException.class, ex);
+        @ParameterizedTest
+        @MethodSource("statusToException")
+        @DisplayName("throws correct exception for status code")
+        void throwsCorrectException(int status, Class<? extends ApiException> expected) {
+            var ex =
+                    assertThrows(
+                            expected,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/api/error/" + status,
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(status, ex.getCode());
+            assertNotNull(ex.getResponseBody());
+            assertFalse(ex.getResponseBody().isEmpty());
+        }
     }
 
-    @Test
-    @DisplayName("InternalServerErrorException is ServerException is ApiException")
-    void internalServerErrorHierarchy() {
-      var ex =
-          assertThrows(
-              InternalServerErrorException.class,
-              () ->
-                  api()
-                      .call(
-                          "GET",
-                          "/api/error/500",
-                          new HashMap<>(),
-                          new HashMap<>(),
-                          null,
-                          new String[] {"application/json"},
-                          "application/json",
-                          null,
-                          null));
-      assertInstanceOf(ServerException.class, ex);
-      assertInstanceOf(ApiException.class, ex);
-    }
-  }
+    @Nested
+    @DisplayName("exception hierarchy")
+    class ExceptionHierarchy {
 
-  @Nested
-  @DisplayName("success deserialization")
-  class SuccessDeserialization {
+        @Test
+        @DisplayName("NotFoundException is ClientException is ApiException")
+        void notFoundHierarchy() {
+            var ex =
+                    assertThrows(
+                            NotFoundException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/api/error/404",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertInstanceOf(ClientException.class, ex);
+            assertInstanceOf(ApiException.class, ex);
+        }
 
-    @Test
-    @DisplayName("deserializes JSON response")
-    void deserializesJsonResponse() throws ApiException {
-      JsonNode result =
-          api()
-              .call(
-                  "GET",
-                  "/api/test",
-                  new HashMap<>(),
-                  new HashMap<>(),
-                  null,
-                  new String[] {"application/json"},
-                  "application/json",
-                  JSON_NODE_TYPE,
-                  null);
-      assertNotNull(result);
-      assertEquals("success", result.get("message").asText());
-    }
-
-    @Test
-    @DisplayName("returns raw string for non-JSON response")
-    void returnsRawStringForNonJson() throws ApiException {
-      String result =
-          api()
-              .call(
-                  "GET",
-                  "/api/text",
-                  new HashMap<>(),
-                  new HashMap<>(),
-                  null,
-                  new String[] {"text/plain"},
-                  "application/json",
-                  STRING_TYPE,
-                  null);
-      assertNotNull(result);
-      assertTrue(result.contains("hello plain text"));
+        @Test
+        @DisplayName("InternalServerErrorException is ServerException is ApiException")
+        void internalServerErrorHierarchy() {
+            var ex =
+                    assertThrows(
+                            InternalServerErrorException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/api/error/500",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertInstanceOf(ServerException.class, ex);
+            assertInstanceOf(ApiException.class, ex);
+        }
     }
 
-    @Test
-    @DisplayName("returns null when returnType is null")
-    void returnsNullWhenReturnTypeIsNull() throws ApiException {
-      Object result =
-          api()
-              .call(
-                  "GET",
-                  "/api/test",
-                  new HashMap<>(),
-                  new HashMap<>(),
-                  null,
-                  new String[] {"application/json"},
-                  "application/json",
-                  null,
-                  null);
-      assertNull(result);
-    }
-  }
+    @Nested
+    @DisplayName("success deserialization")
+    class SuccessDeserialization {
 
-  @Nested
-  @DisplayName("query parameters")
-  class QueryParameters {
+        @Test
+        @DisplayName("deserializes JSON response")
+        void deserializesJsonResponse() throws ApiException {
+            JsonNode result =
+                    api().call(
+                            "GET",
+                            "/api/test",
+                            new HashMap<>(),
+                            new HashMap<>(),
+                            null,
+                            new String[] {"application/json"},
+                            "application/json",
+                            JSON_NODE_TYPE,
+                            null);
+            assertNotNull(result);
+            assertEquals("success", result.get("message").asText());
+        }
 
-    @Test
-    @DisplayName("appends query params to URL")
-    void appendsQueryParams() throws ApiException {
-      Map<String, Object> queryParams = new HashMap<>();
-      queryParams.put("foo", "bar");
-      Object result =
-          api()
-              .call(
-                  "GET",
-                  "/api/test",
-                  queryParams,
-                  new HashMap<>(),
-                  null,
-                  new String[] {"application/json"},
-                  "application/json",
-                  null,
-                  null);
-      assertNull(result);
-    }
+        @Test
+        @DisplayName("returns raw string for non-JSON response")
+        void returnsRawStringForNonJson() throws ApiException {
+            String result =
+                    api().call(
+                            "GET",
+                            "/api/text",
+                            new HashMap<>(),
+                            new HashMap<>(),
+                            null,
+                            new String[] {"text/plain"},
+                            "application/json",
+                            STRING_TYPE,
+                            null);
+            assertNotNull(result);
+            assertTrue(result.contains("hello plain text"));
+        }
 
-    @Test
-    @DisplayName("includes empty value param in query string when value is empty string")
-    void includesEmptyValueParam() throws ApiException {
-      Map<String, Object> queryParams = new HashMap<>();
-      queryParams.put("filter", "");
-      Object result =
-          api()
-              .call(
-                  "GET",
-                  "/api/test",
-                  queryParams,
-                  new HashMap<>(),
-                  null,
-                  new String[] {"application/json"},
-                  "application/json",
-                  null,
-                  null);
-      assertNull(result);
-    }
-  }
-
-  @Nested
-  @DisplayName("server variable overrides")
-  class ServerVariableOverrides {
-
-    @Test
-    @DisplayName("server variable overrides resolve in base URL")
-    void serverVariableOverridesResolve() {
-      Configuration config =
-          Configuration.builder()
-              .server(Servers.SERVER_1, Map.of("environment", "staging"))
-              .build();
-      assertEquals("https://staging.example.com/api/v3", config.getBaseUrl());
+        @Test
+        @DisplayName("returns null when returnType is null")
+        void returnsNullWhenReturnTypeIsNull() throws ApiException {
+            Object result =
+                    api().call(
+                            "GET",
+                            "/api/test",
+                            new HashMap<>(),
+                            new HashMap<>(),
+                            null,
+                            new String[] {"application/json"},
+                            "application/json",
+                            null,
+                            null);
+            assertNull(result);
+        }
     }
 
-    @Test
-    @DisplayName("default server variables produce correct base URL")
-    void defaultServerVariablesResolve() {
-      Configuration config = Configuration.builder().server(Servers.SERVER_1).build();
-      assertEquals("https://api.example.com/api/v3", config.getBaseUrl());
+    @Nested
+    @DisplayName("query parameters")
+    class QueryParameters {
+
+        @Test
+        @DisplayName("appends query params to URL")
+        void appendsQueryParams() throws ApiException {
+            Map<String, Object> queryParams = new HashMap<>();
+            queryParams.put("foo", "bar");
+            Object result =
+                    api().call(
+                            "GET",
+                            "/api/test",
+                            queryParams,
+                            new HashMap<>(),
+                            null,
+                            new String[] {"application/json"},
+                            "application/json",
+                            null,
+                            null);
+            assertNull(result);
+        }
+
+        @Test
+        @DisplayName("includes empty value param in query string when value is empty string")
+        void includesEmptyValueParam() throws ApiException {
+            Map<String, Object> queryParams = new HashMap<>();
+            queryParams.put("filter", "");
+            Object result =
+                    api().call(
+                            "GET",
+                            "/api/test",
+                            queryParams,
+                            new HashMap<>(),
+                            null,
+                            new String[] {"application/json"},
+                            "application/json",
+                            null,
+                            null);
+            assertNull(result);
+        }
     }
 
-    @Test
-    @DisplayName("invalid enum value throws error")
-    void invalidEnumValueThrows() {
-      assertThrows(
-          IllegalArgumentException.class,
-          () ->
-              Configuration.builder()
-                  .server(Servers.SERVER_1, Map.of("environment", "invalid"))
-                  .build());
+    @Nested
+    @DisplayName("server variable overrides")
+    class ServerVariableOverrides {
+
+        @Test
+        @DisplayName("server variable overrides resolve in base URL")
+        void serverVariableOverridesResolve() {
+            Configuration config = Configuration.builder()
+                    .server(Servers.SERVER_1, Map.of("environment", "staging"))
+                    .build();
+            assertEquals("https://staging.example.com/api/v3", config.getBaseUrl());
+        }
+
+        @Test
+        @DisplayName("default server variables produce correct base URL")
+        void defaultServerVariablesResolve() {
+            Configuration config = Configuration.builder()
+                    .server(Servers.SERVER_1)
+                    .build();
+            assertEquals("https://api.example.com/api/v3", config.getBaseUrl());
+        }
+
+        @Test
+        @DisplayName("invalid enum value throws error")
+        void invalidEnumValueThrows() {
+            assertThrows(IllegalArgumentException.class, () ->
+                    Configuration.builder()
+                            .server(Servers.SERVER_1, Map.of("environment", "invalid"))
+                            .build());
+        }
+
+        @Test
+        @DisplayName("API request uses resolved server URL")
+        void apiRequestUsesResolvedUrl() {
+            Configuration config = Configuration.builder()
+                    .server(Servers.SERVER_1, Map.of("environment", "staging"))
+                    .build();
+            assertEquals("https://staging.example.com/api/v3", config.getBaseUrl());
+            TestableApi testApi = new TestableApi(config.getBaseUrl());
+            assertNotNull(testApi);
+        }
     }
 
-    @Test
-    @DisplayName("API request uses resolved server URL")
-    void apiRequestUsesResolvedUrl() {
-      Configuration config =
-          Configuration.builder()
-              .server(Servers.SERVER_1, Map.of("environment", "staging"))
-              .build();
-      assertEquals("https://staging.example.com/api/v3", config.getBaseUrl());
-      TestableApi testApi = new TestableApi(config.getBaseUrl());
-      assertNotNull(testApi);
-    }
-  }
+    @Nested
+    @DisplayName("auth injection")
+    class AuthInjection {
 
-  @Nested
-  @DisplayName("auth injection")
-  class AuthInjection {
+        @Test
+        @DisplayName("forwards auth headers")
+        void forwardsAuthHeaders() throws Exception {
+            var auth =
+                    new TestAuthenticator(
+                            Map.of("X-Custom", "auth-value"), Map.of(), Map.of());
+            JsonNode result =
+                    api().call(
+                            "GET",
+                            "/api/echo-headers",
+                            new HashMap<>(),
+                            new HashMap<>(),
+                            null,
+                            new String[] {"application/json"},
+                            "application/json",
+                            JSON_NODE_TYPE,
+                            auth);
+            assertNotNull(result);
+            assertEquals("auth-value", result.get("x-custom").asText());
+        }
 
-    @Test
-    @DisplayName("forwards auth headers")
-    void forwardsAuthHeaders() throws Exception {
-      var auth = new TestAuthenticator(Map.of("X-Custom", "auth-value"), Map.of(), Map.of());
-      JsonNode result =
-          api()
-              .call(
-                  "GET",
-                  "/api/echo-headers",
-                  new HashMap<>(),
-                  new HashMap<>(),
-                  null,
-                  new String[] {"application/json"},
-                  "application/json",
-                  JSON_NODE_TYPE,
-                  auth);
-      assertNotNull(result);
-      assertEquals("auth-value", result.get("x-custom").asText());
-    }
-
-    @Test
-    @DisplayName("sets Cookie header from auth cookies")
-    void setsCookieHeader() throws Exception {
-      var auth = new TestAuthenticator(Map.of(), Map.of(), Map.of("session", "abc123"));
-      api()
-          .call(
-              "GET",
-              "/api/test",
-              new HashMap<>(),
-              new HashMap<>(),
-              null,
-              new String[] {"application/json"},
-              "application/json",
-              null,
-              auth);
-    }
-  }
-
-  @Nested
-  @DisplayName("body serialization")
-  class BodySerialization {
-
-    @Test
-    @DisplayName("serializes JSON body for POST")
-    void serializesJsonBody() throws Exception {
-      Map<String, String> body = Map.of("key", "value");
-      JsonNode result =
-          api()
-              .call(
-                  "POST",
-                  "/api/echo-body",
-                  new HashMap<>(),
-                  new HashMap<>(),
-                  body,
-                  new String[] {"application/json"},
-                  "application/json",
-                  JSON_NODE_TYPE,
-                  null);
-      assertNotNull(result);
-      assertEquals("value", result.get("key").asText());
+        @Test
+        @DisplayName("sets Cookie header from auth cookies")
+        void setsCookieHeader() throws Exception {
+            var auth =
+                    new TestAuthenticator(
+                            Map.of(), Map.of(), Map.of("session", "abc123"));
+            api().call(
+                    "GET",
+                    "/api/test",
+                    new HashMap<>(),
+                    new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null,
+                    auth);
+        }
     }
 
-    @Test
-    @DisplayName("sends no body when body is null")
-    void sendsNoBodyWhenNull() throws ApiException {
-      api()
-          .call(
-              "GET",
-              "/api/test",
-              new HashMap<>(),
-              new HashMap<>(),
-              null,
-              new String[] {"application/json"},
-              "application/json",
-              null,
-              null);
+    @Nested
+    @DisplayName("body serialization")
+    class BodySerialization {
+
+        @Test
+        @DisplayName("serializes JSON body for POST")
+        void serializesJsonBody() throws Exception {
+            Map<String, String> body = Map.of("key", "value");
+            JsonNode result =
+                    api().call(
+                            "POST",
+                            "/api/echo-body",
+                            new HashMap<>(),
+                            new HashMap<>(),
+                            body,
+                            new String[] {"application/json"},
+                            "application/json",
+                            JSON_NODE_TYPE,
+                            null);
+            assertNotNull(result);
+            assertEquals("value", result.get("key").asText());
+        }
+
+        @Test
+        @DisplayName("sends no body when body is null")
+        void sendsNoBodyWhenNull() throws ApiException {
+            api().call(
+                    "GET",
+                    "/api/test",
+                    new HashMap<>(),
+                    new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null,
+                    null);
+        }
     }
-  }
 }

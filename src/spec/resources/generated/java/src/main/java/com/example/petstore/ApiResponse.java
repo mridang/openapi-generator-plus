@@ -13,10 +13,12 @@ import java.util.Map;
  */
 public record ApiResponse(int statusCode, String body, Map<String, String> headers) {
 
-  /** Creates an ApiResponse with defensively copied headers. */
-  public ApiResponse(int statusCode, String body, Map<String, String> headers) {
-    this.statusCode = statusCode;
-    this.body = body;
-    this.headers = Collections.unmodifiableMap(new HashMap<>(headers));
-  }
+    /**
+     * Creates an ApiResponse with defensively copied headers.
+     */
+    public ApiResponse(int statusCode, String body, Map<String, String> headers) {
+        this.statusCode = statusCode;
+        this.body = body;
+        this.headers = Collections.unmodifiableMap(new HashMap<>(headers));
+    }
 }

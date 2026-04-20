@@ -1,67 +1,62 @@
 package com.example.petstore;
 
-import java.nio.file.Path;
-import java.time.Duration;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.Network;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.MountableFile;
 
-/** Singleton WireMock container with HTTPS support, shared across all test classes. */
+import java.nio.file.Path;
+import java.time.Duration;
+
+/**
+ * Singleton WireMock container with HTTPS support, shared across all test classes.
+ */
 public final class WireMockContainer {
 
-  /** Shared Docker network so Squid can reach WireMock via container alias. */
-  static final Network PROXY_NETWORK = Network.newNetwork();
+    /** Shared Docker network so Squid can reach WireMock via container alias. */
+    static final Network PROXY_NETWORK = Network.newNetwork();
 
-  private static final GenericContainer<?> INSTANCE;
+    private static final GenericContainer<?> INSTANCE;
 
-  static {
-    INSTANCE =
-        new GenericContainer<>("wiremock/wiremock:3.13.0")
+    static {
+        INSTANCE = new GenericContainer<>("wiremock/wiremock:3.13.0")
             .withExposedPorts(8080, 8443)
             .withCopyFileToContainer(
-                MountableFile.forHostPath(
-                    Path.of("/app/src/test/resources/certs/server-keystore.p12")),
+                MountableFile.forHostPath(Path.of("/app/src/test/resources/certs/server-keystore.p12")),
                 "/tmp/keystore.p12")
             .withCopyFileToContainer(
                 MountableFile.forHostPath(Path.of("/app/src/test/resources/wiremock/mappings")),
                 "/home/wiremock/mappings/")
             .withCommand(
-                "--port",
-                "8080",
-                "--https-port",
-                "8443",
-                "--https-keystore",
-                "/tmp/keystore.p12",
-                "--keystore-type",
-                "PKCS12",
-                "--keystore-password",
-                "changeit",
-                "--key-manager-password",
-                "changeit",
+                "--port", "8080",
+                "--https-port", "8443",
+                "--https-keystore", "/tmp/keystore.p12",
+                "--keystore-type", "PKCS12",
+                "--keystore-password", "changeit",
+                "--key-manager-password", "changeit",
                 "--verbose")
             .withNetwork(PROXY_NETWORK)
             .withNetworkAliases("wiremock")
             .waitingFor(Wait.forLogMessage(".*port:.*", 1))
             .withStartupTimeout(Duration.ofSeconds(60));
-    INSTANCE.start();
-  }
+        INSTANCE.start();
+    }
 
-  private WireMockContainer() {}
+    private WireMockContainer() {}
 
-  public static String getHttpsUrl() {
-    return "https://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(8443);
-  }
+    public static String getHttpsUrl() {
+        return "https://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(8443);
+    }
 
-  public static String getHttpUrl() {
-    return "http://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(8080);
-  }
+    public static String getHttpUrl() {
+        return "http://" + INSTANCE.getHost() + ":" + INSTANCE.getMappedPort(8080);
+    }
 
-  public static String getInternalHttpUrl() {
-    return "http://wiremock:8080";
-  }
+    public static String getInternalHttpUrl() {
+        return "http://wiremock:8080";
+    }
 
-  public static String getInternalHttpsUrl() {
-    return "https://wiremock:8443";
-  }
+    public static String getInternalHttpsUrl() {
+        return "https://wiremock:8443";
+    }
 }

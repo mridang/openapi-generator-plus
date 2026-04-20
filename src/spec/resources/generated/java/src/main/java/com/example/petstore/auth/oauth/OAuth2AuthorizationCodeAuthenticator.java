@@ -13,145 +13,134 @@ import javax.annotation.Nullable;
 /**
  * Authenticator for the OAuth2 Authorization Code flow.
  *
- * <p>Implements {@link HttpAwareAuthenticator} so that token exchange requests use the shared
- * {@link ApiClient} with the same transport configuration (proxy, TLS, timeouts) as regular API
- * calls.
+ * <p>Implements {@link HttpAwareAuthenticator} so that token exchange requests
+ * use the shared {@link ApiClient} with the same transport configuration
+ * (proxy, TLS, timeouts) as regular API calls.
  *
  * <p>Usage:
- *
  * <ol>
- *   <li>Call {@link #buildAuthorizationUrl(String)} to get the authorization URL
- *   <li>Redirect the user to that URL
- *   <li>After the callback, call {@link #exchangeCode(String)} with the auth code
- *   <li>Use the authenticator normally — tokens are managed automatically
+ *   <li>Call {@link #buildAuthorizationUrl(String)} to get the authorization URL</li>
+ *   <li>Redirect the user to that URL</li>
+ *   <li>After the callback, call {@link #exchangeCode(String)} with the auth code</li>
+ *   <li>Use the authenticator normally — tokens are managed automatically</li>
  * </ol>
  */
 public class OAuth2AuthorizationCodeAuthenticator implements HttpAwareAuthenticator {
 
-  private final String host;
-  private final String clientId;
-  private final String clientSecret;
-  private final String authorizationUrl;
-  private final String tokenUrl;
-  private final String refreshUrl;
-  private final String redirectUri;
-  private final List<String> scopes;
-  private final OAuth2TokenManager tokenManager;
-  private boolean tokenExchanged;
+    private final String             host;
+    private final String             clientId;
+    private final String             clientSecret;
+    private final String             authorizationUrl;
+    private final String             tokenUrl;
+    private final String             refreshUrl;
+    private final String             redirectUri;
+    private final List<String>       scopes;
+    private final OAuth2TokenManager tokenManager;
+    private boolean                  tokenExchanged;
 
-  /**
-   * Create a new authorization code authenticator.
-   *
-   * @param host API base URL
-   * @param clientId OAuth2 client ID
-   * @param clientSecret OAuth2 client secret
-   * @param authorizationUrl authorization endpoint URL
-   * @param tokenUrl token endpoint URL
-   * @param redirectUri redirect URI registered with the OAuth2 provider
-   * @param scopes requested scopes
-   */
-  public OAuth2AuthorizationCodeAuthenticator(
-      String host,
-      String clientId,
-      String clientSecret,
-      String authorizationUrl,
-      String tokenUrl,
-      String redirectUri,
-      List<String> scopes) {
-    this(host, clientId, clientSecret, authorizationUrl, tokenUrl, null, redirectUri, scopes);
-  }
-
-  /**
-   * Create a new authorization code authenticator with a refresh URL.
-   *
-   * @param host API base URL
-   * @param clientId OAuth2 client ID
-   * @param clientSecret OAuth2 client secret
-   * @param authorizationUrl authorization endpoint URL
-   * @param tokenUrl token endpoint URL
-   * @param refreshUrl refresh token endpoint URL (falls back to tokenUrl if null)
-   * @param redirectUri redirect URI registered with the OAuth2 provider
-   * @param scopes requested scopes
-   */
-  public OAuth2AuthorizationCodeAuthenticator(
-      String host,
-      String clientId,
-      String clientSecret,
-      String authorizationUrl,
-      String tokenUrl,
-      @Nullable String refreshUrl,
-      String redirectUri,
-      List<String> scopes) {
-    this.host = host;
-    this.clientId = clientId;
-    this.clientSecret = clientSecret;
-    this.authorizationUrl = authorizationUrl;
-    this.tokenUrl = tokenUrl;
-    this.refreshUrl = refreshUrl != null ? refreshUrl : tokenUrl;
-    this.redirectUri = redirectUri;
-    this.scopes = List.copyOf(scopes);
-    this.tokenManager = new OAuth2TokenManager();
-  }
-
-  @Override
-  public void setApiClient(ApiClient apiClient) {
-    tokenManager.setApiClient(apiClient);
-  }
-
-  /**
-   * Build the authorization URL to redirect the user to.
-   *
-   * @param state optional CSRF state parameter
-   * @return the authorization URL
-   */
-  public String buildAuthorizationUrl(@Nullable String state) {
-    StringBuilder url = new StringBuilder(authorizationUrl);
-    url.append("?response_type=code");
-    url.append("&client_id=").append(encode(clientId));
-    url.append("&redirect_uri=").append(encode(redirectUri));
-    if (!scopes.isEmpty()) {
-      url.append("&scope=").append(encode(String.join(" ", scopes)));
+    /**
+     * Create a new authorization code authenticator.
+     *
+     * @param host             API base URL
+     * @param clientId         OAuth2 client ID
+     * @param clientSecret     OAuth2 client secret
+     * @param authorizationUrl authorization endpoint URL
+     * @param tokenUrl         token endpoint URL
+     * @param redirectUri      redirect URI registered with the OAuth2 provider
+     * @param scopes           requested scopes
+     */
+    public OAuth2AuthorizationCodeAuthenticator(String host, String clientId,
+            String clientSecret, String authorizationUrl, String tokenUrl,
+            String redirectUri, List<String> scopes) {
+        this(host, clientId, clientSecret, authorizationUrl, tokenUrl, null,
+                redirectUri, scopes);
     }
-    if (state != null) {
-      url.append("&state=").append(encode(state));
+
+    /**
+     * Create a new authorization code authenticator with a refresh URL.
+     *
+     * @param host             API base URL
+     * @param clientId         OAuth2 client ID
+     * @param clientSecret     OAuth2 client secret
+     * @param authorizationUrl authorization endpoint URL
+     * @param tokenUrl         token endpoint URL
+     * @param refreshUrl       refresh token endpoint URL (falls back to tokenUrl if null)
+     * @param redirectUri      redirect URI registered with the OAuth2 provider
+     * @param scopes           requested scopes
+     */
+    public OAuth2AuthorizationCodeAuthenticator(String host, String clientId,
+            String clientSecret, String authorizationUrl, String tokenUrl,
+            @Nullable String refreshUrl, String redirectUri, List<String> scopes) {
+        this.host             = host;
+        this.clientId         = clientId;
+        this.clientSecret     = clientSecret;
+        this.authorizationUrl = authorizationUrl;
+        this.tokenUrl         = tokenUrl;
+        this.refreshUrl       = refreshUrl != null ? refreshUrl : tokenUrl;
+        this.redirectUri      = redirectUri;
+        this.scopes           = List.copyOf(scopes);
+        this.tokenManager     = new OAuth2TokenManager();
     }
-    return url.toString();
-  }
 
-  /**
-   * Exchange an authorization code for an access token.
-   *
-   * @param code the authorization code from the callback
-   */
-  public void exchangeCode(String code) {
-    Map<String, String> params = new HashMap<>();
-    params.put("grant_type", "authorization_code");
-    params.put("code", code);
-    params.put("client_id", clientId);
-    params.put("client_secret", clientSecret);
-    params.put("redirect_uri", redirectUri);
-    tokenManager.getAccessToken(tokenUrl, params);
-    tokenExchanged = true;
-  }
-
-  @Override
-  public String getHost() {
-    return host;
-  }
-
-  @Override
-  public Map<String, String> getAuthHeaders() {
-    if (!tokenExchanged) {
-      throw new IllegalStateException("Must call exchangeCode() before making API requests");
+    @Override
+    public void setApiClient(ApiClient apiClient) {
+        tokenManager.setApiClient(apiClient);
     }
-    Map<String, String> params = new HashMap<>();
-    params.put("grant_type", "refresh_token");
-    params.put("refresh_token", tokenManager.getRefreshToken());
-    String token = tokenManager.getAccessToken(refreshUrl, params);
-    return Collections.singletonMap("Authorization", "Bearer " + token);
-  }
 
-  private static String encode(String value) {
-    return URLEncoder.encode(value, StandardCharsets.UTF_8);
-  }
+    /**
+     * Build the authorization URL to redirect the user to.
+     *
+     * @param state optional CSRF state parameter
+     * @return the authorization URL
+     */
+    public String buildAuthorizationUrl(@Nullable String state) {
+        StringBuilder url = new StringBuilder(authorizationUrl);
+        url.append("?response_type=code");
+        url.append("&client_id=").append(encode(clientId));
+        url.append("&redirect_uri=").append(encode(redirectUri));
+        if (!scopes.isEmpty()) {
+            url.append("&scope=").append(encode(String.join(" ", scopes)));
+        }
+        if (state != null) {
+            url.append("&state=").append(encode(state));
+        }
+        return url.toString();
+    }
+
+    /**
+     * Exchange an authorization code for an access token.
+     *
+     * @param code the authorization code from the callback
+     */
+    public void exchangeCode(String code) {
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "authorization_code");
+        params.put("code", code);
+        params.put("client_id", clientId);
+        params.put("client_secret", clientSecret);
+        params.put("redirect_uri", redirectUri);
+        tokenManager.getAccessToken(tokenUrl, params);
+        tokenExchanged = true;
+    }
+
+    @Override
+    public String getHost() {
+        return host;
+    }
+
+    @Override
+    public Map<String, String> getAuthHeaders() {
+        if (!tokenExchanged) {
+            throw new IllegalStateException("Must call exchangeCode() before making API requests");
+        }
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "refresh_token");
+        params.put("refresh_token", tokenManager.getRefreshToken());
+        String token = tokenManager.getAccessToken(refreshUrl, params);
+        return Collections.singletonMap("Authorization", "Bearer " + token);
+    }
+
+    private static String encode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
 }

@@ -15,113 +15,104 @@ import javax.annotation.Nullable;
 /**
  * Authenticator for OpenID Connect.
  *
- * <p>Fetches the OIDC discovery document to discover the authorization and token endpoints, then
- * delegates to an {@link OAuth2AuthorizationCodeAuthenticator}.
+ * <p>Fetches the OIDC discovery document to discover the authorization and
+ * token endpoints, then delegates to an {@link OAuth2AuthorizationCodeAuthenticator}.
  *
- * <p>Implements {@link HttpAwareAuthenticator} so that both the discovery request and subsequent
- * token exchange requests use the shared {@link ApiClient} with the same transport configuration
- * (proxy, TLS, timeouts) as regular API calls.
+ * <p>Implements {@link HttpAwareAuthenticator} so that both the discovery
+ * request and subsequent token exchange requests use the shared
+ * {@link ApiClient} with the same transport configuration (proxy, TLS,
+ * timeouts) as regular API calls.
  */
 public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
 
-  private final String host;
-  private final String openIdConnectUrl;
-  private final String clientId;
-  private final String clientSecret;
-  private final String redirectUri;
-  private final List<String> scopes;
-  @Nullable private ApiClient apiClient;
-  @Nullable private OAuth2AuthorizationCodeAuthenticator delegate;
+    private final String       host;
+    private final String       openIdConnectUrl;
+    private final String       clientId;
+    private final String       clientSecret;
+    private final String       redirectUri;
+    private final List<String> scopes;
+    @Nullable private ApiClient apiClient;
+    @Nullable private OAuth2AuthorizationCodeAuthenticator delegate;
 
-  /**
-   * Create a new OpenID Connect authenticator.
-   *
-   * @param host API base URL
-   * @param openIdConnectUrl OIDC discovery document URL
-   * @param clientId OAuth2 client ID
-   * @param clientSecret OAuth2 client secret
-   * @param redirectUri redirect URI registered with the provider
-   * @param scopes requested scopes
-   */
-  public OpenIdConnectAuthenticator(
-      String host,
-      String openIdConnectUrl,
-      String clientId,
-      String clientSecret,
-      String redirectUri,
-      List<String> scopes) {
-    this.host = host;
-    this.openIdConnectUrl = openIdConnectUrl;
-    this.clientId = clientId;
-    this.clientSecret = clientSecret;
-    this.redirectUri = redirectUri;
-    this.scopes = List.copyOf(scopes);
-  }
-
-  @Override
-  public synchronized void setApiClient(ApiClient apiClient) {
-    this.apiClient = apiClient;
-  }
-
-  private synchronized OAuth2AuthorizationCodeAuthenticator getDelegate() {
-    if (delegate == null) {
-      if (apiClient == null) {
-        throw new IllegalStateException(
-            "ApiClient has not been injected. "
-                + "Ensure the Client constructor calls setApiClient() "
-                + "on HttpAwareAuthenticator before making API requests.");
-      }
-      try {
-        Map<String, String> headers = new HashMap<>();
-        headers.put("Accept", "application/json");
-        ApiResponse response = apiClient.sendRequest("GET", openIdConnectUrl, headers, null);
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode discovery = mapper.readTree(response.body());
-        String authorizationEndpoint = discovery.get("authorization_endpoint").asText();
-        String tokenEndpoint = discovery.get("token_endpoint").asText();
-        delegate =
-            new OAuth2AuthorizationCodeAuthenticator(
-                host,
-                clientId,
-                clientSecret,
-                authorizationEndpoint,
-                tokenEndpoint,
-                redirectUri,
-                scopes);
-        delegate.setApiClient(apiClient);
-      } catch (ApiException | IOException e) {
-        throw new RuntimeException("Failed to fetch OpenID Connect discovery document", e);
-      }
+    /**
+     * Create a new OpenID Connect authenticator.
+     *
+     * @param host              API base URL
+     * @param openIdConnectUrl  OIDC discovery document URL
+     * @param clientId          OAuth2 client ID
+     * @param clientSecret      OAuth2 client secret
+     * @param redirectUri       redirect URI registered with the provider
+     * @param scopes            requested scopes
+     */
+    public OpenIdConnectAuthenticator(String host, String openIdConnectUrl,
+            String clientId, String clientSecret, String redirectUri, List<String> scopes) {
+        this.host             = host;
+        this.openIdConnectUrl = openIdConnectUrl;
+        this.clientId         = clientId;
+        this.clientSecret     = clientSecret;
+        this.redirectUri      = redirectUri;
+        this.scopes           = List.copyOf(scopes);
     }
-    return delegate;
-  }
 
-  /**
-   * Build the authorization URL using the discovered authorization endpoint.
-   *
-   * @param state CSRF state parameter
-   * @return the authorization URL
-   */
-  public String buildAuthorizationUrl(String state) {
-    return getDelegate().buildAuthorizationUrl(state);
-  }
+    @Override
+    public synchronized void setApiClient(ApiClient apiClient) {
+        this.apiClient = apiClient;
+    }
 
-  /**
-   * Exchange an authorization code for tokens using the discovered token endpoint.
-   *
-   * @param code the authorization code from the callback
-   */
-  public void exchangeCode(String code) {
-    getDelegate().exchangeCode(code);
-  }
+    private synchronized OAuth2AuthorizationCodeAuthenticator getDelegate() {
+        if (delegate == null) {
+            if (apiClient == null) {
+                throw new IllegalStateException(
+                        "ApiClient has not been injected. "
+                                + "Ensure the Client constructor calls setApiClient() "
+                                + "on HttpAwareAuthenticator before making API requests.");
+            }
+            try {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("Accept", "application/json");
+                ApiResponse response = apiClient.sendRequest(
+                        "GET", openIdConnectUrl, headers, null);
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode discovery = mapper.readTree(response.body());
+                String authorizationEndpoint = discovery.get("authorization_endpoint").asText();
+                String tokenEndpoint         = discovery.get("token_endpoint").asText();
+                delegate = new OAuth2AuthorizationCodeAuthenticator(
+                        host, clientId, clientSecret, authorizationEndpoint,
+                        tokenEndpoint, redirectUri, scopes);
+                delegate.setApiClient(apiClient);
+            } catch (ApiException | IOException e) {
+                throw new RuntimeException("Failed to fetch OpenID Connect discovery document", e);
+            }
+        }
+        return delegate;
+    }
 
-  @Override
-  public String getHost() {
-    return host;
-  }
+    /**
+     * Build the authorization URL using the discovered authorization endpoint.
+     *
+     * @param state CSRF state parameter
+     * @return the authorization URL
+     */
+    public String buildAuthorizationUrl(String state) {
+        return getDelegate().buildAuthorizationUrl(state);
+    }
 
-  @Override
-  public Map<String, String> getAuthHeaders() {
-    return getDelegate().getAuthHeaders();
-  }
+    /**
+     * Exchange an authorization code for tokens using the discovered token endpoint.
+     *
+     * @param code the authorization code from the callback
+     */
+    public void exchangeCode(String code) {
+        getDelegate().exchangeCode(code);
+    }
+
+    @Override
+    public String getHost() {
+        return host;
+    }
+
+    @Override
+    public Map<String, String> getAuthHeaders() {
+        return getDelegate().getAuthHeaders();
+    }
 }

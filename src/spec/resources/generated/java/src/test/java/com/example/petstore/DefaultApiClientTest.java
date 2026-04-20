@@ -12,291 +12,317 @@ import org.junit.jupiter.api.Test;
 
 class DefaultApiClientTest {
 
-  private static final String CA_CERT_PATH = "/app/src/test/resources/certs/ca.pem";
+    private static final String CA_CERT_PATH = "/app/src/test/resources/certs/ca.pem";
 
-  @Nested
-  @DisplayName("TLS verification disabled")
-  class TlsVerificationDisabled {
+    @Nested
+    @DisplayName("TLS verification disabled")
+    class TlsVerificationDisabled {
 
-    @Test
-    @DisplayName("makes HTTPS request with verifySsl=false")
-    void makesHttpsRequestWithVerifySslFalse() throws ApiException {
-      String wiremockUrl = WireMockContainer.getHttpsUrl();
+        @Test
+        @DisplayName("makes HTTPS request with verifySsl=false")
+        void makesHttpsRequestWithVerifySslFalse() throws ApiException {
+            String wiremockUrl = WireMockContainer.getHttpsUrl();
 
-      TransportOptions transport = TransportOptions.builder().verifySsl(false).build();
+            TransportOptions transport = TransportOptions.builder()
+                    .verifySsl(false)
+                    .build();
 
-      DefaultApiClient client = new DefaultApiClient(transport);
-      ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/test", new HashMap<>(), null);
+            DefaultApiClient client = new DefaultApiClient(transport);
+            ApiResponse response = client.sendRequest(
+                    "GET", wiremockUrl + "/api/test", new HashMap<>(), null);
 
-      assertEquals(200, response.statusCode());
-      assertTrue(response.body().contains("success"));
-    }
-  }
-
-  @Nested
-  @DisplayName("custom CA bundle")
-  class CustomCaBundle {
-
-    @Test
-    @DisplayName("makes HTTPS request with custom CA cert")
-    void makesHttpsRequestWithCustomCaCert() throws ApiException {
-      String wiremockUrl = WireMockContainer.getHttpsUrl();
-
-      TransportOptions transport =
-          TransportOptions.builder().verifySsl(true).caCertPath(CA_CERT_PATH).build();
-
-      DefaultApiClient client = new DefaultApiClient(transport);
-      ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/test", new HashMap<>(), null);
-
-      assertEquals(200, response.statusCode());
-      assertTrue(response.body().contains("success"));
-    }
-  }
-
-  @Nested
-  @DisplayName("HTTP proxy")
-  class HttpProxy {
-
-    @Test
-    @DisplayName("makes HTTP request through proxy")
-    void makesHttpRequestThroughProxy() throws ApiException {
-      String wiremockUrl = WireMockContainer.getInternalHttpUrl();
-      String proxyUrl = SquidContainer.getProxyUrl();
-
-      TransportOptions transport = TransportOptions.builder().proxy(proxyUrl).build();
-
-      DefaultApiClient client = new DefaultApiClient(transport);
-      ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/test", new HashMap<>(), null);
-
-      assertEquals(200, response.statusCode());
-      assertTrue(response.body().contains("success"));
-    }
-  }
-
-  @Nested
-  @DisplayName("HTTP proxy with TLS")
-  class HttpProxyWithTls {
-
-    @Test
-    @DisplayName("makes HTTPS request through proxy with verifySsl=false")
-    void makesHttpsRequestThroughProxyWithVerifySslFalse() throws ApiException {
-      String wiremockUrl = WireMockContainer.getInternalHttpsUrl();
-      String proxyUrl = SquidContainer.getProxyUrl();
-
-      TransportOptions transport =
-          TransportOptions.builder().proxy(proxyUrl).verifySsl(false).build();
-
-      DefaultApiClient client = new DefaultApiClient(transport);
-      ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/test", new HashMap<>(), null);
-
-      assertEquals(200, response.statusCode());
-      assertTrue(response.body().contains("success"));
-    }
-  }
-
-  @Nested
-  @DisplayName("HTTP compression")
-  class HttpCompression {
-
-    private static final String COMPRESSION_URL = "https://jsonplaceholder.typicode.com/posts/1";
-
-    @Test
-    @DisplayName("decompresses gzip response")
-    void decompressesGzipResponse() throws ApiException {
-      DefaultApiClient client = new DefaultApiClient();
-      HashMap<String, String> headers = new HashMap<>();
-      headers.put("Accept-Encoding", "gzip");
-      ApiResponse response = client.sendRequest("GET", COMPRESSION_URL, headers, null);
-
-      assertEquals(200, response.statusCode());
-      assertTrue(response.body().contains("userId"));
+            assertEquals(200, response.statusCode());
+            assertTrue(response.body().contains("success"));
+        }
     }
 
-    @Test
-    @DisplayName("decompresses brotli response")
-    void decompressesBrotliResponse() throws ApiException {
-      DefaultApiClient client = new DefaultApiClient();
-      HashMap<String, String> headers = new HashMap<>();
-      headers.put("Accept-Encoding", "br");
-      ApiResponse response = client.sendRequest("GET", COMPRESSION_URL, headers, null);
+    @Nested
+    @DisplayName("custom CA bundle")
+    class CustomCaBundle {
 
-      assertEquals(200, response.statusCode());
-      assertTrue(response.body().contains("userId"));
+        @Test
+        @DisplayName("makes HTTPS request with custom CA cert")
+        void makesHttpsRequestWithCustomCaCert() throws ApiException {
+            String wiremockUrl = WireMockContainer.getHttpsUrl();
+
+            TransportOptions transport = TransportOptions.builder()
+                    .verifySsl(true)
+                    .caCertPath(CA_CERT_PATH)
+                    .build();
+
+            DefaultApiClient client = new DefaultApiClient(transport);
+            ApiResponse response = client.sendRequest(
+                    "GET", wiremockUrl + "/api/test", new HashMap<>(), null);
+
+            assertEquals(200, response.statusCode());
+            assertTrue(response.body().contains("success"));
+        }
     }
 
-    @Test
-    @DisplayName("decompresses zstd response")
-    void decompressesZstdResponse() throws ApiException {
-      DefaultApiClient client = new DefaultApiClient();
-      HashMap<String, String> headers = new HashMap<>();
-      headers.put("Accept-Encoding", "zstd");
-      ApiResponse response = client.sendRequest("GET", COMPRESSION_URL, headers, null);
+    @Nested
+    @DisplayName("HTTP proxy")
+    class HttpProxy {
 
-      assertEquals(200, response.statusCode());
-      assertTrue(response.body().contains("userId"));
-    }
-  }
+        @Test
+        @DisplayName("makes HTTP request through proxy")
+        void makesHttpRequestThroughProxy() throws ApiException {
+            String wiremockUrl = WireMockContainer.getInternalHttpUrl();
+            String proxyUrl = SquidContainer.getProxyUrl();
 
-  @Nested
-  @DisplayName("request timeout")
-  class RequestTimeout {
+            TransportOptions transport = TransportOptions.builder()
+                    .proxy(proxyUrl)
+                    .build();
 
-    @Test
-    @DisplayName("times out on slow endpoint")
-    void timesOutOnSlowEndpoint() {
-      String wiremockUrl = WireMockContainer.getHttpUrl();
+            DefaultApiClient client = new DefaultApiClient(transport);
+            ApiResponse response = client.sendRequest(
+                    "GET", wiremockUrl + "/api/test", new HashMap<>(), null);
 
-      TransportOptions transport = TransportOptions.builder().timeout(1).build();
-
-      DefaultApiClient client = new DefaultApiClient(transport);
-      assertThrows(
-          ApiException.class,
-          () -> client.sendRequest("GET", wiremockUrl + "/api/slow", new HashMap<>(), null));
-    }
-  }
-
-  @Nested
-  @DisplayName("User-Agent header")
-  class UserAgentHeader {
-
-    @Test
-    @DisplayName("injects custom User-Agent header")
-    void injectsCustomUserAgentHeader() throws Exception {
-      String wiremockUrl = WireMockContainer.getHttpUrl();
-
-      TransportOptions transport = TransportOptions.builder().userAgent("MyApp/1.0").build();
-
-      DefaultApiClient client = new DefaultApiClient(transport);
-      ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/echo-headers", new HashMap<>(), null);
-
-      assertEquals(200, response.statusCode());
-      JsonNode json = new ObjectMapper().readTree(response.body());
-      assertEquals("MyApp/1.0", json.get("user-agent").asText());
-    }
-  }
-
-  @Nested
-  @DisplayName("X-Request-ID injection")
-  class RequestIdInjection {
-
-    @Test
-    @DisplayName("injects X-Request-ID header with UUID format")
-    void injectsRequestIdHeader() throws Exception {
-      String wiremockUrl = WireMockContainer.getHttpUrl();
-
-      TransportOptions transport = TransportOptions.builder().injectRequestId(true).build();
-
-      DefaultApiClient client = new DefaultApiClient(transport);
-      ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/echo-headers", new HashMap<>(), null);
-
-      assertEquals(200, response.statusCode());
-      JsonNode json = new ObjectMapper().readTree(response.body());
-      String requestId = json.get("x-request-id").asText();
-      assertNotNull(requestId);
-      assertFalse(requestId.isEmpty());
-      assertTrue(requestId.matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"));
+            assertEquals(200, response.statusCode());
+            assertTrue(response.body().contains("success"));
+        }
     }
 
-    @Test
-    @DisplayName("generates unique X-Request-ID per request")
-    void generatesUniqueRequestIds() throws Exception {
-      String wiremockUrl = WireMockContainer.getHttpUrl();
+    @Nested
+    @DisplayName("HTTP proxy with TLS")
+    class HttpProxyWithTls {
 
-      TransportOptions transport = TransportOptions.builder().injectRequestId(true).build();
+        @Test
+        @DisplayName("makes HTTPS request through proxy with verifySsl=false")
+        void makesHttpsRequestThroughProxyWithVerifySslFalse() throws ApiException {
+            String wiremockUrl = WireMockContainer.getInternalHttpsUrl();
+            String proxyUrl = SquidContainer.getProxyUrl();
 
-      DefaultApiClient client = new DefaultApiClient(transport);
-      ObjectMapper mapper = new ObjectMapper();
+            TransportOptions transport = TransportOptions.builder()
+                    .proxy(proxyUrl)
+                    .verifySsl(false)
+                    .build();
 
-      ApiResponse response1 =
-          client.sendRequest("GET", wiremockUrl + "/api/echo-headers", new HashMap<>(), null);
-      String requestId1 = mapper.readTree(response1.body()).get("x-request-id").asText();
+            DefaultApiClient client = new DefaultApiClient(transport);
+            ApiResponse response = client.sendRequest(
+                    "GET", wiremockUrl + "/api/test", new HashMap<>(), null);
 
-      ApiResponse response2 =
-          client.sendRequest("GET", wiremockUrl + "/api/echo-headers", new HashMap<>(), null);
-      String requestId2 = mapper.readTree(response2.body()).get("x-request-id").asText();
-
-      assertNotEquals(requestId1, requestId2);
-    }
-  }
-
-  @Nested
-  @DisplayName("default headers")
-  class DefaultHeaders {
-
-    @Test
-    @DisplayName("includes transport-level default headers")
-    void includesTransportDefaultHeaders() throws Exception {
-      String wiremockUrl = WireMockContainer.getHttpUrl();
-
-      TransportOptions transport =
-          TransportOptions.builder().defaultHeader("X-Custom", "custom-value").build();
-
-      DefaultApiClient client = new DefaultApiClient(transport);
-      ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/echo-headers", new HashMap<>(), null);
-
-      assertEquals(200, response.statusCode());
-      JsonNode json = new ObjectMapper().readTree(response.body());
-      assertEquals("custom-value", json.get("x-custom").asText());
+            assertEquals(200, response.statusCode());
+            assertTrue(response.body().contains("success"));
+        }
     }
 
-    @Test
-    @DisplayName("caller headers override transport default headers")
-    void callerHeadersOverrideTransportDefaults() throws Exception {
-      String wiremockUrl = WireMockContainer.getHttpUrl();
+    @Nested
+    @DisplayName("HTTP compression")
+    class HttpCompression {
 
-      TransportOptions transport =
-          TransportOptions.builder().defaultHeader("Accept", "text/plain").build();
+        private static final String COMPRESSION_URL =
+                "https://jsonplaceholder.typicode.com/posts/1";
 
-      DefaultApiClient client = new DefaultApiClient(transport);
-      Map<String, String> callerHeaders = new HashMap<>();
-      callerHeaders.put("Accept", "application/json");
-      ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/echo-headers", callerHeaders, null);
+        @Test
+        @DisplayName("decompresses gzip response")
+        void decompressesGzipResponse() throws ApiException {
+            DefaultApiClient client = new DefaultApiClient();
+            HashMap<String, String> headers = new HashMap<>();
+            headers.put("Accept-Encoding", "gzip");
+            ApiResponse response =
+                    client.sendRequest("GET", COMPRESSION_URL, headers, null);
 
-      assertEquals(200, response.statusCode());
-      JsonNode json = new ObjectMapper().readTree(response.body());
-      assertEquals("application/json", json.get("accept").asText());
+            assertEquals(200, response.statusCode());
+            assertTrue(response.body().contains("userId"));
+        }
+
+        @Test
+        @DisplayName("decompresses brotli response")
+        void decompressesBrotliResponse() throws ApiException {
+            DefaultApiClient client = new DefaultApiClient();
+            HashMap<String, String> headers = new HashMap<>();
+            headers.put("Accept-Encoding", "br");
+            ApiResponse response =
+                    client.sendRequest("GET", COMPRESSION_URL, headers, null);
+
+            assertEquals(200, response.statusCode());
+            assertTrue(response.body().contains("userId"));
+        }
+
+        @Test
+        @DisplayName("decompresses zstd response")
+        void decompressesZstdResponse() throws ApiException {
+            DefaultApiClient client = new DefaultApiClient();
+            HashMap<String, String> headers = new HashMap<>();
+            headers.put("Accept-Encoding", "zstd");
+            ApiResponse response =
+                    client.sendRequest("GET", COMPRESSION_URL, headers, null);
+
+            assertEquals(200, response.statusCode());
+            assertTrue(response.body().contains("userId"));
+        }
     }
-  }
 
-  @Nested
-  @DisplayName("redirect handling")
-  class RedirectHandling {
+    @Nested
+    @DisplayName("request timeout")
+    class RequestTimeout {
 
-    @Test
-    @DisplayName("follows redirects when enabled")
-    void followsRedirectsWhenEnabled() throws ApiException {
-      String wiremockUrl = WireMockContainer.getHttpUrl();
+        @Test
+        @DisplayName("times out on slow endpoint")
+        void timesOutOnSlowEndpoint() {
+            String wiremockUrl = WireMockContainer.getHttpUrl();
 
-      TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
+            TransportOptions transport = TransportOptions.builder()
+                    .timeout(1)
+                    .build();
 
-      DefaultApiClient client = new DefaultApiClient(transport);
-      ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/redirect", new HashMap<>(), null);
-
-      assertEquals(200, response.statusCode());
-      assertTrue(response.body().contains("success"));
+            DefaultApiClient client = new DefaultApiClient(transport);
+            assertThrows(ApiException.class, () ->
+                    client.sendRequest("GET", wiremockUrl + "/api/slow", new HashMap<>(), null));
+        }
     }
 
-    @Test
-    @DisplayName("returns redirect response when disabled")
-    void returnsRedirectWhenDisabled() throws ApiException {
-      String wiremockUrl = WireMockContainer.getHttpUrl();
+    @Nested
+    @DisplayName("User-Agent header")
+    class UserAgentHeader {
 
-      TransportOptions transport = TransportOptions.builder().followRedirects(false).build();
+        @Test
+        @DisplayName("injects custom User-Agent header")
+        void injectsCustomUserAgentHeader() throws Exception {
+            String wiremockUrl = WireMockContainer.getHttpUrl();
 
-      DefaultApiClient client = new DefaultApiClient(transport);
-      ApiResponse response =
-          client.sendRequest("GET", wiremockUrl + "/api/redirect", new HashMap<>(), null);
+            TransportOptions transport = TransportOptions.builder()
+                    .userAgent("MyApp/1.0")
+                    .build();
 
-      assertEquals(302, response.statusCode());
+            DefaultApiClient client = new DefaultApiClient(transport);
+            ApiResponse response = client.sendRequest(
+                    "GET", wiremockUrl + "/api/echo-headers", new HashMap<>(), null);
+
+            assertEquals(200, response.statusCode());
+            JsonNode json = new ObjectMapper().readTree(response.body());
+            assertEquals("MyApp/1.0", json.get("user-agent").asText());
+        }
     }
-  }
+
+    @Nested
+    @DisplayName("X-Request-ID injection")
+    class RequestIdInjection {
+
+        @Test
+        @DisplayName("injects X-Request-ID header with UUID format")
+        void injectsRequestIdHeader() throws Exception {
+            String wiremockUrl = WireMockContainer.getHttpUrl();
+
+            TransportOptions transport = TransportOptions.builder()
+                    .injectRequestId(true)
+                    .build();
+
+            DefaultApiClient client = new DefaultApiClient(transport);
+            ApiResponse response = client.sendRequest(
+                    "GET", wiremockUrl + "/api/echo-headers", new HashMap<>(), null);
+
+            assertEquals(200, response.statusCode());
+            JsonNode json = new ObjectMapper().readTree(response.body());
+            String requestId = json.get("x-request-id").asText();
+            assertNotNull(requestId);
+            assertFalse(requestId.isEmpty());
+            assertTrue(requestId.matches(
+                    "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"));
+        }
+
+        @Test
+        @DisplayName("generates unique X-Request-ID per request")
+        void generatesUniqueRequestIds() throws Exception {
+            String wiremockUrl = WireMockContainer.getHttpUrl();
+
+            TransportOptions transport = TransportOptions.builder()
+                    .injectRequestId(true)
+                    .build();
+
+            DefaultApiClient client = new DefaultApiClient(transport);
+            ObjectMapper mapper = new ObjectMapper();
+
+            ApiResponse response1 = client.sendRequest(
+                    "GET", wiremockUrl + "/api/echo-headers", new HashMap<>(), null);
+            String requestId1 = mapper.readTree(response1.body()).get("x-request-id").asText();
+
+            ApiResponse response2 = client.sendRequest(
+                    "GET", wiremockUrl + "/api/echo-headers", new HashMap<>(), null);
+            String requestId2 = mapper.readTree(response2.body()).get("x-request-id").asText();
+
+            assertNotEquals(requestId1, requestId2);
+        }
+    }
+
+    @Nested
+    @DisplayName("default headers")
+    class DefaultHeaders {
+
+        @Test
+        @DisplayName("includes transport-level default headers")
+        void includesTransportDefaultHeaders() throws Exception {
+            String wiremockUrl = WireMockContainer.getHttpUrl();
+
+            TransportOptions transport = TransportOptions.builder()
+                    .defaultHeader("X-Custom", "custom-value")
+                    .build();
+
+            DefaultApiClient client = new DefaultApiClient(transport);
+            ApiResponse response = client.sendRequest(
+                    "GET", wiremockUrl + "/api/echo-headers", new HashMap<>(), null);
+
+            assertEquals(200, response.statusCode());
+            JsonNode json = new ObjectMapper().readTree(response.body());
+            assertEquals("custom-value", json.get("x-custom").asText());
+        }
+
+        @Test
+        @DisplayName("caller headers override transport default headers")
+        void callerHeadersOverrideTransportDefaults() throws Exception {
+            String wiremockUrl = WireMockContainer.getHttpUrl();
+
+            TransportOptions transport = TransportOptions.builder()
+                    .defaultHeader("Accept", "text/plain")
+                    .build();
+
+            DefaultApiClient client = new DefaultApiClient(transport);
+            Map<String, String> callerHeaders = new HashMap<>();
+            callerHeaders.put("Accept", "application/json");
+            ApiResponse response = client.sendRequest(
+                    "GET", wiremockUrl + "/api/echo-headers", callerHeaders, null);
+
+            assertEquals(200, response.statusCode());
+            JsonNode json = new ObjectMapper().readTree(response.body());
+            assertEquals("application/json", json.get("accept").asText());
+        }
+    }
+
+    @Nested
+    @DisplayName("redirect handling")
+    class RedirectHandling {
+
+        @Test
+        @DisplayName("follows redirects when enabled")
+        void followsRedirectsWhenEnabled() throws ApiException {
+            String wiremockUrl = WireMockContainer.getHttpUrl();
+
+            TransportOptions transport = TransportOptions.builder()
+                    .followRedirects(true)
+                    .build();
+
+            DefaultApiClient client = new DefaultApiClient(transport);
+            ApiResponse response = client.sendRequest(
+                    "GET", wiremockUrl + "/api/redirect", new HashMap<>(), null);
+
+            assertEquals(200, response.statusCode());
+            assertTrue(response.body().contains("success"));
+        }
+
+        @Test
+        @DisplayName("returns redirect response when disabled")
+        void returnsRedirectWhenDisabled() throws ApiException {
+            String wiremockUrl = WireMockContainer.getHttpUrl();
+
+            TransportOptions transport = TransportOptions.builder()
+                    .followRedirects(false)
+                    .build();
+
+            DefaultApiClient client = new DefaultApiClient(transport);
+            ApiResponse response = client.sendRequest(
+                    "GET", wiremockUrl + "/api/redirect", new HashMap<>(), null);
+
+            assertEquals(302, response.statusCode());
+        }
+    }
 }

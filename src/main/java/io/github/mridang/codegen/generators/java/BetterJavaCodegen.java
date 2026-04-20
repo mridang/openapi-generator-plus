@@ -3,19 +3,11 @@ package io.github.mridang.codegen.generators.java;
 import static org.openapitools.codegen.utils.CamelizeOption.LOWERCASE_FIRST_LETTER;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import com.google.googlejavaformat.java.Formatter;
-import com.google.googlejavaformat.java.FormatterException;
-import com.google.googlejavaformat.java.ImportOrderer;
-import com.google.googlejavaformat.java.JavaFormatterOptions;
-import com.google.googlejavaformat.java.RemoveUnusedImports;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
@@ -37,7 +29,6 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterJavaCodegen.class);
 
-    private final Formatter formatter;
     protected String sourceFolder = "src" + File.separator + "main" + File.separator + "java";
     protected String invokerPackage = "org.openapitools";
 
@@ -110,12 +101,6 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         instantiationTypes.put("map", "HashMap");
 
         reservedWords = loadReservedWords("/reserved-words/java.txt");
-
-        formatter =
-                new Formatter(
-                        JavaFormatterOptions.builder()
-                                .style(JavaFormatterOptions.Style.GOOGLE)
-                                .build());
     }
 
     @Override
@@ -681,23 +666,17 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     }
 
     @Override
-    public void postProcessFile(File file, String fileType) {
-        super.postProcessFile(file, fileType);
-        if (file == null || !file.getName().endsWith(".java")) {
-            return;
-        }
-        try {
-            String source = Files.readString(file.toPath());
-            source = RemoveUnusedImports.removeUnusedImports(source);
-            source =
-                    ImportOrderer.reorderImports(source, JavaFormatterOptions.Style.GOOGLE);
-            String formatted = formatter.formatSource(source);
-            Files.write(file.toPath(), formatted.getBytes(StandardCharsets.UTF_8));
-        } catch (IOException e) {
-            LOGGER.warn("Failed to read/write file for formatting: {}", file.getAbsolutePath(), e);
-        } catch (FormatterException e) {
-            LOGGER.warn("Failed to format file: {}", file.getAbsolutePath(), e);
-        }
+    public void postProcess() {
+        runFormatterInDocker(
+                "eclipse-temurin:17-jdk-alpine",
+                "wget -q -O /tmp/gjf.jar https://github.com/google/google-java-format/releases/download/v1.25.2/google-java-format-1.25.2-all-deps.jar",
+                "find . -name '*.java' -print0 | xargs -0 java"
+                        + " --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED"
+                        + " --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED"
+                        + " --add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED"
+                        + " --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED"
+                        + " --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
+                        + " -jar /tmp/gjf.jar --replace");
     }
 
     @Override
