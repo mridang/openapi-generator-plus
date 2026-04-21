@@ -1,6 +1,7 @@
 package io.github.mridang.codegen.generators;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import javax.annotation.Nullable;
 import io.swagger.v3.oas.models.ExternalDocumentation;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
@@ -31,6 +32,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.CodegenSecurity;
 import org.openapitools.codegen.CodegenServer;
 import org.openapitools.codegen.CodegenServerVariable;
@@ -53,8 +55,14 @@ import org.slf4j.LoggerFactory;
  * loading from classpath resources, and post-processing hooks
  * for operations, models, and enum values.
  *
- * <p>Subclasses must implement {@link #formatOperationId} and
- * {@link #applyVarNameCasing}. Subclasses may override
+ * <p>Subclasses declare their conventions by implementing the
+ * abstract accessor methods ({@link #getVarCasing},
+ * {@link #getOperationIdCasing}, {@link #getEnumCasing},
+ * {@link #getFormatterDockerImage}, {@link #getFormatterCommands})
+ * and optionally overriding hook methods with defaults
+ * ({@link #getFilenameCasing}, {@link #getParamCasing},
+ * {@link #getUniqueItemsSetType}, {@link #getArrayContainerPattern},
+ * {@link #getEmptyEnumVarName}). Subclasses may also override
  * {@link #formatArrayType}, {@link #formatMapType},
  * {@link #getMapKeyType}, {@link #getMapDefaultValueType},
  * {@link #isNumericEnumDatatype}, and {@link #quoteEnumValue}.
@@ -89,6 +97,92 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         importMapping.clear();
         hideGenerationTimestamp = true;
     }
+
+    // ── Declarative accessor methods ──────────────────────────
+
+    /**
+     * Returns the naming convention for variable and property
+     * names in this language (e.g. CAMEL_CASE for Java,
+     * SNAKE_CASE for Python).
+     */
+    protected abstract NamingConvention getVarCasing();
+
+    /**
+     * Returns the naming convention for operation ID method
+     * names in this language (e.g. CAMEL_CASE for Java,
+     * SNAKE_CASE for Python).
+     */
+    protected abstract NamingConvention getOperationIdCasing();
+
+    /**
+     * Returns the naming convention for enum constant names
+     * in this language (e.g. UPPER_SNAKE_CASE for Java,
+     * PASCAL_CASE for C#).
+     */
+    protected abstract NamingConvention getEnumCasing();
+
+    /**
+     * Returns the Docker image used to run the code formatter
+     * for this language (e.g. "eclipse-temurin:17-jdk" for
+     * Java, "python:3-slim" for Python).
+     */
+    protected abstract String getFormatterDockerImage();
+
+    /**
+     * Returns the shell commands to run inside the formatter
+     * Docker container. Commands are joined with {@code &&}
+     * and executed via {@code sh -c}.
+     */
+    protected abstract String[] getFormatterCommands();
+
+    /**
+     * Returns the naming convention for source file names, or
+     * null if filenames match class names. Override in languages
+     * like Python (SNAKE_CASE) or TypeScript (KEBAB_CASE).
+     */
+    @Nullable protected NamingConvention getFilenameCasing() {
+        return null;
+    }
+
+    /**
+     * Returns the naming convention for method parameter names,
+     * or null if parameters use the same convention as variables.
+     * Override in languages like TypeScript or C# where param
+     * casing differs from property casing.
+     */
+    @Nullable protected NamingConvention getParamCasing() {
+        return null;
+    }
+
+    /**
+     * Returns the set container type prefix for unique-item
+     * arrays (e.g. "LinkedHashSet<" for Java, "set[" for
+     * Python), or null if the language does not support set
+     * types.
+     */
+    @Nullable protected String getUniqueItemsSetType() {
+        return null;
+    }
+
+    /**
+     * Returns the regex pattern matching the array container
+     * prefix in type declarations. Used to replace array types
+     * with set types for unique-item properties.
+     */
+    protected String getArrayContainerPattern() {
+        return "^List<";
+    }
+
+    /**
+     * Returns the enum constant name used for empty string
+     * values. Most languages use "EMPTY"; override for
+     * PascalCase languages like TypeScript ("Empty").
+     */
+    protected String getEmptyEnumVarName() {
+        return "EMPTY";
+    }
+
+    // ── Lifecycle methods ──────────────────────────────────
 
     /**
      * Processes user-supplied additional properties after the
@@ -431,23 +525,44 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     }
 
     /**
-     * Post-processes generated models to apply enum naming
-     * conventions and sanitize byte-array example values that
-     * would otherwise render as Java memory addresses in
-     * generated documentation.
+     * Post-processes generated models to strip primitive parents,
+     * apply enum naming conventions, and sanitize byte-array
+     * example values that would otherwise render as Java memory
+     * addresses in generated documentation.
      */
     @Override
     public ModelsMap postProcessModels(ModelsMap objs) {
         final ModelsMap result = postProcessModelsEnum(super.postProcessModels(objs));
-        for (final ModelMap model : result.getModels()) {
-            for (final var prop : model.getModel().vars) {
+        for (final ModelMap modelMap : result.getModels()) {
+            final CodegenModel model = modelMap.getModel();
+            stripPrimitiveParent(model);
+            for (final var prop : model.vars) {
                 sanitizeByteArrayExample(prop);
             }
-            for (final var prop : model.getModel().allVars) {
+            for (final var prop : model.allVars) {
                 sanitizeByteArrayExample(prop);
             }
         }
         return result;
+    }
+
+    /**
+     * Post-processes a model property to handle unique-item
+     * arrays by replacing the array container type with the
+     * set type returned by {@link #getUniqueItemsSetType()}.
+     * Subclasses that need additional property processing
+     * (e.g. Jackson imports in Java) should call super.
+     */
+    @Override
+    public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
+        super.postProcessModelProperty(model, property);
+        final String setType = getUniqueItemsSetType();
+        if (setType != null && property.isArray && property.getUniqueItems()) {
+            final String pattern = getArrayContainerPattern();
+            property.datatypeWithEnum =
+                    property.datatypeWithEnum.replaceFirst(pattern, setType);
+            property.dataType = property.dataType.replaceFirst(pattern, setType);
+        }
     }
 
     /**
@@ -507,41 +622,58 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
 
     /**
      * Applies the language-specific casing convention to a
-     * sanitized variable name. Each language subclass
-     * implements this to produce camelCase, snake_case, or
-     * whatever convention that language requires.
+     * sanitized variable name using {@link #getVarCasing()}.
+     * Subclasses that need special handling (e.g. preserving
+     * UPPER_CASE constants in Java) can override this method.
      */
-    protected abstract String applyVarNameCasing(String sanitizedName);
+    protected String applyVarNameCasing(String sanitizedName) {
+        return getVarCasing().apply(sanitizedName);
+    }
 
     /**
      * Converts a parameter name to its language-appropriate
-     * form by delegating to {@link #toVarName}, since most
-     * languages use the same naming rules for parameters
-     * and local variables.
+     * form. If {@link #getParamCasing()} returns a convention,
+     * applies it with reserved-word escaping; otherwise
+     * delegates to {@link #toVarName}.
      */
     @Override
     public String toParamName(String name) {
+        final NamingConvention paramCasing = getParamCasing();
+        if (paramCasing != null) {
+            final String sanitized = sanitizeName(name);
+            final String cased = paramCasing.apply(sanitized);
+            if (isReservedWord(cased) || cased.matches("^\\d.*")) {
+                return escapeReservedWord(cased);
+            }
+            return cased;
+        }
         return toVarName(name);
     }
 
     /**
-     * Converts a model name to its filename. By default this
-     * is identical to the model class name; subclasses can
-     * override to apply different casing for filenames.
+     * Converts a model name to its filename. If
+     * {@link #getFilenameCasing()} returns a convention, applies
+     * it to the model name; otherwise returns the model class
+     * name unchanged. Subclasses with complex filename logic
+     * (e.g. Ruby's Zeitwerk) can override this method.
      */
     @Override
     public String toModelFilename(String name) {
-        return toModelName(name);
+        final NamingConvention fc = getFilenameCasing();
+        return fc != null ? fc.apply(toModelName(name)) : toModelName(name);
     }
 
     /**
-     * Converts an API tag name to its filename. By default
-     * this is identical to the API class name; subclasses
-     * can override to apply different casing for filenames.
+     * Converts an API tag name to its filename. If
+     * {@link #getFilenameCasing()} returns a convention, applies
+     * it to the API class name; otherwise returns the API class
+     * name unchanged. Subclasses with complex filename logic
+     * can override this method.
      */
     @Override
     public String toApiFilename(String name) {
-        return toApiName(name);
+        final NamingConvention fc = getFilenameCasing();
+        return fc != null ? fc.apply(toApiName(name)) : toApiName(name);
     }
 
     /**
@@ -561,10 +693,13 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
 
     /**
      * Formats a sanitized operation ID into the language's
-     * method naming convention. Each subclass implements this
-     * to produce camelCase, snake_case, or other conventions.
+     * method naming convention using {@link #getOperationIdCasing()}.
+     * Subclasses that need special handling (e.g. reserved-word
+     * prefixing in Ruby or PHP) can override this method.
      */
-    protected abstract String formatOperationId(String sanitizedOperationId);
+    protected String formatOperationId(String sanitizedOperationId) {
+        return getOperationIdCasing().apply(sanitizedOperationId);
+    }
 
     /**
      * Converts a raw enum value to its language representation.
@@ -577,6 +712,37 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
             return value;
         }
         return quoteEnumValue(value);
+    }
+
+    /**
+     * Converts a raw enum value to a language-appropriate
+     * constant name using {@link #getEnumCasing()}. Returns
+     * {@link #getEmptyEnumVarName()} for blank values, prefixes
+     * numeric values with "NUMBER_", and sanitizes special
+     * characters. Subclasses with different enum naming (e.g.
+     * Python's quoted values) should override this method.
+     */
+    @Override
+    public String toEnumVarName(String value, String datatype) {
+        if (value.isEmpty()) {
+            return getEmptyEnumVarName();
+        }
+        if (isNumericEnumDatatype(datatype)) {
+            final String varName =
+                    "NUMBER_"
+                            + value.replaceAll("-", "MINUS_")
+                                    .replaceAll("\\+", "PLUS_")
+                                    .replaceAll("\\.", "_DOT_");
+            return varName;
+        }
+        final String sanitized = sanitizeName(value);
+        final String cased = getEnumCasing().apply(sanitized);
+        final String cleaned =
+                cased.replaceFirst("^_", "").replaceFirst("_$", "");
+        if (cleaned.matches("\\d.*")) {
+            return "_" + cleaned;
+        }
+        return cleaned;
     }
 
     /**
@@ -959,6 +1125,16 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         } catch (IOException e) {
             LOGGER.warn("Failed to copy test fixture {}: {}", resourcePath, e.getMessage());
         }
+    }
+
+    /**
+     * Runs the language-specific code formatter inside Docker
+     * using the image from {@link #getFormatterDockerImage()}
+     * and commands from {@link #getFormatterCommands()}.
+     */
+    @Override
+    public void postProcess() {
+        runFormatterInDocker(getFormatterDockerImage(), getFormatterCommands());
     }
 
     /**

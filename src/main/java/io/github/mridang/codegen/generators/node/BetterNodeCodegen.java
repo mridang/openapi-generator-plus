@@ -43,12 +43,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterNodeCodegen.class);
 
-    private static final NamingConvention VAR_CASING = NamingConvention.IDENTITY;
-    private static final NamingConvention OPERATION_ID_CASING = NamingConvention.CAMEL_CASE;
-    private static final NamingConvention PARAM_CASING = NamingConvention.CAMEL_CASE;
-    private static final NamingConvention FILENAME_CASING = NamingConvention.KEBAB_CASE;
-    private static final NamingConvention ENUM_CASING = NamingConvention.PASCAL_CASE;
-
     /**
      * Initializes all TypeScript-specific type mappings, language
      * primitives, template paths, and reserved words. Maps OpenAPI
@@ -137,6 +131,68 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     @Override
     protected String getSpecDir() {
         return "spec";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getVarCasing() {
+        return NamingConvention.IDENTITY;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getOperationIdCasing() {
+        return NamingConvention.CAMEL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getEnumCasing() {
+        return NamingConvention.PASCAL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFormatterDockerImage() {
+        return "node:24-slim";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String[] getFormatterCommands() {
+        return new String[] {
+            "npm install --ignore-scripts", "npx prettier --write .", "rm -rf node_modules"
+        };
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getFilenameCasing() {
+        return NamingConvention.KEBAB_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getParamCasing() {
+        return NamingConvention.CAMEL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getUniqueItemsSetType() {
+        return "Set<";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getArrayContainerPattern() {
+        return "^Array<";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getEmptyEnumVarName() {
+        return "Empty";
     }
 
     /**
@@ -244,7 +300,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
         final String clientClassName =
                 Objects.requireNonNull(
                         (String) additionalProperties.get("clientClassName"));
-        final String clientClassFile = FILENAME_CASING.apply(clientClassName);
+        final String clientClassFile = getFilenameCasing().apply(clientClassName);
         additionalProperties.put("clientClassFile", clientClassFile);
         supportingFiles.add(
                 new SupportingFile("client.mustache", "src", clientClassFile + ".ts"));
@@ -371,21 +427,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Converts a parameter name to camelCase after sanitizing
-     * invalid characters, and escapes the result if it collides
-     * with a TypeScript reserved word or starts with a digit.
-     */
-    @Override
-    public String toParamName(String name) {
-        final String sanitized = sanitizeName(name);
-        final String camelized = PARAM_CASING.apply(sanitized);
-        if (isReservedWord(camelized) || camelized.matches("^\\d.*")) {
-            return escapeReservedWord(camelized);
-        }
-        return camelized;
-    }
-
-    /**
      * Converts a schema name to a PascalCase TypeScript class
      * name. Prefixes the result with "Model" if it collides
      * with a language-specific primitive like "number" or
@@ -399,46 +440,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
             return "Model" + camelized;
         }
         return camelized;
-    }
-
-    /**
-     * Converts a model class name to its kebab-case filename
-     * because TypeScript projects conventionally use kebab-case
-     * for source file names.
-     */
-    @Override
-    public String toModelFilename(String name) {
-        return FILENAME_CASING.apply(toModelName(name));
-    }
-
-    /**
-     * Converts an API class name to its kebab-case filename
-     * because TypeScript projects conventionally use kebab-case
-     * for source file names.
-     */
-    @Override
-    public String toApiFilename(String name) {
-        return FILENAME_CASING.apply(toApiName(name));
-    }
-
-    /**
-     * Returns the variable name unchanged because TypeScript
-     * preserves original JSON property names for serialization
-     * fidelity. This is the IDENTITY convention.
-     */
-    @Override
-    protected String applyVarNameCasing(String name) {
-        return name;
-    }
-
-    /**
-     * Formats a sanitized operation ID into TypeScript's
-     * camelCase method naming convention using the configured
-     * operation ID casing strategy.
-     */
-    @Override
-    protected String formatOperationId(String sanitizedOperationId) {
-        return OPERATION_ID_CASING.apply(sanitizedOperationId);
     }
 
     /**
@@ -464,30 +465,20 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
 
     /**
      * Converts an enum value into a PascalCase enum member
-     * name. Returns "Empty" for blank values, applies symbol
-     * name resolution for known special characters, and
-     * prefixes numeric values with "NUMBER_" while sanitizing
-     * special numeric characters.
+     * name. Checks the enum name mapping first, resolves
+     * known symbol characters, then delegates to the base
+     * class for standard handling.
      */
     @Override
     public String toEnumVarName(String value, String datatype) {
         if (enumNameMapping.containsKey(value)) {
             return enumNameMapping.get(value);
         }
-        if (value.isEmpty()) {
-            return "Empty";
-        }
         final String symbolName = getSymbolName(value);
         if (symbolName != null) {
-            return ENUM_CASING.apply(symbolName);
+            return getEnumCasing().apply(symbolName);
         }
-        if ("number".equals(datatype) || "boolean".equals(datatype)) {
-            final String varName = "number".equals(datatype) ? "NUMBER_" + value : value;
-            return varName.replaceAll("-", "MINUS_")
-                    .replaceAll("\\+", "PLUS_")
-                    .replaceAll("\\.", "_DOT_");
-        }
-        return ENUM_CASING.apply(value);
+        return super.toEnumVarName(value, datatype);
     }
 
     /**
@@ -501,27 +492,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Promotes unique-item arrays from Array to Set in model
-     * property type declarations so that TypeScript emits Set
-     * types for schemas with uniqueItems enabled.
-     */
-    @Override
-    public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
-        super.postProcessModelProperty(model, property);
-        if (property.isArray && property.getUniqueItems()) {
-            property.datatypeWithEnum =
-                    property.datatypeWithEnum.replaceFirst("^Array<", "Set<");
-            property.dataType = property.dataType.replaceFirst("^Array<", "Set<");
-        }
-    }
-
-    /**
-     * Strips primitive parent types from models and builds
-     * TypeScript-specific import metadata for each model.
-     * Primitive parents arise from allOf with base types like
-     * string and would generate invalid extends clauses in
-     * TypeScript. Also determines whether any model property
-     * needs a type decorator for runtime deserialization.
+     * Builds TypeScript-specific import metadata for each
+     * model and determines whether any model property needs
+     * a type decorator for runtime deserialization. Primitive
+     * parent stripping is handled by the base class.
      */
     @Override
     public ModelsMap postProcessModels(ModelsMap objs) {
@@ -529,8 +503,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
 
         for (final ModelMap modelMap : result.getModels()) {
             final CodegenModel model = modelMap.getModel();
-
-            stripPrimitiveParent(model);
 
             final List<Map<String, String>> tsImports = new ArrayList<>();
             for (final String importName : model.imports) {
@@ -574,7 +546,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
         if (operations != null) {
             final String classname = (String) operations.get("classname");
             if (classname != null) {
-                operations.put("classFilename", FILENAME_CASING.apply(classname));
+                operations.put("classFilename", getFilenameCasing().apply(classname));
             }
 
             @SuppressWarnings("unchecked")
@@ -767,21 +739,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
         } catch (IOException e) {
             LOGGER.debug("Failed to post-process {}: {}", file.getName(), e.getMessage());
         }
-    }
-
-    /**
-     * Runs Prettier inside a Docker container to format all
-     * generated TypeScript source files. Installs dependencies
-     * first and cleans up node_modules after formatting to
-     * keep the output directory lean.
-     */
-    @Override
-    public void postProcess() {
-        runFormatterInDocker(
-                "node:24-slim",
-                "npm install --ignore-scripts",
-                "npx prettier --write .",
-                "rm -rf node_modules");
     }
 
     /**

@@ -20,11 +20,8 @@ import java.util.HashSet;
 import java.util.Locale;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
-import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
-import org.openapitools.codegen.model.ModelMap;
-import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,11 +43,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
 
     private static final String GEM_VERSION = "1.0.0";
     private static final String LIB_FOLDER = "lib";
-
-    private static final NamingConvention VAR_CASING = NamingConvention.SNAKE_CASE;
-    private static final NamingConvention OPERATION_ID_CASING = NamingConvention.SNAKE_CASE;
-    private static final NamingConvention ENUM_CASING = NamingConvention.UPPER_SNAKE_CASE;
-    private static final NamingConvention FILENAME_CASING = NamingConvention.SNAKE_CASE;
 
     @Nullable protected String gemName;
     protected String moduleName = "Opigen::Client";
@@ -156,6 +148,41 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     @Override
     protected String getSpecDir() {
         return "spec";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getVarCasing() {
+        return NamingConvention.SNAKE_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getOperationIdCasing() {
+        return NamingConvention.SNAKE_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getEnumCasing() {
+        return NamingConvention.UPPER_SNAKE_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFormatterDockerImage() {
+        return "ruby:3.4";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String[] getFormatterCommands() {
+        return new String[] {
+            "bundle config set --local path vendor/bundle",
+            "bundle install --quiet",
+            "bundle exec rubocop -A --only Layout",
+            "rm -rf vendor .bundle"
+        };
     }
 
     /**
@@ -429,9 +456,9 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     protected String applyVarNameCasing(String name) {
         if (name.matches("^[A-Z_]*$")) {
             final String lowered = name.toLowerCase(Locale.ROOT);
-            return VAR_CASING.apply(lowered);
+            return getVarCasing().apply(lowered);
         }
-        return VAR_CASING.apply(name);
+        return getVarCasing().apply(name);
     }
 
     /**
@@ -442,9 +469,9 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     @Override
     protected String formatOperationId(String sanitizedOperationId) {
         if (isReservedWord(sanitizedOperationId)) {
-            return OPERATION_ID_CASING.apply("call_" + sanitizedOperationId);
+            return getOperationIdCasing().apply("call_" + sanitizedOperationId);
         }
-        return OPERATION_ID_CASING.apply(sanitizedOperationId);
+        return getOperationIdCasing().apply(sanitizedOperationId);
     }
 
     /**
@@ -458,7 +485,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         if (name.isEmpty()) {
             return "api";
         }
-        return VAR_CASING.apply(name);
+        return getVarCasing().apply(name);
     }
 
     /**
@@ -469,34 +496,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     @Override
     protected boolean isNumericEnumDatatype(String datatype) {
         return "Integer".equals(datatype) || "Float".equals(datatype);
-    }
-
-    /**
-     * Converts a raw enum value into a Ruby UPPER_SNAKE_CASE
-     * constant name. Numeric values are prefixed with
-     * "NUMBER_" and special characters (minus, plus, dot)
-     * are replaced with descriptive tokens. Empty strings
-     * map to "EMPTY".
-     */
-    @Override
-    public String toEnumVarName(String value, String datatype) {
-        if (value.isEmpty()) {
-            return "EMPTY";
-        }
-        if ("Integer".equals(datatype) || "Float".equals(datatype)) {
-            String varName = value;
-            varName = varName.replaceAll("-", "MINUS_");
-            varName = varName.replaceAll("\\+", "PLUS_");
-            varName = varName.replaceAll("\\.", "_DOT_");
-            return "NUMBER_" + varName;
-        }
-        final String sanitized = sanitizeName(ENUM_CASING.apply(value));
-        String enumName = sanitized.replaceFirst("^_", "");
-        enumName = enumName.replaceFirst("_$", "");
-        if (enumName.matches("\\d.*")) {
-            return "NUMBER_" + enumName;
-        }
-        return enumName;
     }
 
     /**
@@ -517,23 +516,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     @Override
     public String escapeUnsafeCharacters(String input) {
         return input.replace("=end", "=_end").replace("=begin", "=_begin").replace("#{", "\\#{");
-    }
-
-    /**
-     * Strips primitive parent types from models so that Ruby
-     * models always extend Dry::Struct rather than inheriting
-     * from a mapped primitive like Hash or String.
-     */
-    @Override
-    public ModelsMap postProcessModels(ModelsMap objs) {
-        final ModelsMap result = super.postProcessModels(objs);
-
-        for (final ModelMap modelMap : result.getModels()) {
-            final CodegenModel model = modelMap.getModel();
-            stripPrimitiveParent(model);
-        }
-
-        return result;
     }
 
     /**
@@ -647,22 +629,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                 LOGGER.warn("Failed to move RBS file {} to {}: {}", filePath, sigPath, e.getMessage());
             }
         }
-    }
-
-    /**
-     * Runs RuboCop inside a Docker container to auto-correct
-     * layout violations in the generated Ruby source. The
-     * vendor bundle is cleaned up after formatting to keep the
-     * output directory lean.
-     */
-    @Override
-    public void postProcess() {
-        runFormatterInDocker(
-                "ruby:3.4",
-                "bundle config set --local path vendor/bundle",
-                "bundle install --quiet",
-                "bundle exec rubocop -A --only Layout",
-                "rm -rf vendor .bundle");
     }
 
     /**

@@ -9,11 +9,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
-import org.openapitools.codegen.CodegenModel;
-import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.SupportingFile;
-import org.openapitools.codegen.model.ModelMap;
-import org.openapitools.codegen.model.ModelsMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,10 +24,6 @@ import org.slf4j.LoggerFactory;
 public class BetterCSharpCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterCSharpCodegen.class);
-
-    private static final NamingConvention VAR_CASING = NamingConvention.PASCAL_CASE;
-    private static final NamingConvention OPERATION_ID_CASING = NamingConvention.PASCAL_CASE;
-    private static final NamingConvention ENUM_CASING = NamingConvention.PASCAL_CASE;
 
     protected String sourceFolder = "src";
     protected String packageName = "OpenApi";
@@ -123,6 +115,54 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     @Override
     protected String getSpecDir() {
         return "Spec";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getVarCasing() {
+        return NamingConvention.PASCAL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getOperationIdCasing() {
+        return NamingConvention.PASCAL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getEnumCasing() {
+        return NamingConvention.PASCAL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFormatterDockerImage() {
+        return "mcr.microsoft.com/dotnet/sdk:9.0";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String[] getFormatterCommands() {
+        return new String[] {"dotnet tool restore", "dotnet csharpier ."};
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getParamCasing() {
+        return NamingConvention.CAMEL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getUniqueItemsSetType() {
+        return "HashSet<";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getEmptyEnumVarName() {
+        return "Empty";
     }
 
     /**
@@ -346,25 +386,6 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Converts a sanitized parameter name to camelCase for C#
-     * method parameters. PascalCase is applied first, then the
-     * first character is lowered to produce camelCase which is
-     * the standard C# parameter naming convention.
-     */
-    @Override
-    public String toParamName(String name) {
-        final String sanitized = sanitizeName(name);
-        String result = NamingConvention.PASCAL_CASE.apply(sanitized);
-        if (isReservedWord(result) || result.matches("^\\d.*")) {
-            result = escapeReservedWord(result);
-        }
-        if (!result.isEmpty()) {
-            result = Character.toLowerCase(result.charAt(0)) + result.substring(1);
-        }
-        return result;
-    }
-
-    /**
      * Returns null for all schema types because C# uses
      * language-level defaults (null for reference types, zero
      * for value types) and explicit default expressions are
@@ -374,26 +395,6 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     @Override
     public String toDefaultValue(Schema schema) {
         return null;
-    }
-
-    /**
-     * Applies PascalCase casing to a sanitized variable name
-     * because C# conventions require all property and variable
-     * names to use PascalCase.
-     */
-    @Override
-    protected String applyVarNameCasing(String name) {
-        return VAR_CASING.apply(name);
-    }
-
-    /**
-     * Formats a sanitized operation ID into C#'s PascalCase
-     * method naming convention using the configured operation
-     * ID casing strategy.
-     */
-    @Override
-    protected String formatOperationId(String sanitizedOperationId) {
-        return OPERATION_ID_CASING.apply(sanitizedOperationId);
     }
 
     /**
@@ -407,7 +408,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         if (name.isEmpty()) {
             return "Api";
         }
-        return VAR_CASING.apply(name);
+        return getVarCasing().apply(name);
     }
 
     /**
@@ -423,36 +424,6 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 || datatype.startsWith("ulong")
                 || datatype.startsWith("double")
                 || datatype.startsWith("float");
-    }
-
-    /**
-     * Converts an enum value to its PascalCase constant name.
-     * Returns "Empty" for blank values, prefixes numeric values
-     * with "NUMBER_", and sanitizes special characters for valid
-     * C# identifiers.
-     */
-    @Override
-    public String toEnumVarName(String value, String datatype) {
-        if (value.isEmpty()) {
-            return "Empty";
-        }
-
-        if (isNumericEnumDatatype(datatype)) {
-            String varName = "NUMBER_" + value;
-            varName = varName.replaceAll("-", "MINUS_");
-            varName = varName.replaceAll("\\+", "PLUS_");
-            varName = varName.replaceAll("\\.", "_DOT_");
-            return varName;
-        }
-
-        final String spaced = value.replaceAll(" ", "_");
-        String var = ENUM_CASING.apply(spaced);
-        var = var.replaceAll("\\W+", "");
-
-        if (var.matches("\\d.*")) {
-            return "_" + var;
-        }
-        return var;
     }
 
     /**
@@ -484,38 +455,6 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     @Override
     public String escapeQuotationMark(String input) {
         return input.replace("\"", "\\\"");
-    }
-
-    /**
-     * Handles unique-item arrays by swapping List types for
-     * HashSet in property declarations after standard
-     * post-processing so that C# models correctly represent
-     * OpenAPI uniqueItems constraints.
-     */
-    @Override
-    public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
-        super.postProcessModelProperty(model, property);
-        if (property.isArray && property.getUniqueItems()) {
-            property.datatypeWithEnum =
-                    property.datatypeWithEnum.replaceFirst("^List<", "HashSet<");
-            property.dataType = property.dataType.replaceFirst("^List<", "HashSet<");
-        }
-    }
-
-    /**
-     * Strips primitive parent types from models after standard
-     * post-processing. Primitive parents arise from allOf with
-     * base types like string or List and would generate invalid
-     * inheritance clauses in C#.
-     */
-    @Override
-    public ModelsMap postProcessModels(ModelsMap objs) {
-        final ModelsMap result = super.postProcessModels(objs);
-        for (final ModelMap modelMap : result.getModels()) {
-            final CodegenModel model = modelMap.getModel();
-            stripPrimitiveParent(model);
-        }
-        return result;
     }
 
     /**
@@ -618,16 +557,4 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         // Per-scheme authenticators are not generated for C#
     }
 
-    /**
-     * Runs CSharpier inside a Docker container to format all
-     * generated C# source files. Uses the .NET 9.0 SDK image
-     * and restores dotnet tools before formatting.
-     */
-    @Override
-    public void postProcess() {
-        runFormatterInDocker(
-                "mcr.microsoft.com/dotnet/sdk:9.0",
-                "dotnet tool restore",
-                "dotnet csharpier .");
-    }
 }

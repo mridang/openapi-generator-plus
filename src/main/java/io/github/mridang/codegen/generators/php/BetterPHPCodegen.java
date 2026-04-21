@@ -2,7 +2,6 @@ package io.github.mridang.codegen.generators.php;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.NamingConvention;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -16,11 +15,8 @@ import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
-import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.SupportingFile;
-import org.openapitools.codegen.model.ModelMap;
-import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 
 /**
@@ -38,10 +34,6 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     private static final String SRC_BASE_PATH = "lib";
     private static final String API_DIR_NAME = "Api";
     private static final String MODEL_DIR_NAME = "Models";
-
-    private static final NamingConvention VAR_CASING = NamingConvention.CAMEL_CASE;
-    private static final NamingConvention OPERATION_ID_CASING = NamingConvention.CAMEL_CASE;
-    private static final NamingConvention ENUM_CASING = NamingConvention.UPPER_SNAKE_CASE;
 
     protected String invokerPackage = "OpenAPI\\Client";
 
@@ -145,6 +137,41 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     @Override
     protected String getSpecDir() {
         return "spec";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getVarCasing() {
+        return NamingConvention.CAMEL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getOperationIdCasing() {
+        return NamingConvention.CAMEL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getEnumCasing() {
+        return NamingConvention.UPPER_SNAKE_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFormatterDockerImage() {
+        return "composer:2";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String[] getFormatterCommands() {
+        return new String[] {
+            "COMPOSER_PROCESS_TIMEOUT=600 composer install --no-interaction --prefer-dist",
+            "vendor/bin/php-cs-fixer fix --quiet || true",
+            "vendor/bin/phpcbf || true",
+            "rm -rf vendor"
+        };
     }
 
     /**
@@ -532,16 +559,6 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Applies camelCase casing to a sanitized variable name
-     * because PHP convention uses camelCase for properties
-     * and method parameters.
-     */
-    @Override
-    protected String applyVarNameCasing(String name) {
-        return VAR_CASING.apply(name);
-    }
-
-    /**
      * Formats a sanitized operation ID into PHP's camelCase
      * method naming convention. Prefixes reserved words and
      * digit-leading identifiers with "call_" to produce
@@ -555,7 +572,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         if (sanitizedOperationId.matches("^\\d.*")) {
             sanitizedOperationId = "call_" + sanitizedOperationId;
         }
-        return OPERATION_ID_CASING.apply(sanitizedOperationId);
+        return getOperationIdCasing().apply(sanitizedOperationId);
     }
 
     /**
@@ -580,41 +597,24 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
 
     /**
      * Converts an enum value to its UPPER_SNAKE_CASE constant
-     * name. Returns "EMPTY" for blank values, "SPACE_n" for
-     * whitespace-only values, prefixes numeric values with
-     * "NUMBER_", and sanitizes special characters for valid
-     * PHP constant identifiers.
+     * name. Handles PHP-specific edge cases: whitespace-only
+     * values become "SPACE_n", symbol characters are resolved
+     * via {@link #getSymbolName}, and reserved words are
+     * escaped. Standard cases delegate to the base class.
      */
     @Override
-    @SuppressFBWarnings("IMPROPER_UNICODE")
     public String toEnumVarName(String value, String datatype) {
-        if (value.isEmpty()) {
-            return "EMPTY";
-        }
-        if (value.trim().isEmpty()) {
+        if (value.trim().isEmpty() && !value.isEmpty()) {
             return "SPACE_" + value.length();
         }
         if (getSymbolName(value) != null) {
             return getSymbolName(value).toUpperCase(Locale.ROOT);
         }
-        if ("int".equals(datatype) || "float".equals(datatype)) {
-            if (value.matches("\\d.*")) {
-                value = "NUMBER_" + value;
-            }
-            value = value.replaceAll("-", "MINUS_");
-            value = value.replaceAll("\\+", "PLUS_");
-            value = value.replaceAll("\\.", "_DOT_");
+        final String result = super.toEnumVarName(value, datatype);
+        if (isReservedWord(result)) {
+            return escapeReservedWord(result);
         }
-
-        final String enumName =
-                sanitizeName(ENUM_CASING.apply(value))
-                        .replaceFirst("^_", "")
-                        .replaceFirst("_$", "");
-
-        if (isReservedWord(enumName) || enumName.matches("\\d.*")) {
-            return escapeReservedWord(enumName);
-        }
-        return enumName;
+        return result;
     }
 
     /**
@@ -630,7 +630,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                         .replaceAll("[^\\w\\\\]+", "_")
                         .replace("$", "");
 
-        String enumName = ENUM_CASING.apply(name);
+        String enumName = getEnumCasing().apply(name);
         enumName = enumName.replace("[]", "");
 
         if (enumName.matches("\\d.*")) {
@@ -660,22 +660,6 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 .filter(s -> !s.trim().isEmpty())
                 .map(s -> super.escapeText(s).trim())
                 .orElse(input);
-    }
-
-    /**
-     * Strips primitive parent types from models after standard
-     * post-processing. Primitive parents arise from allOf with
-     * base types like String or array and would generate
-     * invalid extends clauses in PHP.
-     */
-    @Override
-    public ModelsMap postProcessModels(ModelsMap objs) {
-        final ModelsMap result = super.postProcessModels(objs);
-        for (final ModelMap modelMap : result.getModels()) {
-            final CodegenModel model = modelMap.getModel();
-            stripPrimitiveParent(model);
-        }
-        return result;
     }
 
     /**
@@ -732,19 +716,4 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         // Per-scheme authenticators are not generated for PHP
     }
 
-    /**
-     * Runs PHP-CS-Fixer and PHPCBF inside a Docker container
-     * to format all generated PHP source files. Dependencies
-     * are installed via Composer and cleaned up after
-     * formatting to keep the output directory lean.
-     */
-    @Override
-    public void postProcess() {
-        runFormatterInDocker(
-                "composer:2",
-                "COMPOSER_PROCESS_TIMEOUT=600 composer install --no-interaction --prefer-dist",
-                "vendor/bin/php-cs-fixer fix --quiet || true",
-                "vendor/bin/phpcbf || true",
-                "rm -rf vendor");
-    }
 }

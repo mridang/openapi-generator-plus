@@ -38,10 +38,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterPythonCodegen.class);
 
-    private static final NamingConvention VAR_CASING = NamingConvention.SNAKE_CASE;
-    private static final NamingConvention OPERATION_ID_CASING = NamingConvention.SNAKE_CASE;
-    private static final NamingConvention FILENAME_CASING = NamingConvention.SNAKE_CASE;
-
     private static final Map<String, String> TYPE_IMPORTS =
             Map.of(
                     "datetime", "from datetime import datetime",
@@ -136,6 +132,54 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     @Override
     public String getHelp() {
         return "Generates a minimal Python client with pydantic models.";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getVarCasing() {
+        return NamingConvention.SNAKE_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getOperationIdCasing() {
+        return NamingConvention.SNAKE_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getEnumCasing() {
+        return NamingConvention.UPPER_SNAKE_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFormatterDockerImage() {
+        return "python:3-slim";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String[] getFormatterCommands() {
+        return new String[] {"pip install --quiet ruff", "ruff format ."};
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getFilenameCasing() {
+        return NamingConvention.SNAKE_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getUniqueItemsSetType() {
+        return "set[";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getArrayContainerPattern() {
+        return "^[Ll]ist\\[";
     }
 
     /**
@@ -376,46 +420,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Applies snake_case casing to a sanitized variable name
-     * because Python conventions require all variable and
-     * parameter names to use snake_case.
-     */
-    @Override
-    protected String applyVarNameCasing(String name) {
-        return VAR_CASING.apply(name);
-    }
-
-    /**
-     * Converts a model class name to its snake_case filename
-     * because Python modules follow snake_case naming by
-     * convention and PEP 8 guidelines.
-     */
-    @Override
-    public String toModelFilename(String name) {
-        return FILENAME_CASING.apply(toModelName(name));
-    }
-
-    /**
-     * Converts an API class name to its snake_case filename
-     * because Python modules follow snake_case naming by
-     * convention and PEP 8 guidelines.
-     */
-    @Override
-    public String toApiFilename(String name) {
-        return FILENAME_CASING.apply(toApiName(name));
-    }
-
-    /**
-     * Formats a sanitized operation ID into snake_case
-     * because Python method names follow PEP 8 snake_case
-     * convention.
-     */
-    @Override
-    protected String formatOperationId(String sanitizedOperationId) {
-        return OPERATION_ID_CASING.apply(sanitizedOperationId);
-    }
-
-    /**
      * Constructs a fully-qualified Python import statement
      * for a model class. Returns the input unchanged if it
      * already starts with "import" or "from".
@@ -515,19 +519,15 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Post-processes model properties to fix unique-item
-     * arrays (converting List to set) and sanitize example
+     * Post-processes model properties to sanitize example
      * values that contain Java-specific artifacts like null
-     * literals or byte-array toString output.
+     * literals or byte-array toString output. Unique-item
+     * set conversion is handled by the base class via
+     * {@link #getUniqueItemsSetType()}.
      */
     @Override
     public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
         super.postProcessModelProperty(model, property);
-        if (property.isArray && property.getUniqueItems()) {
-            property.datatypeWithEnum =
-                    property.datatypeWithEnum.replaceFirst("^[Ll]ist\\[", "set[");
-            property.dataType = property.dataType.replaceFirst("^[Ll]ist\\[", "set[");
-        }
 
         // Sanitize example values for valid Python syntax
         if (property.example != null) {
@@ -543,10 +543,10 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Post-processes all models to strip primitive parent
-     * types that would cause invalid Pydantic inheritance,
-     * and resolves Python-specific import statements for
-     * datetime, date, and Decimal types used by properties.
+     * Post-processes all models to resolve Python-specific
+     * import statements for datetime, date, and Decimal
+     * types used by properties. Primitive parent stripping
+     * is handled by the base class in {@code postProcessModels}.
      */
     @Override
     public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
@@ -554,8 +554,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         for (final ModelsMap modelsMap : result.values()) {
             for (final ModelMap modelMap : modelsMap.getModels()) {
                 final CodegenModel model = modelMap.getModel();
-
-                stripPrimitiveParent(model);
 
                 final TreeSet<String> fullImports = new TreeSet<>();
 
@@ -593,7 +591,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         if (name.isEmpty()) {
             return "api";
         }
-        return VAR_CASING.apply(name);
+        return getVarCasing().apply(name);
     }
 
     /**
@@ -672,19 +670,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         } catch (IOException e) {
             LOGGER.warn("Failed to post-process file: {}", file.getAbsolutePath(), e);
         }
-    }
-
-    /**
-     * Runs the Ruff formatter inside a Docker container to
-     * ensure all generated Python source files conform to
-     * consistent formatting standards.
-     */
-    @Override
-    public void postProcess() {
-        runFormatterInDocker(
-                "python:3-slim",
-                "pip install --quiet ruff",
-                "ruff format .");
     }
 
     /**

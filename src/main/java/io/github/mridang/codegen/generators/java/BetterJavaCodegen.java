@@ -39,10 +39,6 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterJavaCodegen.class);
 
-    private static final NamingConvention VAR_CASING = NamingConvention.CAMEL_CASE;
-    private static final NamingConvention OPERATION_ID_CASING = NamingConvention.CAMEL_CASE;
-    private static final NamingConvention ENUM_CASING = NamingConvention.UPPER_SNAKE_CASE;
-
     private static final Set<String> NUMERIC_TYPES =
             Set.of("Integer", "Long", "Double", "Float", "Short", "BigDecimal");
 
@@ -162,6 +158,51 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     @Override
     protected String getSpecDir() {
         return "src/spec/java";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getVarCasing() {
+        return NamingConvention.CAMEL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getOperationIdCasing() {
+        return NamingConvention.CAMEL_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected NamingConvention getEnumCasing() {
+        return NamingConvention.UPPER_SNAKE_CASE;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFormatterDockerImage() {
+        return "eclipse-temurin:17-jdk";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String[] getFormatterCommands() {
+        return new String[] {
+            "curl -sL -o /tmp/gjf.jar https://github.com/google/google-java-format/releases/download/v1.25.2/google-java-format-1.25.2-all-deps.jar",
+            "find . -name '*.java' -print0 | xargs -0 java"
+                    + " --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED"
+                    + " --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED"
+                    + " --add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED"
+                    + " --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED"
+                    + " --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
+                    + " -jar /tmp/gjf.jar --replace"
+        };
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getUniqueItemsSetType() {
+        return "LinkedHashSet<";
     }
 
     /**
@@ -422,17 +463,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         if (name.matches("^[A-Z0-9_]*$")) {
             return name;
         }
-        return VAR_CASING.apply(name);
-    }
-
-    /**
-     * Formats a sanitized operation ID into Java's camelCase
-     * method naming convention using the configured operation
-     * ID casing strategy.
-     */
-    @Override
-    protected String formatOperationId(String sanitizedOperationId) {
-        return OPERATION_ID_CASING.apply(sanitizedOperationId);
+        return getVarCasing().apply(name);
     }
 
     /**
@@ -446,35 +477,6 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Converts an enum value to its UPPER_SNAKE_CASE constant
-     * name. Returns "EMPTY" for blank values, prefixes numeric
-     * values with "NUMBER_", and sanitizes special characters
-     * for valid Java identifiers.
-     */
-    @Override
-    public String toEnumVarName(String value, String datatype) {
-        if (value.isEmpty()) {
-            return "EMPTY";
-        }
-        if (isNumericEnumDatatype(datatype)) {
-            final String varName =
-                    "NUMBER_"
-                            + value.replaceAll("-", "MINUS_")
-                                    .replaceAll("\\+", "PLUS_")
-                                    .replaceAll("\\.", "_DOT_");
-            return varName;
-        }
-        final String sanitized = sanitizeName(value);
-        final String upper = ENUM_CASING.apply(sanitized);
-        final String cleaned =
-                upper.replaceFirst("^_", "").replaceFirst("_$", "");
-        if (cleaned.matches("\\d.*")) {
-            return "_" + cleaned;
-        }
-        return cleaned;
-    }
-
-    /**
      * Escapes double-quote characters in generated string
      * literals by replacing them with backslash-escaped quotes
      * to prevent syntax errors in Java source output.
@@ -485,10 +487,10 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Adds Jackson annotation imports to a model property after
-     * standard post-processing. Handles unique-item sets by
-     * swapping List types for LinkedHashSet and registers the
-     * appropriate collection imports.
+     * Adds Jackson annotation imports and collection imports
+     * to a model property after standard post-processing.
+     * Unique-item set type swapping is handled by the base
+     * class via {@link #getUniqueItemsSetType()}.
      */
     @Override
     public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
@@ -504,10 +506,6 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             if (property.isContainer) {
                 if (property.isArray) {
                     if (property.getUniqueItems()) {
-                        property.datatypeWithEnum =
-                                property.datatypeWithEnum.replaceFirst("^List<", "LinkedHashSet<");
-                        property.dataType =
-                                property.dataType.replaceFirst("^List<", "LinkedHashSet<");
                         property.defaultValue =
                                 property.defaultValue != null
                                         ? property.defaultValue.replace(
@@ -525,22 +523,6 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 }
             }
         }
-    }
-
-    /**
-     * Strips primitive parent types from models after standard
-     * post-processing. Primitive parents arise from allOf with
-     * base types like String or List and would generate invalid
-     * extends clauses in Java.
-     */
-    @Override
-    public ModelsMap postProcessModels(ModelsMap objs) {
-        final ModelsMap result = super.postProcessModels(objs);
-        for (final ModelMap modelMap : result.getModels()) {
-            final CodegenModel model = modelMap.getModel();
-            stripPrimitiveParent(model);
-        }
-        return result;
     }
 
     /**
@@ -926,23 +908,4 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         }
     }
 
-    /**
-     * Runs Google Java Format inside a Docker container to
-     * format all generated Java source files. Uses the
-     * eclipse-temurin JDK 17 image and downloads the formatter
-     * JAR at build time.
-     */
-    @Override
-    public void postProcess() {
-        runFormatterInDocker(
-                "eclipse-temurin:17-jdk",
-                "curl -sL -o /tmp/gjf.jar https://github.com/google/google-java-format/releases/download/v1.25.2/google-java-format-1.25.2-all-deps.jar",
-                "find . -name '*.java' -print0 | xargs -0 java"
-                        + " --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED"
-                        + " --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED"
-                        + " --add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED"
-                        + " --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED"
-                        + " --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
-                        + " -jar /tmp/gjf.jar --replace");
-    }
 }
