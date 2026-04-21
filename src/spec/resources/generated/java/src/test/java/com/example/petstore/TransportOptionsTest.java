@@ -9,62 +9,61 @@ import org.junit.jupiter.api.Test;
 
 class TransportOptionsTest {
 
-    @Test
-    @DisplayName("builder produces correct defaults")
-    void builderProducesCorrectDefaults() {
-        TransportOptions opts = TransportOptions.builder().build();
+  @Test
+  @DisplayName("builder produces correct defaults")
+  void builderProducesCorrectDefaults() {
+    TransportOptions opts = TransportOptions.builder().build();
 
-        assertTrue(opts.isVerifySsl());
-        assertNull(opts.getCaCertPath());
-        assertNull(opts.getProxy());
-        assertNull(opts.getTimeout());
-        assertTrue(opts.isFollowRedirects());
-        assertNull(opts.getMaxRedirects());
-        assertEquals("com.example.petstore/1.0.0 (java)", opts.getUserAgent());
-        assertTrue(opts.getDefaultHeaders().isEmpty());
-        assertFalse(opts.isInjectRequestId());
-    }
+    assertTrue(opts.isVerifySsl());
+    assertNull(opts.getCaCertPath());
+    assertNull(opts.getProxy());
+    assertNull(opts.getTimeout());
+    assertTrue(opts.isFollowRedirects());
+    assertNull(opts.getMaxRedirects());
+    assertEquals("com.example.petstore/1.0.0 (java)", opts.getUserAgent());
+    assertTrue(opts.getDefaultHeaders().isEmpty());
+    assertFalse(opts.isInjectRequestId());
+  }
 
-    @Test
-    @DisplayName("builder sets all fields")
-    void builderSetsAllFields() {
-        TransportOptions opts = TransportOptions.builder()
-                .verifySsl(false)
-                .caCertPath("/path/to/ca.pem")
-                .proxy("http://proxy:8080")
-                .timeout(5000)
-                .followRedirects(false)
-                .maxRedirects(3)
-                .userAgent("TestAgent/1.0")
-                .defaultHeader("X-Custom", "value")
-                .injectRequestId(true)
-                .build();
+  @Test
+  @DisplayName("builder sets all fields")
+  void builderSetsAllFields() {
+    TransportOptions opts =
+        TransportOptions.builder()
+            .verifySsl(false)
+            .caCertPath("/path/to/ca.pem")
+            .proxy("http://proxy:8080")
+            .timeout(5000)
+            .followRedirects(false)
+            .maxRedirects(3)
+            .userAgent("TestAgent/1.0")
+            .defaultHeader("X-Custom", "value")
+            .injectRequestId(true)
+            .build();
 
-        assertFalse(opts.isVerifySsl());
-        assertEquals("/path/to/ca.pem", opts.getCaCertPath());
-        assertEquals("http://proxy:8080", opts.getProxy());
-        assertEquals(5000, opts.getTimeout());
-        assertFalse(opts.isFollowRedirects());
-        assertEquals(3, opts.getMaxRedirects());
-        assertEquals("TestAgent/1.0", opts.getUserAgent());
-        assertEquals(Map.of("X-Custom", "value"), opts.getDefaultHeaders());
-        assertTrue(opts.isInjectRequestId());
-    }
+    assertFalse(opts.isVerifySsl());
+    assertEquals("/path/to/ca.pem", opts.getCaCertPath());
+    assertEquals("http://proxy:8080", opts.getProxy());
+    assertEquals(5000, opts.getTimeout());
+    assertFalse(opts.isFollowRedirects());
+    assertEquals(3, opts.getMaxRedirects());
+    assertEquals("TestAgent/1.0", opts.getUserAgent());
+    assertEquals(Map.of("X-Custom", "value"), opts.getDefaultHeaders());
+    assertTrue(opts.isInjectRequestId());
+  }
 
-    @Test
-    @DisplayName("defaultHeaders is a defensive copy")
-    void defaultHeadersIsDefensiveCopy() {
-        Map<String, String> headers = new HashMap<>();
-        headers.put("X-Original", "original");
+  @Test
+  @DisplayName("defaultHeaders is a defensive copy")
+  void defaultHeadersIsDefensiveCopy() {
+    Map<String, String> headers = new HashMap<>();
+    headers.put("X-Original", "original");
 
-        TransportOptions opts = TransportOptions.builder()
-                .defaultHeaders(headers)
-                .build();
+    TransportOptions opts = TransportOptions.builder().defaultHeaders(headers).build();
 
-        headers.put("X-Added", "added");
+    headers.put("X-Added", "added");
 
-        assertEquals(1, opts.getDefaultHeaders().size());
-        assertEquals("original", opts.getDefaultHeaders().get("X-Original"));
-        assertNull(opts.getDefaultHeaders().get("X-Added"));
-    }
+    assertEquals(1, opts.getDefaultHeaders().size());
+    assertEquals("original", opts.getDefaultHeaders().get("X-Original"));
+    assertNull(opts.getDefaultHeaders().get("X-Added"));
+  }
 }

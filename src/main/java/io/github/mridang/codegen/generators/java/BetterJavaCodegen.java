@@ -1,16 +1,20 @@
 package io.github.mridang.codegen.generators.java;
 
-import static org.openapitools.codegen.utils.CamelizeOption.LOWERCASE_FIRST_LETTER;
-
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import io.github.mridang.codegen.generators.NamingConvention;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.security.SecurityScheme;
-import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.CodegenModel;
@@ -23,15 +27,34 @@ import org.openapitools.codegen.utils.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Generates a Java API client using Apache HttpClient and Jackson for serialization. */
+/**
+ * Generates a Java API client that uses Apache HttpClient 5 for
+ * transport and Jackson for JSON serialization. Targets Java 17+
+ * and follows camelCase naming for variables and methods. Output
+ * is formatted with Google Java Format to ensure consistent style
+ * across all generated source files.
+ */
 @SuppressWarnings("unused")
 public class BetterJavaCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterJavaCodegen.class);
 
-    protected String sourceFolder = "src" + File.separator + "main" + File.separator + "java";
+    private static final NamingConvention VAR_CASING = NamingConvention.CAMEL_CASE;
+    private static final NamingConvention OPERATION_ID_CASING = NamingConvention.CAMEL_CASE;
+    private static final NamingConvention ENUM_CASING = NamingConvention.UPPER_SNAKE_CASE;
+
+    private static final Set<String> NUMERIC_TYPES =
+            Set.of("Integer", "Long", "Double", "Float", "Short", "BigDecimal");
+
+    protected String sourceFolder = Path.of("src", "main", "java").toString();
     protected String invokerPackage = "org.openapitools";
 
+    /**
+     * Initializes all Java-specific type mappings, import mappings,
+     * language primitives, and template file registrations. Uses
+     * standard Java types from java.time and java.math for date,
+     * time, and numeric schemas.
+     */
     public BetterJavaCodegen() {
         outputFolder = "generated-code/java";
         embeddedTemplateDir = templateDir = "templates/java";
@@ -103,26 +126,51 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         reservedWords = loadReservedWords("/reserved-words/java.txt");
     }
 
+    /**
+     * Returns the unique generator name used by the OpenAPI
+     * Generator plugin system to identify this codegen.
+     */
     @Override
     public String getName() {
         return "java-plus";
     }
 
-    @Override
-    protected String getTestFixturesDir() {
-        return "src/test/resources";
-    }
-
-    @Override
-    protected String getSpecDir() {
-        return "src/spec/java";
-    }
-
+    /**
+     * Returns a short human-readable description of this codegen
+     * shown in the generator list and help output.
+     */
     @Override
     public String getHelp() {
         return "Generates a minimal Java client with Jackson and Apache HttpClient.";
     }
 
+    /**
+     * Returns the relative path to the directory where test
+     * fixture files like certificates and WireMock mappings are
+     * placed inside the generated project.
+     */
+    @Override
+    protected String getTestFixturesDir() {
+        return "src/test/resources";
+    }
+
+    /**
+     * Returns the relative path to the directory where
+     * user-written spec tests should be placed inside the
+     * generated project.
+     */
+    @Override
+    protected String getSpecDir() {
+        return "src/spec/java";
+    }
+
+    /**
+     * Processes user-supplied codegen options after they are
+     * resolved. Reads the invoker package, Maven coordinates,
+     * and source folder, then registers all supporting files
+     * for the client skeleton, exceptions, auth, serialization,
+     * and optional test scaffolding.
+     */
     @Override
     public void processOpts() {
         super.processOpts();
@@ -132,21 +180,21 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         additionalProperties.put("invokerPackage", invokerPackage);
         additionalProperties.put("userAgentDefault", invokerPackage + "/1.0.0 (java)");
 
-        String groupId = getPropertyOrDefault(CodegenConstants.GROUP_ID, invokerPackage);
+        final String groupId = getPropertyOrDefault(CodegenConstants.GROUP_ID, invokerPackage);
         additionalProperties.put("groupId", groupId);
-        String artifactId =
+        final String artifactId =
                 getPropertyOrDefault(CodegenConstants.ARTIFACT_ID, "openapi-java-client");
         additionalProperties.put("artifactId", artifactId);
-        String artifactVersion =
+        final String artifactVersion =
                 getPropertyOrDefault(CodegenConstants.ARTIFACT_VERSION, "1.0.0");
         additionalProperties.put("artifactVersion", artifactVersion);
 
-        String invokerFolder =
-                sourceFolder + File.separator + invokerPackage.replace(".", File.separator);
+        final String invokerFolder =
+                Path.of(sourceFolder, invokerPackage.replace(".", "/")).toString();
         supportingFiles.add(
                 new SupportingFile("api_exception.mustache", invokerFolder, "ApiException.java"));
 
-        String exceptionsFolder = invokerFolder + File.separator + "exceptions";
+        final String exceptionsFolder = Path.of(invokerFolder, "exceptions").toString();
         supportingFiles.add(
                 new SupportingFile(
                         "exceptions/ClientException.mustache",
@@ -204,7 +252,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile(
                         "base_api.mustache",
-                        invokerFolder + File.separator + "api",
+                        Path.of(invokerFolder, "api").toString(),
                         "BaseApi.java"));
         supportingFiles.add(
                 new SupportingFile("configuration.mustache", invokerFolder, "Configuration.java"));
@@ -237,14 +285,14 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile(
                         "authenticator.mustache",
-                        invokerFolder + File.separator + "auth",
+                        Path.of(invokerFolder, "auth").toString(),
                         "Authenticator.java"));
         supportingFiles.add(
                 new SupportingFile(
                         "auth/http_aware_authenticator.mustache",
-                        invokerFolder + File.separator + "auth",
+                        Path.of(invokerFolder, "auth").toString(),
                         "HttpAwareAuthenticator.java"));
-        String clientClassName = (String) additionalProperties.get("clientClassName");
+        final String clientClassName = (String) additionalProperties.get("clientClassName");
         supportingFiles.add(
                 new SupportingFile(
                         "client.mustache", invokerFolder, clientClassName + ".java"));
@@ -252,10 +300,9 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
 
         if (generateTests) {
-            String testFolder =
-                    "src" + File.separator + "test" + File.separator + "java" + File.separator
-                            + invokerPackage.replace(".", File.separator);
-            String testApiFolder = testFolder + File.separator + "api";
+            final String testFolder =
+                    Path.of("src", "test", "java", invokerPackage.replace(".", "/")).toString();
+            final String testApiFolder = Path.of(testFolder, "api").toString();
             supportingFiles.add(
                     new SupportingFile(
                             "test/api/PetApiTest.mustache", testApiFolder, "PetApiTest.java"));
@@ -313,7 +360,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "test/BaseApiTest.mustache",
                             testFolder,
                             "BaseApiTest.java"));
-            String testModelsFolder = testFolder + File.separator + "models";
+            final String testModelsFolder = Path.of(testFolder, "models").toString();
             supportingFiles.add(
                     new SupportingFile(
                             "test/MetadataTest.mustache",
@@ -323,52 +370,126 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         }
     }
 
+    /**
+     * Returns the output directory for model source files by
+     * combining the output folder, source folder, and model
+     * package converted to a directory path.
+     */
     @Override
     public String modelFileFolder() {
-        return outputFolder
-                + File.separator
-                + sourceFolder
-                + File.separator
-                + modelPackage().replace('.', File.separatorChar);
+        return Path.of(outputFolder, sourceFolder, modelPackage().replace('.', '/')).toString();
     }
 
+    /**
+     * Returns the output directory for API source files by
+     * combining the output folder, source folder, and API
+     * package converted to a directory path.
+     */
     @Override
     public String apiFileFolder() {
-        return outputFolder
-                + File.separator
-                + sourceFolder
-                + File.separator
-                + apiPackage().replace('.', File.separatorChar);
+        return Path.of(outputFolder, sourceFolder, apiPackage().replace('.', '/')).toString();
     }
 
-    @Override
-    protected String applyVarNameCasing(String name) {
-        if (name.matches("^[A-Z0-9_]*$")) {
-            return name;
-        }
-        return StringUtils.camelize(name, LOWERCASE_FIRST_LETTER);
-    }
-
-    @Override
-    protected String formatOperationId(String sanitizedOperationId) {
-        return StringUtils.camelize(sanitizedOperationId, LOWERCASE_FIRST_LETTER);
-    }
-
+    /**
+     * Returns the default value expression for a schema type.
+     * Arrays default to empty ArrayList or LinkedHashSet for
+     * unique items; maps default to empty HashMap. All other
+     * types return null to let the language default apply.
+     */
     @Nullable
     @Override
     public String toDefaultValue(Schema schema) {
-        schema = ModelUtils.unaliasSchema(this.openAPI, schema);
-        if (ModelUtils.isArraySchema(schema)) {
-            if (Boolean.TRUE.equals(schema.getUniqueItems())) {
+        final Schema unaliased = ModelUtils.unaliasSchema(this.openAPI, schema);
+        if (ModelUtils.isArraySchema(unaliased)) {
+            if (Boolean.TRUE.equals(unaliased.getUniqueItems())) {
                 return "new LinkedHashSet<>()";
             }
             return "new ArrayList<>()";
-        } else if (ModelUtils.isMapSchema(schema)) {
+        } else if (ModelUtils.isMapSchema(unaliased)) {
             return "new HashMap<>()";
         }
         return null;
     }
 
+    /**
+     * Applies camelCase casing to a sanitized variable name.
+     * Preserves UPPER_CASE constant names (e.g. "MAX_RETRIES")
+     * by returning them unchanged, since they represent
+     * intentional constant naming conventions.
+     */
+    @Override
+    protected String applyVarNameCasing(String name) {
+        if (name.matches("^[A-Z0-9_]*$")) {
+            return name;
+        }
+        return VAR_CASING.apply(name);
+    }
+
+    /**
+     * Formats a sanitized operation ID into Java's camelCase
+     * method naming convention using the configured operation
+     * ID casing strategy.
+     */
+    @Override
+    protected String formatOperationId(String sanitizedOperationId) {
+        return OPERATION_ID_CASING.apply(sanitizedOperationId);
+    }
+
+    /**
+     * Returns whether the given datatype represents a numeric
+     * Java type. Used to avoid quoting numeric enum values in
+     * generated enum classes.
+     */
+    @Override
+    protected boolean isNumericEnumDatatype(String datatype) {
+        return NUMERIC_TYPES.contains(datatype);
+    }
+
+    /**
+     * Converts an enum value to its UPPER_SNAKE_CASE constant
+     * name. Returns "EMPTY" for blank values, prefixes numeric
+     * values with "NUMBER_", and sanitizes special characters
+     * for valid Java identifiers.
+     */
+    @Override
+    public String toEnumVarName(String value, String datatype) {
+        if (value.isEmpty()) {
+            return "EMPTY";
+        }
+        if (isNumericEnumDatatype(datatype)) {
+            final String varName =
+                    "NUMBER_"
+                            + value.replaceAll("-", "MINUS_")
+                                    .replaceAll("\\+", "PLUS_")
+                                    .replaceAll("\\.", "_DOT_");
+            return varName;
+        }
+        final String sanitized = sanitizeName(value);
+        final String upper = ENUM_CASING.apply(sanitized);
+        final String cleaned =
+                upper.replaceFirst("^_", "").replaceFirst("_$", "");
+        if (cleaned.matches("\\d.*")) {
+            return "_" + cleaned;
+        }
+        return cleaned;
+    }
+
+    /**
+     * Escapes double-quote characters in generated string
+     * literals by replacing them with backslash-escaped quotes
+     * to prevent syntax errors in Java source output.
+     */
+    @Override
+    public String escapeQuotationMark(String input) {
+        return input.replace("\"", "\\\"");
+    }
+
+    /**
+     * Adds Jackson annotation imports to a model property after
+     * standard post-processing. Handles unique-item sets by
+     * swapping List types for LinkedHashSet and registers the
+     * appropriate collection imports.
+     */
     @Override
     public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
         super.postProcessModelProperty(model, property);
@@ -406,38 +527,38 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         }
     }
 
+    /**
+     * Strips primitive parent types from models after standard
+     * post-processing. Primitive parents arise from allOf with
+     * base types like String or List and would generate invalid
+     * extends clauses in Java.
+     */
     @Override
     public ModelsMap postProcessModels(ModelsMap objs) {
-        ModelsMap result = super.postProcessModels(objs);
-        for (ModelMap modelMap : result.getModels()) {
-            CodegenModel model = modelMap.getModel();
-            if (model.parent != null) {
-                String baseParent = model.parent;
-                int genericIdx = baseParent.indexOf('<');
-                if (genericIdx >= 0) {
-                    baseParent = baseParent.substring(0, genericIdx);
-                }
-                if (languageSpecificPrimitives.contains(baseParent)
-                        || typeMapping.containsValue(baseParent)
-                        || instantiationTypes.containsValue(baseParent)) {
-                    model.parent = null;
-                    model.parentModel = null;
-                }
-            }
+        final ModelsMap result = super.postProcessModels(objs);
+        for (final ModelMap modelMap : result.getModels()) {
+            final CodegenModel model = modelMap.getModel();
+            stripPrimitiveParent(model);
         }
         return result;
     }
 
+    /**
+     * Adds Jackson serialization annotation imports to enum
+     * models and properties after enum-specific post-processing
+     * so that enum values can be correctly serialized and
+     * deserialized by Jackson.
+     */
     @Override
     public ModelsMap postProcessModelsEnum(ModelsMap objs) {
         objs = super.postProcessModelsEnum(objs);
-        for (ModelMap modelMap : objs.getModels()) {
-            CodegenModel model = modelMap.getModel();
+        for (final ModelMap modelMap : objs.getModels()) {
+            final CodegenModel model = modelMap.getModel();
             if (model.isEnum) {
                 model.imports.add("JsonValue");
                 model.imports.add("JsonCreator");
             }
-            for (CodegenProperty property : model.vars) {
+            for (final CodegenProperty property : model.vars) {
                 if (property.isEnum) {
                     model.imports.add("JsonValue");
                     model.imports.add("JsonCreator");
@@ -447,85 +568,152 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         return objs;
     }
 
+    /**
+     * Adds Jackson discriminator and polymorphism imports when
+     * building a model from an OpenAPI schema. Models with
+     * discriminators need JsonTypeInfo and JsonSubTypes; oneOf
+     * and anyOf models need JsonValue and JsonCreator.
+     */
+    @Override
+    public CodegenModel fromModel(String name, Schema schema) {
+        final CodegenModel model = super.fromModel(name, schema);
+        if (model.discriminator != null) {
+            model.imports.add("JsonTypeInfo");
+            model.imports.add("JsonSubTypes");
+        }
+        if (!model.oneOf.isEmpty() || !model.anyOf.isEmpty()) {
+            model.imports.add("JsonValue");
+            model.imports.add("JsonCreator");
+        }
+        return model;
+    }
+
+    /**
+     * Registers base auth supporting files based on which
+     * security scheme types are present in the OpenAPI spec.
+     * Only the auth classes actually needed by the spec are
+     * emitted to keep the generated client minimal.
+     */
     @Override
     protected void registerAuthSupportingFiles() {
-        String invokerFolder =
-                sourceFolder + File.separator + invokerPackage.replace(".", File.separator);
-        String authFolder = invokerFolder + File.separator + "auth";
-        String oauthFolder = authFolder + File.separator + "oauth";
+        final String invokerFolder =
+                Path.of(sourceFolder, invokerPackage.replace(".", "/")).toString();
+        final String authFolder = Path.of(invokerFolder, "auth").toString();
+        final String oauthFolder = Path.of(authFolder, "oauth").toString();
 
         if (hasBasicAuth) {
             supportingFiles.add(
-                    new SupportingFile("auth/basic_authenticator.mustache", authFolder, "BasicAuthenticator.java"));
+                    new SupportingFile(
+                            "auth/basic_authenticator.mustache",
+                            authFolder,
+                            "BasicAuthenticator.java"));
         }
         if (hasBearerAuth) {
             supportingFiles.add(
-                    new SupportingFile("auth/bearer_authenticator.mustache", authFolder, "BearerAuthenticator.java"));
+                    new SupportingFile(
+                            "auth/bearer_authenticator.mustache",
+                            authFolder,
+                            "BearerAuthenticator.java"));
         }
         if (hasApiKeyAuth) {
             supportingFiles.add(
-                    new SupportingFile("auth/api_key_authenticator.mustache", authFolder, "ApiKeyAuthenticator.java"));
+                    new SupportingFile(
+                            "auth/api_key_authenticator.mustache",
+                            authFolder,
+                            "ApiKeyAuthenticator.java"));
             supportingFiles.add(
-                    new SupportingFile("auth/api_key_location.mustache", authFolder, "ApiKeyLocation.java"));
+                    new SupportingFile(
+                            "auth/api_key_location.mustache",
+                            authFolder,
+                            "ApiKeyLocation.java"));
         }
         if (hasAnyOAuth2 || hasOpenIdConnect) {
             supportingFiles.add(
-                    new SupportingFile("auth/oauth/oauth2_token_manager.mustache", oauthFolder, "OAuth2TokenManager.java"));
+                    new SupportingFile(
+                            "auth/oauth/oauth2_token_manager.mustache",
+                            oauthFolder,
+                            "OAuth2TokenManager.java"));
         }
         if (hasOAuth2ClientCredentials) {
             supportingFiles.add(
-                    new SupportingFile("auth/oauth/oauth2_client_credentials_authenticator.mustache", oauthFolder, "OAuth2ClientCredentialsAuthenticator.java"));
+                    new SupportingFile(
+                            "auth/oauth/oauth2_client_credentials_authenticator.mustache",
+                            oauthFolder,
+                            "OAuth2ClientCredentialsAuthenticator.java"));
         }
         if (hasOAuth2Password) {
             supportingFiles.add(
-                    new SupportingFile("auth/oauth/oauth2_password_authenticator.mustache", oauthFolder, "OAuth2PasswordAuthenticator.java"));
+                    new SupportingFile(
+                            "auth/oauth/oauth2_password_authenticator.mustache",
+                            oauthFolder,
+                            "OAuth2PasswordAuthenticator.java"));
         }
         if (hasOAuth2AuthorizationCode) {
             supportingFiles.add(
-                    new SupportingFile("auth/oauth/oauth2_auth_code_authenticator.mustache", oauthFolder, "OAuth2AuthorizationCodeAuthenticator.java"));
+                    new SupportingFile(
+                            "auth/oauth/oauth2_auth_code_authenticator.mustache",
+                            oauthFolder,
+                            "OAuth2AuthorizationCodeAuthenticator.java"));
         }
         if (hasOAuth2Implicit) {
             supportingFiles.add(
-                    new SupportingFile("auth/oauth/oauth2_implicit_authenticator.mustache", oauthFolder, "OAuth2ImplicitAuthenticator.java"));
+                    new SupportingFile(
+                            "auth/oauth/oauth2_implicit_authenticator.mustache",
+                            oauthFolder,
+                            "OAuth2ImplicitAuthenticator.java"));
         }
         if (hasOpenIdConnect) {
             supportingFiles.add(
-                    new SupportingFile("auth/oauth/openid_connect_authenticator.mustache", oauthFolder, "OpenIdConnectAuthenticator.java"));
+                    new SupportingFile(
+                            "auth/oauth/openid_connect_authenticator.mustache",
+                            oauthFolder,
+                            "OpenIdConnectAuthenticator.java"));
         }
     }
 
-    @SuppressFBWarnings(
-            value = "PATH_TRAVERSAL_IN",
-            justification = "File paths are constructed from codegen configuration, not user input")
+    /**
+     * Generates concrete authenticator Java classes for each
+     * security scheme defined in the OpenAPI spec. Each class
+     * extends the appropriate base authenticator and is written
+     * directly to the output directory.
+     */
     @Override
     protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
-        if (openAPI.getComponents() == null || openAPI.getComponents().getSecuritySchemes() == null) {
+        if (openAPI.getComponents() == null
+                || openAPI.getComponents().getSecuritySchemes() == null) {
             return;
         }
-        String invokerFolder =
-                sourceFolder + File.separator + invokerPackage.replace(".", File.separator);
-        String authFolder = invokerFolder + File.separator + "auth";
-        String oauthFolder = authFolder + File.separator + "oauth";
+        final String invokerFolder =
+                Path.of(sourceFolder, invokerPackage.replace(".", "/")).toString();
+        final String authFolder = Path.of(invokerFolder, "auth").toString();
+        final String oauthFolder = Path.of(authFolder, "oauth").toString();
 
-        for (Map.Entry<String, SecurityScheme> entry :
+        for (final Map.Entry<String, SecurityScheme> entry :
                 openAPI.getComponents().getSecuritySchemes().entrySet()) {
-            String schemeName = entry.getKey();
-            SecurityScheme scheme = entry.getValue();
-            String className = StringUtils.camelize(schemeName);
-            String code = generateJavaAuthClass(schemeName, className, scheme);
+            final String schemeName = entry.getKey();
+            final SecurityScheme scheme = entry.getValue();
+            final String className = StringUtils.camelize(schemeName);
+            final String code = generateJavaAuthClass(schemeName, className, scheme);
             if (!code.isEmpty()) {
-                boolean isOAuth = scheme.getType() == SecurityScheme.Type.OAUTH2
-                        || scheme.getType() == SecurityScheme.Type.OPENIDCONNECT;
-                String folder = isOAuth ? oauthFolder : authFolder;
-                String fileName = className + (getOAuthSuffix(scheme)) + "Authenticator.java";
-                String filePath =
-                        outputFolder + File.separator + folder + File.separator + fileName;
+                final boolean isOAuth =
+                        scheme.getType() == SecurityScheme.Type.OAUTH2
+                                || scheme.getType() == SecurityScheme.Type.OPENIDCONNECT;
+                final String folder = isOAuth ? oauthFolder : authFolder;
+                final String fileName =
+                        className + getOAuthSuffix(scheme) + "Authenticator.java";
+                final String filePath =
+                        Path.of(outputFolder, folder, fileName).toString();
                 writeFile(filePath, code);
-                postProcessFile(new File(filePath), "source");
+                postProcessFile(Path.of(filePath).toFile(), "source");
             }
         }
     }
 
+    /**
+     * Returns the OAuth2 flow suffix for the authenticator class
+     * name. Different OAuth2 flows produce distinct class names
+     * so each flow gets its own authenticator.
+     */
     private String getOAuthSuffix(SecurityScheme scheme) {
         if (scheme.getType() == SecurityScheme.Type.OAUTH2 && scheme.getFlows() != null) {
             if (scheme.getFlows().getClientCredentials() != null) return "ClientCredentials";
@@ -536,46 +724,67 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         return "";
     }
 
-    @SuppressFBWarnings(value = "IMPROPER_UNICODE", justification = "Comparing with ASCII-only constants")
-    private String generateJavaAuthClass(String schemeName, String className, SecurityScheme scheme) {
-        String pkg = invokerPackage;
+    /**
+     * Generates a concrete authenticator Java source string for
+     * a single security scheme. Dispatches on scheme type to
+     * produce basic, bearer, API key, OAuth2, or OpenID Connect
+     * authenticator classes that extend the appropriate base.
+     */
+    @SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification = "Comparing with ASCII-only constants")
+    private String generateJavaAuthClass(
+            String schemeName, String className, SecurityScheme scheme) {
+        final String pkg = invokerPackage;
         if (scheme.getType() == SecurityScheme.Type.HTTP) {
             if ("basic".equalsIgnoreCase(scheme.getScheme())) {
                 return "package " + pkg + ".auth;\n\n"
-                        + "public final class " + className + "Authenticator extends BasicAuthenticator {\n"
-                        + "    public " + className + "Authenticator(String host, String username, String password) {\n"
+                        + "public final class " + className
+                        + "Authenticator extends BasicAuthenticator {\n"
+                        + "    public " + className
+                        + "Authenticator(String host, String username, String password) {\n"
                         + "        super(host, username, password);\n"
                         + "    }\n"
                         + "}\n";
             }
             if ("bearer".equalsIgnoreCase(scheme.getScheme())) {
                 return "package " + pkg + ".auth;\n\n"
-                        + "public final class " + className + "Authenticator extends BearerAuthenticator {\n"
-                        + "    public " + className + "Authenticator(String host, String token) {\n"
+                        + "public final class " + className
+                        + "Authenticator extends BearerAuthenticator {\n"
+                        + "    public " + className
+                        + "Authenticator(String host, String token) {\n"
                         + "        super(host, token);\n"
                         + "    }\n"
                         + "}\n";
             }
         } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
-            String location = scheme.getIn().toString().toUpperCase(java.util.Locale.ROOT);
-            String paramName = scheme.getName();
+            final String location =
+                    scheme.getIn().toString().toUpperCase(Locale.ROOT);
+            final String paramName = scheme.getName();
             return "package " + pkg + ".auth;\n\n"
-                    + "public final class " + className + "Authenticator extends ApiKeyAuthenticator {\n"
-                    + "    public " + className + "Authenticator(String host, String apiKey) {\n"
-                    + "        super(host, \"" + paramName + "\", apiKey, ApiKeyLocation." + location + ");\n"
+                    + "public final class " + className
+                    + "Authenticator extends ApiKeyAuthenticator {\n"
+                    + "    public " + className
+                    + "Authenticator(String host, String apiKey) {\n"
+                    + "        super(host, \"" + paramName + "\", apiKey, ApiKeyLocation."
+                    + location + ");\n"
                     + "    }\n"
                     + "}\n";
-        } else if (scheme.getType() == SecurityScheme.Type.OAUTH2 && scheme.getFlows() != null) {
+        } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
+                && scheme.getFlows() != null) {
             return generateJavaOAuthClass(className, scheme, pkg);
         } else if (scheme.getType() == SecurityScheme.Type.OPENIDCONNECT) {
-            String url = scheme.getOpenIdConnectUrl();
+            final String url = scheme.getOpenIdConnectUrl();
             return "package " + pkg + ".auth.oauth;\n\n"
                     + "import " + pkg + ".auth.Authenticator;\n"
                     + "import java.util.List;\n\n"
-                    + "public final class " + className + "Authenticator extends OpenIdConnectAuthenticator {\n"
-                    + "    public " + className + "Authenticator(String host, String clientId,\n"
+                    + "public final class " + className
+                    + "Authenticator extends OpenIdConnectAuthenticator {\n"
+                    + "    public " + className
+                    + "Authenticator(String host, String clientId,\n"
                     + "            String clientSecret, String redirectUri) {\n"
-                    + "        super(host, \"" + url + "\", clientId, clientSecret, redirectUri,\n"
+                    + "        super(host, \"" + url
+                    + "\", clientId, clientSecret, redirectUri,\n"
                     + "              List.of());\n"
                     + "    }\n"
                     + "}\n";
@@ -584,77 +793,112 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         return "";
     }
 
-    private String generateJavaOAuthClass(String className, SecurityScheme scheme, String pkg) {
+    /**
+     * Generates a concrete OAuth2 authenticator Java source
+     * string for the specific OAuth2 flow configured in the
+     * scheme. Supports client credentials, password, auth code,
+     * and implicit flows.
+     */
+    private String generateJavaOAuthClass(
+            String className, SecurityScheme scheme, String pkg) {
         if (scheme.getFlows().getClientCredentials() != null) {
-            var flow = scheme.getFlows().getClientCredentials();
-            String tokenUrl = flow.getTokenUrl();
-            String scopes = flow.getScopes() != null
-                    ? "\"" + String.join("\", \"", flow.getScopes().keySet()) + "\""
-                    : "";
+            final var flow = scheme.getFlows().getClientCredentials();
+            final String tokenUrl = flow.getTokenUrl();
+            final String scopes =
+                    flow.getScopes() != null
+                            ? "\"" + String.join("\", \"", flow.getScopes().keySet()) + "\""
+                            : "";
             return "package " + pkg + ".auth.oauth;\n\n"
                     + "import " + pkg + ".auth.Authenticator;\n"
                     + "import java.util.List;\n\n"
-                    + "public final class " + className + "ClientCredentialsAuthenticator extends OAuth2ClientCredentialsAuthenticator {\n"
-                    + "    public " + className + "ClientCredentialsAuthenticator(String host, String clientId, String clientSecret) {\n"
-                    + "        super(host, clientId, clientSecret, \"" + tokenUrl + "\",\n"
+                    + "public final class " + className
+                    + "ClientCredentialsAuthenticator"
+                    + " extends OAuth2ClientCredentialsAuthenticator {\n"
+                    + "    public " + className
+                    + "ClientCredentialsAuthenticator(String host,"
+                    + " String clientId, String clientSecret) {\n"
+                    + "        super(host, clientId, clientSecret, \""
+                    + tokenUrl + "\",\n"
                     + "              List.of(" + scopes + "));\n"
                     + "    }\n"
                     + "}\n";
         }
         if (scheme.getFlows().getPassword() != null) {
-            var flow = scheme.getFlows().getPassword();
-            String tokenUrl = flow.getTokenUrl();
-            String refreshUrl = flow.getRefreshUrl();
-            String scopes = flow.getScopes() != null
-                    ? "\"" + String.join("\", \"", flow.getScopes().keySet()) + "\""
-                    : "";
-            String refreshUrlArg = refreshUrl != null ? "\"" + refreshUrl + "\"" : "null";
+            final var flow = scheme.getFlows().getPassword();
+            final String tokenUrl = flow.getTokenUrl();
+            final String refreshUrl = flow.getRefreshUrl();
+            final String scopes =
+                    flow.getScopes() != null
+                            ? "\"" + String.join("\", \"", flow.getScopes().keySet()) + "\""
+                            : "";
+            final String refreshUrlArg =
+                    refreshUrl != null ? "\"" + refreshUrl + "\"" : "null";
             return "package " + pkg + ".auth.oauth;\n\n"
                     + "import " + pkg + ".auth.Authenticator;\n"
                     + "import java.util.List;\n\n"
-                    + "public final class " + className + "PasswordAuthenticator extends OAuth2PasswordAuthenticator {\n"
-                    + "    public " + className + "PasswordAuthenticator(String host, String clientId,\n"
-                    + "            String clientSecret, String username, String password) {\n"
-                    + "        super(host, clientId, clientSecret, \"" + tokenUrl + "\", " + refreshUrlArg + ",\n"
-                    + "              username, password, List.of(" + scopes + "));\n"
+                    + "public final class " + className
+                    + "PasswordAuthenticator"
+                    + " extends OAuth2PasswordAuthenticator {\n"
+                    + "    public " + className
+                    + "PasswordAuthenticator(String host, String clientId,\n"
+                    + "            String clientSecret, String username,"
+                    + " String password) {\n"
+                    + "        super(host, clientId, clientSecret, \""
+                    + tokenUrl + "\", " + refreshUrlArg + ",\n"
+                    + "              username, password, List.of("
+                    + scopes + "));\n"
                     + "    }\n"
                     + "}\n";
         }
         if (scheme.getFlows().getAuthorizationCode() != null) {
-            var flow = scheme.getFlows().getAuthorizationCode();
-            String authUrl = flow.getAuthorizationUrl();
-            String tokenUrl = flow.getTokenUrl();
-            String refreshUrl = flow.getRefreshUrl();
-            String scopes = flow.getScopes() != null
-                    ? "\"" + String.join("\", \"", flow.getScopes().keySet()) + "\""
-                    : "";
-            String refreshUrlArg = refreshUrl != null ? "\"" + refreshUrl + "\"" : "null";
+            final var flow = scheme.getFlows().getAuthorizationCode();
+            final String authUrl = flow.getAuthorizationUrl();
+            final String tokenUrl = flow.getTokenUrl();
+            final String refreshUrl = flow.getRefreshUrl();
+            final String scopes =
+                    flow.getScopes() != null
+                            ? "\"" + String.join("\", \"", flow.getScopes().keySet()) + "\""
+                            : "";
+            final String refreshUrlArg =
+                    refreshUrl != null ? "\"" + refreshUrl + "\"" : "null";
             return "package " + pkg + ".auth.oauth;\n\n"
                     + "import " + pkg + ".auth.Authenticator;\n"
                     + "import java.util.List;\n\n"
-                    + "public final class " + className + "AuthorizationCodeAuthenticator extends OAuth2AuthorizationCodeAuthenticator {\n"
-                    + "    public " + className + "AuthorizationCodeAuthenticator(String host, String clientId,\n"
-                    + "            String clientSecret, String redirectUri) {\n"
+                    + "public final class " + className
+                    + "AuthorizationCodeAuthenticator"
+                    + " extends OAuth2AuthorizationCodeAuthenticator {\n"
+                    + "    public " + className
+                    + "AuthorizationCodeAuthenticator(String host,"
+                    + " String clientId,\n"
+                    + "            String clientSecret, String redirectUri)"
+                    + " {\n"
                     + "        super(host, clientId, clientSecret,\n"
                     + "              \"" + authUrl + "\",\n"
                     + "              \"" + tokenUrl + "\",\n"
                     + "              " + refreshUrlArg + ",\n"
-                    + "              redirectUri, List.of(" + scopes + "));\n"
+                    + "              redirectUri, List.of(" + scopes
+                    + "));\n"
                     + "    }\n"
                     + "}\n";
         }
         if (scheme.getFlows().getImplicit() != null) {
-            var flow = scheme.getFlows().getImplicit();
-            String authUrl = flow.getAuthorizationUrl();
-            String scopes = flow.getScopes() != null
-                    ? "\"" + String.join("\", \"", flow.getScopes().keySet()) + "\""
-                    : "";
+            final var flow = scheme.getFlows().getImplicit();
+            final String authUrl = flow.getAuthorizationUrl();
+            final String scopes =
+                    flow.getScopes() != null
+                            ? "\"" + String.join("\", \"", flow.getScopes().keySet()) + "\""
+                            : "";
             return "package " + pkg + ".auth.oauth;\n\n"
                     + "import " + pkg + ".auth.Authenticator;\n"
                     + "import java.util.List;\n\n"
-                    + "public final class " + className + "ImplicitAuthenticator extends OAuth2ImplicitAuthenticator {\n"
-                    + "    public " + className + "ImplicitAuthenticator(String host, String clientId) {\n"
-                    + "        super(host, clientId, \"" + authUrl + "\",\n"
+                    + "public final class " + className
+                    + "ImplicitAuthenticator"
+                    + " extends OAuth2ImplicitAuthenticator {\n"
+                    + "    public " + className
+                    + "ImplicitAuthenticator(String host,"
+                    + " String clientId) {\n"
+                    + "        super(host, clientId, \"" + authUrl
+                    + "\",\n"
                     + "              List.of(" + scopes + "));\n"
                     + "    }\n"
                     + "}\n";
@@ -663,24 +907,36 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         return "";
     }
 
+    /**
+     * Writes generated source content to a file, creating any
+     * missing parent directories. Logs a warning on failure
+     * instead of throwing so code generation can continue.
+     */
     @SuppressFBWarnings(
             value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE",
-            justification = "filePath always contains a parent directory")
+            justification =
+                    "filePath always contains a parent directory")
     private void writeFile(String filePath, String content) {
         try {
-            java.nio.file.Path path = java.nio.file.Path.of(filePath);
-            java.nio.file.Files.createDirectories(path.getParent());
-            java.nio.file.Files.writeString(path, content, java.nio.charset.StandardCharsets.UTF_8);
-        } catch (java.io.IOException e) {
+            final Path path = Path.of(filePath);
+            Files.createDirectories(path.getParent());
+            Files.writeString(path, content, StandardCharsets.UTF_8);
+        } catch (IOException e) {
             LOGGER.warn("Failed to write auth file: {}", filePath, e);
         }
     }
 
+    /**
+     * Runs Google Java Format inside a Docker container to
+     * format all generated Java source files. Uses the
+     * eclipse-temurin JDK 17 image and downloads the formatter
+     * JAR at build time.
+     */
     @Override
     public void postProcess() {
         runFormatterInDocker(
-                "eclipse-temurin:17-jdk-alpine",
-                "wget -q -O /tmp/gjf.jar https://github.com/google/google-java-format/releases/download/v1.25.2/google-java-format-1.25.2-all-deps.jar",
+                "eclipse-temurin:17-jdk",
+                "curl -sL -o /tmp/gjf.jar https://github.com/google/google-java-format/releases/download/v1.25.2/google-java-format-1.25.2-all-deps.jar",
                 "find . -name '*.java' -print0 | xargs -0 java"
                         + " --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED"
                         + " --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED"
@@ -688,19 +944,5 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                         + " --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED"
                         + " --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
                         + " -jar /tmp/gjf.jar --replace");
-    }
-
-    @Override
-    public CodegenModel fromModel(String name, Schema schema) {
-        CodegenModel model = super.fromModel(name, schema);
-        if (model.discriminator != null) {
-            model.imports.add("JsonTypeInfo");
-            model.imports.add("JsonSubTypes");
-        }
-        if (!model.oneOf.isEmpty() || !model.anyOf.isEmpty()) {
-            model.imports.add("JsonValue");
-            model.imports.add("JsonCreator");
-        }
-        return model;
     }
 }

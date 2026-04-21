@@ -3,13 +3,14 @@ package io.github.mridang.codegen.generators.python;
 import static org.openapitools.codegen.utils.StringUtils.underscore;
 
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import io.github.mridang.codegen.generators.NamingConvention;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
-import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
@@ -25,11 +26,21 @@ import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Generates a Python API client using urllib3 for HTTP and Pydantic for models. */
+/**
+ * Generates a Python 3.10+ API client that uses urllib3 for
+ * HTTP transport and Pydantic v2 for model serialization.
+ * All identifiers follow snake_case conventions enforced by
+ * the Ruff formatter. Variable names, operation IDs, and
+ * filenames all use {@code SNAKE_CASE} naming.
+ */
 @SuppressWarnings("unused")
 public class BetterPythonCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterPythonCodegen.class);
+
+    private static final NamingConvention VAR_CASING = NamingConvention.SNAKE_CASE;
+    private static final NamingConvention OPERATION_ID_CASING = NamingConvention.SNAKE_CASE;
+    private static final NamingConvention FILENAME_CASING = NamingConvention.SNAKE_CASE;
 
     private static final Map<String, String> TYPE_IMPORTS =
             Map.of(
@@ -40,6 +51,12 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     protected String packageName = "openapi_client";
     protected String packageVersion = "1.0.0";
 
+    /**
+     * Initializes the Python codegen with type mappings,
+     * language primitives, and reserved words. Clears
+     * inherited defaults and configures the template
+     * directory for Python-specific Mustache templates.
+     */
     public BetterPythonCodegen() {
         outputFolder = "generated-code/python";
         embeddedTemplateDir = templateDir = "templates/python";
@@ -83,26 +100,50 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         this.setLegacyDiscriminatorBehavior(false);
     }
 
+    /**
+     * Returns the unique generator name used to select this
+     * codegen on the command line via the {@code -g} flag.
+     */
     @Override
     public String getName() {
         return "python-plus";
     }
 
+    /**
+     * Returns the relative path within the output directory
+     * where test fixtures such as certificates, proxy config,
+     * and WireMock mappings are placed.
+     */
     @Override
     protected String getTestFixturesDir() {
         return "test/fixtures";
     }
 
+    /**
+     * Returns the relative path within the output directory
+     * where user-written spec tests should be placed. An
+     * empty directory with a .gitkeep is created here.
+     */
     @Override
     protected String getSpecDir() {
         return "spec";
     }
 
+    /**
+     * Returns a short human-readable description of this
+     * generator for the help output.
+     */
     @Override
     public String getHelp() {
         return "Generates a minimal Python client with pydantic models.";
     }
 
+    /**
+     * Resolves user-supplied options and registers all
+     * supporting files for the Python package structure.
+     * Sets up the package layout including models, API
+     * classes, exceptions, auth, and configuration modules.
+     */
     @Override
     public void processOpts() {
         super.processOpts();
@@ -115,9 +156,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         modelPackage = packageName + ".models";
         apiPackage = packageName + ".api";
 
-        String modelPath = modelPackage.replace('.', File.separatorChar);
-        String apiPath = apiPackage.replace('.', File.separatorChar);
-        String packagePath = packageName.replace('.', File.separatorChar);
+        final String modelPath = modelPackage.replace('.', File.separatorChar);
+        final String apiPath = apiPackage.replace('.', File.separatorChar);
+        final String packagePath = packageName.replace('.', File.separatorChar);
 
         supportingFiles.add(
                 new SupportingFile("models/__init__.mustache", modelPath, "__init__.py"));
@@ -140,7 +181,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                 new SupportingFile("base_api.mustache", apiPath, "base_api.py"));
         supportingFiles.add(
                 new SupportingFile("configuration.mustache", packagePath, "configuration.py"));
-        String exceptionsPath = packagePath + File.separator + "exceptions";
+        final String exceptionsPath = Path.of(packagePath, "exceptions").toString();
         supportingFiles.add(
                 new SupportingFile("exceptions.mustache", exceptionsPath, "__init__.py"));
         supportingFiles.add(
@@ -210,7 +251,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                         "server_configuration.py"));
         supportingFiles.add(
                 new SupportingFile("servers.mustache", packagePath, "servers.py"));
-        String authPath = packagePath + File.separator + "auth";
+        final String authPath = Path.of(packagePath, "auth").toString();
         supportingFiles.add(
                 new SupportingFile("auth/__init__.mustache", authPath, "__init__.py"));
         supportingFiles.add(
@@ -220,8 +261,8 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                         "auth/http_aware_authenticator.mustache",
                         authPath,
                         "http_aware_authenticator.py"));
-        String clientClassName = (String) additionalProperties.get("clientClassName");
-        String clientClassFile = underscore(clientClassName);
+        final String clientClassName = (String) additionalProperties.get("clientClassName");
+        final String clientClassFile = underscore(clientClassName);
         additionalProperties.put("clientClassFile", clientClassFile);
         supportingFiles.add(
                 new SupportingFile("client.mustache", packagePath, clientClassFile + ".py"));
@@ -234,17 +275,18 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
             supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
             supportingFiles.add(
                     new SupportingFile("test/tests_init.py", "test", "__init__.py"));
+            final String testApiPath = Path.of("test", "Api").toString();
             supportingFiles.add(
-                    new SupportingFile("test/Api_init.py", "test" + File.separator + "Api", "__init__.py"));
+                    new SupportingFile("test/Api_init.py", testApiPath, "__init__.py"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/Api/test_pet_api.mustache",
-                            "test" + File.separator + "Api",
+                            testApiPath,
                             "test_pet_api.py"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/Api/test_store_api.mustache",
-                            "test" + File.separator + "Api",
+                            testApiPath,
                             "test_store_api.py"));
             supportingFiles.add(
                     new SupportingFile(
@@ -294,16 +336,190 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         }
     }
 
+    /**
+     * Formats an array type using Python bracket syntax,
+     * producing declarations like {@code List[str]} instead
+     * of the default angle-bracket generic form.
+     */
     @Override
     protected String formatArrayType(String containerType, String innerType) {
         return containerType + "[" + innerType + "]";
     }
 
+    /**
+     * Formats a map type using Python bracket syntax,
+     * producing declarations like {@code Dict[str, Any]}
+     * instead of the default angle-bracket generic form.
+     */
     @Override
     protected String formatMapType(String containerType, String keyType, String valueType) {
         return containerType + "[" + keyType + ", " + valueType + "]";
     }
 
+    /**
+     * Returns {@code str} as the map key type because Python
+     * dictionaries use string keys for JSON-derived schemas.
+     */
+    @Override
+    protected String getMapKeyType() {
+        return "str";
+    }
+
+    /**
+     * Returns {@code object} as the default map value type
+     * when no additionalProperties schema is specified, since
+     * Python's {@code object} is the universal base type.
+     */
+    @Override
+    protected String getMapDefaultValueType() {
+        return "object";
+    }
+
+    /**
+     * Applies snake_case casing to a sanitized variable name
+     * because Python conventions require all variable and
+     * parameter names to use snake_case.
+     */
+    @Override
+    protected String applyVarNameCasing(String name) {
+        return VAR_CASING.apply(name);
+    }
+
+    /**
+     * Converts a model class name to its snake_case filename
+     * because Python modules follow snake_case naming by
+     * convention and PEP 8 guidelines.
+     */
+    @Override
+    public String toModelFilename(String name) {
+        return FILENAME_CASING.apply(toModelName(name));
+    }
+
+    /**
+     * Converts an API class name to its snake_case filename
+     * because Python modules follow snake_case naming by
+     * convention and PEP 8 guidelines.
+     */
+    @Override
+    public String toApiFilename(String name) {
+        return FILENAME_CASING.apply(toApiName(name));
+    }
+
+    /**
+     * Formats a sanitized operation ID into snake_case
+     * because Python method names follow PEP 8 snake_case
+     * convention.
+     */
+    @Override
+    protected String formatOperationId(String sanitizedOperationId) {
+        return OPERATION_ID_CASING.apply(sanitizedOperationId);
+    }
+
+    /**
+     * Constructs a fully-qualified Python import statement
+     * for a model class. Returns the input unchanged if it
+     * already starts with "import" or "from".
+     */
+    @Override
+    public String toModelImport(String name) {
+        if (name.startsWith("import") || name.startsWith("from")) {
+            return name;
+        }
+        return "from "
+                + modelPackage()
+                + "."
+                + toModelFilename(name)
+                + " import "
+                + name;
+    }
+
+    /**
+     * Sanitizes a tag name for use as a Python identifier
+     * by removing characters that are invalid in Python
+     * module and class names.
+     */
+    @Override
+    public String sanitizeTag(String tag) {
+        return sanitizeName(tag);
+    }
+
+    /**
+     * Removes single-quote characters from input to prevent
+     * broken string literals in generated Python source.
+     */
+    @Override
+    public String escapeQuotationMark(String input) {
+        return input.replace("'", "");
+    }
+
+    /**
+     * Breaks triple-quote sequences that would prematurely
+     * close Python docstrings by inserting underscores
+     * between the quotes.
+     */
+    @Override
+    public String escapeUnsafeCharacters(String input) {
+        return input.replace("'''", "'_'_'");
+    }
+
+    /**
+     * Converts a schema default value to valid Python syntax.
+     * Transforms boolean defaults to Python's capitalized
+     * True/False form and passes other defaults through
+     * unchanged.
+     */
+    @Nullable
+    @Override
+    public String toDefaultValue(Schema schema) {
+        if (schema.getDefault() != null) {
+            if (ModelUtils.isBooleanSchema(schema)) {
+                return Boolean.parseBoolean(schema.getDefault().toString()) ? "True" : "False";
+            }
+            return schema.getDefault().toString();
+        }
+        return null;
+    }
+
+    /**
+     * Returns whether the given datatype is a Python numeric
+     * type so that numeric enum values are emitted without
+     * quotes.
+     */
+    @Override
+    protected boolean isNumericEnumDatatype(String datatype) {
+        return "int".equals(datatype) || "float".equals(datatype);
+    }
+
+    /**
+     * Wraps a string enum value in single quotes following
+     * Python conventions and strips any embedded single
+     * quotes to prevent syntax errors.
+     */
+    @Override
+    protected String quoteEnumValue(String value) {
+        return "'" + value.replace("'", "") + "'";
+    }
+
+    /**
+     * Converts an enum value to its Python variable form.
+     * Numeric enum values are returned bare to preserve
+     * their type; string values are wrapped in single
+     * quotes.
+     */
+    @Override
+    public String toEnumVarName(String value, String datatype) {
+        if ("int".equals(datatype) || "float".equals(datatype)) {
+            return value;
+        }
+        return "'" + value + "'";
+    }
+
+    /**
+     * Post-processes model properties to fix unique-item
+     * arrays (converting List to set) and sanitize example
+     * values that contain Java-specific artifacts like null
+     * literals or byte-array toString output.
+     */
     @Override
     public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
         super.postProcessModelProperty(model, property);
@@ -326,122 +542,31 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         }
     }
 
-    @Override
-    protected String getMapKeyType() {
-        return "str";
-    }
-
-    @Override
-    protected String getMapDefaultValueType() {
-        return "object";
-    }
-
-    @Override
-    public String toModelImport(String name) {
-        if (name.startsWith("import") || name.startsWith("from")) {
-            return name;
-        }
-        return "from "
-                + modelPackage()
-                + "."
-                + toModelFilename(name)
-                + " import "
-                + name;
-    }
-
-    @Override
-    protected String applyVarNameCasing(String name) {
-        return underscore(name);
-    }
-
-    @Override
-    public String toModelFilename(String name) {
-        return underscore(toModelName(name));
-    }
-
-    @Override
-    public String toApiFilename(String name) {
-        return underscore(toApiName(name));
-    }
-
-    @Override
-    protected String formatOperationId(String sanitizedOperationId) {
-        return underscore(sanitizedOperationId);
-    }
-
-    @Override
-    public String sanitizeTag(String tag) {
-        return sanitizeName(tag);
-    }
-
-    @Override
-    public String escapeQuotationMark(String input) {
-        return input.replace("'", "");
-    }
-
-    @Override
-    public String escapeUnsafeCharacters(String input) {
-        return input.replace("'''", "'_'_'");
-    }
-
-    @Nullable
-    @Override
-    public String toDefaultValue(Schema schema) {
-        if (schema.getDefault() != null) {
-            if (ModelUtils.isBooleanSchema(schema)) {
-                return Boolean.parseBoolean(schema.getDefault().toString()) ? "True" : "False";
-            }
-            return schema.getDefault().toString();
-        }
-        return null;
-    }
-
-    @Override
-    protected boolean isNumericEnumDatatype(String datatype) {
-        return "int".equals(datatype) || "float".equals(datatype);
-    }
-
-    @Override
-    protected String quoteEnumValue(String value) {
-        return "'" + value.replace("'", "") + "'";
-    }
-
-    @Override
-    public String toEnumVarName(String name, String datatype) {
-        if ("int".equals(datatype) || "float".equals(datatype)) {
-            return name;
-        }
-        return "'" + name + "'";
-    }
-
+    /**
+     * Post-processes all models to strip primitive parent
+     * types that would cause invalid Pydantic inheritance,
+     * and resolves Python-specific import statements for
+     * datetime, date, and Decimal types used by properties.
+     */
     @Override
     public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
-        Map<String, ModelsMap> result = super.postProcessAllModels(objs);
-        for (ModelsMap modelsMap : result.values()) {
-            for (ModelMap modelMap : modelsMap.getModels()) {
-                CodegenModel model = modelMap.getModel();
+        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        for (final ModelsMap modelsMap : result.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                final CodegenModel model = modelMap.getModel();
 
-                // Strip primitive parent types (e.g. "str", "int") that the upstream
-                // framework sets when a schema uses additionalProperties with a
-                // primitive type.  Leaving these in causes the Mustache template to
-                // emit `class Foo(str):` instead of `class Foo(BaseModel):`, which
-                // breaks Pydantic's model_rebuild() call in __init__.py.
-                if (model.parent != null
-                        && languageSpecificPrimitives().contains(model.parent)) {
-                    model.parent = null;
-                    model.parentModel = null;
-                }
+                stripPrimitiveParent(model);
 
-                TreeSet<String> fullImports = new TreeSet<>();
+                final TreeSet<String> fullImports = new TreeSet<>();
 
-                for (CodegenProperty prop : model.allVars) {
+                for (final CodegenProperty prop : model.allVars) {
                     addTypeImport(fullImports, prop.dataType);
                     if (prop.items != null) {
                         addTypeImport(fullImports, prop.items.dataType);
                     }
                 }
 
-                for (String imp : model.imports) {
+                for (final String imp : model.imports) {
                     fullImports.add(
                             "from "
                                     + modelPackage
@@ -457,27 +582,31 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         return result;
     }
 
-    private static void addTypeImport(TreeSet<String> imports, String dataType) {
-        String imp = TYPE_IMPORTS.get(dataType);
-        if (imp != null) {
-            imports.add(imp);
-        }
-    }
-
+    /**
+     * Derives a snake_case property name for the API client
+     * facade from the API class name by stripping the "Api"
+     * suffix and converting to snake_case.
+     */
     @Override
     protected String deriveClientPropertyName(String apiClassName) {
-        String name = apiClassName.replaceAll("Api$", "");
+        final String name = apiClassName.replaceAll("Api$", "");
         if (name.isEmpty()) {
             return "api";
         }
-        return org.openapitools.codegen.utils.StringUtils.underscore(name);
+        return VAR_CASING.apply(name);
     }
 
+    /**
+     * Registers supporting files for authentication classes
+     * based on which security scheme types were detected in
+     * the OpenAPI spec. Each scheme type gets its own
+     * authenticator module in the auth package.
+     */
     @Override
     protected void registerAuthSupportingFiles() {
-        String packagePath = packageName.replace('.', File.separatorChar);
-        String authPath = packagePath + File.separator + "auth";
-        String oauthPath = authPath + File.separator + "oauth";
+        final String packagePath = packageName.replace('.', File.separatorChar);
+        final String authPath = Path.of(packagePath, "auth").toString();
+        final String oauthPath = Path.of(authPath, "oauth").toString();
 
         if (hasBasicAuth) {
             supportingFiles.add(new SupportingFile("auth/basic_authenticator.mustache", authPath, "basic_authenticator.py"));
@@ -510,12 +639,23 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         }
     }
 
+    /**
+     * Per-scheme authenticator generation is not needed for
+     * Python because the base authenticator classes are
+     * sufficient with scheme-specific constructor parameters.
+     */
     @Override
     protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
         // Per-scheme authenticators are not generated for Python
         // The base classes are sufficient with the scheme-specific parameters
     }
 
+    /**
+     * Post-processes generated Python files to fix Mustache
+     * whitespace artifacts in f-string braces. Trims extra
+     * spaces inside curly braces that Mustache introduces
+     * when rendering template expressions.
+     */
     @Override
     public void postProcessFile(File file, String fileType) {
         super.postProcessFile(file, fileType);
@@ -523,9 +663,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
             return;
         }
         try {
-            String content = Files.readString(file.toPath());
+            final String content = Files.readString(file.toPath());
             // Fix Mustache whitespace in f-string braces: { 'string' } → {'string'}
-            String trimmed = content.replaceAll("\\{ ('.*?') }", "{$1}");
+            final String trimmed = content.replaceAll("\\{ ('.*?') }", "{$1}");
             if (!trimmed.equals(content)) {
                 Files.write(file.toPath(), trimmed.getBytes(StandardCharsets.UTF_8));
             }
@@ -534,11 +674,28 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         }
     }
 
+    /**
+     * Runs the Ruff formatter inside a Docker container to
+     * ensure all generated Python source files conform to
+     * consistent formatting standards.
+     */
     @Override
     public void postProcess() {
         runFormatterInDocker(
                 "python:3-slim",
                 "pip install --quiet ruff",
                 "ruff format .");
+    }
+
+    /**
+     * Adds a Python-specific import statement for a data
+     * type if it requires one. Handles datetime, date, and
+     * Decimal types that need explicit Python imports.
+     */
+    private static void addTypeImport(TreeSet<String> imports, String dataType) {
+        final String imp = TYPE_IMPORTS.get(dataType);
+        if (imp != null) {
+            imports.add(imp);
+        }
     }
 }

@@ -32,7 +32,8 @@ class TraceContextUtilTest {
 
           @Override
           public <C> void inject(Context context, @Nullable C carrier, TextMapSetter<C> setter) {
-            setter.set(carrier, "traceparent", "00-abcdef1234567890abcdef1234567890-0123456789abcdef-01");
+            setter.set(
+                carrier, "traceparent", "00-abcdef1234567890abcdef1234567890-0123456789abcdef-01");
           }
 
           @Override
@@ -43,15 +44,13 @@ class TraceContextUtilTest {
         };
 
     GlobalOpenTelemetry.resetForTest();
-    GlobalOpenTelemetry.set(
-        OpenTelemetry.propagating(ContextPropagators.create(propagator)));
+    GlobalOpenTelemetry.set(OpenTelemetry.propagating(ContextPropagators.create(propagator)));
     try {
       Map<String, String> headers = new HashMap<>();
       TraceContextUtil.injectTraceContext(headers);
       assertTrue(headers.containsKey("traceparent"), "traceparent header should be present");
       assertEquals(
-          "00-abcdef1234567890abcdef1234567890-0123456789abcdef-01",
-          headers.get("traceparent"));
+          "00-abcdef1234567890abcdef1234567890-0123456789abcdef-01", headers.get("traceparent"));
     } finally {
       GlobalOpenTelemetry.resetForTest();
     }

@@ -1,26 +1,37 @@
 package io.github.mridang.codegen.generators.php;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.openapitools.codegen.utils.CamelizeOption.LOWERCASE_FIRST_LETTER;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import io.github.mridang.codegen.generators.NamingConvention;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.security.SecurityScheme;
-import java.io.File;
+import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.Map;
 import java.util.HashSet;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.utils.ModelUtils;
-import org.openapitools.codegen.utils.StringUtils;
 
-/** Generates a PHP API client using Symfony HTTP Client and Symfony Serializer for models. */
+/**
+ * Generates a PHP API client that uses Symfony HTTP Client
+ * for transport and Symfony Serializer for model
+ * deserialization. All identifiers follow camelCase naming
+ * for variables and methods, and PascalCase for classes.
+ * Output is formatted with PHP-CS-Fixer and PHPCBF inside a
+ * Docker container to ensure consistent style across all
+ * generated source files.
+ */
 @SuppressWarnings("unused")
 public class BetterPHPCodegen extends AbstractBetterCodegen {
 
@@ -28,8 +39,19 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     private static final String API_DIR_NAME = "Api";
     private static final String MODEL_DIR_NAME = "Models";
 
+    private static final NamingConvention VAR_CASING = NamingConvention.CAMEL_CASE;
+    private static final NamingConvention OPERATION_ID_CASING = NamingConvention.CAMEL_CASE;
+    private static final NamingConvention ENUM_CASING = NamingConvention.UPPER_SNAKE_CASE;
+
     protected String invokerPackage = "OpenAPI\\Client";
 
+    /**
+     * Initializes all PHP-specific type mappings, language
+     * primitives, instantiation types, and template file
+     * registrations. Uses standard PHP types for date, time,
+     * and numeric schemas, and maps OpenAPI container types
+     * to native PHP arrays.
+     */
     public BetterPHPCodegen() {
         outputFolder = "generated-code/php";
         embeddedTemplateDir = templateDir = "templates/php";
@@ -87,26 +109,51 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         reservedWords = loadReservedWords("/reserved-words/php.txt");
     }
 
+    /**
+     * Returns the unique generator name used by the OpenAPI
+     * Generator plugin system to identify this codegen.
+     */
     @Override
     public String getName() {
         return "php-plus";
     }
 
-    @Override
-    protected String getTestFixturesDir() {
-        return "test/fixtures";
-    }
-
-    @Override
-    protected String getSpecDir() {
-        return "spec";
-    }
-
+    /**
+     * Returns a short human-readable description of this
+     * codegen shown in the generator list and help output.
+     */
     @Override
     public String getHelp() {
         return "Generates a minimal PHP client with Symfony HTTP Client and Symfony Serializer.";
     }
 
+    /**
+     * Returns the relative path to the directory where test
+     * fixture files like certificates and WireMock mappings
+     * are placed inside the generated project.
+     */
+    @Override
+    protected String getTestFixturesDir() {
+        return "test/fixtures";
+    }
+
+    /**
+     * Returns the relative path to the directory where
+     * user-written spec tests should be placed inside the
+     * generated project.
+     */
+    @Override
+    protected String getSpecDir() {
+        return "spec";
+    }
+
+    /**
+     * Processes user-supplied codegen options after they are
+     * resolved. Reads the invoker package and derives API and
+     * model packages from it, then registers all supporting
+     * files for the client skeleton, exceptions, auth,
+     * serialization, and optional test scaffolding.
+     */
     @Override
     public void processOpts() {
         super.processOpts();
@@ -136,8 +183,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
 
         additionalProperties.put("escapedInvokerPackage", invokerPackage.replace("\\", "\\\\"));
 
-        String invokerFolder = toSrcPath(invokerPackage);
-        String apiFolder = toSrcPath(apiPackage);
+        final String invokerFolder = toSrcPath(invokerPackage);
+        final String apiFolder = toSrcPath(apiPackage);
 
         supportingFiles.add(
                 new SupportingFile("configuration.mustache", invokerFolder, "Configuration.php"));
@@ -155,7 +202,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile("api_exception.mustache", invokerFolder, "ApiException.php"));
 
-        String exceptionsFolder = invokerFolder + File.separator + "Exceptions";
+        final String exceptionsFolder = Path.of(invokerFolder, "Exceptions").toString();
         supportingFiles.add(
                 new SupportingFile(
                         "exceptions/ClientException.mustache",
@@ -239,9 +286,9 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile(
                         "authenticator.mustache",
-                        invokerFolder + File.separator + "Auth",
+                        Path.of(invokerFolder, "Auth").toString(),
                         "Authenticator.php"));
-        String clientClassName = (String) additionalProperties.get("clientClassName");
+        final String clientClassName = (String) additionalProperties.get("clientClassName");
         supportingFiles.add(
                 new SupportingFile(
                         "client.mustache", invokerFolder, clientClassName + ".php"));
@@ -262,12 +309,12 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             supportingFiles.add(
                     new SupportingFile(
                             "test/Api/PetApiTest.mustache",
-                            "test" + File.separator + "Api",
+                            Path.of("test", "Api").toString(),
                             "PetApiTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/Api/StoreApiTest.mustache",
-                            "test" + File.separator + "Api",
+                            Path.of("test", "Api").toString(),
                             "StoreApiTest.php"));
             supportingFiles.add(
                     new SupportingFile(
@@ -317,35 +364,58 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         }
     }
 
+    /**
+     * Converts a PHP namespace to a filesystem path relative
+     * to the source base directory. Strips the invoker package
+     * prefix and replaces namespace separators with directory
+     * separators.
+     */
     private String toSrcPath(String packageName) {
-        String relative = packageName.replace(invokerPackage, "");
+        final String relative = packageName.replace(invokerPackage, "");
         String packagePath = relative.replaceAll("[\\\\/.]", "/");
         if (packagePath.startsWith("/")) {
             packagePath = packagePath.substring(1);
         }
         if (SRC_BASE_PATH != null && !SRC_BASE_PATH.isEmpty()) {
-            String base = SRC_BASE_PATH.replaceAll("[\\\\/]$", "");
+            final String base = SRC_BASE_PATH.replaceAll("[\\\\/]$", "");
             if (packagePath.isEmpty()) {
                 return base;
             }
-            return base + File.separator + packagePath;
+            return Path.of(base, packagePath).toString();
         }
         return packagePath;
     }
 
+    /**
+     * Returns the output directory for model source files by
+     * combining the output folder and the model package path
+     * resolved through the source base directory.
+     */
     @Override
     public String modelFileFolder() {
-        return outputFolder + File.separator + toSrcPath(modelPackage);
+        return Path.of(outputFolder, toSrcPath(modelPackage)).toString();
     }
 
+    /**
+     * Returns the output directory for API source files by
+     * combining the output folder and the API package path
+     * resolved through the source base directory.
+     */
     @Override
     public String apiFileFolder() {
-        return outputFolder + File.separator + toSrcPath(apiPackage);
+        return Path.of(outputFolder, toSrcPath(apiPackage)).toString();
     }
 
+    /**
+     * Resolves the OpenAPI schema type to a PHP type name.
+     * Handles composed schemas (anyOf, oneOf) by returning
+     * the raw type, maps language primitives directly, and
+     * converts all other types through the model name
+     * transformation.
+     */
     @Override
     public String getSchemaType(Schema schema) {
-        String type = super.getSchemaType(schema);
+        final String type = super.getSchemaType(schema);
 
         if (type == null) {
             return "UNKNOWN_OPENAPI_TYPE";
@@ -363,22 +433,28 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         return toModelName(type);
     }
 
+    /**
+     * Returns the PHP type declaration for a schema. Arrays
+     * produce bracket-suffixed types, maps produce generic
+     * array syntax, and reference schemas are fully qualified
+     * with the model namespace prefix.
+     */
     @Override
     public String getTypeDeclaration(Schema p) {
         if (ModelUtils.isArraySchema(p)) {
-            Schema<?> inner = ModelUtils.getSchemaItems(p);
+            final Schema<?> inner = ModelUtils.getSchemaItems(p);
             if (inner == null) {
                 return "string[]";
             }
             return getTypeDeclaration(inner) + "[]";
         } else if (ModelUtils.isMapSchema(p)) {
-            Schema<?> inner = ModelUtils.getAdditionalProperties(p);
+            final Schema<?> inner = ModelUtils.getAdditionalProperties(p);
             if (inner == null) {
                 return "array<string,string>";
             }
             return getSchemaType(p) + "<string," + getTypeDeclaration(inner) + ">";
         } else if (isNotBlank(p.get$ref())) {
-            String type = super.getTypeDeclaration(p);
+            final String type = super.getTypeDeclaration(p);
             if (!languageSpecificPrimitives.contains(type)) {
                 return "\\" + modelPackage + "\\" + toModelName(type);
             }
@@ -387,6 +463,12 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         return super.getTypeDeclaration(p);
     }
 
+    /**
+     * Returns the PHP type declaration for a named type.
+     * Non-primitive types are prefixed with a backslash and
+     * the model package namespace to produce a fully qualified
+     * class reference.
+     */
     @Override
     public String getTypeDeclaration(String name) {
         if (!languageSpecificPrimitives.contains(name)) {
@@ -395,32 +477,12 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         return super.getTypeDeclaration(name);
     }
 
-    @Override
-    protected String applyVarNameCasing(String name) {
-        return StringUtils.camelize(name, LOWERCASE_FIRST_LETTER);
-    }
-
-    @Override
-    protected String formatOperationId(String sanitizedOperationId) {
-        if (isReservedWord(sanitizedOperationId)) {
-            sanitizedOperationId = "call_" + sanitizedOperationId;
-        }
-        if (sanitizedOperationId.matches("^\\d.*")) {
-            sanitizedOperationId = "call_" + sanitizedOperationId;
-        }
-        return StringUtils.camelize(sanitizedOperationId, LOWERCASE_FIRST_LETTER);
-    }
-
-    @Override
-    protected boolean isNumericEnumDatatype(String datatype) {
-        return "int".equals(datatype) || "float".equals(datatype);
-    }
-
-    @Override
-    protected String quoteEnumValue(String value) {
-        return "'" + escapeTextInSingleQuotes(value) + "'";
-    }
-
+    /**
+     * Converts a schema name to a PascalCase PHP class name,
+     * sanitizing invalid characters and prefixing reserved
+     * words or digit-leading names with "model_" to produce
+     * valid PHP class identifiers.
+     */
     @Override
     public String toModelName(String name) {
         name = sanitizeName(name);
@@ -435,58 +497,117 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             name = "model_" + name;
         }
 
-        return StringUtils.camelize(name);
+        return NamingConvention.PASCAL_CASE.apply(name);
     }
 
+    /**
+     * Returns the default value expression for a schema type.
+     * Boolean, numeric, and integer defaults use their string
+     * representation; string defaults are wrapped in single
+     * quotes. All other types return null to let the language
+     * default apply.
+     */
     @Nullable
     @Override
     public String toDefaultValue(Schema schema) {
-        schema = ModelUtils.unaliasSchema(this.openAPI, schema);
-        if (ModelUtils.isBooleanSchema(schema)) {
-            if (schema.getDefault() != null) {
-                return schema.getDefault().toString();
+        final Schema unaliased = ModelUtils.unaliasSchema(this.openAPI, schema);
+        if (ModelUtils.isBooleanSchema(unaliased)) {
+            if (unaliased.getDefault() != null) {
+                return unaliased.getDefault().toString();
             }
-        } else if (ModelUtils.isNumberSchema(schema)) {
-            if (schema.getDefault() != null) {
-                return schema.getDefault().toString();
+        } else if (ModelUtils.isNumberSchema(unaliased)) {
+            if (unaliased.getDefault() != null) {
+                return unaliased.getDefault().toString();
             }
-        } else if (ModelUtils.isIntegerSchema(schema)) {
-            if (schema.getDefault() != null) {
-                return schema.getDefault().toString();
+        } else if (ModelUtils.isIntegerSchema(unaliased)) {
+            if (unaliased.getDefault() != null) {
+                return unaliased.getDefault().toString();
             }
-        } else if (ModelUtils.isStringSchema(schema)) {
-            if (schema.getDefault() != null) {
-                return "'" + schema.getDefault() + "'";
+        } else if (ModelUtils.isStringSchema(unaliased)) {
+            if (unaliased.getDefault() != null) {
+                return "'" + unaliased.getDefault() + "'";
             }
         }
         return null;
     }
 
+    /**
+     * Applies camelCase casing to a sanitized variable name
+     * because PHP convention uses camelCase for properties
+     * and method parameters.
+     */
+    @Override
+    protected String applyVarNameCasing(String name) {
+        return VAR_CASING.apply(name);
+    }
+
+    /**
+     * Formats a sanitized operation ID into PHP's camelCase
+     * method naming convention. Prefixes reserved words and
+     * digit-leading identifiers with "call_" to produce
+     * valid PHP method names.
+     */
+    @Override
+    protected String formatOperationId(String sanitizedOperationId) {
+        if (isReservedWord(sanitizedOperationId)) {
+            sanitizedOperationId = "call_" + sanitizedOperationId;
+        }
+        if (sanitizedOperationId.matches("^\\d.*")) {
+            sanitizedOperationId = "call_" + sanitizedOperationId;
+        }
+        return OPERATION_ID_CASING.apply(sanitizedOperationId);
+    }
+
+    /**
+     * Returns whether the given datatype represents a numeric
+     * PHP type. Used to decide whether enum values should be
+     * emitted as bare literals or quoted strings.
+     */
+    @Override
+    protected boolean isNumericEnumDatatype(String datatype) {
+        return "int".equals(datatype) || "float".equals(datatype);
+    }
+
+    /**
+     * Wraps a string enum value in single quotes following
+     * PHP conventions and escapes any embedded single quotes
+     * to prevent syntax errors.
+     */
+    @Override
+    protected String quoteEnumValue(String value) {
+        return "'" + escapeTextInSingleQuotes(value) + "'";
+    }
+
+    /**
+     * Converts an enum value to its UPPER_SNAKE_CASE constant
+     * name. Returns "EMPTY" for blank values, "SPACE_n" for
+     * whitespace-only values, prefixes numeric values with
+     * "NUMBER_", and sanitizes special characters for valid
+     * PHP constant identifiers.
+     */
     @Override
     @SuppressFBWarnings("IMPROPER_UNICODE")
-    public String toEnumVarName(String name, String datatype) {
-        if (name.isEmpty()) {
+    public String toEnumVarName(String value, String datatype) {
+        if (value.isEmpty()) {
             return "EMPTY";
         }
-        if (name.trim().isEmpty()) {
-            return "SPACE_" + name.length();
+        if (value.trim().isEmpty()) {
+            return "SPACE_" + value.length();
         }
-        if (getSymbolName(name) != null) {
-            return getSymbolName(name).toUpperCase(Locale.ROOT);
+        if (getSymbolName(value) != null) {
+            return getSymbolName(value).toUpperCase(Locale.ROOT);
         }
         if ("int".equals(datatype) || "float".equals(datatype)) {
-            if (name.matches("\\d.*")) {
-                name = "NUMBER_" + name;
+            if (value.matches("\\d.*")) {
+                value = "NUMBER_" + value;
             }
-            name = name.replaceAll("-", "MINUS_");
-            name = name.replaceAll("\\+", "PLUS_");
-            name = name.replaceAll("\\.", "_DOT_");
+            value = value.replaceAll("-", "MINUS_");
+            value = value.replaceAll("\\+", "PLUS_");
+            value = value.replaceAll("\\.", "_DOT_");
         }
 
-        String enumName =
-                sanitizeName(
-                                StringUtils.underscore(name)
-                                        .toUpperCase(Locale.ROOT))
+        final String enumName =
+                sanitizeName(ENUM_CASING.apply(value))
                         .replaceFirst("^_", "")
                         .replaceFirst("_$", "");
 
@@ -496,17 +617,20 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         return enumName;
     }
 
+    /**
+     * Converts a model property name to its UPPER_SNAKE_CASE
+     * PHP enum class name by sanitizing special characters
+     * and stripping trailing brackets.
+     */
     @Override
     public String toEnumName(CodegenProperty property) {
-        String name = property.name;
-        name = name.replaceAll("\\]", "");
-        name = name.replaceAll("[^\\w\\\\]+", "_");
-        name = name.replace("$", "");
+        final String name =
+                property.name
+                        .replaceAll("\\]", "")
+                        .replaceAll("[^\\w\\\\]+", "_")
+                        .replace("$", "");
 
-        String enumName =
-                StringUtils.underscore(name)
-                        .toUpperCase(Locale.ROOT);
-
+        String enumName = ENUM_CASING.apply(name);
         enumName = enumName.replace("[]", "");
 
         if (enumName.matches("\\d.*")) {
@@ -515,11 +639,56 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         return enumName;
     }
 
+    /**
+     * Strips single-quote characters from template output to
+     * prevent broken PHP string literals.
+     */
+    @Override
+    public String escapeQuotationMark(String input) {
+        return input.replace("'", "");
+    }
+
+    /**
+     * Escapes template text by delegating to the parent
+     * implementation and trimming whitespace. Returns null
+     * and blank inputs unchanged to avoid unnecessary
+     * processing.
+     */
+    @Override
+    public String escapeText(String input) {
+        return Optional.ofNullable(input)
+                .filter(s -> !s.trim().isEmpty())
+                .map(s -> super.escapeText(s).trim())
+                .orElse(input);
+    }
+
+    /**
+     * Strips primitive parent types from models after standard
+     * post-processing. Primitive parents arise from allOf with
+     * base types like String or array and would generate
+     * invalid extends clauses in PHP.
+     */
+    @Override
+    public ModelsMap postProcessModels(ModelsMap objs) {
+        final ModelsMap result = super.postProcessModels(objs);
+        for (final ModelMap modelMap : result.getModels()) {
+            final CodegenModel model = modelMap.getModel();
+            stripPrimitiveParent(model);
+        }
+        return result;
+    }
+
+    /**
+     * Registers supporting files for each authentication
+     * scheme type present in the OpenAPI spec. Files are
+     * placed under the Auth subdirectory within the invoker
+     * package path.
+     */
     @Override
     protected void registerAuthSupportingFiles() {
-        String invokerFolder = toSrcPath(invokerPackage);
-        String authFolder = invokerFolder + File.separator + "Auth";
-        String oauthFolder = authFolder + File.separator + "OAuth";
+        final String invokerFolder = toSrcPath(invokerPackage);
+        final String authFolder = Path.of(invokerFolder, "Auth").toString();
+        final String oauthFolder = Path.of(authFolder, "OAuth").toString();
 
         supportingFiles.add(new SupportingFile("auth/base_authenticator.mustache", authFolder, "BaseAuthenticator.php"));
         supportingFiles.add(new SupportingFile("auth/http_aware_authenticator.mustache", authFolder, "HttpAwareAuthenticator.php"));
@@ -553,27 +722,22 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         }
     }
 
+    /**
+     * No-op for PHP: per-scheme authenticators are handled
+     * entirely through template logic rather than individual
+     * generated classes.
+     */
     @Override
     protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
         // Per-scheme authenticators are not generated for PHP
     }
 
-    @Override
-    public String escapeQuotationMark(String input) {
-        return input.replace("'", "");
-    }
-
-    @Override
-    public String escapeText(String input) {
-        if (input == null) {
-            return input;
-        }
-        if (input.trim().isEmpty()) {
-            return input;
-        }
-        return super.escapeText(input).trim();
-    }
-
+    /**
+     * Runs PHP-CS-Fixer and PHPCBF inside a Docker container
+     * to format all generated PHP source files. Dependencies
+     * are installed via Composer and cleaned up after
+     * formatting to keep the output directory lean.
+     */
     @Override
     public void postProcess() {
         runFormatterInDocker(

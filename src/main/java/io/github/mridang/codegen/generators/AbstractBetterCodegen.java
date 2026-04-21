@@ -1,10 +1,11 @@
 package io.github.mridang.codegen.generators;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.swagger.v3.oas.models.ExternalDocumentation;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.security.SecurityScheme;
-import io.swagger.v3.oas.models.ExternalDocumentation;
 import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.oas.models.servers.ServerVariable;
 import io.swagger.v3.oas.models.tags.Tag;
@@ -22,9 +23,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenSecurity;
 import org.openapitools.codegen.CodegenServer;
@@ -35,22 +40,24 @@ import org.openapitools.codegen.model.ModelMap;
 import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
-import org.openapitools.codegen.utils.CamelizeOption;
 import org.openapitools.codegen.utils.StringUtils;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Abstract base class for all language-specific code generators. Provides type resolution, enum
- * post-processing, operation validation, and template methods for language-specific naming
- * conventions.
+ * Abstract base for all six language code generators (Ruby,
+ * Python, PHP, Java, Node/TypeScript, and C#). Centralizes
+ * shared concerns that every generated client needs: security
+ * scheme detection across all OpenAPI auth types, global and
+ * per-operation server configuration extraction, reserved-word
+ * loading from classpath resources, and post-processing hooks
+ * for operations, models, and enum values.
  *
- * <p>Subclasses must implement {@link #formatOperationId} and {@link #applyVarNameCasing}.
- * Subclasses may override {@link #formatArrayType}, {@link #formatMapType}, {@link
- * #getMapKeyType}, {@link #getMapDefaultValueType}, {@link #isNumericEnumDatatype}, and {@link
- * #quoteEnumValue}.
+ * <p>Subclasses must implement {@link #formatOperationId} and
+ * {@link #applyVarNameCasing}. Subclasses may override
+ * {@link #formatArrayType}, {@link #formatMapType},
+ * {@link #getMapKeyType}, {@link #getMapDefaultValueType},
+ * {@link #isNumericEnumDatatype}, and {@link #quoteEnumValue}.
  */
 public abstract class AbstractBetterCodegen extends DefaultCodegen
         implements UnsupportedFeaturesValidator {
@@ -70,6 +77,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     protected boolean hasAnyOAuth2;
     protected boolean generateTests;
 
+    /**
+     * Initializes shared codegen defaults by clearing the
+     * inherited type and import mappings so that each language
+     * subclass starts from a clean slate, and hides the
+     * generation timestamp to keep output deterministic.
+     */
     protected AbstractBetterCodegen() {
         super();
         typeMapping.clear();
@@ -77,6 +90,13 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         hideGenerationTimestamp = true;
     }
 
+    /**
+     * Processes user-supplied additional properties after the
+     * codegen options are resolved. Enables post-process file
+     * hooks, clears default supporting files so subclasses
+     * control which files are emitted, and reads the
+     * {@code generateTests} and {@code clientClassName} options.
+     */
     @Override
     public void processOpts() {
         super.processOpts();
@@ -92,6 +112,13 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         getPropertyOrDefault("clientClassName", "Client");
     }
 
+    /**
+     * Processes the parsed OpenAPI document after it is loaded.
+     * Detects all security scheme types, registers supporting
+     * files for auth, generates per-scheme authenticator
+     * classes, extracts server configuration, and optionally
+     * writes test fixtures when test generation is enabled.
+     */
     @Override
     public void processOpenAPI(OpenAPI openAPI) {
         super.processOpenAPI(openAPI);
@@ -114,36 +141,36 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     }
 
     /**
-     * Extract global server definitions from the OpenAPI spec and populate
-     * template properties for server selection code generation.
-     *
-     * <p>Sets {@code hasServers} and {@code servers} in additional properties.
-     * Each server entry contains {@code serverIndex}, {@code serverUrl},
-     * {@code serverDescription}, {@code hasVariables}, and {@code serverVariables}.
+     * Extracts global server definitions from the OpenAPI spec
+     * and populates template properties for server selection
+     * code generation. Sets {@code hasServers} and
+     * {@code serverConfigs} in additional properties so
+     * templates can render server URL constants and variable
+     * substitution logic.
      */
     private void processServers(OpenAPI openAPI) {
-        List<Server> servers = openAPI.getServers();
+        final List<Server> servers = openAPI.getServers();
         if (servers == null || servers.isEmpty()) {
             additionalProperties.put("hasServers", false);
             return;
         }
         additionalProperties.put("hasServers", true);
 
-        List<Map<String, Object>> serverList = new ArrayList<>();
+        final List<Map<String, Object>> serverList = new ArrayList<>();
         for (int i = 0; i < servers.size(); i++) {
-            Server server = servers.get(i);
-            Map<String, Object> serverMap = new HashMap<>();
+            final Server server = servers.get(i);
+            final Map<String, Object> serverMap = new HashMap<>();
             serverMap.put("serverIndex", String.valueOf(i));
             serverMap.put("serverUrl", server.getUrl() != null ? server.getUrl() : "");
             serverMap.put("serverDescription", server.getDescription());
 
             if (server.getVariables() != null && !server.getVariables().isEmpty()) {
                 serverMap.put("hasVariables", true);
-                List<Map<String, Object>> varList = new ArrayList<>();
+                final List<Map<String, Object>> varList = new ArrayList<>();
                 for (Map.Entry<String, ServerVariable> varEntry :
                         server.getVariables().entrySet()) {
-                    ServerVariable sv = varEntry.getValue();
-                    Map<String, Object> varMap = new HashMap<>();
+                    final ServerVariable sv = varEntry.getValue();
+                    final Map<String, Object> varMap = new HashMap<>();
                     varMap.put("varName", varEntry.getKey());
                     varMap.put("varDefault", sv.getDefault());
                     varMap.put("varDescription", sv.getDescription());
@@ -161,13 +188,22 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
             }
             serverList.add(serverMap);
         }
-        boolean anyServerHasVariables =
+        final boolean anyServerHasVariables =
                 serverList.stream().anyMatch(s -> Boolean.TRUE.equals(s.get("hasVariables")));
         additionalProperties.put("hasAnyServerVariables", anyServerHasVariables);
         additionalProperties.put("serverConfigs", serverList);
     }
 
-    @SuppressFBWarnings(value = "IMPROPER_UNICODE", justification = "Comparing with ASCII-only constants")
+    /**
+     * Scans the OpenAPI components for security scheme
+     * definitions and sets the corresponding boolean flags
+     * (basic, bearer, API key, each OAuth2 flow, OpenID
+     * Connect). These flags drive conditional template
+     * rendering and supporting-file registration downstream.
+     */
+    @SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification = "Comparing with ASCII-only constants")
     private void detectSecuritySchemes(OpenAPI openAPI) {
         if (openAPI.getComponents() == null
                 || openAPI.getComponents().getSecuritySchemes() == null) {
@@ -175,7 +211,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         }
         for (Map.Entry<String, SecurityScheme> entry :
                 openAPI.getComponents().getSecuritySchemes().entrySet()) {
-            SecurityScheme scheme = entry.getValue();
+            final SecurityScheme scheme = entry.getValue();
             if (scheme.getType() == SecurityScheme.Type.HTTP) {
                 if ("basic".equalsIgnoreCase(scheme.getScheme())) {
                     hasBasicAuth = true;
@@ -184,7 +220,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
                 }
             } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
                 hasApiKeyAuth = true;
-            } else if (scheme.getType() == SecurityScheme.Type.OAUTH2 && scheme.getFlows() != null) {
+            } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
+                    && scheme.getFlows() != null) {
                 if (scheme.getFlows().getClientCredentials() != null) {
                     hasOAuth2ClientCredentials = true;
                 }
@@ -209,21 +246,31 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     }
 
     /**
-     * Conditionally register base auth class supporting files based on which security scheme types
-     * are present.
+     * Conditionally registers base auth class supporting files
+     * based on which security scheme types are present.
+     * Subclasses use the boolean flags set by
+     * {@link #detectSecuritySchemes} to decide which auth
+     * template files to emit.
      */
     protected abstract void registerAuthSupportingFiles();
 
     /**
-     * Generate per-scheme concrete authenticator classes programmatically.
+     * Generates per-scheme concrete authenticator classes
+     * programmatically. Each language subclass creates the
+     * appropriate authenticator source file for every security
+     * scheme defined in the OpenAPI spec.
      */
     protected abstract void generatePerSchemeAuthenticators(OpenAPI openAPI);
 
     /**
-     * Compute the authenticator class name for a security scheme.
+     * Computes the authenticator class name for a given
+     * security scheme. Appends a flow-specific suffix for
+     * OAuth2 schemes (e.g. "ClientCredentials", "Password")
+     * and a generic "Authenticator" suffix for all other
+     * scheme types.
      */
     protected String toAuthClassName(CodegenSecurity auth) {
-        String base = StringUtils.camelize(auth.name);
+        final String base = StringUtils.camelize(auth.name);
         if (Boolean.TRUE.equals(auth.isBasicBasic)) {
             return base + "Authenticator";
         }
@@ -248,6 +295,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         return base + "Authenticator";
     }
 
+    /**
+     * Returns the value of an additional property if it exists,
+     * otherwise sets it to the given default and returns that.
+     * Ensures template properties always have a defined value
+     * without requiring null checks in templates.
+     */
     protected String getPropertyOrDefault(String key, String defaultValue) {
         if (additionalProperties.containsKey(key)) {
             return (String) additionalProperties.get(key);
@@ -256,12 +309,19 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         return defaultValue;
     }
 
+    /**
+     * Loads a set of reserved words from a classpath text
+     * resource. Each non-blank, non-comment line becomes a
+     * reserved word. This keeps reserved-word lists in plain
+     * text files alongside the templates rather than
+     * hard-coding them in Java.
+     */
     protected static Set<String> loadReservedWords(String resourcePath) {
         try (InputStream is = AbstractBetterCodegen.class.getResourceAsStream(resourcePath);
                 BufferedReader reader =
                         new BufferedReader(
                                 new InputStreamReader(
-                                        java.util.Objects.requireNonNull(
+                                        Objects.requireNonNull(
                                                 is,
                                                 "Reserved words resource not found: "
                                                         + resourcePath),
@@ -275,63 +335,115 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         }
     }
 
+    /**
+     * Returns {@link CodegenType#CLIENT} because all subclasses
+     * produce client SDK libraries, not server stubs or
+     * documentation.
+     */
     @Override
     public CodegenType getTag() {
         return CodegenType.CLIENT;
     }
 
+    /**
+     * Escapes a reserved word by prepending an underscore.
+     * This avoids collisions with language keywords while
+     * keeping the generated name recognizable.
+     */
     @Override
     public String escapeReservedWord(String name) {
         return "_" + name;
     }
 
+    /**
+     * Resolves an OpenAPI schema to its language-specific type
+     * name by first checking the type mapping table, then
+     * falling back to the raw schema type. This ensures that
+     * mapped types like "integer" to "int" are applied
+     * consistently.
+     */
     @Override
     public String getSchemaType(Schema schema) {
-        String type = super.getSchemaType(schema);
+        final String type = super.getSchemaType(schema);
         if (typeMapping.containsKey(type)) {
             return typeMapping.get(type);
         }
         return type;
     }
 
+    /**
+     * Produces the full type declaration for a schema,
+     * including generic type parameters for arrays and maps.
+     * Delegates to {@link #formatArrayType} and
+     * {@link #formatMapType} so subclasses can customize the
+     * generic syntax per language.
+     */
     @Override
     public String getTypeDeclaration(Schema schema) {
         if (ModelUtils.isArraySchema(schema)) {
-            Schema<?> inner = ModelUtils.getSchemaItems(schema);
+            final Schema<?> inner = ModelUtils.getSchemaItems(schema);
             return formatArrayType(getSchemaType(schema), getTypeDeclaration(inner));
         } else if (ModelUtils.isMapSchema(schema)) {
-            Schema<?> inner = ModelUtils.getAdditionalProperties(schema);
-            String valueType =
+            final Schema<?> inner = ModelUtils.getAdditionalProperties(schema);
+            final String valueType =
                     (inner == null) ? getMapDefaultValueType() : getTypeDeclaration(inner);
             return formatMapType(getSchemaType(schema), getMapKeyType(), valueType);
         }
         return super.getTypeDeclaration(schema);
     }
 
+    /**
+     * Formats an array type declaration with the given
+     * container and inner type. Override in subclasses for
+     * language-specific array syntax (e.g. {@code List[str]}
+     * in Python vs {@code Array<String>} in TypeScript).
+     */
     protected String formatArrayType(String containerType, String innerType) {
         return containerType + "<" + innerType + ">";
     }
 
+    /**
+     * Formats a map type declaration with the given container,
+     * key, and value types. Override in subclasses for
+     * language-specific map syntax (e.g. {@code Dict[str, Any]}
+     * in Python vs {@code Hash} in Ruby).
+     */
     protected String formatMapType(String containerType, String keyType, String valueType) {
         return containerType + "<" + keyType + ", " + valueType + ">";
     }
 
+    /**
+     * Returns the default key type for map schemas. Most
+     * languages use {@code String} but subclasses can override
+     * for language-specific types like {@code string}.
+     */
     protected String getMapKeyType() {
         return "String";
     }
 
+    /**
+     * Returns the default value type for map schemas when no
+     * {@code additionalProperties} schema is specified. Most
+     * languages use {@code Object} but subclasses can override.
+     */
     protected String getMapDefaultValueType() {
         return "Object";
     }
 
+    /**
+     * Post-processes generated models to apply enum naming
+     * conventions and sanitize byte-array example values that
+     * would otherwise render as Java memory addresses in
+     * generated documentation.
+     */
     @Override
     public ModelsMap postProcessModels(ModelsMap objs) {
-        ModelsMap result = postProcessModelsEnum(super.postProcessModels(objs));
-        for (ModelMap model : result.getModels()) {
-            for (var prop : model.getModel().vars) {
+        final ModelsMap result = postProcessModelsEnum(super.postProcessModels(objs));
+        for (final ModelMap model : result.getModels()) {
+            for (final var prop : model.getModel().vars) {
                 sanitizeByteArrayExample(prop);
             }
-            for (var prop : model.getModel().allVars) {
+            for (final var prop : model.getModel().allVars) {
                 sanitizeByteArrayExample(prop);
             }
         }
@@ -339,9 +451,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     }
 
     /**
-     * OpenAPI Generator converts {@code format: byte} example strings into Java {@code byte[]}
-     * objects, whose {@code toString()} produces garbage like {@code [B@67943949}. Strip these
-     * so templates don't render meaningless memory addresses.
+     * Strips garbage {@code [B@hex} toString output from byte
+     * array examples. OpenAPI Generator converts
+     * {@code format: byte} example strings into Java byte
+     * arrays whose toString produces meaningless memory
+     * addresses that would pollute generated documentation.
      */
     private static void sanitizeByteArrayExample(
             org.openapitools.codegen.CodegenProperty prop) {
@@ -350,6 +464,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         }
     }
 
+    /**
+     * Converts a tag name to an API class name by camelizing
+     * the tag and appending "Api". Returns "DefaultApi" when
+     * the tag name is empty, ensuring every operation group
+     * has a valid class name.
+     */
     @Override
     public String toApiName(String name) {
         if (name.isEmpty()) {
@@ -358,12 +478,23 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         return StringUtils.camelize(name) + "Api";
     }
 
+    /**
+     * Converts a schema name to a PascalCase model class name.
+     * Sanitizes the input first to remove characters that are
+     * invalid in identifiers.
+     */
     @Override
     public String toModelName(String name) {
         name = sanitizeName(name);
         return StringUtils.camelize(name);
     }
 
+    /**
+     * Converts a property name to a language-appropriate
+     * variable name by sanitizing it, applying subclass
+     * casing rules, and escaping if it collides with a
+     * reserved word or starts with a digit.
+     */
     @Override
     public String toVarName(String name) {
         name = sanitizeName(name);
@@ -374,33 +505,72 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         return name;
     }
 
+    /**
+     * Applies the language-specific casing convention to a
+     * sanitized variable name. Each language subclass
+     * implements this to produce camelCase, snake_case, or
+     * whatever convention that language requires.
+     */
     protected abstract String applyVarNameCasing(String sanitizedName);
 
+    /**
+     * Converts a parameter name to its language-appropriate
+     * form by delegating to {@link #toVarName}, since most
+     * languages use the same naming rules for parameters
+     * and local variables.
+     */
     @Override
     public String toParamName(String name) {
         return toVarName(name);
     }
 
+    /**
+     * Converts a model name to its filename. By default this
+     * is identical to the model class name; subclasses can
+     * override to apply different casing for filenames.
+     */
     @Override
     public String toModelFilename(String name) {
         return toModelName(name);
     }
 
+    /**
+     * Converts an API tag name to its filename. By default
+     * this is identical to the API class name; subclasses
+     * can override to apply different casing for filenames.
+     */
     @Override
     public String toApiFilename(String name) {
         return toApiName(name);
     }
 
+    /**
+     * Converts a raw operation ID to a language-appropriate
+     * method name. Rejects null or empty operation IDs early
+     * because missing IDs cause cryptic downstream failures
+     * in template rendering.
+     */
     @Override
     public final String toOperationId(String operationId) {
         if (operationId == null || operationId.isEmpty()) {
-            throw new IllegalArgumentException("Empty method/operation name (operationId) not allowed");
+            throw new IllegalArgumentException(
+                    "Empty method/operation name (operationId) not allowed");
         }
         return formatOperationId(sanitizeName(operationId));
     }
 
+    /**
+     * Formats a sanitized operation ID into the language's
+     * method naming convention. Each subclass implements this
+     * to produce camelCase, snake_case, or other conventions.
+     */
     protected abstract String formatOperationId(String sanitizedOperationId);
 
+    /**
+     * Converts a raw enum value to its language representation.
+     * Numeric enums are returned as-is to preserve their type;
+     * string enums are quoted via {@link #quoteEnumValue}.
+     */
     @Override
     public String toEnumValue(String value, String datatype) {
         if (isNumericEnumDatatype(datatype)) {
@@ -409,35 +579,59 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         return quoteEnumValue(value);
     }
 
+    /**
+     * Returns whether the given datatype is numeric. Subclasses
+     * override this to recognize language-specific numeric type
+     * names so that numeric enum values are not quoted.
+     */
     protected boolean isNumericEnumDatatype(String datatype) {
         return false;
     }
 
+    /**
+     * Wraps an enum string value in double quotes with proper
+     * escaping. Subclasses can override for languages that use
+     * single quotes or different escaping rules.
+     */
     protected String quoteEnumValue(String value) {
         return "\"" + escapeText(value) + "\"";
     }
 
+    /**
+     * Escapes comment-closing sequences that could prematurely
+     * terminate block comments in generated code. Inserts an
+     * underscore to break the sequence while keeping the text
+     * readable.
+     */
     @Override
     public String escapeUnsafeCharacters(String input) {
         return input.replace("*/", "*_/").replace("/*", "/_*");
     }
 
+    /**
+     * Post-processes operations after all models are resolved.
+     * Strips global-level auth from individual operations to
+     * avoid redundant auth injection, injects tag metadata for
+     * API-level documentation, and builds structured server
+     * type definitions for per-operation server overrides.
+     */
     @Override
     @SuppressWarnings("unchecked")
     public OperationsMap postProcessOperationsWithModels(
             OperationsMap objs, List<ModelMap> allModels) {
         objs = super.postProcessOperationsWithModels(objs, allModels);
-        Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
         if (operations != null) {
-            String classname = (String) operations.get("classname");
+            final String classname = (String) operations.get("classname");
             if (classname != null) {
                 operations.put("clientPropertyName", deriveClientPropertyName(classname));
             }
             injectTagMetadata(operations);
-            List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
+            final List<CodegenOperation> ops =
+                    (List<CodegenOperation>) operations.get("operation");
             boolean anyOpHasAuth = false;
             if (ops != null) {
-                for (CodegenOperation op : ops) {
+                for (final CodegenOperation op : ops) {
                     if (globalAuthOperationIds.contains(op.operationId)) {
                         op.authMethods = null;
                         op.hasAuthMethods = false;
@@ -457,58 +651,70 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     }
 
     /**
-     * Remove imports that reference invalid class names (e.g. camelCase inline
-     * schema names generated for oneOf variants). These produce import errors
-     * because the imported name does not match any actual generated class.
+     * Removes imports that reference invalid class names such
+     * as camelCase inline schema names generated for oneOf
+     * variants. These produce import errors because the
+     * imported name does not match any actual generated class.
      */
     @SuppressWarnings("unchecked")
     private static void cleanupBadImports(OperationsMap objs) {
-        List<Map<String, String>> imports = (List<Map<String, String>>) objs.get("imports");
+        final List<Map<String, String>> imports =
+                (List<Map<String, String>>) objs.get("imports");
         if (imports == null) {
             return;
         }
         imports.removeIf(
                 imp -> {
-                    String importLine = imp.get("import");
+                    final String importLine = imp.get("import");
                     if (importLine == null) {
                         return false;
                     }
                     // Inline oneOf variant imports have lowercase class names
-                    // (e.g. "import setPetAvatar_request") — filter them out.
-                    int lastSpace = importLine.lastIndexOf(' ');
-                    if (lastSpace < 0) {
-                        return false;
+                    // — filter them out. Python imports use "from x import Y"
+                    // so the class name follows the last space; Java imports
+                    // are dot-qualified like "com.example.models.Y" so the
+                    // class name follows the last dot.
+                    final int lastSpace = importLine.lastIndexOf(' ');
+                    final String className;
+                    if (lastSpace >= 0) {
+                        className = importLine.substring(lastSpace + 1);
+                    } else {
+                        final int lastDot = importLine.lastIndexOf('.');
+                        className =
+                                lastDot >= 0
+                                        ? importLine.substring(lastDot + 1)
+                                        : importLine;
                     }
-                    String className = importLine.substring(lastSpace + 1);
                     return !className.isEmpty() && Character.isLowerCase(className.charAt(0));
                 });
     }
 
     /**
-     * Build structured server type definitions for operations that have per-operation servers.
-     * Puts {@code serverTypeDefs} and {@code hasServerTypeDefs} into the operations map so
-     * templates can generate typesafe server selection types.
+     * Builds structured server type definitions for operations
+     * that declare per-operation servers. Populates
+     * {@code serverTypeDefs} and {@code hasServerTypeDefs}
+     * in the operations map so templates can generate typesafe
+     * server selection types with variant names and variables.
      */
     @SuppressWarnings("unchecked")
     private static void enrichOperationServers(
             List<CodegenOperation> ops, Map<String, Object> operations) {
-        List<Map<String, Object>> serverTypeDefs = new ArrayList<>();
-        for (CodegenOperation op : ops) {
+        final List<Map<String, Object>> serverTypeDefs = new ArrayList<>();
+        for (final CodegenOperation op : ops) {
             if (op.servers == null || op.servers.isEmpty()) {
                 continue;
             }
-            Map<String, Object> typeDef = new HashMap<>();
+            final Map<String, Object> typeDef = new HashMap<>();
             typeDef.put("operationId", op.operationId);
             typeDef.put("serverTypeName", StringUtils.camelize(op.operationId) + "Server");
 
-            List<Map<String, Object>> variants = new ArrayList<>();
+            final List<Map<String, Object>> variants = new ArrayList<>();
             for (int i = 0; i < op.servers.size(); i++) {
-                CodegenServer server = op.servers.get(i);
-                Map<String, Object> variant = new HashMap<>();
+                final CodegenServer server = op.servers.get(i);
+                final Map<String, Object> variant = new HashMap<>();
 
-                String variantName;
+                final String variantName;
                 if (server.description != null && !server.description.isBlank()) {
-                    // Replace non-alphanumeric with underscore for camelize compatibility
                     variantName =
                             StringUtils.camelize(
                                     server.description.replaceAll("[^a-zA-Z0-9]+", "_").trim());
@@ -516,36 +722,37 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
                     variantName = "Server" + i;
                 }
                 variant.put("variantName", variantName);
-                variant.put("variantNameLower", Character.toLowerCase(variantName.charAt(0)) + variantName.substring(1));
+                variant.put(
+                        "variantNameLower",
+                        Character.toLowerCase(variantName.charAt(0)) + variantName.substring(1));
                 variant.put("url", server.url);
                 variant.put("description", server.description);
-                variant.put("hasDescription", server.description != null && !server.description.isBlank());
-                boolean hasVars =
+                variant.put(
+                        "hasDescription",
+                        server.description != null && !server.description.isBlank());
+                final boolean hasVars =
                         server.variables != null && !server.variables.isEmpty();
                 variant.put("hasVariables", hasVars);
 
                 if (hasVars) {
-                    List<Map<String, Object>> vars = new ArrayList<>();
-                    for (CodegenServerVariable v : server.variables) {
-                        Map<String, Object> varMap = new HashMap<>();
+                    final List<Map<String, Object>> vars = new ArrayList<>();
+                    for (final CodegenServerVariable v : server.variables) {
+                        final Map<String, Object> varMap = new HashMap<>();
                         varMap.put("name", v.name);
-                        varMap.put("camelName", StringUtils.camelize(v.name, CamelizeOption.LOWERCASE_FIRST_LETTER));
-                        varMap.put("pascalName", StringUtils.camelize(v.name));
-                        varMap.put(
-                                "snakeName",
-                                v.name.replaceAll(
-                                        "([a-z])([A-Z])", "$1_$2").toLowerCase(java.util.Locale.ROOT));
+                        varMap.put("camelName", NamingConvention.CAMEL_CASE.apply(v.name));
+                        varMap.put("pascalName", NamingConvention.PASCAL_CASE.apply(v.name));
+                        varMap.put("snakeName", NamingConvention.SNAKE_CASE.apply(v.name));
                         varMap.put("defaultValue", v.defaultValue);
-                        boolean hasEnum =
+                        final boolean hasEnum =
                                 v.enumValues != null && !v.enumValues.isEmpty();
                         varMap.put("hasEnumValues", hasEnum);
                         if (hasEnum) {
-                            List<Map<String, String>> enumVals = new ArrayList<>();
-                            for (String e : v.enumValues) {
-                                Map<String, String> ev = new HashMap<>();
+                            final List<Map<String, String>> enumVals = new ArrayList<>();
+                            for (final String e : v.enumValues) {
+                                final Map<String, String> ev = new HashMap<>();
                                 ev.put(
                                         "name",
-                                        e.toUpperCase(java.util.Locale.ROOT)
+                                        e.toUpperCase(Locale.ROOT)
                                                 .replace("-", "_")
                                                 .replace(".", "_"));
                                 ev.put("value", e);
@@ -568,8 +775,14 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         operations.put("hasServerTypeDefs", !serverTypeDefs.isEmpty());
     }
 
+    /**
+     * Derives a property name for the API client instance from
+     * the API class name by stripping the "Api" suffix and
+     * lowercasing the first character. Used in client facades
+     * that expose each API group as a named property.
+     */
     protected String deriveClientPropertyName(String apiClassName) {
-        String name = apiClassName.replaceAll("Api$", "");
+        final String name = apiClassName.replaceAll("Api$", "");
         if (name.isEmpty()) {
             return "api";
         }
@@ -577,32 +790,35 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     }
 
     /**
-     * Inject tag description and externalDocs into the operations template context so that API
-     * class-level documentation can render tag metadata.
+     * Injects tag description and external documentation into
+     * the operations template context so API class-level
+     * Javadoc or docstrings can render the tag metadata from
+     * the OpenAPI spec.
      */
     @SuppressWarnings("unchecked")
     private void injectTagMetadata(Map<String, Object> operations) {
         if (openAPI == null || openAPI.getTags() == null) {
             return;
         }
-        List<CodegenOperation> ops = (List<CodegenOperation>) operations.get("operation");
+        final List<CodegenOperation> ops =
+                (List<CodegenOperation>) operations.get("operation");
         if (ops == null || ops.isEmpty()) {
             return;
         }
         // All operations in this group share the same tag — use the first operation's tag
-        List<Tag> opTags = ops.get(0).tags;
+        final List<Tag> opTags = ops.get(0).tags;
         if (opTags == null || opTags.isEmpty()) {
             return;
         }
-        String tagName = opTags.get(0).getName();
-        for (Tag tag : openAPI.getTags()) {
+        final String tagName = opTags.get(0).getName();
+        for (final Tag tag : openAPI.getTags()) {
             if (tagName.equals(tag.getName())) {
                 if (tag.getDescription() != null) {
                     operations.put("tagDescription", tag.getDescription());
                 }
-                ExternalDocumentation extDocs = tag.getExternalDocs();
+                final ExternalDocumentation extDocs = tag.getExternalDocs();
                 if (extDocs != null) {
-                    Map<String, Object> externalDocsMap = new java.util.HashMap<>();
+                    final Map<String, Object> externalDocsMap = new HashMap<>();
                     externalDocsMap.put("url", extDocs.getUrl());
                     externalDocsMap.put("description", extDocs.getDescription());
                     operations.put("tagExternalDocs", externalDocsMap);
@@ -612,11 +828,18 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         }
     }
 
+    /**
+     * Creates a {@link CodegenOperation} from an OpenAPI path
+     * operation and tracks whether the operation inherits
+     * global security. Operations without explicit security
+     * blocks inherit global auth and are recorded so their
+     * auth methods can be stripped during post-processing.
+     */
     @Override
     public CodegenOperation fromOperation(
             String path, String httpMethod, Operation operation, List<Server> servers) {
         validateOperation(operation);
-        CodegenOperation op = super.fromOperation(path, httpMethod, operation, servers);
+        final CodegenOperation op = super.fromOperation(path, httpMethod, operation, servers);
         if (operation.getSecurity() == null) {
             globalAuthOperationIds.add(op.operationId);
         }
@@ -624,32 +847,40 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     }
 
     /**
-     * Return the language-specific base directory (relative to the output root) where test fixtures
-     * (certs, proxy, wiremock) should be placed.
+     * Returns the language-specific base directory (relative
+     * to the output root) where test fixtures such as
+     * certificates, proxy config, and WireMock mappings should
+     * be placed.
      */
     protected abstract String getTestFixturesDir();
 
     /**
-     * Return the language-specific directory (relative to the output root) where user-written
-     * spec tests should be placed. An empty directory with a .gitkeep file is created here.
+     * Returns the language-specific directory (relative to the
+     * output root) where user-written spec tests should be
+     * placed. An empty directory with a .gitkeep file is
+     * created here so the directory is tracked by version
+     * control.
      */
     protected abstract String getSpecDir();
 
     /**
-     * Copy bundled test fixtures and the input OpenAPI spec into the output directory so that the
-     * generated SDK's test suite is self-contained.
+     * Copies bundled test fixtures and the input OpenAPI spec
+     * into the output directory so the generated SDK's test
+     * suite is fully self-contained and can run without
+     * external file dependencies.
      */
     private void writeTestFixtures() {
-        Path outputDir = Path.of(getOutputDir());
+        final Path outputDir = Path.of(getOutputDir());
 
         // Copy the input OpenAPI spec so Prism can mock the actual API
-        String inputSpec = getInputSpec();
+        final String inputSpec = getInputSpec();
         if (inputSpec != null) {
-            copyFileToOutput(Path.of(inputSpec), outputDir.resolve(getTestFixturesDir() + "/openapi.yaml"));
+            copyFileToOutput(
+                    Path.of(inputSpec), outputDir.resolve(getTestFixturesDir() + "/openapi.yaml"));
         }
 
         // Copy shared test fixtures bundled in the generator JAR
-        String[] fixtures = {
+        final String[] fixtures = {
             "certs/ca.pem",
             "certs/ca-key.pem",
             "certs/server.pem",
@@ -672,16 +903,16 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
             "wiremock/mappings/error-502.json",
             "proxy/squid.conf"
         };
-        Path fixturesBase = outputDir.resolve(getTestFixturesDir());
-        for (String fixture : fixtures) {
+        final Path fixturesBase = outputDir.resolve(getTestFixturesDir());
+        for (final String fixture : fixtures) {
             copyClasspathFixture("fixtures/" + fixture, fixturesBase.resolve(fixture));
         }
 
         // Create empty spec directory for user-written spec tests
         try {
-            Path specDir = outputDir.resolve(getSpecDir());
+            final Path specDir = outputDir.resolve(getSpecDir());
             Files.createDirectories(specDir);
-            Path gitkeep = specDir.resolve(".gitkeep");
+            final Path gitkeep = specDir.resolve(".gitkeep");
             if (!Files.exists(gitkeep)) {
                 Files.writeString(gitkeep, "");
             }
@@ -690,9 +921,15 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         }
     }
 
+    /**
+     * Copies a file from the local filesystem to the output
+     * directory, creating parent directories as needed. Logs
+     * a warning instead of throwing so code generation can
+     * continue even if the copy fails.
+     */
     private static void copyFileToOutput(Path source, Path target) {
         try {
-            Path parent = target.getParent();
+            final Path parent = target.getParent();
             if (parent != null) {
                 Files.createDirectories(parent);
             }
@@ -702,13 +939,19 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         }
     }
 
+    /**
+     * Copies a classpath resource to a target file in the
+     * output directory. Used for bundled test fixtures like
+     * TLS certificates and WireMock mappings that ship inside
+     * the generator JAR.
+     */
     private void copyClasspathFixture(String resourcePath, Path target) {
         try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
             if (is == null) {
                 LOGGER.warn("Test fixture not found on classpath: {}", resourcePath);
                 return;
             }
-            Path parent = target.getParent();
+            final Path parent = target.getParent();
             if (parent != null) {
                 Files.createDirectories(parent);
             }
@@ -719,21 +962,46 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     }
 
     /**
-     * Run formatter commands inside a Docker container. The output directory is bind-mounted into
-     * the container at {@code /app}. Commands are joined with {@code &&} and executed via {@code
-     * sh -c}. Logs output at DEBUG level and warns on failure without throwing, so code generation
-     * succeeds even if Docker is not available.
-     *
-     * @param dockerImage the Docker image to use (e.g. "node:24-slim")
-     * @param commands shell commands to run sequentially inside the container
+     * Strips the parent type from a model when the parent is
+     * a language primitive, a mapped type, or an instantiation
+     * type. These pseudo-parents arise from allOf with
+     * primitive base types and would generate invalid
+     * inheritance in the output language.
+     */
+    protected void stripPrimitiveParent(CodegenModel model) {
+        Optional.ofNullable(model.parent)
+                .map(
+                        parent -> {
+                            final int idx = parent.indexOf('<');
+                            return idx >= 0 ? parent.substring(0, idx) : parent;
+                        })
+                .filter(
+                        base ->
+                                languageSpecificPrimitives.contains(base)
+                                        || typeMapping.containsValue(base)
+                                        || instantiationTypes.containsValue(base))
+                .ifPresent(
+                        ignored -> {
+                            model.parent = null;
+                            model.parentModel = null;
+                        });
+    }
+
+    /**
+     * Runs formatter commands inside a Docker container with
+     * the output directory bind-mounted at {@code /app}.
+     * Commands are joined with {@code &&} and executed via
+     * {@code sh -c}. Logs output at DEBUG level and warns on
+     * failure without throwing, so code generation succeeds
+     * even if Docker is not available.
      */
     @SuppressFBWarnings(
             value = {"COMMAND_INJECTION", "PATH_TRAVERSAL_IN"},
             justification = "Commands and paths are hardcoded by subclasses, not user input")
     protected void runFormatterInDocker(String dockerImage, String... commands) {
-        String workDir = getOutputDir();
-        String script = String.join(" && ", commands);
-        List<String> dockerCmd =
+        final String workDir = getOutputDir();
+        final String script = String.join(" && ", commands);
+        final List<String> dockerCmd =
                 List.of(
                         "docker",
                         "run",
@@ -748,15 +1016,18 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
                         script);
         try {
             LOGGER.debug("Running formatter in Docker: {}", dockerCmd);
-            ProcessBuilder pb =
-                    new ProcessBuilder(dockerCmd).directory(new File(workDir)).redirectErrorStream(true);
-            Process process = pb.start();
+            final ProcessBuilder pb =
+                    new ProcessBuilder(dockerCmd)
+                            .directory(new File(workDir))
+                            .redirectErrorStream(true);
+            final Process process = pb.start();
             try (BufferedReader reader =
                     new BufferedReader(
-                            new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                            new InputStreamReader(
+                                    process.getInputStream(), StandardCharsets.UTF_8))) {
                 reader.lines().forEach(line -> LOGGER.debug("[formatter] {}", line));
             }
-            int exitCode = process.waitFor();
+            final int exitCode = process.waitFor();
             if (exitCode != 0) {
                 LOGGER.debug(
                         "Docker formatter {} exited with code {} in {}",
