@@ -247,6 +247,9 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         supportingFiles.add(new SupportingFile("phpstan_neon.mustache", "", "phpstan.neon"));
         supportingFiles.add(new SupportingFile("rector.mustache", "", "rector.php"));
         supportingFiles.add(new SupportingFile("phpcs_xml.mustache", "", "phpcs.xml"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "php_cs_fixer.mustache", "", ".php-cs-fixer.dist.php"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
 
@@ -574,6 +577,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         runFormatterInDocker(
                 "composer:2",
                 "COMPOSER_PROCESS_TIMEOUT=600 composer install --no-interaction --prefer-dist",
+                "vendor/bin/php-cs-fixer fix --quiet || true",
                 "vendor/bin/phpcbf || true",
                 "rm -rf vendor");
     }
