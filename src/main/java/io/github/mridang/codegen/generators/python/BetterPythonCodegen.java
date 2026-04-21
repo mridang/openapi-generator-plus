@@ -220,8 +220,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                         "auth/http_aware_authenticator.mustache",
                         authPath,
                         "http_aware_authenticator.py"));
+        String clientClassName = (String) additionalProperties.get("clientClassName");
+        String clientClassFile = underscore(clientClassName);
+        additionalProperties.put("clientClassFile", clientClassFile);
         supportingFiles.add(
-                new SupportingFile("client.mustache", packagePath, "client.py"));
+                new SupportingFile("client.mustache", packagePath, clientClassFile + ".py"));
         supportingFiles.add(new SupportingFile("pyproject_toml.mustache", "", "pyproject.toml"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));

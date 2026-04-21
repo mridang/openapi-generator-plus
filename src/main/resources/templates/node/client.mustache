@@ -26,17 +26,17 @@ import { {{classname}} } from './api/{{classFilename}}{{importFileExtension}}';
  *
  * ```typescript
  * // Default transport
- * const client = new Client(authenticator);
+ * const client = new {{clientClassName}}(authenticator);
  *
  * // Custom transport (proxy, timeouts, etc.)
  * const transport = TransportOptions.builder()
  *   .proxy('http://proxy:3128')
  *   .timeout(5000)
  *   .build();
- * const client = new Client(authenticator, transport);
+ * const client = new {{clientClassName}}(authenticator, transport);
  * ```
  */
-export class Client {
+export class {{clientClassName}} {
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
@@ -93,7 +93,7 @@ export class Client {
    * @param accessToken Bearer token
    * @returns configured client instance
    */
-  static withToken(host: string, accessToken: string): Client {
-    return new Client(new BearerAuthenticator(host, accessToken));
+  static withToken(host: string, accessToken: string): {{clientClassName}} {
+    return new {{clientClassName}}(new BearerAuthenticator(host, accessToken));
   }
 }

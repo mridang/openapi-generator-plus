@@ -26,19 +26,19 @@ use {{apiPackage}}\{{classname}};
  * Usage:
  *
  *     // Default transport
- *     $client = new Client($authenticator);
+ *     $client = new {{clientClassName}}($authenticator);
  *
  *     // Custom transport (proxy, timeouts, etc.)
  *     $transport = TransportOptions::builder()
  *         ->proxy('http://proxy:3128')
  *         ->timeout(5000)
  *         ->build();
- *     $client = new Client($authenticator, $transport);
+ *     $client = new {{clientClassName}}($authenticator, $transport);
  *
  * @category Class
  * @package  {{invokerPackage}}
  */
-class Client
+class {{clientClassName}}
 {
 {{#apiInfo}}
 {{#apis}}

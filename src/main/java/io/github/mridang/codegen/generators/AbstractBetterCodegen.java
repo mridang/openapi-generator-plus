@@ -88,6 +88,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
                     Boolean.parseBoolean(additionalProperties.get("generateTests").toString());
         }
         additionalProperties.put("generateTests", generateTests);
+
+        getPropertyOrDefault("clientClassName", "Client");
     }
 
     @Override

@@ -27,3 +27,4 @@ devbox.lock
 .devbox
 
 .out
+.php-cs-fixer.cache

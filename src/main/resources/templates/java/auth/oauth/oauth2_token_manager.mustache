@@ -92,7 +92,7 @@ public class OAuth2TokenManager {
         if (apiClient == null) {
             throw new IllegalStateException(
                     "ApiClient has not been injected. "
-                            + "Ensure the Client constructor calls setApiClient() "
+                            + "Ensure the {{clientClassName}} constructor calls setApiClient() "
                             + "on HttpAwareAuthenticator before making API requests.");
         }
 

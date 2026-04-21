@@ -132,6 +132,15 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         additionalProperties.put("invokerPackage", invokerPackage);
         additionalProperties.put("userAgentDefault", invokerPackage + "/1.0.0 (java)");
 
+        String groupId = getPropertyOrDefault(CodegenConstants.GROUP_ID, invokerPackage);
+        additionalProperties.put("groupId", groupId);
+        String artifactId =
+                getPropertyOrDefault(CodegenConstants.ARTIFACT_ID, "openapi-java-client");
+        additionalProperties.put("artifactId", artifactId);
+        String artifactVersion =
+                getPropertyOrDefault(CodegenConstants.ARTIFACT_VERSION, "1.0.0");
+        additionalProperties.put("artifactVersion", artifactVersion);
+
         String invokerFolder =
                 sourceFolder + File.separator + invokerPackage.replace(".", File.separator);
         supportingFiles.add(
@@ -235,8 +244,10 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                         "auth/http_aware_authenticator.mustache",
                         invokerFolder + File.separator + "auth",
                         "HttpAwareAuthenticator.java"));
+        String clientClassName = (String) additionalProperties.get("clientClassName");
         supportingFiles.add(
-                new SupportingFile("client.mustache", invokerFolder, "Client.java"));
+                new SupportingFile(
+                        "client.mustache", invokerFolder, clientClassName + ".java"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
 

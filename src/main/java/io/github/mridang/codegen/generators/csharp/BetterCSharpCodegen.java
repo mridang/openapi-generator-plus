@@ -196,8 +196,10 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                         "authenticator.mustache",
                         invokerFolder + File.separator + "Auth",
                         "IAuthenticator.cs"));
+        String clientClassName = (String) additionalProperties.get("clientClassName");
         supportingFiles.add(
-                new SupportingFile("client.mustache", invokerFolder, "Client.cs"));
+                new SupportingFile(
+                        "client.mustache", invokerFolder, clientClassName + ".cs"));
         supportingFiles.add(
                 new SupportingFile("csproj.mustache", invokerFolder, packageName + ".csproj"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));

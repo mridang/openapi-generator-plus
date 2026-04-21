@@ -69,7 +69,7 @@ require '{{gemName}}/auth/oauth/oauth2_implicit_authenticator'
 {{#hasOpenIdConnect}}
 require '{{gemName}}/auth/oauth/openid_connect_authenticator'
 {{/hasOpenIdConnect}}
-require '{{gemName}}/client'
+require '{{gemName}}/{{clientClassFile}}'
 
 # Models
 {{#models}}

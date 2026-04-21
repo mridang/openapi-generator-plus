@@ -24,18 +24,18 @@ import {{invokerPackage}}.auth.HttpAwareAuthenticator;
  * <p>Usage:
  * <pre>{@code
  * // Default transport
- * Client client = new Client(authenticator);
+ * {{clientClassName}} client = new {{clientClassName}}(authenticator);
  *
  * // Custom transport (proxy, timeouts, etc.)
  * TransportOptions transport = TransportOptions.builder()
  *     .proxy("http://proxy:3128")
  *     .timeout(5000)
  *     .build();
- * Client client = new Client(authenticator, transport);
+ * {{clientClassName}} client = new {{clientClassName}}(authenticator, transport);
  * }</pre>
  */
 @SuppressFBWarnings("URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD")
-public final class Client {
+public final class {{clientClassName}} {
 
 {{#apiInfo}}
 {{#apis}}
@@ -51,7 +51,7 @@ public final class Client {
      *
      * @param authenticator provides host URL and auth credentials
      */
-    public Client(Authenticator authenticator) {
+    public {{clientClassName}}(Authenticator authenticator) {
         this(authenticator, TransportOptions.builder().build());
     }
 
@@ -65,7 +65,7 @@ public final class Client {
      * @param authenticator  provides host URL and auth credentials
      * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
      */
-    public Client(Authenticator authenticator, TransportOptions transportOptions) {
+    public {{clientClassName}}(Authenticator authenticator, TransportOptions transportOptions) {
         ApiClient apiClient = new DefaultApiClient(transportOptions);
 
         if (authenticator instanceof HttpAwareAuthenticator httpAware) {
@@ -95,7 +95,7 @@ public final class Client {
      * @param accessToken Bearer token
      * @return configured client instance
      */
-    public static Client withToken(String host, String accessToken) {
-        return new Client(new BearerAuthenticator(host, accessToken));
+    public static {{clientClassName}} withToken(String host, String accessToken) {
+        return new {{clientClassName}}(new BearerAuthenticator(host, accessToken));
     }
 }

@@ -70,7 +70,7 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
             if self._api_client is None:
                 raise RuntimeError(
                     'ApiClient has not been injected. '
-                    'Ensure the Client constructor calls set_api_client() '
+                    'Ensure the {{clientClassName}} constructor calls set_api_client() '
                     'on HttpAwareAuthenticator before making API requests.'
                 )
             headers: Dict[str, str] = {'Accept': 'application/json'}

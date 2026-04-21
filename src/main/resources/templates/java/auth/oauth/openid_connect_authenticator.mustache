@@ -64,7 +64,7 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
             if (apiClient == null) {
                 throw new IllegalStateException(
                         "ApiClient has not been injected. "
-                                + "Ensure the Client constructor calls setApiClient() "
+                                + "Ensure the {{clientClassName}} constructor calls setApiClient() "
                                 + "on HttpAwareAuthenticator before making API requests.");
             }
             try {

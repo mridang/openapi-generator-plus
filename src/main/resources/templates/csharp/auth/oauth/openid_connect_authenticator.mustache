@@ -69,7 +69,7 @@ public sealed class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareAu
         {
             throw new InvalidOperationException(
                 "ApiClient has not been injected. "
-                    + "Ensure the Client constructor calls SetApiClient() "
+                    + "Ensure the {{clientClassName}} constructor calls SetApiClient() "
                     + "on IHttpAwareAuthenticator before making API requests."
             );
         }

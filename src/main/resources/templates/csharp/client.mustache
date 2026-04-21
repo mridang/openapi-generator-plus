@@ -15,17 +15,17 @@ namespace {{packageName}};
 /// Usage:
 /// <code>
 /// // Default transport
-/// var client = new Client(authenticator);
+/// var client = new {{clientClassName}}(authenticator);
 ///
 /// // Custom transport (proxy, timeouts, etc.)
 /// var transport = TransportOptions.Builder()
 ///     .Proxy("http://proxy:3128")
 ///     .Timeout(5000)
 ///     .Build();
-/// var client = new Client(authenticator, transport);
+/// var client = new {{clientClassName}}(authenticator, transport);
 /// </code>
 /// </summary>
-public sealed class Client : IDisposable
+public sealed class {{clientClassName}} : IDisposable
 {
     private readonly DefaultApiClient _apiClient;
 
@@ -42,7 +42,7 @@ public sealed class Client : IDisposable
     /// Creates a new client with the given authenticator and default transport settings.
     /// </summary>
     /// <param name="authenticator">Provides host URL and auth credentials.</param>
-    public Client(IAuthenticator authenticator)
+    public {{clientClassName}}(IAuthenticator authenticator)
         : this(authenticator, TransportOptions.Builder().Build()) { }
 
     /// <summary>
@@ -54,7 +54,7 @@ public sealed class Client : IDisposable
     /// </summary>
     /// <param name="authenticator">Provides host URL and auth credentials.</param>
     /// <param name="transportOptions">HTTP transport configuration (proxy, TLS, timeouts, etc.).</param>
-    public Client(IAuthenticator authenticator, TransportOptions transportOptions)
+    public {{clientClassName}}(IAuthenticator authenticator, TransportOptions transportOptions)
     {
         ArgumentNullException.ThrowIfNull(authenticator);
         ArgumentNullException.ThrowIfNull(transportOptions);
@@ -89,9 +89,9 @@ public sealed class Client : IDisposable
     /// <param name="host">API base URL.</param>
     /// <param name="accessToken">Bearer token.</param>
     /// <returns>Configured client instance.</returns>
-    public static Client WithToken(string host, string accessToken)
+    public static {{clientClassName}} WithToken(string host, string accessToken)
     {
-        return new Client(new BearerAuthenticator(host, accessToken));
+        return new {{clientClassName}}(new BearerAuthenticator(host, accessToken));
     }
 
     /// <inheritdoc/>

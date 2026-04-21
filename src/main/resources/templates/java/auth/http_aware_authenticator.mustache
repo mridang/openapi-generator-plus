@@ -11,7 +11,7 @@ import {{invokerPackage}}.ApiClient;
  * use the same transport configuration (proxy, TLS, timeouts) as regular
  * API calls.
  *
- * <p>The {@link ApiClient} is injected by the {@code Client} class after
+ * <p>The {@link ApiClient} is injected by the {@code {{clientClassName}}} class after
  * construction, via {@link #setApiClient(ApiClient)}. Implementations must
  * not make HTTP calls before the client is injected.
  *
@@ -24,7 +24,7 @@ public interface HttpAwareAuthenticator extends Authenticator {
     /**
      * Inject the shared API client for making HTTP requests.
      *
-     * <p>Called by the {@code Client} constructor after the {@link ApiClient}
+     * <p>Called by the {@code {{clientClassName}}} constructor after the {@link ApiClient}
      * has been created with the user's {@link {{invokerPackage}}.TransportOptions}.
      * Implementations should store this reference and use it for all
      * outbound HTTP calls (token exchange, discovery, etc.).

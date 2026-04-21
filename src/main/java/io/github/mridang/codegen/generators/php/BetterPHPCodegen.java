@@ -241,8 +241,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                         "authenticator.mustache",
                         invokerFolder + File.separator + "Auth",
                         "Authenticator.php"));
+        String clientClassName = (String) additionalProperties.get("clientClassName");
         supportingFiles.add(
-                new SupportingFile("client.mustache", invokerFolder, "Client.php"));
+                new SupportingFile(
+                        "client.mustache", invokerFolder, clientClassName + ".php"));
         supportingFiles.add(new SupportingFile("composer.mustache", "", "composer.json"));
         supportingFiles.add(new SupportingFile("phpstan_neon.mustache", "", "phpstan.neon"));
         supportingFiles.add(new SupportingFile("rector.mustache", "", "rector.php"));

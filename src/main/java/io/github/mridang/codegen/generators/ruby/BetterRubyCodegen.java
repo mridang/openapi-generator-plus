@@ -206,7 +206,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                         "auth/http_aware_authenticator.mustache",
                         libPath + File.separator + "auth",
                         "http_aware_authenticator.rb"));
-        supportingFiles.add(new SupportingFile("client.mustache", libPath, "client.rb"));
+        String clientClassName = (String) additionalProperties.get("clientClassName");
+        String clientClassFile = underscore(clientClassName);
+        additionalProperties.put("clientClassFile", clientClassFile);
+        supportingFiles.add(
+                new SupportingFile("client.mustache", libPath, clientClassFile + ".rb"));
         supportingFiles.add(new SupportingFile("gemfile.mustache", "", "Gemfile"));
         supportingFiles.add(new SupportingFile("rubocop.mustache", "", ".rubocop.yml"));
         supportingFiles.add(new SupportingFile("steepfile.mustache", "", "Steepfile"));

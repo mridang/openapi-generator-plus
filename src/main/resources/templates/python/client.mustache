@@ -16,7 +16,7 @@ from {{apiPackage}}.{{classFilename}} import {{classname}}
 {{/apiInfo}}
 
 
-class Client:
+class {{clientClassName}}:
     """Unified entry point for all API services.
 
     Takes an :class:`Authenticator` and optionally :class:`TransportOptions`,
@@ -28,14 +28,14 @@ class Client:
     Usage::
 
         # Default transport
-        client = Client(authenticator)
+        client = {{clientClassName}}(authenticator)
 
         # Custom transport (proxy, timeouts, etc.)
         transport = TransportOptions.builder() \\
             .proxy('http://proxy:3128') \\
             .timeout(5000) \\
             .build()
-        client = Client(authenticator, transport)
+        client = {{clientClassName}}(authenticator, transport)
     """
 
     def __init__(
@@ -83,7 +83,7 @@ class Client:
         host: str,
         access_token: str,
         transport_options: Optional[TransportOptions] = None,
-    ) -> 'Client':
+    ) -> '{{clientClassName}}':
         """Creates a client authenticated with a static Bearer token.
 
         Args:

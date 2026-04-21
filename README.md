@@ -67,6 +67,14 @@ The generate command accepts the following key arguments:
 * `--config=<config.yml>`: An optional path to a configuration file for generator-specific options. See the examples below.
 * `--openapi-normalizer "RULE=VALUE,..."`: An optional string to configure the OpenAPI normalizer rules.
 
+### Common Configuration Options
+
+All generators support the following option in the config file:
+
+| Option | Default | Description |
+|---|---|---|
+| `clientClassName` | `Client` | The name of the main entrypoint class that users instantiate. For example, setting `clientClassName: Zitadel` produces a class named `Zitadel` instead of `Client`. |
+
 ## Configuration
 
 Here’s how you can use a simple YAML config file to drive the generator for each language. Just create a file with the content below and point to it with the `--config` flag.

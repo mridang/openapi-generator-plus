@@ -1,5 +1,11 @@
 {
+{{#npmName}}
+  "name": "{{npmName}}",
+  "version": "{{npmVersion}}",
+{{/npmName}}
+{{^npmName}}
   "private": true,
+{{/npmName}}
   "scripts": {
     "test": "jest --verbose"
   },

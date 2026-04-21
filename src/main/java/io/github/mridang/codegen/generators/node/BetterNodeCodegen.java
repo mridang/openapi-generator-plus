@@ -195,7 +195,12 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile("eslint_config.mustache", "", "eslint.config.mjs"));
         supportingFiles.add(new SupportingFile("authenticator.mustache", "src/auth", "authenticator.ts"));
-        supportingFiles.add(new SupportingFile("client.mustache", "src", "client.ts"));
+        String clientClassName = (String) additionalProperties.get("clientClassName");
+        String clientClassFile =
+                StringUtils.underscore(clientClassName).replace("_", "-");
+        additionalProperties.put("clientClassFile", clientClassFile);
+        supportingFiles.add(
+                new SupportingFile("client.mustache", "src", clientClassFile + ".ts"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
 

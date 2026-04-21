@@ -67,7 +67,7 @@ export class OAuth2TokenManager {
     if (this.apiClient == null) {
       throw new Error(
         'ApiClient has not been injected. ' +
-          'Ensure the Client constructor calls setApiClient() ' +
+          'Ensure the {{clientClassName}} constructor calls setApiClient() ' +
           'on HttpAwareAuthenticator before making API requests.'
       );
     }
