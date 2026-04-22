@@ -1,0 +1,81 @@
+#pragma warning disable CA1002 // Do not expose generic lists
+#pragma warning disable CA1056 // URI-like properties should not be strings
+#pragma warning disable CA1711 // Identifiers should not have incorrect suffix
+#pragma warning disable CA1724 // Type names should not match namespaces
+#pragma warning disable CA1819 // Properties should not return arrays
+#pragma warning disable CA2227 // Collection properties should be read only
+#pragma warning disable CS0618 // Type or member is obsolete
+#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
+
+using System.Text.Json.Serialization;
+
+namespace PetstoreClient.Models;
+
+/// <summary>
+/// A pet record extended with owner information
+/// </summary>
+public class PetWithOwner
+{
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public enum StatusEnum
+    {
+        [JsonStringEnumMemberName("available")]
+        Available,
+
+        [JsonStringEnumMemberName("pending")]
+        Pending,
+
+        [JsonStringEnumMemberName("sold")]
+        Sold,
+    }
+
+    /// <example>10</example>
+    [JsonPropertyName("id")]
+    public long? Id { get; set; }
+
+    /// <example>doggie</example>
+    [JsonRequired]
+    [JsonPropertyName("name")]
+    public string Name { get; set; }
+
+    /// <example>null</example>
+    [JsonPropertyName("category")]
+    public Category? Category { get; set; }
+
+    /// <example>null</example>
+    [JsonRequired]
+    [JsonPropertyName("photoUrls")]
+    public HashSet<string> PhotoUrls { get; set; }
+
+    /// <example>null</example>
+    [JsonPropertyName("tags")]
+    public List<Tag>? Tags { get; set; }
+
+    /// <summary>
+    /// pet status in the store
+    /// </summary>
+    /// <example>null</example>
+    /// <remarks>Deprecated.</remarks>
+    [Obsolete("This property is deprecated.")]
+    [JsonPropertyName("status")]
+    public StatusEnum? Status { get; set; }
+
+    /// <example>null</example>
+    [JsonRequired]
+    [JsonPropertyName("ownerName")]
+    public string OwnerName { get; set; }
+
+    /// <example>null</example>
+    [JsonPropertyName("ownerEmail")]
+    public string? OwnerEmail { get; set; }
+
+    [System.Text.Json.Serialization.JsonConstructor]
+    public PetWithOwner(string Name, HashSet<string> PhotoUrls, string OwnerName)
+    {
+        ArgumentNullException.ThrowIfNull(Name, nameof(Name));
+        this.Name = Name;
+        this.PhotoUrls = PhotoUrls;
+        ArgumentNullException.ThrowIfNull(OwnerName, nameof(OwnerName));
+        this.OwnerName = OwnerName;
+    }
+}

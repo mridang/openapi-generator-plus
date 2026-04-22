@@ -391,7 +391,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     @Override
     public String getTypeDeclaration(Schema p) {
         if (ModelUtils.isArraySchema(p)) {
-            final Schema<?> inner = p.getItems();
+            final Schema<?> inner = ModelUtils.getSchemaItems(p);
             return getSchemaType(p) + "<" + getTypeDeclaration(inner) + ">";
         } else if (ModelUtils.isMapSchema(p)) {
             final String valueType =
@@ -426,20 +426,18 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Overrides the base class to check for collisions with
-     * TypeScript primitives ({@code number}, {@code string})
-     * and prefixes with "Model" when collision occurs. Cannot
-     * be standardized because other languages check reserved
-     * words instead of primitives.
+     * Overrides the base class to additionally check for
+     * collisions with TypeScript primitives ({@code number},
+     * {@code string}) and prefix with "Model" when a collision
+     * occurs.
      */
     @Override
     public String toModelName(String name) {
-        final String sanitized = sanitizeName(name);
-        final String camelized = NamingConvention.PASCAL_CASE.apply(sanitized);
-        if (languageSpecificPrimitives.contains(camelized)) {
-            return "Model" + camelized;
+        final String result = super.toModelName(name);
+        if (languageSpecificPrimitives.contains(result)) {
+            return "Model" + result;
         }
-        return camelized;
+        return result;
     }
 
     /** {@inheritDoc} */

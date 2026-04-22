@@ -215,6 +215,56 @@ module PetstoreClient
         )
       end
 
+      # Record a treatment for a pet
+      # @param auth [Auth::Authenticator] authenticator for this operation
+      # @param pet_id [Integer]
+      # @param pet_treatment [PetTreatment]
+      # @return [PetTreatment]
+      # @raise [ApiError] if fails to make API call
+      def add_pet_treatment(auth, pet_id, pet_treatment)
+        if pet_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_id' when calling PetApi.add_pet_treatment"
+        end
+
+        if pet_treatment.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_treatment' when calling PetApi.add_pet_treatment"
+        end
+
+        add_pet_treatment_with_http_info(auth, pet_id, pet_treatment).data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def add_pet_treatment_with_http_info(auth, pet_id, pet_treatment)
+        if pet_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_id' when calling PetApi.add_pet_treatment"
+        end
+
+        if pet_treatment.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_treatment' when calling PetApi.add_pet_treatment"
+        end
+
+        path = '/pet/{petId}/treatment'
+        path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = pet_treatment
+
+        invoke_api_for_result(
+          :POST, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'PetTreatment',
+          auth
+        )
+      end
+
       # Deletes a pet
       # @param auth [Auth::Authenticator] authenticator for this operation
       # @param pet_id [Integer] Pet id to delete

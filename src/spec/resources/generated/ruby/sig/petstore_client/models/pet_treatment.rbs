@@ -1,0 +1,6 @@
+module PetstoreClient::Models
+  module PetTreatment
+    def self.openapi_any_of: () -> Array[Symbol]
+    def self.build: (untyped) -> untyped
+  end
+end

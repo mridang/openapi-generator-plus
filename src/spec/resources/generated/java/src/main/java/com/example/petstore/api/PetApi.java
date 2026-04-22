@@ -8,11 +8,13 @@ import com.example.petstore.ValueSerializer;
 import com.example.petstore.auth.AdminBasicAuthenticator;
 import com.example.petstore.auth.ApiKeyHeaderAuthenticator;
 import com.example.petstore.auth.Authenticator;
+import com.example.petstore.auth.PetStoreBasicAuthenticator;
 import com.example.petstore.auth.PetStoreBearerAuthenticator;
 import com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator;
 import com.example.petstore.models.ApiResponse;
 import com.example.petstore.models.Pet;
 import com.example.petstore.models.PetPassport;
+import com.example.petstore.models.PetTreatment;
 import com.example.petstore.models.Photo;
 import com.example.petstore.models.PhotoMetadata;
 import com.example.petstore.models.SetPetAvatarThumbnailRequest;
@@ -35,6 +37,9 @@ public class PetApi extends BaseApi {
   private static final TypeReference<Pet> addPetTypeRef = new TypeReference<>() {};
 
   private static final TypeReference<List<Photo>> addPetPhotosTypeRef = new TypeReference<>() {};
+
+  private static final TypeReference<PetTreatment> addPetTreatmentTypeRef =
+      new TypeReference<>() {};
 
   private static final TypeReference<InputStream> downloadPetDocumentTypeRef =
       new TypeReference<>() {};
@@ -292,6 +297,67 @@ public class PetApi extends BaseApi {
         "multipart/form-data",
         addPetPhotosTypeRef,
         null);
+  }
+
+  /**
+   * Record a treatment for a pet
+   *
+   * @param petId (required)
+   * @param petTreatment (required)
+   * @return PetTreatment
+   * @throws ApiException if fails to make API call
+   */
+  @Nullable
+  public PetTreatment addPetTreatment(
+      PetStoreBasicAuthenticator auth, Long petId, PetTreatment petTreatment) throws ApiException {
+    return addPetTreatmentWithHttpInfo(auth, petId, petTreatment).data();
+  }
+
+  public ApiResult<PetTreatment> addPetTreatmentWithHttpInfo(
+      PetStoreBasicAuthenticator auth, Long petId, PetTreatment petTreatment) throws ApiException {
+    return addPetTreatmentInternal(auth, petId, petTreatment);
+  }
+
+  @Nullable
+  public PetTreatment addPetTreatment(
+      PetStoreBearerAuthenticator auth, Long petId, PetTreatment petTreatment) throws ApiException {
+    return addPetTreatmentWithHttpInfo(auth, petId, petTreatment).data();
+  }
+
+  public ApiResult<PetTreatment> addPetTreatmentWithHttpInfo(
+      PetStoreBearerAuthenticator auth, Long petId, PetTreatment petTreatment) throws ApiException {
+    return addPetTreatmentInternal(auth, petId, petTreatment);
+  }
+
+  private ApiResult<PetTreatment> addPetTreatmentInternal(
+      Authenticator auth, Long petId, PetTreatment petTreatment) throws ApiException {
+    if (petId == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'petId' when calling addPetTreatment");
+    }
+    if (petTreatment == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'petTreatment' when calling addPetTreatment");
+    }
+    String path =
+        "/pet/{petId}/treatment"
+            .replace(
+                "{" + "petId" + "}",
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "petId", petId, "path", "Long", null, "simple", false));
+    Map<String, Object> queryParams = new HashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    return invokeApiForResult(
+        "POST",
+        path,
+        queryParams,
+        headerParams,
+        petTreatment,
+        new String[] {"application/json"},
+        "application/json",
+        addPetTreatmentTypeRef,
+        auth);
   }
 
   /**

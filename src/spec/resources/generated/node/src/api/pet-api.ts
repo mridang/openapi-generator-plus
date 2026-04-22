@@ -5,7 +5,15 @@ import { BaseApi } from './base-api.js';
 import { Configuration } from '../configuration.js';
 import { ObjectSerializer } from '../object-serializer.js';
 import { ValueSerializer } from '../value-serializer.js';
-import { ApiResponse, Pet, PetPassport, Photo, PhotoMetadata, SetPetAvatarThumbnailRequest } from '../models/index.js';
+import {
+  ApiResponse,
+  Pet,
+  PetPassport,
+  PetTreatment,
+  Photo,
+  PhotoMetadata,
+  SetPetAvatarThumbnailRequest
+} from '../models/index.js';
 
 export abstract class GetExternalPetInfoServer {
   abstract getUrl(): string;
@@ -190,6 +198,59 @@ export class PetApi extends BaseApi {
       'multipart/form-data',
       (json: unknown) => ObjectSerializer.deserializeArray(json, Photo),
       null
+    );
+  }
+
+  /**
+   * Record a treatment for a pet
+   * @param auth authenticator for this operation
+   * @param petId  (required)
+   * @param petTreatment  (required)
+   * @return PetTreatment
+   * @throws {ApiError} if fails to make API call
+   */
+  async addPetTreatment(auth: Authenticator, petId: number, petTreatment: PetTreatment): Promise<PetTreatment> {
+    if (petId == null) {
+      throw new Error('Missing required parameter "petId" when calling addPetTreatment');
+    }
+    if (petTreatment == null) {
+      throw new Error('Missing required parameter "petTreatment" when calling addPetTreatment');
+    }
+    return (await this.addPetTreatmentWithHttpInfo(auth, petId, petTreatment)).data as PetTreatment;
+  }
+
+  /**
+   * Record a treatment for a pet (with HTTP info)
+   * @throws {ApiError} if fails to make API call
+   */
+  async addPetTreatmentWithHttpInfo(
+    auth: Authenticator,
+    petId: number,
+    petTreatment: PetTreatment
+  ): Promise<ApiResult<PetTreatment>> {
+    if (petId == null) {
+      throw new Error('Missing required parameter "petId" when calling addPetTreatment');
+    }
+    if (petTreatment == null) {
+      throw new Error('Missing required parameter "petTreatment" when calling addPetTreatment');
+    }
+    let path = `/pet/{petId}/treatment`;
+    path = path.replace(
+      `{${'petId'}}`,
+      ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
+    );
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      'POST',
+      path,
+      queryParams,
+      headerParams,
+      petTreatment,
+      ['application/json'],
+      'application/json',
+      (json: unknown) => ObjectSerializer.deserialize(json, PetTreatment),
+      auth
     );
   }
 

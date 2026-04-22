@@ -787,11 +787,18 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     /**
      * Converts a schema name to a PascalCase model class name.
      * Sanitizes the input first to remove characters that are
-     * invalid in identifiers.
+     * invalid in identifiers, then checks for reserved-word
+     * collisions and digit-leading names.
      */
     @Override
     public String toModelName(String name) {
         name = sanitizeName(name);
+        if (isReservedWord(name)) {
+            name = "model_" + name;
+        }
+        if (name.matches("^\\d.*")) {
+            name = "model_" + name;
+        }
         return NamingConvention.PASCAL_CASE.apply(name);
     }
 

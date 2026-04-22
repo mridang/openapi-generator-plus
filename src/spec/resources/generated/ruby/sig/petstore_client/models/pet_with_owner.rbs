@@ -1,0 +1,15 @@
+module PetstoreClient::Models
+  class PetWithOwner < Dry::Struct
+    ATTRIBUTE_MAP: Hash[Symbol, String]
+    JSON_KEY_MAP: Hash[String, Symbol]
+    OPENAPI_TYPES: Hash[Symbol, String]
+    attr_reader id: Integer?
+    attr_reader name: String
+    attr_reader category: Category?
+    attr_reader photo_urls: Set[String]
+    attr_reader tags: Array[Tag]?
+    attr_reader status: String?
+    attr_reader owner_name: String
+    attr_reader owner_email: String?
+  end
+end

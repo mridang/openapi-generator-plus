@@ -223,6 +223,8 @@ public class PetApi : BaseApi
 
     private static readonly string[] AddPetPhotosAccepts = ["application/json"];
 
+    private static readonly string[] AddPetTreatmentAccepts = ["application/json"];
+
     private static readonly string[] DownloadPetDocumentAccepts = ["application/octet-stream"];
 
     private static readonly string[] FindPetsByStatusAccepts = ["application/json"];
@@ -356,6 +358,71 @@ public class PetApi : BaseApi
                 AddPetPhotosAccepts,
                 "multipart/form-data",
                 null
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Record a treatment for a pet
+    /// </summary>
+    /// <param name="auth">Authenticator for this operation.</param>
+    /// <param name="petId"></param>
+    /// <param name="petTreatment"></param>
+    /// <returns><![CDATA[PetTreatment]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<PetTreatment> AddPetTreatmentAsync(
+        IAuthenticator auth,
+        long petId,
+        PetTreatment petTreatment
+    )
+    {
+        Task<ApiResult<PetTreatment>> task = AddPetTreatmentWithHttpInfoAsync(
+            auth,
+            petId,
+            petTreatment
+        );
+        ApiResult<PetTreatment> result = await task.ConfigureAwait(false);
+        return result.Data
+            ?? throw new InvalidOperationException("Expected non-null response body");
+    }
+
+    /// <summary>
+    /// Record a treatment for a pet (with HTTP info)
+    /// </summary>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<PetTreatment>> AddPetTreatmentWithHttpInfoAsync(
+        IAuthenticator auth,
+        long petId,
+        PetTreatment petTreatment
+    )
+    {
+        string path = "/pet/{petId}/treatment";
+        path = path.Replace(
+            "{" + nameof(petId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+        return await InvokeApiForResultAsync<PetTreatment>(
+                "POST",
+                path,
+                queryParams,
+                headerParams,
+                petTreatment,
+                AddPetTreatmentAccepts,
+                "application/json",
+                auth
             )
             .ConfigureAwait(false);
     }

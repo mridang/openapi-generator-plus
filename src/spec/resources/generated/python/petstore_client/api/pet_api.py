@@ -6,6 +6,7 @@ from urllib.parse import quote
 from petstore_client.models.api_response import ApiResponse
 from petstore_client.models.pet import Pet
 from petstore_client.models.pet_passport import PetPassport
+from petstore_client.models.pet_treatment import PetTreatment
 from petstore_client.models.photo import Photo
 from petstore_client.models.photo_metadata import PhotoMetadata
 from petstore_client.models.set_pet_avatar_thumbnail_request import SetPetAvatarThumbnailRequest
@@ -247,6 +248,69 @@ class PetApi(BaseApi):
             'multipart/form-data',
             'List[Photo]',
             None,
+        )
+
+    def add_pet_treatment(
+        self,
+        auth: Authenticator,
+        pet_id: int,
+        pet_treatment: PetTreatment,
+    ) -> PetTreatment:
+        """Record a treatment for a pet
+        :param auth: authenticator for this operation
+        :param pet_id:  (required)
+        :param pet_treatment:  (required)
+        :return: PetTreatment
+        :raises ApiException: if fails to make API call
+        """
+        if pet_id is None:
+            raise ValueError("Missing the required parameter 'pet_id'")
+
+        if pet_treatment is None:
+            raise ValueError("Missing the required parameter 'pet_treatment'")
+
+        result = self.add_pet_treatment_with_http_info(auth, pet_id, pet_treatment)
+        assert result.data is not None
+        return result.data
+
+    def add_pet_treatment_with_http_info(
+        self,
+        auth: Authenticator,
+        pet_id: int,
+        pet_treatment: PetTreatment,
+    ) -> 'ApiResult[PetTreatment]':
+        """Record a treatment for a pet (with HTTP info)
+        :param auth: authenticator for this operation
+        :param pet_id:  (required)
+        :param pet_treatment:  (required)
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        if pet_id is None:
+            raise ValueError("Missing the required parameter 'pet_id'")
+
+        if pet_treatment is None:
+            raise ValueError("Missing the required parameter 'pet_treatment'")
+
+        path = '/pet/{petId}/treatment'
+        path = path.replace(
+            '{' + 'petId' + '}',
+            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+        )
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = pet_treatment
+
+        return self._invoke_api_for_result(
+            'POST',
+            path,
+            query_params,
+            header_params,
+            body,
+            ['application/json'],
+            'application/json',
+            'PetTreatment',
+            auth,
         )
 
     def delete_pet(

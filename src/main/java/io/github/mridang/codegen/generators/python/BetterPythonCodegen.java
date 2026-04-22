@@ -294,11 +294,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                 new SupportingFile("auth/__init__.mustache", authPath, "__init__.py"));
         supportingFiles.add(
                 new SupportingFile("authenticator.mustache", authPath, "authenticator.py"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "auth/http_aware_authenticator.mustache",
-                        authPath,
-                        "http_aware_authenticator.py"));
         final String clientClassName =
                 Objects.requireNonNull((String) additionalProperties.get("clientClassName"));
         final String clientClassFile = NamingConvention.SNAKE_CASE.apply(clientClassName);
@@ -501,11 +496,12 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     @Nullable
     @Override
     public String toDefaultValue(Schema schema) {
-        if (schema.getDefault() != null) {
-            if (ModelUtils.isBooleanSchema(schema)) {
-                return Boolean.parseBoolean(schema.getDefault().toString()) ? "True" : "False";
+        final Schema unaliased = ModelUtils.unaliasSchema(this.openAPI, schema);
+        if (unaliased.getDefault() != null) {
+            if (ModelUtils.isBooleanSchema(unaliased)) {
+                return Boolean.parseBoolean(unaliased.getDefault().toString()) ? "True" : "False";
             }
-            return schema.getDefault().toString();
+            return unaliased.getDefault().toString();
         }
         return null;
     }
@@ -590,6 +586,8 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         final String packagePath = packageName.replace('.', File.separatorChar);
         final String authPath = Path.of(packagePath, "auth").toString();
         final String oauthPath = Path.of(authPath, "oauth").toString();
+
+        supportingFiles.add(new SupportingFile("auth/http_aware_authenticator.mustache", authPath, "http_aware_authenticator.py"));
 
         if (hasBasicAuth) {
             supportingFiles.add(new SupportingFile("auth/basic_authenticator.mustache", authPath, "basic_authenticator.py"));

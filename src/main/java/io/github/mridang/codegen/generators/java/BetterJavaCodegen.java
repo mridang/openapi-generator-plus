@@ -322,11 +322,6 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                         "authenticator.mustache",
                         Path.of(invokerFolder, "auth").toString(),
                         "Authenticator.java"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "auth/http_aware_authenticator.mustache",
-                        Path.of(invokerFolder, "auth").toString(),
-                        "HttpAwareAuthenticator.java"));
         final String clientClassName = (String) additionalProperties.get("clientClassName");
         supportingFiles.add(
                 new SupportingFile(
@@ -565,6 +560,12 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 Path.of(sourceFolder, invokerPackage.replace(".", "/")).toString();
         final String authFolder = Path.of(invokerFolder, "auth").toString();
         final String oauthFolder = Path.of(authFolder, "oauth").toString();
+
+        supportingFiles.add(
+                new SupportingFile(
+                        "auth/http_aware_authenticator.mustache",
+                        authFolder,
+                        "HttpAwareAuthenticator.java"));
 
         if (hasBasicAuth) {
             supportingFiles.add(

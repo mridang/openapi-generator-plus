@@ -600,6 +600,38 @@ paths:
         '404':
           description: Pet not found
 
+  # ─── Pet treatment ──────────────────────────────────────────────────────────
+
+  /pet/{petId}/treatment:
+    post:
+      tags:
+        - pet
+      summary: Record a treatment for a pet
+      operationId: addPetTreatment
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PetTreatment'
+      responses:
+        '200':
+          description: Treatment recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetTreatment'
+      security:
+        - petstore_auth:
+            - write:pets
+
   # ─── Styled parameters ─────────────────────────────────────────────────────
 
   /pet/{petId}/tag/{tagName}:
@@ -1041,6 +1073,47 @@ components:
         mapping:
           dry: '#/components/schemas/DryFood'
           wet: '#/components/schemas/WetFood'
+
+    Medication:
+      type: object
+      required:
+        - drugName
+      properties:
+        drugName:
+          type: string
+        dosage:
+          type: string
+
+    Surgery:
+      type: object
+      required:
+        - procedureName
+      properties:
+        procedureName:
+          type: string
+        durationMinutes:
+          type: integer
+          format: int32
+
+    PetTreatment:
+      description: A treatment that can match a medication, a surgery, or both
+      anyOf:
+        - $ref: '#/components/schemas/Medication'
+        - $ref: '#/components/schemas/Surgery'
+
+    PetWithOwner:
+      description: A pet record extended with owner information
+      allOf:
+        - $ref: '#/components/schemas/Pet'
+        - type: object
+          required:
+            - ownerName
+          properties:
+            ownerName:
+              type: string
+            ownerEmail:
+              type: string
+              format: email
 
     Photo:
       type: object

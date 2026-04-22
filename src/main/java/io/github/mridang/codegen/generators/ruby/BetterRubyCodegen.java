@@ -278,11 +278,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                         "authenticator.mustache",
                         Path.of(libPath, "auth").toString(),
                         "authenticator.rb"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "auth/http_aware_authenticator.mustache",
-                        Path.of(libPath, "auth").toString(),
-                        "http_aware_authenticator.rb"));
         final String clientClassName =
                 Objects.requireNonNull((String) additionalProperties.get("clientClassName"));
         final String clientClassFile = NamingConvention.SNAKE_CASE.apply(clientClassName);
@@ -416,25 +411,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Overrides the base class to prefix reserved words with
-     * "Model" and digit-leading names with "model_" before
-     * camelizing. Cannot be standardized because each language
-     * uses different prefixes and collision rules.
-     */
-    @Override
-    public String toModelName(String name) {
-        final String sanitized = sanitizeName(name);
-        String result = sanitized;
-        if (isReservedWord(result)) {
-            result = "Model" + result;
-        }
-        if (result.matches("^\\d.*")) {
-            result = "model_" + result;
-        }
-        return NamingConvention.PASCAL_CASE.apply(result);
-    }
-
-    /**
      * Overrides the base class to use Zeitwerk autoloading
      * conventions for model filenames. Cannot be standardized
      * because Zeitwerk's inflection rules are Ruby-specific.
@@ -542,6 +518,8 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         final String libPath = Path.of(LIB_FOLDER, modulePath).toString();
         final String authPath = Path.of(libPath, "auth").toString();
         final String oauthPath = Path.of(authPath, "oauth").toString();
+
+        supportingFiles.add(new SupportingFile("auth/http_aware_authenticator.mustache", authPath, "http_aware_authenticator.rb"));
 
         if (hasBasicAuth) {
             supportingFiles.add(new SupportingFile("auth/basic_authenticator.mustache", authPath, "basic_authenticator.rb"));

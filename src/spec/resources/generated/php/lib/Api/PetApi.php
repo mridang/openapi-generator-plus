@@ -13,6 +13,7 @@ use PetstoreClient\Auth\Authenticator;
 use PetstoreClient\Models\ApiResponse;
 use PetstoreClient\Models\Pet;
 use PetstoreClient\Models\PetPassport;
+use PetstoreClient\Models\PetTreatment;
 use PetstoreClient\Models\Photo;
 use PetstoreClient\Models\PhotoMetadata;
 use PetstoreClient\Models\SetPetAvatarThumbnailRequest;
@@ -218,6 +219,48 @@ class PetApi extends BaseApi
             ['application/json'],
             'multipart/form-data',
             '\PetstoreClient\Models\Photo[]',
+        );
+        return $result;
+    }
+
+    /**
+     * Record a treatment for a pet
+     * @param Authenticator $auth Authenticator for this operation
+     * @return PetTreatment
+     * @throws ApiException
+     */
+    public function addPetTreatment(Authenticator $auth, int $petId, PetTreatment $petTreatment)
+    {
+        /** @var PetTreatment $result */
+        $result = $this->addPetTreatmentWithHttpInfo($auth, $petId, $petTreatment)->data;
+        return $result;
+    }
+
+    /**
+     * @return ApiResult<PetTreatment>
+     * @throws ApiException
+     */
+    public function addPetTreatmentWithHttpInfo(Authenticator $auth, int $petId, PetTreatment $petTreatment): ApiResult
+    {
+        $path = '/pet/{petId}/treatment';
+        /** @var string $pathValue */
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
+        $queryParams = [];
+        $headerParams = [];
+        $requestBody = $petTreatment;
+
+        /** @var ApiResult<PetTreatment> $result */
+        $result = $this->invokeApiForResult(
+            'POST',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            '\PetstoreClient\Models\PetTreatment',
+            $auth
         );
         return $result;
     }

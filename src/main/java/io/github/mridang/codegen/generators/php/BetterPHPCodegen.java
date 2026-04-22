@@ -501,24 +501,15 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     /**
      * Overrides the base class with extra sanitization that
      * strips brackets, non-word characters, and {@code $} signs
-     * specific to PHP syntax. Cannot be standardized because
-     * PHP has unique identifier constraints.
+     * specific to PHP syntax before delegating to the base
+     * class for reserved-word and digit-leading checks.
      */
     @Override
     public String toModelName(String name) {
-        name = sanitizeName(name);
         name = name.replaceAll("\\]", "");
         name = name.replaceAll("[^\\w\\\\]+", "_");
         name = name.replace("$", "");
-
-        if (isReservedWord(name)) {
-            name = "model_" + name;
-        }
-        if (name.matches("^\\d.*")) {
-            name = "model_" + name;
-        }
-
-        return NamingConvention.PASCAL_CASE.apply(name);
+        return super.toModelName(name);
     }
 
     /**
@@ -541,7 +532,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         }
         if (ModelUtils.isStringSchema(unaliased)) {
             return Optional.ofNullable(unaliased.getDefault())
-                    .map(d -> "'" + d + "'")
+                    .map(d -> "'" + escapeText(String.valueOf(d)) + "'")
                     .orElse(null);
         }
         return null;

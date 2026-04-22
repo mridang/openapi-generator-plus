@@ -1,0 +1,101 @@
+package com.example.petstore.models;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+import javax.annotation.Nullable;
+
+/** A pet record extended with owner information */
+@SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
+@SuppressWarnings({"deprecation", "serial"})
+public class PetWithOwner {
+
+  public enum StatusEnum {
+    AVAILABLE("available"),
+    PENDING("pending"),
+    SOLD("sold");
+
+    private final String value;
+
+    StatusEnum(String value) {
+      this.value = value;
+    }
+
+    @JsonValue
+    public String getValue() {
+      return value;
+    }
+
+    @JsonCreator
+    public static StatusEnum fromValue(String value) {
+      for (StatusEnum b : values()) {
+        if (b.value.equals(value)) {
+          return b;
+        }
+      }
+      throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    }
+  }
+
+  /** Example: {@code 10} */
+  @JsonProperty("id")
+  @Nullable
+  public Long id;
+
+  /** Example: {@code doggie} */
+  @JsonProperty("name")
+  public String name;
+
+  /** Example: {@code null} */
+  @JsonProperty("category")
+  @Nullable
+  public Category category;
+
+  /** Example: {@code null} */
+  @JsonProperty("photoUrls")
+  public Set<String> photoUrls = new LinkedHashSet<>();
+
+  /** Example: {@code null} */
+  @JsonProperty("tags")
+  @Nullable
+  public List<Tag> tags = new ArrayList<>();
+
+  /**
+   * pet status in the store
+   *
+   * <p>Example: {@code null}
+   *
+   * @deprecated This property is deprecated.
+   */
+  @Deprecated
+  @JsonProperty("status")
+  @Nullable
+  public StatusEnum status;
+
+  /** Example: {@code null} */
+  @JsonProperty("ownerName")
+  public String ownerName;
+
+  /** Example: {@code null} */
+  @JsonProperty("ownerEmail")
+  @Nullable
+  public String ownerEmail;
+
+  @SuppressWarnings("NullAway.Init")
+  public PetWithOwner() {}
+
+  @com.fasterxml.jackson.annotation.JsonCreator
+  public PetWithOwner(
+      @JsonProperty(value = "name", required = true) String name,
+      @JsonProperty(value = "photoUrls", required = true) Set<String> photoUrls,
+      @JsonProperty(value = "ownerName", required = true) String ownerName) {
+    this.name = java.util.Objects.requireNonNull(name, "name is required");
+    this.photoUrls = java.util.Objects.requireNonNull(photoUrls, "photoUrls is required");
+    this.ownerName = java.util.Objects.requireNonNull(ownerName, "ownerName is required");
+  }
+}

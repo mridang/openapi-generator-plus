@@ -49,6 +49,8 @@ module PetstoreClient
       def add_pet_with_http_info: (::PetstoreClient::Auth::Authenticator auth, Models::Pet pet) -> ::PetstoreClient::ApiResult
       def add_pet_photos: (Integer pet_id, files: Array[File], metadata: Models::PhotoMetadata) -> untyped
       def add_pet_photos_with_http_info: (Integer pet_id, files: Array[File], metadata: Models::PhotoMetadata) -> ::PetstoreClient::ApiResult
+      def add_pet_treatment: (::PetstoreClient::Auth::Authenticator auth, Integer pet_id, Models::PetTreatment pet_treatment) -> untyped
+      def add_pet_treatment_with_http_info: (::PetstoreClient::Auth::Authenticator auth, Integer pet_id, Models::PetTreatment pet_treatment) -> ::PetstoreClient::ApiResult
       def delete_pet: (::PetstoreClient::Auth::Authenticator auth, Integer pet_id) -> untyped
       def delete_pet_with_http_info: (::PetstoreClient::Auth::Authenticator auth, Integer pet_id) -> ::PetstoreClient::ApiResult
       def download_pet_document: (Integer pet_id, Integer document_id) -> untyped

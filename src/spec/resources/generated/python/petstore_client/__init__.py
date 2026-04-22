@@ -31,16 +31,20 @@ __all__ = [
     'ApiResponse',
     'Category',
     'DryFood',
+    'Medication',
     'Metadata',
     'Order',
     'Pet',
     'PetFood',
     'PetPassport',
+    'PetTreatment',
+    'PetWithOwner',
     'Photo',
     'PhotoMetadata',
     'PhotoMetadataLocation',
     'SetPetAvatarRequest',
     'SetPetAvatarThumbnailRequest',
+    'Surgery',
     'Tag',
     'WetFood',
 ]
@@ -74,6 +78,9 @@ from petstore_client.models.category import (
 from petstore_client.models.dry_food import (
     DryFood as DryFood,
 )
+from petstore_client.models.medication import (
+    Medication as Medication,
+)
 from petstore_client.models.metadata import (
     Metadata as Metadata,
 )
@@ -89,6 +96,12 @@ from petstore_client.models.pet_food import (
 from petstore_client.models.pet_passport import (
     PetPassport as PetPassport,
 )
+from petstore_client.models.pet_treatment import (
+    PetTreatment as PetTreatment,
+)
+from petstore_client.models.pet_with_owner import (
+    PetWithOwner as PetWithOwner,
+)
 from petstore_client.models.photo import (
     Photo as Photo,
 )
@@ -103,6 +116,9 @@ from petstore_client.models.set_pet_avatar_request import (
 )
 from petstore_client.models.set_pet_avatar_thumbnail_request import (
     SetPetAvatarThumbnailRequest as SetPetAvatarThumbnailRequest,
+)
+from petstore_client.models.surgery import (
+    Surgery as Surgery,
 )
 from petstore_client.models.tag import (
     Tag as Tag,
