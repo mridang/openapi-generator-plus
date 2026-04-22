@@ -12,7 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Locale;
+
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -25,7 +25,7 @@ import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
 import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.utils.ModelUtils;
-import org.openapitools.codegen.utils.StringUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -657,7 +657,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 openAPI.getComponents().getSecuritySchemes().entrySet()) {
             final String schemeName = entry.getKey();
             final SecurityScheme scheme = entry.getValue();
-            final String className = StringUtils.camelize(schemeName);
+            final String className = NamingConvention.PASCAL_CASE.apply(schemeName);
             final String code = generateJavaAuthClass(schemeName, className, scheme);
             if (!code.isEmpty()) {
                 final boolean isOAuth =
@@ -728,7 +728,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             }
         } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
             final String location =
-                    scheme.getIn().toString().toUpperCase(Locale.ROOT);
+                    NamingConvention.UPPER_SNAKE_CASE.apply(scheme.getIn().toString());
             final String paramName = scheme.getName();
             return "package " + pkg + ".auth;\n\n"
                     + "public final class " + className

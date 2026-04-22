@@ -1,8 +1,6 @@
 package io.github.mridang.codegen.generators.ruby;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.openapitools.codegen.utils.StringUtils.camelize;
-import static org.openapitools.codegen.utils.StringUtils.underscore;
 
 import com.google.common.collect.ImmutableMap;
 import com.samskivert.mustache.Mustache;
@@ -17,7 +15,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
@@ -209,7 +207,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         moduleName = getPropertyOrDefault(CodegenConstants.MODULE_NAME, moduleName);
         gemName =
                 Optional.ofNullable((String) additionalProperties.get(CodegenConstants.GEM_NAME))
-                        .orElseGet(() -> underscore(moduleName.replaceAll("[^\\w]+", "")));
+                        .orElseGet(() -> NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("[^\\w]+", "")));
         additionalProperties.put(CodegenConstants.GEM_NAME, gemName);
         additionalProperties.put("gemVersion", GEM_VERSION);
         additionalProperties.put("userAgentDefault", gemName + "/" + GEM_VERSION + " (ruby)");
@@ -217,7 +215,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         setModelPackage("models");
         setApiPackage("api");
 
-        final String modulePath = underscore(moduleName.replaceAll("::", "/"));
+        final String modulePath = NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("::", "/"));
         final String libPath = Path.of(LIB_FOLDER, modulePath).toString();
 
         supportingFiles.add(new SupportingFile("gem.mustache", LIB_FOLDER, gemName + ".rb"));
@@ -285,8 +283,9 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                         "auth/http_aware_authenticator.mustache",
                         Path.of(libPath, "auth").toString(),
                         "http_aware_authenticator.rb"));
-        final String clientClassName = (String) additionalProperties.get("clientClassName");
-        final String clientClassFile = underscore(clientClassName);
+        final String clientClassName =
+                Objects.requireNonNull((String) additionalProperties.get("clientClassName"));
+        final String clientClassFile = NamingConvention.SNAKE_CASE.apply(clientClassName);
         additionalProperties.put("clientClassFile", clientClassFile);
         supportingFiles.add(
                 new SupportingFile("client.mustache", libPath, clientClassFile + ".rb"));
@@ -372,7 +371,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         return Path.of(
                         getOutputDir(),
                         LIB_FOLDER,
-                        underscore(path),
+                        NamingConvention.SNAKE_CASE.apply(path),
                         modelPackage().replace(".", File.separator))
                 .toString();
     }
@@ -387,7 +386,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         return Path.of(
                         getOutputDir(),
                         LIB_FOLDER,
-                        underscore(path),
+                        NamingConvention.SNAKE_CASE.apply(path),
                         apiPackage().replace(".", File.separator))
                 .toString();
     }
@@ -432,7 +431,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         if (result.matches("^\\d.*")) {
             result = "model_" + result;
         }
-        return camelize(result);
+        return NamingConvention.PASCAL_CASE.apply(result);
     }
 
     /**
@@ -528,7 +527,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                         })
                 .put(
                         "camelize",
-                        (fragment, writer) -> writer.write(camelize(fragment.execute())));
+                        (fragment, writer) -> writer.write(NamingConvention.PASCAL_CASE.apply(fragment.execute())));
     }
 
     /**
@@ -539,8 +538,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     @Override
     protected void registerAuthSupportingFiles() {
         final String modulePath =
-                org.openapitools.codegen.utils.StringUtils.underscore(
-                        moduleName.replaceAll("::", "/"));
+                NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("::", "/"));
         final String libPath = Path.of(LIB_FOLDER, modulePath).toString();
         final String authPath = Path.of(libPath, "auth").toString();
         final String oauthPath = Path.of(authPath, "oauth").toString();
@@ -687,7 +685,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         if (isBlank(name)) {
             return name;
         }
-        final String result = name.replaceAll("([A-Z])", "_$1").replaceAll("^_", "");
-        return result.toLowerCase(Locale.ROOT);
+        return NamingConvention.SNAKE_CASE.apply(name);
     }
 }

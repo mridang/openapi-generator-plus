@@ -50,7 +50,7 @@ import org.openapitools.codegen.meta.features.SchemaSupportFeature;
 import org.openapitools.codegen.meta.features.SecurityFeature;
 import org.openapitools.codegen.meta.features.WireFormatFeature;
 import org.openapitools.codegen.utils.ModelUtils;
-import org.openapitools.codegen.utils.StringUtils;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -554,7 +554,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * scheme types.
      */
     protected String toAuthClassName(CodegenSecurity auth) {
-        final String base = StringUtils.camelize(auth.name);
+        final String base = NamingConvention.PASCAL_CASE.apply(auth.name);
         if (Boolean.TRUE.equals(auth.isBasicBasic)) {
             return base + "Authenticator";
         }
@@ -781,7 +781,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (name.isEmpty()) {
             return "DefaultApi";
         }
-        return StringUtils.camelize(name) + "Api";
+        return NamingConvention.PASCAL_CASE.apply(name) + "Api";
     }
 
     /**
@@ -792,7 +792,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     @Override
     public String toModelName(String name) {
         name = sanitizeName(name);
-        return StringUtils.camelize(name);
+        return NamingConvention.PASCAL_CASE.apply(name);
     }
 
     /**
@@ -1118,7 +1118,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             }
             final Map<String, Object> typeDef = new HashMap<>();
             typeDef.put("operationId", op.operationId);
-            typeDef.put("serverTypeName", StringUtils.camelize(op.operationId) + "Server");
+            typeDef.put("serverTypeName", NamingConvention.PASCAL_CASE.apply(op.operationId) + "Server");
 
             final List<Map<String, Object>> variants = new ArrayList<>();
             for (int i = 0; i < op.servers.size(); i++) {
@@ -1129,12 +1129,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 final String variantName =
                         Optional.ofNullable(server.description)
                                 .filter(d -> !d.isBlank())
-                                .map(d -> StringUtils.camelize(d.replaceAll("[^a-zA-Z0-9]+", "_").trim()))
+                                .map(d -> NamingConvention.PASCAL_CASE.apply(d.replaceAll("[^a-zA-Z0-9]+", "_").trim()))
                                 .orElse("Server" + serverIndex);
                 variant.put("variantName", variantName);
-                variant.put(
-                        "variantNameLower",
-                        Character.toLowerCase(variantName.charAt(0)) + variantName.substring(1));
+                variant.put("variantNameLower", NamingConvention.CAMEL_CASE.apply(variantName));
                 variant.put("url", server.url);
                 variant.put("description", server.description);
                 variant.put(
@@ -1168,9 +1166,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                                 final Map<String, String> ev = new HashMap<>();
                                 ev.put(
                                         "name",
-                                        e.toUpperCase(Locale.ROOT)
-                                                .replace("-", "_")
-                                                .replace(".", "_"));
+                                        NamingConvention.UPPER_SNAKE_CASE.apply(
+                                                e.replace(".", "_")));
                                 ev.put("value", e);
                                 enumVals.add(ev);
                             }
@@ -1255,7 +1252,6 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     @Override
     public CodegenOperation fromOperation(
             String path, String httpMethod, Operation operation, List<Server> servers) {
-        validateOperation(operation);
         final CodegenOperation op = super.fromOperation(path, httpMethod, operation, servers);
         if (operation.getSecurity() == null) {
             globalAuthOperationIds.add(op.operationId);

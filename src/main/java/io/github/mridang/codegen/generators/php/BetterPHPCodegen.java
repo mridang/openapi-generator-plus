@@ -10,7 +10,7 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Locale;
+
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -584,7 +584,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             return "SPACE_" + value.length();
         }
         return Optional.ofNullable(getSymbolName(value))
-                .map(s -> s.toUpperCase(Locale.ROOT))
+                .map(NamingConvention.UPPER_SNAKE_CASE::apply)
                 .orElseGet(
                         () -> {
                             final String result = super.toEnumVarName(value, datatype);

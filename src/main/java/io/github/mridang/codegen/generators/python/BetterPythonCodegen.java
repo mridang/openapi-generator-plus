@@ -1,6 +1,5 @@
 package io.github.mridang.codegen.generators.python;
 
-import static org.openapitools.codegen.utils.StringUtils.underscore;
 
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.NamingConvention;
@@ -14,6 +13,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import javax.annotation.Nullable;
@@ -299,8 +299,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                         "auth/http_aware_authenticator.mustache",
                         authPath,
                         "http_aware_authenticator.py"));
-        final String clientClassName = (String) additionalProperties.get("clientClassName");
-        final String clientClassFile = underscore(clientClassName);
+        final String clientClassName =
+                Objects.requireNonNull((String) additionalProperties.get("clientClassName"));
+        final String clientClassFile = NamingConvention.SNAKE_CASE.apply(clientClassName);
         additionalProperties.put("clientClassFile", clientClassFile);
         supportingFiles.add(
                 new SupportingFile("client.mustache", packagePath, clientClassFile + ".py"));
