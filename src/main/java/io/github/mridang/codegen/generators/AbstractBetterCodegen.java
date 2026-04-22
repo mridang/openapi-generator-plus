@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.EnumSet;
 import java.util.stream.Collectors;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
@@ -40,6 +41,14 @@ import org.openapitools.codegen.DefaultCodegen;
 import org.openapitools.codegen.model.ModelMap;
 import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.model.OperationsMap;
+import org.openapitools.codegen.meta.features.ClientModificationFeature;
+import org.openapitools.codegen.meta.features.DataTypeFeature;
+import org.openapitools.codegen.meta.features.DocumentationFeature;
+import org.openapitools.codegen.meta.features.GlobalFeature;
+import org.openapitools.codegen.meta.features.ParameterFeature;
+import org.openapitools.codegen.meta.features.SchemaSupportFeature;
+import org.openapitools.codegen.meta.features.SecurityFeature;
+import org.openapitools.codegen.meta.features.WireFormatFeature;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.openapitools.codegen.utils.StringUtils;
 import org.slf4j.Logger;
@@ -95,6 +104,123 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         typeMapping.clear();
         importMapping.clear();
         hideGenerationTimestamp = true;
+
+        modifyFeatureSet(features -> features
+
+                // --- SecurityFeature ---
+                .securityFeatures(EnumSet.of(
+                        SecurityFeature.BasicAuth,
+                        SecurityFeature.BearerToken,
+                        SecurityFeature.ApiKey,
+                        SecurityFeature.OAuth2_Implicit,
+                        SecurityFeature.OAuth2_Password,
+                        SecurityFeature.OAuth2_ClientCredentials,
+                        SecurityFeature.OAuth2_AuthorizationCode,
+                        SecurityFeature.OpenIDConnect
+                        // SecurityFeature.SignatureAuth,        // not implemented
+                        // SecurityFeature.AWSV4Signature        // not implemented
+                        ))
+
+                // --- GlobalFeature ---
+                .globalFeatures(EnumSet.of(
+                        GlobalFeature.Host,
+                        GlobalFeature.BasePath,
+                        GlobalFeature.Info,
+                        GlobalFeature.ExternalDocumentation,
+                        GlobalFeature.MultiServer,
+                        GlobalFeature.ParameterizedServer,
+                        GlobalFeature.ParameterStyling
+                        // GlobalFeature.Schemes,               // OAS 2.0 only
+                        // GlobalFeature.PartialSchemes,         // OAS 2.0 only
+                        // GlobalFeature.Consumes,               // OAS 2.0 only
+                        // GlobalFeature.Produces,               // OAS 2.0 only
+                        // GlobalFeature.Examples,               // not implemented
+                        // GlobalFeature.XMLStructureDefinitions, // not implemented
+                        // GlobalFeature.Callbacks,              // not implemented
+                        // GlobalFeature.LinkObjects             // not implemented
+                        ))
+
+                // --- ParameterFeature (all supported) ---
+                .parameterFeatures(EnumSet.of(
+                        ParameterFeature.Path,
+                        ParameterFeature.Query,
+                        ParameterFeature.Header,
+                        ParameterFeature.Body,
+                        ParameterFeature.FormUnencoded,
+                        ParameterFeature.FormMultipart,
+                        ParameterFeature.Cookie))
+
+                // --- WireFormatFeature ---
+                .wireFormatFeatures(EnumSet.of(
+                        WireFormatFeature.JSON
+                        // WireFormatFeature.XML,               // not implemented
+                        // WireFormatFeature.PROTOBUF,           // not implemented
+                        // WireFormatFeature.Custom              // not implemented
+                        ))
+
+                // --- DocumentationFeature ---
+                // .documentationFeatures(EnumSet.of(
+                //     DocumentationFeature.Readme,             // not generated
+                //     DocumentationFeature.Model,              // not generated
+                //     DocumentationFeature.Api                 // not generated
+                // ))
+
+                // --- DataTypeFeature ---
+                .dataTypeFeatures(EnumSet.of(
+                        DataTypeFeature.Int32,
+                        DataTypeFeature.Int64,
+                        DataTypeFeature.Float,
+                        DataTypeFeature.Double,
+                        DataTypeFeature.Decimal,
+                        DataTypeFeature.String,
+                        DataTypeFeature.Byte,
+                        DataTypeFeature.Binary,
+                        DataTypeFeature.Boolean,
+                        DataTypeFeature.Date,
+                        DataTypeFeature.DateTime,
+                        DataTypeFeature.Password,
+                        DataTypeFeature.File,
+                        DataTypeFeature.Uuid,
+                        DataTypeFeature.Array,
+                        DataTypeFeature.Object,
+                        DataTypeFeature.Maps,
+                        DataTypeFeature.Enum,
+                        DataTypeFeature.ArrayOfEnum,
+                        DataTypeFeature.ArrayOfModel,
+                        DataTypeFeature.ArrayOfCollectionOfPrimitives,
+                        DataTypeFeature.ArrayOfCollectionOfModel,
+                        DataTypeFeature.ArrayOfCollectionOfEnum,
+                        DataTypeFeature.MapOfEnum,
+                        DataTypeFeature.MapOfModel,
+                        DataTypeFeature.MapOfCollectionOfPrimitives,
+                        DataTypeFeature.MapOfCollectionOfModel,
+                        DataTypeFeature.MapOfCollectionOfEnum,
+                        DataTypeFeature.Null,
+                        DataTypeFeature.AnyType
+                        // DataTypeFeature.Custom,              // not implemented
+                        // DataTypeFeature.CollectionFormat,     // not implemented
+                        // DataTypeFeature.CollectionFormatMulti // not implemented
+                        ))
+
+                // --- SchemaSupportFeature ---
+                .schemaSupportFeatures(EnumSet.of(
+                        SchemaSupportFeature.Simple,
+                        SchemaSupportFeature.Composite,
+                        SchemaSupportFeature.Polymorphism,
+                        SchemaSupportFeature.Union,
+                        SchemaSupportFeature.oneOf,
+                        SchemaSupportFeature.anyOf,
+                        SchemaSupportFeature.allOf
+                        // SchemaSupportFeature.not             // not implemented
+                        ))
+
+                // --- ClientModificationFeature ---
+                .clientModificationFeatures(EnumSet.of(
+                        ClientModificationFeature.BasePath,
+                        ClientModificationFeature.UserAgent,
+                        ClientModificationFeature.Authorizations
+                        // ClientModificationFeature.MockServer // not implemented
+                        )));
     }
 
     /**
