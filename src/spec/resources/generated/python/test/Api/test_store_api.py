@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 from petstore_client.api.store_api import StoreApi
 from petstore_client.configuration import Configuration
-from petstore_client.models.order import Order
+from petstore_client.models.order import Order, OrderStatusEnum
 
 
 class TestStoreApi:
@@ -25,7 +25,12 @@ class TestStoreApi:
 
     def test_place_order(self) -> None:
         order = Order(
-            id=1, petId=12345, quantity=1, shipDate=datetime.now(timezone.utc), status='placed', complete=False
+            id=1,
+            petId=12345,
+            quantity=1,
+            shipDate=datetime.now(timezone.utc),
+            status=OrderStatusEnum.PLACED,
+            complete=False,
         )
 
         result = self.api.place_order(order)

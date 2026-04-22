@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 from {{packageName}}.api.store_api import StoreApi
 from {{packageName}}.configuration import Configuration
-from {{packageName}}.models.order import Order
+from {{packageName}}.models.order import Order, OrderStatusEnum
 
 
 class TestStoreApi:
@@ -30,7 +30,7 @@ class TestStoreApi:
             petId=12345,
             quantity=1,
             shipDate=datetime.now(timezone.utc),
-            status='placed',
+            status=OrderStatusEnum.PLACED,
             complete=False
         )
 

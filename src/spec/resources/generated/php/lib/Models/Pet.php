@@ -19,12 +19,15 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 /**
  * @see https://example.com/docs/pet Learn more about the Pet model
  */
+enum PetStatusEnum: string
+{
+    case AVAILABLE = 'available';
+    case PENDING = 'pending';
+    case SOLD = 'sold';
+}
+
 class Pet
 {
-    public const STATUS_AVAILABLE = 'available';
-    public const STATUS_PENDING = 'pending';
-    public const STATUS_SOLD = 'sold';
-
     /** @example 10 */
     #[SerializedName('id')]
     public ?int $id = null;
@@ -51,7 +54,7 @@ class Pet
      * @deprecated This property is deprecated.
      */
     #[SerializedName('status')]
-    public ?string $status = null;
+    public ?PetStatusEnum $status = null;
 
     /**
      * @param string[] $photoUrls
@@ -63,7 +66,7 @@ class Pet
         ?int $id = null,
         ?Category $category = null,
         ?array $tags = null,
-        ?string $status = null,
+        ?PetStatusEnum $status = null,
     ) {
         $this->id = $id;
         $this->name = $name;

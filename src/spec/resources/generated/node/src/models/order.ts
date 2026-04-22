@@ -37,10 +37,9 @@ export class Order {
 /**
  * @export
  */
-export const OrderStatusEnum = {
-  Placed: 'placed',
-  Approved: 'approved',
-  Delivered: 'delivered',
-  UnknownDefaultOpenApi: '11184809'
-} as const;
-export type OrderStatusEnum = (typeof OrderStatusEnum)[keyof typeof OrderStatusEnum];
+export enum OrderStatusEnum {
+  Placed = 'placed',
+  Approved = 'approved',
+  Delivered = 'delivered',
+  UnknownDefaultOpenApi = '11184809'
+}

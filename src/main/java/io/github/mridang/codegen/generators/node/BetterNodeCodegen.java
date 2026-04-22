@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.CodegenModel;
@@ -95,39 +96,25 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
         setEnumUnknownDefaultCase(true);
     }
 
-    /**
-     * Returns the unique generator name used by the OpenAPI
-     * Generator plugin system to identify this codegen.
-     */
+    /** Returns the generator name used to select this codegen via the {@code -g} flag. */
     @Override
     public String getName() {
         return "node-plus";
     }
 
-    /**
-     * Returns a short human-readable description of this codegen
-     * shown in the generator list and help output.
-     */
+    /** Returns a short description shown in the help output. */
     @Override
     public String getHelp() {
         return "Generates a minimal TypeScript client using the Fetch API.";
     }
 
-    /**
-     * Returns the relative path within the output directory
-     * where test fixture files like certificates and mock
-     * mappings are placed inside the generated project.
-     */
+    /** {@inheritDoc} */
     @Override
     protected String getTestFixturesDir() {
         return "test/fixtures";
     }
 
-    /**
-     * Returns the relative path within the output directory
-     * where user-written spec tests should be placed inside
-     * the generated project.
-     */
+    /** {@inheritDoc} */
     @Override
     protected String getSpecDir() {
         return "spec";
@@ -398,8 +385,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
             final Schema<?> inner = p.getItems();
             return getSchemaType(p) + "<" + getTypeDeclaration(inner) + ">";
         } else if (ModelUtils.isMapSchema(p)) {
-            final Schema<?> inner = ModelUtils.getAdditionalProperties(p);
-            final String valueType = inner == null ? "unknown" : getTypeDeclaration(inner);
+            final String valueType =
+                    Optional.ofNullable(ModelUtils.getAdditionalProperties(p))
+                            .map(this::getTypeDeclaration)
+                            .orElse("unknown");
             return "{ [key: string]: " + valueType + " }";
         }
         return super.getTypeDeclaration(p);
@@ -471,14 +460,12 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
      */
     @Override
     public String toEnumVarName(String value, String datatype) {
-        if (enumNameMapping.containsKey(value)) {
-            return enumNameMapping.get(value);
-        }
-        final String symbolName = getSymbolName(value);
-        if (symbolName != null) {
-            return getEnumCasing().apply(symbolName);
-        }
-        return super.toEnumVarName(value, datatype);
+        return Optional.ofNullable(enumNameMapping.get(value))
+                .orElseGet(
+                        () ->
+                                Optional.ofNullable(getSymbolName(value))
+                                        .map(s -> getEnumCasing().apply(s))
+                                        .orElseGet(() -> super.toEnumVarName(value, datatype)));
     }
 
     /**
@@ -577,9 +564,8 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
             imports.removeIf(
                     imp -> {
                         final String importName =
-                                imp.containsKey("classname")
-                                        ? imp.get("classname")
-                                        : imp.get("import");
+                                Optional.ofNullable(imp.get("classname"))
+                                        .orElseGet(() -> imp.get("import"));
                         return importName == null
                                 || languageSpecificPrimitives.contains(importName)
                                 || typeMapping.containsValue(importName)
@@ -694,21 +680,21 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * No-op for TypeScript: per-scheme authenticators are
-     * handled entirely through template logic rather than
-     * individual generated classes.
+     * Per-scheme authenticator classes are not generated for
+     * Node/TypeScript; the base authenticator classes handle
+     * all scheme-specific behavior through configuration.
      */
     @Override
     protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
-        // Per-scheme authenticators are not generated for Node/TypeScript
+        // no-op
     }
 
     /**
-     * Removes tslint and eslint disable comments that the
-     * upstream framework injects into generated TypeScript
-     * files, and strips trailing blank lines. This keeps
-     * generated output clean since the project uses its own
-     * ESLint and Prettier configuration.
+     * Removes eslint disable comments that the upstream
+     * framework injects into generated TypeScript files, and
+     * strips trailing blank lines. This keeps generated output
+     * clean since the project uses its own ESLint and Prettier
+     * configuration.
      */
     @Override
     public void postProcessFile(File file, String fileType) {
@@ -721,7 +707,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
             boolean changed = false;
 
             for (final String line : lines) {
-                if (line.equals("/* tslint:disable */") || line.equals("/* eslint-disable */")) {
+                if (line.equals("/* eslint-disable */")) {
                     changed = true;
                     continue;
                 }

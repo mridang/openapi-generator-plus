@@ -206,20 +206,23 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 {{/externalDocumentation}}
 {{/description}}
 {{/isDeprecated}}
-class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
-{
 {{#hasEnums}}
 {{#vars}}
 {{#isEnum}}
+enum {{classname}}{{enumName}}: string
+{
 {{#allowableValues}}
 {{#enumVars}}
-    public const {{enumName}}_{{{name}}} = {{{value}}};
+    case {{{name}}} = {{{value}}};
 {{/enumVars}}
 {{/allowableValues}}
+}
+
 {{/isEnum}}
 {{/vars}}
-
 {{/hasEnums}}
+class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
+{
 {{#vars}}
 {{#description}}
     /**
@@ -291,7 +294,12 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
     public array ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
 {{/isContainer}}
 {{^isContainer}}
+{{#isEnum}}
+    public {{classname}}{{enumName}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
+{{/isEnum}}
+{{^isEnum}}
     public {{{dataType}}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
+{{/isEnum}}
 {{/isContainer}}
 {{/required}}
 {{^required}}
@@ -299,7 +307,12 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
     public ?array ${{name}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}};
 {{/isContainer}}
 {{^isContainer}}
+{{#isEnum}}
+    public ?{{classname}}{{enumName}} ${{name}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}};
+{{/isEnum}}
+{{^isEnum}}
     public ?{{{dataType}}} ${{name}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}};
+{{/isEnum}}
 {{/isContainer}}
 {{/required}}
 {{^-last}}
@@ -330,7 +343,12 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
         array ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}},
 {{/isContainer}}
 {{^isContainer}}
+{{#isEnum}}
+        {{classname}}{{enumName}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}},
+{{/isEnum}}
+{{^isEnum}}
         {{{dataType}}} ${{name}}{{#defaultValue}} = {{{.}}}{{/defaultValue}},
+{{/isEnum}}
 {{/isContainer}}
 {{/requiredVars}}
 {{#optionalVars}}
@@ -338,7 +356,12 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
         ?array ${{name}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}},
 {{/isContainer}}
 {{^isContainer}}
+{{#isEnum}}
+        ?{{classname}}{{enumName}} ${{name}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}},
+{{/isEnum}}
+{{^isEnum}}
         ?{{{dataType}}} ${{name}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}},
+{{/isEnum}}
 {{/isContainer}}
 {{/optionalVars}}
     ) {

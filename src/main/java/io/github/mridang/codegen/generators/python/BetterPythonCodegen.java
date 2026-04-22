@@ -96,42 +96,28 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         this.setLegacyDiscriminatorBehavior(false);
     }
 
-    /**
-     * Returns the unique generator name used to select this
-     * codegen on the command line via the {@code -g} flag.
-     */
+    /** Returns the generator name used to select this codegen via the {@code -g} flag. */
     @Override
     public String getName() {
         return "python-plus";
     }
 
-    /**
-     * Returns the relative path within the output directory
-     * where test fixtures such as certificates, proxy config,
-     * and WireMock mappings are placed.
-     */
+    /** Returns a short description shown in the help output. */
+    @Override
+    public String getHelp() {
+        return "Generates a minimal Python client with pydantic models.";
+    }
+
+    /** {@inheritDoc} */
     @Override
     protected String getTestFixturesDir() {
         return "test/fixtures";
     }
 
-    /**
-     * Returns the relative path within the output directory
-     * where user-written spec tests should be placed. An
-     * empty directory with a .gitkeep is created here.
-     */
+    /** {@inheritDoc} */
     @Override
     protected String getSpecDir() {
         return "spec";
-    }
-
-    /**
-     * Returns a short human-readable description of this
-     * generator for the help output.
-     */
-    @Override
-    public String getHelp() {
-        return "Generates a minimal Python client with pydantic models.";
     }
 
     /** {@inheritDoc} */
@@ -505,20 +491,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Converts an enum value to its Python variable form.
-     * Numeric enum values are returned bare to preserve
-     * their type; string values are wrapped in single
-     * quotes.
-     */
-    @Override
-    public String toEnumVarName(String value, String datatype) {
-        if ("int".equals(datatype) || "float".equals(datatype)) {
-            return value;
-        }
-        return "'" + value + "'";
-    }
-
-    /**
      * Post-processes model properties to sanitize example
      * values that contain Java-specific artifacts like null
      * literals or byte-array toString output. Unique-item
@@ -581,20 +553,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Derives a snake_case property name for the API client
-     * facade from the API class name by stripping the "Api"
-     * suffix and converting to snake_case.
-     */
-    @Override
-    protected String deriveClientPropertyName(String apiClassName) {
-        final String name = apiClassName.replaceAll("Api$", "");
-        if (name.isEmpty()) {
-            return "api";
-        }
-        return getVarCasing().apply(name);
-    }
-
-    /**
      * Registers supporting files for authentication classes
      * based on which security scheme types were detected in
      * the OpenAPI spec. Each scheme type gets its own
@@ -638,14 +596,13 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Per-scheme authenticator generation is not needed for
-     * Python because the base authenticator classes are
-     * sufficient with scheme-specific constructor parameters.
+     * Per-scheme authenticator classes are not generated for
+     * Python; the base authenticator classes handle all
+     * scheme-specific behavior through configuration.
      */
     @Override
     protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
-        // Per-scheme authenticators are not generated for Python
-        // The base classes are sufficient with the scheme-specific parameters
+        // no-op
     }
 
     /**

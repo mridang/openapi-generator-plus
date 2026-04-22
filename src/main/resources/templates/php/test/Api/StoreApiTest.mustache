@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use {{invokerPackage}}\Api\StoreApi;
 use {{invokerPackage}}\Configuration;
 use {{invokerPackage}}\Models\Order;
+use {{invokerPackage}}\Models\OrderStatusEnum;
 
 /**
  * Integration tests for the Store API endpoints.
@@ -39,7 +40,7 @@ class StoreApiTest extends TestCase
         $order->petId = 12345;
         $order->quantity = 1;
         $order->shipDate = new \DateTime();
-        $order->status = 'placed';
+        $order->status = OrderStatusEnum::PLACED;
         $order->complete = false;
 
         $result = $this->api->placeOrder($order);

@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
@@ -122,39 +123,25 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         reservedWords = loadReservedWords("/reserved-words/java.txt");
     }
 
-    /**
-     * Returns the unique generator name used by the OpenAPI
-     * Generator plugin system to identify this codegen.
-     */
+    /** Returns the generator name used to select this codegen via the {@code -g} flag. */
     @Override
     public String getName() {
         return "java-plus";
     }
 
-    /**
-     * Returns a short human-readable description of this codegen
-     * shown in the generator list and help output.
-     */
+    /** Returns a short description shown in the help output. */
     @Override
     public String getHelp() {
         return "Generates a minimal Java client with Jackson and Apache HttpClient.";
     }
 
-    /**
-     * Returns the relative path to the directory where test
-     * fixture files like certificates and WireMock mappings are
-     * placed inside the generated project.
-     */
+    /** {@inheritDoc} */
     @Override
     protected String getTestFixturesDir() {
         return "src/test/resources";
     }
 
-    /**
-     * Returns the relative path to the directory where
-     * user-written spec tests should be placed inside the
-     * generated project.
-     */
+    /** {@inheritDoc} */
     @Override
     protected String getSpecDir() {
         return "src/spec/java";
@@ -697,13 +684,17 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
      * so each flow gets its own authenticator.
      */
     private String getOAuthSuffix(SecurityScheme scheme) {
-        if (scheme.getType() == SecurityScheme.Type.OAUTH2 && scheme.getFlows() != null) {
-            if (scheme.getFlows().getClientCredentials() != null) return "ClientCredentials";
-            if (scheme.getFlows().getPassword() != null) return "Password";
-            if (scheme.getFlows().getAuthorizationCode() != null) return "AuthorizationCode";
-            if (scheme.getFlows().getImplicit() != null) return "Implicit";
+        if (scheme.getType() != SecurityScheme.Type.OAUTH2 || scheme.getFlows() == null) {
+            return "";
         }
-        return "";
+        return Optional.ofNullable(scheme.getFlows().getClientCredentials())
+                .map(f -> "ClientCredentials")
+                .or(() -> Optional.ofNullable(scheme.getFlows().getPassword()).map(f -> "Password"))
+                .or(() ->
+                        Optional.ofNullable(scheme.getFlows().getAuthorizationCode())
+                                .map(f -> "AuthorizationCode"))
+                .or(() -> Optional.ofNullable(scheme.getFlows().getImplicit()).map(f -> "Implicit"))
+                .orElse("");
     }
 
     /**

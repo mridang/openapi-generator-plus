@@ -16,12 +16,15 @@ namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
 
+enum OrderStatusEnum: string
+{
+    case PLACED = 'placed';
+    case APPROVED = 'approved';
+    case DELIVERED = 'delivered';
+}
+
 class Order
 {
-    public const STATUS_PLACED = 'placed';
-    public const STATUS_APPROVED = 'approved';
-    public const STATUS_DELIVERED = 'delivered';
-
     /** @example 10 */
     #[SerializedName('id')]
     public ?int $id = null;
@@ -43,7 +46,7 @@ class Order
      * @example approved
      */
     #[SerializedName('status')]
-    public ?string $status = null;
+    public ?OrderStatusEnum $status = null;
 
     /** @example null */
     #[SerializedName('complete')]
@@ -56,7 +59,7 @@ class Order
         ?int $petId = null,
         ?int $quantity = null,
         ?\DateTime $shipDate = null,
-        ?string $status = null,
+        ?OrderStatusEnum $status = null,
         ?bool $complete = null,
     ) {
         $this->id = $id;

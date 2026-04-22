@@ -53,10 +53,9 @@ export class Pet {
 /**
  * @export
  */
-export const PetStatusEnum = {
-  Available: 'available',
-  Pending: 'pending',
-  Sold: 'sold',
-  UnknownDefaultOpenApi: '11184809'
-} as const;
-export type PetStatusEnum = (typeof PetStatusEnum)[keyof typeof PetStatusEnum];
+export enum PetStatusEnum {
+  Available = 'available',
+  Pending = 'pending',
+  Sold = 'sold',
+  UnknownDefaultOpenApi = '11184809'
+}

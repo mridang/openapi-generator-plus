@@ -6,7 +6,7 @@ from {{packageName}}.api.pet_api import PetApi
 from {{packageName}}.auth.bearer_authenticator import BearerAuthenticator
 from {{packageName}}.configuration import Configuration
 from {{packageName}}.models.api_response import ApiResponse
-from {{packageName}}.models.pet import Pet
+from {{packageName}}.models.pet import Pet, PetStatusEnum
 from {{packageName}}.models.pet_passport import PetPassport
 from {{packageName}}.models.photo import Photo
 from {{packageName}}.models.photo_metadata import PhotoMetadata
@@ -30,7 +30,7 @@ class TestPetApi:
             id=12345,
             name='TestDog',
             photoUrls={'http://example.com/photo.jpg'},
-            status='available'
+            status=PetStatusEnum.AVAILABLE
         )
 
         result = self.api.add_pet(self.auth, pet)
@@ -57,7 +57,7 @@ class TestPetApi:
             id=1,
             name='UpdatedDog',
             photoUrls={'http://example.com/updated.jpg'},
-            status='pending'
+            status=PetStatusEnum.PENDING
         )
 
         result = self.api.update_pet(1, pet)

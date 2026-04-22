@@ -79,39 +79,25 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         reservedWords = loadReservedWords("/reserved-words/csharp.txt");
     }
 
-    /**
-     * Returns the unique generator name used by the OpenAPI
-     * Generator plugin system to identify this codegen.
-     */
+    /** Returns the generator name used to select this codegen via the {@code -g} flag. */
     @Override
     public String getName() {
         return "csharp-plus";
     }
 
-    /**
-     * Returns a short human-readable description of this
-     * codegen shown in the generator list and help output.
-     */
+    /** Returns a short description shown in the help output. */
     @Override
     public String getHelp() {
         return "Generates a minimal C# client with System.Text.Json.";
     }
 
-    /**
-     * Returns the relative path to the directory where test
-     * fixture files like certificates and WireMock mappings
-     * are placed inside the generated project.
-     */
+    /** {@inheritDoc} */
     @Override
     protected String getTestFixturesDir() {
         return "Test/Resources";
     }
 
-    /**
-     * Returns the relative path to the directory where
-     * user-written spec tests should be placed inside the
-     * generated project.
-     */
+    /** {@inheritDoc} */
     @Override
     protected String getSpecDir() {
         return "Spec";
@@ -398,20 +384,6 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Derives a PascalCase property name for the client facade
-     * from the API class name by stripping the trailing "Api"
-     * suffix and applying PascalCase casing.
-     */
-    @Override
-    protected String deriveClientPropertyName(String apiClassName) {
-        final String name = apiClassName.replaceAll("Api$", "");
-        if (name.isEmpty()) {
-            return "Api";
-        }
-        return getVarCasing().apply(name);
-    }
-
-    /**
      * Returns whether the given datatype represents a numeric
      * C# type. Used to avoid quoting numeric enum values in
      * generated enum classes.
@@ -548,13 +520,13 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * No-op for C#: per-scheme authenticators are not generated
-     * because the base authenticator classes are sufficient with
-     * scheme-specific constructor parameters.
+     * Per-scheme authenticator classes are not generated for
+     * C#; the base authenticator classes handle all
+     * scheme-specific behavior through configuration.
      */
     @Override
     protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
-        // Per-scheme authenticators are not generated for C#
+        // no-op
     }
 
 }

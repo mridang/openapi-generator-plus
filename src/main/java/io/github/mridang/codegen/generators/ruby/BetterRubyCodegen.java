@@ -18,6 +18,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Locale;
+import java.util.Optional;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.GeneratorLanguage;
@@ -105,19 +106,13 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         reservedWords = loadReservedWords("/reserved-words/ruby.txt");
     }
 
-    /**
-     * Returns the generator name used to select this codegen on
-     * the command line via the {@code -g} flag.
-     */
+    /** Returns the generator name used to select this codegen via the {@code -g} flag. */
     @Override
     public String getName() {
         return "ruby-plus";
     }
 
-    /**
-     * Returns a short description shown in the generator list
-     * and help output.
-     */
+    /** Returns a short description shown in the help output. */
     @Override
     public String getHelp() {
         return "Generates a minimal Ruby client with Faraday.";
@@ -132,19 +127,13 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         return GeneratorLanguage.RUBY;
     }
 
-    /**
-     * Returns the subdirectory under the test-projects resource
-     * tree that holds the Ruby test fixtures.
-     */
+    /** {@inheritDoc} */
     @Override
     protected String getTestFixturesDir() {
         return "test/fixtures";
     }
 
-    /**
-     * Returns the directory name where user-written spec tests
-     * are placed inside the generated project.
-     */
+    /** {@inheritDoc} */
     @Override
     protected String getSpecDir() {
         return "spec";
@@ -197,12 +186,9 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         super.processOpts();
 
         moduleName = getPropertyOrDefault(CodegenConstants.MODULE_NAME, moduleName);
-        if (additionalProperties.containsKey(CodegenConstants.GEM_NAME)) {
-            gemName = (String) additionalProperties.get(CodegenConstants.GEM_NAME);
-        }
-        if (gemName == null) {
-            gemName = underscore(moduleName.replaceAll("[^\\w]+", ""));
-        }
+        gemName =
+                Optional.ofNullable((String) additionalProperties.get(CodegenConstants.GEM_NAME))
+                        .orElseGet(() -> underscore(moduleName.replaceAll("[^\\w]+", "")));
         additionalProperties.put(CodegenConstants.GEM_NAME, gemName);
         additionalProperties.put("gemVersion", GEM_VERSION);
         additionalProperties.put("userAgentDefault", gemName + "/" + GEM_VERSION + " (ruby)");
@@ -475,20 +461,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Derives a snake_case property name for a client accessor
-     * from the API class name. The trailing "Api" suffix is
-     * stripped so that {@code PetApi} becomes {@code pet}.
-     */
-    @Override
-    protected String deriveClientPropertyName(String apiClassName) {
-        final String name = apiClassName.replaceAll("Api$", "");
-        if (name.isEmpty()) {
-            return "api";
-        }
-        return getVarCasing().apply(name);
-    }
-
-    /**
      * Checks whether the given datatype represents a numeric
      * Ruby type (Integer or Float) so that enum values can
      * receive a numeric prefix.
@@ -591,13 +563,13 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * No-op for Ruby: per-scheme authenticators are handled
-     * entirely through template logic rather than individual
-     * generated classes.
+     * Per-scheme authenticator classes are not generated for
+     * Ruby; the base authenticator classes handle all
+     * scheme-specific behavior through configuration.
      */
     @Override
     protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
-        // Per-scheme authenticators are not generated for Ruby
+        // no-op
     }
 
     /**
@@ -638,14 +610,15 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
      * syntax.
      */
     private String toRbsApiType(@Nullable String type) {
-        if (type == null) {
-            return "void";
-        }
-        return qualifyModelTypes(type)
-                .replace("Boolean", "bool")
-                .replace("Object", "untyped")
-                .replace("<", "[")
-                .replace(">", "]");
+        return Optional.ofNullable(type)
+                .map(
+                        t ->
+                                qualifyModelTypes(t)
+                                        .replace("Boolean", "bool")
+                                        .replace("Object", "untyped")
+                                        .replace("<", "[")
+                                        .replace(">", "]"))
+                .orElse("void");
     }
 
     /**

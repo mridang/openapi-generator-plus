@@ -160,6 +160,9 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Any, ClassVar, Dict, List, Optional, Set, Union
 from typing_extensions import Self
+{{#hasEnums}}
+from enum import Enum
+{{/hasEnums}}
 {{#hasChildren}}
 {{#discriminator}}
 from typing import TYPE_CHECKING
@@ -170,6 +173,22 @@ if TYPE_CHECKING:
 
 {{/discriminator}}
 {{/hasChildren}}
+{{#hasEnums}}
+{{#vars}}
+{{#isEnum}}
+
+
+class {{classname}}{{enumName}}(str, Enum):
+    """{{classname}} - {{baseName}}"""
+
+    {{#allowableValues}}
+    {{#enumVars}}
+    {{{name}}} = {{{value}}}
+    {{/enumVars}}
+    {{/allowableValues}}
+{{/isEnum}}
+{{/vars}}
+{{/hasEnums}}
 
 
 class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}):
@@ -192,10 +211,20 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
     # .. deprecated:: This property is deprecated.
 {{/deprecated}}
 {{#required}}
+{{#isEnum}}
+    {{name}}: {{classname}}{{enumName}} = Field(alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#example}}, examples=[{{{.}}}]{{/example}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#defaultValue}}, default={{{.}}}{{/defaultValue}})
+{{/isEnum}}
+{{^isEnum}}
     {{name}}: {{{dataType}}} = Field(alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#example}}, examples=[{{{.}}}]{{/example}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}}{{#defaultValue}}, default={{{.}}}{{/defaultValue}})
+{{/isEnum}}
 {{/required}}
 {{^required}}
+{{#isEnum}}
+    {{name}}: Optional[{{classname}}{{enumName}}] = Field(default={{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}None{{/defaultValue}}, alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#example}}, examples=[{{{.}}}]{{/example}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}})
+{{/isEnum}}
+{{^isEnum}}
     {{name}}: Optional[{{{dataType}}}] = Field(default={{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}None{{/defaultValue}}, alias='{{{baseName}}}'{{#description}}, description="{{{.}}}"{{/description}}{{#example}}, examples=[{{{.}}}]{{/example}}{{#isReadOnly}}, json_schema_extra={"readOnly": True}{{/isReadOnly}}{{#isWriteOnly}}, json_schema_extra={"writeOnly": True}{{/isWriteOnly}})
+{{/isEnum}}
 {{/required}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
@@ -213,41 +242,6 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}BaseModel{{/parent}}
             raise ValueError(r"must validate the regular expression {{{pattern}}}")
         return value
     {{/pattern}}
-    {{#isEnum}}
-
-    @field_validator('{{{name}}}')
-    def {{{name}}}_validate_enum(cls, value: Any) -> Any:
-        """Validates the enum"""
-        {{^required}}
-        if value is None:
-            return value
-
-        {{/required}}
-        {{#required}}
-        {{#isNullable}}
-        if value is None:
-            return value
-
-        {{/isNullable}}
-        {{/required}}
-        {{#isContainer}}
-        {{#isArray}}
-        for i in value:
-            if i not in set([{{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}]):
-                raise ValueError("each list item must be one of ({{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}})")
-        {{/isArray}}
-        {{#isMap}}
-        for i in value.values():
-            if i not in set([{{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}]):
-                raise ValueError("dict values must be one of enum values ({{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}})")
-        {{/isMap}}
-        {{/isContainer}}
-        {{^isContainer}}
-        if value not in set([{{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}]):
-            raise ValueError("must be one of enum values ({{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}})")
-        {{/isContainer}}
-        return value
-    {{/isEnum}}
 {{/vars}}
 
     model_config = ConfigDict(

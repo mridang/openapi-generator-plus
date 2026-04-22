@@ -15,7 +15,6 @@ import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
-import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.utils.ModelUtils;
 
@@ -101,39 +100,25 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         reservedWords = loadReservedWords("/reserved-words/php.txt");
     }
 
-    /**
-     * Returns the unique generator name used by the OpenAPI
-     * Generator plugin system to identify this codegen.
-     */
+    /** Returns the generator name used to select this codegen via the {@code -g} flag. */
     @Override
     public String getName() {
         return "php-plus";
     }
 
-    /**
-     * Returns a short human-readable description of this
-     * codegen shown in the generator list and help output.
-     */
+    /** Returns a short description shown in the help output. */
     @Override
     public String getHelp() {
         return "Generates a minimal PHP client with Symfony HTTP Client and Symfony Serializer.";
     }
 
-    /**
-     * Returns the relative path to the directory where test
-     * fixture files like certificates and WireMock mappings
-     * are placed inside the generated project.
-     */
+    /** {@inheritDoc} */
     @Override
     protected String getTestFixturesDir() {
         return "test/fixtures";
     }
 
-    /**
-     * Returns the relative path to the directory where
-     * user-written spec tests should be placed inside the
-     * generated project.
-     */
+    /** {@inheritDoc} */
     @Override
     protected String getSpecDir() {
         return "spec";
@@ -469,11 +454,9 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     @Override
     public String getTypeDeclaration(Schema p) {
         if (ModelUtils.isArraySchema(p)) {
-            final Schema<?> inner = ModelUtils.getSchemaItems(p);
-            if (inner == null) {
-                return "string[]";
-            }
-            return getTypeDeclaration(inner) + "[]";
+            return Optional.ofNullable(ModelUtils.getSchemaItems(p))
+                    .map(inner -> getTypeDeclaration(inner) + "[]")
+                    .orElse("string[]");
         } else if (ModelUtils.isMapSchema(p)) {
             final Schema<?> inner = ModelUtils.getAdditionalProperties(p);
             if (inner == null) {
@@ -538,22 +521,17 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     @Override
     public String toDefaultValue(Schema schema) {
         final Schema unaliased = ModelUtils.unaliasSchema(this.openAPI, schema);
-        if (ModelUtils.isBooleanSchema(unaliased)) {
-            if (unaliased.getDefault() != null) {
-                return unaliased.getDefault().toString();
-            }
-        } else if (ModelUtils.isNumberSchema(unaliased)) {
-            if (unaliased.getDefault() != null) {
-                return unaliased.getDefault().toString();
-            }
-        } else if (ModelUtils.isIntegerSchema(unaliased)) {
-            if (unaliased.getDefault() != null) {
-                return unaliased.getDefault().toString();
-            }
-        } else if (ModelUtils.isStringSchema(unaliased)) {
-            if (unaliased.getDefault() != null) {
-                return "'" + unaliased.getDefault() + "'";
-            }
+        if (ModelUtils.isBooleanSchema(unaliased)
+                || ModelUtils.isNumberSchema(unaliased)
+                || ModelUtils.isIntegerSchema(unaliased)) {
+            return Optional.ofNullable(unaliased.getDefault())
+                    .map(Object::toString)
+                    .orElse(null);
+        }
+        if (ModelUtils.isStringSchema(unaliased)) {
+            return Optional.ofNullable(unaliased.getDefault())
+                    .map(d -> "'" + d + "'")
+                    .orElse(null);
         }
         return null;
     }
@@ -607,36 +585,13 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         if (value.trim().isEmpty() && !value.isEmpty()) {
             return "SPACE_" + value.length();
         }
-        if (getSymbolName(value) != null) {
-            return getSymbolName(value).toUpperCase(Locale.ROOT);
-        }
-        final String result = super.toEnumVarName(value, datatype);
-        if (isReservedWord(result)) {
-            return escapeReservedWord(result);
-        }
-        return result;
-    }
-
-    /**
-     * Converts a model property name to its UPPER_SNAKE_CASE
-     * PHP enum class name by sanitizing special characters
-     * and stripping trailing brackets.
-     */
-    @Override
-    public String toEnumName(CodegenProperty property) {
-        final String name =
-                property.name
-                        .replaceAll("\\]", "")
-                        .replaceAll("[^\\w\\\\]+", "_")
-                        .replace("$", "");
-
-        String enumName = getEnumCasing().apply(name);
-        enumName = enumName.replace("[]", "");
-
-        if (enumName.matches("\\d.*")) {
-            return "_" + enumName;
-        }
-        return enumName;
+        return Optional.ofNullable(getSymbolName(value))
+                .map(s -> s.toUpperCase(Locale.ROOT))
+                .orElseGet(
+                        () -> {
+                            final String result = super.toEnumVarName(value, datatype);
+                            return isReservedWord(result) ? escapeReservedWord(result) : result;
+                        });
     }
 
     /**
@@ -707,13 +662,13 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * No-op for PHP: per-scheme authenticators are handled
-     * entirely through template logic rather than individual
-     * generated classes.
+     * Per-scheme authenticator classes are not generated for
+     * PHP; the base authenticator classes handle all
+     * scheme-specific behavior through configuration.
      */
     @Override
     protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
-        // Per-scheme authenticators are not generated for PHP
+        // no-op
     }
 
 }

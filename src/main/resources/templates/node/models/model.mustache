@@ -10,14 +10,13 @@ import { {{classname}} } from './{{filename}}{{importFileExtension}}';
 /**
  * @export
  */
-export const {{classname}} = {
+export enum {{classname}} {
 {{#allowableValues}}
   {{#enumVars}}
-  {{{name}}}: {{{value}}}{{^-last}},{{/-last}}
+  {{{name}}} = {{{value}}},
   {{/enumVars}}
 {{/allowableValues}}
-} as const;
-export type {{classname}} = (typeof {{classname}})[keyof typeof {{classname}}];
+}
 
 {{/isEnum}}
 {{^isEnum}}
@@ -271,14 +270,13 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 /**
  * @export
  */
-export const {{classname}}{{enumName}} = {
+export enum {{classname}}{{enumName}} {
 {{#allowableValues}}
   {{#enumVars}}
-  {{{name}}}: {{{value}}}{{^-last}},{{/-last}}
+  {{{name}}} = {{{value}}},
   {{/enumVars}}
 {{/allowableValues}}
-} as const;
-export type {{classname}}{{enumName}} = (typeof {{classname}}{{enumName}})[keyof typeof {{classname}}{{enumName}}];
+}
 {{/isEnum}}
 {{/vars}}
 {{/hasEnums}}

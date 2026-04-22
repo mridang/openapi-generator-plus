@@ -10,6 +10,7 @@ use PetstoreClient\Auth\BearerAuthenticator;
 use PetstoreClient\Configuration;
 use PetstoreClient\Models\ApiResponse;
 use PetstoreClient\Models\Pet;
+use PetstoreClient\Models\PetStatusEnum;
 use PetstoreClient\Models\PetPassport;
 use PetstoreClient\Models\PhotoMetadata;
 use PetstoreClient\Models\SetPetAvatarThumbnailRequest;
@@ -37,7 +38,7 @@ class PetApiTest extends TestCase
     {
         $pet = new Pet(name: 'TestDog', photoUrls: ['http://example.com/photo.jpg']);
         $pet->id = 12345;
-        $pet->status = 'available';
+        $pet->status = PetStatusEnum::AVAILABLE;
 
         $result = $this->api->addPet($this->auth, $pet);
 
@@ -64,7 +65,7 @@ class PetApiTest extends TestCase
     {
         $pet = new Pet(name: 'UpdatedDog', photoUrls: ['http://example.com/updated.jpg']);
         $pet->id = 1;
-        $pet->status = 'pending';
+        $pet->status = PetStatusEnum::PENDING;
 
         $result = $this->api->updatePet(1, $pet);
 

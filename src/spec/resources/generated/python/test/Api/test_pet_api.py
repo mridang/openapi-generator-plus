@@ -6,7 +6,7 @@ from petstore_client.api.pet_api import PetApi
 from petstore_client.auth.bearer_authenticator import BearerAuthenticator
 from petstore_client.configuration import Configuration
 from petstore_client.models.api_response import ApiResponse
-from petstore_client.models.pet import Pet
+from petstore_client.models.pet import Pet, PetStatusEnum
 from petstore_client.models.pet_passport import PetPassport
 from petstore_client.models.photo import Photo
 from petstore_client.models.photo_metadata import PhotoMetadata
@@ -25,7 +25,7 @@ class TestPetApi:
         self.auth = BearerAuthenticator(api_base_url, 'test-token')
 
     def test_add_pet(self) -> None:
-        pet = Pet(id=12345, name='TestDog', photoUrls={'http://example.com/photo.jpg'}, status='available')
+        pet = Pet(id=12345, name='TestDog', photoUrls={'http://example.com/photo.jpg'}, status=PetStatusEnum.AVAILABLE)
 
         result = self.api.add_pet(self.auth, pet)
 
@@ -47,7 +47,7 @@ class TestPetApi:
         assert result.name is not None
 
     def test_update_pet(self) -> None:
-        pet = Pet(id=1, name='UpdatedDog', photoUrls={'http://example.com/updated.jpg'}, status='pending')
+        pet = Pet(id=1, name='UpdatedDog', photoUrls={'http://example.com/updated.jpg'}, status=PetStatusEnum.PENDING)
 
         result = self.api.update_pet(1, pet)
 

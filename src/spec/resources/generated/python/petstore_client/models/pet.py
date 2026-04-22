@@ -14,6 +14,15 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Any, ClassVar, Dict, List, Optional, Set, Union
 from typing_extensions import Self
+from enum import Enum
+
+
+class PetStatusEnum(str, Enum):
+    """Pet - status"""
+
+    AVAILABLE = 'available'
+    PENDING = 'pending'
+    SOLD = 'sold'
 
 
 class Pet(BaseModel):
@@ -30,18 +39,8 @@ class Pet(BaseModel):
     photo_urls: Set[str] = Field(alias='photoUrls')
     tags: Optional[List[Tag]] = Field(default=None, alias='tags')
     # .. deprecated:: This property is deprecated.
-    status: Optional[str] = Field(default=None, alias='status', description='pet status in the store')
+    status: Optional[PetStatusEnum] = Field(default=None, alias='status', description='pet status in the store')
     additional_properties: Dict[str, Any] = {}
-
-    @field_validator('status')
-    def status_validate_enum(cls, value: Any) -> Any:
-        """Validates the enum"""
-        if value is None:
-            return value
-
-        if value not in set(['available', 'pending', 'sold']):
-            raise ValueError("must be one of enum values ('available', 'pending', 'sold')")
-        return value
 
     model_config = ConfigDict(
         populate_by_name=True,

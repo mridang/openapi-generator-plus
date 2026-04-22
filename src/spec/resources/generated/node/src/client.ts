@@ -33,9 +33,9 @@ import { StoreApi } from './api/store-api.js';
  */
 export class Client {
   /** API operations for the PetApi group. */
-  public readonly pet: PetApi;
+  public readonly Pet: PetApi;
   /** API operations for the StoreApi group. */
-  public readonly store: StoreApi;
+  public readonly Store: StoreApi;
 
   /**
    * Creates a new client with the given authenticator and default transport settings.
@@ -68,8 +68,8 @@ export class Client {
       .baseUrl(authenticator.getHost())
       .defaultHeaders(authenticator.getAuthHeaders())
       .build();
-    this.pet = new PetApi(apiClient, config);
-    this.store = new StoreApi(apiClient, config);
+    this.Pet = new PetApi(apiClient, config);
+    this.Store = new StoreApi(apiClient, config);
   }
 
   /**

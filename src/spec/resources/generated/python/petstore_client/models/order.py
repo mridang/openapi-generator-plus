@@ -14,6 +14,15 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Any, ClassVar, Dict, List, Optional, Set, Union
 from typing_extensions import Self
+from enum import Enum
+
+
+class OrderStatusEnum(str, Enum):
+    """Order - status"""
+
+    PLACED = 'placed'
+    APPROVED = 'approved'
+    DELIVERED = 'delivered'
 
 
 class Order(BaseModel):
@@ -25,19 +34,11 @@ class Order(BaseModel):
     pet_id: Optional[int] = Field(default=None, alias='petId', examples=[198772])
     quantity: Optional[int] = Field(default=None, alias='quantity', examples=[7])
     ship_date: Optional[datetime] = Field(default=None, alias='shipDate')
-    status: Optional[str] = Field(default=None, alias='status', description='Order Status', examples=['approved'])
+    status: Optional[OrderStatusEnum] = Field(
+        default=None, alias='status', description='Order Status', examples=['approved']
+    )
     complete: Optional[bool] = Field(default=None, alias='complete')
     additional_properties: Dict[str, Any] = {}
-
-    @field_validator('status')
-    def status_validate_enum(cls, value: Any) -> Any:
-        """Validates the enum"""
-        if value is None:
-            return value
-
-        if value not in set(['placed', 'approved', 'delivered']):
-            raise ValueError("must be one of enum values ('placed', 'approved', 'delivered')")
-        return value
 
     model_config = ConfigDict(
         populate_by_name=True,

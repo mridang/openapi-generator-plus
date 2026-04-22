@@ -2,7 +2,6 @@ package io.github.mridang.codegen.generators;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
-import io.swagger.v3.oas.models.ExternalDocumentation;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.media.Schema;
@@ -98,8 +97,6 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         hideGenerationTimestamp = true;
     }
 
-    // ── Declarative accessor methods ──────────────────────────
-
     /**
      * Returns the naming convention for variable and property
      * names in this language (e.g. CAMEL_CASE for Java,
@@ -182,8 +179,6 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         return "EMPTY";
     }
 
-    // ── Lifecycle methods ──────────────────────────────────
-
     /**
      * Processes user-supplied additional properties after the
      * codegen options are resolved. Enables post-process file
@@ -255,11 +250,15 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
             final Server server = servers.get(i);
             final Map<String, Object> serverMap = new HashMap<>();
             serverMap.put("serverIndex", String.valueOf(i));
-            serverMap.put("serverUrl", server.getUrl() != null ? server.getUrl() : "");
+            serverMap.put("serverUrl", Optional.ofNullable(server.getUrl()).orElse(""));
             serverMap.put("serverDescription", server.getDescription());
 
-            if (server.getVariables() != null && !server.getVariables().isEmpty()) {
-                serverMap.put("hasVariables", true);
+            final boolean hasVariables =
+                    Optional.ofNullable(server.getVariables())
+                            .filter(v -> !v.isEmpty())
+                            .isPresent();
+            serverMap.put("hasVariables", hasVariables);
+            if (hasVariables) {
                 final List<Map<String, Object>> varList = new ArrayList<>();
                 for (Map.Entry<String, ServerVariable> varEntry :
                         server.getVariables().entrySet()) {
@@ -268,17 +267,17 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
                     varMap.put("varName", varEntry.getKey());
                     varMap.put("varDefault", sv.getDefault());
                     varMap.put("varDescription", sv.getDescription());
-                    if (sv.getEnum() != null && !sv.getEnum().isEmpty()) {
-                        varMap.put("hasEnumValues", true);
-                        varMap.put("varEnumValues", sv.getEnum());
-                    } else {
-                        varMap.put("hasEnumValues", false);
-                    }
+                    Optional.ofNullable(sv.getEnum())
+                            .filter(e -> !e.isEmpty())
+                            .ifPresentOrElse(
+                                    enumValues -> {
+                                        varMap.put("hasEnumValues", true);
+                                        varMap.put("varEnumValues", enumValues);
+                                    },
+                                    () -> varMap.put("hasEnumValues", false));
                     varList.add(varMap);
                 }
                 serverMap.put("serverVariables", varList);
-            } else {
-                serverMap.put("hasVariables", false);
             }
             serverList.add(serverMap);
         }
@@ -396,11 +395,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
      * without requiring null checks in templates.
      */
     protected String getPropertyOrDefault(String key, String defaultValue) {
-        if (additionalProperties.containsKey(key)) {
-            return (String) additionalProperties.get(key);
-        }
-        additionalProperties.put(key, defaultValue);
-        return defaultValue;
+        return Optional.ofNullable((String) additionalProperties.get(key))
+                .orElseGet(
+                        () -> {
+                            additionalProperties.put(key, defaultValue);
+                            return defaultValue;
+                        });
     }
 
     /**
@@ -478,9 +478,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
             final Schema<?> inner = ModelUtils.getSchemaItems(schema);
             return formatArrayType(getSchemaType(schema), getTypeDeclaration(inner));
         } else if (ModelUtils.isMapSchema(schema)) {
-            final Schema<?> inner = ModelUtils.getAdditionalProperties(schema);
             final String valueType =
-                    (inner == null) ? getMapDefaultValueType() : getTypeDeclaration(inner);
+                    Optional.ofNullable(ModelUtils.getAdditionalProperties(schema))
+                            .map(this::getTypeDeclaration)
+                            .orElseGet(this::getMapDefaultValueType);
             return formatMapType(getSchemaType(schema), getMapKeyType(), valueType);
         }
         return super.getTypeDeclaration(schema);
@@ -572,11 +573,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
      * arrays whose toString produces meaningless memory
      * addresses that would pollute generated documentation.
      */
-    private static void sanitizeByteArrayExample(
-            org.openapitools.codegen.CodegenProperty prop) {
-        if (prop.example != null && prop.example.matches("\\[B@[0-9a-fA-F]+")) {
-            prop.example = null;
-        }
+    private static void sanitizeByteArrayExample(CodegenProperty prop) {
+        Optional.ofNullable(prop.example)
+                .filter(ex -> ex.matches("\\[B@[0-9a-fA-F]+"))
+                .ifPresent(ignored -> prop.example = null);
     }
 
     /**
@@ -728,12 +728,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
             return getEmptyEnumVarName();
         }
         if (isNumericEnumDatatype(datatype)) {
-            final String varName =
-                    "NUMBER_"
-                            + value.replaceAll("-", "MINUS_")
-                                    .replaceAll("\\+", "PLUS_")
-                                    .replaceAll("\\.", "_DOT_");
-            return varName;
+            return "NUMBER_"
+                    + value.replaceAll("-", "MINUS_")
+                            .replaceAll("\\+", "PLUS_")
+                            .replaceAll("\\.", "_DOT_");
         }
         final String sanitized = sanitizeName(value);
         final String cased = getEnumCasing().apply(sanitized);
@@ -819,8 +817,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     /**
      * Removes imports that reference invalid class names such
      * as camelCase inline schema names generated for oneOf
-     * variants. These produce import errors because the
-     * imported name does not match any actual generated class.
+     * variants. Identifies the class name by extracting the
+     * segment after the last space (Python-style) or last dot
+     * (Java-style), then removes entries whose class name
+     * starts with a lowercase letter.
      */
     @SuppressWarnings("unchecked")
     private static void cleanupBadImports(OperationsMap objs) {
@@ -835,11 +835,6 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
                     if (importLine == null) {
                         return false;
                     }
-                    // Inline oneOf variant imports have lowercase class names
-                    // — filter them out. Python imports use "from x import Y"
-                    // so the class name follows the last space; Java imports
-                    // are dot-qualified like "com.example.models.Y" so the
-                    // class name follows the last dot.
                     final int lastSpace = importLine.lastIndexOf(' ');
                     final String className;
                     if (lastSpace >= 0) {
@@ -879,14 +874,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
                 final CodegenServer server = op.servers.get(i);
                 final Map<String, Object> variant = new HashMap<>();
 
-                final String variantName;
-                if (server.description != null && !server.description.isBlank()) {
-                    variantName =
-                            StringUtils.camelize(
-                                    server.description.replaceAll("[^a-zA-Z0-9]+", "_").trim());
-                } else {
-                    variantName = "Server" + i;
-                }
+                final int serverIndex = i;
+                final String variantName =
+                        Optional.ofNullable(server.description)
+                                .filter(d -> !d.isBlank())
+                                .map(d -> StringUtils.camelize(d.replaceAll("[^a-zA-Z0-9]+", "_").trim()))
+                                .orElse("Server" + serverIndex);
                 variant.put("variantName", variantName);
                 variant.put(
                         "variantNameLower",
@@ -895,9 +888,13 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
                 variant.put("description", server.description);
                 variant.put(
                         "hasDescription",
-                        server.description != null && !server.description.isBlank());
+                        Optional.ofNullable(server.description)
+                                .filter(d -> !d.isBlank())
+                                .isPresent());
                 final boolean hasVars =
-                        server.variables != null && !server.variables.isEmpty();
+                        Optional.ofNullable(server.variables)
+                                .filter(v -> !v.isEmpty())
+                                .isPresent();
                 variant.put("hasVariables", hasVars);
 
                 if (hasVars) {
@@ -910,7 +907,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
                         varMap.put("snakeName", NamingConvention.SNAKE_CASE.apply(v.name));
                         varMap.put("defaultValue", v.defaultValue);
                         final boolean hasEnum =
-                                v.enumValues != null && !v.enumValues.isEmpty();
+                                Optional.ofNullable(v.enumValues)
+                                        .filter(e -> !e.isEmpty())
+                                        .isPresent();
                         varMap.put("hasEnumValues", hasEnum);
                         if (hasEnum) {
                             final List<Map<String, String>> enumVals = new ArrayList<>();
@@ -944,22 +943,21 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     /**
      * Derives a property name for the API client instance from
      * the API class name by stripping the "Api" suffix and
-     * lowercasing the first character. Used in client facades
+     * applying {@link #getVarCasing()}. Used in client facades
      * that expose each API group as a named property.
      */
     protected String deriveClientPropertyName(String apiClassName) {
         final String name = apiClassName.replaceAll("Api$", "");
-        if (name.isEmpty()) {
-            return "api";
-        }
-        return Character.toLowerCase(name.charAt(0)) + name.substring(1);
+        return name.isEmpty() ? getVarCasing().apply("api") : getVarCasing().apply(name);
     }
 
     /**
      * Injects tag description and external documentation into
      * the operations template context so API class-level
      * Javadoc or docstrings can render the tag metadata from
-     * the OpenAPI spec.
+     * the OpenAPI spec. All operations in a group share the
+     * same tag, so the first operation's tag is used to look
+     * up the description and external docs.
      */
     @SuppressWarnings("unchecked")
     private void injectTagMetadata(Map<String, Object> operations) {
@@ -971,24 +969,26 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         if (ops == null || ops.isEmpty()) {
             return;
         }
-        // All operations in this group share the same tag — use the first operation's tag
-        final List<Tag> opTags = ops.get(0).tags;
-        if (opTags == null || opTags.isEmpty()) {
+        final String tagName =
+                Optional.ofNullable(ops.get(0).tags)
+                        .filter(t -> !t.isEmpty())
+                        .map(t -> t.get(0).getName())
+                        .orElse(null);
+        if (tagName == null) {
             return;
         }
-        final String tagName = opTags.get(0).getName();
         for (final Tag tag : openAPI.getTags()) {
             if (tagName.equals(tag.getName())) {
-                if (tag.getDescription() != null) {
-                    operations.put("tagDescription", tag.getDescription());
-                }
-                final ExternalDocumentation extDocs = tag.getExternalDocs();
-                if (extDocs != null) {
-                    final Map<String, Object> externalDocsMap = new HashMap<>();
-                    externalDocsMap.put("url", extDocs.getUrl());
-                    externalDocsMap.put("description", extDocs.getDescription());
-                    operations.put("tagExternalDocs", externalDocsMap);
-                }
+                Optional.ofNullable(tag.getDescription())
+                        .ifPresent(desc -> operations.put("tagDescription", desc));
+                Optional.ofNullable(tag.getExternalDocs())
+                        .ifPresent(
+                                extDocs -> {
+                                    final Map<String, Object> externalDocsMap = new HashMap<>();
+                                    externalDocsMap.put("url", extDocs.getUrl());
+                                    externalDocsMap.put("description", extDocs.getDescription());
+                                    operations.put("tagExternalDocs", externalDocsMap);
+                                });
                 break;
             }
         }
@@ -1038,14 +1038,20 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     private void writeTestFixtures() {
         final Path outputDir = Path.of(getOutputDir());
 
-        // Copy the input OpenAPI spec so Prism can mock the actual API
         final String inputSpec = getInputSpec();
         if (inputSpec != null) {
-            copyFileToOutput(
-                    Path.of(inputSpec), outputDir.resolve(getTestFixturesDir() + "/openapi.yaml"));
+            final Path specTarget = outputDir.resolve(getTestFixturesDir() + "/openapi.yaml");
+            try {
+                final Path parent = specTarget.getParent();
+                if (parent != null) {
+                    Files.createDirectories(parent);
+                }
+                Files.copy(Path.of(inputSpec), specTarget, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                LOGGER.warn("Failed to copy {} to {}: {}", inputSpec, specTarget, e.getMessage());
+            }
         }
 
-        // Copy shared test fixtures bundled in the generator JAR
         final String[] fixtures = {
             "certs/ca.pem",
             "certs/ca-key.pem",
@@ -1071,10 +1077,23 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
         };
         final Path fixturesBase = outputDir.resolve(getTestFixturesDir());
         for (final String fixture : fixtures) {
-            copyClasspathFixture("fixtures/" + fixture, fixturesBase.resolve(fixture));
+            final Path target = fixturesBase.resolve(fixture);
+            try (InputStream is =
+                    getClass().getClassLoader().getResourceAsStream("fixtures/" + fixture)) {
+                if (is == null) {
+                    LOGGER.warn("Test fixture not found on classpath: fixtures/{}", fixture);
+                    continue;
+                }
+                final Path parent = target.getParent();
+                if (parent != null) {
+                    Files.createDirectories(parent);
+                }
+                Files.copy(is, target, StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                LOGGER.warn("Failed to copy test fixture fixtures/{}: {}", fixture, e.getMessage());
+            }
         }
 
-        // Create empty spec directory for user-written spec tests
         try {
             final Path specDir = outputDir.resolve(getSpecDir());
             Files.createDirectories(specDir);
@@ -1084,46 +1103,6 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
             }
         } catch (IOException e) {
             LOGGER.warn("Failed to create spec directory: {}", e.getMessage());
-        }
-    }
-
-    /**
-     * Copies a file from the local filesystem to the output
-     * directory, creating parent directories as needed. Logs
-     * a warning instead of throwing so code generation can
-     * continue even if the copy fails.
-     */
-    private static void copyFileToOutput(Path source, Path target) {
-        try {
-            final Path parent = target.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
-            }
-            Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException e) {
-            LOGGER.warn("Failed to copy {} to {}: {}", source, target, e.getMessage());
-        }
-    }
-
-    /**
-     * Copies a classpath resource to a target file in the
-     * output directory. Used for bundled test fixtures like
-     * TLS certificates and WireMock mappings that ship inside
-     * the generator JAR.
-     */
-    private void copyClasspathFixture(String resourcePath, Path target) {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
-            if (is == null) {
-                LOGGER.warn("Test fixture not found on classpath: {}", resourcePath);
-                return;
-            }
-            final Path parent = target.getParent();
-            if (parent != null) {
-                Files.createDirectories(parent);
-            }
-            Files.copy(is, target, StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException e) {
-            LOGGER.warn("Failed to copy test fixture {}: {}", resourcePath, e.getMessage());
         }
     }
 
