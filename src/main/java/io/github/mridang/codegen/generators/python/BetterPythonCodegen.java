@@ -367,6 +367,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                             "test/test_metadata.mustache",
                             "test",
                             "test_metadata.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_composed_schema.mustache",
+                            "test",
+                            "test_composed_schema.py"));
         }
     }
 

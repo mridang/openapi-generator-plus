@@ -360,6 +360,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                             "test/metadata.test.ts",
                             "test",
                             "metadata.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/composed-schema.test.ts",
+                            "test",
+                            "composed-schema.test.ts"));
         }
     }
 

@@ -5,7 +5,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2", "URF_UNREAD_PUBLIC_OR_PROTECTED_FIELD"})
 @SuppressWarnings({"deprecation", "serial"})
-public class WetFood {
+public class WetFood extends PetFood {
 
   /** Example: {@code null} */
   @JsonProperty("foodType")

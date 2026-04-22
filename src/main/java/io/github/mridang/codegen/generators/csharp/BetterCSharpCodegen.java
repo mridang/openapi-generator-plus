@@ -345,7 +345,47 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             "test/MetadataTest.mustache",
                             "Test",
                             "MetadataTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ComposedSchemaTest.mustache",
+                            "Test",
+                            "ComposedSchemaTest.cs"));
         }
+    }
+
+    /**
+     * Sets the parent of discriminator subtypes so that
+     * System.Text.Json polymorphic deserialization works
+     * correctly with {@code [JsonDerivedType]}.
+     */
+    @Override
+    public java.util.Map<String, org.openapitools.codegen.model.ModelsMap> postProcessAllModels(
+            java.util.Map<String, org.openapitools.codegen.model.ModelsMap> objs) {
+        final java.util.Map<String, org.openapitools.codegen.model.ModelsMap> result =
+                super.postProcessAllModels(objs);
+        for (final org.openapitools.codegen.model.ModelsMap modelsMap : result.values()) {
+            for (final org.openapitools.codegen.model.ModelMap modelMap : modelsMap.getModels()) {
+                final org.openapitools.codegen.CodegenModel model = modelMap.getModel();
+                if (model.discriminator != null && !model.oneOf.isEmpty()) {
+                    for (final org.openapitools.codegen.CodegenDiscriminator.MappedModel mapped :
+                            model.discriminator.getMappedModels()) {
+                        final org.openapitools.codegen.model.ModelsMap childModels =
+                                result.get(mapped.getModelName());
+                        if (childModels != null) {
+                            for (final org.openapitools.codegen.model.ModelMap cm :
+                                    childModels.getModels()) {
+                                final org.openapitools.codegen.CodegenModel child = cm.getModel();
+                                if (child.parent == null) {
+                                    child.parent = model.classname;
+                                    child.parentSchema = model.classname;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return result;
     }
 
     /**

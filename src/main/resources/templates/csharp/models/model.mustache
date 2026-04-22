@@ -82,6 +82,9 @@ public class {{classname}}(object value)
 {{^oneOf}}
 {{#anyOf}}
 {{#-first}}
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 namespace {{packageName}}.Models;
 
 {{#isDeprecated}}
@@ -106,6 +109,7 @@ namespace {{packageName}}.Models;
 /// <seealso href="{{url}}">{{description}}</seealso>
 {{/externalDocumentation}}
 {{/isDeprecated}}
+[JsonConverter(typeof({{classname}}Converter))]
 public class {{classname}}
 {
     public object? ActualInstance { get; set; }
@@ -113,6 +117,25 @@ public class {{classname}}
     public {{classname}}(object value)
     {
         ActualInstance = value;
+    }
+
+    private class {{classname}}Converter : JsonConverter<{{classname}}>
+    {
+        public override {{classname}}? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            using var doc = JsonDocument.ParseValue(ref reader);
+            var raw = doc.RootElement.GetRawText();
+            {{#anyOf}}
+            try { return new {{classname}}(JsonSerializer.Deserialize<{{{.}}}>(raw, options)!); }
+            catch (JsonException) { /* try next schema */ }
+            {{/anyOf}}
+            return new {{classname}}(JsonDocument.Parse(raw).RootElement.Clone());
+        }
+
+        public override void Write(Utf8JsonWriter writer, {{classname}} value, JsonSerializerOptions options)
+        {
+            JsonSerializer.Serialize(writer, value.ActualInstance, options);
+        }
     }
 }
 {{/-first}}

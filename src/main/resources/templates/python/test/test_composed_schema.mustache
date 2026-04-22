@@ -1,0 +1,28 @@
+from {{packageName}}.object_serializer import ObjectSerializer
+from {{packageName}}.models.dry_food import DryFood
+from {{packageName}}.models.medication import Medication
+
+
+class TestComposedSchemaDeserialization:
+
+    def test_all_of_deserializes_pet_with_owner(self) -> None:
+        json_str = '{"name":"doggie","photoUrls":["http://example.com/photo.jpg"],"ownerName":"John","ownerEmail":"john@example.com"}'
+        result = ObjectSerializer().deserialize(json_str, 'PetWithOwner')
+        assert result is not None
+        assert result.name == 'doggie'
+        assert result.owner_name == 'John'
+        assert result.owner_email == 'john@example.com'
+
+    def test_one_of_with_discriminator_deserializes_dry_food(self) -> None:
+        json_str = '{"foodType":"dry","weightKg":2.5}'
+        result = ObjectSerializer().deserialize(json_str, 'PetFood')
+        assert result is not None
+        assert result.actual_instance is not None
+        assert isinstance(result.actual_instance, DryFood)
+
+    def test_any_of_deserializes_medication(self) -> None:
+        json_str = '{"drugName":"Amoxicillin","dosage":"500mg"}'
+        result = ObjectSerializer().deserialize(json_str, 'PetTreatment')
+        assert result is not None
+        assert result.actual_instance is not None
+        assert isinstance(result.actual_instance, Medication)

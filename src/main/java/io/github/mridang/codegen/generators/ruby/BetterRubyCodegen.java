@@ -353,6 +353,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                             "test/metadata_test.mustache",
                             "test",
                             "metadata_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/composed_schema_test.mustache",
+                            "test",
+                            "composed_schema_test.rb"));
         }
     }
 

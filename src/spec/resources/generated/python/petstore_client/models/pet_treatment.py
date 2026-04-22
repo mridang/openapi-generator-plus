@@ -11,7 +11,7 @@ Do not edit the class manually.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Any, ClassVar, Dict, List, Optional, Set, Union
 from typing_extensions import Self
 
@@ -28,6 +28,31 @@ class PetTreatment(BaseModel):
         validate_assignment=True,
         protected_namespaces=(),
     )
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        if args:
+            if len(args) > 1:
+                raise ValueError('If a position argument is used, only 1 is allowed to set `actual_instance`')
+            if kwargs:
+                raise ValueError('If a position argument is used, keyword arguments cannot be used.')
+            super().__init__(actual_instance=args[0])
+        else:
+            super().__init__(**kwargs)
+
+    @field_validator('actual_instance')
+    def actual_instance_must_validate_anyof(cls, v: Any) -> Any:
+        if v is None:
+            return v
+        match = 0
+        if isinstance(v, Medication):
+            match += 1
+        if isinstance(v, Surgery):
+            match += 1
+        if match == 0:
+            raise ValueError(
+                'No match found when setting `actual_instance` in PetTreatment with anyOf schemas: Medication, Surgery'
+            )
+        return v
 
 
 from petstore_client.models.medication import Medication

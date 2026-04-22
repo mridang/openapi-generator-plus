@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { plainToInstance, type ClassConstructor } from 'class-transformer';
+import * as models from './models/index{{importFileExtension}}';
 
 /**
  * Exception raised when serialization or deserialization fails.
@@ -44,6 +45,44 @@ export class ObjectSerializer {
    */
   static deserialize<T>(json: unknown, cls: ClassConstructor<T>): T {
     try {
+      // Handle oneOf/anyOf composed schema classes
+      const anyOfSchemas = (cls as Record<string, unknown>)['ANY_OF_SCHEMAS'] as string[] | undefined;
+      const oneOfSchemas = (cls as Record<string, unknown>)['ONE_OF_SCHEMAS'] as string[] | undefined;
+      const discProp = (cls as Record<string, unknown>)['DISCRIMINATOR_PROPERTY'] as string | undefined;
+      const discMapping = (cls as Record<string, unknown>)['DISCRIMINATOR_MAPPING'] as Record<string, string> | undefined;
+      const schemas = anyOfSchemas ?? oneOfSchemas;
+
+      if (schemas && json && typeof json === 'object') {
+        // With discriminator, use the mapping directly
+        if (discProp && discMapping && discProp in (json as Record<string, unknown>)) {
+          const discValue = (json as Record<string, unknown>)[discProp] as string;
+          const targetName = discMapping[discValue];
+          if (targetName) {
+            const targetCls = (models as Record<string, unknown>)[targetName] as ClassConstructor<unknown> | undefined;
+            if (targetCls) {
+              const instance = plainToInstance(targetCls, json, { excludeExtraneousValues: true });
+              return new (cls as unknown as new (i: unknown) => T)(instance);
+            }
+          }
+        }
+        // Without discriminator, try each schema
+        for (const schemaName of schemas) {
+          const schemaCls = (models as Record<string, unknown>)[schemaName] as ClassConstructor<unknown> | undefined;
+          if (schemaCls) {
+            try {
+              const instance = plainToInstance(schemaCls, json, { excludeExtraneousValues: true });
+              // Check that at least one property was populated
+              const hasValues = Object.values(instance as Record<string, unknown>).some(v => v !== undefined);
+              if (hasValues) {
+                return new (cls as unknown as new (i: unknown) => T)(instance);
+              }
+            } catch {
+              continue;
+            }
+          }
+        }
+      }
+
       return plainToInstance(cls, json, { excludeExtraneousValues: true });
     } catch (e) {
       throw new SerializationError(

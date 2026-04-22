@@ -134,6 +134,8 @@ class ObjectSerializer:
                 klass = getattr({{packageName}}.models, klass)
 
         if isinstance(klass, type) and issubclass(klass, BaseModel):
+            if hasattr(klass, 'any_of_schemas') or hasattr(klass, 'one_of_schemas'):
+                return self._deserialize_composed(data, klass)
             return klass.model_validate(data)
         elif klass == bytes:
             if isinstance(data, bytes):
@@ -158,6 +160,35 @@ class ObjectSerializer:
             return klass(data)
         else:
             return data
+
+    def _deserialize_composed(self, data: Any, klass: type) -> Any:
+        """Deserialize data for oneOf/anyOf composed schemas.
+
+        Tries each candidate schema and wraps the first successful
+        result in the composed model.
+        """
+        schemas = getattr(klass, 'any_of_schemas', None) or getattr(klass, 'one_of_schemas', set())
+        if hasattr(klass, 'discriminator_value_class_map') and isinstance(data, dict):
+            disc_prop = getattr(klass, '__discriminator_property_name', None)
+            if disc_prop is None:
+                for attr in dir(klass):
+                    if 'discriminator_property_name' in attr:
+                        disc_prop = getattr(klass, attr, None)
+                        break
+            if disc_prop and disc_prop in data:
+                disc_value = data[disc_prop]
+                mapped = klass.discriminator_value_class_map.get(str(disc_value))
+                if mapped:
+                    instance = self._deserialize(data, mapped)
+                    return klass(instance)
+
+        for schema_name in schemas:
+            try:
+                instance = self._deserialize(data, schema_name)
+                return klass(instance)
+            except Exception:
+                continue
+        return klass(data)
 
     @classmethod
     def stringify(cls, value: Any) -> str:

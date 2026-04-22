@@ -124,7 +124,21 @@ export type {{classname}} = {{#oneOf}}{{{.}}}{{^-last}} | {{/-last}}{{/oneOf}};
 {{/externalDocumentation}}
 {{/description}}
 {{/isDeprecated}}
-export type {{classname}} = {{#anyOf}}{{{.}}}{{^-last}} | {{/-last}}{{/anyOf}};
+export type {{classname}}Type = {{#anyOf}}{{{.}}}{{^-last}} | {{/-last}}{{/anyOf}};
+
+export class {{classname}} {
+  static readonly ANY_OF_SCHEMAS: string[] = [{{#anyOf}}'{{{.}}}'{{^-last}}, {{/-last}}{{/anyOf}}];
+
+  private actualInstance: {{classname}}Type;
+
+  constructor(instance: {{classname}}Type) {
+    this.actualInstance = instance;
+  }
+
+  getActualInstance(): {{classname}}Type {
+    return this.actualInstance;
+  }
+}
 
 {{/-first}}
 {{/anyOf}}

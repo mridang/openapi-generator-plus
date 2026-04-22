@@ -345,7 +345,7 @@ class ObjectSerializer
     {
         foreach ($schemas as $schema) {
             try {
-                return self::deserialize($data, $schema);
+                return self::deserialize($data, self::qualifySchemaName($schema));
             } catch (\Throwable) {
                 continue;
             }
@@ -357,7 +357,7 @@ class ObjectSerializer
      * Resolve an anyOf schema by attempting deserialization against each candidate.
      *
      * @param mixed         $data    the data to match
-     * @param array<string> $schemas list of fully-qualified class names
+     * @param array<string> $schemas list of candidate type names
      *
      * @return mixed the deserialized value matching any of the schemas
      */
@@ -365,12 +365,25 @@ class ObjectSerializer
     {
         foreach ($schemas as $schema) {
             try {
-                return self::deserialize($data, $schema);
+                return self::deserialize($data, self::qualifySchemaName($schema));
             } catch (\Throwable) {
                 continue;
             }
         }
         return $data;
+    }
+
+    /**
+     * Qualify an unqualified model class name with the model namespace.
+     * Primitive types (string, int, etc.) and already-qualified names are returned as-is.
+     */
+    private static function qualifySchemaName(string $schema): string
+    {
+        if (str_contains($schema, '\\') || !preg_match('/^[A-Z]/', $schema)) {
+            return $schema;
+        }
+        $fqcn = 'PetstoreClient\Models\\' . $schema;
+        return class_exists($fqcn) ? $fqcn : $schema;
     }
 
     /**

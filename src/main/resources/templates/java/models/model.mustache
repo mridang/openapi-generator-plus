@@ -152,12 +152,17 @@ public class {{classname}} {
 {{/externalDocumentation}}
 {{/description}}
 {{/isDeprecated}}
+@com.fasterxml.jackson.databind.annotation.JsonDeserialize(
+    using = {{classname}}.{{classname}}Deserializer.class)
 @SuppressWarnings("deprecation")
 public class {{classname}} {
 
+  private static final Class<?>[] ANY_OF_SCHEMAS = {
+    {{#anyOf}}{{{.}}}.class{{^-last}}, {{/-last}}{{/anyOf}}
+  };
+
   private Object actualInstance;
 
-  @JsonCreator
   public {{classname}}(Object value) {
     this.actualInstance = value;
   }
@@ -165,6 +170,26 @@ public class {{classname}} {
   @JsonValue
   public Object getActualInstance() {
     return actualInstance;
+  }
+
+  static class {{classname}}Deserializer
+      extends com.fasterxml.jackson.databind.JsonDeserializer<{{classname}}> {
+    @Override
+    public {{classname}} deserialize(
+        com.fasterxml.jackson.core.JsonParser p,
+        com.fasterxml.jackson.databind.DeserializationContext ctxt)
+        throws java.io.IOException {
+      com.fasterxml.jackson.databind.JsonNode node = p.readValueAsTree();
+      for (Class<?> schema : ANY_OF_SCHEMAS) {
+        try {
+          Object value = ctxt.readTreeAsValue(node, schema);
+          return new {{classname}}(value);
+        } catch (Exception ignored) {
+          // try next schema
+        }
+      }
+      return new {{classname}}(ctxt.readTreeAsValue(node, Object.class));
+    }
   }
 }
 {{/-first}}

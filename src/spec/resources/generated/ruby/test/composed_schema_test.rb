@@ -1,0 +1,37 @@
+# frozen_string_literal: true
+
+require 'test_helper'
+require 'json'
+
+describe 'Composed Schema Deserialization' do
+  describe 'allOf PetWithOwner' do
+    it 'deserializes all properties from allOf composition' do
+      json = '{"name":"doggie","photoUrls":["http://example.com/photo.jpg"],"ownerName":"John","ownerEmail":"john@example.com"}'
+      result = PetstoreClient::ObjectSerializer.deserialize(json, 'PetWithOwner')
+
+      _(result).must_be_kind_of(PetstoreClient::Models::PetWithOwner)
+      _(result.name).must_equal('doggie')
+      _(result.owner_name).must_equal('John')
+      _(result.owner_email).must_equal('john@example.com')
+    end
+  end
+
+  describe 'oneOf with discriminator PetFood' do
+    it 'deserializes to DryFood via discriminator' do
+      json = '{"foodType":"dry","weightKg":2.5}'
+      result = PetstoreClient::ObjectSerializer.deserialize(json, 'PetFood')
+
+      _(result).must_be_kind_of(PetstoreClient::Models::DryFood)
+    end
+  end
+
+  describe 'anyOf PetTreatment' do
+    it 'deserializes Medication from anyOf' do
+      json = '{"drugName":"Amoxicillin","dosage":"500mg"}'
+      result = PetstoreClient::ObjectSerializer.deserialize(json, 'PetTreatment')
+
+      _(result).must_be_kind_of(PetstoreClient::Models::Medication)
+      _(result.drug_name).must_equal('Amoxicillin')
+    end
+  end
+end

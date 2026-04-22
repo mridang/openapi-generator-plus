@@ -18,6 +18,7 @@ import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenDiscriminator;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenProperty;
@@ -396,6 +397,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "test/MetadataTest.mustache",
                             testModelsFolder,
                             "MetadataTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ComposedSchemaTest.mustache",
+                            testModelsFolder,
+                            "ComposedSchemaTest.java"));
             supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
         }
     }
@@ -546,6 +552,43 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             model.imports.add("JsonCreator");
         }
         return model;
+    }
+
+    /**
+     * Sets the parent of discriminator subtypes so that
+     * Jackson polymorphic deserialization works correctly.
+     * Without this, subtypes referenced in {@code @JsonSubTypes}
+     * would not extend the base class.
+     */
+    @Override
+    public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
+        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        for (final ModelsMap modelsMap : result.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                final CodegenModel model = modelMap.getModel();
+                if (model.discriminator != null && !model.oneOf.isEmpty()) {
+                    for (final CodegenDiscriminator.MappedModel mapped : model.discriminator.getMappedModels()) {
+                        setParentOnChild(result, mapped.getModelName(), model.classname);
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    private static void setParentOnChild(
+            Map<String, ModelsMap> allModels, String childName, String parentName) {
+        final ModelsMap childModels = allModels.get(childName);
+        if (childModels == null) {
+            return;
+        }
+        for (final ModelMap modelMap : childModels.getModels()) {
+            final CodegenModel child = modelMap.getModel();
+            if (child.parent == null) {
+                child.parent = parentName;
+                child.parentSchema = parentName;
+            }
+        }
     }
 
     /**

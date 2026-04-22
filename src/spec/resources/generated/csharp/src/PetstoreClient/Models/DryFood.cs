@@ -11,7 +11,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class DryFood
+public class DryFood : PetFood
 {
     /// <example>null</example>
     [JsonRequired]
