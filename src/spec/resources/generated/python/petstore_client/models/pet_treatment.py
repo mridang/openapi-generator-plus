@@ -22,7 +22,7 @@ class PetTreatment(BaseModel):
     """
 
     actual_instance: Optional[Union[Medication, Surgery]] = None
-    any_of_schemas: Set[str] = {'Medication', 'Surgery'}
+    any_of_schemas: ClassVar[Set[str]] = {'Medication', 'Surgery'}
 
     model_config = ConfigDict(
         validate_assignment=True,

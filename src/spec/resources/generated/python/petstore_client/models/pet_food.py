@@ -24,19 +24,21 @@ class PetFood(BaseModel):
     one_of_0: Optional[DryFood] = None
     one_of_1: Optional[WetFood] = None
     actual_instance: Optional[Union[DryFood, WetFood]] = None
-    one_of_schemas: Set[str] = {'DryFood', 'WetFood'}
+    one_of_schemas: ClassVar[Set[str]] = {'DryFood', 'WetFood'}
 
     model_config = ConfigDict(
         validate_assignment=True,
         protected_namespaces=(),
     )
 
-    discriminator_value_class_map: Dict[str, str] = {
+    discriminator_value_class_map: ClassVar[Dict[str, str]] = {
         'dry': 'DryFood',
         'wet': 'WetFood',
         'DryFood': 'DryFood',
         'WetFood': 'WetFood',
     }
+
+    _discriminator_property_name: ClassVar[str] = 'foodType'
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         if args:

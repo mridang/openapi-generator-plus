@@ -24,7 +24,7 @@ class SetPetAvatarThumbnailRequest(BaseModel):
     one_of_0: Optional[bytes] = None
     one_of_1: Optional[List[bytes]] = None
     actual_instance: Optional[Union[List[bytes], bytes]] = None
-    one_of_schemas: Set[str] = {'List[bytes]', 'bytes'}
+    one_of_schemas: ClassVar[Set[str]] = {'List[bytes]', 'bytes'}
 
     model_config = ConfigDict(
         validate_assignment=True,

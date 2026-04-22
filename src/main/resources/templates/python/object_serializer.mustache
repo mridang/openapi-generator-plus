@@ -169,7 +169,9 @@ class ObjectSerializer:
         """
         schemas = getattr(klass, 'any_of_schemas', None) or getattr(klass, 'one_of_schemas', set())
         if hasattr(klass, 'discriminator_value_class_map') and isinstance(data, dict):
-            disc_prop = getattr(klass, '__discriminator_property_name', None)
+            disc_prop = getattr(klass, '_discriminator_property_name', None)
+            if disc_prop is None:
+                disc_prop = getattr(klass, '__discriminator_property_name', None)
             if disc_prop is None:
                 for attr in dir(klass):
                     if 'discriminator_property_name' in attr:
