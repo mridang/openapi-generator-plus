@@ -180,6 +180,23 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     }
 
     /**
+     * Returns the quote character used in generated string
+     * literals for this language (either single or double
+     * quote).
+     */
+    protected abstract char getQuoteChar();
+
+    /**
+     * Returns whether the quote character should be escaped
+     * with a backslash or stripped from input. Defaults to
+     * {@code true} (escape). Override to return {@code false}
+     * for languages that strip quotation marks.
+     */
+    protected boolean shouldEscapeQuotationMark() {
+        return true;
+    }
+
+    /**
      * Processes user-supplied additional properties after the
      * codegen options are resolved. Enables post-process file
      * hooks, clears default supporting files so subclasses
@@ -349,11 +366,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
 
     /**
      * Generates per-scheme concrete authenticator classes
-     * programmatically. Each language subclass creates the
-     * appropriate authenticator source file for every security
-     * scheme defined in the OpenAPI spec.
+     * programmatically. The default implementation is a no-op;
+     * only Java overrides this with real logic.
      */
-    protected abstract void generatePerSchemeAuthenticators(OpenAPI openAPI);
+    protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
+        // no-op by default
+    }
 
     /**
      * Computes the authenticator class name for a given
@@ -692,12 +710,32 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     }
 
     /**
+     * Returns the prefix to prepend to operation IDs that
+     * collide with reserved words or start with a digit.
+     * Returns {@code null} by default, meaning no prefix is
+     * applied. Ruby and PHP override this to return
+     * {@code "call_"}.
+     */
+    @Nullable
+    protected String getOperationIdReservedPrefix() {
+        return null;
+    }
+
+    /**
      * Formats a sanitized operation ID into the language's
      * method naming convention using {@link #getOperationIdCasing()}.
-     * Subclasses that need special handling (e.g. reserved-word
-     * prefixing in Ruby or PHP) can override this method.
+     * When {@link #getOperationIdReservedPrefix()} returns a
+     * non-null value, reserved words and digit-leading IDs are
+     * prefixed to produce valid method names.
      */
-    protected String formatOperationId(String sanitizedOperationId) {
+    protected final String formatOperationId(String sanitizedOperationId) {
+        final String prefix = getOperationIdReservedPrefix();
+        if (prefix != null) {
+            if (isReservedWord(sanitizedOperationId)
+                    || sanitizedOperationId.matches("^\\d.*")) {
+                return getOperationIdCasing().apply(prefix + sanitizedOperationId);
+            }
+        }
         return getOperationIdCasing().apply(sanitizedOperationId);
     }
 
@@ -744,21 +782,51 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     }
 
     /**
-     * Returns whether the given datatype is numeric. Subclasses
-     * override this to recognize language-specific numeric type
-     * names so that numeric enum values are not quoted.
+     * Returns the set of language-specific numeric type names.
+     * Used by {@link #isNumericEnumDatatype} to decide whether
+     * enum values should be emitted as bare literals or quoted
+     * strings.
      */
-    protected boolean isNumericEnumDatatype(String datatype) {
-        return false;
+    protected abstract Set<String> getNumericDataTypes();
+
+    /**
+     * Returns whether the given datatype is numeric based on
+     * the set from {@link #getNumericDataTypes()}.
+     */
+    protected final boolean isNumericEnumDatatype(String datatype) {
+        return getNumericDataTypes().contains(datatype);
     }
 
     /**
-     * Wraps an enum string value in double quotes with proper
-     * escaping. Subclasses can override for languages that use
-     * single quotes or different escaping rules.
+     * Wraps an enum string value in the language's quote
+     * character with proper escaping or stripping based on
+     * {@link #getQuoteChar()} and
+     * {@link #shouldEscapeQuotationMark()}.
      */
-    protected String quoteEnumValue(String value) {
-        return "\"" + escapeText(value) + "\"";
+    protected final String quoteEnumValue(String value) {
+        final char q = getQuoteChar();
+        final String qs = String.valueOf(q);
+        final String cleaned =
+                shouldEscapeQuotationMark()
+                        ? value.replace(qs, "\\" + q)
+                        : value.replace(qs, "");
+        return q + cleaned + q;
+    }
+
+    /**
+     * Escapes or strips the language's quote character from
+     * generated string literals based on
+     * {@link #getQuoteChar()} and
+     * {@link #shouldEscapeQuotationMark()}.
+     */
+    @Override
+    public final String escapeQuotationMark(String input) {
+        final char q = getQuoteChar();
+        final String qs = String.valueOf(q);
+        if (shouldEscapeQuotationMark()) {
+            return input.replace(qs, "\\" + q);
+        }
+        return input.replace(qs, "");
     }
 
     /**

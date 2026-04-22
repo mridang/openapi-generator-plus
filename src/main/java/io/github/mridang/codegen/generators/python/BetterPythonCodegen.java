@@ -14,9 +14,11 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeSet;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.SupportingFile;
@@ -106,6 +108,12 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     @Override
     public String getHelp() {
         return "Generates a minimal Python client with pydantic models.";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public GeneratorLanguage generatorLanguage() {
+        return GeneratorLanguage.PYTHON;
     }
 
     /** {@inheritDoc} */
@@ -367,6 +375,26 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     /**
+     * Returns the output directory for model source files by
+     * combining the output folder and the model package
+     * converted to a directory path.
+     */
+    @Override
+    public String modelFileFolder() {
+        return Path.of(outputFolder, modelPackage.replace('.', '/')).toString();
+    }
+
+    /**
+     * Returns the output directory for API source files by
+     * combining the output folder and the API package
+     * converted to a directory path.
+     */
+    @Override
+    public String apiFileFolder() {
+        return Path.of(outputFolder, apiPackage.replace('.', '/')).toString();
+    }
+
+    /**
      * Formats an array type using Python bracket syntax,
      * producing declarations like {@code List[str]} instead
      * of the default angle-bracket generic form.
@@ -433,13 +461,16 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         return sanitizeName(tag);
     }
 
-    /**
-     * Removes single-quote characters from input to prevent
-     * broken string literals in generated Python source.
-     */
+    /** {@inheritDoc} */
     @Override
-    public String escapeQuotationMark(String input) {
-        return input.replace("'", "");
+    protected char getQuoteChar() {
+        return '\'';
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean shouldEscapeQuotationMark() {
+        return false;
     }
 
     /**
@@ -470,25 +501,12 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         return null;
     }
 
-    /**
-     * Returns whether the given datatype is a Python numeric
-     * type so that numeric enum values are emitted without
-     * quotes.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected boolean isNumericEnumDatatype(String datatype) {
-        return "int".equals(datatype) || "float".equals(datatype);
+    protected Set<String> getNumericDataTypes() {
+        return Set.of("int", "float");
     }
 
-    /**
-     * Wraps a string enum value in single quotes following
-     * Python conventions and strips any embedded single
-     * quotes to prevent syntax errors.
-     */
-    @Override
-    protected String quoteEnumValue(String value) {
-        return "'" + value.replace("'", "") + "'";
-    }
 
     /**
      * Post-processes model properties to sanitize example
@@ -593,16 +611,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         if (hasOpenIdConnect) {
             supportingFiles.add(new SupportingFile("auth/oauth/openid_connect_authenticator.mustache", oauthPath, "openid_connect_authenticator.py"));
         }
-    }
-
-    /**
-     * Per-scheme authenticator classes are not generated for
-     * Python; the base authenticator classes handle all
-     * scheme-specific behavior through configuration.
-     */
-    @Override
-    protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
-        // no-op
     }
 
     /**

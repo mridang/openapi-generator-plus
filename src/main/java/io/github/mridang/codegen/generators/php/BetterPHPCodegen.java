@@ -13,8 +13,10 @@ import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.utils.ModelUtils;
 
@@ -110,6 +112,12 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     @Override
     public String getHelp() {
         return "Generates a minimal PHP client with Symfony HTTP Client and Symfony Serializer.";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public GeneratorLanguage generatorLanguage() {
+        return GeneratorLanguage.PHP;
     }
 
     /** {@inheritDoc} */
@@ -536,41 +544,28 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         return null;
     }
 
-    /**
-     * Formats a sanitized operation ID into PHP's camelCase
-     * method naming convention. Prefixes reserved words and
-     * digit-leading identifiers with "call_" to produce
-     * valid PHP method names.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected String formatOperationId(String sanitizedOperationId) {
-        if (isReservedWord(sanitizedOperationId)) {
-            sanitizedOperationId = "call_" + sanitizedOperationId;
-        }
-        if (sanitizedOperationId.matches("^\\d.*")) {
-            sanitizedOperationId = "call_" + sanitizedOperationId;
-        }
-        return getOperationIdCasing().apply(sanitizedOperationId);
+    protected String getOperationIdReservedPrefix() {
+        return "call_";
     }
 
-    /**
-     * Returns whether the given datatype represents a numeric
-     * PHP type. Used to decide whether enum values should be
-     * emitted as bare literals or quoted strings.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected boolean isNumericEnumDatatype(String datatype) {
-        return "int".equals(datatype) || "float".equals(datatype);
+    protected Set<String> getNumericDataTypes() {
+        return Set.of("int", "float");
     }
 
-    /**
-     * Wraps a string enum value in single quotes following
-     * PHP conventions and escapes any embedded single quotes
-     * to prevent syntax errors.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected String quoteEnumValue(String value) {
-        return "'" + escapeTextInSingleQuotes(value) + "'";
+    protected char getQuoteChar() {
+        return '\'';
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean shouldEscapeQuotationMark() {
+        return false;
     }
 
     /**
@@ -592,29 +587,6 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             final String result = super.toEnumVarName(value, datatype);
                             return isReservedWord(result) ? escapeReservedWord(result) : result;
                         });
-    }
-
-    /**
-     * Strips single-quote characters from template output to
-     * prevent broken PHP string literals.
-     */
-    @Override
-    public String escapeQuotationMark(String input) {
-        return input.replace("'", "");
-    }
-
-    /**
-     * Escapes template text by delegating to the parent
-     * implementation and trimming whitespace. Returns null
-     * and blank inputs unchanged to avoid unnecessary
-     * processing.
-     */
-    @Override
-    public String escapeText(String input) {
-        return Optional.ofNullable(input)
-                .filter(s -> !s.trim().isEmpty())
-                .map(s -> super.escapeText(s).trim())
-                .orElse(input);
     }
 
     /**
@@ -659,16 +631,6 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         if (hasOpenIdConnect) {
             supportingFiles.add(new SupportingFile("auth/oauth/openid_connect_authenticator.mustache", oauthFolder, "OpenIdConnectAuthenticator.php"));
         }
-    }
-
-    /**
-     * Per-scheme authenticator classes are not generated for
-     * PHP; the base authenticator classes handle all
-     * scheme-specific behavior through configuration.
-     */
-    @Override
-    protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
-        // no-op
     }
 
 }

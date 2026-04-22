@@ -19,6 +19,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.GeneratorLanguage;
@@ -447,36 +448,28 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         return getVarCasing().apply(name);
     }
 
-    /**
-     * Formats an operation ID to snake_case. Reserved words are
-     * prefixed with "call_" to avoid collisions with Ruby
-     * built-in methods like {@code send} or {@code class}.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected String formatOperationId(String sanitizedOperationId) {
-        if (isReservedWord(sanitizedOperationId)) {
-            return getOperationIdCasing().apply("call_" + sanitizedOperationId);
-        }
-        return getOperationIdCasing().apply(sanitizedOperationId);
+    protected String getOperationIdReservedPrefix() {
+        return "call_";
     }
 
-    /**
-     * Checks whether the given datatype represents a numeric
-     * Ruby type (Integer or Float) so that enum values can
-     * receive a numeric prefix.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected boolean isNumericEnumDatatype(String datatype) {
-        return "Integer".equals(datatype) || "Float".equals(datatype);
+    protected Set<String> getNumericDataTypes() {
+        return Set.of("Integer", "Float");
     }
 
-    /**
-     * Strips single-quote characters from template output to
-     * prevent broken Ruby string literals.
-     */
+    /** {@inheritDoc} */
     @Override
-    public String escapeQuotationMark(String input) {
-        return input.replace("'", "");
+    protected char getQuoteChar() {
+        return '\'';
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean shouldEscapeQuotationMark() {
+        return false;
     }
 
     /**
@@ -560,16 +553,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         if (hasOpenIdConnect) {
             supportingFiles.add(new SupportingFile("auth/oauth/openid_connect_authenticator.mustache", oauthPath, "openid_connect_authenticator.rb"));
         }
-    }
-
-    /**
-     * Per-scheme authenticator classes are not generated for
-     * Ruby; the base authenticator classes handle all
-     * scheme-specific behavior through configuration.
-     */
-    @Override
-    protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
-        // no-op
     }
 
     /**

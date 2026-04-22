@@ -18,6 +18,7 @@ import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.SupportingFile;
@@ -40,7 +41,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterJavaCodegen.class);
 
-    private static final Set<String> NUMERIC_TYPES =
+    private static final Set<String> NUMERIC_DATA_TYPES =
             Set.of("Integer", "Long", "Double", "Float", "Short", "BigDecimal");
 
     protected String sourceFolder = Path.of("src", "main", "java").toString();
@@ -133,6 +134,12 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     @Override
     public String getHelp() {
         return "Generates a minimal Java client with Jackson and Apache HttpClient.";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public GeneratorLanguage generatorLanguage() {
+        return GeneratorLanguage.JAVA;
     }
 
     /** {@inheritDoc} */
@@ -453,24 +460,16 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         return getVarCasing().apply(name);
     }
 
-    /**
-     * Returns whether the given datatype represents a numeric
-     * Java type. Used to avoid quoting numeric enum values in
-     * generated enum classes.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected boolean isNumericEnumDatatype(String datatype) {
-        return NUMERIC_TYPES.contains(datatype);
+    protected Set<String> getNumericDataTypes() {
+        return NUMERIC_DATA_TYPES;
     }
 
-    /**
-     * Escapes double-quote characters in generated string
-     * literals by replacing them with backslash-escaped quotes
-     * to prevent syntax errors in Java source output.
-     */
+    /** {@inheritDoc} */
     @Override
-    public String escapeQuotationMark(String input) {
-        return input.replace("\"", "\\\"");
+    protected char getQuoteChar() {
+        return '"';
     }
 
     /**

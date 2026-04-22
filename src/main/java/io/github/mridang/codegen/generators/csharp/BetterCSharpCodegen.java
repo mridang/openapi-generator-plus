@@ -7,8 +7,10 @@ import io.swagger.v3.oas.models.media.Schema;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,6 +91,12 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     @Override
     public String getHelp() {
         return "Generates a minimal C# client with System.Text.Json.";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public GeneratorLanguage generatorLanguage() {
+        return GeneratorLanguage.C_SHARP;
     }
 
     /** {@inheritDoc} */
@@ -383,19 +391,18 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         return null;
     }
 
-    /**
-     * Returns whether the given datatype represents a numeric
-     * C# type. Used to avoid quoting numeric enum values in
-     * generated enum classes.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected boolean isNumericEnumDatatype(String datatype) {
-        return datatype.startsWith("int")
-                || datatype.startsWith("uint")
-                || datatype.startsWith("long")
-                || datatype.startsWith("ulong")
-                || datatype.startsWith("double")
-                || datatype.startsWith("float");
+    protected Set<String> getNumericDataTypes() {
+        return Set.of(
+                "int", "uint", "long", "ulong", "short", "ushort",
+                "byte", "sbyte", "float", "double", "decimal");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected char getQuoteChar() {
+        return '"';
     }
 
     /**
@@ -417,16 +424,6 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 .replace("\t", "\\t")
                 .replace("\r", "\\r")
                 .replaceAll("(?<!\\\\)\"", "\\\\\"");
-    }
-
-    /**
-     * Escapes double-quote characters in generated string
-     * literals by replacing them with backslash-escaped quotes
-     * to prevent syntax errors in C# source output.
-     */
-    @Override
-    public String escapeQuotationMark(String input) {
-        return input.replace("\"", "\\\"");
     }
 
     /**
@@ -517,16 +514,6 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             oauthFolder,
                             "OpenIdConnectAuthenticator.cs"));
         }
-    }
-
-    /**
-     * Per-scheme authenticator classes are not generated for
-     * C#; the base authenticator classes handle all
-     * scheme-specific behavior through configuration.
-     */
-    @Override
-    protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
-        // no-op
     }
 
 }

@@ -17,8 +17,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
@@ -106,6 +108,12 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     @Override
     public String getHelp() {
         return "Generates a minimal TypeScript client using the Fetch API.";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    public GeneratorLanguage generatorLanguage() {
+        return GeneratorLanguage.TYPESCRIPT;
     }
 
     /** {@inheritDoc} */
@@ -431,25 +439,16 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
         return camelized;
     }
 
-    /**
-     * Returns whether the given datatype represents a numeric
-     * TypeScript type. Both "number" and "boolean" are treated
-     * as numeric for enum purposes to avoid quoting their
-     * values in generated enum declarations.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected boolean isNumericEnumDatatype(String datatype) {
-        return "number".equals(datatype) || "boolean".equals(datatype);
+    protected Set<String> getNumericDataTypes() {
+        return Set.of("number", "boolean");
     }
 
-    /**
-     * Wraps a string enum value in single quotes following
-     * TypeScript conventions so that string enums are emitted
-     * with properly quoted values.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected String quoteEnumValue(String value) {
-        return "'" + escapeText(value) + "'";
+    protected char getQuoteChar() {
+        return '\'';
     }
 
     /**
@@ -466,16 +465,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                                 Optional.ofNullable(getSymbolName(value))
                                         .map(s -> getEnumCasing().apply(s))
                                         .orElseGet(() -> super.toEnumVarName(value, datatype)));
-    }
-
-    /**
-     * Escapes single-quote characters in generated string
-     * literals by replacing them with backslash-escaped quotes
-     * to prevent syntax errors in TypeScript source output.
-     */
-    @Override
-    public String escapeQuotationMark(String input) {
-        return input.replace("'", "\\'");
     }
 
     /**
@@ -677,16 +666,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                             oauthFolder,
                             "openid-connect-authenticator.ts"));
         }
-    }
-
-    /**
-     * Per-scheme authenticator classes are not generated for
-     * Node/TypeScript; the base authenticator classes handle
-     * all scheme-specific behavior through configuration.
-     */
-    @Override
-    protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
-        // no-op
     }
 
     /**
