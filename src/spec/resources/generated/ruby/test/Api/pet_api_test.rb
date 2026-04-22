@@ -5,6 +5,7 @@
 # Integration tests for the Pet API endpoints.
 
 require 'test_helper'
+require 'set'
 require 'stringio'
 
 describe PetstoreClient::Api::PetApi do
@@ -19,7 +20,7 @@ describe PetstoreClient::Api::PetApi do
       pet = PetstoreClient::Models::Pet.new(
         id: 12_345,
         name: 'TestDog',
-        photo_urls: ['http://example.com/photo.jpg'],
+        photo_urls: Set['http://example.com/photo.jpg'],
         status: 'available'
       )
 
@@ -55,7 +56,7 @@ describe PetstoreClient::Api::PetApi do
       pet = PetstoreClient::Models::Pet.new(
         id: 1,
         name: 'UpdatedDog',
-        photo_urls: ['http://example.com/updated.jpg'],
+        photo_urls: Set['http://example.com/updated.jpg'],
         status: 'pending'
       )
 

@@ -83,7 +83,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         typeMapping.put("date", "Date");
         typeMapping.put("DateTime", "Time");
         typeMapping.put("array", "Array");
-        typeMapping.put("set", "Array");
+        typeMapping.put("set", "Set");
         typeMapping.put("List", "Array");
         typeMapping.put("map", "Hash");
         typeMapping.put("object", "Object");
@@ -99,7 +99,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                 new HashSet<>(
                         Arrays.asList(
                                 "String", "Boolean", "Integer", "Float", "Date", "Time",
-                                "Array", "Hash", "File", "Object"));
+                                "Array", "Set", "Hash", "File", "Object"));
 
         instantiationTypes.put("map", "Hash");
         instantiationTypes.put("array", "Array");
@@ -156,6 +156,26 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     @Override
     protected NamingConvention getEnumCasing() {
         return NamingConvention.UPPER_SNAKE_CASE;
+    }
+
+    /**
+     * Returns {@code "Set<"} so that unique-item arrays are
+     * emitted as Ruby {@code Set} instead of {@code Array}.
+     * Ruby has {@code Set} in stdlib ({@code require 'set'}).
+     */
+    @Override
+    protected String getUniqueItemsSetType() {
+        return "Set<";
+    }
+
+    /**
+     * Returns the regex matching the {@code Array} container
+     * prefix so that it can be replaced with {@code Set} for
+     * unique-item properties.
+     */
+    @Override
+    protected String getArrayContainerPattern() {
+        return "^Array";
     }
 
     /** {@inheritDoc} */
@@ -397,9 +417,10 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Converts a schema name to a PascalCase Ruby class name,
-     * sanitizing invalid characters and prefixing reserved words
-     * with "Model" to avoid keyword collisions.
+     * Overrides the base class to prefix reserved words with
+     * "Model" and digit-leading names with "model_" before
+     * camelizing. Cannot be standardized because each language
+     * uses different prefixes and collision rules.
      */
     @Override
     public String toModelName(String name) {
@@ -415,9 +436,9 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Derives the model filename from the model name using
-     * Zeitwerk conventions: each uppercase letter boundary
-     * becomes an underscore separator.
+     * Overrides the base class to use Zeitwerk autoloading
+     * conventions for model filenames. Cannot be standardized
+     * because Zeitwerk's inflection rules are Ruby-specific.
      */
     @Override
     public String toModelFilename(String name) {
@@ -425,8 +446,9 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Derives the API filename from the API class name using
-     * Zeitwerk conventions for consistent autoloading.
+     * Overrides the base class to use Zeitwerk autoloading
+     * conventions for API filenames. Cannot be standardized
+     * because Zeitwerk's inflection rules are Ruby-specific.
      */
     @Override
     public String toApiFilename(String name) {
@@ -434,18 +456,15 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Applies snake_case to variable names per Ruby convention.
-     * All-uppercase constants (e.g. "HTTP_METHOD") are first
-     * lowered to avoid being treated as constants by the
-     * underscore helper.
+     * Lowercases all-uppercase identifiers (e.g. {@code HTTP_METHOD})
+     * before applying snake_case, to prevent Ruby's underscore
+     * helper from treating them as constants and producing
+     * unexpected casing. Cannot be standardized because Java
+     * preserves these identifiers instead.
      */
     @Override
-    protected String applyVarNameCasing(String name) {
-        if (name.matches("^[A-Z_]*$")) {
-            final String lowered = name.toLowerCase(Locale.ROOT);
-            return getVarCasing().apply(lowered);
-        }
-        return getVarCasing().apply(name);
+    protected UppercaseIdentifierStrategy getUppercaseIdentifierStrategy() {
+        return UppercaseIdentifierStrategy.LOWERCASE_FIRST;
     }
 
     /** {@inheritDoc} */
@@ -473,10 +492,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Escapes Ruby heredoc markers ({@code =begin}, {@code =end})
-     * and string interpolation sequences ({@code \#\{}) to
-     * prevent accidental code injection in generated comments
-     * and string literals.
+     * Overrides the base class because Ruby uses heredoc markers
+     * ({@code =begin}/{@code =end}) and string interpolation
+     * ({@code \#\{}) instead of {@code /* *\/} block comments.
+     * Cannot be standardized because other languages use
+     * {@code /* *\/} (handled by the base class).
      */
     @Override
     public String escapeUnsafeCharacters(String input) {
@@ -484,12 +504,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Registers Mustache lambdas for RBS type conversion and
-     * generic stripping. The {@code rbsType} lambda converts
-     * Ruby types to their RBS equivalents, {@code rbsApiType}
-     * additionally qualifies model types with the Models
-     * namespace, and {@code stripGenerics} removes angle-bracket
-     * type parameters.
+     * Overrides the base class to add RBS type-conversion
+     * lambdas ({@code rbsType}, {@code rbsApiType},
+     * {@code stripGenerics}, {@code camelize}) for generating
+     * Ruby type-signature files. Cannot be standardized because
+     * RBS is Ruby-specific.
      */
     @Override
     protected ImmutableMap.Builder<String, Mustache.Lambda> addMustacheLambdas() {
@@ -556,9 +575,10 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Moves generated RBS type-signature files from {@code lib/}
-     * to the {@code sig/} directory so that Steep can find them
-     * without polluting the runtime load path.
+     * Overrides the base class to move {@code .rbs} type-signature
+     * files from {@code lib/} to {@code sig/} as required by
+     * Ruby's Steep type-checking tooling. Cannot be standardized
+     * because no other language has this file relocation need.
      */
     @Override
     public void postProcessFile(File file, String fileType) {

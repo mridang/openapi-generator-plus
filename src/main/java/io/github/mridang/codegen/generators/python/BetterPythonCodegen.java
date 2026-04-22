@@ -395,9 +395,10 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Formats an array type using Python bracket syntax,
-     * producing declarations like {@code List[str]} instead
-     * of the default angle-bracket generic form.
+     * Overrides the base class because Python uses bracket
+     * generics ({@code List[str]}) instead of angle-bracket
+     * syntax ({@code List<String>}). Cannot be standardized
+     * because no other language uses this bracket form.
      */
     @Override
     protected String formatArrayType(String containerType, String innerType) {
@@ -405,9 +406,10 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Formats a map type using Python bracket syntax,
-     * producing declarations like {@code Dict[str, Any]}
-     * instead of the default angle-bracket generic form.
+     * Overrides the base class because Python uses bracket
+     * generics ({@code Dict[str, Any]}) instead of angle-bracket
+     * syntax ({@code Dict<String, Object>}). Cannot be
+     * standardized because no other language uses this form.
      */
     @Override
     protected String formatMapType(String containerType, String keyType, String valueType) {
@@ -424,9 +426,10 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Returns {@code object} as the default map value type
-     * when no additionalProperties schema is specified, since
-     * Python's {@code object} is the universal base type.
+     * Overrides the base class because Python's universal base
+     * type is {@code object}, not {@code Object}. Cannot be
+     * standardized because the capitalization differs from the
+     * Java-style default.
      */
     @Override
     protected String getMapDefaultValueType() {
@@ -434,9 +437,10 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Constructs a fully-qualified Python import statement
-     * for a model class. Returns the input unchanged if it
-     * already starts with "import" or "from".
+     * Overrides the base class because Python needs
+     * {@code from X.Y import Z} syntax for model imports.
+     * Cannot be standardized because no other language uses
+     * this import form.
      */
     @Override
     public String toModelImport(String name) {
@@ -452,9 +456,10 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Sanitizes a tag name for use as a Python identifier
-     * by removing characters that are invalid in Python
-     * module and class names.
+     * Overrides the base class to skip the PascalCase camelize
+     * that DefaultCodegen applies, since Python API class names
+     * need snake_case-friendly tags. Cannot be standardized
+     * because other languages want PascalCase tag names.
      */
     @Override
     public String sanitizeTag(String tag) {
@@ -474,9 +479,12 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Breaks triple-quote sequences that would prematurely
-     * close Python docstrings by inserting underscores
-     * between the quotes.
+     * Overrides the base class because Python uses triple-quote
+     * ({@code '''}) docstrings instead of {@code /* *\/} block
+     * comments. Breaks triple-quote sequences to prevent
+     * accidental docstring closure. Cannot be standardized
+     * because other languages use {@code /* *\/} (handled by
+     * the base class).
      */
     @Override
     public String escapeUnsafeCharacters(String input) {
@@ -509,11 +517,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
 
 
     /**
-     * Post-processes model properties to sanitize example
-     * values that contain Java-specific artifacts like null
-     * literals or byte-array toString output. Unique-item
-     * set conversion is handled by the base class via
-     * {@link #getUniqueItemsSetType()}.
+     * Overrides the base class to sanitize example values
+     * that contain Java-specific artifacts (null literals,
+     * byte-array toString output) into valid Python syntax.
+     * Cannot be standardized because other languages don't
+     * have these example format issues.
      */
     @Override
     public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
@@ -533,10 +541,10 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Post-processes all models to resolve Python-specific
-     * import statements for datetime, date, and Decimal
-     * types used by properties. Primitive parent stripping
-     * is handled by the base class in {@code postProcessModels}.
+     * Overrides the base class to resolve Python-specific type
+     * imports ({@code from datetime import datetime}, etc.).
+     * Cannot be standardized because Python is the only language
+     * that needs per-type import statements.
      */
     @Override
     public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
@@ -614,10 +622,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Post-processes generated Python files to fix Mustache
-     * whitespace artifacts in f-string braces. Trims extra
-     * spaces inside curly braces that Mustache introduces
-     * when rendering template expressions.
+     * Overrides the base class to fix Mustache whitespace
+     * artifacts in Python f-string braces ({@code { 'x' }}
+     * becomes {@code {'x'}}). Cannot be standardized because
+     * this is a Python template artifact that doesn't affect
+     * other languages.
      */
     @Override
     public void postProcessFile(File file, String fileType) {

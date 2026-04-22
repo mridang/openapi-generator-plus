@@ -98,6 +98,54 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     }
 
     /**
+     * Strategy for handling all-uppercase identifiers (e.g.
+     * {@code HTTP_METHOD}, {@code MAX_RETRIES}) when applying
+     * variable name casing. Different languages treat these
+     * differently: Java preserves them as constants, Ruby
+     * lowercases first to avoid constant treatment, and most
+     * other languages simply apply casing directly.
+     */
+    protected enum UppercaseIdentifierStrategy {
+        /** Always apply {@link #getVarCasing()} directly (default for most languages). */
+        APPLY_CASING {
+            @Override
+            String apply(String name, NamingConvention casing) {
+                return casing.apply(name);
+            }
+        },
+        /**
+         * If the input matches {@code ^[A-Z0-9_]*$}, return
+         * it as-is to preserve intentional constant naming
+         * (used by Java).
+         */
+        PRESERVE {
+            @Override
+            String apply(String name, NamingConvention casing) {
+                if (name.matches("^[A-Z0-9_]*$")) {
+                    return name;
+                }
+                return casing.apply(name);
+            }
+        },
+        /**
+         * If the input matches {@code ^[A-Z_]*$}, lowercase it
+         * first to avoid Ruby's underscore helper treating it
+         * as a constant (used by Ruby).
+         */
+        LOWERCASE_FIRST {
+            @Override
+            String apply(String name, NamingConvention casing) {
+                if (name.matches("^[A-Z_]*$")) {
+                    return casing.apply(name.toLowerCase(Locale.ROOT));
+                }
+                return casing.apply(name);
+            }
+        };
+
+        abstract String apply(String name, NamingConvention casing);
+    }
+
+    /**
      * Returns the naming convention for variable and property
      * names in this language (e.g. CAMEL_CASE for Java,
      * SNAKE_CASE for Python).
@@ -639,13 +687,23 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen
     }
 
     /**
-     * Applies the language-specific casing convention to a
-     * sanitized variable name using {@link #getVarCasing()}.
-     * Subclasses that need special handling (e.g. preserving
-     * UPPER_CASE constants in Java) can override this method.
+     * Returns the strategy for handling all-uppercase
+     * identifiers when applying variable name casing.
+     * Defaults to {@link UppercaseIdentifierStrategy#APPLY_CASING}.
+     * Override in Java ({@code PRESERVE}) or Ruby
+     * ({@code LOWERCASE_FIRST}).
      */
-    protected String applyVarNameCasing(String sanitizedName) {
-        return getVarCasing().apply(sanitizedName);
+    protected UppercaseIdentifierStrategy getUppercaseIdentifierStrategy() {
+        return UppercaseIdentifierStrategy.APPLY_CASING;
+    }
+
+    /**
+     * Applies the language-specific casing convention to a
+     * sanitized variable name using {@link #getVarCasing()}
+     * and {@link #getUppercaseIdentifierStrategy()}.
+     */
+    protected final String applyVarNameCasing(String sanitizedName) {
+        return getUppercaseIdentifierStrategy().apply(sanitizedName, getVarCasing());
     }
 
     /**

@@ -382,10 +382,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Returns the TypeScript type declaration for a schema.
-     * Arrays use angle-bracket generics (e.g. Array<string>),
-     * maps use index-signature syntax, and all other types
-     * delegate to the default type declaration logic.
+     * Overrides the base class because TypeScript uses
+     * index-signature syntax ({@code \{ [key: string]: T \}})
+     * for maps. Cannot use the base class's {@code formatMapType}
+     * hook because Node's typeMapping stores the full syntax,
+     * not a simple container name.
      */
     @Override
     public String getTypeDeclaration(Schema p) {
@@ -414,9 +415,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Sanitizes the variable name without applying any casing
-     * transformation because TypeScript preserves the original
-     * JSON property names for serialization fidelity.
+     * Overrides the base class to preserve original JSON property
+     * names for serialization fidelity. TypeScript models use
+     * the exact property names from the schema. Cannot be
+     * standardized because other languages apply casing.
      */
     @Override
     public String toVarName(String name) {
@@ -424,10 +426,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Converts a schema name to a PascalCase TypeScript class
-     * name. Prefixes the result with "Model" if it collides
-     * with a language-specific primitive like "number" or
-     * "string".
+     * Overrides the base class to check for collisions with
+     * TypeScript primitives ({@code number}, {@code string})
+     * and prefixes with "Model" when collision occurs. Cannot
+     * be standardized because other languages check reserved
+     * words instead of primitives.
      */
     @Override
     public String toModelName(String name) {
@@ -452,10 +455,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Converts an enum value into a PascalCase enum member
-     * name. Checks the enum name mapping first, resolves
-     * known symbol characters, then delegates to the base
-     * class for standard handling.
+     * Overrides the base class to check {@code enumNameMapping}
+     * first, then resolve symbol names with PascalCase. Cannot
+     * be standardized because the enumNameMapping lookup and
+     * PascalCase casing differ from PHP's handling.
      */
     @Override
     public String toEnumVarName(String value, String datatype) {
@@ -468,10 +471,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Builds TypeScript-specific import metadata for each
-     * model and determines whether any model property needs
-     * a type decorator for runtime deserialization. Primitive
-     * parent stripping is handled by the base class.
+     * Overrides the base class to build TypeScript import
+     * metadata ({@code tsImports}) and determine type decorator
+     * flags for runtime deserialization. Cannot be standardized
+     * because TypeScript's import/decorator system is unique.
      */
     @Override
     public ModelsMap postProcessModels(ModelsMap objs) {
@@ -506,11 +509,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Post-processes operations to add kebab-case filenames,
-     * resolve inline enum parameter types with PascalCase
-     * operation ID prefixes, and clean up import entries that
-     * refer to primitives or mapped types. Ensures each import
-     * map has a consistent "className" key for templates.
+     * Overrides the base class to add kebab-case filenames,
+     * resolve inline enum parameter types, and clean up
+     * TypeScript imports. Cannot be standardized because
+     * TypeScript's import resolution and enum naming are unique.
      */
     @Override
     public OperationsMap postProcessOperationsWithModels(
@@ -669,11 +671,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Removes eslint disable comments that the upstream
-     * framework injects into generated TypeScript files, and
-     * strips trailing blank lines. This keeps generated output
-     * clean since the project uses its own ESLint and Prettier
-     * configuration.
+     * Overrides the base class to strip {@code /* eslint-disable *\/}
+     * comments and trailing blank lines from generated TypeScript
+     * files. Cannot be standardized because this is a Node/TS
+     * formatting artifact that doesn't affect other languages.
      */
     @Override
     public void postProcessFile(File file, String fileType) {

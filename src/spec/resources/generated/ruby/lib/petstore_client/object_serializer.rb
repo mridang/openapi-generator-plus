@@ -9,6 +9,7 @@
 
 require 'date'
 require 'json'
+require 'set'
 require 'time'
 
 module PetstoreClient
@@ -93,7 +94,7 @@ module PetstoreClient
       return nil if value.nil?
 
       case value
-      when Array
+      when Array, Set
         items = value.map { |v| stringify(v) }
         case collection_format
         when :ssv then items.join(' ')
@@ -112,7 +113,7 @@ module PetstoreClient
       return '' if value.nil?
 
       case value
-      when Array
+      when Array, Set
         value.map { |v| stringify(v) }.join(',')
       else
         stringify(value)
@@ -130,7 +131,7 @@ module PetstoreClient
         nil
       when String, Integer, Float, TrueClass, FalseClass
         object
-      when Array
+      when Array, Set
         object.map { |item| sanitize_for_serialization(item) }
       when Hash
         # @type var sanitized: Hash[untyped, untyped]
@@ -184,6 +185,9 @@ module PetstoreClient
       when /\AArray<(.+)>\z/
         sub_type = ::Regexp.last_match(1).to_s
         data.map { |item| convert_to_type(item, sub_type) }
+      when /\ASet<(.+)>\z/
+        sub_type = ::Regexp.last_match(1).to_s
+        Set.new(data.map { |item| convert_to_type(item, sub_type) })
       when /\AHash<String,\s*(.+)>\z/
         sub_type = ::Regexp.last_match(1).to_s
         # @type var converted: Hash[untyped, untyped]
@@ -246,6 +250,11 @@ module PetstoreClient
         if data.instance_of?(Array)
           sub_type = ::Regexp.last_match(1).to_s
           return data.map { |item| find_and_cast_into_type(sub_type.to_sym, item) }
+        end
+      when /\ASet<(.+)>\z/
+        if data.instance_of?(Array)
+          sub_type = ::Regexp.last_match(1).to_s
+          return Set.new(data.map { |item| find_and_cast_into_type(sub_type.to_sym, item) })
         end
       when /\AHash<String, (.+)>\z/
         if data.instance_of?(Hash) && data.keys.all? { |k| k.instance_of?(Symbol) || k.instance_of?(String) }

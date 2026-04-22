@@ -447,17 +447,15 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Applies camelCase casing to a sanitized variable name.
-     * Preserves UPPER_CASE constant names (e.g. "MAX_RETRIES")
-     * by returning them unchanged, since they represent
-     * intentional constant naming conventions.
+     * Preserves all-uppercase identifiers (e.g. {@code MAX_RETRIES},
+     * {@code HTTP_METHOD}) as-is instead of camelCasing them.
+     * Java treats these as intentional constant names that should
+     * not be transformed. Cannot be standardized because other
+     * languages either always apply casing or lowercase first.
      */
     @Override
-    protected String applyVarNameCasing(String name) {
-        if (name.matches("^[A-Z0-9_]*$")) {
-            return name;
-        }
-        return getVarCasing().apply(name);
+    protected UppercaseIdentifierStrategy getUppercaseIdentifierStrategy() {
+        return UppercaseIdentifierStrategy.PRESERVE;
     }
 
     /** {@inheritDoc} */
@@ -473,10 +471,10 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Adds Jackson annotation imports and collection imports
-     * to a model property after standard post-processing.
-     * Unique-item set type swapping is handled by the base
-     * class via {@link #getUniqueItemsSetType()}.
+     * Adds Jackson annotation imports (JsonProperty, JsonInclude,
+     * JsonTypeName, etc.) and collection imports for model
+     * properties. Cannot be standardized because Jackson is
+     * Java-specific and no other language needs these imports.
      */
     @Override
     public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
@@ -512,10 +510,9 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Adds Jackson serialization annotation imports to enum
-     * models and properties after enum-specific post-processing
-     * so that enum values can be correctly serialized and
-     * deserialized by Jackson.
+     * Adds Jackson enum serialization imports (JsonValue,
+     * JsonCreator) to enum models and properties. Cannot be
+     * standardized because Jackson is Java-specific.
      */
     @Override
     public ModelsMap postProcessModelsEnum(ModelsMap objs) {
@@ -537,10 +534,10 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Adds Jackson discriminator and polymorphism imports when
-     * building a model from an OpenAPI schema. Models with
-     * discriminators need JsonTypeInfo and JsonSubTypes; oneOf
-     * and anyOf models need JsonValue and JsonCreator.
+     * Adds Jackson discriminator and polymorphism imports
+     * (JsonTypeInfo, JsonSubTypes) for models with discriminators,
+     * and JsonValue/JsonCreator for oneOf/anyOf models. Cannot
+     * be standardized because Jackson is Java-specific.
      */
     @Override
     public CodegenModel fromModel(String name, Schema schema) {

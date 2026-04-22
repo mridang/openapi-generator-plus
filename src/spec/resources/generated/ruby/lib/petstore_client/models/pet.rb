@@ -49,7 +49,7 @@ module PetstoreClient
         id: 'Integer',
         name: 'String',
         category: 'Category',
-        photo_urls: 'Array<String>',
+        photo_urls: 'Set<String>',
         tags: 'Array<Tag>',
         status: 'String'
       }.freeze

@@ -427,11 +427,12 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Resolves the OpenAPI schema type to a PHP type name.
-     * Handles composed schemas (anyOf, oneOf) by returning
-     * the raw type, maps language primitives directly, and
-     * converts all other types through the model name
-     * transformation.
+     * Overrides the base class because PHP needs special
+     * handling for {@code anyOf}/{@code oneOf} composed schemas
+     * (returns the raw type) and routes non-primitives through
+     * {@code toModelName()} for backslash-namespaced FQNs.
+     * Cannot be standardized because PHP's namespace resolution
+     * rules differ from all other languages.
      */
     @Override
     public String getSchemaType(Schema schema) {
@@ -454,10 +455,12 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Returns the PHP type declaration for a schema. Arrays
-     * produce bracket-suffixed types, maps produce generic
-     * array syntax, and reference schemas are fully qualified
-     * with the model namespace prefix.
+     * Overrides the base class because PHP uses {@code type[]}
+     * suffix for arrays, {@code array<K,V>} for maps, and
+     * {@code \\Namespace\\Class} FQN for {@code $ref} schemas.
+     * Cannot use base class hooks because the array marker
+     * position differs and {@code $ref} qualification has no
+     * hook.
      */
     @Override
     public String getTypeDeclaration(Schema p) {
@@ -482,10 +485,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Returns the PHP type declaration for a named type.
-     * Non-primitive types are prefixed with a backslash and
-     * the model package namespace to produce a fully qualified
-     * class reference.
+     * Overrides the base class to prefix non-primitive types
+     * with {@code \\} and the model package namespace for PHP
+     * FQN type hints. Cannot be standardized because no other
+     * language uses backslash-namespaced type references.
      */
     @Override
     public String getTypeDeclaration(String name) {
@@ -496,10 +499,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Converts a schema name to a PascalCase PHP class name,
-     * sanitizing invalid characters and prefixing reserved
-     * words or digit-leading names with "model_" to produce
-     * valid PHP class identifiers.
+     * Overrides the base class with extra sanitization that
+     * strips brackets, non-word characters, and {@code $} signs
+     * specific to PHP syntax. Cannot be standardized because
+     * PHP has unique identifier constraints.
      */
     @Override
     public String toModelName(String name) {
@@ -569,11 +572,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Converts an enum value to its UPPER_SNAKE_CASE constant
-     * name. Handles PHP-specific edge cases: whitespace-only
-     * values become "SPACE_n", symbol characters are resolved
-     * via {@link #getSymbolName}, and reserved words are
-     * escaped. Standard cases delegate to the base class.
+     * Overrides the base class to handle PHP-specific edge
+     * cases: whitespace-only values become {@code SPACE_n},
+     * symbol characters are resolved, and reserved words are
+     * escaped. Cannot be standardized because PHP's edge cases
+     * differ from other languages.
      */
     @Override
     public String toEnumVarName(String value, String datatype) {

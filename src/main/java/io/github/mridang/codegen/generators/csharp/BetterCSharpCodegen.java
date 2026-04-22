@@ -406,10 +406,10 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Returns the enum literal value for C#. Numeric types are
-     * returned as bare values while string types have newlines,
-     * tabs, carriage returns, and unescaped quotes escaped to
-     * produce valid C# string literals.
+     * Overrides the base class because C# needs special character
+     * escaping ({@code \\n}, {@code \\t}, {@code \\r}, unescaped
+     * {@code "}) for string enum values. Cannot be standardized
+     * because other languages don't need this escaping.
      */
     @Override
     public String toEnumValue(String value, String datatype) {
