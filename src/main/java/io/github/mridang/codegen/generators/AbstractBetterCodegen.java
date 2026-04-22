@@ -75,8 +75,7 @@ import org.slf4j.LoggerFactory;
  * {@link #getMapKeyType}, {@link #getMapDefaultValueType},
  * {@link #isNumericEnumDatatype}, and {@link #quoteEnumValue}.
  */
-public abstract class AbstractBetterCodegen extends DefaultCodegen
-        implements UnsupportedFeaturesValidator {
+public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractBetterCodegen.class);
 
