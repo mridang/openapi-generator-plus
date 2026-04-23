@@ -7,6 +7,7 @@
 #pragma warning disable CS0618 // Type or member is obsolete
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
@@ -14,7 +15,41 @@ namespace PetstoreClient.Models;
 /// <summary>
 /// Food for pets, discriminated by foodType
 /// </summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "foodType")]
-[JsonDerivedType(typeof(DryFood), "dry")]
-[JsonDerivedType(typeof(WetFood), "wet")]
-public abstract class PetFood { }
+[JsonConverter(typeof(PetFoodConverter))]
+public abstract class PetFood
+{
+#pragma warning disable CA1812
+    private sealed class PetFoodConverter : JsonConverter<PetFood>
+#pragma warning restore CA1812
+    {
+        public override PetFood? Read(
+            ref Utf8JsonReader reader,
+            Type typeToConvert,
+            JsonSerializerOptions options
+        )
+        {
+            using JsonDocument doc = JsonDocument.ParseValue(ref reader);
+            string raw = doc.RootElement.GetRawText();
+            if (doc.RootElement.TryGetProperty("foodType", out JsonElement disc))
+            {
+                string? discValue = disc.GetString();
+                return discValue switch
+                {
+                    "dry" => JsonSerializer.Deserialize<DryFood>(raw, options),
+                    "wet" => JsonSerializer.Deserialize<WetFood>(raw, options),
+                    _ => throw new JsonException($"Unknown discriminator value: {discValue}"),
+                };
+            }
+            throw new JsonException("Missing discriminator property 'foodType'");
+        }
+
+        public override void Write(
+            Utf8JsonWriter writer,
+            PetFood value,
+            JsonSerializerOptions options
+        )
+        {
+            JsonSerializer.Serialize(writer, value, value.GetType(), options);
+        }
+    }
+}

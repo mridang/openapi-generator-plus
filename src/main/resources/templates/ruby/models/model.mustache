@@ -66,13 +66,12 @@ module {{moduleName}}
         {{/-last}}
         {{/oneOf}}
         {{#discriminator}}
-        {{#propertyName}}
         # Discriminator's property name (OpenAPI v3)
         def openapi_discriminator_name
-          :{{{.}}}
+          :{{propertyBaseName}}
         end
 
-        {{/propertyName}}
+
         {{#mappedModels}}
         {{#-first}}
         # Discriminator's mapping (OpenAPI v3)

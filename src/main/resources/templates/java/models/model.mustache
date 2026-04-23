@@ -175,6 +175,7 @@ public class {{classname}} {
   static class {{classname}}Deserializer
       extends com.fasterxml.jackson.databind.JsonDeserializer<{{classname}}> {
     @Override
+    @SuppressWarnings("EmptyCatch")
     public {{classname}} deserialize(
         com.fasterxml.jackson.core.JsonParser p,
         com.fasterxml.jackson.databind.DeserializationContext ctxt)
@@ -185,7 +186,6 @@ public class {{classname}} {
           Object value = ctxt.readTreeAsValue(node, schema);
           return new {{classname}}(value);
         } catch (Exception ignored) {
-          // try next schema
         }
       }
       return new {{classname}}(ctxt.readTreeAsValue(node, Object.class));

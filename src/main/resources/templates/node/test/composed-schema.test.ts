@@ -38,7 +38,7 @@ describe('Composed Schema Deserialization', () => {
     const PetTreatmentCls = (models as any)['PetTreatment'];
     expect(PetTreatmentCls).toBeDefined();
     const data = { drugName: 'Amoxicillin', dosage: '500mg' };
-    const result = ObjectSerializer.deserialize(data, PetTreatmentCls);
+    const result = ObjectSerializer.deserialize(data, PetTreatmentCls) as { getActualInstance(): unknown };
     expect(result).toBeDefined();
     const instance = result.getActualInstance();
     expect(instance).toBeDefined();

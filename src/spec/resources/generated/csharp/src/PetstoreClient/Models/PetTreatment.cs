@@ -16,16 +16,13 @@ namespace PetstoreClient.Models;
 /// A treatment that can match a medication, a surgery, or both
 /// </summary>
 [JsonConverter(typeof(PetTreatmentConverter))]
-public class PetTreatment
+public class PetTreatment(object value)
 {
-    public object? ActualInstance { get; set; }
+    public object? ActualInstance { get; set; } = value;
 
-    public PetTreatment(object value)
-    {
-        ActualInstance = value;
-    }
-
-    private class PetTreatmentConverter : JsonConverter<PetTreatment>
+#pragma warning disable CA1812
+    private sealed class PetTreatmentConverter : JsonConverter<PetTreatment>
+#pragma warning restore CA1812
     {
         public override PetTreatment? Read(
             ref Utf8JsonReader reader,
@@ -33,22 +30,18 @@ public class PetTreatment
             JsonSerializerOptions options
         )
         {
-            using var doc = JsonDocument.ParseValue(ref reader);
-            var raw = doc.RootElement.GetRawText();
+            using JsonDocument doc = JsonDocument.ParseValue(ref reader);
+            string raw = doc.RootElement.GetRawText();
             try
             {
                 return new PetTreatment(JsonSerializer.Deserialize<Medication>(raw, options)!);
             }
-            catch (JsonException)
-            { /* try next schema */
-            }
+            catch (JsonException) { }
             try
             {
                 return new PetTreatment(JsonSerializer.Deserialize<Surgery>(raw, options)!);
             }
-            catch (JsonException)
-            { /* try next schema */
-            }
+            catch (JsonException) { }
             return new PetTreatment(JsonDocument.Parse(raw).RootElement.Clone());
         }
 

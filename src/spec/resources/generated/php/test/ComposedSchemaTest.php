@@ -16,7 +16,8 @@ class ComposedSchemaTest extends TestCase
 {
     public function testAllOfDeserializesPetWithOwner(): void
     {
-        $json = '{"name":"doggie","photoUrls":["http://example.com/photo.jpg"],"ownerName":"John","ownerEmail":"john@example.com"}';
+        $json = '{"name":"doggie","photoUrls":["http://example.com/photo.jpg"],'
+            . '"ownerName":"John","ownerEmail":"john@example.com"}';
         /** @var PetWithOwner $result */
         $result = ObjectSerializer::deserialize($json, PetWithOwner::class);
         $this->assertInstanceOf(PetWithOwner::class, $result);

@@ -37,6 +37,7 @@ public enum {{classname}}
 {{#oneOf}}
 {{#-first}}
 {{#discriminator}}
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 {{/discriminator}}
@@ -65,11 +66,37 @@ namespace {{packageName}}.Models;
 {{/externalDocumentation}}
 {{/isDeprecated}}
 {{#discriminator}}
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "{{discriminator.propertyBaseName}}")]
-{{#mappedModels}}
-[JsonDerivedType(typeof({{modelName}}), "{{mappingName}}")]
-{{/mappedModels}}
-public abstract class {{classname}} { }
+[JsonConverter(typeof({{classname}}Converter))]
+public abstract class {{classname}}
+{
+#pragma warning disable CA1812
+    private sealed class {{classname}}Converter : JsonConverter<{{classname}}>
+#pragma warning restore CA1812
+    {
+        public override {{classname}}? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            using JsonDocument doc = JsonDocument.ParseValue(ref reader);
+            string raw = doc.RootElement.GetRawText();
+            if (doc.RootElement.TryGetProperty("{{discriminator.propertyBaseName}}", out JsonElement disc))
+            {
+                string? discValue = disc.GetString();
+                return discValue switch
+                {
+                    {{#mappedModels}}
+                    "{{mappingName}}" => JsonSerializer.Deserialize<{{modelName}}>(raw, options),
+                    {{/mappedModels}}
+                    _ => throw new JsonException($"Unknown discriminator value: {discValue}")
+                };
+            }
+            throw new JsonException("Missing discriminator property '{{discriminator.propertyBaseName}}'");
+        }
+
+        public override void Write(Utf8JsonWriter writer, {{classname}} value, JsonSerializerOptions options)
+        {
+            JsonSerializer.Serialize(writer, value, value.GetType(), options);
+        }
+    }
+}
 {{/discriminator}}
 {{^discriminator}}
 public class {{classname}}(object value)
@@ -110,24 +137,21 @@ namespace {{packageName}}.Models;
 {{/externalDocumentation}}
 {{/isDeprecated}}
 [JsonConverter(typeof({{classname}}Converter))]
-public class {{classname}}
+public class {{classname}}(object value)
 {
-    public object? ActualInstance { get; set; }
+    public object? ActualInstance { get; set; } = value;
 
-    public {{classname}}(object value)
-    {
-        ActualInstance = value;
-    }
-
-    private class {{classname}}Converter : JsonConverter<{{classname}}>
+#pragma warning disable CA1812
+    private sealed class {{classname}}Converter : JsonConverter<{{classname}}>
+#pragma warning restore CA1812
     {
         public override {{classname}}? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            using var doc = JsonDocument.ParseValue(ref reader);
-            var raw = doc.RootElement.GetRawText();
+            using JsonDocument doc = JsonDocument.ParseValue(ref reader);
+            string raw = doc.RootElement.GetRawText();
             {{#anyOf}}
             try { return new {{classname}}(JsonSerializer.Deserialize<{{{.}}}>(raw, options)!); }
-            catch (JsonException) { /* try next schema */ }
+            catch (JsonException) { }
             {{/anyOf}}
             return new {{classname}}(JsonDocument.Parse(raw).RootElement.Clone());
         }

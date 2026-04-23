@@ -45,15 +45,14 @@ export class ObjectSerializer {
    */
   static deserialize<T>(json: unknown, cls: ClassConstructor<T>): T {
     try {
-      // Handle oneOf/anyOf composed schema classes
-      const anyOfSchemas = (cls as Record<string, unknown>)['ANY_OF_SCHEMAS'] as string[] | undefined;
-      const oneOfSchemas = (cls as Record<string, unknown>)['ONE_OF_SCHEMAS'] as string[] | undefined;
-      const discProp = (cls as Record<string, unknown>)['DISCRIMINATOR_PROPERTY'] as string | undefined;
-      const discMapping = (cls as Record<string, unknown>)['DISCRIMINATOR_MAPPING'] as Record<string, string> | undefined;
+      const clsRecord = cls as unknown as Record<string, unknown>;
+      const anyOfSchemas = clsRecord['ANY_OF_SCHEMAS'] as string[] | undefined;
+      const oneOfSchemas = clsRecord['ONE_OF_SCHEMAS'] as string[] | undefined;
+      const discProp = clsRecord['DISCRIMINATOR_PROPERTY'] as string | undefined;
+      const discMapping = clsRecord['DISCRIMINATOR_MAPPING'] as Record<string, string> | undefined;
       const schemas = anyOfSchemas ?? oneOfSchemas;
 
       if (schemas && json && typeof json === 'object') {
-        // With discriminator, use the mapping directly
         if (discProp && discMapping && discProp in (json as Record<string, unknown>)) {
           const discValue = (json as Record<string, unknown>)[discProp] as string;
           const targetName = discMapping[discValue];
@@ -65,13 +64,11 @@ export class ObjectSerializer {
             }
           }
         }
-        // Without discriminator, try each schema
         for (const schemaName of schemas) {
           const schemaCls = (models as Record<string, unknown>)[schemaName] as ClassConstructor<unknown> | undefined;
           if (schemaCls) {
             try {
               const instance = plainToInstance(schemaCls, json, { excludeExtraneousValues: true });
-              // Check that at least one property was populated
               const hasValues = Object.values(instance as Record<string, unknown>).some(v => v !== undefined);
               if (hasValues) {
                 return new (cls as unknown as new (i: unknown) => T)(instance);
