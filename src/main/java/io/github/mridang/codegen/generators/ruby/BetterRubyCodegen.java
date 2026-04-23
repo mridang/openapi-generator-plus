@@ -398,6 +398,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
      * quotes. All other types return null to omit the default.
      */
     @Nullable
+    @SuppressWarnings("rawtypes")
     @Override
     public String toDefaultValue(Schema schema) {
         final Schema resolved = ModelUtils.getReferencedSchema(this.openAPI, schema);
@@ -474,9 +475,9 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     /**
      * Overrides the base class because Ruby uses heredoc markers
      * ({@code =begin}/{@code =end}) and string interpolation
-     * ({@code \#\{}) instead of {@code /* *\/} block comments.
-     * Cannot be standardized because other languages use
-     * {@code /* *\/} (handled by the base class).
+     * instead of block comments. Cannot be standardized because
+     * other languages use block comments (handled by the base
+     * class).
      */
     @Override
     public String escapeUnsafeCharacters(String input) {

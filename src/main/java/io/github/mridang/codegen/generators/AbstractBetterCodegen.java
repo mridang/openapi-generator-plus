@@ -326,7 +326,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
     /**
      * Returns the set container type prefix for unique-item
-     * arrays (e.g. "LinkedHashSet<" for Java, "set[" for
+     * arrays (e.g. {@code "LinkedHashSet<"} for Java, "set[" for
      * Python), or null if the language does not support set
      * types.
      */
@@ -647,6 +647,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * mapped types like "integer" to "int" are applied
      * consistently.
      */
+    @SuppressWarnings("rawtypes")
     @Override
     public String getSchemaType(Schema schema) {
         final String type = super.getSchemaType(schema);
@@ -663,10 +664,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * {@link #formatMapType} so subclasses can customize the
      * generic syntax per language.
      */
+    @SuppressWarnings("rawtypes")
     @Override
     public String getTypeDeclaration(Schema schema) {
         if (ModelUtils.isArraySchema(schema)) {
-            final Schema<?> inner = ModelUtils.getSchemaItems(schema);
+            final Schema inner = ModelUtils.getSchemaItems(schema);
             return formatArrayType(getSchemaType(schema), getTypeDeclaration(inner));
         } else if (ModelUtils.isMapSchema(schema)) {
             final String valueType =

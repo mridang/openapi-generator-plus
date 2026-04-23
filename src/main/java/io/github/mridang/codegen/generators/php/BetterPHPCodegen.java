@@ -439,6 +439,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
      * Cannot be standardized because PHP's namespace resolution
      * rules differ from all other languages.
      */
+    @SuppressWarnings("rawtypes")
     @Override
     public String getSchemaType(Schema schema) {
         final String type = super.getSchemaType(schema);
@@ -467,6 +468,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
      * position differs and {@code $ref} qualification has no
      * hook.
      */
+    @SuppressWarnings("rawtypes")
     @Override
     public String getTypeDeclaration(Schema p) {
         if (ModelUtils.isArraySchema(p)) {
@@ -474,7 +476,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                     .map(inner -> getTypeDeclaration(inner) + "[]")
                     .orElse("string[]");
         } else if (ModelUtils.isMapSchema(p)) {
-            final Schema<?> inner = ModelUtils.getAdditionalProperties(p);
+            final Schema inner = ModelUtils.getAdditionalProperties(p);
             if (inner == null) {
                 return "array<string,string>";
             }
@@ -525,6 +527,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
      * default apply.
      */
     @Nullable
+    @SuppressWarnings("rawtypes")
     @Override
     public String toDefaultValue(Schema schema) {
         final Schema unaliased = ModelUtils.unaliasSchema(this.openAPI, schema);

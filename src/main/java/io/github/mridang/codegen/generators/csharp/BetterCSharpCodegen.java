@@ -426,6 +426,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
      * not needed in the generated models.
      */
     @Nullable
+    @SuppressWarnings("rawtypes")
     @Override
     public String toDefaultValue(Schema schema) {
         return null;

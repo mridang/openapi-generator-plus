@@ -27,14 +27,7 @@ import java.util.Map;
  */
 public class OnlyAllowJsonRule implements CustomNormalizationRule {
 
-    /**
-     * Applies the rule to enforce "application/json" content type and validate.
-     *
-     * @param openAPI    The OpenAPI object to be modified.
-     * @param ruleConfig Configuration specific to this rule (not directly used here,
-     *                   but part of the interface).
-     * @param logger     A logger instance for logging messages.
-     */
+    /** Allowed content types that will not be filtered out. */
     private static final List<String> ALLOWED_TYPES = Arrays.asList(
         "application/json",
         "text/plain",

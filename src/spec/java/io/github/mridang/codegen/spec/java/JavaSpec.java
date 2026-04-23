@@ -7,18 +7,22 @@ import org.testcontainers.utility.DockerImageName;
 
 interface JavaSpec extends LanguageSpec, DockerImageSpec {
 
+  @Override
   default String getGeneratorName() {
     return "java-plus";
   }
 
+  @Override
   default DockerImageName getRuntimeImage() {
     return DockerImageName.parse("maven:3.9-eclipse-temurin-21");
   }
 
+  @Override
   default String getDockerImage() {
     return "eclipse-temurin:17-jdk-jammy";
   }
 
+  @Override
   default Map<String, Object> getCodegenProperties() {
     return Map.of(
         "modelPackage", "com.example.petstore.models",

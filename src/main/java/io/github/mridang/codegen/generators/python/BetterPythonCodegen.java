@@ -481,11 +481,10 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
 
     /**
      * Overrides the base class because Python uses triple-quote
-     * ({@code '''}) docstrings instead of {@code /* *\/} block
-     * comments. Breaks triple-quote sequences to prevent
-     * accidental docstring closure. Cannot be standardized
-     * because other languages use {@code /* *\/} (handled by
-     * the base class).
+     * docstrings instead of block comments. Breaks triple-quote
+     * sequences to prevent accidental docstring closure. Cannot
+     * be standardized because other languages use block comments
+     * (handled by the base class).
      */
     @Override
     public String escapeUnsafeCharacters(String input) {
@@ -499,6 +498,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
      * unchanged.
      */
     @Nullable
+    @SuppressWarnings("rawtypes")
     @Override
     public String toDefaultValue(Schema schema) {
         final Schema unaliased = ModelUtils.unaliasSchema(this.openAPI, schema);
@@ -655,7 +655,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
      * type if it requires one. Handles datetime, date, and
      * Decimal types that need explicit Python imports.
      */
-    private static void addTypeImport(TreeSet<String> imports, String dataType) {
+    private static void addTypeImport(Set<String> imports, String dataType) {
         final String imp = TYPE_IMPORTS.get(dataType);
         if (imp != null) {
             imports.add(imp);

@@ -111,6 +111,7 @@
           <maxmem>512m</maxmem>
           <compilerArgs>
             <arg>-Xlint:all</arg>
+            <arg>-Werror</arg>
             <arg>-J-Xss4m</arg>
           </compilerArgs>
 
@@ -236,7 +237,7 @@
         <artifactId>maven-javadoc-plugin</artifactId>
         <version>3.11.2</version>
         <configuration>
-          <doclint>none</doclint>
+          <doclint>all,-missing</doclint>
           <source>11</source>
         </configuration>
         <executions>
@@ -469,7 +470,8 @@
                 <arg>--should-stop=ifError=FLOW</arg>
                 <arg>-Xlint:all</arg>
                 <arg>-Xlint:-path</arg>
-                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=io.github.mridang</arg>
+                <arg>-Werror</arg>
+                <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -Xep:NullAway:ERROR -Xep:MissingOverride:ERROR -Xep:InvalidBlockTag:ERROR -Xep:InvalidInlineTag:ERROR -Xep:NonApiType:ERROR -XepOpt:NullAway:AnnotatedPackages=io.github.mridang</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
                 <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>

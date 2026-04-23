@@ -433,6 +433,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
      * types return null to let the language default apply.
      */
     @Nullable
+    @SuppressWarnings("rawtypes")
     @Override
     public String toDefaultValue(Schema schema) {
         final Schema unaliased = ModelUtils.unaliasSchema(this.openAPI, schema);
@@ -540,6 +541,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
      * and JsonValue/JsonCreator for oneOf/anyOf models. Cannot
      * be standardized because Jackson is Java-specific.
      */
+    @SuppressWarnings("rawtypes")
     @Override
     public CodegenModel fromModel(String name, Schema schema) {
         final CodegenModel model = super.fromModel(name, schema);

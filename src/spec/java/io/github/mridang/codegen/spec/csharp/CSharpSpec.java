@@ -7,18 +7,22 @@ import org.testcontainers.utility.DockerImageName;
 
 interface CSharpSpec extends LanguageSpec, DockerImageSpec {
 
+  @Override
   default String getGeneratorName() {
     return "csharp-plus";
   }
 
+  @Override
   default DockerImageName getRuntimeImage() {
     return DockerImageName.parse("mcr.microsoft.com/dotnet/sdk:9.0");
   }
 
+  @Override
   default String getDockerImage() {
     return "mcr.microsoft.com/dotnet/sdk:9.0";
   }
 
+  @Override
   default Map<String, Object> getCodegenProperties() {
     return Map.of("packageName", "PetstoreClient", "sourceFolder", "src");
   }

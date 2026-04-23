@@ -393,10 +393,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
      * hook because Node's typeMapping stores the full syntax,
      * not a simple container name.
      */
+    @SuppressWarnings("rawtypes")
     @Override
     public String getTypeDeclaration(Schema p) {
         if (ModelUtils.isArraySchema(p)) {
-            final Schema<?> inner = ModelUtils.getSchemaItems(p);
+            final Schema inner = ModelUtils.getSchemaItems(p);
             return getSchemaType(p) + "<" + getTypeDeclaration(inner) + ">";
         } else if (ModelUtils.isMapSchema(p)) {
             final String valueType =
@@ -414,6 +415,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
      * in the generated model constructors.
      */
     @Nullable
+    @SuppressWarnings("rawtypes")
     @Override
     public String toDefaultValue(Schema schema) {
         return null;
@@ -674,10 +676,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Overrides the base class to strip {@code /* eslint-disable *\/}
-     * comments and trailing blank lines from generated TypeScript
-     * files. Cannot be standardized because this is a Node/TS
-     * formatting artifact that doesn't affect other languages.
+     * Overrides the base class to strip eslint-disable comments
+     * and trailing blank lines from generated TypeScript files.
+     * Cannot be standardized because this is a Node/TS formatting
+     * artifact that doesn't affect other languages.
      */
     @Override
     public void postProcessFile(File file, String fileType) {

@@ -7,18 +7,22 @@ import org.testcontainers.utility.DockerImageName;
 
 interface PythonSpec extends LanguageSpec, DockerImageSpec {
 
+  @Override
   default String getGeneratorName() {
     return "python-plus";
   }
 
+  @Override
   default DockerImageName getRuntimeImage() {
     return DockerImageName.parse("python:3-slim");
   }
 
+  @Override
   default String getDockerImage() {
     return "python:3-slim";
   }
 
+  @Override
   default Map<String, Object> getCodegenProperties() {
     return Map.of("packageName", "petstore_client", "projectName", "petstore-client");
   }
