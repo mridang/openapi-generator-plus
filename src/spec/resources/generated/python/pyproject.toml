@@ -36,6 +36,7 @@ petstore_client = ["py.typed"]
 
 [tool.ruff]
 line-length = 120
+cache-dir = ".ruff"
 
 [tool.ruff.lint]
 extend-select = ["B006", "B008", "RUF012"]
@@ -45,8 +46,10 @@ quote-style = "single"
 
 [tool.mypy]
 strict = true
+cache_dir = ".mypy"
 
 [tool.pytest.ini_options]
+cache_dir = ".pytest"
 testpaths = ["test", "spec"]
 python_files = "test_*.py *_spec.py"
 addopts = "--cov=petstore_client --cov-report=xml:.out/coverage.xml --cov-report=term-missing --junitxml=.out/reports/junit.xml"

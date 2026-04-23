@@ -1,4 +1,5 @@
 export default {
+  cacheDirectory: '.jest',
   testEnvironment: 'node',
   testMatch: ['**/test/**/*.test.ts', '**/spec/**/*.spec.ts'],
   moduleNameMapper: {

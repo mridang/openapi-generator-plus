@@ -2,7 +2,11 @@
 __pycache__/
 *.py[cod]
 *$py.class
-.pytest_cache/
+
+# Tool caches
+.pytest/
+.mypy/
+.ruff/
 
 # Virtual environment
 venv/

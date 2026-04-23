@@ -12,4 +12,5 @@ return (new PhpCsFixer\Config())
         'ordered_imports' => ['sort_algorithm' => 'alpha'],
     ])
     ->setFinder($finder)
-    ->setRiskyAllowed(false);
+    ->setRiskyAllowed(false)
+    ->setCacheFile('.phpcsf');

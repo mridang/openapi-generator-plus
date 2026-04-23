@@ -2,7 +2,8 @@
 /vendor/
 Gemfile.lock
 
-# Minitest artifacts
+# Tool caches
+.rubocop/
 
 # Coverage output
 .out/

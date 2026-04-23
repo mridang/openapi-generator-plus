@@ -7,5 +7,9 @@ composer.lock
 # PHPUnit cache
 .phpunit.result.cache
 
+# Tool caches
+.phpcsf
+.phpstan/
+
 # Coverage output
 .out/

@@ -1,5 +1,8 @@
 node_modules/
 dist/
 
+# Tool caches
+.jest/
+
 # Coverage output
 .out/
