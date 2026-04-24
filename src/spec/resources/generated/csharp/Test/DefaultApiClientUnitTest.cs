@@ -113,6 +113,27 @@ public class DefaultApiClientUnitTest
         Assert.Contains("DELETE", response.Body);
     }
 
+    [Fact]
+    public async Task ReturnsJsonBodyForVendorJsonContentType()
+    {
+        var httpClient = CreateMockHttpClient(
+            HttpStatusCode.OK,
+            "{\"format\":\"vendor\"}",
+            new Dictionary<string, string> { { "X-Content-Type", "application/vnd.api+json" } }
+        );
+        var client = new DefaultApiClient(httpClient);
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/vendor-json"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("vendor", response.Body);
+    }
+
     private static HttpClient CreateMockHttpClient(
         HttpStatusCode statusCode,
         string body,

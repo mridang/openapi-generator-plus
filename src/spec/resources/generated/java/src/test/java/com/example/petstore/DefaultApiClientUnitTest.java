@@ -44,6 +44,17 @@ class DefaultApiClientUnitTest {
             os.write(response);
           }
         });
+    server.createContext(
+        "/vendor-json",
+        exchange -> {
+          String json = "{\"format\":\"vendor\"}";
+          exchange.getResponseHeaders().add("Content-Type", "application/vnd.api+json");
+          byte[] response = json.getBytes(StandardCharsets.UTF_8);
+          exchange.sendResponseHeaders(200, response.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(response);
+          }
+        });
     server.start();
     baseUrl = "http://localhost:" + server.getAddress().getPort();
   }
@@ -110,6 +121,14 @@ class DefaultApiClientUnitTest {
     ApiResponse response = client.sendRequest("DELETE", baseUrl + "/echo", Map.of(), null);
     assertEquals(200, response.statusCode());
     assertTrue(response.body().contains("\"method\":\"DELETE\""));
+  }
+
+  @Test
+  void returnsJsonBodyForVendorJsonContentType() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiResponse response = client.sendRequest("GET", baseUrl + "/vendor-json", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertTrue(response.body().contains("\"format\":\"vendor\""));
   }
 
   @Test

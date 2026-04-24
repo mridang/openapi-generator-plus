@@ -371,6 +371,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                             "test/header-selector.test.ts",
                             "test",
                             "header-selector.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/configuration.test.mustache",
+                            "test",
+                            "configuration.test.ts"));
         }
     }
 

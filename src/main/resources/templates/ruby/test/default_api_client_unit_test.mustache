@@ -90,4 +90,20 @@ describe {{moduleName}}::DefaultApiClient do
     end
     stubs.verify_stubbed_calls
   end
+
+  it 'returns JSON body for vendor JSON content type' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/vendor-json') do
+        [200, { 'content-type' => 'application/vnd.api+json' }, '{"format":"vendor"}']
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/vendor-json', {}, nil)
+      _(response.status_code).must_equal 200
+      body = JSON.parse(response.body)
+      _(body['format']).must_equal 'vendor'
+    end
+    stubs.verify_stubbed_calls
+  end
 end
