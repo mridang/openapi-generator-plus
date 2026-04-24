@@ -7,7 +7,7 @@ import java.util.Map;
  * Authenticator for API key authentication. Supports sending the key
  * as a header, query parameter, or cookie.
  */
-public class ApiKeyAuthenticator implements Authenticator {
+public class ApiKeyAuthenticator extends BaseAuthenticator {
 
     private final String host;
     private final String keyParamName;

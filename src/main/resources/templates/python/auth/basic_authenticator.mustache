@@ -3,11 +3,11 @@ import base64
 from dataclasses import InitVar, dataclass, field
 from typing import Dict
 
-from .authenticator import Authenticator
+from .base_authenticator import BaseAuthenticator
 
 
 @dataclass(frozen=True)
-class BasicAuthenticator(Authenticator):
+class BasicAuthenticator(BaseAuthenticator):
     """Authenticator for HTTP Basic authentication."""
 
     host: str

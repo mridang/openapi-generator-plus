@@ -70,7 +70,7 @@ class TransportOptions:
     uses the HTTP client's built-in default.
     """
 
-    user_agent: Optional[str] = None
+    user_agent: Optional[str] = '{{userAgentDefault}}'
     """Custom ``User-Agent`` header value.
 
     When set, this value is sent as the ``User-Agent`` header on every

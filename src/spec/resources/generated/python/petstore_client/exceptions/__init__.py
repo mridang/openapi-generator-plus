@@ -25,29 +25,15 @@ class ApiException(OpenApiException):
         self,
         code: Optional[int] = None,
         message: Optional[str] = None,
-        http_resp: Optional[Any] = None,
-        *,
-        response_body: Optional[str] = None,
         response_headers: Optional[Any] = None,
+        response_body: Optional[str] = None,
         error_body: Optional[Any] = None,
     ) -> None:
         self.code = code
         self.message = message
-        self.response_body = response_body
         self.response_headers = response_headers
+        self.response_body = response_body
         self.error_body = error_body
-
-        if http_resp:
-            if self.code is None:
-                self.code = http_resp.status
-            if self.message is None:
-                self.message = http_resp.reason
-            if self.response_body is None:
-                try:
-                    self.response_body = http_resp.data.decode('utf-8')
-                except Exception:
-                    pass
-            self.response_headers = http_resp.getheaders()
 
     def get_typed_error_body(self, clazz: Type[T]) -> Optional[T]:
         """Deserialize the response body into a typed object.

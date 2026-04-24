@@ -43,7 +43,7 @@ final class TransportOptions
         public readonly ?int $timeout = null,
         public readonly bool $followRedirects = true,
         public readonly ?int $maxRedirects = null,
-        public readonly ?string $userAgent = null,
+        public readonly ?string $userAgent = '{{userAgentDefault}}',
         public readonly array $defaultHeaders = [],
         public readonly bool $injectRequestId = false,
     ) {

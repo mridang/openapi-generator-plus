@@ -303,7 +303,7 @@ public abstract class BaseApi {
                 default  -> new ServerException(code, message, headers, body, errorBody);
             };
         }
-        throw new ApiException(code, message, headers, body);
+        throw new ApiException(code, message, headers, body, errorBody);
     }
 
     /**

@@ -54,7 +54,7 @@ final class TransportOptions
         public readonly ?int $timeout = null,
         public readonly bool $followRedirects = true,
         public readonly ?int $maxRedirects = null,
-        public readonly ?string $userAgent = null,
+        public readonly ?string $userAgent = 'PetstoreClient/1.0.0 (php)',
         public readonly array $defaultHeaders = [],
         public readonly bool $injectRequestId = false,
     ) {

@@ -80,7 +80,7 @@ class TransportOptions:
     uses the HTTP client's built-in default.
     """
 
-    user_agent: Optional[str] = None
+    user_agent: Optional[str] = 'petstore_client/1.0.0 (python)'
     """Custom ``User-Agent`` header value.
 
     When set, this value is sent as the ``User-Agent`` header on every

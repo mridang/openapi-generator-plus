@@ -12,12 +12,12 @@ Do not edit the class manually.
 from dataclasses import dataclass
 from typing import Dict
 
-from .authenticator import Authenticator
+from .base_authenticator import BaseAuthenticator
 from .api_key_location import ApiKeyLocation
 
 
 @dataclass(frozen=True)
-class ApiKeyAuthenticator(Authenticator):
+class ApiKeyAuthenticator(BaseAuthenticator):
     """Authenticator for API key authentication."""
 
     host: str

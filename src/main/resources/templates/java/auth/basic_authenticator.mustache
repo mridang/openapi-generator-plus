@@ -7,7 +7,7 @@ import java.util.Map;
 /**
  * Authenticator for HTTP Basic authentication.
  */
-public class BasicAuthenticator implements Authenticator {
+public class BasicAuthenticator extends BaseAuthenticator {
 
     private final String host;
     private final String authHeader;

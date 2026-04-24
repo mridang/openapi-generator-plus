@@ -4,7 +4,7 @@ import java.util.Collections;
 import java.util.Map;
 
 /** Authenticator for HTTP Bearer token authentication. */
-public class BearerAuthenticator implements Authenticator {
+public class BearerAuthenticator extends BaseAuthenticator {
 
   private final String host;
   private final String token;

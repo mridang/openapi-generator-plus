@@ -12,11 +12,11 @@ Do not edit the class manually.
 from dataclasses import dataclass
 from typing import Dict
 
-from .authenticator import Authenticator
+from .base_authenticator import BaseAuthenticator
 
 
 @dataclass(frozen=True)
-class BearerAuthenticator(Authenticator):
+class BearerAuthenticator(BaseAuthenticator):
     """Authenticator for HTTP Bearer token authentication."""
 
     host: str

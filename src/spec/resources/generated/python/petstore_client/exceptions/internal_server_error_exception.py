@@ -20,17 +20,14 @@ class InternalServerErrorException(ServerException):
     def __init__(
         self,
         message: Optional[str] = None,
-        http_resp: Optional[Any] = None,
-        *,
-        response_body: Optional[str] = None,
         response_headers: Optional[Any] = None,
+        response_body: Optional[str] = None,
         error_body: Optional[Any] = None,
     ) -> None:
         super().__init__(
             code=500,
             message=message,
-            http_resp=http_resp,
-            response_body=response_body,
             response_headers=response_headers,
+            response_body=response_body,
             error_body=error_body,
         )
