@@ -92,6 +92,7 @@ module {{moduleName}}
     attr_reader response_body: String?
     def initialize: (?untyped) -> void
     def message: () -> String
+    def typed_error_body: (untyped) -> untyped
   end
 
   module Errors
@@ -208,24 +209,37 @@ module {{moduleName}}
       def cookie_params: () -> Hash[String, String]
     end
 
+    class BaseAuthenticator < Authenticator
+      def query_params: () -> Hash[String, String]
+      def cookie_params: () -> Hash[String, String]
+    end
+
     module HttpAwareAuthenticator
       def api_client=: (ApiClient) -> void
     end
+{{#hasApiKeyAuth}}
+
+    module ApiKeyLocation
+      HEADER: Symbol
+      QUERY: Symbol
+      COOKIE: Symbol
+    end
+{{/hasApiKeyAuth}}
 {{#hasBasicAuth}}
 
-    class BasicAuthenticator < Authenticator
+    class BasicAuthenticator < BaseAuthenticator
       def initialize: (String, String, String) -> void
     end
 {{/hasBasicAuth}}
 {{#hasBearerAuth}}
 
-    class BearerAuthenticator < Authenticator
+    class BearerAuthenticator < BaseAuthenticator
       def initialize: (String, String) -> void
     end
 {{/hasBearerAuth}}
 {{#hasApiKeyAuth}}
 
-    class ApiKeyAuthenticator < Authenticator
+    class ApiKeyAuthenticator < BaseAuthenticator
       def initialize: (String, String, String, Symbol) -> void
     end
 {{/hasApiKeyAuth}}
@@ -233,21 +247,21 @@ module {{moduleName}}
 
     module OAuth
 {{#hasOAuth2ClientCredentials}}
-      class OAuth2ClientCredentialsAuthenticator < Authenticator
+      class OAuth2ClientCredentialsAuthenticator < BaseAuthenticator
         include HttpAwareAuthenticator
         def initialize: (String, String, String, String, Array[String]) -> void
         def api_client=: (ApiClient) -> void
       end
 {{/hasOAuth2ClientCredentials}}
 {{#hasOAuth2Password}}
-      class OAuth2PasswordAuthenticator < Authenticator
+      class OAuth2PasswordAuthenticator < BaseAuthenticator
         include HttpAwareAuthenticator
         def initialize: (String, String, String, String, String, String, Array[String]) -> void
         def api_client=: (ApiClient) -> void
       end
 {{/hasOAuth2Password}}
 {{#hasOAuth2AuthorizationCode}}
-      class OAuth2AuthorizationCodeAuthenticator < Authenticator
+      class OAuth2AuthorizationCodeAuthenticator < BaseAuthenticator
         include HttpAwareAuthenticator
         def initialize: (String, String, String, String, String, String, Array[String]) -> void
         def api_client=: (ApiClient) -> void
@@ -256,7 +270,7 @@ module {{moduleName}}
       end
 {{/hasOAuth2AuthorizationCode}}
 {{#hasOAuth2Implicit}}
-      class OAuth2ImplicitAuthenticator < Authenticator
+      class OAuth2ImplicitAuthenticator < BaseAuthenticator
         include HttpAwareAuthenticator
         def initialize: (String, String, String, Array[String]) -> void
         def api_client=: (ApiClient) -> void
@@ -265,7 +279,7 @@ module {{moduleName}}
       end
 {{/hasOAuth2Implicit}}
 {{#hasOpenIdConnect}}
-      class OpenIdConnectAuthenticator < Authenticator
+      class OpenIdConnectAuthenticator < BaseAuthenticator
         include HttpAwareAuthenticator
         def initialize: (String, String, String, String, String, Array[String]) -> void
         attr_writer api_client: ApiClient?

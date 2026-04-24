@@ -25,10 +25,10 @@ namespace PetstoreClient;
 class ApiResult
 {
     /**
-     * @param int                      $statusCode HTTP status code
-     * @param T|null                   $data       Deserialized response body
-     * @param string|null              $rawBody    Raw response body string
-     * @param array<string, string[]>  $headers    Response headers
+     * @param int                     $statusCode HTTP status code
+     * @param T|null                  $data       Deserialized response body
+     * @param string|null             $rawBody    Raw response body string
+     * @param array<string, string>   $headers    Response headers
      */
     public function __construct(
         public readonly int $statusCode,

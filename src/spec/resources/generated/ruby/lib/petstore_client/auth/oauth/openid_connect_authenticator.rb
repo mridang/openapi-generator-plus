@@ -14,7 +14,7 @@ module PetstoreClient
       # and subsequent token exchange requests use the shared {ApiClient}
       # with the same transport configuration (proxy, TLS, timeouts) as
       # regular API calls.
-      class OpenIdConnectAuthenticator < Authenticator
+      class OpenIdConnectAuthenticator < BaseAuthenticator
         include HttpAwareAuthenticator
 
         # @return [String]

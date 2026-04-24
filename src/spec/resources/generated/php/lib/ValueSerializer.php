@@ -43,7 +43,8 @@ final class ValueSerializer
         string $location,
         string $schemaType,
         ?string $collectionFormat = null,
-    ): string|array|null {
+    ): string|array|null
+    {
         if ($value === null) {
             if ($location === 'query') {
                 return null;

@@ -68,4 +68,21 @@ class ApiException extends Exception
     {
         return $this->errorBody;
     }
+
+    /**
+     * Deserialize the response body into the given type.
+     *
+     * @param class-string $class the fully-qualified class name to deserialize into
+     * @return object|null the deserialized object, or null if the body is empty
+     */
+    public function getTypedErrorBody(string $class): ?object
+    {
+        if ($this->responseBody === null || trim($this->responseBody) === '') {
+            return null;
+        }
+
+        /** @var object|null $result */
+        $result = ObjectSerializer::deserialize($this->responseBody, $class);
+        return $result;
+    }
 }

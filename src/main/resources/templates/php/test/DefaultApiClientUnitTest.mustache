@@ -55,7 +55,7 @@ class DefaultApiClientUnitTest extends TestCase
         $response = $client->sendRequest('GET', 'http://example.com/echo', [], null);
 
         $this->assertArrayHasKey('x-test-header', $response->headers);
-        $this->assertSame(['test-value'], $response->headers['x-test-header']);
+        $this->assertSame('test-value', $response->headers['x-test-header']);
     }
 
     public function testReturnsNon2xxStatus(): void
@@ -95,5 +95,38 @@ class DefaultApiClientUnitTest extends TestCase
 
         $this->assertSame(200, $response->statusCode);
         $this->assertStringContainsString('DELETE', $response->body);
+    }
+
+    public function testVndJsonContentTypeReturnsJsonBody(): void
+    {
+        $mockResponse = new MockResponse('{"id":1,"name":"test"}', [
+            'http_code' => 200,
+            'response_headers' => ['Content-Type' => 'application/vnd.api+json'],
+        ]);
+        $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+
+        $response = $client->sendRequest('GET', 'http://example.com/resource', [], null);
+
+        $this->assertSame(200, $response->statusCode);
+        $this->assertJson($response->body);
+    }
+
+    public function testResponseHeadersAreFlatStrings(): void
+    {
+        $mockResponse = new MockResponse('ok', [
+            'http_code' => 200,
+            'response_headers' => [
+                'Content-Type' => 'application/json',
+                'X-Request-Id' => 'abc-123',
+            ],
+        ]);
+        $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+
+        $response = $client->sendRequest('GET', 'http://example.com/echo', [], null);
+
+        $this->assertArrayHasKey('content-type', $response->headers);
+        $this->assertIsString($response->headers['content-type']);
+        $this->assertArrayHasKey('x-request-id', $response->headers);
+        $this->assertIsString($response->headers['x-request-id']);
     }
 }

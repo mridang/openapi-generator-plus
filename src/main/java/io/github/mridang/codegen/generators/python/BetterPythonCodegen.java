@@ -299,6 +299,8 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                 new SupportingFile("auth/__init__.mustache", authPath, "__init__.py"));
         supportingFiles.add(
                 new SupportingFile("authenticator.mustache", authPath, "authenticator.py"));
+        supportingFiles.add(
+                new SupportingFile("auth/base_authenticator.mustache", authPath, "base_authenticator.py"));
         final String clientClassName =
                 Objects.requireNonNull((String) additionalProperties.get("clientClassName"));
         final String clientClassFile = NamingConvention.SNAKE_CASE.apply(clientClassName);
@@ -377,6 +379,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                             "test/test_composed_schema.mustache",
                             "test",
                             "test_composed_schema.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_configuration.mustache",
+                            "test",
+                            "test_configuration.py"));
         }
     }
 

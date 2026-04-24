@@ -34,6 +34,14 @@ module {{moduleName}}
       message
     end
 
+    # Deserialize the response body into a typed error object.
+    #
+    # @param klass [String] the target type name for deserialization
+    # @return [Object, nil] the deserialized error body, or nil if the body is empty
+    def typed_error_body(klass)
+      ObjectSerializer.deserialize(response_body, klass)
+    end
+
     # Build a human-readable error message from the stored attributes.
     def message
       msg = @message.nil? ? 'Error message: the server returns an error' : @message

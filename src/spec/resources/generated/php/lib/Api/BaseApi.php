@@ -20,9 +20,12 @@ use PetstoreClient\ApiClient;
 use PetstoreClient\ApiException;
 use PetstoreClient\ApiResponse;
 use PetstoreClient\ApiResult;
-use PetstoreClient\Auth\Authenticator;
 use PetstoreClient\Configuration;
 use PetstoreClient\DefaultApiClient;
+use PetstoreClient\HeaderSelector;
+use PetstoreClient\ObjectSerializer;
+use PetstoreClient\TraceContextUtil;
+use PetstoreClient\Auth\Authenticator;
 use PetstoreClient\Exceptions\BadRequestException;
 use PetstoreClient\Exceptions\ClientException;
 use PetstoreClient\Exceptions\ConflictException;
@@ -32,9 +35,6 @@ use PetstoreClient\Exceptions\NotFoundException;
 use PetstoreClient\Exceptions\ServerException;
 use PetstoreClient\Exceptions\UnauthorizedException;
 use PetstoreClient\Exceptions\UnprocessableEntityException;
-use PetstoreClient\HeaderSelector;
-use PetstoreClient\ObjectSerializer;
-use PetstoreClient\TraceContextUtil;
 
 /**
  * Base class for all API classes. Provides the invokeApi method that
@@ -140,15 +140,15 @@ class BaseApi
         $data = null;
         if ($returnType !== null && trim($response->body) !== '') {
             $respContentType = null;
-            foreach ($response->headers as $name => $values) {
+            foreach ($response->headers as $name => $value) {
                 if (strtolower($name) === 'content-type') {
-                    $respContentType = explode(';', $values[0])[0];
+                    $respContentType = explode(';', $value)[0];
                     $respContentType = trim($respContentType);
                     break;
                 }
             }
 
-            if ($respContentType !== null && !str_starts_with($respContentType, 'application/json')) {
+            if ($respContentType !== null && !str_starts_with($respContentType, 'application/json') && !str_contains($respContentType, '+json')) {
                 $data = $response->body;
             } else {
                 $data = ObjectSerializer::deserialize($response->body, $returnType, []);
@@ -211,7 +211,7 @@ class BaseApi
     {
         $code = $response->statusCode;
         $message = "API returned status code $code";
-        $headers = array_map(fn(array $values): string => $values[0] ?? '', $response->headers);
+        $headers = $response->headers;
         $body = $response->body;
 
         $errorBody = null;

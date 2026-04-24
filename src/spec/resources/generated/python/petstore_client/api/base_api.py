@@ -157,7 +157,11 @@ class BaseApi:
                 if k.lower() == 'content-type':
                     resp_content_type = v.split(';')[0].strip()
                     break
-            if resp_content_type and not resp_content_type.startswith('application/json'):
+            if (
+                resp_content_type
+                and not resp_content_type.startswith('application/json')
+                and '+json' not in resp_content_type
+            ):
                 data = response.body
             else:
                 data = self._object_serializer.deserialize(response.body, return_type)

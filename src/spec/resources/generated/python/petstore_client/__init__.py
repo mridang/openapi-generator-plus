@@ -23,10 +23,6 @@ __all__ = [
     'ServerConfiguration',
     'ServerVariable',
     'OpenApiException',
-    'ApiTypeError',
-    'ApiValueError',
-    'ApiKeyError',
-    'ApiAttributeError',
     'ApiException',
     'ApiResponse',
     'Category',
@@ -62,10 +58,6 @@ from petstore_client.transport_options import TransportOptions as TransportOptio
 from petstore_client.server_configuration import ServerConfiguration as ServerConfiguration
 from petstore_client.server_configuration import ServerVariable as ServerVariable
 from petstore_client.exceptions import OpenApiException as OpenApiException
-from petstore_client.exceptions import ApiTypeError as ApiTypeError
-from petstore_client.exceptions import ApiValueError as ApiValueError
-from petstore_client.exceptions import ApiKeyError as ApiKeyError
-from petstore_client.exceptions import ApiAttributeError as ApiAttributeError
 from petstore_client.exceptions import ApiException as ApiException
 
 # import models into sdk package

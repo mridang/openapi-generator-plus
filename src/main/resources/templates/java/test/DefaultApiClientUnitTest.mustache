@@ -111,4 +111,29 @@ class DefaultApiClientUnitTest {
     assertEquals(200, response.statusCode());
     assertTrue(response.body().contains("\"method\":\"DELETE\""));
   }
+
+  @Test
+  void joinsMultiValueResponseHeaders() throws Exception {
+    server.createContext(
+        "/multi-header",
+        exchange -> {
+          exchange.getResponseHeaders().add("Set-Cookie", "a=1");
+          exchange.getResponseHeaders().add("Set-Cookie", "b=2");
+          byte[] response = "ok".getBytes(StandardCharsets.UTF_8);
+          exchange.sendResponseHeaders(200, response.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(response);
+          }
+        });
+    DefaultApiClient client = new DefaultApiClient();
+    ApiResponse response = client.sendRequest("GET", baseUrl + "/multi-header", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    String cookieValue =
+        response.headers().entrySet().stream()
+            .filter(e -> e.getKey().equalsIgnoreCase("Set-Cookie"))
+            .findFirst()
+            .map(Map.Entry::getValue)
+            .orElse(null);
+    assertEquals("a=1, b=2", cookieValue);
+  }
 }

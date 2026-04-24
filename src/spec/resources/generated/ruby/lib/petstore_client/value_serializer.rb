@@ -11,7 +11,7 @@ module PetstoreClient
 
       str_val = ObjectSerializer.stringify(value)
 
-      return CGI.escape(str_val) if location == :path
+      return CGI.escape(str_val).gsub('+', '%20') if location == :path
 
       str_val
     end

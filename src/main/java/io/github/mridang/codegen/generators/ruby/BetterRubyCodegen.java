@@ -365,6 +365,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                             "test/composed_schema_test.mustache",
                             "test",
                             "composed_schema_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/configuration_test.mustache",
+                            "test",
+                            "configuration_test.rb"));
         }
     }
 
@@ -532,6 +537,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         final String authPath = Path.of(libPath, "auth").toString();
         final String oauthPath = Path.of(authPath, "oauth").toString();
 
+        supportingFiles.add(new SupportingFile("auth/base_authenticator.mustache", authPath, "base_authenticator.rb"));
         supportingFiles.add(new SupportingFile("auth/http_aware_authenticator.mustache", authPath, "http_aware_authenticator.rb"));
 
         if (hasBasicAuth) {
@@ -541,6 +547,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
             supportingFiles.add(new SupportingFile("auth/bearer_authenticator.mustache", authPath, "bearer_authenticator.rb"));
         }
         if (hasApiKeyAuth) {
+            supportingFiles.add(new SupportingFile("auth/api_key_location.mustache", authPath, "api_key_location.rb"));
             supportingFiles.add(new SupportingFile("auth/api_key_authenticator.mustache", authPath, "api_key_authenticator.rb"));
         }
         if (hasAnyOAuth2 || hasOpenIdConnect) {

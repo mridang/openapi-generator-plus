@@ -1,5 +1,6 @@
 {{>partial_header}}
 from {{packageName}}.auth.authenticator import Authenticator as Authenticator
+from {{packageName}}.auth.base_authenticator import BaseAuthenticator as BaseAuthenticator
 from {{packageName}}.auth.http_aware_authenticator import HttpAwareAuthenticator as HttpAwareAuthenticator
 {{#hasBasicAuth}}
 from {{packageName}}.auth.basic_authenticator import BasicAuthenticator as BasicAuthenticator
@@ -14,6 +15,7 @@ from {{packageName}}.auth.api_key_location import ApiKeyLocation as ApiKeyLocati
 
 __all__ = [
     'Authenticator',
+    'BaseAuthenticator',
     'HttpAwareAuthenticator',
 {{#hasBasicAuth}}
     'BasicAuthenticator',

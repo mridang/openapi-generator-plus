@@ -38,13 +38,13 @@ class PetWithOwner
 
     /** @example null */
     #[SerializedName('category')]
-    public ?Category $category = null;
+    public ?\PetstoreClient\Models\Category $category = null;
 
     /** @var string[] */
     #[SerializedName('photoUrls')]
     public array $photoUrls;
 
-    /** @var Tag[]|null */
+    /** @var \PetstoreClient\Models\Tag[]|null */
     #[SerializedName('tags')]
     public ?array $tags = null;
 
@@ -66,14 +66,14 @@ class PetWithOwner
 
     /**
      * @param string[] $photoUrls
-     * @param Tag[]|null $tags
+     * @param \PetstoreClient\Models\Tag[]|null $tags
      */
     public function __construct(
         string $name,
         array $photoUrls,
         string $ownerName,
         ?int $id = null,
-        ?Category $category = null,
+        ?\PetstoreClient\Models\Category $category = null,
         ?array $tags = null,
         ?PetWithOwnerStatusEnum $status = null,
         ?string $ownerEmail = null,

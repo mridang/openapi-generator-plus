@@ -1,0 +1,111 @@
+using System.Diagnostics;
+using {{packageName}};
+using Xunit;
+
+namespace Test;
+
+public class TraceContextUtilTest
+{
+    [Fact]
+    public void ShouldReturnEmptyWhenNoActiveActivity()
+    {
+        Activity.Current = null;
+
+        var headers = TraceContextUtil.GetTraceHeaders();
+
+        Assert.Empty(headers);
+    }
+
+    [Fact]
+    public void ShouldReturnTraceparentWhenActivityIsActive()
+    {
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = _ => true,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
+                ActivitySamplingResult.AllDataAndRecorded,
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        using var source = new ActivitySource("test.trace");
+        using var activity = source.StartActivity("TestOperation");
+        Assert.NotNull(activity);
+
+        var headers = TraceContextUtil.GetTraceHeaders();
+
+        Assert.True(headers.ContainsKey("traceparent"));
+        string traceparent = headers["traceparent"];
+        string[] parts = traceparent.Split('-');
+        Assert.Equal(4, parts.Length);
+        Assert.Equal("00", parts[0]);
+        Assert.Equal(32, parts[1].Length);
+        Assert.Equal(16, parts[2].Length);
+        Assert.Equal(2, parts[3].Length);
+    }
+
+    [Fact]
+    public void ShouldIncludeTracestateWhenPresent()
+    {
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = _ => true,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
+                ActivitySamplingResult.AllDataAndRecorded,
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        using var source = new ActivitySource("test.tracestate");
+        using var activity = source.StartActivity("TestOperation");
+        Assert.NotNull(activity);
+        activity.TraceStateString = "congo=t61rcWkgMzE";
+
+        var headers = TraceContextUtil.GetTraceHeaders();
+
+        Assert.True(headers.ContainsKey("tracestate"));
+        Assert.Equal("congo=t61rcWkgMzE", headers["tracestate"]);
+    }
+
+    [Fact]
+    public void ShouldNotIncludeTracestateWhenEmpty()
+    {
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = _ => true,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
+                ActivitySamplingResult.AllDataAndRecorded,
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        using var source = new ActivitySource("test.notracestate");
+        using var activity = source.StartActivity("TestOperation");
+        Assert.NotNull(activity);
+
+        var headers = TraceContextUtil.GetTraceHeaders();
+
+        Assert.True(headers.ContainsKey("traceparent"));
+        Assert.False(headers.ContainsKey("tracestate"));
+    }
+
+    [Fact]
+    public void ShouldFormatTraceFlagsCorrectly()
+    {
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = _ => true,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
+                ActivitySamplingResult.AllDataAndRecorded,
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        using var source = new ActivitySource("test.flags");
+        using var activity = source.StartActivity("TestOperation");
+        Assert.NotNull(activity);
+
+        var headers = TraceContextUtil.GetTraceHeaders();
+
+        string traceparent = headers["traceparent"];
+        string flags = traceparent.Split('-')[3];
+        // Recorded flag should be "01"
+        Assert.Equal("01", flags);
+    }
+}

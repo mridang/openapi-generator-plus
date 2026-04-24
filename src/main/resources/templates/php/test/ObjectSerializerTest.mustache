@@ -177,6 +177,22 @@ class ObjectSerializerTest extends TestCase
         $this->assertSame('3.14', ObjectSerializer::stringify(3.14));
     }
 
+    public function testStringifyArrayFallback(): void
+    {
+        $result = ObjectSerializer::stringify(['a', 'b', 'c']);
+        $this->assertNotSame('', $result);
+        $this->assertSame('["a","b","c"]', $result);
+    }
+
+    public function testStringifyObjectFallback(): void
+    {
+        $obj = new \stdClass();
+        $obj->key = 'value';
+        $result = ObjectSerializer::stringify($obj);
+        $this->assertNotSame('', $result);
+        $this->assertSame('{"key":"value"}', $result);
+    }
+
     // -- serialize --
 
     public function testSerializeSerializesModelToValidJson(): void

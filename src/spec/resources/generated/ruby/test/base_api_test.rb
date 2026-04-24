@@ -161,30 +161,30 @@ describe PetstoreClient::Api::BaseApi do
 
   it 'server variable overrides resolve in base URL' do
     config = PetstoreClient::Configuration.builder
-                                          .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'staging')
-                                          .build
+      .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'staging')
+      .build
     _(config.base_url).must_equal('https://staging.example.com/api/v3')
   end
 
   it 'default server variables produce correct base URL' do
     config = PetstoreClient::Configuration.builder
-                                          .server(PetstoreClient::Servers::SERVER_1)
-                                          .build
+      .server(PetstoreClient::Servers::SERVER_1)
+      .build
     _(config.base_url).must_equal('https://api.example.com/api/v3')
   end
 
   it 'invalid enum value raises ArgumentError' do
     assert_raises(ArgumentError) do
       PetstoreClient::Configuration.builder
-                                   .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'invalid')
-                                   .build
+        .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'invalid')
+        .build
     end
   end
 
   it 'API request uses resolved server URL' do
     config = PetstoreClient::Configuration.builder
-                                          .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'staging')
-                                          .build
+      .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'staging')
+      .build
     _(config.base_url).must_equal('https://staging.example.com/api/v3')
   end
 end

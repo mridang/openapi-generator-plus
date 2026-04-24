@@ -128,7 +128,7 @@ export abstract class BaseApi {
           .find(([k]) => k.toLowerCase() === 'content-type')?.[1]
           ?.split(';')[0]
           ?.trim() ?? '';
-      if (respContentType && !respContentType.startsWith('application/json')) {
+      if (respContentType && !this.headerSelector.isJsonMime(respContentType)) {
         data = response.body as unknown as T;
       } else {
         const json = JSON.parse(response.body);

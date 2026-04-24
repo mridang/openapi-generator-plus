@@ -15,7 +15,7 @@ module PetstoreClient
       # 2. Redirect the user to that URL
       # 3. Extract the access token from the fragment and call {#access_token=}
       # 4. Use the authenticator normally
-      class OAuth2ImplicitAuthenticator < Authenticator
+      class OAuth2ImplicitAuthenticator < BaseAuthenticator
         include HttpAwareAuthenticator
 
         # @return [String]

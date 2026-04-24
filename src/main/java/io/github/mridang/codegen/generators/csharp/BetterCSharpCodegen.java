@@ -274,6 +274,9 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                         "header_selector.mustache", invokerFolder, "HeaderSelector.cs"));
         supportingFiles.add(
                 new SupportingFile(
+                        "trace_context_util.mustache", invokerFolder, "TraceContextUtil.cs"));
+        supportingFiles.add(
+                new SupportingFile(
                         "authenticator.mustache",
                         Path.of(invokerFolder, "Auth").toString(),
                         "IAuthenticator.cs"));
@@ -357,6 +360,16 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             "test/ComposedSchemaTest.mustache",
                             "Test",
                             "ComposedSchemaTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/TraceContextUtilTest.mustache",
+                            "Test",
+                            "TraceContextUtilTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ConfigurationTest.mustache",
+                            "Test",
+                            "ConfigurationTest.cs"));
         }
     }
 

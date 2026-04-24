@@ -3,7 +3,7 @@
 module PetstoreClient
   module Auth
     # Authenticator for HTTP Bearer token authentication.
-    class BearerAuthenticator < Authenticator
+    class BearerAuthenticator < BaseAuthenticator
       attr_reader :host
 
       # @param host [String] API base URL

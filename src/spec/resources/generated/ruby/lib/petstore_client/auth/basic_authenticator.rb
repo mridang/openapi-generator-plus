@@ -5,7 +5,7 @@ require 'base64'
 module PetstoreClient
   module Auth
     # Authenticator for HTTP Basic authentication.
-    class BasicAuthenticator < Authenticator
+    class BasicAuthenticator < BaseAuthenticator
       attr_reader :host
 
       # @param host [String] API base URL

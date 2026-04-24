@@ -134,7 +134,12 @@ class ObjectSerializer
             return (string) $value;
         }
 
-        return '';
+        if ($value === null) {
+            return '';
+        }
+
+        $encoded = json_encode($value);
+        return $encoded === false ? '' : $encoded;
     }
 
     /**

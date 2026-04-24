@@ -3,7 +3,7 @@
 module PetstoreClient
   module Auth
     # Authenticator for API key authentication.
-    class ApiKeyAuthenticator < Authenticator
+    class ApiKeyAuthenticator < BaseAuthenticator
       attr_reader :host
 
       # @param host [String] API base URL
@@ -21,21 +21,21 @@ module PetstoreClient
       # @return [Hash{String => String}]
       def auth_headers
         result = {} # : Hash[String, String]
-        result[@key_param_name] = @api_key if @location == :header
+        result[@key_param_name] = @api_key if @location == ApiKeyLocation::HEADER
         result
       end
 
       # @return [Hash{String => String}]
       def query_params
         result = {} # : Hash[String, String]
-        result[@key_param_name] = @api_key if @location == :query
+        result[@key_param_name] = @api_key if @location == ApiKeyLocation::QUERY
         result
       end
 
       # @return [Hash{String => String}]
       def cookie_params
         result = {} # : Hash[String, String]
-        result[@key_param_name] = @api_key if @location == :cookie
+        result[@key_param_name] = @api_key if @location == ApiKeyLocation::COOKIE
         result
       end
     end

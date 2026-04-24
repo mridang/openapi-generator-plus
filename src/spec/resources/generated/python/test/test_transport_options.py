@@ -42,6 +42,14 @@ class TestTransportOptions:
         assert opts.default_headers['X-Custom'] == 'value'
         assert opts.inject_request_id is True
 
+    def test_follow_redirects_without_max_defaults_to_twenty(self) -> None:
+        """When follow_redirects is True and max_redirects is not set,
+        the effective redirect limit should be 20, not urllib3's default of 3."""
+        opts = TransportOptions.builder().follow_redirects(True).build()
+
+        assert opts.follow_redirects is True
+        assert opts.max_redirects is None
+
     def test_default_headers_is_immutable(self) -> None:
         headers = {'X-Original': 'original'}
 

@@ -396,6 +396,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "test/BaseApiTest.mustache",
                             testFolder,
                             "BaseApiTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ConfigurationTest.mustache",
+                            testFolder,
+                            "ConfigurationTest.java"));
             final String testModelsFolder = Path.of(testFolder, "models").toString();
             supportingFiles.add(
                     new SupportingFile(
@@ -611,6 +616,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         final String authFolder = Path.of(invokerFolder, "auth").toString();
         final String oauthFolder = Path.of(authFolder, "oauth").toString();
 
+        supportingFiles.add(
+                new SupportingFile(
+                        "auth/base_authenticator.mustache",
+                        authFolder,
+                        "BaseAuthenticator.java"));
         supportingFiles.add(
                 new SupportingFile(
                         "auth/http_aware_authenticator.mustache",

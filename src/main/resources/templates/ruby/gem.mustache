@@ -41,6 +41,7 @@ require '{{gemName}}/api_client'
 require '{{gemName}}/default_api_client'
 require '{{gemName}}/api/base_api'
 require '{{gemName}}/auth/authenticator'
+require '{{gemName}}/auth/base_authenticator'
 require '{{gemName}}/auth/http_aware_authenticator'
 {{#hasBasicAuth}}
 require '{{gemName}}/auth/basic_authenticator'
@@ -49,6 +50,7 @@ require '{{gemName}}/auth/basic_authenticator'
 require '{{gemName}}/auth/bearer_authenticator'
 {{/hasBearerAuth}}
 {{#hasApiKeyAuth}}
+require '{{gemName}}/auth/api_key_location'
 require '{{gemName}}/auth/api_key_authenticator'
 {{/hasApiKeyAuth}}
 {{#hasAnyOAuth2}}

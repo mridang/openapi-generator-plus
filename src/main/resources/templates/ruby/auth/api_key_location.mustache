@@ -1,0 +1,12 @@
+# frozen_string_literal: true
+
+module {{moduleName}}
+  module Auth
+    # Location where the API key should be sent.
+    module ApiKeyLocation
+      HEADER = :header
+      QUERY = :query
+      COOKIE = :cookie
+    end
+  end
+end

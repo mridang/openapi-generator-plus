@@ -1,3 +1,6 @@
+import { ObjectSerializer } from './object-serializer{{importFileExtension}}';
+import type { ClassConstructor } from 'class-transformer';
+
 /**
  * Base error class for all API errors.
  */
@@ -27,5 +30,19 @@ export class ApiError<T = unknown> extends Error {
     this.responseHeaders = responseHeaders;
     this.responseBody = responseBody;
     this.errorBody = errorBody;
+  }
+
+  /**
+   * Deserialize the raw response body into an instance of the given class.
+   *
+   * Useful when the API returns a structured error body that you want to
+   * access in a strongly-typed way.
+   *
+   * @param clazz the class constructor to deserialize into
+   * @returns the deserialized error body
+   */
+  getTypedErrorBody<U>(clazz: ClassConstructor<U>): U {
+    const json = this.responseBody != null ? JSON.parse(this.responseBody) : null;
+    return ObjectSerializer.deserialize(json, clazz);
   }
 }

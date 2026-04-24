@@ -1,5 +1,6 @@
 import * as http from 'http';
 import { DefaultApiClient } from '../src/default-api-client';
+import { HeaderSelector } from '../src/header-selector';
 
 let server: http.Server;
 let baseUrl: string;
@@ -9,6 +10,15 @@ beforeAll(async () => {
     if (req.url === '/not-found') {
       res.writeHead(404);
       res.end('not found');
+      return;
+    }
+
+    if (req.url === '/vendor-json') {
+      const response = JSON.stringify({ format: 'vendor' });
+      res.writeHead(200, {
+        'Content-Type': 'application/vnd.api+json',
+      });
+      res.end(response);
       return;
     }
 
@@ -86,5 +96,18 @@ describe('DefaultApiClient unit', () => {
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
     expect(body.method).toBe('DELETE');
+  });
+
+  it('deserializes response with application/vnd.api+json as JSON', async () => {
+    const client = new DefaultApiClient();
+    const response = await client.sendRequest('GET', `${baseUrl}/vendor-json`, {}, null);
+    expect(response.statusCode).toBe(200);
+
+    const contentType = response.headers['content-type']?.split(';')[0]?.trim() ?? '';
+    const headerSelector = new HeaderSelector();
+    expect(headerSelector.isJsonMime(contentType)).toBe(true);
+
+    const body = JSON.parse(response.body);
+    expect(body.format).toBe('vendor');
   });
 });

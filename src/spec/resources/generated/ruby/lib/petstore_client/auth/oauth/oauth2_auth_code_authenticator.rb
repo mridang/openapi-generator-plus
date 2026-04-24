@@ -16,7 +16,7 @@ module PetstoreClient
       # 2. Redirect the user to that URL
       # 3. After the callback, call {#exchange_code} with the auth code
       # 4. Use the authenticator normally -- tokens are managed automatically
-      class OAuth2AuthorizationCodeAuthenticator < Authenticator
+      class OAuth2AuthorizationCodeAuthenticator < BaseAuthenticator
         include HttpAwareAuthenticator
 
         # @return [String]

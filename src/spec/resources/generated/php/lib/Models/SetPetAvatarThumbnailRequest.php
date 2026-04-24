@@ -14,8 +14,6 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Models;
 
-use PetstoreClient\ObjectSerializer;
-
 class SetPetAvatarThumbnailRequest
 {
     /** @var string[] */
@@ -35,6 +33,6 @@ class SetPetAvatarThumbnailRequest
 
     public static function build(mixed $data): self
     {
-        return new self(ObjectSerializer::resolveOneOf($data, self::ONE_OF_SCHEMAS));
+        return new self(\PetstoreClient\ObjectSerializer::resolveOneOf($data, self::ONE_OF_SCHEMAS));
     }
 }

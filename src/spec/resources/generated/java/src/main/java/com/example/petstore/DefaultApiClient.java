@@ -204,7 +204,7 @@ public final class DefaultApiClient implements ApiClient {
           .forEach(
               (name, values) -> {
                 if (!values.isEmpty()) {
-                  responseHeaders.put(name, values.get(0));
+                  responseHeaders.put(name, String.join(", ", values));
                 }
               });
 

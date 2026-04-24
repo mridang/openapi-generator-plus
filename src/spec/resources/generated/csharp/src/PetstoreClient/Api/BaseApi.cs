@@ -131,6 +131,11 @@ public abstract class BaseApi
             }
         }
 
+        foreach (KeyValuePair<string, string> traceHeader in TraceContextUtil.GetTraceHeaders())
+        {
+            headers[traceHeader.Key] = traceHeader.Value;
+        }
+
         object? requestBody = null;
         if (body != null)
         {

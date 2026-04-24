@@ -142,6 +142,8 @@ class DefaultApiClient:
             request_kwargs['redirect'] = False
         elif self._transport_options.max_redirects is not None:
             request_kwargs['redirect'] = self._transport_options.max_redirects
+        else:
+            request_kwargs['redirect'] = 20
 
         response = self._pool_manager.request(
             method,

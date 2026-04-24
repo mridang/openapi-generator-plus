@@ -16,7 +16,6 @@ namespace PetstoreClient;
 
 use RuntimeException;
 use Symfony\Component\HttpClient\HttpClient;
-use Symfony\Component\Mime\Header\HeaderInterface;
 use Symfony\Component\Mime\Part\DataPart;
 use Symfony\Component\Mime\Part\Multipart\FormDataPart;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
@@ -151,7 +150,7 @@ class DefaultApiClient implements ApiClient
             }
             $formData = new FormDataPart($formFields);
             $contentType = $formData->getPreparedHeaders()->get('Content-Type');
-            if ($contentType instanceof HeaderInterface) {
+            if ($contentType instanceof \Symfony\Component\Mime\Header\HeaderInterface) {
                 $mergedHeaders['Content-Type'] = $contentType->getBodyAsString();
             }
             $options = [
@@ -172,8 +171,12 @@ class DefaultApiClient implements ApiClient
             $response = $this->client->request($method, $url, $options);
 
             $responseBody = $response->getContent(false);
-            $responseHeaders = $response->getHeaders(false);
-            $contentEncoding = $responseHeaders['content-encoding'][0] ?? '';
+            $rawHeaders = $response->getHeaders(false);
+            $responseHeaders = array_map(
+                static fn(array $values): string => implode(', ', $values),
+                $rawHeaders
+            );
+            $contentEncoding = $rawHeaders['content-encoding'][0] ?? '';
             $responseBody = $this->decompressBody($responseBody, $contentEncoding);
 
             return new ApiResponse(

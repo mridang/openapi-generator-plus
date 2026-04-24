@@ -15,7 +15,7 @@ describe PetstoreClient::ValueSerializer do
     end
 
     it 'string with spaces is URL-encoded' do
-      _(PetstoreClient::ValueSerializer.serialize('hello world', :path, 'string')).must_equal('hello+world')
+      _(PetstoreClient::ValueSerializer.serialize('hello world', :path, 'string')).must_equal('hello%20world')
     end
 
     it 'string with slash is URL-encoded' do

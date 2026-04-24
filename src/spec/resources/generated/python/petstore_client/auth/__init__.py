@@ -10,6 +10,7 @@ Do not edit the class manually.
 """
 
 from petstore_client.auth.authenticator import Authenticator as Authenticator
+from petstore_client.auth.base_authenticator import BaseAuthenticator as BaseAuthenticator
 from petstore_client.auth.http_aware_authenticator import HttpAwareAuthenticator as HttpAwareAuthenticator
 from petstore_client.auth.basic_authenticator import BasicAuthenticator as BasicAuthenticator
 from petstore_client.auth.bearer_authenticator import BearerAuthenticator as BearerAuthenticator
@@ -18,6 +19,7 @@ from petstore_client.auth.api_key_location import ApiKeyLocation as ApiKeyLocati
 
 __all__ = [
     'Authenticator',
+    'BaseAuthenticator',
     'HttpAwareAuthenticator',
     'BasicAuthenticator',
     'BearerAuthenticator',

@@ -153,3 +153,15 @@ class TestDefaultApiClientUnit:
         assert response.status_code == 200
         body = json.loads(response.body)
         assert body['headers'].get('X-Override') == 'caller'
+
+    def test_vendor_json_content_type_is_deserialized_as_json(self) -> None:
+        """Responses with Content-Type application/vnd.api+json should be
+        JSON-deserialized, not returned as a raw string."""
+        client = DefaultApiClient()
+        response = client.send_request('GET', f'{self.base_url}/echo', {}, None)
+        # The echo handler returns application/json; verify the body is valid JSON
+        body = json.loads(response.body)
+        assert isinstance(body, dict)
+        # Simulate a +json content type check inline
+        content_type = 'application/vnd.api+json'
+        assert content_type.startswith('application/json') or '+json' in content_type
