@@ -12,20 +12,20 @@ namespace PetstoreClient;
 public static class TraceContextUtil
 {
     /// <summary>
-    /// Return a dictionary containing <c>traceparent</c> and optionally <c>tracestate</c>
-    /// headers derived from <see cref="Activity.Current"/>.
+    /// Inject <c>traceparent</c> and optionally <c>tracestate</c> headers into
+    /// the given dictionary, derived from <see cref="Activity.Current"/>.
     ///
-    /// If there is no current activity, an empty dictionary is returned.
+    /// If there is no current activity, the dictionary is not modified.
     /// </summary>
-    /// <returns>Trace context headers, or an empty dictionary.</returns>
-    public static Dictionary<string, string> GetTraceHeaders()
+    /// <param name="headers">The mutable header dictionary to inject trace context into.</param>
+    public static void InjectTraceContext(Dictionary<string, string> headers)
     {
-        Dictionary<string, string> headers = [];
+        ArgumentNullException.ThrowIfNull(headers);
 
         Activity? activity = Activity.Current;
         if (activity is null)
         {
-            return headers;
+            return;
         }
 
         string traceId = activity.TraceId.ToString();
@@ -40,7 +40,5 @@ public static class TraceContextUtil
         {
             headers["tracestate"] = activity.TraceStateString;
         }
-
-        return headers;
     }
 }

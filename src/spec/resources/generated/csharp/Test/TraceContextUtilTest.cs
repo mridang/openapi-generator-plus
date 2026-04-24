@@ -7,17 +7,18 @@ namespace Test;
 public class TraceContextUtilTest
 {
     [Fact]
-    public void ShouldReturnEmptyWhenNoActiveActivity()
+    public void ShouldNotModifyHeadersWhenNoActiveActivity()
     {
         Activity.Current = null;
 
-        var headers = TraceContextUtil.GetTraceHeaders();
+        var headers = new Dictionary<string, string>();
+        TraceContextUtil.InjectTraceContext(headers);
 
         Assert.Empty(headers);
     }
 
     [Fact]
-    public void ShouldReturnTraceparentWhenActivityIsActive()
+    public void ShouldInjectTraceparentWhenActivityIsActive()
     {
         using var listener = new ActivityListener
         {
@@ -31,7 +32,8 @@ public class TraceContextUtilTest
         using var activity = source.StartActivity("TestOperation");
         Assert.NotNull(activity);
 
-        var headers = TraceContextUtil.GetTraceHeaders();
+        var headers = new Dictionary<string, string>();
+        TraceContextUtil.InjectTraceContext(headers);
 
         Assert.True(headers.ContainsKey("traceparent"));
         string traceparent = headers["traceparent"];
@@ -59,7 +61,8 @@ public class TraceContextUtilTest
         Assert.NotNull(activity);
         activity.TraceStateString = "congo=t61rcWkgMzE";
 
-        var headers = TraceContextUtil.GetTraceHeaders();
+        var headers = new Dictionary<string, string>();
+        TraceContextUtil.InjectTraceContext(headers);
 
         Assert.True(headers.ContainsKey("tracestate"));
         Assert.Equal("congo=t61rcWkgMzE", headers["tracestate"]);
@@ -80,7 +83,8 @@ public class TraceContextUtilTest
         using var activity = source.StartActivity("TestOperation");
         Assert.NotNull(activity);
 
-        var headers = TraceContextUtil.GetTraceHeaders();
+        var headers = new Dictionary<string, string>();
+        TraceContextUtil.InjectTraceContext(headers);
 
         Assert.True(headers.ContainsKey("traceparent"));
         Assert.False(headers.ContainsKey("tracestate"));
@@ -101,7 +105,8 @@ public class TraceContextUtilTest
         using var activity = source.StartActivity("TestOperation");
         Assert.NotNull(activity);
 
-        var headers = TraceContextUtil.GetTraceHeaders();
+        var headers = new Dictionary<string, string>();
+        TraceContextUtil.InjectTraceContext(headers);
 
         string traceparent = headers["traceparent"];
         string flags = traceparent.Split('-')[3];

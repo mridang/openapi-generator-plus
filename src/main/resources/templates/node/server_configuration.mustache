@@ -90,7 +90,7 @@ export class ServerConfiguration {
         );
       }
 
-      url = url.replace(`{${varName}}`, value);
+      url = url.replaceAll(`{${varName}}`, value);
     }
     return url;
   }

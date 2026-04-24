@@ -79,10 +79,13 @@ module {{moduleName}}
           # @type var resp_content_type: String?
           ct_pair = response.headers.find { |k, _| k.downcase == 'content-type' }
           resp_content_type = ct_pair ? ct_pair.last.split(';').first.strip : nil
-          data = if resp_content_type && !resp_content_type.start_with?('application/json')
-                   response.body
-                 else
+          is_json = !resp_content_type ||
+                    resp_content_type.start_with?('application/json') ||
+                    resp_content_type.include?('+json')
+          data = if is_json
                    {{moduleName}}::ObjectSerializer.deserialize(response.body, return_type)
+                 else
+                   response.body
                  end
         end
 
