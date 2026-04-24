@@ -3,6 +3,11 @@
 import pytest
 from typing import Any
 from petstore_client.api.pet_api import PetApi
+from petstore_client.api.options.add_pet_photos_options import AddPetPhotosOptions
+from petstore_client.api.options.find_pets_by_status_options import FindPetsByStatusOptions
+from petstore_client.api.options.get_pet_tag_options import GetPetTagOptions
+from petstore_client.api.options.upload_pet_certificate_options import UploadPetCertificateOptions
+from petstore_client.api.options.upload_pet_document_options import UploadPetDocumentOptions
 from petstore_client.auth.bearer_authenticator import BearerAuthenticator
 from petstore_client.configuration import Configuration
 from petstore_client.models.api_response import ApiResponse
@@ -33,7 +38,7 @@ class TestPetApi:
         assert result.name is not None
 
     def test_find_pets_by_status(self) -> None:
-        result = self.api.find_pets_by_status(status='available')
+        result = self.api.find_pets_by_status(FindPetsByStatusOptions(status='available'))
 
         assert isinstance(result, list)
         assert len(result) > 0
@@ -81,14 +86,14 @@ class TestPetApi:
         assert True
 
     def test_upload_pet_certificate(self) -> None:
-        result = self.api.upload_pet_certificate(1, file=b'cert-data')
+        result = self.api.upload_pet_certificate(1, UploadPetCertificateOptions(file=b'cert-data'))
 
         assert result is not None
         assert isinstance(result, ApiResponse)
 
     def test_upload_pet_document(self) -> None:
         result = self.api.upload_pet_document(
-            1, file=b'doc-data', document_type='vaccination_record', notes='Annual checkup'
+            1, UploadPetDocumentOptions(file=b'doc-data', document_type='vaccination_record', notes='Annual checkup')
         )
 
         assert result is not None
@@ -98,7 +103,7 @@ class TestPetApi:
     def test_add_pet_photos(self) -> None:
         metadata = PhotoMetadata(caption='Test photo', isPrimary=True)
 
-        result = self.api.add_pet_photos(1, files=[b'photo1'], metadata=metadata)
+        result = self.api.add_pet_photos(1, AddPetPhotosOptions(files=[b'photo1'], metadata=metadata))
 
         assert result is not None
         assert isinstance(result, list)
@@ -122,7 +127,7 @@ class TestPetApi:
 
     @pytest.mark.skip(reason='Styled params require compatible mock server')
     def test_get_pet_tag_styled_params(self) -> None:
-        result = self.api.get_pet_tag(5, 'cute', colors=['blue', 'black'], sizes=['S', 'M'])
+        result = self.api.get_pet_tag(5, 'cute', GetPetTagOptions(colors=['blue', 'black'], sizes=['S', 'M']))
 
         assert result is not None
 

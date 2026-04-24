@@ -1,0 +1,15 @@
+{{#imports}}
+{{.}}
+{{/imports}}
+
+
+@dataclass
+class {{className}}:
+    """Options for the {{operationId}} operation."""
+
+{{#requiredParams}}
+    {{paramName}}: {{dataType}}
+{{/requiredParams}}
+{{#optionalParams}}
+    {{paramName}}: Optional[{{dataType}}] = None
+{{/optionalParams}}

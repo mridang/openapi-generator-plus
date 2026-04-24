@@ -1,0 +1,40 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{namespace}};
+{{#hasModelImports}}
+
+{{#modelImports}}
+use {{invokerPackage}}\Models\{{.}};
+{{/modelImports}}
+{{/hasModelImports}}
+
+/**
+ * Options for the {{operationId}} operation.
+ */
+class {{className}}
+{
+{{#params}}
+{{#hasDocType}}
+    /** @var {{phpDocType}}{{^required}}|null{{/required}}{{#description}} {{description}}{{/description}} */
+{{/hasDocType}}
+    public {{^required}}?{{/required}}{{phpType}} ${{paramName}};
+
+{{/params}}
+{{#hasAnyDocTypes}}
+    /**
+{{#params}}
+{{#hasDocType}}
+     * @param {{phpDocType}}{{^required}}|null{{/required}} ${{paramName}}
+{{/hasDocType}}
+{{/params}}
+     */
+{{/hasAnyDocTypes}}
+    public function __construct({{constructorSignature}})
+    {
+{{#params}}
+        $this->{{paramName}} = ${{paramName}};
+{{/params}}
+    }
+}

@@ -10,16 +10,23 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.utils.ModelUtils;
@@ -557,17 +564,68 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Overrides the base class to move {@code .rbs} type-signature
-     * files from {@code lib/} to {@code sig/} as required by
-     * Ruby's Steep type-checking tooling. Cannot be standardized
-     * because no other language has this file relocation need.
+     * Overrides the base class to collapse consecutive blank lines
+     * in generated {@code .rb} and {@code .rbs} files (a cosmetic
+     * artefact of cascading Mustache section gates), and to move
+     * {@code .rbs} type-signature files from {@code lib/} to
+     * {@code sig/} as required by Ruby's Steep type-checking
+     * tooling.
      */
     @Override
     public void postProcessFile(File file, String fileType) {
-        if (file == null || !file.getName().endsWith(".rbs")) {
+        if (file == null) {
+            return;
+        }
+        final String name = file.getName();
+        final boolean isRb = name.endsWith(".rb");
+        final boolean isRbs = name.endsWith(".rbs");
+        if (!isRb && !isRbs) {
             return;
         }
 
+        collapseBlankLines(file);
+
+        if (isRbs) {
+            moveRbsToSigDir(file);
+        }
+    }
+
+    /**
+     * Collapses runs of two or more consecutive blank lines into
+     * a single blank line. This cleans up whitespace artefacts
+     * produced by empty Mustache section iterations for operations
+     * that have no options parameters.
+     */
+    private static void collapseBlankLines(File file) {
+        try {
+            final List<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
+            final List<String> result = new ArrayList<>(lines.size());
+            boolean prevBlank = false;
+            boolean changed = false;
+
+            for (final String line : lines) {
+                final boolean blank = line.trim().isEmpty();
+                if (blank && prevBlank) {
+                    changed = true;
+                    continue;
+                }
+                result.add(line);
+                prevBlank = blank;
+            }
+
+            if (changed) {
+                Files.write(file.toPath(), result, StandardCharsets.UTF_8);
+            }
+        } catch (IOException e) {
+            LOGGER.debug("Failed to collapse blank lines in {}: {}", file.getName(), e.getMessage());
+        }
+    }
+
+    /**
+     * Moves an {@code .rbs} file from {@code lib/} to {@code sig/}
+     * as required by Ruby's Steep type-checking tooling.
+     */
+    private void moveRbsToSigDir(File file) {
         final Path filePath = file.toPath();
         final Path outputDir = Path.of(getOutputDir());
         final Path relative = outputDir.relativize(filePath);
@@ -670,5 +728,123 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
             return name;
         }
         return NamingConvention.SNAKE_CASE.apply(name);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String generateOptionsFileContent(
+            CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
+        final List<Map<String, Object>> params = new ArrayList<>();
+        for (final CodegenParameter p : optionsParams) {
+            final Map<String, Object> param = new HashMap<>();
+            param.put("paramName", p.paramName);
+            params.add(param);
+        }
+
+        final StringBuilder sig = new StringBuilder();
+        boolean first = true;
+        for (final CodegenParameter p : optionsParams) {
+            if (!first) sig.append(", ");
+            first = false;
+            sig.append(p.paramName).append(": nil");
+        }
+
+        final Map<String, Object> context = new HashMap<>();
+        context.put("className", className);
+        context.put("moduleName", moduleName);
+        context.put("operationId", op.operationId);
+        context.put("params", params);
+        context.put("initializeSignature", sig.toString());
+
+        generateOptionsRbsFile(op, optionsParams, className);
+
+        return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /**
+     * Qualifies an RBS type string with the {@code Models::} prefix
+     * when the parameter's base type is a non-primitive model type.
+     * Uses word-boundary-safe regex replacement to avoid matching
+     * substrings of longer type names.
+     */
+    private String qualifyRbsModelType(String rbsType, CodegenParameter p) {
+        if (p.baseType != null && !languageSpecificPrimitives.contains(p.baseType)
+                && !rbsType.contains("Models::")) {
+            return rbsType.replaceAll("\\b" + java.util.regex.Pattern.quote(p.baseType) + "\\b",
+                    "Models::" + p.baseType);
+        }
+        return rbsType;
+    }
+
+    /**
+     * Generates the RBS type-signature file for an Options class.
+     * The file is written alongside the source file and relocated
+     * to {@code sig/} by {@link #postProcessFile}.
+     */
+    private void generateOptionsRbsFile(
+            CodegenOperation op,
+            List<CodegenParameter> optionsParams,
+            String className) {
+        final List<Map<String, Object>> params = new ArrayList<>();
+        for (final CodegenParameter p : optionsParams) {
+            final Map<String, Object> param = new HashMap<>();
+            param.put("paramName", p.paramName);
+            param.put("rbsType", qualifyRbsModelType(toRbsType(p.dataType), p));
+            param.put("required", p.required);
+            params.add(param);
+        }
+
+        final StringBuilder sig = new StringBuilder();
+        boolean first = true;
+        for (final CodegenParameter p : optionsParams) {
+            if (!first) sig.append(", ");
+            first = false;
+            final String rbsType = qualifyRbsModelType(toRbsType(p.dataType), p);
+            sig.append('?').append(p.paramName).append(": ").append(rbsType)
+                    .append('?');
+        }
+
+        final Map<String, Object> context = new HashMap<>();
+        context.put("className", className);
+        context.put("moduleName", moduleName);
+        context.put("params", params);
+        context.put("initializeSignature", sig.toString());
+
+        final String content = renderOptionsTemplate("api/options_rbs.mustache", context);
+
+        final String modulePath =
+                NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("::", "/"));
+        final String rbsFileName = NamingConvention.SNAKE_CASE.apply(className);
+        final String rbsPath =
+                Path.of(
+                                getOutputDir(),
+                                LIB_FOLDER,
+                                modulePath,
+                                "api",
+                                "options",
+                                rbsFileName + ".rbs")
+                        .toString();
+        writeFile(rbsPath, content);
+        postProcessFile(Path.of(rbsPath).toFile(), "source");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getOptionsFilePath(String operationId, String optionsClassName) {
+        final String modulePath =
+                NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("::", "/"));
+        final String fileName = NamingConvention.SNAKE_CASE.apply(optionsClassName);
+        return Path.of(getOutputDir(), LIB_FOLDER, modulePath, "api", "options", fileName + ".rb")
+                .toString();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected void enrichOptionsMetadata(
+            Map<String, String> meta, String operationId, String optionsClassName) {
+        final String modulePath =
+                NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("::", "/"));
+        final String fileName = NamingConvention.SNAKE_CASE.apply(optionsClassName);
+        meta.put("requirePath", modulePath + "/api/options/" + fileName);
     }
 }

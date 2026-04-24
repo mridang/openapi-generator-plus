@@ -7,6 +7,11 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Api;
 
+use PetstoreClient\Api\Options\AddPetPhotosOptions;
+use PetstoreClient\Api\Options\FindPetsByStatusOptions;
+use PetstoreClient\Api\Options\GetPetTagOptions;
+use PetstoreClient\Api\Options\UploadPetCertificateOptions;
+use PetstoreClient\Api\Options\UploadPetDocumentOptions;
 use PetstoreClient\ApiException;
 use PetstoreClient\ApiResult;
 use PetstoreClient\Auth\Authenticator;
@@ -15,7 +20,6 @@ use PetstoreClient\Models\Pet;
 use PetstoreClient\Models\PetPassport;
 use PetstoreClient\Models\PetTreatment;
 use PetstoreClient\Models\Photo;
-use PetstoreClient\Models\PhotoMetadata;
 use PetstoreClient\Models\SetPetAvatarThumbnailRequest;
 use PetstoreClient\ValueSerializer;
 
@@ -141,6 +145,7 @@ class PetApi extends BaseApi
      * Add a new pet to the store
      * @param Authenticator $auth Authenticator for this operation
      * @param Pet $pet Create a new pet in the store
+
      * @return Pet
      * @throws ApiException
      */
@@ -153,6 +158,7 @@ class PetApi extends BaseApi
 
     /**
      * @param Pet $pet Create a new pet in the store
+
      * @return ApiResult<Pet>
      * @throws ApiException
      */
@@ -181,23 +187,27 @@ class PetApi extends BaseApi
     /**
      * Add photos to the pet&#39;s gallery
      * Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
-     * @param \SplFileObject[] $files
+
+     * @param AddPetPhotosOptions $options Options for query, header, form, and cookie parameters
+
      * @return Photo[]
      * @throws ApiException
      */
-    public function addPetPhotos(int $petId, array $files, PhotoMetadata $metadata)
+    public function addPetPhotos(int $petId, AddPetPhotosOptions $options)
     {
         /** @var Photo[] $result */
-        $result = $this->addPetPhotosWithHttpInfo($petId, $files, $metadata)->data;
+        $result = $this->addPetPhotosWithHttpInfo($petId, $options)->data;
         return $result;
     }
 
     /**
-     * @param \SplFileObject[] $files
+
+     * @param AddPetPhotosOptions $options Options for query, header, form, and cookie parameters
+
      * @return ApiResult<Photo[]>
      * @throws ApiException
      */
-    public function addPetPhotosWithHttpInfo(int $petId, array $files, PhotoMetadata $metadata): ApiResult
+    public function addPetPhotosWithHttpInfo(int $petId, AddPetPhotosOptions $options): ApiResult
     {
         $path = '/pet/{petId}/photos';
         /** @var string $pathValue */
@@ -206,8 +216,8 @@ class PetApi extends BaseApi
         $queryParams = [];
         $headerParams = [];
         $requestBody = [];
-        $requestBody['files'] = $files;
-        $requestBody['metadata'] = $metadata;
+        $requestBody['files'] = $options->files;
+        $requestBody['metadata'] = $options->metadata;
 
         /** @var ApiResult<Photo[]> $result */
         $result = $this->invokeApiForResult(
@@ -226,6 +236,7 @@ class PetApi extends BaseApi
     /**
      * Record a treatment for a pet
      * @param Authenticator $auth Authenticator for this operation
+
      * @return PetTreatment
      * @throws ApiException
      */
@@ -237,6 +248,7 @@ class PetApi extends BaseApi
     }
 
     /**
+
      * @return ApiResult<PetTreatment>
      * @throws ApiException
      */
@@ -269,6 +281,7 @@ class PetApi extends BaseApi
      * Deletes a pet
      * @param Authenticator $auth Authenticator for this operation
      * @param int $petId Pet id to delete
+
      * @throws ApiException
      */
     public function deletePet(Authenticator $auth, int $petId): void
@@ -278,6 +291,7 @@ class PetApi extends BaseApi
 
     /**
      * @param int $petId Pet id to delete
+
      * @return ApiResult<null>
      * @throws ApiException
      */
@@ -309,6 +323,7 @@ class PetApi extends BaseApi
     /**
      * Download a vet document
      * Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
+
      * @return \SplFileObject
      * @throws ApiException
      */
@@ -320,6 +335,7 @@ class PetApi extends BaseApi
     }
 
     /**
+
      * @return ApiResult<\SplFileObject>
      * @throws ApiException
      */
@@ -352,35 +368,37 @@ class PetApi extends BaseApi
 
     /**
      * Finds Pets by status
-     * @param string|null $status Status values that need to be considered for filter
-     * @param array<string,string>|null $filter Filter criteria as key-value pairs
+
+     * @param FindPetsByStatusOptions $options Options for query, header, form, and cookie parameters
+
      * @return Pet[]
      * @throws ApiException
      * @deprecated This operation is deprecated.
      * @see https://example.com/docs/filtering Find out more about filtering
      */
-    public function findPetsByStatus(?string $status = null, ?array $filter = null)
+    public function findPetsByStatus(FindPetsByStatusOptions $options)
     {
         /** @var Pet[] $result */
-        $result = $this->findPetsByStatusWithHttpInfo($status, $filter)->data;
+        $result = $this->findPetsByStatusWithHttpInfo($options)->data;
         return $result;
     }
 
     /**
-     * @param string|null $status Status values that need to be considered for filter
-     * @param array<string,string>|null $filter Filter criteria as key-value pairs
+
+     * @param FindPetsByStatusOptions $options Options for query, header, form, and cookie parameters
+
      * @return ApiResult<Pet[]>
      * @throws ApiException
      */
-    public function findPetsByStatusWithHttpInfo(?string $status = null, ?array $filter = null): ApiResult
+    public function findPetsByStatusWithHttpInfo(FindPetsByStatusOptions $options): ApiResult
     {
         $path = '/pet/findByStatus';
         $queryParams = [];
-        if ($status !== null) {
-            $queryParams['status'] = ValueSerializer::serializeStyled('status', $status, 'query', 'string', null, 'form', true);
+        if ($options->status !== null) {
+            $queryParams['status'] = ValueSerializer::serializeStyled('status', $options->status, 'query', 'string', null, 'form', true);
         }
-        if ($filter !== null) {
-            $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('filter', $filter));
+        if ($options->filter !== null) {
+            $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('filter', $options->filter));
         }
         $headerParams = [];
         $requestBody = null;
@@ -401,6 +419,7 @@ class PetApi extends BaseApi
 
     /**
      * Get external pet info
+
      * @return Pet
      * @throws ApiException
      */
@@ -412,6 +431,7 @@ class PetApi extends BaseApi
     }
 
     /**
+
      * @return ApiResult<Pet>
      * @throws ApiException
      */
@@ -445,6 +465,7 @@ class PetApi extends BaseApi
 
     /**
      * Get multi-server pet info
+
      * @return Pet
      * @throws ApiException
      */
@@ -456,6 +477,7 @@ class PetApi extends BaseApi
     }
 
     /**
+
      * @return ApiResult<Pet>
      * @throws ApiException
      */
@@ -490,6 +512,7 @@ class PetApi extends BaseApi
     /**
      * Get the pet&#39;s profile photo
      * Returns the raw image bytes of the pet&#39;s current avatar.
+
      * @return \SplFileObject
      * @throws ApiException
      */
@@ -501,6 +524,7 @@ class PetApi extends BaseApi
     }
 
     /**
+
      * @return ApiResult<\SplFileObject>
      * @throws ApiException
      */
@@ -531,6 +555,7 @@ class PetApi extends BaseApi
     /**
      * Get the pet&#39;s avatar thumbnail as base64
      * Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
+
      * @return string
      * @throws ApiException
      */
@@ -542,6 +567,7 @@ class PetApi extends BaseApi
     }
 
     /**
+
      * @return ApiResult<string>
      * @throws ApiException
      */
@@ -573,6 +599,7 @@ class PetApi extends BaseApi
      * Find pet by ID
      * Returns a single pet
      * @param int $petId ID of pet to return
+
      * @return Pet
      * @throws ApiException
      * @deprecated This operation is deprecated.
@@ -586,6 +613,7 @@ class PetApi extends BaseApi
 
     /**
      * @param int $petId ID of pet to return
+
      * @return ApiResult<Pet>
      * @throws ApiException
      */
@@ -616,6 +644,7 @@ class PetApi extends BaseApi
     /**
      * Get the pet&#39;s passport
      * Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
+
      * @return PetPassport
      * @throws ApiException
      */
@@ -627,6 +656,7 @@ class PetApi extends BaseApi
     }
 
     /**
+
      * @return ApiResult<PetPassport>
      * @throws ApiException
      */
@@ -657,6 +687,7 @@ class PetApi extends BaseApi
     /**
      * Get a photo or its metadata
      * Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
+
      * @return \SplFileObject
      * @throws ApiException
      */
@@ -668,6 +699,7 @@ class PetApi extends BaseApi
     }
 
     /**
+
      * @return ApiResult<\SplFileObject>
      * @throws ApiException
      */
@@ -700,25 +732,27 @@ class PetApi extends BaseApi
 
     /**
      * Get a tag for a pet
-     * @param string[]|null $colors
-     * @param string[]|null $sizes
+
+     * @param GetPetTagOptions $options Options for query, header, form, and cookie parameters
+
      * @return Pet
      * @throws ApiException
      */
-    public function getPetTag(int $petId, string $tagName, ?array $colors = null, ?array $sizes = null, ?string $filter = null)
+    public function getPetTag(int $petId, string $tagName, GetPetTagOptions $options)
     {
         /** @var Pet $result */
-        $result = $this->getPetTagWithHttpInfo($petId, $tagName, $colors, $sizes, $filter)->data;
+        $result = $this->getPetTagWithHttpInfo($petId, $tagName, $options)->data;
         return $result;
     }
 
     /**
-     * @param string[]|null $colors
-     * @param string[]|null $sizes
+
+     * @param GetPetTagOptions $options Options for query, header, form, and cookie parameters
+
      * @return ApiResult<Pet>
      * @throws ApiException
      */
-    public function getPetTagWithHttpInfo(int $petId, string $tagName, ?array $colors = null, ?array $sizes = null, ?string $filter = null): ApiResult
+    public function getPetTagWithHttpInfo(int $petId, string $tagName, GetPetTagOptions $options): ApiResult
     {
         $path = '/pet/{petId}/tag/{tagName}';
         /** @var string $pathValue */
@@ -728,13 +762,13 @@ class PetApi extends BaseApi
         $pathValue = ValueSerializer::serializeStyled('tagName', $tagName, 'path', 'string', null, 'label', false);
         $path = str_replace('{' . 'tagName' . '}', $pathValue, $path);
         $queryParams = [];
-        if ($colors !== null) {
-            $queryParams['colors'] = ValueSerializer::serializeStyled('colors', $colors, 'query', 'string[]', 'pipes', 'pipeDelimited', false);
+        if ($options->colors !== null) {
+            $queryParams['colors'] = ValueSerializer::serializeStyled('colors', $options->colors, 'query', 'string[]', 'pipes', 'pipeDelimited', false);
         }
-        if ($sizes !== null) {
-            $queryParams['sizes'] = ValueSerializer::serializeStyled('sizes', $sizes, 'query', 'string[]', 'ssv', 'spaceDelimited', false);
+        if ($options->sizes !== null) {
+            $queryParams['sizes'] = ValueSerializer::serializeStyled('sizes', $options->sizes, 'query', 'string[]', 'ssv', 'spaceDelimited', false);
         }
-        $serialized = ValueSerializer::serializeStyled('filter', $filter, 'query', 'string', null, 'form', true);
+        $serialized = ValueSerializer::serializeStyled('filter', $options->filter, 'query', 'string', null, 'form', true);
         $queryParams['filter'] = $serialized ?? '';
         $headerParams = [];
         $requestBody = null;
@@ -755,6 +789,7 @@ class PetApi extends BaseApi
 
     /**
      * Get staging pet info
+
      * @return Pet
      * @throws ApiException
      */
@@ -766,6 +801,7 @@ class PetApi extends BaseApi
     }
 
     /**
+
      * @return ApiResult<Pet>
      * @throws ApiException
      */
@@ -800,6 +836,7 @@ class PetApi extends BaseApi
     /**
      * Set the pet&#39;s profile photo
      * Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
+
      * @throws ApiException
      */
     public function setPetAvatar(int $petId, \SplFileObject $body): void
@@ -808,6 +845,7 @@ class PetApi extends BaseApi
     }
 
     /**
+
      * @return ApiResult<null>
      * @throws ApiException
      */
@@ -838,6 +876,7 @@ class PetApi extends BaseApi
     /**
      * Set the pet&#39;s avatar thumbnail as base64
      * Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
+
      * @throws ApiException
      */
     public function setPetAvatarThumbnail(int $petId, SetPetAvatarThumbnailRequest $setPetAvatarThumbnailRequest): void
@@ -846,6 +885,7 @@ class PetApi extends BaseApi
     }
 
     /**
+
      * @return ApiResult<null>
      * @throws ApiException
      */
@@ -877,6 +917,7 @@ class PetApi extends BaseApi
      * Update an existing pet
      * @param int $petId ID of pet to update
      * @param Pet $pet Pet object that needs to be updated
+
      * @return Pet
      * @throws ApiException
      */
@@ -890,6 +931,7 @@ class PetApi extends BaseApi
     /**
      * @param int $petId ID of pet to update
      * @param Pet $pet Pet object that needs to be updated
+
      * @return ApiResult<Pet>
      * @throws ApiException
      */
@@ -920,21 +962,27 @@ class PetApi extends BaseApi
     /**
      * Upload the pet&#39;s adoption certificate
      * Attaches a single adoption certificate document. No metadata fields are required alongside the file.
+
+     * @param UploadPetCertificateOptions $options Options for query, header, form, and cookie parameters
+
      * @return ApiResponse
      * @throws ApiException
      */
-    public function uploadPetCertificate(int $petId, \SplFileObject $file)
+    public function uploadPetCertificate(int $petId, UploadPetCertificateOptions $options)
     {
         /** @var ApiResponse $result */
-        $result = $this->uploadPetCertificateWithHttpInfo($petId, $file)->data;
+        $result = $this->uploadPetCertificateWithHttpInfo($petId, $options)->data;
         return $result;
     }
 
     /**
+
+     * @param UploadPetCertificateOptions $options Options for query, header, form, and cookie parameters
+
      * @return ApiResult<ApiResponse>
      * @throws ApiException
      */
-    public function uploadPetCertificateWithHttpInfo(int $petId, \SplFileObject $file): ApiResult
+    public function uploadPetCertificateWithHttpInfo(int $petId, UploadPetCertificateOptions $options): ApiResult
     {
         $path = '/pet/{petId}/certificate';
         /** @var string $pathValue */
@@ -943,7 +991,7 @@ class PetApi extends BaseApi
         $queryParams = [];
         $headerParams = [];
         $requestBody = [];
-        $requestBody['file'] = $file;
+        $requestBody['file'] = $options->file;
 
         /** @var ApiResult<ApiResponse> $result */
         $result = $this->invokeApiForResult(
@@ -962,21 +1010,27 @@ class PetApi extends BaseApi
     /**
      * Attach a vet document or health record
      * Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
+
+     * @param UploadPetDocumentOptions $options Options for query, header, form, and cookie parameters
+
      * @return ApiResponse
      * @throws ApiException
      */
-    public function uploadPetDocument(int $petId, \SplFileObject $file, ?string $documentType = null, ?string $notes = null)
+    public function uploadPetDocument(int $petId, UploadPetDocumentOptions $options)
     {
         /** @var ApiResponse $result */
-        $result = $this->uploadPetDocumentWithHttpInfo($petId, $file, $documentType, $notes)->data;
+        $result = $this->uploadPetDocumentWithHttpInfo($petId, $options)->data;
         return $result;
     }
 
     /**
+
+     * @param UploadPetDocumentOptions $options Options for query, header, form, and cookie parameters
+
      * @return ApiResult<ApiResponse>
      * @throws ApiException
      */
-    public function uploadPetDocumentWithHttpInfo(int $petId, \SplFileObject $file, ?string $documentType = null, ?string $notes = null): ApiResult
+    public function uploadPetDocumentWithHttpInfo(int $petId, UploadPetDocumentOptions $options): ApiResult
     {
         $path = '/pet/{petId}/documents';
         /** @var string $pathValue */
@@ -985,12 +1039,12 @@ class PetApi extends BaseApi
         $queryParams = [];
         $headerParams = [];
         $requestBody = [];
-        $requestBody['file'] = $file;
-        if ($documentType !== null) {
-            $requestBody['documentType'] = $documentType;
+        $requestBody['file'] = $options->file;
+        if ($options->documentType !== null) {
+            $requestBody['documentType'] = $options->documentType;
         }
-        if ($notes !== null) {
-            $requestBody['notes'] = $notes;
+        if ($options->notes !== null) {
+            $requestBody['notes'] = $options->notes;
         }
 
         /** @var ApiResult<ApiResponse> $result */

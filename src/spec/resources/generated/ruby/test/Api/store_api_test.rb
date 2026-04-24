@@ -30,7 +30,7 @@ describe PetstoreClient::Api::StoreApi do
         complete: false
       )
 
-      result = @api.place_order(order: order)
+      result = @api.place_order(order)
 
       _(result).wont_be_nil
       _(result.id).wont_be_nil

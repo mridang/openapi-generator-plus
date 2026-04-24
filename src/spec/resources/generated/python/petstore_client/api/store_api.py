@@ -31,6 +31,7 @@ class StoreApi(BaseApi):
     ) -> None:
         """Delete purchase order by ID
         :param order_id: ID of the order to delete (required)
+
         :raises ApiException: if fails to make API call
         """
         if order_id is None:
@@ -45,6 +46,7 @@ class StoreApi(BaseApi):
     ) -> 'ApiResult[None]':
         """Delete purchase order by ID (with HTTP info)
         :param order_id: ID of the order to delete (required)
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -76,6 +78,7 @@ class StoreApi(BaseApi):
         self,
     ) -> Dict[str, int]:
         """Returns pet inventories by status
+
         :return: Dict[str, int]
         :raises ApiException: if fails to make API call
         """
@@ -87,6 +90,7 @@ class StoreApi(BaseApi):
         self,
     ) -> 'ApiResult[Dict[str, int]]':
         """Returns pet inventories by status (with HTTP info)
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -113,6 +117,7 @@ class StoreApi(BaseApi):
     ) -> Order:
         """Find purchase order by ID
         :param order_id: ID of order to return (required)
+
         :return: Order
         :raises ApiException: if fails to make API call
         """
@@ -129,6 +134,7 @@ class StoreApi(BaseApi):
     ) -> 'ApiResult[Order]':
         """Find purchase order by ID (with HTTP info)
         :param order_id: ID of order to return (required)
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -162,6 +168,7 @@ class StoreApi(BaseApi):
     ) -> Order:
         """Place an order for a pet
         :param order:  (optional)
+
         :return: Order
         :raises ApiException: if fails to make API call
         """
@@ -175,6 +182,7 @@ class StoreApi(BaseApi):
     ) -> 'ApiResult[Order]':
         """Place an order for a pet (with HTTP info)
         :param order:  (optional)
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """

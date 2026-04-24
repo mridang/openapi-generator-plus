@@ -1,3 +1,6 @@
 # import apis into api package
 {{#apiInfo}}{{#apis}}from {{apiPackage}}.{{classFilename}} import {{classname}}
 {{/apis}}{{/apiInfo}}
+{{#hasAnyOptionsClasses}}
+from {{apiPackage}}.options import *
+{{/hasAnyOptionsClasses}}

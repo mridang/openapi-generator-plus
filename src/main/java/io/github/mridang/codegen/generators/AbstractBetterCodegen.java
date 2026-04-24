@@ -1,5 +1,6 @@
 package io.github.mridang.codegen.generators;
 
+import com.samskivert.mustache.Mustache;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -32,6 +33,7 @@ import java.util.EnumSet;
 import java.util.stream.Collectors;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.CodegenSecurity;
 import org.openapitools.codegen.CodegenServer;
@@ -80,6 +82,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractBetterCodegen.class);
 
     private final Set<String> globalAuthOperationIds = new HashSet<>();
+
+    /** Accumulates Options file metadata across per-tag postProcessOperationsWithModels calls. */
+    private final List<Map<String, String>> accumulatedOptionsFiles = new ArrayList<>();
 
     protected boolean hasBasicAuth;
     protected boolean hasBearerAuth;
@@ -1068,10 +1073,64 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             objs.put("hasAnyAuthMethods", anyOpHasAuth);
             if (ops != null) {
                 enrichOperationServers(ops, operations);
+                generateOptionsFilesForOps(ops, objs);
             }
         }
         cleanupBadImports(objs);
         return objs;
+    }
+
+    /**
+     * Iterates operations in a tag, generates per-operation Options
+     * files for those with query/header/form/cookie params, and
+     * injects import metadata into the operations context so the
+     * API template can emit the correct import statements.
+     */
+    @SuppressWarnings("unchecked")
+    private void generateOptionsFilesForOps(
+            List<CodegenOperation> ops, Map<String, Object> objs) {
+        final List<Map<String, String>> optionsImports = new ArrayList<>();
+        for (final CodegenOperation op : ops) {
+            final List<CodegenParameter> optionsParams = collectOptionsParams(op);
+            if (optionsParams.isEmpty()) {
+                continue;
+            }
+            final String className =
+                    NamingConvention.PASCAL_CASE.apply(op.operationId) + "Options";
+            final String content = generateOptionsFileContent(op, optionsParams, className);
+            if (content == null) {
+                continue;
+            }
+            final String filePath = getOptionsFilePath(op.operationId, className);
+            writeFile(filePath, content);
+            postProcessFile(Path.of(filePath).toFile(), "source");
+
+            final Map<String, String> meta = new HashMap<>();
+            meta.put("optionsClassName", className);
+            meta.put("optionsFilePath", filePath);
+            accumulatedOptionsFiles.add(meta);
+
+            final Map<String, String> importMeta = new HashMap<>();
+            importMeta.put("optionsClassName", className);
+            final NamingConvention fc = getFilenameCasing();
+            importMeta.put("optionsFileName", fc != null ? fc.apply(className) : className);
+            optionsImports.add(importMeta);
+
+            enrichOptionsMetadata(meta, op.operationId, className);
+
+            // Expose to supporting-file templates (rendered after all API tags).
+            additionalProperties.put("hasAnyOptionsClasses", true);
+            @SuppressWarnings("unchecked")
+            List<String> reqPaths = (List<String>) additionalProperties
+                    .computeIfAbsent("optionsRequires", k -> new ArrayList<String>());
+            final String rp = meta.get("requirePath");
+            if (rp != null) {
+                reqPaths.add(rp);
+            }
+        }
+        if (!optionsImports.isEmpty()) {
+            objs.put("optionsImports", optionsImports);
+        }
     }
 
     /**
@@ -1363,12 +1422,127 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
+     * Collects all options-eligible parameters (query, header, form, cookie)
+     * from the operation into a single ordered list with required params first.
+     */
+    protected static List<CodegenParameter> collectOptionsParams(CodegenOperation op) {
+        final List<CodegenParameter> required = new ArrayList<>();
+        final List<CodegenParameter> optional = new ArrayList<>();
+        final List<List<CodegenParameter>> groups = new ArrayList<>();
+        if (op.queryParams != null) groups.add(op.queryParams);
+        if (op.headerParams != null) groups.add(op.headerParams);
+        if (op.formParams != null) groups.add(op.formParams);
+        if (op.cookieParams != null) groups.add(op.cookieParams);
+        for (final List<CodegenParameter> group : groups) {
+            for (final CodegenParameter p : group) {
+                if (p.required) {
+                    required.add(p);
+                } else {
+                    optional.add(p);
+                }
+            }
+        }
+        required.addAll(optional);
+        return required;
+    }
+
+    /**
+     * Writes generated source content to a file, creating any
+     * missing parent directories. Logs a warning on failure
+     * instead of throwing so code generation can continue.
+     */
+    @SuppressFBWarnings(
+            value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE",
+            justification = "filePath always contains a parent directory")
+    protected void writeFile(String filePath, String content) {
+        try {
+            final Path path = Path.of(filePath);
+            Files.createDirectories(path.getParent());
+            Files.writeString(path, content, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            LOGGER.warn("Failed to write file: {}", filePath, e);
+        }
+    }
+
+    /**
+     * Renders a Mustache template from the embedded template directory
+     * with the given context map. Used for programmatic per-operation
+     * file generation (e.g. Options classes) where the standard
+     * apiTemplateFiles mechanism cannot produce per-operation files.
+     */
+    protected String renderOptionsTemplate(String templateName, Map<String, Object> context) {
+        final String templatePath = embeddedTemplateDir + "/" + templateName;
+        try (InputStream is =
+                        getClass().getClassLoader().getResourceAsStream(templatePath);
+                InputStreamReader reader =
+                        new InputStreamReader(
+                                Objects.requireNonNull(
+                                        is, "Template not found: " + templatePath),
+                                StandardCharsets.UTF_8)) {
+            return Mustache.compiler().escapeHTML(false).compile(reader).execute(context);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to render template: " + templatePath, e);
+        }
+    }
+
+    /**
+     * Generates an Options file for the given operation.
+     * Subclasses override to produce language-idiomatic content.
+     * Returns null if no Options file should be generated.
+     */
+    @Nullable
+    protected String generateOptionsFileContent(
+            CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
+        return null;
+    }
+
+    /**
+     * Returns the full file path for an Options file for the
+     * given operation. Subclasses must override when
+     * {@link #generateOptionsFileContent} returns non-null.
+     */
+    protected String getOptionsFilePath(String operationId, String optionsClassName) {
+        throw new UnsupportedOperationException(
+                "Override getOptionsFilePath when generating Options files");
+    }
+
+    /**
+     * Hook for subclasses to add language-specific metadata to
+     * the accumulated Options file map. Called once per generated
+     * Options file. Default is a no-op.
+     */
+    protected void enrichOptionsMetadata(
+            Map<String, String> meta, String operationId, String optionsClassName) {
+        // no-op by default
+    }
+
+    /**
+     * Writes barrel/index files for the accumulated Options
+     * classes. Subclasses override to produce language-idiomatic
+     * barrel exports. Default is a no-op.
+     */
+    protected void writeOptionsBarrelFiles(List<Map<String, String>> optionsFiles) {
+        // no-op by default
+    }
+
+    /**
+     * Returns the accumulated Options file metadata, for use
+     * by subclass barrel generation.
+     */
+    protected List<Map<String, String>> getAccumulatedOptionsFiles() {
+        return accumulatedOptionsFiles;
+    }
+
+    /**
      * Runs the language-specific code formatter inside Docker
      * using the image from {@link #getFormatterDockerImage()}
      * and commands from {@link #getFormatterCommands()}.
      */
     @Override
     public void postProcess() {
+        if (!accumulatedOptionsFiles.isEmpty()) {
+            writeOptionsBarrelFiles(accumulatedOptionsFiles);
+        }
         runFormatterInDocker(getFormatterDockerImage(), getFormatterCommands());
     }
 

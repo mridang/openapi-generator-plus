@@ -97,18 +97,15 @@ module {{moduleName}}
 {{#bodyParam}}
       # @param {{paramName}} [{{{dataType}}}]{{#description}} {{.}}{{/description}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
 {{/bodyParam}}
-{{#queryParams}}
-      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{.}}{{/description}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
-{{/queryParams}}
-{{#headerParams}}
-      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{.}}{{/description}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
-{{/headerParams}}
-{{#formParams}}
-      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{.}}{{/description}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
-{{/formParams}}
-{{#cookieParams}}
-      # @param {{paramName}} [{{{dataType}}}]{{#description}} {{.}}{{/description}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
-{{/cookieParams}}
+{{#queryParams}}{{#-first}}
+      # @param options [{{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options] options for query, header, form, and cookie parameters
+{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
+      # @param options [{{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options] options for query, header, form, and cookie parameters
+{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
+      # @param options [{{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options] options for query, header, form, and cookie parameters
+{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
+      # @param options [{{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options] options for query, header, form, and cookie parameters
+{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
       # @return [{{{returnType}}}{{^returnType}}nil{{/returnType}}]
       # @raise [ApiError] if fails to make API call
 {{#isDeprecated}}
@@ -117,8 +114,8 @@ module {{moduleName}}
 {{#externalDocs}}
       # @see {{url}} {{description}}
 {{/externalDocs}}
-      def {{operationId}}({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{paramName}}{{^required}} = nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#queryParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#headerParams}}{{#-first}}, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/-last}}{{/queryParams}}{{#headerParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{/-first}}{{/cookieParams}}{{/formParams}}{{/-last}}{{/headerParams}}{{#formParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#cookieParams}}{{#-first}}, {{/-first}}{{/cookieParams}}{{/-last}}{{/formParams}}{{#cookieParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{/cookieParams}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
-{{#allParams}}
+      def {{operationId}}({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{paramName}}{{^required}} = nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options = Options::{{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.new{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options = Options::{{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.new{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options = Options::{{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.new{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options = Options::{{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.new{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
+{{#pathParams}}
 {{#required}}
         if {{{paramName}}}.nil?
           raise ArgumentError,
@@ -126,14 +123,23 @@ module {{moduleName}}
         end
 
 {{/required}}
-{{/allParams}}
-        {{operationId}}_with_http_info({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{paramName}}{{^required}}{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#queryParams}}{{paramName}}: {{paramName}}{{^-last}}, {{/-last}}{{#-last}}{{#headerParams}}{{#-first}}, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/-last}}{{/queryParams}}{{#headerParams}}{{paramName}}: {{paramName}}{{^-last}}, {{/-last}}{{#-last}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{/-first}}{{/cookieParams}}{{/formParams}}{{/-last}}{{/headerParams}}{{#formParams}}{{paramName}}: {{paramName}}{{^-last}}, {{/-last}}{{#-last}}{{#cookieParams}}{{#-first}}, {{/-first}}{{/cookieParams}}{{/-last}}{{/formParams}}{{#cookieParams}}{{paramName}}: {{paramName}}{{^-last}}, {{/-last}}{{/cookieParams}}{{#servers}}{{#-first}}, server: server{{/-first}}{{/servers}}).data
+{{/pathParams}}
+{{#bodyParam}}
+{{#required}}
+        if {{{paramName}}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+
+{{/required}}
+{{/bodyParam}}
+        {{operationId}}_with_http_info({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server: server{{/-first}}{{/servers}}).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def {{operationId}}_with_http_info({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{paramName}}{{^required}} = nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#queryParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#headerParams}}{{#-first}}, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/-last}}{{/queryParams}}{{#headerParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#formParams}}{{#-first}}, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{/-first}}{{/cookieParams}}{{/formParams}}{{/-last}}{{/headerParams}}{{#formParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{#-last}}{{#cookieParams}}{{#-first}}, {{/-first}}{{/cookieParams}}{{/-last}}{{/formParams}}{{#cookieParams}}{{paramName}}:{{^required}} nil{{/required}}{{^-last}}, {{/-last}}{{/cookieParams}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
-{{#allParams}}
+      def {{operationId}}_with_http_info({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{paramName}}{{^required}} = nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options = Options::{{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.new{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options = Options::{{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.new{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options = Options::{{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.new{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options = Options::{{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.new{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server: nil{{/-first}}{{/servers}})
+{{#pathParams}}
 {{#required}}
         if {{{paramName}}}.nil?
           raise ArgumentError,
@@ -141,7 +147,16 @@ module {{moduleName}}
         end
 
 {{/required}}
-{{/allParams}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#required}}
+        if {{{paramName}}}.nil?
+          raise ArgumentError,
+                "Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}"
+        end
+
+{{/required}}
+{{/bodyParam}}
         path = '{{{path}}}'
 {{#pathParams}}
 {{=<% %>=}}
@@ -158,21 +173,21 @@ module {{moduleName}}
         query_params = {}
 {{#queryParams}}
 {{#isDeepObject}}
-        query_params.merge!({{moduleName}}::ValueSerializer.serialize_deep_object('{{baseName}}', {{paramName}})) unless {{paramName}}.nil?
+        query_params.merge!({{moduleName}}::ValueSerializer.serialize_deep_object('{{baseName}}', options.{{paramName}})) unless options.{{paramName}}.nil?
 {{/isDeepObject}}
 {{^isDeepObject}}
 {{#content}}
-        query_params['{{baseName}}'] = JSON.generate({{paramName}}) unless {{paramName}}.nil?
+        query_params['{{baseName}}'] = JSON.generate(options.{{paramName}}) unless options.{{paramName}}.nil?
 {{/content}}
 {{^content}}
 {{#isAllowEmptyValue}}
         query_params['{{baseName}}'] =
-          {{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', {{paramName}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}}) || ''
+          {{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}}) || ''
 {{/isAllowEmptyValue}}
 {{^isAllowEmptyValue}}
-        unless {{paramName}}.nil?
+        unless options.{{paramName}}.nil?
           query_params['{{baseName}}'] =
-            {{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', {{paramName}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}})
+            {{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}})
         end
 {{/isAllowEmptyValue}}
 {{/content}}
@@ -181,13 +196,13 @@ module {{moduleName}}
         # @type var header_params: Hash[String, String]
         header_params = {}
 {{#headerParams}}
-        header_params['{{baseName}}'] = {{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', {{paramName}}, :header, '{{{dataType}}}', nil, '{{style}}', {{isExplode}}).to_s unless {{paramName}}.nil?
+        header_params['{{baseName}}'] = {{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :header, '{{{dataType}}}', nil, '{{style}}', {{isExplode}}).to_s unless options.{{paramName}}.nil?
 {{/headerParams}}
 {{#hasCookieParams}}
         cookie_parts = []
 {{#cookieParams}}
 {{=<% %>=}}
-        cookie_parts << "<%baseName%>=#{<%moduleName%>::ValueSerializer.serialize_styled('<%baseName%>', <%paramName%>, :cookie, '<%& dataType%>', nil, '<%style%>', <%isExplode%>)}" unless <%paramName%>.nil?
+        cookie_parts << "<%baseName%>=#{<%moduleName%>::ValueSerializer.serialize_styled('<%baseName%>', options.<%paramName%>, :cookie, '<%& dataType%>', nil, '<%style%>', <%isExplode%>)}" unless options.<%paramName%>.nil?
 <%={{ }}=%>
 {{/cookieParams}}
         header_params['Cookie'] = cookie_parts.join('; ') unless cookie_parts.empty?
@@ -197,10 +212,10 @@ module {{moduleName}}
         request_body = {}
 {{#formParams}}
 {{#required}}
-        request_body['{{baseName}}'] = {{paramName}}
+        request_body['{{baseName}}'] = options.{{paramName}}
 {{/required}}
 {{^required}}
-        request_body['{{baseName}}'] = {{paramName}} unless {{paramName}}.nil?
+        request_body['{{baseName}}'] = options.{{paramName}} unless options.{{paramName}}.nil?
 {{/required}}
 {{/formParams}}
 {{/hasFormParams}}

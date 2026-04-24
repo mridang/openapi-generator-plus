@@ -33,7 +33,7 @@ describe PetstoreClient::Api::PetApi do
 
   describe '#find_pets_by_status' do
     it 'returns pets by status' do
-      result = @api.find_pets_by_status(status: 'available')
+      result = @api.find_pets_by_status(PetstoreClient::Api::Options::FindPetsByStatusOptions.new(status: 'available'))
 
       _(result).must_be_kind_of(Array)
       _(result).wont_be_empty
@@ -104,7 +104,10 @@ describe PetstoreClient::Api::PetApi do
 
   describe '#upload_pet_certificate' do
     it 'uploads a certificate via multipart' do
-      result = @api.upload_pet_certificate(1, file: StringIO.new('cert-data'))
+      options = PetstoreClient::Api::Options::UploadPetCertificateOptions.new(
+        file: StringIO.new('cert-data')
+      )
+      result = @api.upload_pet_certificate(1, options)
 
       _(result).wont_be_nil
     end
@@ -114,9 +117,11 @@ describe PetstoreClient::Api::PetApi do
     it 'uploads a document with metadata via multipart' do
       result = @api.upload_pet_document(
         1,
-        file: StringIO.new('doc-data'),
-        document_type: 'vaccination_record',
-        notes: 'Annual checkup'
+        PetstoreClient::Api::Options::UploadPetDocumentOptions.new(
+          file: StringIO.new('doc-data'),
+          document_type: 'vaccination_record',
+          notes: 'Annual checkup'
+        )
       )
 
       _(result).wont_be_nil

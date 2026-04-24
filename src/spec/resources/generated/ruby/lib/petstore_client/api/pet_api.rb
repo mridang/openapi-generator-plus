@@ -21,7 +21,6 @@ module PetstoreClient
       end
     end
 
-
     # Server0 server variant.
     class GetExternalPetInfoServerServer0 < GetExternalPetInfoServer
       def url
@@ -37,15 +36,12 @@ module PetstoreClient
       end
     end
 
-
-
     # Valid values for region in GetMultiServerPetInfoServer.
     module GetMultiServerPetInfoServerRegion
       US = 'us'
       EU = 'eu'
       AP = 'ap'
     end
-
 
     # Primary
     class GetMultiServerPetInfoServerPrimary < GetMultiServerPetInfoServer
@@ -75,20 +71,17 @@ module PetstoreClient
       end
     end
 
-
     # Valid values for environment in GetStagingPetInfoServer.
     module GetStagingPetInfoServerEnvironment
       STAGING = 'staging'
       SANDBOX = 'sandbox'
     end
 
-
     # Valid values for version in GetStagingPetInfoServer.
     module GetStagingPetInfoServerVersion
       V2 = 'v2'
       V3 = 'v3'
     end
-
 
     # Staging server
     class GetStagingPetInfoServerStagingServer < GetStagingPetInfoServer
@@ -116,6 +109,7 @@ module PetstoreClient
       # Add a new pet to the store
       # @param auth [Auth::Authenticator] authenticator for this operation
       # @param pet [Pet] Create a new pet in the store
+
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
       def add_pet(auth, pet)
@@ -154,45 +148,26 @@ module PetstoreClient
       # Add photos to the pet&#39;s gallery
       # Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
       # @param pet_id [Integer]
-      # @param files [Array<File>]
-      # @param metadata [PhotoMetadata]
+
+      # @param options [AddPetPhotosOptions] options for query, header, form, and cookie parameters
+
       # @return [Array<Photo>]
       # @raise [ApiError] if fails to make API call
-      def add_pet_photos(pet_id, files:, metadata:)
+      def add_pet_photos(pet_id, options = Options::AddPetPhotosOptions.new)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
         end
 
-        if files.nil?
-          raise ArgumentError,
-                "Missing the required parameter 'files' when calling PetApi.add_pet_photos"
-        end
-
-        if metadata.nil?
-          raise ArgumentError,
-                "Missing the required parameter 'metadata' when calling PetApi.add_pet_photos"
-        end
-
-        add_pet_photos_with_http_info(pet_id, files: files, metadata: metadata).data
+        add_pet_photos_with_http_info(pet_id, options).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def add_pet_photos_with_http_info(pet_id, files:, metadata:)
+      def add_pet_photos_with_http_info(pet_id, options = Options::AddPetPhotosOptions.new)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
-        end
-
-        if files.nil?
-          raise ArgumentError,
-                "Missing the required parameter 'files' when calling PetApi.add_pet_photos"
-        end
-
-        if metadata.nil?
-          raise ArgumentError,
-                "Missing the required parameter 'metadata' when calling PetApi.add_pet_photos"
         end
 
         path = '/pet/{petId}/photos'
@@ -203,8 +178,8 @@ module PetstoreClient
         header_params = {}
         # @type var request_body: Hash[String, untyped]
         request_body = {}
-        request_body['files'] = files
-        request_body['metadata'] = metadata
+        request_body['files'] = options.files
+        request_body['metadata'] = options.metadata
 
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
@@ -219,6 +194,7 @@ module PetstoreClient
       # @param auth [Auth::Authenticator] authenticator for this operation
       # @param pet_id [Integer]
       # @param pet_treatment [PetTreatment]
+
       # @return [PetTreatment]
       # @raise [ApiError] if fails to make API call
       def add_pet_treatment(auth, pet_id, pet_treatment)
@@ -268,6 +244,7 @@ module PetstoreClient
       # Deletes a pet
       # @param auth [Auth::Authenticator] authenticator for this operation
       # @param pet_id [Integer] Pet id to delete
+
       # @return [nil]
       # @raise [ApiError] if fails to make API call
       def delete_pet(auth, pet_id)
@@ -308,6 +285,7 @@ module PetstoreClient
       # Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
       # @param pet_id [Integer]
       # @param document_id [Integer]
+
       # @return [File]
       # @raise [ApiError] if fails to make API call
       def download_pet_document(pet_id, document_id)
@@ -356,27 +334,28 @@ module PetstoreClient
       end
 
       # Finds Pets by status
-      # @param status [String] Status values that need to be considered for filter (optional) (deprecated)
-      # @param filter [Hash<String, String>] Filter criteria as key-value pairs (optional)
+
+      # @param options [FindPetsByStatusOptions] options for query, header, form, and cookie parameters
+
       # @return [Array<Pet>]
       # @raise [ApiError] if fails to make API call
       # @deprecated This operation is deprecated.
       # @see https://example.com/docs/filtering Find out more about filtering
-      def find_pets_by_status(status: nil, filter: nil)
-        find_pets_by_status_with_http_info(status: status, filter: filter).data
+      def find_pets_by_status(options = Options::FindPetsByStatusOptions.new)
+        find_pets_by_status_with_http_info(options).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def find_pets_by_status_with_http_info(status: nil, filter: nil)
+      def find_pets_by_status_with_http_info(options = Options::FindPetsByStatusOptions.new)
         path = '/pet/findByStatus'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
-        unless status.nil?
+        unless options.status.nil?
           query_params['status'] =
-            PetstoreClient::ValueSerializer.serialize_styled('status', status, :query, 'String', nil, 'form', true)
+            PetstoreClient::ValueSerializer.serialize_styled('status', options.status, :query, 'String', nil, 'form', true)
         end
-        query_params.merge!(PetstoreClient::ValueSerializer.serialize_deep_object('filter', filter)) unless filter.nil?
+        query_params.merge!(PetstoreClient::ValueSerializer.serialize_deep_object('filter', options.filter)) unless options.filter.nil?
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
@@ -392,6 +371,7 @@ module PetstoreClient
 
       # Get external pet info
       # @param pet_id [Integer]
+
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
       def get_external_pet_info(pet_id, server: nil)
@@ -432,6 +412,7 @@ module PetstoreClient
 
       # Get multi-server pet info
       # @param pet_id [Integer]
+
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
       def get_multi_server_pet_info(pet_id, server: nil)
@@ -473,6 +454,7 @@ module PetstoreClient
       # Get the pet&#39;s profile photo
       # Returns the raw image bytes of the pet&#39;s current avatar.
       # @param pet_id [Integer]
+
       # @return [File]
       # @raise [ApiError] if fails to make API call
       def get_pet_avatar(pet_id)
@@ -512,6 +494,7 @@ module PetstoreClient
       # Get the pet&#39;s avatar thumbnail as base64
       # Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
       # @param pet_id [Integer]
+
       # @return [String]
       # @raise [ApiError] if fails to make API call
       def get_pet_avatar_thumbnail(pet_id)
@@ -551,6 +534,7 @@ module PetstoreClient
       # Find pet by ID
       # Returns a single pet
       # @param pet_id [Integer] ID of pet to return
+
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
       # @deprecated This operation is deprecated.
@@ -591,6 +575,7 @@ module PetstoreClient
       # Get the pet&#39;s passport
       # Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
       # @param pet_id [Integer]
+
       # @return [PetPassport]
       # @raise [ApiError] if fails to make API call
       def get_pet_passport(pet_id)
@@ -631,6 +616,7 @@ module PetstoreClient
       # Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
       # @param pet_id [Integer]
       # @param photo_id [Integer]
+
       # @return [File]
       # @raise [ApiError] if fails to make API call
       def get_pet_photo(pet_id, photo_id)
@@ -681,12 +667,12 @@ module PetstoreClient
       # Get a tag for a pet
       # @param pet_id [Integer]
       # @param tag_name [String]
-      # @param colors [Array<String>] (optional)
-      # @param sizes [Array<String>] (optional)
-      # @param filter [String] (optional)
+
+      # @param options [GetPetTagOptions] options for query, header, form, and cookie parameters
+
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
-      def get_pet_tag(pet_id, tag_name, colors: nil, sizes: nil, filter: nil)
+      def get_pet_tag(pet_id, tag_name, options = Options::GetPetTagOptions.new)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.get_pet_tag"
@@ -697,12 +683,12 @@ module PetstoreClient
                 "Missing the required parameter 'tag_name' when calling PetApi.get_pet_tag"
         end
 
-        get_pet_tag_with_http_info(pet_id, tag_name, colors: colors, sizes: sizes, filter: filter).data
+        get_pet_tag_with_http_info(pet_id, tag_name, options).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_pet_tag_with_http_info(pet_id, tag_name, colors: nil, sizes: nil, filter: nil)
+      def get_pet_tag_with_http_info(pet_id, tag_name, options = Options::GetPetTagOptions.new)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.get_pet_tag"
@@ -718,16 +704,16 @@ module PetstoreClient
         path = path.sub('{tagName}', PetstoreClient::ValueSerializer.serialize_styled('tagName', tag_name, :path, 'String', nil, 'label', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
-        unless colors.nil?
+        unless options.colors.nil?
           query_params['colors'] =
-            PetstoreClient::ValueSerializer.serialize_styled('colors', colors, :query, 'Array<String>', :pipes, 'pipeDelimited', false)
+            PetstoreClient::ValueSerializer.serialize_styled('colors', options.colors, :query, 'Array<String>', :pipes, 'pipeDelimited', false)
         end
-        unless sizes.nil?
+        unless options.sizes.nil?
           query_params['sizes'] =
-            PetstoreClient::ValueSerializer.serialize_styled('sizes', sizes, :query, 'Array<String>', :ssv, 'spaceDelimited', false)
+            PetstoreClient::ValueSerializer.serialize_styled('sizes', options.sizes, :query, 'Array<String>', :ssv, 'spaceDelimited', false)
         end
         query_params['filter'] =
-          PetstoreClient::ValueSerializer.serialize_styled('filter', filter, :query, 'String', nil, 'form', true) || ''
+          PetstoreClient::ValueSerializer.serialize_styled('filter', options.filter, :query, 'String', nil, 'form', true) || ''
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
@@ -743,6 +729,7 @@ module PetstoreClient
 
       # Get staging pet info
       # @param pet_id [Integer]
+
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
       def get_staging_pet_info(pet_id, server: nil)
@@ -785,6 +772,7 @@ module PetstoreClient
       # Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
       # @param pet_id [Integer]
       # @param body [File]
+
       # @return [nil]
       # @raise [ApiError] if fails to make API call
       def set_pet_avatar(pet_id, body)
@@ -835,6 +823,7 @@ module PetstoreClient
       # Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
       # @param pet_id [Integer]
       # @param set_pet_avatar_thumbnail_request [SetPetAvatarThumbnailRequest]
+
       # @return [nil]
       # @raise [ApiError] if fails to make API call
       def set_pet_avatar_thumbnail(pet_id, set_pet_avatar_thumbnail_request)
@@ -884,6 +873,7 @@ module PetstoreClient
       # Update an existing pet
       # @param pet_id [Integer] ID of pet to update
       # @param pet [Pet] Pet object that needs to be updated
+
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
       def update_pet(pet_id, pet)
@@ -933,34 +923,26 @@ module PetstoreClient
       # Upload the pet&#39;s adoption certificate
       # Attaches a single adoption certificate document. No metadata fields are required alongside the file.
       # @param pet_id [Integer]
-      # @param file [File]
+
+      # @param options [UploadPetCertificateOptions] options for query, header, form, and cookie parameters
+
       # @return [ApiResponse]
       # @raise [ApiError] if fails to make API call
-      def upload_pet_certificate(pet_id, file:)
+      def upload_pet_certificate(pet_id, options = Options::UploadPetCertificateOptions.new)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
         end
 
-        if file.nil?
-          raise ArgumentError,
-                "Missing the required parameter 'file' when calling PetApi.upload_pet_certificate"
-        end
-
-        upload_pet_certificate_with_http_info(pet_id, file: file).data
+        upload_pet_certificate_with_http_info(pet_id, options).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def upload_pet_certificate_with_http_info(pet_id, file:)
+      def upload_pet_certificate_with_http_info(pet_id, options = Options::UploadPetCertificateOptions.new)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
-        end
-
-        if file.nil?
-          raise ArgumentError,
-                "Missing the required parameter 'file' when calling PetApi.upload_pet_certificate"
         end
 
         path = '/pet/{petId}/certificate'
@@ -971,7 +953,7 @@ module PetstoreClient
         header_params = {}
         # @type var request_body: Hash[String, untyped]
         request_body = {}
-        request_body['file'] = file
+        request_body['file'] = options.file
 
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
@@ -985,36 +967,26 @@ module PetstoreClient
       # Attach a vet document or health record
       # Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
       # @param pet_id [Integer]
-      # @param file [File]
-      # @param document_type [String] (optional)
-      # @param notes [String] (optional)
+
+      # @param options [UploadPetDocumentOptions] options for query, header, form, and cookie parameters
+
       # @return [ApiResponse]
       # @raise [ApiError] if fails to make API call
-      def upload_pet_document(pet_id, file:, document_type: nil, notes: nil)
+      def upload_pet_document(pet_id, options = Options::UploadPetDocumentOptions.new)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
         end
 
-        if file.nil?
-          raise ArgumentError,
-                "Missing the required parameter 'file' when calling PetApi.upload_pet_document"
-        end
-
-        upload_pet_document_with_http_info(pet_id, file: file, document_type: document_type, notes: notes).data
+        upload_pet_document_with_http_info(pet_id, options).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def upload_pet_document_with_http_info(pet_id, file:, document_type: nil, notes: nil)
+      def upload_pet_document_with_http_info(pet_id, options = Options::UploadPetDocumentOptions.new)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
-        end
-
-        if file.nil?
-          raise ArgumentError,
-                "Missing the required parameter 'file' when calling PetApi.upload_pet_document"
         end
 
         path = '/pet/{petId}/documents'
@@ -1025,9 +997,9 @@ module PetstoreClient
         header_params = {}
         # @type var request_body: Hash[String, untyped]
         request_body = {}
-        request_body['file'] = file
-        request_body['documentType'] = document_type unless document_type.nil?
-        request_body['notes'] = notes unless notes.nil?
+        request_body['file'] = options.file
+        request_body['documentType'] = options.document_type unless options.document_type.nil?
+        request_body['notes'] = options.notes unless options.notes.nil?
 
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,

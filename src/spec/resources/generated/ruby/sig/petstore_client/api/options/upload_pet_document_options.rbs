@@ -1,0 +1,19 @@
+module PetstoreClient
+  module Api
+    module Options
+      # All attr_accessor types are nullable and all initialize keyword
+      # arguments are optional, even for parameters that are required by the
+      # OpenAPI specification.  This is intentional: the API method signatures
+      # use `options = Options::XxxOptions.new` as a default value, which
+      # calls the constructor with zero arguments.  If any keyword were
+      # non-optional, `.new` would raise ArgumentError.  Required-ness is
+      # therefore enforced by the remote API server, not the client library.
+      class UploadPetDocumentOptions
+        attr_accessor file: File?
+        attr_accessor document_type: String?
+        attr_accessor notes: String?
+        def initialize: (?file: File?, ?document_type: String?, ?notes: String?) -> void
+      end
+    end
+  end
+end

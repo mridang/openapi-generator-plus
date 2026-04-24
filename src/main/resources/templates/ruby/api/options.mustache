@@ -1,0 +1,18 @@
+# frozen_string_literal: true
+
+module {{moduleName}}
+  module Api
+    module Options
+      # Options for the {{operationId}} operation.
+      class {{className}}
+        attr_accessor {{#params}}:{{paramName}}{{^-last}}, {{/-last}}{{/params}}
+
+        def initialize({{initializeSignature}})
+{{#params}}
+          @{{paramName}} = {{paramName}}
+{{/params}}
+        end
+      end
+    end
+  end
+end

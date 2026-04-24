@@ -22,6 +22,7 @@ class StoreApi extends BaseApi
     /**
      * Delete purchase order by ID
      * @param int $orderId ID of the order to delete
+
      * @throws ApiException
      */
     public function deleteOrder(int $orderId): void
@@ -31,6 +32,7 @@ class StoreApi extends BaseApi
 
     /**
      * @param int $orderId ID of the order to delete
+
      * @return ApiResult<null>
      * @throws ApiException
      */
@@ -60,6 +62,7 @@ class StoreApi extends BaseApi
 
     /**
      * Returns pet inventories by status
+
      * @return array<string,int>
      * @throws ApiException
      */
@@ -71,6 +74,7 @@ class StoreApi extends BaseApi
     }
 
     /**
+
      * @return ApiResult<array<string,int>>
      * @throws ApiException
      */
@@ -98,6 +102,7 @@ class StoreApi extends BaseApi
     /**
      * Find purchase order by ID
      * @param int $orderId ID of order to return
+
      * @return Order
      * @throws ApiException
      */
@@ -110,6 +115,7 @@ class StoreApi extends BaseApi
 
     /**
      * @param int $orderId ID of order to return
+
      * @return ApiResult<Order>
      * @throws ApiException
      */
@@ -139,6 +145,7 @@ class StoreApi extends BaseApi
 
     /**
      * Place an order for a pet
+
      * @return Order
      * @throws ApiException
      */
@@ -150,6 +157,7 @@ class StoreApi extends BaseApi
     }
 
     /**
+
      * @return ApiResult<Order>
      * @throws ApiException
      */

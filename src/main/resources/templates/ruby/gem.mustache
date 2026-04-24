@@ -85,6 +85,13 @@ require '{{gemName}}/api/{{{classFilename}}}'
 {{/apis}}
 {{/apiInfo}}
 
+{{#hasAnyOptionsClasses}}
+# Options
+{{#optionsRequires}}
+require '{{.}}'
+{{/optionsRequires}}
+{{/hasAnyOptionsClasses}}
+
 # :nodoc:
 module {{moduleName}}
   class << self

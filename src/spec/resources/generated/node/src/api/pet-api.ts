@@ -5,15 +5,12 @@ import { BaseApi } from './base-api.js';
 import { Configuration } from '../configuration.js';
 import { ObjectSerializer } from '../object-serializer.js';
 import { ValueSerializer } from '../value-serializer.js';
-import {
-  ApiResponse,
-  Pet,
-  PetPassport,
-  PetTreatment,
-  Photo,
-  PhotoMetadata,
-  SetPetAvatarThumbnailRequest
-} from '../models/index.js';
+import { ApiResponse, Pet, PetPassport, PetTreatment, Photo, SetPetAvatarThumbnailRequest } from '../models/index.js';
+import type { AddPetPhotosOptions } from './options/add-pet-photos-options.js';
+import type { FindPetsByStatusOptions } from './options/find-pets-by-status-options.js';
+import type { GetPetTagOptions } from './options/get-pet-tag-options.js';
+import type { UploadPetCertificateOptions } from './options/upload-pet-certificate-options.js';
+import type { UploadPetDocumentOptions } from './options/upload-pet-document-options.js';
 
 export abstract class GetExternalPetInfoServer {
   abstract getUrl(): string;
@@ -143,7 +140,7 @@ export class PetApi extends BaseApi {
    * @return Array<Photo>
    * @throws {ApiError} if fails to make API call
    */
-  async addPetPhotos(petId: number, options: { files: Array<Buffer>; metadata: PhotoMetadata }): Promise<Array<Photo>> {
+  async addPetPhotos(petId: number, options: AddPetPhotosOptions): Promise<Array<Photo>> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling addPetPhotos');
     }
@@ -160,10 +157,7 @@ export class PetApi extends BaseApi {
    * Add photos to the pet's gallery (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async addPetPhotosWithHttpInfo(
-    petId: number,
-    options: { files: Array<Buffer>; metadata: PhotoMetadata }
-  ): Promise<ApiResult<Array<Photo>>> {
+  async addPetPhotosWithHttpInfo(petId: number, options: AddPetPhotosOptions): Promise<ApiResult<Array<Photo>>> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling addPetPhotos');
     }
@@ -357,7 +351,7 @@ export class PetApi extends BaseApi {
    * @deprecated This operation is deprecated.
    * @see {@link https://example.com/docs/filtering} Find out more about filtering
    */
-  async findPetsByStatus(options: { status?: string; filter?: { [key: string]: string } }): Promise<Array<Pet>> {
+  async findPetsByStatus(options: FindPetsByStatusOptions): Promise<Array<Pet>> {
     return (await this.findPetsByStatusWithHttpInfo(options)).data as Array<Pet>;
   }
 
@@ -365,10 +359,7 @@ export class PetApi extends BaseApi {
    * Finds Pets by status (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async findPetsByStatusWithHttpInfo(options: {
-    status?: string;
-    filter?: { [key: string]: string };
-  }): Promise<ApiResult<Array<Pet>>> {
+  async findPetsByStatusWithHttpInfo(options: FindPetsByStatusOptions): Promise<ApiResult<Array<Pet>>> {
     const path = `/pet/findByStatus`;
     const queryParams: Record<string, unknown> = {};
     if (options.status != null) {
@@ -719,11 +710,7 @@ export class PetApi extends BaseApi {
    * @return Pet
    * @throws {ApiError} if fails to make API call
    */
-  async getPetTag(
-    petId: number,
-    tagName: string,
-    options: { colors?: Array<string>; sizes?: Array<string>; filter?: string }
-  ): Promise<Pet> {
+  async getPetTag(petId: number, tagName: string, options: GetPetTagOptions): Promise<Pet> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getPetTag');
     }
@@ -737,11 +724,7 @@ export class PetApi extends BaseApi {
    * Get a tag for a pet (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async getPetTagWithHttpInfo(
-    petId: number,
-    tagName: string,
-    options: { colors?: Array<string>; sizes?: Array<string>; filter?: string }
-  ): Promise<ApiResult<Pet>> {
+  async getPetTagWithHttpInfo(petId: number, tagName: string, options: GetPetTagOptions): Promise<ApiResult<Pet>> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getPetTag');
     }
@@ -996,7 +979,7 @@ export class PetApi extends BaseApi {
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
    */
-  async uploadPetCertificate(petId: number, options: { file: Buffer }): Promise<ApiResponse> {
+  async uploadPetCertificate(petId: number, options: UploadPetCertificateOptions): Promise<ApiResponse> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling uploadPetCertificate');
     }
@@ -1010,7 +993,10 @@ export class PetApi extends BaseApi {
    * Upload the pet's adoption certificate (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async uploadPetCertificateWithHttpInfo(petId: number, options: { file: Buffer }): Promise<ApiResult<ApiResponse>> {
+  async uploadPetCertificateWithHttpInfo(
+    petId: number,
+    options: UploadPetCertificateOptions
+  ): Promise<ApiResult<ApiResponse>> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling uploadPetCertificate');
     }
@@ -1052,10 +1038,7 @@ export class PetApi extends BaseApi {
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
    */
-  async uploadPetDocument(
-    petId: number,
-    options: { file: Buffer; documentType?: string; notes?: string }
-  ): Promise<ApiResponse> {
+  async uploadPetDocument(petId: number, options: UploadPetDocumentOptions): Promise<ApiResponse> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling uploadPetDocument');
     }
@@ -1071,7 +1054,7 @@ export class PetApi extends BaseApi {
    */
   async uploadPetDocumentWithHttpInfo(
     petId: number,
-    options: { file: Buffer; documentType?: string; notes?: string }
+    options: UploadPetDocumentOptions
   ): Promise<ApiResult<ApiResponse>> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling uploadPetDocument');

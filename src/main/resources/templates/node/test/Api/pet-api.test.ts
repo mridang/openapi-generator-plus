@@ -1,5 +1,4 @@
-import { PetApi } from '../../src/api/pet-api';
-import { UploadPetDocumentDocumentTypeEnum } from '../../src/api/pet-api';
+import { PetApi, UploadPetDocumentDocumentTypeEnum } from '../../src/api/pet-api';
 import { BearerAuthenticator } from '../../src/auth/bearer-authenticator';
 import { Configuration } from '../../src/configuration';
 import { Pet, PhotoMetadata, SetPetAvatarThumbnailRequest } from '../../src/models';

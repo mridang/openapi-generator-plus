@@ -1,0 +1,5 @@
+from .add_pet_photos_options import AddPetPhotosOptions
+from .find_pets_by_status_options import FindPetsByStatusOptions
+from .get_pet_tag_options import GetPetTagOptions
+from .upload_pet_certificate_options import UploadPetCertificateOptions
+from .upload_pet_document_options import UploadPetDocumentOptions

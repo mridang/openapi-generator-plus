@@ -8,14 +8,18 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
-
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.utils.ModelUtils;
@@ -635,4 +639,107 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         }
     }
 
+    /** {@inheritDoc} */
+    @Override
+    protected String generateOptionsFileContent(
+            CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
+        final List<Map<String, Object>> params = new ArrayList<>();
+        boolean hasAnyDocTypes = false;
+        for (final CodegenParameter p : optionsParams) {
+            final Map<String, Object> param = new HashMap<>();
+            param.put("paramName", p.paramName);
+            final String phpType = resolvePhpType(p);
+            final String phpDocType = resolvePhpDocType(p);
+            param.put("phpType", phpType);
+            param.put("phpDocType", phpDocType);
+            final boolean hasDocType = !phpType.equals(phpDocType);
+            param.put("hasDocType", hasDocType);
+            if (hasDocType) {
+                hasAnyDocTypes = true;
+            }
+            param.put("required", p.required);
+            if (p.description != null && !p.description.isEmpty()) {
+                param.put("description", p.description);
+            }
+            params.add(param);
+        }
+
+        final StringBuilder sig = new StringBuilder();
+        boolean first = true;
+        for (final CodegenParameter p : optionsParams) {
+            if (!p.required) continue;
+            if (!first) sig.append(", ");
+            first = false;
+            sig.append(resolvePhpType(p)).append(" $").append(p.paramName);
+        }
+        for (final CodegenParameter p : optionsParams) {
+            if (p.required) continue;
+            if (!first) sig.append(", ");
+            first = false;
+            sig.append("?").append(resolvePhpType(p)).append(" $").append(p.paramName)
+                    .append(" = null");
+        }
+
+        // Collect model type imports
+        final Set<String> modelTypes = new java.util.LinkedHashSet<>();
+        for (final CodegenParameter p : optionsParams) {
+            if (!p.isArray && !p.isMap && !p.isPrimitiveType && p.baseType != null
+                    && !languageSpecificPrimitives.contains(p.baseType)) {
+                modelTypes.add(p.baseType);
+            }
+            if ((p.isArray || p.isMap) && p.items != null && p.items.baseType != null
+                    && !p.items.isPrimitiveType
+                    && !languageSpecificPrimitives.contains(p.items.baseType)) {
+                modelTypes.add(p.items.baseType);
+            }
+        }
+
+        final Map<String, Object> context = new HashMap<>();
+        context.put("className", className);
+        context.put("namespace", invokerPackage + "\\Api\\Options");
+        context.put("invokerPackage", invokerPackage);
+        context.put("operationId", op.operationId);
+        context.put("params", params);
+        context.put("hasAnyDocTypes", hasAnyDocTypes);
+        context.put("constructorSignature", sig.toString());
+        context.put("modelImports", new ArrayList<>(modelTypes));
+        context.put("hasModelImports", !modelTypes.isEmpty());
+        return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getOptionsFilePath(String operationId, String optionsClassName) {
+        return Path.of(outputFolder, SRC_BASE_PATH, "Api", "Options", optionsClassName + ".php")
+                .toString();
+    }
+
+    /**
+     * Returns the PHP type string for a parameter, using
+     * {@code array} for array and map types as PHP does not
+     * support generic array type hints.
+     */
+    private static String resolvePhpType(CodegenParameter p) {
+        return p.isArray || p.isMap ? "array" : p.dataType;
+    }
+
+    /**
+     * Returns a PHPDoc-specific type string that is more
+     * descriptive than the native PHP type hint. For arrays,
+     * returns {@code ItemType[]}; for maps, returns
+     * {@code array<string, ValueType>}; for scalars, returns
+     * the data type unchanged. This ensures {@code @var}
+     * annotations add useful type information beyond what
+     * PHP's native {@code array} hint conveys.
+     */
+    private static String resolvePhpDocType(CodegenParameter p) {
+        if (p.isArray && p.items != null) {
+            return p.items.dataType + "[]";
+        }
+        if (p.isMap) {
+            String valueType = (p.items != null) ? p.items.dataType : "mixed";
+            return "array<string, " + valueType + ">";
+        }
+        return p.dataType;
+    }
 }

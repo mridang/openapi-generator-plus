@@ -22,6 +22,7 @@ module PetstoreClient
 
       # Delete purchase order by ID
       # @param order_id [Integer] ID of the order to delete
+
       # @return [nil]
       # @raise [ApiError] if fails to make API call
       def delete_order(order_id)
@@ -59,6 +60,7 @@ module PetstoreClient
       end
 
       # Returns pet inventories by status
+
       # @return [Hash<String, Integer>]
       # @raise [ApiError] if fails to make API call
       def get_inventory()
@@ -86,6 +88,7 @@ module PetstoreClient
 
       # Find purchase order by ID
       # @param order_id [Integer] ID of order to return
+
       # @return [Order]
       # @raise [ApiError] if fails to make API call
       def get_order_by_id(order_id)
@@ -124,6 +127,7 @@ module PetstoreClient
 
       # Place an order for a pet
       # @param order [Order]
+
       # @return [Order]
       # @raise [ApiError] if fails to make API call
       def place_order(order = nil)

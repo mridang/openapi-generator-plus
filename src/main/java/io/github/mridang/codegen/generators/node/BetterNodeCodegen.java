@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -524,6 +525,54 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
             OperationsMap objs, List<ModelMap> allModels) {
         objs = super.postProcessOperationsWithModels(objs, allModels);
 
+        // Remove model imports that are only used by Options params
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> operations2 = (Map<String, Object>) objs.get("operations");
+        if (operations2 != null) {
+            @SuppressWarnings("unchecked")
+            final List<CodegenOperation> ops2 =
+                    (List<CodegenOperation>) operations2.get("operation");
+            if (ops2 != null) {
+                final Set<String> optionsOnlyModels = new HashSet<>();
+                final Set<String> nonOptionsModels = new HashSet<>();
+                for (final CodegenOperation op : ops2) {
+                    final List<CodegenParameter> optParams = collectOptionsParams(op);
+                    final Set<String> optParamNames = new HashSet<>();
+                    for (final CodegenParameter p : optParams) {
+                        optParamNames.add(p.paramName);
+                        addModelBaseType(optionsOnlyModels, p);
+                    }
+                    if (op.allParams != null) {
+                        for (final CodegenParameter p : op.allParams) {
+                            if (!optParamNames.contains(p.paramName)) {
+                                addModelBaseType(nonOptionsModels, p);
+                            }
+                        }
+                    }
+                    if (op.returnBaseType != null
+                            && !languageSpecificPrimitives.contains(op.returnBaseType)) {
+                        nonOptionsModels.add(op.returnBaseType);
+                    }
+                }
+                optionsOnlyModels.removeAll(nonOptionsModels);
+                if (!optionsOnlyModels.isEmpty()) {
+                    @SuppressWarnings("unchecked")
+                    final List<Map<String, String>> optImports =
+                            (List<Map<String, String>>) objs.get("imports");
+                    if (optImports != null) {
+                        optImports.removeIf(
+                                imp -> {
+                                    final String cn =
+                                            imp.getOrDefault(
+                                                    "className",
+                                                    imp.getOrDefault("classname", ""));
+                                    return optionsOnlyModels.contains(cn);
+                                });
+                    }
+                }
+            }
+        }
+
         @SuppressWarnings("unchecked")
         final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
         if (operations != null) {
@@ -712,6 +761,73 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
         }
     }
 
+    /** {@inheritDoc} */
+    @Override
+    protected String generateOptionsFileContent(
+            CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
+        final List<Map<String, Object>> params = new ArrayList<>();
+        for (final CodegenParameter p : optionsParams) {
+            final Map<String, Object> param = new HashMap<>();
+            param.put("paramName", p.paramName);
+            param.put("dataType", p.dataType);
+            param.put("required", p.required);
+            param.put("isNullable", Boolean.TRUE.equals(p.isNullable));
+            params.add(param);
+        }
+
+        // Collect model type imports — only PascalCase identifiers are real model
+        // types; inline TypeScript types like "{ [key: string]: unknown }" must be
+        // excluded.
+        final Set<String> modelTypes = new LinkedHashSet<>();
+        for (final CodegenParameter p : optionsParams) {
+            if (!p.isPrimitiveType
+                    && !p.isArray
+                    && !p.isMap
+                    && p.baseType != null
+                    && !languageSpecificPrimitives.contains(p.baseType)
+                    && p.baseType.matches("^[A-Z]\\w*$")) {
+                modelTypes.add(p.baseType);
+            }
+            if ((p.isArray || p.isMap)
+                    && p.items != null
+                    && p.items.baseType != null
+                    && !languageSpecificPrimitives.contains(p.items.baseType)
+                    && p.items.baseType.matches("^[A-Z]\\w*$")) {
+                modelTypes.add(p.items.baseType);
+            }
+        }
+
+        final Map<String, Object> context = new HashMap<>();
+        context.put("className", className);
+        context.put("params", params);
+        context.put("modelImports", new ArrayList<>(modelTypes));
+        context.put("hasModelImports", !modelTypes.isEmpty());
+        return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getOptionsFilePath(String operationId, String optionsClassName) {
+        final String fileName = NamingConvention.KEBAB_CASE.apply(optionsClassName);
+        return Path.of(outputFolder, "src", "api", "options", fileName + ".ts").toString();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected void writeOptionsBarrelFiles(List<Map<String, String>> optionsFiles) {
+        final StringBuilder sb = new StringBuilder();
+        for (final Map<String, String> meta : optionsFiles) {
+            final String className =
+                    Objects.requireNonNull(meta.get("optionsClassName"));
+            final String fileName = NamingConvention.KEBAB_CASE.apply(className);
+            sb.append("export * from './").append(fileName).append(".js';\n");
+        }
+        final String barrelPath =
+                Path.of(outputFolder, "src", "api", "options", "index.ts").toString();
+        writeFile(barrelPath, sb.toString());
+        postProcessFile(Path.of(barrelPath).toFile(), "source");
+    }
+
     /**
      * Returns whether a model property needs a runtime type
      * decorator for correct deserialization. Complex types
@@ -733,5 +849,25 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                 && prop.items.complexType != null
                 && !prop.items.isEnum
                 && !prop.items.isFreeFormObject;
+    }
+
+    /**
+     * Adds the base type of a parameter (and its items, if it is a
+     * collection) to the given set when the type is not a language
+     * primitive. Used to track which model imports are referenced
+     * by options-only parameters versus non-options parameters.
+     */
+    private void addModelBaseType(Set<String> types, CodegenParameter p) {
+        if (p.baseType != null
+                && !languageSpecificPrimitives.contains(p.baseType)
+                && p.baseType.matches("^[A-Z]\\w*$")) {
+            types.add(p.baseType);
+        }
+        if (p.items != null
+                && p.items.baseType != null
+                && !languageSpecificPrimitives.contains(p.items.baseType)
+                && p.items.baseType.matches("^[A-Z]\\w*$")) {
+            types.add(p.items.baseType);
+        }
     }
 }

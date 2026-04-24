@@ -1,0 +1,11 @@
+{{#modelImports}}
+import type { {{.}} } from '../../models/index.js';
+{{/modelImports}}
+{{#hasModelImports}}
+
+{{/hasModelImports}}
+export interface {{className}} {
+{{#params}}
+  {{paramName}}{{^required}}?{{/required}}: {{dataType}}{{#isNullable}} | null{{/isNullable}};
+{{/params}}
+}

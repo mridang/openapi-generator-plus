@@ -10,14 +10,19 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenProperty;
@@ -660,5 +665,117 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         if (imp != null) {
             imports.add(imp);
         }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String generateOptionsFileContent(
+            CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
+        final TreeSet<String> importSet = new TreeSet<>();
+        importSet.add("from dataclasses import dataclass");
+        boolean needsOptional = false;
+        final List<String> typingNames = new ArrayList<>();
+        for (final CodegenParameter p : optionsParams) {
+            if (!p.required) {
+                needsOptional = true;
+            }
+            if (p.dataType != null) {
+                if (p.dataType.startsWith("List[") && !typingNames.contains("List")) {
+                    typingNames.add("List");
+                }
+                if (p.dataType.startsWith("Dict[") && !typingNames.contains("Dict")) {
+                    typingNames.add("Dict");
+                }
+                addTypeImport(importSet, p.dataType);
+            }
+        }
+        // Add model type imports for non-primitive types referenced by parameters
+        for (final CodegenParameter p : optionsParams) {
+            if (p.baseType != null
+                    && !languageSpecificPrimitives.contains(p.baseType)
+                    && !TYPE_IMPORTS.containsKey(p.baseType)) {
+                importSet.add(
+                        "from "
+                                + modelPackage
+                                + "."
+                                + toModelFilename(p.baseType)
+                                + " import "
+                                + p.baseType);
+            }
+            if (p.items != null
+                    && p.items.baseType != null
+                    && !languageSpecificPrimitives.contains(p.items.baseType)
+                    && !TYPE_IMPORTS.containsKey(p.items.baseType)) {
+                importSet.add(
+                        "from "
+                                + modelPackage
+                                + "."
+                                + toModelFilename(p.items.baseType)
+                                + " import "
+                                + p.items.baseType);
+            }
+        }
+        if (needsOptional && !typingNames.contains("Optional")) {
+            typingNames.add(0, "Optional");
+        }
+        if (!typingNames.isEmpty()) {
+            importSet.add("from typing import " + String.join(", ", typingNames));
+        }
+
+        final List<Map<String, Object>> requiredParams = new ArrayList<>();
+        final List<Map<String, Object>> optionalParams = new ArrayList<>();
+        for (final CodegenParameter p : optionsParams) {
+            final Map<String, Object> param = new HashMap<>();
+            param.put("paramName", p.paramName);
+            param.put("dataType", p.dataType);
+            if (p.required) {
+                requiredParams.add(param);
+            } else {
+                optionalParams.add(param);
+            }
+        }
+
+        final Map<String, Object> context = new HashMap<>();
+        context.put("className", className);
+        context.put("operationId", op.operationId);
+        context.put("imports", new ArrayList<>(importSet));
+        context.put("requiredParams", requiredParams);
+        context.put("optionalParams", optionalParams);
+        return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getOptionsFilePath(String operationId, String optionsClassName) {
+        final String fileName = NamingConvention.SNAKE_CASE.apply(optionsClassName);
+        return Path.of(
+                        outputFolder,
+                        packageName.replace('.', '/'),
+                        "api",
+                        "options",
+                        fileName + ".py")
+                .toString();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected void writeOptionsBarrelFiles(List<Map<String, String>> optionsFiles) {
+        final StringBuilder sb = new StringBuilder();
+        for (final Map<String, String> meta : optionsFiles) {
+            final String className =
+                    Objects.requireNonNull(meta.get("optionsClassName"));
+            final String moduleName = NamingConvention.SNAKE_CASE.apply(className);
+            sb.append("from .").append(moduleName).append(" import ").append(className)
+                    .append('\n');
+        }
+        final String initPath =
+                Path.of(
+                                outputFolder,
+                                packageName.replace('.', '/'),
+                                "api",
+                                "options",
+                                "__init__.py")
+                        .toString();
+        writeFile(initPath, sb.toString());
     }
 }

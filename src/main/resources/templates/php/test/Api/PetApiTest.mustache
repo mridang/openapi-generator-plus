@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace {{invokerPackage}}\Test\Api;
 
 use PHPUnit\Framework\TestCase;
+use {{invokerPackage}}\Api\Options\FindPetsByStatusOptions;
+use {{invokerPackage}}\Api\Options\UploadPetCertificateOptions;
+use {{invokerPackage}}\Api\Options\UploadPetDocumentOptions;
 use {{invokerPackage}}\Api\PetApi;
 use {{invokerPackage}}\Auth\BearerAuthenticator;
 use {{invokerPackage}}\Configuration;
@@ -47,7 +50,7 @@ class PetApiTest extends TestCase
 
     public function testFindPetsByStatus(): void
     {
-        $result = $this->api->findPetsByStatus('available');
+        $result = $this->api->findPetsByStatus(new FindPetsByStatusOptions('available'));
 
         $this->assertIsArray($result);
         $this->assertNotEmpty($result);
@@ -121,7 +124,7 @@ class PetApiTest extends TestCase
         file_put_contents($tmpFile, 'certificate-content');
         $file = new \SplFileObject($tmpFile, 'r');
 
-        $result = $this->api->uploadPetCertificate(1, $file);
+        $result = $this->api->uploadPetCertificate(1, new UploadPetCertificateOptions($file));
 
         $this->assertInstanceOf(ApiResponse::class, $result);
         unlink($tmpFile);
@@ -133,7 +136,8 @@ class PetApiTest extends TestCase
         file_put_contents($tmpFile, 'document-content');
         $file = new \SplFileObject($tmpFile, 'r');
 
-        $result = $this->api->uploadPetDocument(1, $file, 'vaccination_record', 'Annual checkup');
+        $options = new UploadPetDocumentOptions($file, 'vaccination_record', 'Annual checkup');
+        $result = $this->api->uploadPetDocument(1, $options);
 
         $this->assertInstanceOf(ApiResponse::class, $result);
         unlink($tmpFile);

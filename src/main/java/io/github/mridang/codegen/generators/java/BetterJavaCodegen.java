@@ -922,23 +922,4 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         return "";
     }
 
-    /**
-     * Writes generated source content to a file, creating any
-     * missing parent directories. Logs a warning on failure
-     * instead of throwing so code generation can continue.
-     */
-    @SuppressFBWarnings(
-            value = "NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE",
-            justification =
-                    "filePath always contains a parent directory")
-    private void writeFile(String filePath, String content) {
-        try {
-            final Path path = Path.of(filePath);
-            Files.createDirectories(path.getParent());
-            Files.writeString(path, content, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            LOGGER.warn("Failed to write auth file: {}", filePath, e);
-        }
-    }
-
 }

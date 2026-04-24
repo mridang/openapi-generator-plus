@@ -16,6 +16,9 @@ from ..value_serializer import ValueSerializer
 {{#hasAnyAuthMethods}}
 from ..auth.authenticator import Authenticator
 {{/hasAnyAuthMethods}}
+{{#optionsImports}}
+from .options.{{optionsFileName}} import {{optionsClassName}}
+{{/optionsImports}}
 
 
 {{#operations}}
@@ -92,38 +95,15 @@ class {{classname}}(BaseApi):
 {{#bodyParam}}
         {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
 {{/bodyParam}}
-{{#queryParams}}
-{{#-first}}
-        *,
-{{/-first}}
-        {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
-{{/queryParams}}
-{{^queryParams}}
-{{#headerParams}}
-{{#-first}}
-        *,
-{{/-first}}
-        {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
-{{/headerParams}}
-{{^headerParams}}
-{{#formParams}}
-{{#-first}}
-        *,
-{{/-first}}
-        {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
-{{/formParams}}
-{{^formParams}}
-{{#cookieParams}}
-{{#-first}}
-        *,
-{{/-first}}
-{{/cookieParams}}
-{{/formParams}}
-{{/headerParams}}
-{{/queryParams}}
-{{#cookieParams}}
-        {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
-{{/cookieParams}}
+{{#queryParams}}{{#-first}}
+        options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options,
+{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
+        options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options,
+{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
+        options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options,
+{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
+        options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options,
+{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{#servers}}{{#-first}}
         server: Optional['{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server'] = None,
 {{/-first}}{{/servers}}
@@ -135,9 +115,21 @@ class {{classname}}(BaseApi):
 {{#hasAuthMethods}}
         :param auth: authenticator for this operation
 {{/hasAuthMethods}}
-{{#allParams}}
+{{#pathParams}}
         :param {{paramName}}: {{description}}{{#required}} (required){{/required}}{{^required}} (optional{{^isContainer}}{{#defaultValue}}, default to {{.}}{{/defaultValue}}{{/isContainer}}){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
-{{/allParams}}
+{{/pathParams}}
+{{#bodyParam}}
+        :param {{paramName}}: {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/bodyParam}}
+{{#queryParams}}{{#-first}}
+        :param options: options for query, header, form, and cookie parameters
+{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
+        :param options: options for query, header, form, and cookie parameters
+{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
+        :param options: options for query, header, form, and cookie parameters
+{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
+        :param options: options for query, header, form, and cookie parameters
+{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{#returnType}}
         :return: {{{returnType}}}
 {{/returnType}}
@@ -151,14 +143,49 @@ class {{classname}}(BaseApi):
             `{{description}} <{{url}}>`_
 {{/externalDocs}}
         """
-{{#allParams}}
+{{#pathParams}}
 {{#required}}
         if {{paramName}} is None:
             raise ValueError("Missing the required parameter '{{paramName}}'")
 
 {{/required}}
-{{/allParams}}
-        result = self.{{operationId}}_with_http_info({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#cookieParams}}{{#-first}}{{#queryParams}}, {{/queryParams}}{{^queryParams}}{{#headerParams}}, {{/headerParams}}{{^headerParams}}{{#formParams}}, {{/formParams}}{{^formParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}={{paramName}}{{/cookieParams}}{{#servers}}{{#-first}}, server=server{{/-first}}{{/servers}})
+{{/pathParams}}
+{{#bodyParam}}
+{{#required}}
+        if {{paramName}} is None:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/bodyParam}}
+{{#queryParams}}
+{{#required}}
+        if options.{{paramName}} is None:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+        if options.{{paramName}} is None:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+        if options.{{paramName}} is None:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+        if options.{{paramName}} is None:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/cookieParams}}
+        result = self.{{operationId}}_with_http_info({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server=server{{/-first}}{{/servers}})
 {{#returnType}}
         assert result.data is not None
 {{/returnType}}
@@ -175,38 +202,15 @@ class {{classname}}(BaseApi):
 {{#bodyParam}}
         {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
 {{/bodyParam}}
-{{#queryParams}}
-{{#-first}}
-        *,
-{{/-first}}
-        {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
-{{/queryParams}}
-{{^queryParams}}
-{{#headerParams}}
-{{#-first}}
-        *,
-{{/-first}}
-        {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
-{{/headerParams}}
-{{^headerParams}}
-{{#formParams}}
-{{#-first}}
-        *,
-{{/-first}}
-        {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
-{{/formParams}}
-{{^formParams}}
-{{#cookieParams}}
-{{#-first}}
-        *,
-{{/-first}}
-{{/cookieParams}}
-{{/formParams}}
-{{/headerParams}}
-{{/queryParams}}
-{{#cookieParams}}
-        {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
-{{/cookieParams}}
+{{#queryParams}}{{#-first}}
+        options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options,
+{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
+        options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options,
+{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
+        options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options,
+{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
+        options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options,
+{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{#servers}}{{#-first}}
         server: Optional['{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server'] = None,
 {{/-first}}{{/servers}}
@@ -218,19 +222,66 @@ class {{classname}}(BaseApi):
 {{#hasAuthMethods}}
         :param auth: authenticator for this operation
 {{/hasAuthMethods}}
-{{#allParams}}
+{{#pathParams}}
         :param {{paramName}}: {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}
-{{/allParams}}
+{{/pathParams}}
+{{#bodyParam}}
+        :param {{paramName}}: {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}
+{{/bodyParam}}
+{{#queryParams}}{{#-first}}
+        :param options: options for query, header, form, and cookie parameters
+{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
+        :param options: options for query, header, form, and cookie parameters
+{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
+        :param options: options for query, header, form, and cookie parameters
+{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
+        :param options: options for query, header, form, and cookie parameters
+{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
-{{#allParams}}
+{{#pathParams}}
 {{#required}}
         if {{paramName}} is None:
             raise ValueError("Missing the required parameter '{{paramName}}'")
 
 {{/required}}
-{{/allParams}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#required}}
+        if {{paramName}} is None:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/bodyParam}}
+{{#queryParams}}
+{{#required}}
+        if options.{{paramName}} is None:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/queryParams}}
+{{#headerParams}}
+{{#required}}
+        if options.{{paramName}} is None:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/headerParams}}
+{{#formParams}}
+{{#required}}
+        if options.{{paramName}} is None:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/formParams}}
+{{#cookieParams}}
+{{#required}}
+        if options.{{paramName}} is None:
+            raise ValueError("Missing the required parameter '{{paramName}}'")
+
+{{/required}}
+{{/cookieParams}}
         path = '{{{path}}}'{{#pathParams}}
         path = path.replace('{' + '{{baseName}}' + '}', str(ValueSerializer.serialize_styled('{{baseName}}', {{paramName}}, 'path', '{{dataType}}', None, '{{style}}', {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}}))){{/pathParams}}
 {{#servers}}
@@ -243,39 +294,39 @@ class {{classname}}(BaseApi):
         query_params: Dict[str, Any] = {}
 {{#queryParams}}
 {{#isDeepObject}}
-        if {{paramName}} is not None:
-            query_params.update(ValueSerializer.serialize_deep_object('{{baseName}}', {{paramName}}))
+        if options.{{paramName}} is not None:
+            query_params.update(ValueSerializer.serialize_deep_object('{{baseName}}', options.{{paramName}}))
 {{/isDeepObject}}
 {{^isDeepObject}}
 {{#content}}
-        if {{paramName}} is not None:
+        if options.{{paramName}} is not None:
             import json
-            query_params['{{baseName}}'] = json.dumps({{paramName}})
+            query_params['{{baseName}}'] = json.dumps(options.{{paramName}})
 {{/content}}
 {{^content}}
 {{#isAllowEmptyValue}}
-        if {{paramName}} is not None:
-            query_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', {{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})
+        if options.{{paramName}} is not None:
+            query_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})
         else:
             query_params['{{baseName}}'] = ''
 {{/isAllowEmptyValue}}
 {{^isAllowEmptyValue}}
-        if {{paramName}} is not None:
-            query_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', {{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})
+        if options.{{paramName}} is not None:
+            query_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})
 {{/isAllowEmptyValue}}
 {{/content}}
 {{/isDeepObject}}
 {{/queryParams}}
         header_params: Dict[str, str] = {}
 {{#headerParams}}
-        if {{paramName}} is not None:
-            header_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', {{paramName}}, 'header', '{{dataType}}', None, '{{style}}', {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})
+        if options.{{paramName}} is not None:
+            header_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'header', '{{dataType}}', None, '{{style}}', {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})
 {{/headerParams}}
 {{#hasCookieParams}}
         cookie_parts = []
 {{#cookieParams}}
-        if {{paramName}} is not None:
-            cookie_parts.append(f'{{baseName}}={ValueSerializer.serialize_styled("{{baseName}}", {{paramName}}, "cookie", "{{dataType}}", None, "{{style}}", {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})}')
+        if options.{{paramName}} is not None:
+            cookie_parts.append(f'{{baseName}}={ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, "cookie", "{{dataType}}", None, "{{style}}", {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})}')
 {{/cookieParams}}
         if cookie_parts:
             header_params['Cookie'] = '; '.join(cookie_parts)
@@ -284,11 +335,11 @@ class {{classname}}(BaseApi):
         body: Dict[str, Any] = {}
 {{#formParams}}
 {{#required}}
-        body['{{baseName}}'] = {{paramName}}
+        body['{{baseName}}'] = options.{{paramName}}
 {{/required}}
 {{^required}}
-        if {{paramName}} is not None:
-            body['{{baseName}}'] = {{paramName}}
+        if options.{{paramName}} is not None:
+            body['{{baseName}}'] = options.{{paramName}}
 {{/required}}
 {{/formParams}}
 {{/hasFormParams}}

@@ -18,6 +18,11 @@ from ..configuration import Configuration
 from .base_api import BaseApi
 from ..value_serializer import ValueSerializer
 from ..auth.authenticator import Authenticator
+from .options.add_pet_photos_options import AddPetPhotosOptions
+from .options.find_pets_by_status_options import FindPetsByStatusOptions
+from .options.get_pet_tag_options import GetPetTagOptions
+from .options.upload_pet_certificate_options import UploadPetCertificateOptions
+from .options.upload_pet_document_options import UploadPetDocumentOptions
 
 
 class GetExternalPetInfoServer(ABC):
@@ -134,6 +139,7 @@ class PetApi(BaseApi):
         """Add a new pet to the store
         :param auth: authenticator for this operation
         :param pet: Create a new pet in the store (required)
+
         :return: Pet
         :raises ApiException: if fails to make API call
         """
@@ -152,6 +158,7 @@ class PetApi(BaseApi):
         """Add a new pet to the store (with HTTP info)
         :param auth: authenticator for this operation
         :param pet: Create a new pet in the store (required)
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -178,53 +185,51 @@ class PetApi(BaseApi):
     def add_pet_photos(
         self,
         pet_id: int,
-        *,
-        files: List[bytes],
-        metadata: PhotoMetadata,
+        options: AddPetPhotosOptions,
     ) -> List[Photo]:
         """Add photos to the pet&#39;s gallery
         Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
         :param pet_id:  (required)
-        :param files:  (required)
-        :param metadata:  (required)
+
+        :param options: options for query, header, form, and cookie parameters
+
         :return: List[Photo]
         :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        if files is None:
+        if options.files is None:
             raise ValueError("Missing the required parameter 'files'")
 
-        if metadata is None:
+        if options.metadata is None:
             raise ValueError("Missing the required parameter 'metadata'")
 
-        result = self.add_pet_photos_with_http_info(pet_id, files=files, metadata=metadata)
+        result = self.add_pet_photos_with_http_info(pet_id, options)
         assert result.data is not None
         return result.data
 
     def add_pet_photos_with_http_info(
         self,
         pet_id: int,
-        *,
-        files: List[bytes],
-        metadata: PhotoMetadata,
+        options: AddPetPhotosOptions,
     ) -> 'ApiResult[List[Photo]]':
         """Add photos to the pet&#39;s gallery (with HTTP info)
         Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
         :param pet_id:  (required)
-        :param files:  (required)
-        :param metadata:  (required)
+
+        :param options: options for query, header, form, and cookie parameters
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        if files is None:
+        if options.files is None:
             raise ValueError("Missing the required parameter 'files'")
 
-        if metadata is None:
+        if options.metadata is None:
             raise ValueError("Missing the required parameter 'metadata'")
 
         path = '/pet/{petId}/photos'
@@ -235,8 +240,8 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body: Dict[str, Any] = {}
-        body['files'] = files
-        body['metadata'] = metadata
+        body['files'] = options.files
+        body['metadata'] = options.metadata
 
         return self._invoke_api_for_result(
             'POST',
@@ -260,6 +265,7 @@ class PetApi(BaseApi):
         :param auth: authenticator for this operation
         :param pet_id:  (required)
         :param pet_treatment:  (required)
+
         :return: PetTreatment
         :raises ApiException: if fails to make API call
         """
@@ -283,6 +289,7 @@ class PetApi(BaseApi):
         :param auth: authenticator for this operation
         :param pet_id:  (required)
         :param pet_treatment:  (required)
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -321,6 +328,7 @@ class PetApi(BaseApi):
         """Deletes a pet
         :param auth: authenticator for this operation
         :param pet_id: Pet id to delete (required)
+
         :raises ApiException: if fails to make API call
         """
         if pet_id is None:
@@ -337,6 +345,7 @@ class PetApi(BaseApi):
         """Deletes a pet (with HTTP info)
         :param auth: authenticator for this operation
         :param pet_id: Pet id to delete (required)
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -373,6 +382,7 @@ class PetApi(BaseApi):
         Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
         :param pet_id:  (required)
         :param document_id:  (required)
+
         :return: bytes
         :raises ApiException: if fails to make API call
         """
@@ -395,6 +405,7 @@ class PetApi(BaseApi):
         Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
         :param pet_id:  (required)
         :param document_id:  (required)
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -431,13 +442,12 @@ class PetApi(BaseApi):
 
     def find_pets_by_status(
         self,
-        *,
-        status: Optional[str] = None,
-        filter: Optional[Dict[str, str]] = None,
+        options: FindPetsByStatusOptions,
     ) -> List[Pet]:
         """Finds Pets by status
-        :param status: Status values that need to be considered for filter (optional, default to available) (deprecated)
-        :param filter: Filter criteria as key-value pairs (optional)
+
+        :param options: options for query, header, form, and cookie parameters
+
         :return: List[Pet]
         :raises ApiException: if fails to make API call
         .. deprecated::
@@ -445,30 +455,29 @@ class PetApi(BaseApi):
         .. seealso::
             `Find out more about filtering <https://example.com/docs/filtering>`_
         """
-        result = self.find_pets_by_status_with_http_info(status=status, filter=filter)
+        result = self.find_pets_by_status_with_http_info(options)
         assert result.data is not None
         return result.data
 
     def find_pets_by_status_with_http_info(
         self,
-        *,
-        status: Optional[str] = None,
-        filter: Optional[Dict[str, str]] = None,
+        options: FindPetsByStatusOptions,
     ) -> 'ApiResult[List[Pet]]':
         """Finds Pets by status (with HTTP info)
-        :param status: Status values that need to be considered for filter (optional)
-        :param filter: Filter criteria as key-value pairs (optional)
+
+        :param options: options for query, header, form, and cookie parameters
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
         path = '/pet/findByStatus'
         query_params: Dict[str, Any] = {}
-        if status is not None:
+        if options.status is not None:
             query_params['status'] = ValueSerializer.serialize_styled(
-                'status', status, 'query', 'str', None, 'form', True
+                'status', options.status, 'query', 'str', None, 'form', True
             )
-        if filter is not None:
-            query_params.update(ValueSerializer.serialize_deep_object('filter', filter))
+        if options.filter is not None:
+            query_params.update(ValueSerializer.serialize_deep_object('filter', options.filter))
         header_params: Dict[str, str] = {}
         body = None
 
@@ -491,6 +500,7 @@ class PetApi(BaseApi):
     ) -> Pet:
         """Get external pet info
         :param pet_id:  (required)
+
         :return: Pet
         :raises ApiException: if fails to make API call
         """
@@ -508,6 +518,7 @@ class PetApi(BaseApi):
     ) -> 'ApiResult[Pet]':
         """Get external pet info (with HTTP info)
         :param pet_id:  (required)
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -545,6 +556,7 @@ class PetApi(BaseApi):
     ) -> Pet:
         """Get multi-server pet info
         :param pet_id:  (required)
+
         :return: Pet
         :raises ApiException: if fails to make API call
         """
@@ -562,6 +574,7 @@ class PetApi(BaseApi):
     ) -> 'ApiResult[Pet]':
         """Get multi-server pet info (with HTTP info)
         :param pet_id:  (required)
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -599,6 +612,7 @@ class PetApi(BaseApi):
         """Get the pet&#39;s profile photo
         Returns the raw image bytes of the pet&#39;s current avatar.
         :param pet_id:  (required)
+
         :return: bytes
         :raises ApiException: if fails to make API call
         """
@@ -616,6 +630,7 @@ class PetApi(BaseApi):
         """Get the pet&#39;s profile photo (with HTTP info)
         Returns the raw image bytes of the pet&#39;s current avatar.
         :param pet_id:  (required)
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -650,6 +665,7 @@ class PetApi(BaseApi):
         """Get the pet&#39;s avatar thumbnail as base64
         Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
         :param pet_id:  (required)
+
         :return: bytes
         :raises ApiException: if fails to make API call
         """
@@ -667,6 +683,7 @@ class PetApi(BaseApi):
         """Get the pet&#39;s avatar thumbnail as base64 (with HTTP info)
         Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
         :param pet_id:  (required)
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -701,6 +718,7 @@ class PetApi(BaseApi):
         """Find pet by ID
         Returns a single pet
         :param pet_id: ID of pet to return (required)
+
         :return: Pet
         :raises ApiException: if fails to make API call
         .. deprecated::
@@ -720,6 +738,7 @@ class PetApi(BaseApi):
         """Find pet by ID (with HTTP info)
         Returns a single pet
         :param pet_id: ID of pet to return (required)
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -754,6 +773,7 @@ class PetApi(BaseApi):
         """Get the pet&#39;s passport
         Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
         :param pet_id:  (required)
+
         :return: PetPassport
         :raises ApiException: if fails to make API call
         """
@@ -771,6 +791,7 @@ class PetApi(BaseApi):
         """Get the pet&#39;s passport (with HTTP info)
         Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
         :param pet_id:  (required)
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -807,6 +828,7 @@ class PetApi(BaseApi):
         Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
         :param pet_id:  (required)
         :param photo_id:  (required)
+
         :return: bytes
         :raises ApiException: if fails to make API call
         """
@@ -829,6 +851,7 @@ class PetApi(BaseApi):
         Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
         :param pet_id:  (required)
         :param photo_id:  (required)
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -867,17 +890,14 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         tag_name: str,
-        *,
-        colors: Optional[List[str]] = None,
-        sizes: Optional[List[str]] = None,
-        filter: Optional[str] = None,
+        options: GetPetTagOptions,
     ) -> Pet:
         """Get a tag for a pet
         :param pet_id:  (required)
         :param tag_name:  (required)
-        :param colors:  (optional)
-        :param sizes:  (optional)
-        :param filter:  (optional)
+
+        :param options: options for query, header, form, and cookie parameters
+
         :return: Pet
         :raises ApiException: if fails to make API call
         """
@@ -887,7 +907,7 @@ class PetApi(BaseApi):
         if tag_name is None:
             raise ValueError("Missing the required parameter 'tag_name'")
 
-        result = self.get_pet_tag_with_http_info(pet_id, tag_name, colors=colors, sizes=sizes, filter=filter)
+        result = self.get_pet_tag_with_http_info(pet_id, tag_name, options)
         assert result.data is not None
         return result.data
 
@@ -895,17 +915,14 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         tag_name: str,
-        *,
-        colors: Optional[List[str]] = None,
-        sizes: Optional[List[str]] = None,
-        filter: Optional[str] = None,
+        options: GetPetTagOptions,
     ) -> 'ApiResult[Pet]':
         """Get a tag for a pet (with HTTP info)
         :param pet_id:  (required)
         :param tag_name:  (required)
-        :param colors:  (optional)
-        :param sizes:  (optional)
-        :param filter:  (optional)
+
+        :param options: options for query, header, form, and cookie parameters
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -925,17 +942,17 @@ class PetApi(BaseApi):
             str(ValueSerializer.serialize_styled('tagName', tag_name, 'path', 'str', None, 'label', False)),
         )
         query_params: Dict[str, Any] = {}
-        if colors is not None:
+        if options.colors is not None:
             query_params['colors'] = ValueSerializer.serialize_styled(
-                'colors', colors, 'query', 'List[str]', 'pipes', 'pipeDelimited', False
+                'colors', options.colors, 'query', 'List[str]', 'pipes', 'pipeDelimited', False
             )
-        if sizes is not None:
+        if options.sizes is not None:
             query_params['sizes'] = ValueSerializer.serialize_styled(
-                'sizes', sizes, 'query', 'List[str]', 'ssv', 'spaceDelimited', False
+                'sizes', options.sizes, 'query', 'List[str]', 'ssv', 'spaceDelimited', False
             )
-        if filter is not None:
+        if options.filter is not None:
             query_params['filter'] = ValueSerializer.serialize_styled(
-                'filter', filter, 'query', 'str', None, 'form', True
+                'filter', options.filter, 'query', 'str', None, 'form', True
             )
         else:
             query_params['filter'] = ''
@@ -961,6 +978,7 @@ class PetApi(BaseApi):
     ) -> Pet:
         """Get staging pet info
         :param pet_id:  (required)
+
         :return: Pet
         :raises ApiException: if fails to make API call
         """
@@ -978,6 +996,7 @@ class PetApi(BaseApi):
     ) -> 'ApiResult[Pet]':
         """Get staging pet info (with HTTP info)
         :param pet_id:  (required)
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -1017,6 +1036,7 @@ class PetApi(BaseApi):
         Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
         :param pet_id:  (required)
         :param body:  (required)
+
         :raises ApiException: if fails to make API call
         """
         if pet_id is None:
@@ -1037,6 +1057,7 @@ class PetApi(BaseApi):
         Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
         :param pet_id:  (required)
         :param body:  (required)
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -1076,6 +1097,7 @@ class PetApi(BaseApi):
         Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
         :param pet_id:  (required)
         :param set_pet_avatar_thumbnail_request:  (required)
+
         :raises ApiException: if fails to make API call
         """
         if pet_id is None:
@@ -1096,6 +1118,7 @@ class PetApi(BaseApi):
         Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
         :param pet_id:  (required)
         :param set_pet_avatar_thumbnail_request:  (required)
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -1134,6 +1157,7 @@ class PetApi(BaseApi):
         """Update an existing pet
         :param pet_id: ID of pet to update (required)
         :param pet: Pet object that needs to be updated (required)
+
         :return: Pet
         :raises ApiException: if fails to make API call
         """
@@ -1155,6 +1179,7 @@ class PetApi(BaseApi):
         """Update an existing pet (with HTTP info)
         :param pet_id: ID of pet to update (required)
         :param pet: Pet object that needs to be updated (required)
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
@@ -1188,43 +1213,45 @@ class PetApi(BaseApi):
     def upload_pet_certificate(
         self,
         pet_id: int,
-        *,
-        file: bytes,
+        options: UploadPetCertificateOptions,
     ) -> ApiResponse:
         """Upload the pet&#39;s adoption certificate
         Attaches a single adoption certificate document. No metadata fields are required alongside the file.
         :param pet_id:  (required)
-        :param file:  (required)
+
+        :param options: options for query, header, form, and cookie parameters
+
         :return: ApiResponse
         :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        if file is None:
+        if options.file is None:
             raise ValueError("Missing the required parameter 'file'")
 
-        result = self.upload_pet_certificate_with_http_info(pet_id, file=file)
+        result = self.upload_pet_certificate_with_http_info(pet_id, options)
         assert result.data is not None
         return result.data
 
     def upload_pet_certificate_with_http_info(
         self,
         pet_id: int,
-        *,
-        file: bytes,
+        options: UploadPetCertificateOptions,
     ) -> 'ApiResult[ApiResponse]':
         """Upload the pet&#39;s adoption certificate (with HTTP info)
         Attaches a single adoption certificate document. No metadata fields are required alongside the file.
         :param pet_id:  (required)
-        :param file:  (required)
+
+        :param options: options for query, header, form, and cookie parameters
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        if file is None:
+        if options.file is None:
             raise ValueError("Missing the required parameter 'file'")
 
         path = '/pet/{petId}/certificate'
@@ -1235,7 +1262,7 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body: Dict[str, Any] = {}
-        body['file'] = file
+        body['file'] = options.file
 
         return self._invoke_api_for_result(
             'POST',
@@ -1252,51 +1279,45 @@ class PetApi(BaseApi):
     def upload_pet_document(
         self,
         pet_id: int,
-        *,
-        file: bytes,
-        document_type: Optional[str] = None,
-        notes: Optional[str] = None,
+        options: UploadPetDocumentOptions,
     ) -> ApiResponse:
         """Attach a vet document or health record
         Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
         :param pet_id:  (required)
-        :param file:  (required)
-        :param document_type:  (optional)
-        :param notes:  (optional)
+
+        :param options: options for query, header, form, and cookie parameters
+
         :return: ApiResponse
         :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        if file is None:
+        if options.file is None:
             raise ValueError("Missing the required parameter 'file'")
 
-        result = self.upload_pet_document_with_http_info(pet_id, file=file, document_type=document_type, notes=notes)
+        result = self.upload_pet_document_with_http_info(pet_id, options)
         assert result.data is not None
         return result.data
 
     def upload_pet_document_with_http_info(
         self,
         pet_id: int,
-        *,
-        file: bytes,
-        document_type: Optional[str] = None,
-        notes: Optional[str] = None,
+        options: UploadPetDocumentOptions,
     ) -> 'ApiResult[ApiResponse]':
         """Attach a vet document or health record (with HTTP info)
         Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
         :param pet_id:  (required)
-        :param file:  (required)
-        :param document_type:  (optional)
-        :param notes:  (optional)
+
+        :param options: options for query, header, form, and cookie parameters
+
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        if file is None:
+        if options.file is None:
             raise ValueError("Missing the required parameter 'file'")
 
         path = '/pet/{petId}/documents'
@@ -1307,11 +1328,11 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body: Dict[str, Any] = {}
-        body['file'] = file
-        if document_type is not None:
-            body['documentType'] = document_type
-        if notes is not None:
-            body['notes'] = notes
+        body['file'] = options.file
+        if options.document_type is not None:
+            body['documentType'] = options.document_type
+        if options.notes is not None:
+            body['notes'] = options.notes
 
         return self._invoke_api_for_result(
             'POST',
