@@ -7,7 +7,7 @@ module PetstoreClient
       class UploadPetCertificateOptions
         attr_accessor :file
 
-        def initialize(file: nil)
+        def initialize(file:)
           @file = file
         end
       end

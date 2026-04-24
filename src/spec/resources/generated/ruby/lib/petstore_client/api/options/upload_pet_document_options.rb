@@ -7,7 +7,7 @@ module PetstoreClient
       class UploadPetDocumentOptions
         attr_accessor :file, :document_type, :notes
 
-        def initialize(file: nil, document_type: nil, notes: nil)
+        def initialize(file:, document_type: nil, notes: nil)
           @file = file
           @document_type = document_type
           @notes = notes

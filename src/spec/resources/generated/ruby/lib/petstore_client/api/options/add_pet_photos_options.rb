@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative '../../models/photo_metadata'
+
 module PetstoreClient
   module Api
     module Options
@@ -7,7 +9,7 @@ module PetstoreClient
       class AddPetPhotosOptions
         attr_accessor :files, :metadata
 
-        def initialize(files: nil, metadata: nil)
+        def initialize(files:, metadata:)
           @files = files
           @metadata = metadata
         end

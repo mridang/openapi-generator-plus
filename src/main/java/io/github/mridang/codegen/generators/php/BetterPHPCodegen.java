@@ -4,9 +4,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.NamingConvention;
-import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
-import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -664,20 +662,14 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             params.add(param);
         }
 
-        final StringBuilder sig = new StringBuilder();
-        boolean first = true;
-        for (final CodegenParameter p : optionsParams) {
-            if (!p.required) continue;
-            if (!first) sig.append(", ");
-            first = false;
-            sig.append(resolvePhpType(p)).append(" $").append(p.paramName);
-        }
-        for (final CodegenParameter p : optionsParams) {
-            if (p.required) continue;
-            if (!first) sig.append(", ");
-            first = false;
-            sig.append("?").append(resolvePhpType(p)).append(" $").append(p.paramName)
-                    .append(" = null");
+        final List<Map<String, Object>> requiredParams = new ArrayList<>();
+        final List<Map<String, Object>> optionalParams = new ArrayList<>();
+        for (final Map<String, Object> param : params) {
+            if (Boolean.TRUE.equals(param.get("required"))) {
+                requiredParams.add(param);
+            } else {
+                optionalParams.add(param);
+            }
         }
 
         // Collect model type imports
@@ -701,7 +693,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         context.put("operationId", op.operationId);
         context.put("params", params);
         context.put("hasAnyDocTypes", hasAnyDocTypes);
-        context.put("constructorSignature", sig.toString());
+        context.put("requiredParams", requiredParams);
+        context.put("optionalParams", optionalParams);
+        context.put("hasOptionalParams", !optionalParams.isEmpty());
+        context.put("hasRequiredParams", !requiredParams.isEmpty());
         context.put("modelImports", new ArrayList<>(modelTypes));
         context.put("hasModelImports", !modelTypes.isEmpty());
         return renderOptionsTemplate("api/options.mustache", context);

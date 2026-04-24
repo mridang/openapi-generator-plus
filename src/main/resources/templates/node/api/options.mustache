@@ -4,6 +4,9 @@ import type { {{.}} } from '../../models/index.js';
 {{#hasModelImports}}
 
 {{/hasModelImports}}
+/**
+ * Options for the {{operationId}} operation.
+ */
 export interface {{className}} {
 {{#params}}
   {{paramName}}{{^required}}?{{/required}}: {{dataType}}{{#isNullable}} | null{{/isNullable}};

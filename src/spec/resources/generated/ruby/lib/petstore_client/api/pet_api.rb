@@ -153,7 +153,7 @@ module PetstoreClient
 
       # @return [Array<Photo>]
       # @raise [ApiError] if fails to make API call
-      def add_pet_photos(pet_id, options = Options::AddPetPhotosOptions.new)
+      def add_pet_photos(pet_id, options)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
@@ -164,7 +164,7 @@ module PetstoreClient
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def add_pet_photos_with_http_info(pet_id, options = Options::AddPetPhotosOptions.new)
+      def add_pet_photos_with_http_info(pet_id, options)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
@@ -341,13 +341,13 @@ module PetstoreClient
       # @raise [ApiError] if fails to make API call
       # @deprecated This operation is deprecated.
       # @see https://example.com/docs/filtering Find out more about filtering
-      def find_pets_by_status(options = Options::FindPetsByStatusOptions.new)
+      def find_pets_by_status(options)
         find_pets_by_status_with_http_info(options).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def find_pets_by_status_with_http_info(options = Options::FindPetsByStatusOptions.new)
+      def find_pets_by_status_with_http_info(options)
         path = '/pet/findByStatus'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
@@ -672,7 +672,7 @@ module PetstoreClient
 
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
-      def get_pet_tag(pet_id, tag_name, options = Options::GetPetTagOptions.new)
+      def get_pet_tag(pet_id, tag_name, options)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.get_pet_tag"
@@ -688,7 +688,7 @@ module PetstoreClient
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_pet_tag_with_http_info(pet_id, tag_name, options = Options::GetPetTagOptions.new)
+      def get_pet_tag_with_http_info(pet_id, tag_name, options)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.get_pet_tag"
@@ -928,7 +928,7 @@ module PetstoreClient
 
       # @return [ApiResponse]
       # @raise [ApiError] if fails to make API call
-      def upload_pet_certificate(pet_id, options = Options::UploadPetCertificateOptions.new)
+      def upload_pet_certificate(pet_id, options)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
@@ -939,7 +939,7 @@ module PetstoreClient
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def upload_pet_certificate_with_http_info(pet_id, options = Options::UploadPetCertificateOptions.new)
+      def upload_pet_certificate_with_http_info(pet_id, options)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
@@ -972,7 +972,7 @@ module PetstoreClient
 
       # @return [ApiResponse]
       # @raise [ApiError] if fails to make API call
-      def upload_pet_document(pet_id, options = Options::UploadPetDocumentOptions.new)
+      def upload_pet_document(pet_id, options)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
@@ -983,7 +983,7 @@ module PetstoreClient
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def upload_pet_document_with_http_info(pet_id, options = Options::UploadPetDocumentOptions.new)
+      def upload_pet_document_with_http_info(pet_id, options)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"

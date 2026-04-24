@@ -560,6 +560,8 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                     final List<Map<String, String>> optImports =
                             (List<Map<String, String>>) objs.get("imports");
                     if (optImports != null) {
+                        // The framework inconsistently uses "className" or "classname"
+                        // as the import map key, so we check both.
                         optImports.removeIf(
                                 imp -> {
                                     final String cn =
@@ -799,6 +801,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
 
         final Map<String, Object> context = new HashMap<>();
         context.put("className", className);
+        context.put("operationId", op.operationId);
         context.put("params", params);
         context.put("modelImports", new ArrayList<>(modelTypes));
         context.put("hasModelImports", !modelTypes.isEmpty());
@@ -815,16 +818,20 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     /** {@inheritDoc} */
     @Override
     protected void writeOptionsBarrelFiles(List<Map<String, String>> optionsFiles) {
-        final StringBuilder sb = new StringBuilder();
+        final List<Map<String, String>> exports = new ArrayList<>();
         for (final Map<String, String> meta : optionsFiles) {
             final String className =
                     Objects.requireNonNull(meta.get("optionsClassName"));
-            final String fileName = NamingConvention.KEBAB_CASE.apply(className);
-            sb.append("export * from './").append(fileName).append(".js';\n");
+            final Map<String, String> export = new HashMap<>();
+            export.put("fileName", NamingConvention.KEBAB_CASE.apply(className));
+            exports.add(export);
         }
+        final Map<String, Object> context = new HashMap<>();
+        context.put("exports", exports);
+        final String content = renderOptionsTemplate("api/options_index.mustache", context);
         final String barrelPath =
                 Path.of(outputFolder, "src", "api", "options", "index.ts").toString();
-        writeFile(barrelPath, sb.toString());
+        writeFile(barrelPath, content);
         postProcessFile(Path.of(barrelPath).toFile(), "source");
     }
 

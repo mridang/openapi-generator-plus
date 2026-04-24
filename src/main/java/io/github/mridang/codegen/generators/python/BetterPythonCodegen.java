@@ -691,7 +691,8 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         }
         // Add model type imports for non-primitive types referenced by parameters
         for (final CodegenParameter p : optionsParams) {
-            if (p.baseType != null
+            if (!p.isArray && !p.isMap && !p.isPrimitiveType
+                    && p.baseType != null
                     && !languageSpecificPrimitives.contains(p.baseType)
                     && !TYPE_IMPORTS.containsKey(p.baseType)) {
                 importSet.add(
@@ -704,6 +705,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
             }
             if (p.items != null
                     && p.items.baseType != null
+                    && !p.items.isPrimitiveType
                     && !languageSpecificPrimitives.contains(p.items.baseType)
                     && !TYPE_IMPORTS.containsKey(p.items.baseType)) {
                 importSet.add(
@@ -760,14 +762,18 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     /** {@inheritDoc} */
     @Override
     protected void writeOptionsBarrelFiles(List<Map<String, String>> optionsFiles) {
-        final StringBuilder sb = new StringBuilder();
+        final List<Map<String, String>> exports = new ArrayList<>();
         for (final Map<String, String> meta : optionsFiles) {
             final String className =
                     Objects.requireNonNull(meta.get("optionsClassName"));
-            final String moduleName = NamingConvention.SNAKE_CASE.apply(className);
-            sb.append("from .").append(moduleName).append(" import ").append(className)
-                    .append('\n');
+            final Map<String, String> export = new HashMap<>();
+            export.put("className", className);
+            export.put("moduleName", NamingConvention.SNAKE_CASE.apply(className));
+            exports.add(export);
         }
+        final Map<String, Object> context = new HashMap<>();
+        context.put("exports", exports);
+        final String content = renderOptionsTemplate("api/options_init.mustache", context);
         final String initPath =
                 Path.of(
                                 outputFolder,
@@ -776,6 +782,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                                 "options",
                                 "__init__.py")
                         .toString();
-        writeFile(initPath, sb.toString());
+        writeFile(initPath, content);
     }
 }

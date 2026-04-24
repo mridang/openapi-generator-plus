@@ -1,5 +1,11 @@
 # frozen_string_literal: true
 
+{{#hasModelRequires}}
+{{#modelRequires}}
+{{.}}
+{{/modelRequires}}
+
+{{/hasModelRequires}}
 module {{moduleName}}
   module Api
     module Options

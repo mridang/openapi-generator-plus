@@ -31,7 +31,7 @@ class {{className}}
 {{/params}}
      */
 {{/hasAnyDocTypes}}
-    public function __construct({{constructorSignature}})
+    public function __construct({{#requiredParams}}{{phpType}} ${{paramName}}{{^-last}}, {{/-last}}{{/requiredParams}}{{#hasRequiredParams}}{{#hasOptionalParams}}, {{/hasOptionalParams}}{{/hasRequiredParams}}{{#optionalParams}}?{{phpType}} ${{paramName}} = null{{^-last}}, {{/-last}}{{/optionalParams}})
     {
 {{#params}}
         $this->{{paramName}} = ${{paramName}};

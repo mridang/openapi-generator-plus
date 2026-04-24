@@ -21,6 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -1530,7 +1531,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * by subclass barrel generation.
      */
     protected List<Map<String, String>> getAccumulatedOptionsFiles() {
-        return accumulatedOptionsFiles;
+        return Collections.unmodifiableList(accumulatedOptionsFiles);
     }
 
     /**

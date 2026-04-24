@@ -735,15 +735,46 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     protected String generateOptionsFileContent(
             CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
         final List<Map<String, Object>> params = new ArrayList<>();
+        boolean hasAnyRequired = false;
         for (final CodegenParameter p : optionsParams) {
             final Map<String, Object> param = new HashMap<>();
             param.put("paramName", p.paramName);
+            param.put("required", p.required);
             params.add(param);
+            if (p.required) {
+                hasAnyRequired = true;
+            }
+        }
+
+        // Collect model type imports for require_relative
+        final List<String> modelRequires = new ArrayList<>();
+        for (final CodegenParameter p : optionsParams) {
+            if (!p.isArray && !p.isMap && !p.isPrimitiveType && p.baseType != null
+                    && !languageSpecificPrimitives.contains(p.baseType)) {
+                final String modelFile = NamingConvention.SNAKE_CASE.apply(p.baseType);
+                modelRequires.add("require_relative '../../models/" + modelFile + "'");
+            }
+            if ((p.isArray || p.isMap) && p.items != null && p.items.baseType != null
+                    && !p.items.isPrimitiveType
+                    && !languageSpecificPrimitives.contains(p.items.baseType)) {
+                final String modelFile = NamingConvention.SNAKE_CASE.apply(p.items.baseType);
+                final String req = "require_relative '../../models/" + modelFile + "'";
+                if (!modelRequires.contains(req)) {
+                    modelRequires.add(req);
+                }
+            }
         }
 
         final StringBuilder sig = new StringBuilder();
         boolean first = true;
         for (final CodegenParameter p : optionsParams) {
+            if (!p.required) continue;
+            if (!first) sig.append(", ");
+            first = false;
+            sig.append(p.paramName).append(":");
+        }
+        for (final CodegenParameter p : optionsParams) {
+            if (p.required) continue;
             if (!first) sig.append(", ");
             first = false;
             sig.append(p.paramName).append(": nil");
@@ -754,7 +785,10 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         context.put("moduleName", moduleName);
         context.put("operationId", op.operationId);
         context.put("params", params);
+        context.put("hasAnyRequired", hasAnyRequired);
         context.put("initializeSignature", sig.toString());
+        context.put("modelRequires", modelRequires);
+        context.put("hasModelRequires", !modelRequires.isEmpty());
 
         generateOptionsRbsFile(op, optionsParams, className);
 
@@ -797,11 +831,18 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         final StringBuilder sig = new StringBuilder();
         boolean first = true;
         for (final CodegenParameter p : optionsParams) {
+            if (!p.required) continue;
             if (!first) sig.append(", ");
             first = false;
             final String rbsType = qualifyRbsModelType(toRbsType(p.dataType), p);
-            sig.append('?').append(p.paramName).append(": ").append(rbsType)
-                    .append('?');
+            sig.append(p.paramName).append(": ").append(rbsType);
+        }
+        for (final CodegenParameter p : optionsParams) {
+            if (p.required) continue;
+            if (!first) sig.append(", ");
+            first = false;
+            final String rbsType = qualifyRbsModelType(toRbsType(p.dataType), p);
+            sig.append('?').append(p.paramName).append(": ").append(rbsType).append('?');
         }
 
         final Map<String, Object> context = new HashMap<>();
