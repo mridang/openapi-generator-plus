@@ -81,6 +81,7 @@ module PetstoreClient
 
       case style
       when 'matrix'
+        return nil if value.nil? && location == :query
         return '' if value.nil?
 
         if value.is_a?(Array)
@@ -93,6 +94,7 @@ module PetstoreClient
           ";#{param_name}=#{ObjectSerializer.stringify(value)}"
         end
       when 'label'
+        return nil if value.nil? && location == :query
         return '' if value.nil?
 
         if value.is_a?(Array)
@@ -136,6 +138,7 @@ module PetstoreClient
           ObjectSerializer.stringify(value)
         end
       when 'simple'
+        return nil if value.nil? && location == :query
         return '' if value.nil?
 
         if value.is_a?(Array)

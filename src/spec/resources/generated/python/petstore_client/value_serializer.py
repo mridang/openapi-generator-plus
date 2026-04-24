@@ -85,9 +85,9 @@ class ValueSerializer:
             return cls.serialize(value, location, schema_type, collection_format)
 
         if value is None:
-            if location == 'path':
-                return ''
-            return None
+            if location == 'query':
+                return None
+            return ''
 
         if style == 'matrix':
             if isinstance(value, list):

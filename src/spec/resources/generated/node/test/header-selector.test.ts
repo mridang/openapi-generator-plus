@@ -1,0 +1,199 @@
+import { HeaderSelector } from '../src/header-selector';
+
+describe('HeaderSelector', () => {
+  let headerSelector: HeaderSelector;
+
+  beforeEach(() => {
+    headerSelector = new HeaderSelector();
+  });
+
+  describe('isJsonMime', () => {
+    test('returns true for application/json', () => {
+      expect(headerSelector.isJsonMime('application/json')).toBe(true);
+    });
+
+    test('returns true for application/json with charset', () => {
+      expect(headerSelector.isJsonMime('application/json; charset=UTF-8')).toBe(true);
+    });
+
+    test('returns true for APPLICATION/JSON (case insensitive)', () => {
+      expect(headerSelector.isJsonMime('APPLICATION/JSON')).toBe(true);
+    });
+
+    test('returns true for vendor JSON types', () => {
+      expect(headerSelector.isJsonMime('application/vnd.api+json')).toBe(true);
+      expect(headerSelector.isJsonMime('application/vnd.company+json')).toBe(true);
+      expect(headerSelector.isJsonMime('application/hal+json')).toBe(true);
+    });
+
+    test('returns false for text/html', () => {
+      expect(headerSelector.isJsonMime('text/html')).toBe(false);
+    });
+
+    test('returns false for application/xml', () => {
+      expect(headerSelector.isJsonMime('application/xml')).toBe(false);
+    });
+
+    test('returns false for null', () => {
+      expect(headerSelector.isJsonMime(null)).toBe(false);
+    });
+
+    test('returns false for empty string', () => {
+      expect(headerSelector.isJsonMime('')).toBe(false);
+    });
+  });
+
+  describe('selectHeaders', () => {
+    test('sets Accept header when accepts provided', () => {
+      const headers = headerSelector.selectHeaders(['application/json'], 'application/json', false);
+      expect(headers['Accept']).toBe('application/json');
+    });
+
+    test('does not set Accept header when accepts empty', () => {
+      const headers = headerSelector.selectHeaders([], 'application/json', false);
+      expect(headers['Accept']).toBeUndefined();
+    });
+
+    test('sets Content-Type header when not multipart', () => {
+      const headers = headerSelector.selectHeaders(['application/json'], 'application/json', false);
+      expect(headers['Content-Type']).toBe('application/json');
+    });
+
+    test('does not set Content-Type header when multipart', () => {
+      const headers = headerSelector.selectHeaders(['application/json'], 'application/json', true);
+      expect(headers['Content-Type']).toBeUndefined();
+    });
+
+    test('defaults Content-Type to application/json when empty', () => {
+      const headers = headerSelector.selectHeaders(['application/json'], '', false);
+      expect(headers['Content-Type']).toBe('application/json');
+    });
+
+    test('defaults Content-Type to application/json when null', () => {
+      const headers = headerSelector.selectHeaders(['application/json'], null, false);
+      expect(headers['Content-Type']).toBe('application/json');
+    });
+
+    test('returns single accept as-is', () => {
+      const headers = headerSelector.selectHeaders(['application/json'], 'application/json', false);
+      expect(headers['Accept']).toBe('application/json');
+    });
+
+    test('returns single non-JSON accept as-is', () => {
+      const headers = headerSelector.selectHeaders(['text/html'], 'application/json', false);
+      expect(headers['Accept']).toBe('text/html');
+    });
+
+    test('returns comma-separated list when no JSON types present', () => {
+      const headers = headerSelector.selectHeaders(['text/html', 'text/plain'], 'application/json', false);
+      expect(headers['Accept']).toBe('text/html,text/plain');
+    });
+
+    test('prioritizes application/json with quality weight', () => {
+      const headers = headerSelector.selectHeaders(['text/html', 'application/json'], 'application/json', false);
+      const accept = headers['Accept']!;
+      // application/json should come first with highest weight
+      expect(accept.startsWith('application/json')).toBe(true);
+      expect(accept).toContain('text/html');
+    });
+
+    test('handles multiple JSON types with priority', () => {
+      const headers = headerSelector.selectHeaders(
+        ['text/html', 'application/vnd.api+json', 'application/json'],
+        'application/json',
+        false
+      );
+      const accept = headers['Accept']!;
+      // application/json should come first
+      expect(accept.startsWith('application/json')).toBe(true);
+      // application/vnd.api+json should come before text/html
+      const jsonIndex = accept.indexOf('application/json');
+      const vendorJsonIndex = accept.indexOf('application/vnd.api+json');
+      const htmlIndex = accept.indexOf('text/html');
+      expect(jsonIndex).toBeLessThan(vendorJsonIndex);
+      expect(vendorJsonIndex).toBeLessThan(htmlIndex);
+    });
+
+    test('filters out empty entries', () => {
+      const headers = headerSelector.selectHeaders(['', 'application/json'], 'application/json', false);
+      expect(headers['Accept']).toBe('application/json');
+    });
+
+    test('preserves existing quality weights in order', () => {
+      const headers = headerSelector.selectHeaders(
+        ['text/html;q=0.9', 'application/json', 'text/plain;q=0.8'],
+        'application/json',
+        false
+      );
+      const accept = headers['Accept']!;
+      // application/json should still come first (JSON priority)
+      expect(accept.startsWith('application/json')).toBe(true);
+    });
+  });
+
+  describe('getNextWeight', () => {
+    test('returns standard weight sequence for <= 28 headers', () => {
+      // Starting from 1000, should get: 1000, 900, 800, 700, ...
+      expect(headerSelector.getNextWeight(1000, false)).toBe(900);
+      expect(headerSelector.getNextWeight(900, false)).toBe(800);
+      expect(headerSelector.getNextWeight(800, false)).toBe(700);
+      expect(headerSelector.getNextWeight(700, false)).toBe(600);
+      expect(headerSelector.getNextWeight(600, false)).toBe(500);
+      expect(headerSelector.getNextWeight(500, false)).toBe(400);
+      expect(headerSelector.getNextWeight(400, false)).toBe(300);
+      expect(headerSelector.getNextWeight(300, false)).toBe(200);
+      expect(headerSelector.getNextWeight(200, false)).toBe(100);
+      // After 100, goes to 90, 80, ...
+      expect(headerSelector.getNextWeight(100, false)).toBe(90);
+      expect(headerSelector.getNextWeight(90, false)).toBe(80);
+    });
+
+    test('returns 1-by-1 decrement for > 28 headers', () => {
+      expect(headerSelector.getNextWeight(1000, true)).toBe(999);
+      expect(headerSelector.getNextWeight(999, true)).toBe(998);
+      expect(headerSelector.getNextWeight(998, true)).toBe(997);
+    });
+
+    test('returns 1 when weight is 1 or less', () => {
+      expect(headerSelector.getNextWeight(1, false)).toBe(1);
+      expect(headerSelector.getNextWeight(0, false)).toBe(1);
+      expect(headerSelector.getNextWeight(-1, false)).toBe(1);
+    });
+
+    test('produces exactly 27 steps from 1000 to 1', () => {
+      // The formula should produce exactly 27 steps from 1000 to 1
+      let weight = 1000;
+      let count = 0;
+      while (weight > 1) {
+        weight = headerSelector.getNextWeight(weight, false);
+        count++;
+      }
+      // 1000 -> 900 -> 800 -> ... -> 100 -> 90 -> ... -> 10 -> 9 -> ... -> 1
+      // That's 9 (1000 to 100) + 9 (100 to 10) + 9 (10 to 1) = 27 steps
+      expect(count).toBe(27);
+    });
+  });
+
+  describe('quality weight formatting', () => {
+    test('does not add quality weight for weight 1000', () => {
+      const headers = headerSelector.selectHeaders(['application/json', 'text/html'], 'application/json', false);
+      const accept = headers['Accept']!;
+      // First header should not have ;q= because it's weight 1000
+      expect(accept.startsWith('application/json,') || accept === 'application/json').toBe(true);
+    });
+
+    test('formats quality weight correctly', () => {
+      const headers = headerSelector.selectHeaders(['application/json', 'text/html'], 'application/json', false);
+      const accept = headers['Accept']!;
+      // text/html should have quality weight like ;q=0.9
+      expect(accept.includes('text/html;q=0.9') || accept.includes('text/html;q=0.')).toBe(true);
+    });
+
+    test('removes trailing zeros from quality weight', () => {
+      const headers = headerSelector.selectHeaders(['application/json', 'text/html'], 'application/json', false);
+      const accept = headers['Accept']!;
+      // Should be ;q=0.9 not ;q=0.900
+      expect(accept).not.toContain(';q=0.900');
+    });
+  });
+});

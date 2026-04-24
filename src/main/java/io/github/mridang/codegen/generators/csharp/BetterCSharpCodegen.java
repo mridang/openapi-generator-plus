@@ -5,11 +5,18 @@ import io.github.mridang.codegen.generators.NamingConvention;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.slf4j.Logger;
@@ -557,4 +564,57 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         }
     }
 
+    /** {@inheritDoc} */
+    @Override
+    protected String generateOptionsFileContent(
+            CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
+        final List<Map<String, Object>> params = new ArrayList<>();
+        boolean hasAnyModelImports = false;
+        for (final CodegenParameter p : optionsParams) {
+            final Map<String, Object> param = new HashMap<>();
+            param.put("paramName", p.paramName);
+            param.put("pascalParamName", NamingConvention.PASCAL_CASE.apply(p.paramName));
+            param.put("dataType", p.dataType);
+            param.put("required", p.required);
+            if (p.description != null && !p.description.isEmpty()) {
+                param.put("description", p.description);
+            }
+            params.add(param);
+            if (!p.isPrimitiveType
+                    && !p.isArray
+                    && !p.isMap
+                    && p.baseType != null
+                    && !languageSpecificPrimitives.contains(p.baseType)) {
+                hasAnyModelImports = true;
+            }
+            if ((p.isArray || p.isMap)
+                    && p.items != null
+                    && p.items.baseType != null
+                    && !p.items.isPrimitiveType
+                    && !languageSpecificPrimitives.contains(p.items.baseType)) {
+                hasAnyModelImports = true;
+            }
+        }
+
+        final Map<String, Object> context = new HashMap<>();
+        context.put("packageName", packageName);
+        context.put("className", className);
+        context.put("operationId", op.operationId);
+        context.put("params", params);
+        context.put("hasModelImports", hasAnyModelImports);
+        return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getOptionsFilePath(String operationId, String optionsClassName) {
+        return Path.of(
+                        outputFolder,
+                        sourceFolder,
+                        packageName.replace(".", "/"),
+                        "Api",
+                        "Options",
+                        optionsClassName + ".cs")
+                .toString();
+    }
 }

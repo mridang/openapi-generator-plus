@@ -139,11 +139,11 @@ public class StoreApi extends BaseApi {
    * @throws ApiException if fails to make API call
    */
   @Nullable
-  public Order placeOrder(Order order) throws ApiException {
+  public Order placeOrder(@Nullable Order order) throws ApiException {
     return placeOrderWithHttpInfo(order).data();
   }
 
-  public ApiResult<Order> placeOrderWithHttpInfo(Order order) throws ApiException {
+  public ApiResult<Order> placeOrderWithHttpInfo(@Nullable Order order) throws ApiException {
     String path = "/store/order";
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();

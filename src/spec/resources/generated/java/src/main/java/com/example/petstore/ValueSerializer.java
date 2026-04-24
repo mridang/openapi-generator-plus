@@ -156,9 +156,6 @@ public final class ValueSerializer {
 
     return switch (style) {
       case "matrix" -> {
-        if (items.size() == 1) {
-          yield ";" + paramName + "=" + items.get(0);
-        }
         if (explode) {
           StringBuilder matrixExploded = new StringBuilder();
           for (String item : items) {
@@ -169,9 +166,6 @@ public final class ValueSerializer {
         yield ";" + paramName + "=" + String.join(",", items);
       }
       case "label" -> {
-        if (items.size() == 1) {
-          yield "." + items.get(0);
-        }
         if (explode) {
           yield "." + String.join(".", items);
         }
@@ -179,16 +173,13 @@ public final class ValueSerializer {
       }
       case "simple" -> String.join(",", items);
       case "form" -> {
-        if (items.size() == 1) {
-          yield items.get(0);
-        }
         if (explode) {
           yield new ArrayList<>(items);
         }
         yield String.join(",", items);
       }
-      case "spaceDelimited" -> items.size() == 1 ? items.get(0) : String.join(" ", items);
-      case "pipeDelimited" -> items.size() == 1 ? items.get(0) : String.join("|", items);
+      case "spaceDelimited" -> String.join(" ", items);
+      case "pipeDelimited" -> String.join("|", items);
       default -> serialize(value, location, schemaType, collectionFormat);
     };
   }

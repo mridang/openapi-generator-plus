@@ -6,136 +6,13 @@
 using {{packageName}}.Auth;
 {{/hasAnyAuthMethods}}
 using {{packageName}}.Models;
+{{#optionsImports}}{{#-first}}
+using {{packageName}}.Api.Options;
+{{/-first}}{{/optionsImports}}
 
 namespace {{packageName}}.{{apiPackage}};
 
 {{#operations}}
-{{#operation}}
-{{#queryParams}}
-{{#-first}}
-/// <summary>
-/// Options for the {{operationId}} operation.
-/// </summary>
-public sealed class {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options
-{
-{{/-first}}
-{{/queryParams}}
-{{^queryParams}}
-{{#headerParams}}
-{{#-first}}
-/// <summary>
-/// Options for the {{operationId}} operation.
-/// </summary>
-public sealed class {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options
-{
-{{/-first}}
-{{/headerParams}}
-{{^headerParams}}
-{{#formParams}}
-{{#-first}}
-/// <summary>
-/// Options for the {{operationId}} operation.
-/// </summary>
-public sealed class {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options
-{
-{{/-first}}
-{{/formParams}}
-{{^formParams}}
-{{#cookieParams}}
-{{#-first}}
-/// <summary>
-/// Options for the {{operationId}} operation.
-/// </summary>
-public sealed class {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options
-{
-{{/-first}}
-{{/cookieParams}}
-{{/formParams}}
-{{/headerParams}}
-{{/queryParams}}
-{{#queryParams}}
-{{^-first}}
-
-{{/-first}}
-{{#required}}
-    /// <summary>{{#description}} {{.}}{{/description}}</summary>
-    public required {{{dataType}}} {{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} { get; init; }
-{{/required}}
-{{^required}}
-    /// <summary>{{#description}} {{.}}{{/description}}</summary>
-    public {{{dataType}}}? {{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} { get; init; }
-{{/required}}
-{{/queryParams}}
-{{#headerParams}}
-{{^-first}}
-
-{{/-first}}
-{{#required}}
-    /// <summary>{{#description}} {{.}}{{/description}}</summary>
-    public required {{{dataType}}} {{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} { get; init; }
-{{/required}}
-{{^required}}
-    /// <summary>{{#description}} {{.}}{{/description}}</summary>
-    public {{{dataType}}}? {{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} { get; init; }
-{{/required}}
-{{/headerParams}}
-{{#formParams}}
-{{^-first}}
-
-{{/-first}}
-{{#required}}
-    /// <summary>{{#description}} {{.}}{{/description}}</summary>
-    public required {{{dataType}}} {{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} { get; init; }
-{{/required}}
-{{^required}}
-    /// <summary>{{#description}} {{.}}{{/description}}</summary>
-    public {{{dataType}}}? {{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} { get; init; }
-{{/required}}
-{{/formParams}}
-{{#cookieParams}}
-{{^-first}}
-
-{{/-first}}
-{{#required}}
-    /// <summary>{{#description}} {{.}}{{/description}}</summary>
-    public required {{{dataType}}} {{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} { get; init; }
-{{/required}}
-{{^required}}
-    /// <summary>{{#description}} {{.}}{{/description}}</summary>
-    public {{{dataType}}}? {{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} { get; init; }
-{{/required}}
-{{/cookieParams}}
-{{#queryParams}}
-{{#-first}}
-}
-
-{{/-first}}
-{{/queryParams}}
-{{^queryParams}}
-{{#headerParams}}
-{{#-first}}
-}
-
-{{/-first}}
-{{/headerParams}}
-{{^headerParams}}
-{{#formParams}}
-{{#-first}}
-}
-
-{{/-first}}
-{{/formParams}}
-{{^formParams}}
-{{#cookieParams}}
-{{#-first}}
-}
-
-{{/-first}}
-{{/cookieParams}}
-{{/formParams}}
-{{/headerParams}}
-{{/queryParams}}
-{{/operation}}
 {{#serverTypeDefs}}
 
 /// <summary>

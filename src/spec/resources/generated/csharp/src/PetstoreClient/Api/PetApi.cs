@@ -2,73 +2,11 @@
 #pragma warning disable CA1056 // URI properties should not be strings
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
+using PetstoreClient.Api.Options;
 using PetstoreClient.Auth;
 using PetstoreClient.Models;
 
 namespace PetstoreClient.Api;
-
-/// <summary>
-/// Options for the AddPetPhotos operation.
-/// </summary>
-public sealed class AddPetPhotosOptions
-{
-    /// <summary></summary>
-    public required List<System.IO.Stream> Files { get; init; }
-
-    /// <summary></summary>
-    public required PhotoMetadata Metadata { get; init; }
-}
-
-/// <summary>
-/// Options for the FindPetsByStatus operation.
-/// </summary>
-public sealed class FindPetsByStatusOptions
-{
-    /// <summary> Status values that need to be considered for filter</summary>
-    public string? Status { get; init; }
-
-    /// <summary> Filter criteria as key-value pairs</summary>
-    public Dictionary<string, string>? Filter { get; init; }
-}
-
-/// <summary>
-/// Options for the GetPetTag operation.
-/// </summary>
-public sealed class GetPetTagOptions
-{
-    /// <summary></summary>
-    public List<string>? Colors { get; init; }
-
-    /// <summary></summary>
-    public List<string>? Sizes { get; init; }
-
-    /// <summary></summary>
-    public string? Filter { get; init; }
-}
-
-/// <summary>
-/// Options for the UploadPetCertificate operation.
-/// </summary>
-public sealed class UploadPetCertificateOptions
-{
-    /// <summary></summary>
-    public required System.IO.Stream File { get; init; }
-}
-
-/// <summary>
-/// Options for the UploadPetDocument operation.
-/// </summary>
-public sealed class UploadPetDocumentOptions
-{
-    /// <summary></summary>
-    public required System.IO.Stream File { get; init; }
-
-    /// <summary></summary>
-    public string? DocumentType { get; init; }
-
-    /// <summary></summary>
-    public string? Notes { get; init; }
-}
 
 /// <summary>
 /// Server type for the GetExternalPetInfo operation.

@@ -6,6 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import com.example.petstore.Configuration;
 import com.example.petstore.DefaultApiClient;
 import com.example.petstore.PrismContainer;
+import com.example.petstore.api.options.AddPetPhotosOptions;
+import com.example.petstore.api.options.FindPetsByStatusOptions;
+import com.example.petstore.api.options.GetPetTagOptions;
+import com.example.petstore.api.options.UploadPetCertificateOptions;
+import com.example.petstore.api.options.UploadPetDocumentOptions;
 import com.example.petstore.auth.AdminBasicAuthenticator;
 import com.example.petstore.auth.PetStoreBearerAuthenticator;
 import com.example.petstore.models.ApiResponse;
@@ -59,8 +64,7 @@ class PetApiTest {
 
   @Test
   void testFindPetsByStatus() throws Exception {
-    List<Pet> result =
-        api.findPetsByStatus(new PetApi.FindPetsByStatusOptions().status("available"));
+    List<Pet> result = api.findPetsByStatus(new FindPetsByStatusOptions().status("available"));
     assertNotNull(result);
 
     assertThat(result).isNotEmpty();
@@ -130,8 +134,7 @@ class PetApiTest {
   void testUploadPetCertificate() throws Exception {
     InputStream fakeFile =
         new ByteArrayInputStream("fake-pdf-data".getBytes(StandardCharsets.UTF_8));
-    ApiResponse result =
-        api.uploadPetCertificate(1L, new PetApi.UploadPetCertificateOptions(fakeFile));
+    ApiResponse result = api.uploadPetCertificate(1L, new UploadPetCertificateOptions(fakeFile));
     assertNotNull(result);
   }
 
@@ -142,7 +145,7 @@ class PetApiTest {
     ApiResponse result =
         api.uploadPetDocument(
             1L,
-            new PetApi.UploadPetDocumentOptions(fakeDoc)
+            new UploadPetDocumentOptions(fakeDoc)
                 .documentType("vaccination_record")
                 .notes("Annual checkup"));
     assertNotNull(result);
@@ -157,7 +160,7 @@ class PetApiTest {
 
     List<InputStream> files =
         List.of(new ByteArrayInputStream("fake-image-data".getBytes(StandardCharsets.UTF_8)));
-    List<Photo> result = api.addPetPhotos(1L, new PetApi.AddPetPhotosOptions(files, metadata));
+    List<Photo> result = api.addPetPhotos(1L, new AddPetPhotosOptions(files, metadata));
     assertNotNull(result);
   }
 
@@ -181,9 +184,7 @@ class PetApiTest {
         api.getPetTag(
             5L,
             "cute",
-            new PetApi.GetPetTagOptions()
-                .colors(List.of("blue", "black"))
-                .sizes(List.of("S", "M")));
+            new GetPetTagOptions().colors(List.of("blue", "black")).sizes(List.of("S", "M")));
     assertNotNull(result);
   }
 

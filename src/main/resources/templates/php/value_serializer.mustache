@@ -1,8 +1,6 @@
 <?php
 
 {{>partial_header}}
-/* phpcs:disable Generic.Files.LineLength.TooLong */
-
 namespace {{invokerPackage}};
 
 /**
@@ -24,11 +22,17 @@ final class ValueSerializer
      * @param mixed       $value            the value to serialize
      * @param string      $location         the HTTP parameter location ('path', 'query', or 'header')
      * @param string      $schemaType       the OpenAPI schema type (e.g. 'string', 'integer', 'array')
-     * @param string|null $collectionFormat the collection format for array values ('csv', 'ssv', 'tsv', 'pipes', 'multi')
+     * @param string|null $collectionFormat the collection format for
+     *                                       array values ('csv', 'ssv', 'tsv', 'pipes', 'multi')
      *
      * @return string|array<int, string>|null the serialized value
      */
-    public static function serialize(mixed $value, string $location, string $schemaType, ?string $collectionFormat = null): string|array|null
+    public static function serialize(
+        mixed $value,
+        string $location,
+        string $schemaType,
+        ?string $collectionFormat = null,
+    ): string|array|null
     {
         if ($value === null) {
             if ($location === 'query') {

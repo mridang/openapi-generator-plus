@@ -33,7 +33,7 @@ module PetstoreClient
   # URL path, query string, header, and form parameters.
   class ObjectSerializer # rubocop:disable Metrics/ClassLength
     # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
-    DEFAULT_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S%z'
+    DEFAULT_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S%:z'
 
     # Serialize an object to a JSON string.
     def self.serialize(object)

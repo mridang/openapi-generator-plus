@@ -10,15 +10,20 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
-
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.CodegenDiscriminator;
+import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenProperty;
@@ -922,4 +927,65 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         return "";
     }
 
+    /** {@inheritDoc} */
+    @Override
+    protected String generateOptionsFileContent(
+            CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
+        final List<Map<String, Object>> params = new ArrayList<>();
+        final List<Map<String, Object>> requiredParams = new ArrayList<>();
+        for (final CodegenParameter p : optionsParams) {
+            final Map<String, Object> param = new HashMap<>();
+            param.put("paramName", p.paramName);
+            param.put("dataType", p.dataType);
+            param.put("required", p.required);
+            params.add(param);
+            if (p.required) {
+                requiredParams.add(param);
+            }
+        }
+
+        final Set<String> modelTypes = new LinkedHashSet<>();
+        for (final CodegenParameter p : optionsParams) {
+            if (!p.isPrimitiveType
+                    && !p.isArray
+                    && !p.isMap
+                    && p.baseType != null
+                    && !languageSpecificPrimitives.contains(p.baseType)
+                    && !typeMapping.containsValue(p.baseType)) {
+                modelTypes.add(p.baseType);
+            }
+            if ((p.isArray || p.isMap)
+                    && p.items != null
+                    && p.items.baseType != null
+                    && !p.items.isPrimitiveType
+                    && !languageSpecificPrimitives.contains(p.items.baseType)
+                    && !typeMapping.containsValue(p.items.baseType)) {
+                modelTypes.add(p.items.baseType);
+            }
+        }
+
+        final String apiPkg = apiPackage();
+        final Map<String, Object> context = new HashMap<>();
+        context.put("package", apiPkg + ".options");
+        context.put("modelPackage", modelPackage());
+        context.put("className", className);
+        context.put("operationId", op.operationId);
+        context.put("params", params);
+        context.put("requiredParams", requiredParams);
+        context.put("modelImports", new ArrayList<>(modelTypes));
+        context.put("hasModelImports", !modelTypes.isEmpty());
+        return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getOptionsFilePath(String operationId, String optionsClassName) {
+        return Path.of(
+                        outputFolder,
+                        sourceFolder,
+                        apiPackage().replace('.', '/'),
+                        "options",
+                        optionsClassName + ".java")
+                .toString();
+    }
 }

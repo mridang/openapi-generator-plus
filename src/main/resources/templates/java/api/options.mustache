@@ -1,0 +1,49 @@
+package {{package}};
+
+import java.io.File;
+import java.io.InputStream;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+{{#hasModelImports}}
+{{#modelImports}}
+import {{modelPackage}}.{{.}};
+{{/modelImports}}
+{{/hasModelImports}}
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import javax.annotation.Nullable;
+
+/**
+ * Options for the {{operationId}} operation.
+ */
+@SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
+public final class {{className}} {
+{{#params}}
+{{#required}}
+    private final {{{dataType}}} {{paramName}};
+{{/required}}
+{{^required}}
+    @Nullable private {{{dataType}}} {{paramName}};
+{{/required}}
+{{/params}}
+
+    public {{className}}({{#requiredParams}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/requiredParams}}) {
+{{#requiredParams}}
+        this.{{paramName}} = {{paramName}};
+{{/requiredParams}}
+    }
+{{#params}}
+{{^required}}
+
+    public {{className}} {{paramName}}({{{dataType}}} {{paramName}}) {
+        this.{{paramName}} = {{paramName}};
+        return this;
+    }
+
+    @Nullable
+{{/required}}
+    public {{{dataType}}} {{paramName}}() {
+        return {{paramName}};
+    }
+{{/params}}
+}

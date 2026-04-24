@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 
 namespace {{packageName}};
@@ -9,6 +10,12 @@ public static partial class HeaderSelector
 {
     [GeneratedRegex(@"^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)", RegexOptions.IgnoreCase)]
     private static partial Regex JsonMimeRegex();
+
+    [GeneratedRegex(@"(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$")]
+    private static partial Regex WeightRegex();
+
+    [GeneratedRegex(@"[;\s]+$")]
+    private static partial Regex TrailingSemicolonRegex();
 
     /// <summary>
     /// Select headers for an API request.
@@ -47,6 +54,36 @@ public static partial class HeaderSelector
         return mimeType != null && JsonMimeRegex().IsMatch(mimeType);
     }
 
+    /// <summary>
+    /// Calculate the next weight, based on the current one.
+    /// </summary>
+    /// <remarks>
+    /// If there are less than 28 "Accept" headers, the weights will be
+    /// decreased by 1 on its highest significant digit, using the formula:
+    ///
+    ///    next weight = current weight - 10 ^ (floor(log(current weight - 1)))
+    ///
+    /// Starting from 1000, this generates the following series:
+    ///
+    /// 1000, 900, 800, 700, 600, 500, 400, 300, 200, 100,
+    /// 90, 80, 70, 60, 50, 40, 30, 20, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
+    ///
+    /// The resulting quality codes are closer to the average "normal"
+    /// usage of them (like "q=0.9", "q=0.8" and so on), but it only
+    /// works if there is a maximum of 28 "Accept" headers. If we have
+    /// more than that (which is extremely unlikely), then we fall back
+    /// to a 1-by-1 decrement rule, which will result in quality codes
+    /// like "q=0.999", "q=0.998" etc.
+    /// </remarks>
+    public static int GetNextWeight(int currentWeight, bool hasMoreThan28Headers)
+    {
+        return currentWeight <= 1
+            ? 1
+            : hasMoreThan28Headers
+                ? currentWeight - 1
+                : currentWeight - (int)Math.Pow(10, Math.Floor(Math.Log10(currentWeight - 1)));
+    }
+
     private static string? SelectAcceptHeader(string[]? accept)
     {
         if (accept == null || accept.Length == 0)
@@ -65,7 +102,120 @@ public static partial class HeaderSelector
             return filtered[0];
         }
 
-        string[] jsonHeaders = [.. filtered.Where(IsJsonMime)];
-        return jsonHeaders.Length > 0 ? jsonHeaders[0] : string.Join(",", filtered);
+        string[] headersWithJson = [.. filtered.Where(IsJsonMime)];
+
+        return headersWithJson.Length == 0
+            ? string.Join(",", filtered)
+            : GetAcceptHeaderWithAdjustedWeight(filtered, headersWithJson);
+    }
+
+    private static string GetAcceptHeaderWithAdjustedWeight(
+        string[] accept,
+        string[] headersWithJson
+    )
+    {
+        List<(string Header, int Weight)> withApplicationJson = [];
+        List<(string Header, int Weight)> withJson = [];
+        List<(string Header, int Weight)> withoutJson = [];
+
+        foreach (string header in accept)
+        {
+            (string parsedHeader, int parsedWeight) = GetHeaderAndWeight(header);
+
+            if (parsedHeader.StartsWith("application/json", StringComparison.OrdinalIgnoreCase))
+            {
+                withApplicationJson.Add((parsedHeader, parsedWeight));
+            }
+            else if (headersWithJson.Contains(header))
+            {
+                withJson.Add((parsedHeader, parsedWeight));
+            }
+            else
+            {
+                withoutJson.Add((parsedHeader, parsedWeight));
+            }
+        }
+
+        List<string> acceptHeaders = [];
+        int currentWeight = 1000;
+
+        bool hasMoreThan28Headers = accept.Length > 28;
+
+        if (withApplicationJson.Count > 0)
+        {
+            acceptHeaders.AddRange(
+                AdjustWeight(withApplicationJson, ref currentWeight, hasMoreThan28Headers)
+            );
+        }
+        if (withJson.Count > 0)
+        {
+            acceptHeaders.AddRange(
+                AdjustWeight(withJson, ref currentWeight, hasMoreThan28Headers)
+            );
+        }
+        if (withoutJson.Count > 0)
+        {
+            acceptHeaders.AddRange(
+                AdjustWeight(withoutJson, ref currentWeight, hasMoreThan28Headers)
+            );
+        }
+
+        return string.Join(",", acceptHeaders);
+    }
+
+    private static (string Header, int Weight) GetHeaderAndWeight(string header)
+    {
+        Match match = WeightRegex().Match(header);
+        if (match.Success)
+        {
+            string headerValue = match.Groups[1].Value;
+            double weight = double.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture);
+            return (headerValue, (int)(weight * 1000));
+        }
+        return (header.Trim(), 1000);
+    }
+
+    private static List<string> AdjustWeight(
+        List<(string Header, int Weight)> headers,
+        ref int currentWeight,
+        bool hasMoreThan28Headers
+    )
+    {
+        headers.Sort((a, b) => b.Weight.CompareTo(a.Weight));
+
+        List<string> acceptHeaders = [];
+        for (int index = 0; index < headers.Count; index++)
+        {
+            (string headerStr, int headerWeight) = headers[index];
+
+            if (index > 0 && headers[index - 1].Weight > headerWeight)
+            {
+                currentWeight = GetNextWeight(currentWeight, hasMoreThan28Headers);
+            }
+
+            int weight = currentWeight;
+            acceptHeaders.Add(BuildAcceptHeader(headerStr, weight));
+        }
+
+        currentWeight = GetNextWeight(currentWeight, hasMoreThan28Headers);
+
+        return acceptHeaders;
+    }
+
+    private static string BuildAcceptHeader(string header, int weight)
+    {
+        if (weight == 1000)
+        {
+            return header;
+        }
+
+        string cleanHeader = TrailingSemicolonRegex().Replace(header, "");
+        string weightStr = (weight / 1000.0).ToString("F3", CultureInfo.InvariantCulture).TrimEnd('0');
+        if (weightStr.EndsWith('.'))
+        {
+            weightStr = weightStr[..^1];
+        }
+
+        return cleanHeader + ";q=" + weightStr;
     }
 }

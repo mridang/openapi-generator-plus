@@ -388,6 +388,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "test/ComposedSchemaTest.mustache",
                             "test",
                             "ComposedSchemaTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ConfigurationTest.mustache",
+                            "test",
+                            "ConfigurationTest.php"));
         }
     }
 

@@ -5,6 +5,11 @@ import com.example.petstore.ApiException;
 import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
 import com.example.petstore.ValueSerializer;
+import com.example.petstore.api.options.AddPetPhotosOptions;
+import com.example.petstore.api.options.FindPetsByStatusOptions;
+import com.example.petstore.api.options.GetPetTagOptions;
+import com.example.petstore.api.options.UploadPetCertificateOptions;
+import com.example.petstore.api.options.UploadPetDocumentOptions;
 import com.example.petstore.auth.AdminBasicAuthenticator;
 import com.example.petstore.auth.ApiKeyHeaderAuthenticator;
 import com.example.petstore.auth.Authenticator;
@@ -16,10 +21,8 @@ import com.example.petstore.models.Pet;
 import com.example.petstore.models.PetPassport;
 import com.example.petstore.models.PetTreatment;
 import com.example.petstore.models.Photo;
-import com.example.petstore.models.PhotoMetadata;
 import com.example.petstore.models.SetPetAvatarThumbnailRequest;
 import com.fasterxml.jackson.core.type.TypeReference;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
@@ -232,28 +235,6 @@ public class PetApi extends BaseApi {
         auth);
   }
 
-  /** Options for the addPetPhotos operation. */
-  @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
-  public static final class AddPetPhotosOptions {
-
-    private final List<InputStream> files;
-    private final PhotoMetadata metadata;
-
-    public AddPetPhotosOptions(List<InputStream> files, PhotoMetadata metadata) {
-
-      this.files = files;
-      this.metadata = metadata;
-    }
-
-    public List<InputStream> files() {
-      return files;
-    }
-
-    public PhotoMetadata metadata() {
-      return metadata;
-    }
-  }
-
   /**
    * Add photos to the pet&#39;s gallery Uploads one or more photos with structured metadata. The
    * metadata part is serialised as JSON within the multipart body.
@@ -459,36 +440,6 @@ public class PetApi extends BaseApi {
         "application/json",
         downloadPetDocumentTypeRef,
         null);
-  }
-
-  /** Options for the findPetsByStatus operation. */
-  @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
-  public static final class FindPetsByStatusOptions {
-
-    @Nullable private String status;
-    @Nullable private Map<String, String> filter;
-
-    public FindPetsByStatusOptions() {}
-
-    public FindPetsByStatusOptions status(String status) {
-      this.status = status;
-      return this;
-    }
-
-    @Nullable
-    public String status() {
-      return status;
-    }
-
-    public FindPetsByStatusOptions filter(Map<String, String> filter) {
-      this.filter = filter;
-      return this;
-    }
-
-    @Nullable
-    public Map<String, String> filter() {
-      return filter;
-    }
   }
 
   /**
@@ -857,47 +808,6 @@ public class PetApi extends BaseApi {
         null);
   }
 
-  /** Options for the getPetTag operation. */
-  @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
-  public static final class GetPetTagOptions {
-
-    @Nullable private List<String> colors;
-    @Nullable private List<String> sizes;
-    @Nullable private String filter;
-
-    public GetPetTagOptions() {}
-
-    public GetPetTagOptions colors(List<String> colors) {
-      this.colors = colors;
-      return this;
-    }
-
-    @Nullable
-    public List<String> colors() {
-      return colors;
-    }
-
-    public GetPetTagOptions sizes(List<String> sizes) {
-      this.sizes = sizes;
-      return this;
-    }
-
-    @Nullable
-    public List<String> sizes() {
-      return sizes;
-    }
-
-    public GetPetTagOptions filter(String filter) {
-      this.filter = filter;
-      return this;
-    }
-
-    @Nullable
-    public String filter() {
-      return filter;
-    }
-  }
-
   /**
    * Get a tag for a pet
    *
@@ -1157,22 +1067,6 @@ public class PetApi extends BaseApi {
         null);
   }
 
-  /** Options for the uploadPetCertificate operation. */
-  @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
-  public static final class UploadPetCertificateOptions {
-
-    private final InputStream file;
-
-    public UploadPetCertificateOptions(InputStream file) {
-
-      this.file = file;
-    }
-
-    public InputStream file() {
-      return file;
-    }
-  }
-
   /**
    * Upload the pet&#39;s adoption certificate Attaches a single adoption certificate document. No
    * metadata fields are required alongside the file.
@@ -1216,44 +1110,6 @@ public class PetApi extends BaseApi {
         "multipart/form-data",
         uploadPetCertificateTypeRef,
         null);
-  }
-
-  /** Options for the uploadPetDocument operation. */
-  @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
-  public static final class UploadPetDocumentOptions {
-
-    private final InputStream file;
-    @Nullable private String documentType;
-    @Nullable private String notes;
-
-    public UploadPetDocumentOptions(InputStream file) {
-
-      this.file = file;
-    }
-
-    public InputStream file() {
-      return file;
-    }
-
-    public UploadPetDocumentOptions documentType(String documentType) {
-      this.documentType = documentType;
-      return this;
-    }
-
-    @Nullable
-    public String documentType() {
-      return documentType;
-    }
-
-    public UploadPetDocumentOptions notes(String notes) {
-      this.notes = notes;
-      return this;
-    }
-
-    @Nullable
-    public String notes() {
-      return notes;
-    }
   }
 
   /**
