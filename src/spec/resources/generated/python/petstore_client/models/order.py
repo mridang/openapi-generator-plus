@@ -11,9 +11,9 @@ Do not edit the class manually.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-from typing import Any, ClassVar, Dict, List, Optional, Set, Union
-from typing_extensions import Self
+from pydantic import BaseModel, ConfigDict, Field, field_validator  # noqa: F401
+from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
+from typing_extensions import Self  # noqa: F401
 from enum import Enum
 
 
@@ -34,9 +34,7 @@ class Order(BaseModel):
     pet_id: Optional[int] = Field(default=None, alias='petId', examples=[198772])
     quantity: Optional[int] = Field(default=None, alias='quantity', examples=[7])
     ship_date: Optional[datetime] = Field(default=None, alias='shipDate')
-    status: Optional[OrderStatusEnum] = Field(
-        default=None, alias='status', description='Order Status', examples=['approved']
-    )
+    status: Optional[OrderStatusEnum] = Field(default=None, alias='status', description="Order Status", examples=['approved'])
     complete: Optional[bool] = Field(default=None, alias='complete')
     additional_properties: Dict[str, Any] = {}
 

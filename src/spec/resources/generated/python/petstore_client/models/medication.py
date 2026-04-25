@@ -11,9 +11,9 @@ Do not edit the class manually.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-from typing import Any, ClassVar, Dict, List, Optional, Set, Union
-from typing_extensions import Self
+from pydantic import BaseModel, ConfigDict, Field, field_validator  # noqa: F401
+from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
+from typing_extensions import Self  # noqa: F401
 
 
 class Medication(BaseModel):
@@ -30,6 +30,7 @@ class Medication(BaseModel):
         validate_assignment=True,
         protected_namespaces=(),
     )
+
 
 
 Medication.model_rebuild(raise_errors=False)

@@ -66,5 +66,5 @@ export enum PetWithOwnerStatusEnum {
   Available = 'available',
   Pending = 'pending',
   Sold = 'sold',
-  UnknownDefaultOpenApi = '11184809'
+  UnknownDefaultOpenApi = '11184809',
 }

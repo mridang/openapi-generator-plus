@@ -15,7 +15,7 @@ import org.openapitools.codegen.DefaultGenerator;
 import org.openapitools.codegen.config.CodegenConfigurator;
 
 /**
- * Generates all 6 client SDKs into src/spec/resources/generated/{lang} so that the generated
+ * Generates all 9 client SDKs into src/spec/resources/generated/{lang} so that the generated
  * snapshot files stay in sync with template changes. Run with: mvn test -Dtest=GenerateClientsTest
  */
 class GenerateClientsTest {

@@ -4,7 +4,7 @@ import decimal
 import json
 import re
 from enum import Enum
-from typing import Any, Dict, List, Optional, Type, TypeVar, Union
+from typing import Any, ClassVar, Optional, Type, TypeVar, Union
 
 from dateutil.parser import parse
 from pydantic import BaseModel, SecretStr
@@ -34,7 +34,7 @@ class ObjectSerializer:
 
     _PRIMITIVE_TYPES = (float, bool, bytes, str, int)
 
-    _NATIVE_TYPES_MAPPING = {
+    _NATIVE_TYPES_MAPPING: ClassVar[dict[str, type]] = {
         'int': int,
         'long': int,
         'float': float,
@@ -137,7 +137,7 @@ class ObjectSerializer:
             if hasattr(klass, 'any_of_schemas') or hasattr(klass, 'one_of_schemas'):
                 return self._deserialize_composed(data, klass)
             return klass.model_validate(data)
-        elif klass == bytes:
+        elif klass is bytes:
             if isinstance(data, bytes):
                 return data
             if isinstance(data, str):
@@ -148,7 +148,7 @@ class ObjectSerializer:
                 return klass(data)
             except (UnicodeEncodeError, TypeError):
                 return data
-        elif klass == object:
+        elif klass is object:
             return data
         elif klass == datetime.date:
             return parse(data).date()

@@ -1,3 +1,39 @@
+# TODO
+
+## Make Python API async
+
+Convert the generated Python API client to use `async`/`await` with `aiohttp` or `httpx` instead of synchronous `urllib3`. This would align with modern Python best practices and enable non-blocking I/O in async frameworks (FastAPI, etc.).
+
+---
+
+## Add eslint-plugin-unicorn to Node client
+
+Add the `unicorn/prefer-node-protocol` rule to the generated Node/TypeScript client's ESLint config to enforce the `node:` prefix on Node.js built-in imports.
+
+Update `eslint.config.mjs` (or the template that generates it) to include:
+
+```js
+import mridangPlugin from '@mridang/eslint-defaults';
+import unicorn from 'eslint-plugin-unicorn';
+
+export default [
+  ...mridangPlugin.configs.recommended,
+  {
+    plugins: { unicorn },
+    rules: {
+      'unicorn/prefer-node-protocol': 'error',
+    },
+  },
+];
+```
+
+This requires:
+1. Adding `eslint-plugin-unicorn` as a devDependency in the Node client's `package.json` template
+2. Updating the `eslint.config.mjs` template to import and configure the plugin
+3. Fixing any existing imports that don't use the `node:` prefix (e.g. `import * as fs from 'fs'` → `import * as fs from 'node:fs'`)
+
+---
+
 # TDD Bug Verification — Normalized Test Matrix
 
 Write failing tests in each SDK language's native test framework to prove known bugs exist before fixing them.

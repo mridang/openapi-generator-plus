@@ -26,7 +26,9 @@ class TestableApi extends BaseApi {
     returnType: ((json: unknown) => T) | null,
     auth?: Authenticator | null
   ): Promise<T | void> {
-    return this.invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, returnType, auth);
+    return this.invokeApi(
+      method, path, queryParams, headerParams, body,
+      accepts, contentType, returnType, auth);
   }
 }
 
@@ -37,18 +39,10 @@ class TestAuthenticator implements Authenticator {
     private cookies: Record<string, string> = {}
   ) {}
 
-  getHost(): string {
-    return '';
-  }
-  getAuthHeaders(): Record<string, string> {
-    return this.headers;
-  }
-  getQueryParams(): Record<string, string> {
-    return this.queryParams;
-  }
-  getCookieParams(): Record<string, string> {
-    return this.cookies;
-  }
+  getHost(): string { return ''; }
+  getAuthHeaders(): Record<string, string> { return this.headers; }
+  getQueryParams(): Record<string, string> { return this.queryParams; }
+  getCookieParams(): Record<string, string> { return this.cookies; }
 }
 
 const wiremockUrl = process.env.WIREMOCK_HTTP_URL!;
@@ -73,7 +67,8 @@ describe('BaseApi exception dispatch', () => {
 
   test.each(cases)('status %i throws correct exception', async (status, ErrorClass) => {
     try {
-      await api().call('GET', `/api/error/${status}`, {}, {}, null, ['application/json'], 'application/json', null);
+      await api().call('GET', `/api/error/${status}`, {}, {}, null,
+        ['application/json'], 'application/json', null);
       fail('Expected error not thrown');
     } catch (e) {
       expect(e).toBeInstanceOf(ErrorClass);
@@ -86,7 +81,8 @@ describe('BaseApi exception dispatch', () => {
 describe('BaseApi exception hierarchy', () => {
   test('NotFoundError is ClientError is ApiError', async () => {
     try {
-      await api().call('GET', '/api/error/404', {}, {}, null, ['application/json'], 'application/json', null);
+      await api().call('GET', '/api/error/404', {}, {}, null,
+        ['application/json'], 'application/json', null);
       fail('Expected error not thrown');
     } catch (e) {
       expect(e).toBeInstanceOf(NotFoundError);
@@ -97,7 +93,8 @@ describe('BaseApi exception hierarchy', () => {
 
   test('InternalServerError is ServerError is ApiError', async () => {
     try {
-      await api().call('GET', '/api/error/500', {}, {}, null, ['application/json'], 'application/json', null);
+      await api().call('GET', '/api/error/500', {}, {}, null,
+        ['application/json'], 'application/json', null);
       fail('Expected error not thrown');
     } catch (e) {
       expect(e).toBeInstanceOf(InternalServerError);
@@ -109,69 +106,40 @@ describe('BaseApi exception hierarchy', () => {
 
 describe('BaseApi success deserialization', () => {
   test('deserializes JSON response', async () => {
-    const result = await api().call(
-      'GET',
-      '/api/test',
-      {},
-      {},
-      null,
-      ['application/json'],
-      'application/json',
-      (json) => json as { message: string }
-    );
+    const result = await api().call('GET', '/api/test', {}, {}, null,
+      ['application/json'], 'application/json',
+      (json) => json as { message: string });
     expect(result).toBeDefined();
     expect((result as { message: string }).message).toBe('success');
   });
 
   test('returns raw string for non-JSON response', async () => {
-    const result = await api().call(
-      'GET',
-      '/api/text',
-      {},
-      {},
-      null,
-      ['text/plain'],
-      'application/json',
-      (json) => json as string
-    );
+    const result = await api().call('GET', '/api/text', {}, {}, null,
+      ['text/plain'], 'application/json',
+      (json) => json as string);
     expect(result).toBeDefined();
     expect(result).toContain('hello plain text');
   });
 
   test('returns void when returnType is null', async () => {
-    const result = await api().call('GET', '/api/test', {}, {}, null, ['application/json'], 'application/json', null);
+    const result = await api().call('GET', '/api/test', {}, {}, null,
+      ['application/json'], 'application/json', null);
     expect(result).toBeUndefined();
   });
 });
 
 describe('BaseApi query parameters', () => {
   test('appends query params to URL', async () => {
-    const result = await api().call(
-      'GET',
-      '/api/test',
-      { foo: 'bar' },
-      {},
-      null,
-      ['application/json'],
-      'application/json',
-      null
-    );
+    const result = await api().call('GET', '/api/test', { foo: 'bar' }, {}, null,
+      ['application/json'], 'application/json', null);
     expect(result).toBeUndefined();
   });
 });
 
 describe('BaseApi allowEmptyValue', () => {
   test('includes empty value param in query string when value is empty string', async () => {
-    const result = await api().call(
-      'GET',
-      '/api/test',
-      { filter: '' },
-      {},
-      null,
-      ['application/json'],
-      'application/json',
-      null
-    );
+    const result = await api().call('GET', '/api/test', { filter: '' }, {}, null,
+      ['application/json'], 'application/json', null);
     expect(result).toBeUndefined();
   });
 });
@@ -179,45 +147,32 @@ describe('BaseApi allowEmptyValue', () => {
 describe('BaseApi auth injection', () => {
   test('forwards auth headers', async () => {
     const auth = new TestAuthenticator({ 'X-Custom': 'auth-value' });
-    const result = await api().call(
-      'GET',
-      '/api/echo-headers',
-      {},
-      {},
-      null,
-      ['application/json'],
-      'application/json',
-      (json) => json as Record<string, string>,
-      auth
-    );
+    const result = await api().call('GET', '/api/echo-headers', {}, {}, null,
+      ['application/json'], 'application/json',
+      (json) => json as Record<string, string>, auth);
     expect(result).toBeDefined();
     expect((result as Record<string, string>)['x-custom']).toBe('auth-value');
   });
 
   test('sets Cookie header from auth cookies', async () => {
     const auth = new TestAuthenticator({}, {}, { session: 'abc123' });
-    await api().call('GET', '/api/test', {}, {}, null, ['application/json'], 'application/json', null, auth);
+    await api().call('GET', '/api/test', {}, {}, null,
+      ['application/json'], 'application/json', null, auth);
   });
 });
 
 describe('BaseApi body serialization', () => {
   test('serializes JSON body for POST', async () => {
-    const result = await api().call(
-      'POST',
-      '/api/echo-body',
-      {},
-      {},
-      { key: 'value' },
-      ['application/json'],
-      'application/json',
-      (json) => json as { key: string }
-    );
+    const result = await api().call('POST', '/api/echo-body', {}, {}, { key: 'value' },
+      ['application/json'], 'application/json',
+      (json) => json as { key: string });
     expect(result).toBeDefined();
     expect((result as { key: string }).key).toBe('value');
   });
 
   test('sends no body when null', async () => {
-    await api().call('GET', '/api/test', {}, {}, null, ['application/json'], 'application/json', null);
+    await api().call('GET', '/api/test', {}, {}, null,
+      ['application/json'], 'application/json', null);
   });
 });
 
@@ -232,23 +187,30 @@ describe('Configuration server variable overrides', () => {
   );
 
   test('server variable overrides resolve in base URL', () => {
-    const config = Configuration.builder().server(variableServer, { environment: 'staging' }).build();
+    const config = Configuration.builder()
+      .server(variableServer, { environment: 'staging' })
+      .build();
     expect(config.baseUrl).toBe('https://staging.example.com/api/v3');
   });
 
   test('default server variables produce correct base URL', () => {
-    const config = Configuration.builder().server(variableServer).build();
+    const config = Configuration.builder()
+      .server(variableServer)
+      .build();
     expect(config.baseUrl).toBe('https://api.example.com/api/v3');
   });
 
   test('invalid enum value throws error', () => {
     expect(() => {
-      Configuration.builder().server(variableServer, { environment: 'invalid' });
+      Configuration.builder()
+        .server(variableServer, { environment: 'invalid' });
     }).toThrow();
   });
 
   test('API request uses resolved server URL', async () => {
-    const config = Configuration.builder().server(variableServer, { environment: 'staging' }).build();
+    const config = Configuration.builder()
+      .server(variableServer, { environment: 'staging' })
+      .build();
     expect(config.baseUrl).toBe('https://staging.example.com/api/v3');
     const testApi = new TestableApi(new DefaultApiClient(), config);
     expect(testApi).toBeDefined();

@@ -23,7 +23,7 @@ describe('StoreApi', () => {
       quantity: 1,
       shipDate: new Date().toISOString(),
       status: 'placed',
-      complete: false
+      complete: false,
     };
 
     const result = await api.placeOrder(order);

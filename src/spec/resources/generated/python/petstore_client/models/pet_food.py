@@ -11,9 +11,9 @@ Do not edit the class manually.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
-from typing import Any, ClassVar, Dict, List, Optional, Set, Union
-from typing_extensions import Self
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator  # noqa: F401
+from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
+from typing_extensions import Self  # noqa: F401
 
 
 class PetFood(BaseModel):
@@ -52,7 +52,7 @@ class PetFood(BaseModel):
 
     @field_validator('actual_instance')
     def actual_instance_must_validate_oneof(cls, v: Any) -> Any:
-        instance = PetFood.model_construct()
+        instance = PetFood.model_construct()  # noqa: F841
         error_messages = []
         match = 0
         if not isinstance(v, DryFood):

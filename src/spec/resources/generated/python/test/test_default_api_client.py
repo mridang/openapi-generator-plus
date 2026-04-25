@@ -109,7 +109,6 @@ class TestRequestIdInjection:
         request_id = body['x-request-id']
         assert request_id
         import re
-
         assert re.match(
             r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
             request_id,

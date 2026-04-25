@@ -1,4 +1,3 @@
-import pytest
 from petstore_client.value_serializer import ValueSerializer
 
 
@@ -117,21 +116,13 @@ class TestValueSerializerForm:
 
 class TestMatrixStyle:
     def test_scalar_returns_semicolon_prefixed_name_value(self) -> None:
-        assert (
-            ValueSerializer.serialize_styled('color', 'blue', 'path', 'string', None, 'matrix', True) == ';color=blue'
-        )
+        assert ValueSerializer.serialize_styled('color', 'blue', 'path', 'string', None, 'matrix', True) == ';color=blue'
 
     def test_array_with_explode_false_joins_with_comma(self) -> None:
-        assert (
-            ValueSerializer.serialize_styled('color', ['blue', 'black'], 'path', 'array', None, 'matrix', False)
-            == ';color=blue,black'
-        )
+        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'path', 'array', None, 'matrix', False) == ';color=blue,black'
 
     def test_array_with_explode_true_repeats_name(self) -> None:
-        assert (
-            ValueSerializer.serialize_styled('color', ['blue', 'black'], 'path', 'array', None, 'matrix', True)
-            == ';color=blue;color=black'
-        )
+        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'path', 'array', None, 'matrix', True) == ';color=blue;color=black'
 
     def test_null_returns_empty_string(self) -> None:
         assert ValueSerializer.serialize_styled('color', None, 'path', 'string', None, 'matrix', True) == ''
@@ -142,16 +133,10 @@ class TestLabelStyle:
         assert ValueSerializer.serialize_styled('color', 'blue', 'path', 'string', None, 'label', True) == '.blue'
 
     def test_array_with_explode_false_joins_with_comma(self) -> None:
-        assert (
-            ValueSerializer.serialize_styled('color', ['blue', 'black'], 'path', 'array', None, 'label', False)
-            == '.blue,black'
-        )
+        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'path', 'array', None, 'label', False) == '.blue,black'
 
     def test_array_with_explode_true_joins_with_dot(self) -> None:
-        assert (
-            ValueSerializer.serialize_styled('color', ['blue', 'black'], 'path', 'array', None, 'label', True)
-            == '.blue.black'
-        )
+        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'path', 'array', None, 'label', True) == '.blue.black'
 
     def test_null_returns_empty_string(self) -> None:
         assert ValueSerializer.serialize_styled('color', None, 'path', 'string', None, 'label', True) == ''
@@ -159,45 +144,26 @@ class TestLabelStyle:
 
 class TestSpaceDelimitedStyle:
     def test_array_joins_with_space(self) -> None:
-        assert (
-            ValueSerializer.serialize_styled(
-                'color', ['blue', 'black'], 'query', 'array', None, 'spaceDelimited', False
-            )
-            == 'blue black'
-        )
+        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'query', 'array', None, 'spaceDelimited', False) == 'blue black'
 
     def test_scalar_returns_stringified_value(self) -> None:
-        assert (
-            ValueSerializer.serialize_styled('color', 'blue', 'query', 'string', None, 'spaceDelimited', False)
-            == 'blue'
-        )
+        assert ValueSerializer.serialize_styled('color', 'blue', 'query', 'string', None, 'spaceDelimited', False) == 'blue'
 
 
 class TestPipeDelimitedStyle:
     def test_array_joins_with_pipe(self) -> None:
-        assert (
-            ValueSerializer.serialize_styled('color', ['blue', 'black'], 'query', 'array', None, 'pipeDelimited', False)
-            == 'blue|black'
-        )
+        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'query', 'array', None, 'pipeDelimited', False) == 'blue|black'
 
     def test_scalar_returns_stringified_value(self) -> None:
-        assert (
-            ValueSerializer.serialize_styled('color', 'blue', 'query', 'string', None, 'pipeDelimited', False) == 'blue'
-        )
+        assert ValueSerializer.serialize_styled('color', 'blue', 'query', 'string', None, 'pipeDelimited', False) == 'blue'
 
 
 class TestFormStyleWithExplode:
     def test_array_with_explode_false_joins_with_comma(self) -> None:
-        assert (
-            ValueSerializer.serialize_styled('color', ['blue', 'black'], 'query', 'array', None, 'form', False)
-            == 'blue,black'
-        )
+        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'query', 'array', None, 'form', False) == 'blue,black'
 
     def test_array_with_explode_true_returns_list(self) -> None:
-        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'query', 'array', None, 'form', True) == [
-            'blue',
-            'black',
-        ]
+        assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'query', 'array', None, 'form', True) == ['blue', 'black']
 
 
 class TestSimpleStyleBackwardCompatibility:
@@ -205,9 +171,7 @@ class TestSimpleStyleBackwardCompatibility:
         assert ValueSerializer.serialize_styled('id', '5', 'path', 'string', None, 'simple', False) == '5'
 
     def test_array_joins_with_comma(self) -> None:
-        assert (
-            ValueSerializer.serialize_styled('id', ['3', '4', '5'], 'path', 'array', None, 'simple', False) == '3,4,5'
-        )
+        assert ValueSerializer.serialize_styled('id', ['3', '4', '5'], 'path', 'array', None, 'simple', False) == '3,4,5'
 
 
 class TestNullStyleFallback:

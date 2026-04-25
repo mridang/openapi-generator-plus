@@ -166,7 +166,9 @@ export class DefaultApiClient implements ApiClient {
                 socket,
                 servername: parsed.hostname,
                 rejectUnauthorized: this.transportOptions.verifySsl !== false,
-                ca: this.transportOptions.caCertPath ? fs.readFileSync(this.transportOptions.caCertPath) : undefined
+                ca: this.transportOptions.caCertPath
+                  ? fs.readFileSync(this.transportOptions.caCertPath)
+                  : undefined
               });
             const reqOptions: http.RequestOptions = {
               hostname: parsed.hostname,

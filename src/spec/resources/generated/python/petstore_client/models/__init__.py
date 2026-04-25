@@ -10,22 +10,22 @@ Do not edit the class manually.
 """
 
 # import models into model package
-from petstore_client.models.api_response import ApiResponse
-from petstore_client.models.category import Category
-from petstore_client.models.dry_food import DryFood
-from petstore_client.models.medication import Medication
-from petstore_client.models.metadata import Metadata
-from petstore_client.models.order import Order
-from petstore_client.models.pet import Pet
-from petstore_client.models.pet_food import PetFood
-from petstore_client.models.pet_passport import PetPassport
-from petstore_client.models.pet_treatment import PetTreatment
-from petstore_client.models.pet_with_owner import PetWithOwner
-from petstore_client.models.photo import Photo
-from petstore_client.models.photo_metadata import PhotoMetadata
-from petstore_client.models.photo_metadata_location import PhotoMetadataLocation
-from petstore_client.models.set_pet_avatar_request import SetPetAvatarRequest
-from petstore_client.models.set_pet_avatar_thumbnail_request import SetPetAvatarThumbnailRequest
-from petstore_client.models.surgery import Surgery
-from petstore_client.models.tag import Tag
-from petstore_client.models.wet_food import WetFood
+from petstore_client.models.api_response import ApiResponse as ApiResponse
+from petstore_client.models.category import Category as Category
+from petstore_client.models.dry_food import DryFood as DryFood
+from petstore_client.models.medication import Medication as Medication
+from petstore_client.models.metadata import Metadata as Metadata
+from petstore_client.models.order import Order as Order
+from petstore_client.models.pet import Pet as Pet
+from petstore_client.models.pet_food import PetFood as PetFood
+from petstore_client.models.pet_passport import PetPassport as PetPassport
+from petstore_client.models.pet_treatment import PetTreatment as PetTreatment
+from petstore_client.models.pet_with_owner import PetWithOwner as PetWithOwner
+from petstore_client.models.photo import Photo as Photo
+from petstore_client.models.photo_metadata import PhotoMetadata as PhotoMetadata
+from petstore_client.models.photo_metadata_location import PhotoMetadataLocation as PhotoMetadataLocation
+from petstore_client.models.set_pet_avatar_request import SetPetAvatarRequest as SetPetAvatarRequest
+from petstore_client.models.set_pet_avatar_thumbnail_request import SetPetAvatarThumbnailRequest as SetPetAvatarThumbnailRequest
+from petstore_client.models.surgery import Surgery as Surgery
+from petstore_client.models.tag import Tag as Tag
+from petstore_client.models.wet_food import WetFood as WetFood

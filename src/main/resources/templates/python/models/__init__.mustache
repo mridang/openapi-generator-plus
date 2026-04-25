@@ -2,6 +2,6 @@
 # import models into model package
 {{#models}}
 {{#model}}
-from {{modelPackage}}.{{classFilename}} import {{classname}}
+from {{modelPackage}}.{{classFilename}} import {{classname}} as {{classname}}
 {{/model}}
 {{/models}}

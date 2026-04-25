@@ -32,32 +32,21 @@ from petstore_client import servers as Servers
 class StubApi(BaseApi):
     """Concrete subclass exposing _invoke_api for direct testing."""
 
-    def call(
-        self,
-        method: str,
-        path: str,
-        query_params: dict[str, Any],
-        header_params: dict[str, str],
-        body: Any,
-        accepts: list[str],
-        content_type: str,
-        return_type: Optional[str],
-        auth: Optional[Authenticator] = None,
-    ) -> Any:
+    def call(self, method: str, path: str, query_params: dict[str, Any],
+             header_params: dict[str, str], body: Any,
+             accepts: list[str], content_type: str,
+             return_type: Optional[str], auth: Optional[Authenticator] = None) -> Any:
         return self._invoke_api(
-            method, path, query_params, header_params, body, accepts, content_type, return_type, auth
-        )
+            method, path, query_params, header_params, body,
+            accepts, content_type, return_type, auth)
 
 
 class StubAuthenticator(Authenticator):
     """Test authenticator that returns known headers, query params, cookies."""
 
-    def __init__(
-        self,
-        headers: Optional[dict[str, str]] = None,
-        query_params: Optional[dict[str, str]] = None,
-        cookies: Optional[dict[str, str]] = None,
-    ) -> None:
+    def __init__(self, headers: Optional[dict[str, str]] = None,
+                 query_params: Optional[dict[str, str]] = None,
+                 cookies: Optional[dict[str, str]] = None) -> None:
         self._headers = headers or {}
         self._query_params = query_params or {}
         self._cookies = cookies or {}
@@ -82,107 +71,127 @@ def api(wiremock_http_url: Any) -> StubApi:
 
 
 class TestExceptionDispatch:
-    @pytest.mark.parametrize(
-        'status,expected_class',
-        [
-            (400, BadRequestException),
-            (401, UnauthorizedException),
-            (403, ForbiddenException),
-            (404, NotFoundException),
-            (409, ConflictException),
-            (422, UnprocessableEntityException),
-            (418, ClientException),
-            (500, InternalServerErrorException),
-            (502, ServerException),
-        ],
-    )
+
+    @pytest.mark.parametrize('status,expected_class', [
+        (400, BadRequestException),
+        (401, UnauthorizedException),
+        (403, ForbiddenException),
+        (404, NotFoundException),
+        (409, ConflictException),
+        (422, UnprocessableEntityException),
+        (418, ClientException),
+        (500, InternalServerErrorException),
+        (502, ServerException),
+    ])
     def test_throws_correct_exception(self, api: Any, status: Any, expected_class: Any) -> None:
         with pytest.raises(expected_class) as exc_info:
-            api.call('GET', f'/api/error/{status}', {}, {}, None, ['application/json'], 'application/json', None)
+            api.call('GET', f'/api/error/{status}', {}, {}, None,
+                     ['application/json'], 'application/json', None)
         assert exc_info.value.code == status
         assert exc_info.value.response_body is not None
         assert len(exc_info.value.response_body) > 0
 
 
 class TestExceptionHierarchy:
+
     def test_not_found_hierarchy(self, api: Any) -> None:
         with pytest.raises(NotFoundException) as exc_info:
-            api.call('GET', '/api/error/404', {}, {}, None, ['application/json'], 'application/json', None)
+            api.call('GET', '/api/error/404', {}, {}, None,
+                     ['application/json'], 'application/json', None)
         assert isinstance(exc_info.value, ClientException)
         assert isinstance(exc_info.value, ApiException)
 
     def test_internal_server_error_hierarchy(self, api: Any) -> None:
         with pytest.raises(InternalServerErrorException) as exc_info:
-            api.call('GET', '/api/error/500', {}, {}, None, ['application/json'], 'application/json', None)
+            api.call('GET', '/api/error/500', {}, {}, None,
+                     ['application/json'], 'application/json', None)
         assert isinstance(exc_info.value, ServerException)
         assert isinstance(exc_info.value, ApiException)
 
 
 class TestSuccessDeserialization:
+
     def test_deserializes_json_response(self, api: Any) -> None:
-        result = api.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', 'object')
+        result = api.call('GET', '/api/test', {}, {}, None,
+                          ['application/json'], 'application/json', 'object')
         assert result is not None
         assert result['message'] == 'success'
 
     def test_returns_raw_string_for_non_json(self, api: Any) -> None:
-        result = api.call('GET', '/api/text', {}, {}, None, ['text/plain'], 'application/json', 'str')
+        result = api.call('GET', '/api/text', {}, {}, None,
+                          ['text/plain'], 'application/json', 'str')
         assert result is not None
         assert 'hello plain text' in result
 
     def test_returns_none_when_return_type_is_none(self, api: Any) -> None:
-        result = api.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', None)
+        result = api.call('GET', '/api/test', {}, {}, None,
+                          ['application/json'], 'application/json', None)
         assert result is None
 
 
 class TestQueryParameters:
+
     def test_appends_query_params(self, api: Any) -> None:
-        result = api.call('GET', '/api/test', {'foo': 'bar'}, {}, None, ['application/json'], 'application/json', None)
+        result = api.call('GET', '/api/test', {'foo': 'bar'}, {}, None,
+                          ['application/json'], 'application/json', None)
         assert result is None
 
     def test_includes_empty_value_param_in_query_string(self, api: Any) -> None:
-        result = api.call('GET', '/api/test', {'filter': ''}, {}, None, ['application/json'], 'application/json', None)
+        result = api.call('GET', '/api/test', {'filter': ''}, {}, None,
+                          ['application/json'], 'application/json', None)
         assert result is None
 
 
 class TestAuthInjection:
+
     def test_forwards_auth_headers(self, api: Any) -> None:
         auth = StubAuthenticator(headers={'X-Custom': 'auth-value'})
-        result = api.call(
-            'GET', '/api/echo-headers', {}, {}, None, ['application/json'], 'application/json', 'object', auth
-        )
+        result = api.call('GET', '/api/echo-headers', {}, {}, None,
+                          ['application/json'], 'application/json', 'object', auth)
         assert result is not None
         assert result['x-custom'] == 'auth-value'
 
     def test_sets_cookie_header(self, api: Any) -> None:
         auth = StubAuthenticator(cookies={'session': 'abc123'})
-        api.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', None, auth)
+        api.call('GET', '/api/test', {}, {}, None,
+                 ['application/json'], 'application/json', None, auth)
 
 
 class TestBodySerialization:
+
     def test_serializes_json_body(self, api: Any) -> None:
-        result = api.call(
-            'POST', '/api/echo-body', {}, {}, {'key': 'value'}, ['application/json'], 'application/json', 'object'
-        )
+        result = api.call('POST', '/api/echo-body', {}, {}, {'key': 'value'},
+                          ['application/json'], 'application/json', 'object')
         assert result is not None
         assert result['key'] == 'value'
 
     def test_sends_no_body_when_none(self, api: Any) -> None:
-        api.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', None)
+        api.call('GET', '/api/test', {}, {}, None,
+                 ['application/json'], 'application/json', None)
 
 
 class TestServerVariableOverrides:
+
     def test_server_variable_overrides_resolve_in_base_url(self) -> None:
-        config = Configuration.builder().server(Servers.SERVER_1, {'environment': 'staging'}).build()
+        config = Configuration.builder() \
+            .server(Servers.SERVER_1, {'environment': 'staging'}) \
+            .build()
         assert config.base_url == 'https://staging.example.com/api/v3'
 
     def test_default_server_variables_produce_correct_base_url(self) -> None:
-        config = Configuration.builder().server(Servers.SERVER_1).build()
+        config = Configuration.builder() \
+            .server(Servers.SERVER_1) \
+            .build()
         assert config.base_url == 'https://api.example.com/api/v3'
 
     def test_invalid_enum_value_raises_error(self) -> None:
         with pytest.raises(ValueError):
-            Configuration.builder().server(Servers.SERVER_1, {'environment': 'invalid'}).build()
+            Configuration.builder() \
+                .server(Servers.SERVER_1, {'environment': 'invalid'}) \
+                .build()
 
     def test_api_request_uses_resolved_server_url(self, api: Any, wiremock_http_url: Any) -> None:
-        config = Configuration.builder().server(Servers.SERVER_1, {'environment': 'staging'}).build()
+        config = Configuration.builder() \
+            .server(Servers.SERVER_1, {'environment': 'staging'}) \
+            .build()
         assert config.base_url.startswith('https://staging.example.com')

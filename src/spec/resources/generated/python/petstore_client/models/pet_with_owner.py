@@ -11,9 +11,9 @@ Do not edit the class manually.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-from typing import Any, ClassVar, Dict, List, Optional, Set, Union
-from typing_extensions import Self
+from pydantic import BaseModel, ConfigDict, Field, field_validator  # noqa: F401
+from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
+from typing_extensions import Self  # noqa: F401
 from enum import Enum
 
 
@@ -36,9 +36,7 @@ class PetWithOwner(BaseModel):
     photo_urls: Set[str] = Field(alias='photoUrls')
     tags: Optional[List[Tag]] = Field(default=None, alias='tags')
     # .. deprecated:: This property is deprecated.
-    status: Optional[PetWithOwnerStatusEnum] = Field(
-        default=None, alias='status', description='pet status in the store'
-    )
+    status: Optional[PetWithOwnerStatusEnum] = Field(default=None, alias='status', description="pet status in the store")
     owner_name: str = Field(alias='ownerName')
     owner_email: Optional[str] = Field(default=None, alias='ownerEmail')
     additional_properties: Dict[str, Any] = {}

@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional, Protocol, runtime_checkable
+from typing import Any, Dict, Protocol, runtime_checkable
 
 from petstore_client.api_response import ApiResponse
 

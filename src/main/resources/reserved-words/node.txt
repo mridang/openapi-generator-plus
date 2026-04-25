@@ -2,6 +2,7 @@
 # Includes ES6+ keywords, strict mode reserved words, and TypeScript additions
 abstract
 any
+arguments
 as
 async
 await

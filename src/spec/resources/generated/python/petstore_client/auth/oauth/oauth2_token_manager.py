@@ -12,7 +12,7 @@ Do not edit the class manually.
 import json
 import threading
 import time
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
 from ...api_client import ApiClient
 

@@ -261,6 +261,8 @@ export abstract class BaseApi {
     if (contentType === 'application/x-www-form-urlencoded') {
       return new URLSearchParams(body as Record<string, string>).toString();
     }
-    return JSON.stringify(body, (_key, value) => (value instanceof Set ? [...value] : value));
+    return JSON.stringify(body, (_key, value) =>
+      value instanceof Set ? [...value] : value,
+    );
   }
 }

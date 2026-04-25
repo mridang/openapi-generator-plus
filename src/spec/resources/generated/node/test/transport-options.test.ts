@@ -42,7 +42,9 @@ describe('TransportOptions', () => {
   test('defaultHeaders is a defensive copy', () => {
     const headers: Record<string, string> = { 'X-Original': 'original' };
 
-    const opts = TransportOptions.builder().defaultHeaders(headers).build();
+    const opts = TransportOptions.builder()
+      .defaultHeaders(headers)
+      .build();
 
     headers['X-Added'] = 'added';
 

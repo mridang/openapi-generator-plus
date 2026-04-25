@@ -41,5 +41,5 @@ export enum OrderStatusEnum {
   Placed = 'placed',
   Approved = 'approved',
   Delivered = 'delivered',
-  UnknownDefaultOpenApi = '11184809'
+  UnknownDefaultOpenApi = '11184809',
 }
