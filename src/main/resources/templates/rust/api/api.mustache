@@ -12,6 +12,7 @@ use crate::object_serializer;
 use crate::value_serializer;
 #[allow(unused_imports)]
 use crate::api::options::*;
+use crate::value_serializer::SerializedValue;
 {{#operations}}
 
 /// {{classname}} provides methods for the {{baseName}} API group.
@@ -135,20 +136,20 @@ impl {{classname}} {
 <%={{ }}=%>
 {{/pathParams}}
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 {{#queryParams}}
         if let Some(opts) = options {
 {{#isDeepObject}}
             if let Some(ref val) = opts.{{paramName}} {
                 for (k, v) in value_serializer::serialize_deep_object("{{baseName}}", val) {
-                    query_params.insert(k, v);
+                    query_params.push((k, v));
                 }
             }
 {{/isDeepObject}}
 {{^isDeepObject}}
 {{#content}}
             if let Some(ref val) = opts.{{paramName}} {
-                query_params.insert("{{baseName}}".to_string(), serde_json::to_string(val).unwrap_or_default());
+                query_params.push(("{{baseName}}".to_string(), serde_json::to_string(val).unwrap_or_default()));
             }
 {{/content}}
 {{^content}}
@@ -163,7 +164,16 @@ impl {{classname}} {
                     "{{style}}",
                     {{isExplode}},
                 ) {
-                    query_params.insert("{{baseName}}".to_string(), serialized);
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("{{baseName}}".to_string(), v));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("{{baseName}}".to_string(), v));
+                            }
+                        }
+                    }
                 }
             }
 {{/content}}
@@ -185,7 +195,9 @@ impl {{classname}} {
                     "{{style}}",
                     {{isExplode}},
                 ) {
-                    header_params.insert("{{baseName}}".to_string(), serialized);
+                    if let SerializedValue::Single(v) = serialized {
+                        header_params.insert("{{baseName}}".to_string(), v);
+                    }
                 }
             }
         }
@@ -205,7 +217,9 @@ impl {{classname}} {
                     "{{style}}",
                     {{isExplode}},
                 ) {
-                    cookie_parts.push(format!("{{baseName}}={}", serialized));
+                    if let SerializedValue::Single(v) = serialized {
+                        cookie_parts.push(format!("{{baseName}}={}", v));
+                    }
                 }
             }
         }

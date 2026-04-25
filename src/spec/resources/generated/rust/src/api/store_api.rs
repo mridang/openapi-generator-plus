@@ -12,6 +12,7 @@ use crate::configuration::Configuration;
 use crate::models::*;
 use crate::object_serializer;
 use crate::value_serializer;
+use crate::value_serializer::SerializedValue;
 
 /// StoreApi provides methods for the Store API group.
 /// Access to Petstore orders
@@ -45,7 +46,7 @@ impl StoreApi {
         let mut path = "/store/order/{orderId}".to_string();
         path = path.replace("{orderId}", &urlencoding::encode(&format!("{}", order_id)));
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -89,7 +90,7 @@ impl StoreApi {
     > {
         let mut path = "/store/inventory".to_string();
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -138,7 +139,7 @@ impl StoreApi {
         let mut path = "/store/order/{orderId}".to_string();
         path = path.replace("{orderId}", &urlencoding::encode(&format!("{}", order_id)));
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -186,7 +187,7 @@ impl StoreApi {
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/store/order".to_string();
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 

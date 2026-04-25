@@ -12,6 +12,7 @@ use crate::configuration::Configuration;
 use crate::models::*;
 use crate::object_serializer;
 use crate::value_serializer;
+use crate::value_serializer::SerializedValue;
 
 /// PetApi provides methods for the Pet API group.
 /// Everything about your Pets
@@ -46,7 +47,7 @@ impl PetApi {
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet".to_string();
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -100,7 +101,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/photos".to_string();
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -166,7 +167,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/treatment".to_string();
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -218,7 +219,7 @@ impl PetApi {
         let mut path = "/pet/{petId}".to_string();
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -268,7 +269,7 @@ impl PetApi {
             &urlencoding::encode(&format!("{}", document_id)),
         );
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -320,7 +321,7 @@ impl PetApi {
     ) -> Result<ApiResult<Vec<Pet>>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/findByStatus".to_string();
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
         if let Some(opts) = options {
             if let Some(ref val) = opts.status {
                 if let Some(serialized) = value_serializer::serialize_styled(
@@ -333,14 +334,23 @@ impl PetApi {
                     "form",
                     true,
                 ) {
-                    query_params.insert("status".to_string(), serialized);
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("status".to_string(), v));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("status".to_string(), v));
+                            }
+                        }
+                    }
                 }
             }
         }
         if let Some(opts) = options {
             if let Some(ref val) = opts.filter {
                 for (k, v) in value_serializer::serialize_deep_object("filter", val) {
-                    query_params.insert(k, v);
+                    query_params.push((k, v));
                 }
             }
         }
@@ -392,7 +402,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/external".to_string();
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -441,7 +451,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/multi".to_string();
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -491,7 +501,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/avatar".to_string();
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -541,7 +551,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/avatar/thumbnail".to_string();
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -592,7 +602,7 @@ impl PetApi {
         let mut path = "/pet/{petId}".to_string();
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -642,7 +652,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/passport".to_string();
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -695,7 +705,7 @@ impl PetApi {
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
         path = path.replace("{photoId}", &urlencoding::encode(&format!("{}", photo_id)));
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -759,7 +769,7 @@ impl PetApi {
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
         path = path.replace("{tagName}", &urlencoding::encode(&format!("{}", tag_name)));
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
         if let Some(opts) = options {
             if let Some(ref val) = opts.colors {
                 if let Some(serialized) = value_serializer::serialize_styled(
@@ -772,7 +782,16 @@ impl PetApi {
                     "pipeDelimited",
                     false,
                 ) {
-                    query_params.insert("colors".to_string(), serialized);
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("colors".to_string(), v));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("colors".to_string(), v));
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -788,7 +807,16 @@ impl PetApi {
                     "spaceDelimited",
                     false,
                 ) {
-                    query_params.insert("sizes".to_string(), serialized);
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("sizes".to_string(), v));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("sizes".to_string(), v));
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -804,7 +832,16 @@ impl PetApi {
                     "form",
                     true,
                 ) {
-                    query_params.insert("filter".to_string(), serialized);
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("filter".to_string(), v));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("filter".to_string(), v));
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -856,7 +893,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/staging".to_string();
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -909,7 +946,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/avatar".to_string();
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -957,7 +994,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/avatar/thumbnail".to_string();
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -1004,7 +1041,7 @@ impl PetApi {
         let mut path = "/pet/{petId}".to_string();
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -1058,7 +1095,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/certificate".to_string();
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
@@ -1116,7 +1153,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/documents".to_string();
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
 
-        let mut query_params: HashMap<String, String> = HashMap::new();
+        let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 

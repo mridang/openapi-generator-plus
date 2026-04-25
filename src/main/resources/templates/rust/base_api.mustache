@@ -22,7 +22,7 @@ use crate::trace_context_util;
 pub struct InvokeApiParams<'a> {
     pub method: &'a str,
     pub path: &'a str,
-    pub query_params: HashMap<String, String>,
+    pub query_params: Vec<(String, String)>,
     pub header_params: HashMap<String, String>,
     pub body: Option<Vec<u8>>,
     pub accepts: Vec<&'a str>,
@@ -62,7 +62,7 @@ impl BaseApi {
         let mut query_params = params.query_params;
         if let Some(auth) = params.auth {
             for (k, v) in auth.query_params() {
-                query_params.insert(k, v);
+                query_params.push((k, v));
             }
         }
 
@@ -143,7 +143,7 @@ impl BaseApi {
     }
 }
 
-fn build_query_string(query_params: &HashMap<String, String>) -> String {
+fn build_query_string(query_params: &[(String, String)]) -> String {
     if query_params.is_empty() {
         return String::new();
     }

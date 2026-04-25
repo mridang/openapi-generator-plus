@@ -2,6 +2,16 @@ use std::collections::HashMap;
 
 use crate::object_serializer::stringify;
 
+/// Represents a serialized parameter value that may be a single value or
+/// multiple values (for exploded form-style query parameters).
+#[derive(Debug, Clone)]
+pub enum SerializedValue {
+    /// A single serialized string value.
+    Single(String),
+    /// Multiple values for the same key (form style with explode=true).
+    Multi(Vec<String>),
+}
+
 /// Serializes a parameter value for HTTP requests based on its location.
 ///
 /// # Arguments
@@ -33,11 +43,11 @@ pub fn serialize_array_value(
     items: &[String],
     location: &str,
     collection_format: &str,
-) -> Option<String> {
+) -> Option<SerializedValue> {
     if location == "query" {
         Some(serialize_query_array(items, collection_format))
     } else {
-        Some(items.join(","))
+        Some(SerializedValue::Single(items.join(",")))
     }
 }
 
@@ -47,10 +57,10 @@ pub fn serialize_array_value(
 pub fn serialize_deep_object(
     param_name: &str,
     value: &HashMap<String, String>,
-) -> HashMap<String, String> {
-    let mut result = HashMap::new();
+) -> Vec<(String, String)> {
+    let mut result = Vec::new();
     for (key, val) in value {
-        result.insert(format!("{}[{}]", param_name, key), val.clone());
+        result.push((format!("{}[{}]", param_name, key), val.clone()));
     }
     result
 }
@@ -75,17 +85,17 @@ pub fn serialize_styled(
     _collection_format: &str,
     style: &str,
     explode: bool,
-) -> Option<String> {
+) -> Option<SerializedValue> {
     if style.is_empty() {
         return match value {
             Some(val) => {
                 if location == "path" {
-                    Some(urlencoding::encode(val).into_owned())
+                    Some(SerializedValue::Single(urlencoding::encode(val).into_owned()))
                 } else {
-                    Some(val.to_string())
+                    Some(SerializedValue::Single(val.to_string()))
                 }
             }
-            None => serialize_nil(location),
+            None => serialize_nil(location).map(SerializedValue::Single),
         };
     }
 
@@ -94,11 +104,7 @@ pub fn serialize_styled(
     match style {
         "matrix" => {
             if value.is_none() && !is_array {
-                return if location == "query" {
-                    None
-                } else {
-                    Some(String::new())
-                };
+                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
             }
             if let Some(arr) = items {
                 if explode {
@@ -106,102 +112,81 @@ pub fn serialize_styled(
                         .iter()
                         .map(|v| format!(";{}={}", param_name, v))
                         .collect();
-                    Some(parts.join(""))
+                    Some(SerializedValue::Single(parts.join("")))
                 } else {
-                    Some(format!(";{}={}", param_name, arr.join(",")))
+                    Some(SerializedValue::Single(format!(";{}={}", param_name, arr.join(","))))
                 }
             } else {
-                Some(format!(";{}={}", param_name, value.unwrap_or("")))
+                Some(SerializedValue::Single(format!(";{}={}", param_name, value.unwrap_or(""))))
             }
         }
         "label" => {
             if value.is_none() && !is_array {
-                return if location == "query" {
-                    None
-                } else {
-                    Some(String::new())
-                };
+                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
             }
             if let Some(arr) = items {
                 if explode {
-                    Some(format!(".{}", arr.join(".")))
+                    Some(SerializedValue::Single(format!(".{}", arr.join("."))))
                 } else {
-                    Some(format!(".{}", arr.join(",")))
+                    Some(SerializedValue::Single(format!(".{}", arr.join(","))))
                 }
             } else {
-                Some(format!(".{}", value.unwrap_or("")))
+                Some(SerializedValue::Single(format!(".{}", value.unwrap_or(""))))
             }
         }
         "spaceDelimited" => {
             if value.is_none() && !is_array {
-                return if location == "query" {
-                    None
-                } else {
-                    Some(String::new())
-                };
+                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
             }
             if let Some(arr) = items {
-                Some(arr.join(" "))
+                Some(SerializedValue::Single(arr.join(" ")))
             } else {
-                Some(value.unwrap_or("").to_string())
+                Some(SerializedValue::Single(value.unwrap_or("").to_string()))
             }
         }
         "pipeDelimited" => {
             if value.is_none() && !is_array {
-                return if location == "query" {
-                    None
-                } else {
-                    Some(String::new())
-                };
+                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
             }
             if let Some(arr) = items {
-                Some(arr.join("|"))
+                Some(SerializedValue::Single(arr.join("|")))
             } else {
-                Some(value.unwrap_or("").to_string())
+                Some(SerializedValue::Single(value.unwrap_or("").to_string()))
             }
         }
         "form" => {
             if value.is_none() && !is_array {
-                return if location == "query" {
-                    None
-                } else {
-                    Some(String::new())
-                };
+                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
             }
             if let Some(arr) = items {
                 if explode {
-                    // For exploded form, return comma-separated; the caller handles multi-value
-                    Some(arr.join(","))
+                    Some(SerializedValue::Multi(arr.to_vec()))
                 } else {
-                    Some(arr.join(","))
+                    Some(SerializedValue::Single(arr.join(",")))
                 }
             } else {
-                Some(value.unwrap_or("").to_string())
+                Some(SerializedValue::Single(value.unwrap_or("").to_string()))
             }
         }
         "simple" => {
             if value.is_none() && !is_array {
-                return if location == "query" {
-                    None
-                } else {
-                    Some(String::new())
-                };
+                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
             }
             if let Some(arr) = items {
-                Some(arr.join(","))
+                Some(SerializedValue::Single(arr.join(",")))
             } else {
-                Some(value.unwrap_or("").to_string())
+                Some(SerializedValue::Single(value.unwrap_or("").to_string()))
             }
         }
         _ => match value {
             Some(val) => {
                 if location == "path" {
-                    Some(urlencoding::encode(val).into_owned())
+                    Some(SerializedValue::Single(urlencoding::encode(val).into_owned()))
                 } else {
-                    Some(val.to_string())
+                    Some(SerializedValue::Single(val.to_string()))
                 }
             }
-            None => serialize_nil(location),
+            None => serialize_nil(location).map(SerializedValue::Single),
         },
     }
 }
@@ -214,11 +199,12 @@ fn serialize_nil(location: &str) -> Option<String> {
     }
 }
 
-fn serialize_query_array(items: &[String], collection_format: &str) -> String {
+fn serialize_query_array(items: &[String], collection_format: &str) -> SerializedValue {
     match collection_format {
-        "ssv" => items.join(" "),
-        "tsv" => items.join("\t"),
-        "pipes" => items.join("|"),
-        _ => items.join(","),
+        "multi" => SerializedValue::Multi(items.to_vec()),
+        "ssv" => SerializedValue::Single(items.join(" ")),
+        "tsv" => SerializedValue::Single(items.join("\t")),
+        "pipes" => SerializedValue::Single(items.join("|")),
+        _ => SerializedValue::Single(items.join(",")),
     }
 }
