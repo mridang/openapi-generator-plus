@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"strings"
 
-	"petstore/auth"
+	"petstore/pkg/auth"
 )
 
 // OAuth2ClientCredentialsAuthenticator provides OAuth2 client credentials flow authentication.

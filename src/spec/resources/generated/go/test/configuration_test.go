@@ -10,7 +10,7 @@ package petstore_test
 import (
 	"testing"
 
-	"petstore"
+	petstore "petstore/pkg"
 )
 
 func TestConfiguration_DefaultValues(t *testing.T) {

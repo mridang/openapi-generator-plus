@@ -10,7 +10,7 @@ package petstore
 import (
 	"fmt"
 
-	. "petstore/models"
+	. "petstore/pkg/models"
 )
 
 // StoreApi provides methods for the Store API group.

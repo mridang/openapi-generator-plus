@@ -2,7 +2,7 @@ package options
 
 import (
 	"os"
-	. "petstore/models"
+	. "petstore/pkg/models"
 )
 
 // AddPetPhotosOptions holds optional parameters for the AddPetPhotos operation.

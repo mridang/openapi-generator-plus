@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"os"
 
-	. "petstore/models"
-	. "petstore/options"
+	. "petstore/pkg/models"
+	. "petstore/pkg/options"
 )
 
 // PetApi provides methods for the Pet API group.

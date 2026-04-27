@@ -15,9 +15,9 @@ import (
 	"strings"
 	"testing"
 
-	"petstore"
-	apierrors "petstore/errors"
-	"petstore/models"
+	petstore "petstore/pkg"
+	apierrors "petstore/pkg/errors"
+	"petstore/pkg/models"
 )
 
 // baseApiAuth implements Authenticator for base API tests.

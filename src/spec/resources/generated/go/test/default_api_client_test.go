@@ -12,10 +12,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	petstore "petstore/pkg"
 	"strings"
 	"testing"
-
-	"petstore"
 )
 
 func TestDefaultApiClient_GET(t *testing.T) {

@@ -13,8 +13,8 @@ import (
 	"os"
 	"testing"
 
-	"petstore"
-	"petstore/models"
+	petstore "petstore/pkg"
+	"petstore/pkg/models"
 )
 
 // storeApiPrismBaseURL returns the Prism mock server base URL for store tests.

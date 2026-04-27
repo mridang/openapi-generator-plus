@@ -183,7 +183,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     /** {@inheritDoc} */
     @Override
     protected String getFormatterDockerImage() {
-        return "golang:1.24";
+        return "golang:1.26";
     }
 
     /** {@inheritDoc} */
@@ -311,74 +311,74 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         setModelPackage("");
         setApiPackage("");
 
-        supportingFiles.add(new SupportingFile("configuration.mustache", "", "configuration.go"));
+        supportingFiles.add(new SupportingFile("configuration.mustache", "pkg", "configuration.go"));
         supportingFiles.add(
-                new SupportingFile("transport_options.mustache", "", "transport_options.go"));
+                new SupportingFile("transport_options.mustache", "pkg", "transport_options.go"));
         supportingFiles.add(
                 new SupportingFile(
-                        "server_configuration.mustache", "", "server_configuration.go"));
-        supportingFiles.add(new SupportingFile("servers.mustache", "", "servers.go"));
+                        "server_configuration.mustache", "pkg", "server_configuration.go"));
+        supportingFiles.add(new SupportingFile("servers.mustache", "pkg", "servers.go"));
         supportingFiles.add(
-                new SupportingFile("api_error.mustache", "errors", "api_error.go"));
+                new SupportingFile("api_error.mustache", "pkg/errors", "api_error.go"));
 
         supportingFiles.add(
                 new SupportingFile(
-                        "errors/client_error.mustache", "errors", "client_error.go"));
+                        "errors/client_error.mustache", "pkg/errors", "client_error.go"));
         supportingFiles.add(
                 new SupportingFile(
-                        "errors/server_error.mustache", "errors", "server_error.go"));
+                        "errors/server_error.mustache", "pkg/errors", "server_error.go"));
         supportingFiles.add(
                 new SupportingFile(
                         "errors/bad_request_error.mustache",
-                        "errors",
+                        "pkg/errors",
                         "bad_request_error.go"));
         supportingFiles.add(
                 new SupportingFile(
                         "errors/unauthorized_error.mustache",
-                        "errors",
+                        "pkg/errors",
                         "unauthorized_error.go"));
         supportingFiles.add(
                 new SupportingFile(
-                        "errors/forbidden_error.mustache", "errors", "forbidden_error.go"));
+                        "errors/forbidden_error.mustache", "pkg/errors", "forbidden_error.go"));
         supportingFiles.add(
                 new SupportingFile(
-                        "errors/not_found_error.mustache", "errors", "not_found_error.go"));
+                        "errors/not_found_error.mustache", "pkg/errors", "not_found_error.go"));
         supportingFiles.add(
                 new SupportingFile(
-                        "errors/conflict_error.mustache", "errors", "conflict_error.go"));
+                        "errors/conflict_error.mustache", "pkg/errors", "conflict_error.go"));
         supportingFiles.add(
                 new SupportingFile(
                         "errors/unprocessable_entity_error.mustache",
-                        "errors",
+                        "pkg/errors",
                         "unprocessable_entity_error.go"));
         supportingFiles.add(
                 new SupportingFile(
                         "errors/internal_server_error.mustache",
-                        "errors",
+                        "pkg/errors",
                         "internal_server_error.go"));
         supportingFiles.add(
-                new SupportingFile("header_selector.mustache", "", "header_selector.go"));
+                new SupportingFile("header_selector.mustache", "pkg", "header_selector.go"));
         supportingFiles.add(
-                new SupportingFile("object_serializer.mustache", "", "object_serializer.go"));
+                new SupportingFile("object_serializer.mustache", "pkg", "object_serializer.go"));
         supportingFiles.add(
-                new SupportingFile("value_serializer.mustache", "", "value_serializer.go"));
+                new SupportingFile("value_serializer.mustache", "pkg", "value_serializer.go"));
         supportingFiles.add(
-                new SupportingFile("trace_context_util.mustache", "", "trace_context_util.go"));
-        supportingFiles.add(new SupportingFile("api_response.mustache", "", "api_response.go"));
-        supportingFiles.add(new SupportingFile("api_result.mustache", "", "api_result.go"));
-        supportingFiles.add(new SupportingFile("api_client.mustache", "", "api_client.go"));
+                new SupportingFile("trace_context_util.mustache", "pkg", "trace_context_util.go"));
+        supportingFiles.add(new SupportingFile("api_response.mustache", "pkg", "api_response.go"));
+        supportingFiles.add(new SupportingFile("api_result.mustache", "pkg", "api_result.go"));
+        supportingFiles.add(new SupportingFile("api_client.mustache", "pkg", "api_client.go"));
         supportingFiles.add(
-                new SupportingFile("default_api_client.mustache", "", "default_api_client.go"));
-        supportingFiles.add(new SupportingFile("base_api.mustache", "", "base_api.go"));
-        supportingFiles.add(new SupportingFile("path_utils.mustache", "", "path_utils.go"));
+                new SupportingFile("default_api_client.mustache", "pkg", "default_api_client.go"));
+        supportingFiles.add(new SupportingFile("base_api.mustache", "pkg", "base_api.go"));
+        supportingFiles.add(new SupportingFile("path_utils.mustache", "pkg", "path_utils.go"));
         supportingFiles.add(
-                new SupportingFile("authenticator.mustache", "", "authenticator.go"));
+                new SupportingFile("authenticator.mustache", "pkg", "authenticator.go"));
         final String clientClassName =
                 Objects.requireNonNull((String) additionalProperties.get("clientClassName"));
         final String clientClassFile = NamingConvention.SNAKE_CASE.apply(clientClassName);
         additionalProperties.put("clientClassFile", clientClassFile);
         supportingFiles.add(
-                new SupportingFile("client.mustache", "", clientClassFile + ".go"));
+                new SupportingFile("client.mustache", "pkg", clientClassFile + ".go"));
         supportingFiles.add(new SupportingFile("go_mod.mustache", "", "go.mod"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
@@ -451,22 +451,21 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
 
     /**
      * Returns the output directory for model source files.
-     * Models are placed in the {@code models/} sub-package.
+     * Models are placed in the {@code pkg/models/} sub-package.
      */
     @Override
     public String modelFileFolder() {
-        return Path.of(getOutputDir(), "models").toString();
+        return Path.of(getOutputDir(), "pkg", "models").toString();
     }
 
     /**
      * Returns the output directory for API source files.
-     * APIs remain in the root package to avoid circular
-     * imports with infrastructure types (Configuration,
-     * BaseApi, ApiClient).
+     * APIs are placed in the {@code pkg/} directory alongside
+     * infrastructure types (Configuration, BaseApi, ApiClient).
      */
     @Override
     public String apiFileFolder() {
-        return getOutputDir();
+        return Path.of(getOutputDir(), "pkg").toString();
     }
 
     /**
@@ -506,80 +505,80 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile(
                         "auth/base_authenticator.mustache",
-                        "auth",
+                        "pkg/auth",
                         "base_authenticator.go"));
         supportingFiles.add(
                 new SupportingFile(
                         "auth/http_aware_authenticator.mustache",
-                        "auth",
+                        "pkg/auth",
                         "http_aware_authenticator.go"));
 
         if (hasBasicAuth) {
             supportingFiles.add(
                     new SupportingFile(
                             "auth/basic_authenticator.mustache",
-                            "auth",
+                            "pkg/auth",
                             "basic_authenticator.go"));
         }
         if (hasBearerAuth) {
             supportingFiles.add(
                     new SupportingFile(
                             "auth/bearer_authenticator.mustache",
-                            "auth",
+                            "pkg/auth",
                             "bearer_authenticator.go"));
         }
         if (hasApiKeyAuth) {
             supportingFiles.add(
                     new SupportingFile(
                             "auth/api_key_location.mustache",
-                            "auth",
+                            "pkg/auth",
                             "api_key_location.go"));
             supportingFiles.add(
                     new SupportingFile(
                             "auth/api_key_authenticator.mustache",
-                            "auth",
+                            "pkg/auth",
                             "api_key_authenticator.go"));
         }
         if (hasAnyOAuth2 || hasOpenIdConnect) {
             supportingFiles.add(
                     new SupportingFile(
                             "auth/oauth/oauth2_token_manager.mustache",
-                            "auth/oauth",
+                            "pkg/auth/oauth",
                             "oauth2_token_manager.go"));
         }
         if (hasOAuth2ClientCredentials) {
             supportingFiles.add(
                     new SupportingFile(
                             "auth/oauth/oauth2_client_credentials_authenticator.mustache",
-                            "auth/oauth",
+                            "pkg/auth/oauth",
                             "oauth2_client_credentials_authenticator.go"));
         }
         if (hasOAuth2Password) {
             supportingFiles.add(
                     new SupportingFile(
                             "auth/oauth/oauth2_password_authenticator.mustache",
-                            "auth/oauth",
+                            "pkg/auth/oauth",
                             "oauth2_password_authenticator.go"));
         }
         if (hasOAuth2AuthorizationCode) {
             supportingFiles.add(
                     new SupportingFile(
                             "auth/oauth/oauth2_auth_code_authenticator.mustache",
-                            "auth/oauth",
+                            "pkg/auth/oauth",
                             "oauth2_auth_code_authenticator.go"));
         }
         if (hasOAuth2Implicit) {
             supportingFiles.add(
                     new SupportingFile(
                             "auth/oauth/oauth2_implicit_authenticator.mustache",
-                            "auth/oauth",
+                            "pkg/auth/oauth",
                             "oauth2_implicit_authenticator.go"));
         }
         if (hasOpenIdConnect) {
             supportingFiles.add(
                     new SupportingFile(
                             "auth/oauth/openid_connect_authenticator.mustache",
-                            "auth/oauth",
+                            "pkg/auth/oauth",
                             "openid_connect_authenticator.go"));
         }
     }
@@ -682,6 +681,6 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     @Override
     protected String getOptionsFilePath(String operationId, String optionsClassName) {
         final String fileName = NamingConvention.SNAKE_CASE.apply(optionsClassName);
-        return Path.of(getOutputDir(), "options", fileName + ".go").toString();
+        return Path.of(getOutputDir(), "pkg", "options", fileName + ".go").toString();
     }
 }

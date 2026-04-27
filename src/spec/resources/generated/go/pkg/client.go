@@ -8,7 +8,7 @@
 package petstore
 
 import (
-	"petstore/auth"
+	"petstore/pkg/auth"
 )
 
 // Client is the unified entry point for all API services.

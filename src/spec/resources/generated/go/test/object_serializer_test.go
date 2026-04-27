@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"petstore"
+	petstore "petstore/pkg"
 )
 
 func TestSerialize_MapToJSON(t *testing.T) {

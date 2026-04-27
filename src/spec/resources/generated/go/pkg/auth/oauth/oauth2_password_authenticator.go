@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"strings"
 
-	"petstore/auth"
+	"petstore/pkg/auth"
 )
 
 // OAuth2PasswordAuthenticator provides OAuth2 resource owner password credentials flow authentication.

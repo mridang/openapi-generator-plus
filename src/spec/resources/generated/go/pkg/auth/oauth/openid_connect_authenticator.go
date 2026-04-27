@@ -14,7 +14,7 @@ import (
 	"net/http"
 	"sync"
 
-	"petstore/auth"
+	"petstore/pkg/auth"
 )
 
 // OpenIdConnectAuthenticator provides OpenID Connect authentication.

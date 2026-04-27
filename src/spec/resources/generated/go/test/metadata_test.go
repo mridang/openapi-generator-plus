@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"petstore/models"
+	"petstore/pkg/models"
 )
 
 func TestMetadata_SerializeDeserialize(t *testing.T) {

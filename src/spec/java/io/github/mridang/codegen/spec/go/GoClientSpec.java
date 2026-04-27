@@ -20,11 +20,11 @@ public class GoClientSpec extends AbstractClientSpec implements GoSpec {
     @Override
     protected void assertGeneratedStructure(Path outputDir) {
         assertThat(outputDir.resolve("go.mod")).exists();
-        assertThat(outputDir.resolve("client.go")).exists();
-        assertThat(outputDir.resolve("pet_api.go")).exists();
-        assertThat(outputDir.resolve("models")).isDirectory();
-        assertThat(outputDir.resolve("errors")).isDirectory();
-        assertThat(outputDir.resolve("auth")).isDirectory();
-        assertThat(outputDir.resolve("options")).isDirectory();
+        assertThat(outputDir.resolve("pkg/client.go")).exists();
+        assertThat(outputDir.resolve("pkg/pet_api.go")).exists();
+        assertThat(outputDir.resolve("pkg/models")).isDirectory();
+        assertThat(outputDir.resolve("pkg/errors")).isDirectory();
+        assertThat(outputDir.resolve("pkg/auth")).isDirectory();
+        assertThat(outputDir.resolve("pkg/options")).isDirectory();
     }
 }

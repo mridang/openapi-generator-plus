@@ -8,10 +8,9 @@
 package petstore_test
 
 import (
+	petstore "petstore/pkg"
 	"testing"
 	"time"
-
-	"petstore"
 )
 
 func TestTransportOptions_Defaults(t *testing.T) {

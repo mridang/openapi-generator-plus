@@ -13,7 +13,7 @@ import (
 	"net/url"
 	"strings"
 
-	"petstore/auth"
+	"petstore/pkg/auth"
 )
 
 // OAuth2AuthorizationCodeAuthenticator provides OAuth2 authorization code flow authentication.

@@ -13,7 +13,7 @@ import (
 	"net/url"
 	"strings"
 
-	"petstore/auth"
+	"petstore/pkg/auth"
 )
 
 // OAuth2ImplicitAuthenticator provides OAuth2 implicit flow authentication.

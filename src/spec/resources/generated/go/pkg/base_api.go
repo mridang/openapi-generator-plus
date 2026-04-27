@@ -13,7 +13,7 @@ import (
 	"net/url"
 	"strings"
 
-	. "petstore/errors"
+	. "petstore/pkg/errors"
 )
 
 // BaseApi provides common functionality for all API classes.
