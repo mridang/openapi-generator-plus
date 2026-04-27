@@ -1,0 +1,195 @@
+package com.example.petstore
+
+import kotlinx.coroutines.runBlocking
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+
+class DefaultApiClientTest {
+    private lateinit var server: MockWebServer
+
+    @BeforeEach
+    fun setUp() {
+        server = MockWebServer()
+        server.start()
+    }
+
+    @AfterEach
+    fun tearDown() {
+        server.shutdown()
+    }
+
+    private fun baseUrl(): String = server.url("/").toString().trimEnd('/')
+
+    @Nested
+    @DisplayName("GET requests")
+    inner class GetRequests {
+        @Test
+        @DisplayName("sends GET request and returns response")
+        fun sendsGetRequest() {
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .addHeader("Content-Type", "application/json")
+                    .setBody("{\"message\":\"success\"}"),
+            )
+            val client = DefaultApiClient()
+            val response =
+                runBlocking {
+                    client.sendRequest("GET", baseUrl() + "/test", emptyMap(), null)
+                }
+            assertEquals(200, response.statusCode)
+            assertTrue(response.body.contains("success"))
+
+            val request = server.takeRequest()
+            assertEquals("GET", request.method)
+        }
+    }
+
+    @Nested
+    @DisplayName("POST requests")
+    inner class PostRequests {
+        @Test
+        @DisplayName("sends POST with JSON body")
+        fun sendsPostWithJsonBody() {
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(201)
+                    .addHeader("Content-Type", "application/json")
+                    .setBody("{\"id\":1}"),
+            )
+            val client = DefaultApiClient()
+            val headers = mutableMapOf("Content-Type" to "application/json")
+            val response =
+                runBlocking {
+                    client.sendRequest(
+                        "POST",
+                        baseUrl() + "/test",
+                        headers,
+                        "{\"key\":\"value\"}",
+                    )
+                }
+            assertEquals(201, response.statusCode)
+
+            val request = server.takeRequest()
+            assertEquals("POST", request.method)
+            assertTrue(request.body.readUtf8().contains("key"))
+        }
+    }
+
+    @Nested
+    @DisplayName("response headers")
+    inner class ResponseHeaders {
+        @Test
+        @DisplayName("returns response headers")
+        fun returnsResponseHeaders() {
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .addHeader("X-Custom-Header", "custom-value")
+                    .setBody("{}"),
+            )
+            val client = DefaultApiClient()
+            val response =
+                runBlocking {
+                    client.sendRequest("GET", baseUrl() + "/test", emptyMap(), null)
+                }
+            assertNotNull(response.headers)
+            val headerValue =
+                response.headers.entries
+                    .firstOrNull { it.key.equals("X-Custom-Header", ignoreCase = true) }
+                    ?.value
+            assertEquals("custom-value", headerValue)
+        }
+    }
+
+    @Nested
+    @DisplayName("non-2xx status")
+    inner class Non2xxStatus {
+        @Test
+        @DisplayName("returns non-2xx status code without throwing")
+        fun returnsNon2xxStatusCode() {
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(404)
+                    .setBody("not found"),
+            )
+            val client = DefaultApiClient()
+            val response =
+                runBlocking {
+                    client.sendRequest("GET", baseUrl() + "/missing", emptyMap(), null)
+                }
+            assertEquals(404, response.statusCode)
+            assertEquals("not found", response.body)
+        }
+
+        @Test
+        @DisplayName("returns 500 status code without throwing")
+        fun returns500StatusCode() {
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(500)
+                    .setBody("server error"),
+            )
+            val client = DefaultApiClient()
+            val response =
+                runBlocking {
+                    client.sendRequest("GET", baseUrl() + "/error", emptyMap(), null)
+                }
+            assertEquals(500, response.statusCode)
+            assertEquals("server error", response.body)
+        }
+    }
+
+    @Nested
+    @DisplayName("PUT requests")
+    inner class PutRequests {
+        @Test
+        @DisplayName("sends PUT request")
+        fun sendsPutRequest() {
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .setBody("{\"updated\":true}"),
+            )
+            val client = DefaultApiClient()
+            val response =
+                runBlocking {
+                    client.sendRequest("PUT", baseUrl() + "/test", emptyMap(), "update-body")
+                }
+            assertEquals(200, response.statusCode)
+
+            val request = server.takeRequest()
+            assertEquals("PUT", request.method)
+            assertTrue(request.body.readUtf8().contains("update-body"))
+        }
+    }
+
+    @Nested
+    @DisplayName("DELETE requests")
+    inner class DeleteRequests {
+        @Test
+        @DisplayName("sends DELETE request")
+        fun sendsDeleteRequest() {
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(204)
+                    .setBody(""),
+            )
+            val client = DefaultApiClient()
+            val response =
+                runBlocking {
+                    client.sendRequest("DELETE", baseUrl() + "/test/1", emptyMap(), null)
+                }
+            assertEquals(204, response.statusCode)
+
+            val request = server.takeRequest()
+            assertEquals("DELETE", request.method)
+        }
+    }
+}

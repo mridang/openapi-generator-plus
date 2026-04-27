@@ -1,0 +1,200 @@
+use std::collections::HashMap;
+
+use crate::object_serializer::stringify;
+
+/// Serializes a parameter value for HTTP requests based on its location.
+///
+/// # Arguments
+///
+/// * `value` - The value to serialize, or None
+/// * `location` - "path", "query", "header", or "cookie"
+/// * `schema_type` - The schema type (e.g. "string", "array")
+/// * `collection_format` - Legacy collection format (e.g. "csv", "ssv", "tsv", "pipes", "multi")
+pub fn serialize_value(
+    value: Option<&str>,
+    location: &str,
+    _schema_type: &str,
+    _collection_format: &str,
+) -> Option<String> {
+    match value {
+        None => serialize_nil(location),
+        Some(val) => {
+            if location == "path" {
+                Some(urlencoding::encode(val).into_owned())
+            } else {
+                Some(val.to_string())
+            }
+        }
+    }
+}
+
+/// Serializes an array value for HTTP requests based on its location.
+pub fn serialize_array_value(
+    items: &[String],
+    location: &str,
+    collection_format: &str,
+) -> Option<String> {
+    if location == "query" {
+        Some(serialize_query_array(items, collection_format))
+    } else {
+        Some(items.join(","))
+    }
+}
+
+/// Serializes a deepObject-style query parameter.
+///
+/// Produces a map of flattened keys in the form `param_name[key]` to stringified values.
+pub fn serialize_deep_object(
+    param_name: &str,
+    value: &HashMap<String, String>,
+) -> HashMap<String, String> {
+    let mut result = HashMap::new();
+    for (key, val) in value {
+        result.insert(format!("{}[{}]", param_name, key), val.clone());
+    }
+    result
+}
+
+/// Serializes a parameter value according to OAS 3.0 style and explode rules.
+///
+/// # Arguments
+///
+/// * `param_name` - The parameter name
+/// * `value` - The value to serialize, or None
+/// * `location` - "path", "query", "header", "cookie"
+/// * `schema_type` - The schema type
+/// * `collection_format` - Legacy collection format
+/// * `style` - OAS 3.0 style (e.g. "matrix", "label", "form", "simple", "spaceDelimited", "pipeDelimited")
+/// * `explode` - Whether to explode array values
+pub fn serialize_styled(
+    param_name: &str,
+    value: Option<&str>,
+    items: Option<&[String]>,
+    location: &str,
+    _schema_type: &str,
+    _collection_format: &str,
+    style: &str,
+    explode: bool,
+) -> Option<String> {
+    if style.is_empty() {
+        return match value {
+            Some(val) => {
+                if location == "path" {
+                    Some(urlencoding::encode(val).into_owned())
+                } else {
+                    Some(val.to_string())
+                }
+            }
+            None => serialize_nil(location),
+        };
+    }
+
+    let is_array = items.is_some();
+
+    match style {
+        "matrix" => {
+            if value.is_none() && !is_array {
+                return if location == "query" { None } else { Some(String::new()) };
+            }
+            if let Some(arr) = items {
+                if explode {
+                    let parts: Vec<String> = arr
+                        .iter()
+                        .map(|v| format!(";{}={}", param_name, v))
+                        .collect();
+                    Some(parts.join(""))
+                } else {
+                    Some(format!(";{}={}", param_name, arr.join(",")))
+                }
+            } else {
+                Some(format!(";{}={}", param_name, value.unwrap_or("")))
+            }
+        }
+        "label" => {
+            if value.is_none() && !is_array {
+                return if location == "query" { None } else { Some(String::new()) };
+            }
+            if let Some(arr) = items {
+                if explode {
+                    Some(format!(".{}", arr.join(".")))
+                } else {
+                    Some(format!(".{}", arr.join(",")))
+                }
+            } else {
+                Some(format!(".{}", value.unwrap_or("")))
+            }
+        }
+        "spaceDelimited" => {
+            if value.is_none() && !is_array {
+                return if location == "query" { None } else { Some(String::new()) };
+            }
+            if let Some(arr) = items {
+                Some(arr.join(" "))
+            } else {
+                Some(value.unwrap_or("").to_string())
+            }
+        }
+        "pipeDelimited" => {
+            if value.is_none() && !is_array {
+                return if location == "query" { None } else { Some(String::new()) };
+            }
+            if let Some(arr) = items {
+                Some(arr.join("|"))
+            } else {
+                Some(value.unwrap_or("").to_string())
+            }
+        }
+        "form" => {
+            if value.is_none() && !is_array {
+                return if location == "query" { None } else { Some(String::new()) };
+            }
+            if let Some(arr) = items {
+                if explode {
+                    // For exploded form, return comma-separated; the caller handles multi-value
+                    Some(arr.join(","))
+                } else {
+                    Some(arr.join(","))
+                }
+            } else {
+                Some(value.unwrap_or("").to_string())
+            }
+        }
+        "simple" => {
+            if value.is_none() && !is_array {
+                return if location == "query" { None } else { Some(String::new()) };
+            }
+            if let Some(arr) = items {
+                Some(arr.join(","))
+            } else {
+                Some(value.unwrap_or("").to_string())
+            }
+        }
+        _ => match value {
+            Some(val) => {
+                if location == "path" {
+                    Some(urlencoding::encode(val).into_owned())
+                } else {
+                    Some(val.to_string())
+                }
+            }
+            None => serialize_nil(location),
+        },
+    }
+}
+
+fn serialize_nil(location: &str) -> Option<String> {
+    if location == "query" {
+        None
+    } else {
+        Some(String::new())
+    }
+}
+
+fn serialize_query_array(items: &[String], collection_format: &str) -> String {
+    match collection_format {
+        "ssv" => items.join(" "),
+        "tsv" => items.join("\t"),
+        "pipes" => items.join("|"),
+        _ => items.join(","),
+    }
+}

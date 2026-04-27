@@ -1,0 +1,232 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"bytes"
+	"compress/gzip"
+	"compress/zlib"
+	"crypto/tls"
+	"crypto/x509"
+	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"os"
+	"strings"
+
+	"github.com/google/uuid"
+)
+
+// DefaultApiClient is the default HTTP client implementation backed by net/http.
+//
+// Applies transport-level settings from TransportOptions: TLS verification,
+// custom CA certificates, proxy routing, timeouts, redirect handling,
+// User-Agent injection, X-Request-ID injection, and transport-level
+// default headers.
+//
+// Header merge order (lowest to highest priority):
+//  1. TransportOptions.DefaultHeaders -- transport-level defaults
+//  2. Caller-provided headers (from BaseApi -- includes config defaults, auth, operation headers)
+//  3. TransportOptions.UserAgent -- injected if not already set
+//  4. TransportOptions.InjectRequestID -- injected if not already set
+type DefaultApiClient struct {
+	transportOptions *TransportOptions
+	httpClient       *http.Client
+}
+
+// NewDefaultApiClient creates a client with the given transport settings.
+// If transportOptions is nil, default transport settings are used.
+func NewDefaultApiClient(transportOptions *TransportOptions) *DefaultApiClient {
+	if transportOptions == nil {
+		transportOptions = NewTransportOptionsBuilder().Build()
+	}
+
+	httpClient := buildHTTPClient(transportOptions)
+
+	return &DefaultApiClient{
+		transportOptions: transportOptions,
+		httpClient:       httpClient,
+	}
+}
+
+// SendRequest sends an HTTP request with transport-level settings applied.
+//
+// Merges headers according to the priority order documented on the struct,
+// then dispatches via net/http.
+func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]string, body []byte) (*HttpResponse, error) {
+	merged := make(map[string]string)
+	for k, v := range c.transportOptions.DefaultHeaders() {
+		merged[k] = v
+	}
+	for k, v := range headers {
+		merged[k] = v
+	}
+	if _, ok := merged["User-Agent"]; !ok && c.transportOptions.UserAgent() != "" {
+		merged["User-Agent"] = c.transportOptions.UserAgent()
+	}
+	if _, ok := merged["X-Request-ID"]; !ok && c.transportOptions.InjectRequestID() {
+		merged["X-Request-ID"] = uuid.New().String()
+	}
+	if _, ok := merged["Accept-Encoding"]; !ok {
+		merged["Accept-Encoding"] = "gzip, deflate"
+	}
+
+	var bodyReader io.Reader
+	if body != nil {
+		bodyReader = bytes.NewReader(body)
+	}
+
+	req, err := http.NewRequest(method, url, bodyReader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	for k, v := range merged {
+		req.Header.Set(k, v)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := decompressBody(resp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	respHeaders := make(map[string]string)
+	for k := range resp.Header {
+		respHeaders[k] = resp.Header.Get(k)
+	}
+
+	return &HttpResponse{
+		StatusCode: resp.StatusCode,
+		Body:       string(respBody),
+		Headers:    respHeaders,
+	}, nil
+}
+
+// SendMultipartRequest sends a multipart/form-data request.
+func (c *DefaultApiClient) SendMultipartRequest(method, url string, headers map[string]string, formFields map[string]string, fileFields map[string]io.Reader) (*HttpResponse, error) {
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+
+	for name, value := range formFields {
+		if err := writer.WriteField(name, value); err != nil {
+			return nil, fmt.Errorf("failed to write form field %s: %w", name, err)
+		}
+	}
+
+	for name, reader := range fileFields {
+		part, err := writer.CreateFormFile(name, name)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create form file %s: %w", name, err)
+		}
+		if _, err := io.Copy(part, reader); err != nil {
+			return nil, fmt.Errorf("failed to write form file %s: %w", name, err)
+		}
+	}
+
+	if err := writer.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close multipart writer: %w", err)
+	}
+
+	merged := make(map[string]string)
+	for k, v := range c.transportOptions.DefaultHeaders() {
+		merged[k] = v
+	}
+	for k, v := range headers {
+		merged[k] = v
+	}
+	merged["Content-Type"] = writer.FormDataContentType()
+	if _, ok := merged["User-Agent"]; !ok && c.transportOptions.UserAgent() != "" {
+		merged["User-Agent"] = c.transportOptions.UserAgent()
+	}
+	if _, ok := merged["X-Request-ID"]; !ok && c.transportOptions.InjectRequestID() {
+		merged["X-Request-ID"] = uuid.New().String()
+	}
+
+	return c.SendRequest(method, url, merged, buf.Bytes())
+}
+
+// HTTPClient returns the underlying HTTP client for use by HTTP-aware authenticators.
+func (c *DefaultApiClient) HTTPClient() *http.Client {
+	return c.httpClient
+}
+
+func buildHTTPClient(opts *TransportOptions) *http.Client {
+	transport := &http.Transport{}
+
+	tlsConfig := opts.TLSConfig()
+	if tlsConfig == nil {
+		tlsConfig = &tls.Config{}
+	}
+
+	if !opts.VerifySSL() {
+		tlsConfig.InsecureSkipVerify = true
+	}
+
+	if opts.CACertPath() != "" {
+		caCert, err := os.ReadFile(opts.CACertPath())
+		if err == nil {
+			caCertPool := x509.NewCertPool()
+			caCertPool.AppendCertsFromPEM(caCert)
+			tlsConfig.RootCAs = caCertPool
+		}
+	}
+
+	transport.TLSClientConfig = tlsConfig
+
+	if opts.Proxy() != nil {
+		transport.Proxy = http.ProxyURL(opts.Proxy())
+	}
+
+	client := &http.Client{
+		Transport: transport,
+	}
+
+	if opts.Timeout() > 0 {
+		client.Timeout = opts.Timeout()
+	}
+
+	if !opts.FollowRedirects() {
+		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+	} else if opts.MaxRedirects() > 0 {
+		maxRedirects := opts.MaxRedirects()
+		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			if len(via) >= maxRedirects {
+				return fmt.Errorf("stopped after %d redirects", maxRedirects)
+			}
+			return nil
+		}
+	}
+
+	return client
+}
+
+func decompressBody(resp *http.Response) ([]byte, error) {
+	encoding := strings.ToLower(resp.Header.Get("Content-Encoding"))
+
+	switch encoding {
+	case "gzip", "x-gzip":
+		reader, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		defer reader.Close()
+		return io.ReadAll(reader)
+	case "deflate":
+		reader, err := zlib.NewReader(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		defer reader.Close()
+		return io.ReadAll(reader)
+	default:
+		return io.ReadAll(resp.Body)
+	}
+}

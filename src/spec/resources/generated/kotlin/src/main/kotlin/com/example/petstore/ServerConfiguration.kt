@@ -1,0 +1,34 @@
+package com.example.petstore
+
+/**
+ * Represents a single server entry from the OpenAPI specification.
+ */
+class ServerConfiguration(
+    val urlTemplate: String,
+    val description: String?,
+    val variables: Map<String, ServerVariable>,
+) {
+    fun getUrl(overrides: Map<String, String> = emptyMap()): String {
+        var url = urlTemplate
+        for ((varName, variable) in variables) {
+            val value = overrides.getOrDefault(varName, variable.defaultValue)
+            val enumValues = variable.enumValues
+            if (enumValues.isNotEmpty() && value !in enumValues) {
+                throw IllegalArgumentException(
+                    "Invalid value '$value' for server variable '$varName'. Allowed values: $enumValues",
+                )
+            }
+            url = url.replace("{$varName}", value)
+        }
+        return url
+    }
+}
+
+/**
+ * Represents a server variable with a default value and optional enum constraint.
+ */
+data class ServerVariable(
+    val defaultValue: String,
+    val description: String?,
+    val enumValues: List<String>,
+)

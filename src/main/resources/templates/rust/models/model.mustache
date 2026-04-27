@@ -1,0 +1,137 @@
+use serde::{Serialize, Deserialize};
+#[allow(unused_imports)]
+use super::*;
+
+{{#models}}
+{{#model}}
+{{#isEnum}}
+/// {{classname}} is an enumeration of allowed values.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum {{classname}} {
+{{#allowableValues}}
+{{#enumVars}}
+    /// Represents the value {{{value}}}.
+    #[serde(rename = {{{value}}})]
+    {{name}},
+{{/enumVars}}
+{{/allowableValues}}
+}
+
+impl {{classname}} {
+    /// Returns all allowed values of {{classname}}.
+    pub fn all_values() -> Vec<{{classname}}> {
+        vec![
+{{#allowableValues}}
+{{#enumVars}}
+            {{classname}}::{{name}},
+{{/enumVars}}
+{{/allowableValues}}
+        ]
+    }
+}
+{{/isEnum}}
+{{^isEnum}}
+{{^oneOf}}
+{{^anyOf}}
+{{#description}}
+/// {{classname}} {{{.}}}
+{{/description}}
+{{^description}}
+/// {{classname}} is a model class generated from the OpenAPI schema.
+{{/description}}
+{{#isDeprecated}}
+#[deprecated]
+{{/isDeprecated}}
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct {{classname}} {
+{{#vars}}
+{{#description}}
+    /// {{{.}}}
+{{/description}}
+{{#deprecated}}
+    #[deprecated]
+{{/deprecated}}
+{{#required}}
+    #[serde(rename = "{{baseName}}")]
+    pub {{name}}: {{{dataType}}},
+{{/required}}
+{{^required}}
+    #[serde(rename = "{{baseName}}", skip_serializing_if = "Option::is_none")]
+    pub {{name}}: Option<{{{dataType}}}>,
+{{/required}}
+{{/vars}}
+}
+
+{{#hasVars}}
+#[allow(deprecated)]
+impl {{classname}} {
+    /// Creates a new {{classname}} instance with required parameters.
+    pub fn new({{#requiredVars}}{{name}}: {{{dataType}}}{{^-last}}, {{/-last}}{{/requiredVars}}) -> Self {
+        Self {
+{{#requiredVars}}
+            {{name}},
+{{/requiredVars}}
+{{#optionalVars}}
+            {{name}}: None,
+{{/optionalVars}}
+        }
+    }
+}
+{{/hasVars}}
+{{/anyOf}}
+{{/oneOf}}
+{{#oneOf}}
+{{#-first}}
+{{#description}}
+/// {{classname}} {{{.}}}
+{{/description}}
+{{^description}}
+/// {{classname}} is a union type (oneOf).
+{{/description}}
+{{#isDeprecated}}
+#[deprecated]
+{{/isDeprecated}}
+{{#discriminator}}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "{{propertyBaseName}}")]
+pub enum {{classname}} {
+{{#mappedModels}}
+    #[serde(rename = "{{{mappingName}}}")]
+    {{{modelName}}}({{{modelName}}}),
+{{/mappedModels}}
+}
+{{/discriminator}}
+{{^discriminator}}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum {{classname}} {
+{{#oneOf}}
+    {{#rustVariantName}}{{{.}}}{{/rustVariantName}}({{{.}}}),
+{{/oneOf}}
+}
+{{/discriminator}}
+{{/-first}}
+{{/oneOf}}
+{{#anyOf}}
+{{#-first}}
+{{#description}}
+/// {{classname}} {{{.}}}
+{{/description}}
+{{^description}}
+/// {{classname}} is a union type (anyOf).
+{{/description}}
+{{#isDeprecated}}
+#[deprecated]
+{{/isDeprecated}}
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum {{classname}} {
+{{#anyOf}}
+    {{#rustVariantName}}{{{.}}}{{/rustVariantName}}({{{.}}}),
+{{/anyOf}}
+}
+{{/-first}}
+{{/anyOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}

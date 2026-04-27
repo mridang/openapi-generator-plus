@@ -1,0 +1,212 @@
+package {{invokerPackage}}
+
+import {{apiPackage}}.PetApi
+import {{apiPackage}}.options.FindPetsByStatusOptions
+import {{invokerPackage}}.exceptions.*
+import kotlinx.coroutines.runBlocking
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.*
+
+class BaseApiTest {
+
+    private val server = MockWebServer()
+
+    @AfterEach
+    fun tearDown() {
+        server.shutdown()
+    }
+
+    private fun apiForServer(): PetApi {
+        val config = Configuration.builder()
+            .baseUrl(server.url("/").toString().trimEnd('/'))
+            .build()
+        return PetApi(DefaultApiClient(), config)
+    }
+
+    @Nested
+    @DisplayName("error dispatch")
+    inner class ErrorDispatch {
+
+        @Test
+        @DisplayName("400 throws BadRequestException")
+        fun throws400() {
+            server.enqueue(MockResponse().setResponseCode(400).setBody("{\"error\":\"bad request\"}"))
+            val api = apiForServer()
+            val ex = assertThrows(BadRequestException::class.java) {
+                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+            }
+            assertEquals(400, ex.code)
+        }
+
+        @Test
+        @DisplayName("401 throws UnauthorizedException")
+        fun throws401() {
+            server.enqueue(MockResponse().setResponseCode(401).setBody("{\"error\":\"unauthorized\"}"))
+            val api = apiForServer()
+            assertThrows(UnauthorizedException::class.java) {
+                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+            }
+        }
+
+        @Test
+        @DisplayName("403 throws ForbiddenException")
+        fun throws403() {
+            server.enqueue(MockResponse().setResponseCode(403).setBody("{\"error\":\"forbidden\"}"))
+            val api = apiForServer()
+            assertThrows(ForbiddenException::class.java) {
+                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+            }
+        }
+
+        @Test
+        @DisplayName("404 throws NotFoundException")
+        fun throws404() {
+            server.enqueue(MockResponse().setResponseCode(404).setBody("{\"error\":\"not found\"}"))
+            val api = apiForServer()
+            assertThrows(NotFoundException::class.java) {
+                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+            }
+        }
+
+        @Test
+        @DisplayName("409 throws ConflictException")
+        fun throws409() {
+            server.enqueue(MockResponse().setResponseCode(409).setBody("{\"error\":\"conflict\"}"))
+            val api = apiForServer()
+            assertThrows(ConflictException::class.java) {
+                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+            }
+        }
+
+        @Test
+        @DisplayName("422 throws UnprocessableEntityException")
+        fun throws422() {
+            server.enqueue(MockResponse().setResponseCode(422).setBody("{\"error\":\"unprocessable\"}"))
+            val api = apiForServer()
+            assertThrows(UnprocessableEntityException::class.java) {
+                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+            }
+        }
+
+        @Test
+        @DisplayName("500 throws InternalServerErrorException")
+        fun throws500() {
+            server.enqueue(MockResponse().setResponseCode(500).setBody("{\"error\":\"server error\"}"))
+            val api = apiForServer()
+            assertThrows(InternalServerErrorException::class.java) {
+                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+            }
+        }
+
+        @Test
+        @DisplayName("502 throws ServerException")
+        fun throws502() {
+            server.enqueue(MockResponse().setResponseCode(502).setBody("{\"error\":\"bad gateway\"}"))
+            val api = apiForServer()
+            assertThrows(ServerException::class.java) {
+                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("exception hierarchy")
+    inner class ExceptionHierarchy {
+
+        @Test
+        @DisplayName("NotFoundException is a ClientException")
+        fun notFoundIsClientException() {
+            server.enqueue(MockResponse().setResponseCode(404).setBody("{\"error\":\"not found\"}"))
+            val api = apiForServer()
+            val ex = assertThrows(NotFoundException::class.java) {
+                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+            }
+            assertInstanceOf(ClientException::class.java, ex)
+            assertInstanceOf(ApiException::class.java, ex)
+        }
+
+        @Test
+        @DisplayName("InternalServerErrorException is a ServerException")
+        fun internalServerErrorIsServerException() {
+            server.enqueue(MockResponse().setResponseCode(500).setBody("{\"error\":\"server error\"}"))
+            val api = apiForServer()
+            val ex = assertThrows(InternalServerErrorException::class.java) {
+                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+            }
+            assertInstanceOf(ServerException::class.java, ex)
+            assertInstanceOf(ApiException::class.java, ex)
+        }
+    }
+
+    @Nested
+    @DisplayName("JSON response deserialization")
+    inner class JsonDeserialization {
+
+        @Test
+        @DisplayName("deserializes JSON response body")
+        fun deserializesJsonResponse() {
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .addHeader("Content-Type", "application/json")
+                    .setBody("[{\"id\":1,\"name\":\"Fido\",\"status\":\"available\"}]")
+            )
+            val api = apiForServer()
+            val pets = runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+            assertNotNull(pets)
+            assertTrue(pets!!.isNotEmpty())
+        }
+    }
+
+    @Nested
+    @DisplayName("auth header forwarding")
+    inner class AuthHeaderForwarding {
+
+        @Test
+        @DisplayName("forwards config default headers in request")
+        fun forwardsConfigDefaultHeaders() {
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .addHeader("Content-Type", "application/json")
+                    .setBody("[{\"id\":1,\"name\":\"Fido\",\"status\":\"available\"}]")
+            )
+            val config = Configuration.builder()
+                .baseUrl(server.url("/").toString().trimEnd('/'))
+                .defaultHeader("Authorization", "Bearer test-token")
+                .build()
+            val api = PetApi(DefaultApiClient(), config)
+            runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+
+            val request = server.takeRequest()
+            assertEquals("Bearer test-token", request.getHeader("Authorization"))
+        }
+    }
+
+    @Nested
+    @DisplayName("nil body handling")
+    inner class NilBodyHandling {
+
+        @Test
+        @DisplayName("GET requests send no body")
+        fun getRequestsSendNoBody() {
+            server.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .addHeader("Content-Type", "application/json")
+                    .setBody("[{\"id\":1,\"name\":\"Fido\",\"status\":\"available\"}]")
+            )
+            val api = apiForServer()
+            runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+
+            val request = server.takeRequest()
+            assertEquals("GET", request.method)
+            assertEquals(0, request.bodySize)
+        }
+    }
+}

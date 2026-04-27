@@ -1,0 +1,89 @@
+package com.example.petstore
+
+import com.example.petstore.api.PetApi
+import com.example.petstore.api.StoreApi
+import com.example.petstore.auth.Authenticator
+import com.example.petstore.auth.BearerAuthenticator
+import com.example.petstore.auth.HttpAwareAuthenticator
+
+/**
+ * Unified entry point for all API services.
+ *
+ * Takes an [Authenticator] and optionally [TransportOptions], then exposes each
+ * API group as a typed property. If the authenticator implements
+ * [HttpAwareAuthenticator], the shared [ApiClient] is injected so that
+ * authentication HTTP calls (token exchange, discovery) use the same transport
+ * configuration as regular API calls.
+ *
+ * Usage:
+ * ```kotlin
+ * // Default transport
+ * val client = Client(authenticator)
+ *
+ * // Custom transport (proxy, timeouts, etc.)
+ * val transport = TransportOptions.builder()
+ *     .proxy("http://proxy:3128")
+ *     .timeout(5000)
+ *     .build()
+ * val client = Client(authenticator, transport)
+ * ```
+ */
+class Client {
+    /** API operations for the PetApi group. */
+    val pet: PetApi
+
+    /** API operations for the StoreApi group. */
+    val store: StoreApi
+
+    /**
+     * Creates a new client with the given authenticator and default transport settings.
+     *
+     * @param authenticator provides host URL and auth credentials
+     */
+    constructor(authenticator: Authenticator) : this(authenticator, TransportOptions.builder().build())
+
+    /**
+     * Creates a new client with the given authenticator and transport options.
+     *
+     * If the authenticator implements [HttpAwareAuthenticator], the shared
+     * [ApiClient] is injected so that token exchange and discovery requests
+     * use the same proxy, TLS, and timeout settings.
+     *
+     * @param authenticator provides host URL and auth credentials
+     * @param transportOptions HTTP transport configuration (proxy, TLS, timeouts, etc.)
+     */
+    constructor(authenticator: Authenticator, transportOptions: TransportOptions) {
+        val apiClient: ApiClient = DefaultApiClient(transportOptions)
+
+        if (authenticator is HttpAwareAuthenticator) {
+            authenticator.apiClient = apiClient
+        }
+
+        val configBuilder =
+            Configuration
+                .builder()
+                .baseUrl(authenticator.getHost())
+                .defaultHeaders(authenticator.getAuthHeaders())
+        for ((key, value) in authenticator.getQueryParams()) {
+            configBuilder.defaultHeader("_query_$key", value)
+        }
+        val config = configBuilder.build()
+
+        this.pet = PetApi(apiClient, config)
+        this.store = StoreApi(apiClient, config)
+    }
+
+    companion object {
+        /**
+         * Creates a client authenticated with a static Bearer token and default transport.
+         *
+         * @param host API base URL
+         * @param accessToken Bearer token
+         * @return configured client instance
+         */
+        fun withToken(
+            host: String,
+            accessToken: String,
+        ): Client = Client(BearerAuthenticator(host, accessToken))
+    }
+}

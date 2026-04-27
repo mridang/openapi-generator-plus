@@ -1,0 +1,46 @@
+package com.example.petstore.auth.oauth
+
+import com.example.petstore.ApiClient
+import com.example.petstore.auth.HttpAwareAuthenticator
+
+/**
+ * Authenticator for the OAuth2 Client Credentials flow.
+ *
+ * Implements [HttpAwareAuthenticator] so that token exchange requests
+ * use the shared [ApiClient] with the same transport configuration
+ * (proxy, TLS, timeouts) as regular API calls.
+ */
+open class OAuth2ClientCredentialsAuthenticator(
+    private val host: String,
+    private val clientId: String,
+    private val clientSecret: String,
+    private val tokenUrl: String,
+    private val scopes: List<String>,
+) : HttpAwareAuthenticator() {
+    private val tokenManager = OAuth2TokenManager()
+
+    override fun getHost(): String = host
+
+    override fun getAuthHeaders(): Map<String, String> {
+        val params =
+            mutableMapOf(
+                "grant_type" to "client_credentials",
+                "client_id" to clientId,
+                "client_secret" to clientSecret,
+            )
+        if (scopes.isNotEmpty()) {
+            params["scope"] = scopes.joinToString(" ")
+        }
+        val token = tokenManager.getAccessToken(tokenUrl, params)
+        return mapOf("Authorization" to "Bearer $token")
+    }
+
+    override var apiClient: ApiClient?
+        get() = super.apiClient
+        set(value) {
+            super.apiClient = value
+            if (value != null) {
+                tokenManager.apiClient = value
+            }
+        }
+}

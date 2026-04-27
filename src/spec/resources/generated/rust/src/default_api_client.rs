@@ -1,0 +1,137 @@
+use std::collections::HashMap;
+use std::io::Read;
+
+use reqwest::blocking::{Client, ClientBuilder};
+use reqwest::Proxy;
+use uuid::Uuid;
+
+use crate::api_client::ApiClient;
+use crate::api_response::ApiResponse;
+use crate::transport_options::TransportOptions;
+use crate::transport_options::TransportOptionsBuilder;
+
+/// DefaultApiClient is the default HTTP client implementation backed by reqwest::blocking.
+///
+/// Applies transport-level settings from TransportOptions: TLS verification,
+/// custom CA certificates, proxy routing, timeouts, redirect handling,
+/// User-Agent injection, X-Request-ID injection, and transport-level
+/// default headers.
+///
+/// Header merge order (lowest to highest priority):
+///  1. TransportOptions default_headers -- transport-level defaults
+///  2. Caller-provided headers (from BaseApi -- includes config defaults, auth, operation headers)
+///  3. TransportOptions user_agent -- injected if not already set
+///  4. TransportOptions inject_request_id -- injected if not already set
+pub struct DefaultApiClient {
+    transport_options: TransportOptions,
+    http_client: Client,
+}
+
+impl DefaultApiClient {
+    /// Creates a client with the given transport settings.
+    /// If `transport_options` is None, default transport settings are used.
+    pub fn new(transport_options: Option<TransportOptions>) -> Self {
+        let opts = transport_options.unwrap_or_else(|| TransportOptionsBuilder::new().build());
+        let http_client = build_http_client(&opts);
+        Self {
+            transport_options: opts,
+            http_client,
+        }
+    }
+}
+
+impl ApiClient for DefaultApiClient {
+    /// Sends an HTTP request with transport-level settings applied.
+    ///
+    /// Merges headers according to the priority order documented on the struct,
+    /// then dispatches via reqwest::blocking.
+    fn send_request(
+        &self,
+        method: &str,
+        url: &str,
+        headers: &HashMap<String, String>,
+        body: Option<&[u8]>,
+    ) -> Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>> {
+        let mut merged: HashMap<String, String> = self.transport_options.default_headers();
+        for (k, v) in headers {
+            merged.insert(k.clone(), v.clone());
+        }
+        if !merged.contains_key("User-Agent") && !self.transport_options.user_agent().is_empty() {
+            merged.insert(
+                "User-Agent".to_string(),
+                self.transport_options.user_agent().to_string(),
+            );
+        }
+        if !merged.contains_key("X-Request-ID") && self.transport_options.inject_request_id() {
+            merged.insert("X-Request-ID".to_string(), Uuid::new_v4().to_string());
+        }
+        if !merged.contains_key("Accept-Encoding") {
+            merged.insert("Accept-Encoding".to_string(), "gzip, deflate".to_string());
+        }
+
+        let http_method = method
+            .parse::<reqwest::Method>()
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
+
+        let mut request_builder = self.http_client.request(http_method, url);
+
+        for (k, v) in &merged {
+            request_builder = request_builder.header(k.as_str(), v.as_str());
+        }
+
+        if let Some(body_bytes) = body {
+            request_builder = request_builder.body(body_bytes.to_vec());
+        }
+
+        let response = request_builder.send()?;
+
+        let status_code = response.status().as_u16();
+        let resp_headers: HashMap<String, String> = response
+            .headers()
+            .iter()
+            .map(|(k, v)| (k.as_str().to_string(), v.to_str().unwrap_or("").to_string()))
+            .collect();
+
+        let mut resp_body = String::new();
+        let mut reader = response;
+        reader.read_to_string(&mut resp_body)?;
+
+        Ok(ApiResponse {
+            status_code,
+            body: resp_body,
+            headers: resp_headers,
+        })
+    }
+}
+
+fn build_http_client(opts: &TransportOptions) -> Client {
+    let mut builder = ClientBuilder::new();
+
+    builder = builder.danger_accept_invalid_certs(!opts.verify_ssl());
+
+    if let Some(ca_path) = opts.ca_cert_path() {
+        if let Ok(ca_bytes) = std::fs::read(ca_path) {
+            if let Ok(cert) = reqwest::Certificate::from_pem(&ca_bytes) {
+                builder = builder.add_root_certificate(cert);
+            }
+        }
+    }
+
+    if let Some(proxy_url) = opts.proxy() {
+        if let Ok(proxy) = Proxy::all(proxy_url) {
+            builder = builder.proxy(proxy);
+        }
+    }
+
+    if let Some(timeout) = opts.timeout() {
+        builder = builder.timeout(timeout);
+    }
+
+    if !opts.follow_redirects() {
+        builder = builder.redirect(reqwest::redirect::Policy::none());
+    } else if let Some(max) = opts.max_redirects() {
+        builder = builder.redirect(reqwest::redirect::Policy::limited(max));
+    }
+
+    builder.build().expect("failed to build HTTP client")
+}

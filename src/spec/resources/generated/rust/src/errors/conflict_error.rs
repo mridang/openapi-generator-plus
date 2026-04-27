@@ -1,0 +1,27 @@
+use std::fmt;
+
+use crate::errors::client_error::ClientError;
+
+/// ConflictError represents an HTTP 409 Conflict error.
+#[derive(Debug, Clone)]
+pub struct ConflictError {
+    pub client_error: ClientError,
+}
+
+impl fmt::Display for ConflictError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Conflict (409): {}", self.client_error.api_error.message)
+    }
+}
+
+impl std::error::Error for ConflictError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.client_error)
+    }
+}
+
+impl From<ClientError> for ConflictError {
+    fn from(client_error: ClientError) -> Self {
+        Self { client_error }
+    }
+}

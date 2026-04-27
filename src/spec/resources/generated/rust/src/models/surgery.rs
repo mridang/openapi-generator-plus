@@ -1,0 +1,23 @@
+#[allow(unused_imports)]
+use super::*;
+use serde::{Deserialize, Serialize};
+
+/// Surgery is a model class generated from the OpenAPI schema.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct Surgery {
+    #[serde(rename = "procedureName")]
+    pub procedure_name: String,
+    #[serde(rename = "durationMinutes", skip_serializing_if = "Option::is_none")]
+    pub duration_minutes: Option<i32>,
+}
+
+#[allow(deprecated)]
+impl Surgery {
+    /// Creates a new Surgery instance with required parameters.
+    pub fn new(procedure_name: String) -> Self {
+        Self {
+            procedure_name,
+            duration_minutes: None,
+        }
+    }
+}

@@ -1,0 +1,68 @@
+package com.example.petstore
+
+/**
+ * Immutable HTTP transport configuration.
+ */
+class TransportOptions private constructor(
+    val verifySsl: Boolean,
+    val caCertPath: String?,
+    val proxy: String?,
+    val timeout: Int?,
+    val followRedirects: Boolean,
+    val maxRedirects: Int?,
+    val userAgent: String?,
+    val defaultHeaders: Map<String, String>,
+    val injectRequestId: Boolean,
+) {
+    companion object {
+        fun builder(): Builder = Builder()
+    }
+
+    class Builder {
+        private var verifySsl: Boolean = true
+        private var caCertPath: String? = null
+        private var proxy: String? = null
+        private var timeout: Int? = null
+        private var followRedirects: Boolean = true
+        private var maxRedirects: Int? = null
+        private var userAgent: String? = "com.example.petstore/1.0.0 (kotlin)"
+        private val defaultHeaders: MutableMap<String, String> = mutableMapOf()
+        private var injectRequestId: Boolean = false
+
+        fun verifySsl(verifySsl: Boolean): Builder = apply { this.verifySsl = verifySsl }
+
+        fun caCertPath(caCertPath: String?): Builder = apply { this.caCertPath = caCertPath }
+
+        fun proxy(proxy: String?): Builder = apply { this.proxy = proxy }
+
+        fun timeout(timeout: Int?): Builder = apply { this.timeout = timeout }
+
+        fun followRedirects(followRedirects: Boolean): Builder = apply { this.followRedirects = followRedirects }
+
+        fun maxRedirects(maxRedirects: Int?): Builder = apply { this.maxRedirects = maxRedirects }
+
+        fun userAgent(userAgent: String?): Builder = apply { this.userAgent = userAgent }
+
+        fun defaultHeader(
+            name: String,
+            value: String,
+        ): Builder = apply { defaultHeaders[name] = value }
+
+        fun defaultHeaders(headers: Map<String, String>): Builder = apply { defaultHeaders.putAll(headers) }
+
+        fun injectRequestId(injectRequestId: Boolean): Builder = apply { this.injectRequestId = injectRequestId }
+
+        fun build(): TransportOptions =
+            TransportOptions(
+                verifySsl,
+                caCertPath,
+                proxy,
+                timeout,
+                followRedirects,
+                maxRedirects,
+                userAgent,
+                defaultHeaders.toMap(),
+                injectRequestId,
+            )
+    }
+}

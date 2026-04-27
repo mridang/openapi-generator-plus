@@ -1,0 +1,219 @@
+use std::collections::HashMap;
+use std::time::Duration;
+
+/// TransportOptions holds immutable HTTP transport configuration for DefaultApiClient.
+///
+/// Controls low-level HTTP behavior such as TLS verification, proxy routing,
+/// timeouts, redirect handling, and automatic header injection. These settings
+/// are independent of API-level concerns (base URL, authentication headers)
+/// which belong in `Configuration`.
+///
+/// Use `TransportOptionsBuilder` to create instances:
+///
+/// ```rust,no_run
+/// # use std::time::Duration;
+/// # use {{packageName}}::TransportOptionsBuilder;
+/// let transport = TransportOptionsBuilder::new()
+///     .verify_ssl(false)
+///     .proxy("http://proxy.example.com:8080")
+///     .timeout(Duration::from_secs(5))
+///     .user_agent("MyApp/1.0")
+///     .build();
+/// ```
+#[derive(Debug, Clone)]
+pub struct TransportOptions {
+    /// Controls whether TLS certificate verification is enabled.
+    verify_ssl: bool,
+
+    /// Path to a custom CA certificate bundle for TLS verification.
+    ca_cert_path: Option<String>,
+
+    /// HTTP or HTTPS proxy URL for all outbound requests.
+    proxy: Option<String>,
+
+    /// End-to-end request timeout. Covers the entire request lifecycle:
+    /// connection, TLS handshake, sending the request body, and reading
+    /// the response. `None` means no timeout.
+    timeout: Option<Duration>,
+
+    /// Controls whether the client follows HTTP 3xx redirects.
+    follow_redirects: bool,
+
+    /// Maximum number of consecutive redirects to follow.
+    /// Only meaningful when `follow_redirects` is true.
+    max_redirects: Option<usize>,
+
+    /// Custom User-Agent header value.
+    user_agent: String,
+
+    /// Transport-level default headers included in every request. These have
+    /// the lowest priority: API-level headers, operation-specific headers,
+    /// and authentication headers all take precedence.
+    default_headers: HashMap<String, String>,
+
+    /// Controls whether to auto-inject an X-Request-ID header with a unique
+    /// UUID on every request.
+    inject_request_id: bool,
+}
+
+impl TransportOptions {
+    /// Returns whether TLS certificate verification is enabled.
+    pub fn verify_ssl(&self) -> bool {
+        self.verify_ssl
+    }
+
+    /// Returns the path to a custom CA certificate bundle.
+    pub fn ca_cert_path(&self) -> Option<&str> {
+        self.ca_cert_path.as_deref()
+    }
+
+    /// Returns the proxy URL, or None if no proxy is configured.
+    pub fn proxy(&self) -> Option<&str> {
+        self.proxy.as_deref()
+    }
+
+    /// Returns the end-to-end request timeout.
+    pub fn timeout(&self) -> Option<Duration> {
+        self.timeout
+    }
+
+    /// Returns whether the client follows HTTP 3xx redirects.
+    pub fn follow_redirects(&self) -> bool {
+        self.follow_redirects
+    }
+
+    /// Returns the maximum number of consecutive redirects to follow.
+    pub fn max_redirects(&self) -> Option<usize> {
+        self.max_redirects
+    }
+
+    /// Returns the custom User-Agent header value.
+    pub fn user_agent(&self) -> &str {
+        &self.user_agent
+    }
+
+    /// Returns a copy of the transport-level default headers.
+    pub fn default_headers(&self) -> HashMap<String, String> {
+        self.default_headers.clone()
+    }
+
+    /// Returns whether X-Request-ID injection is enabled.
+    pub fn inject_request_id(&self) -> bool {
+        self.inject_request_id
+    }
+}
+
+/// TransportOptionsBuilder builds immutable TransportOptions instances.
+pub struct TransportOptionsBuilder {
+    verify_ssl: bool,
+    ca_cert_path: Option<String>,
+    proxy: Option<String>,
+    timeout: Option<Duration>,
+    follow_redirects: bool,
+    max_redirects: Option<usize>,
+    user_agent: String,
+    default_headers: HashMap<String, String>,
+    inject_request_id: bool,
+}
+
+impl TransportOptionsBuilder {
+    /// Creates a new builder with sensible defaults.
+    pub fn new() -> Self {
+        Self {
+            verify_ssl: true,
+            ca_cert_path: None,
+            proxy: None,
+            timeout: None,
+            follow_redirects: true,
+            max_redirects: None,
+            user_agent: "{{userAgentDefault}}".to_string(),
+            default_headers: HashMap::new(),
+            inject_request_id: false,
+        }
+    }
+
+    /// Enables or disables TLS certificate verification.
+    pub fn verify_ssl(mut self, val: bool) -> Self {
+        self.verify_ssl = val;
+        self
+    }
+
+    /// Sets the path to a custom CA certificate bundle.
+    pub fn ca_cert_path(mut self, val: &str) -> Self {
+        self.ca_cert_path = Some(val.to_string());
+        self
+    }
+
+    /// Sets the HTTP/HTTPS proxy URL.
+    pub fn proxy(mut self, val: &str) -> Self {
+        if val.is_empty() {
+            self.proxy = None;
+        } else {
+            self.proxy = Some(val.to_string());
+        }
+        self
+    }
+
+    /// Sets the end-to-end request timeout.
+    pub fn timeout(mut self, val: Duration) -> Self {
+        self.timeout = Some(val);
+        self
+    }
+
+    /// Enables or disables automatic redirect following.
+    pub fn follow_redirects(mut self, val: bool) -> Self {
+        self.follow_redirects = val;
+        self
+    }
+
+    /// Sets the maximum number of redirects to follow.
+    pub fn max_redirects(mut self, val: usize) -> Self {
+        self.max_redirects = Some(val);
+        self
+    }
+
+    /// Sets a custom User-Agent header value.
+    pub fn user_agent(mut self, val: &str) -> Self {
+        self.user_agent = val.to_string();
+        self
+    }
+
+    /// Adds a single transport-level default header.
+    pub fn default_header(mut self, name: &str, value: &str) -> Self {
+        self.default_headers.insert(name.to_string(), value.to_string());
+        self
+    }
+
+    /// Adds multiple transport-level default headers.
+    pub fn default_headers(mut self, headers: HashMap<String, String>) -> Self {
+        self.default_headers.extend(headers);
+        self
+    }
+
+    /// Enables or disables automatic X-Request-ID header injection.
+    pub fn inject_request_id(mut self, val: bool) -> Self {
+        self.inject_request_id = val;
+        self
+    }
+
+    /// Creates and returns an immutable TransportOptions instance.
+    pub fn build(self) -> TransportOptions {
+        TransportOptions {
+            verify_ssl: self.verify_ssl,
+            ca_cert_path: self.ca_cert_path,
+            proxy: self.proxy,
+            timeout: self.timeout,
+            follow_redirects: self.follow_redirects,
+            max_redirects: self.max_redirects,
+            user_agent: self.user_agent,
+            default_headers: self.default_headers,
+            inject_request_id: self.inject_request_id,
+        }
+    }
+}
+
+impl Default for TransportOptionsBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

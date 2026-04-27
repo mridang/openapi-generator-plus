@@ -129,12 +129,39 @@ class GenerateClientsTest {
     }
 
     @Test
+    void generateGoClient() throws IOException {
+        Path outputDir = Path.of("src/spec/resources/generated/go").toAbsolutePath();
+        generateClient("go-plus", Map.of("packageName", "petstore"), outputDir);
+
+    }
+
+    @Test
     void generateCSharpClient() throws IOException {
         Path outputDir = Path.of("src/spec/resources/generated/csharp").toAbsolutePath();
         generateClient(
                 "csharp-plus",
                 Map.of("packageName", "PetstoreClient", "sourceFolder", "src"),
                 outputDir);
+
+    }
+
+    @Test
+    void generateKotlinClient() throws IOException {
+        Path outputDir = Path.of("src/spec/resources/generated/kotlin").toAbsolutePath();
+        generateClient(
+                "kotlin-plus",
+                Map.of(
+                        "modelPackage", "com.example.petstore.models",
+                        "apiPackage", "com.example.petstore.api",
+                        "invokerPackage", "com.example.petstore"),
+                outputDir);
+
+    }
+
+    @Test
+    void generateRustClient() throws IOException {
+        Path outputDir = Path.of("src/spec/resources/generated/rust").toAbsolutePath();
+        generateClient("rust-plus", Map.of("packageName", "petstore"), outputDir);
 
     }
 }

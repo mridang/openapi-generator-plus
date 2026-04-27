@@ -1,0 +1,332 @@
+package com.example.petstore
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.Headers.Companion.toHeaders
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.File
+import java.io.InputStream
+import java.net.InetSocketAddress
+import java.net.Proxy
+import java.security.KeyStore
+import java.security.cert.CertificateFactory
+import java.security.cert.X509Certificate
+import java.util.UUID
+import java.util.concurrent.TimeUnit
+import java.util.zip.GZIPInputStream
+import java.util.zip.InflaterInputStream
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.X509TrustManager
+
+/**
+ * Default implementation of [ApiClient] using OkHttp.
+ *
+ * Applies transport-level settings from [TransportOptions]: TLS
+ * verification, custom CA certificates, proxy routing, timeouts, redirect
+ * handling, `User-Agent` injection, `X-Request-ID` injection,
+ * and transport-level default headers.
+ *
+ * Header merge order (lowest to highest priority):
+ * 1. [TransportOptions.defaultHeaders] -- transport-level defaults
+ * 2. Caller-provided headers (from `BaseApi` -- includes config defaults, auth, operation headers)
+ * 3. [TransportOptions.userAgent] -- injected if not already set
+ * 4. [TransportOptions.injectRequestId] -- injected if not already set
+ */
+class DefaultApiClient : ApiClient {
+    private val httpClient: OkHttpClient
+    private val transportOptions: TransportOptions
+
+    companion object {
+        private val TRUST_ALL_MANAGER =
+            object : X509TrustManager {
+                override fun checkClientTrusted(
+                    chain: Array<X509Certificate>,
+                    authType: String,
+                ) {}
+
+                override fun checkServerTrusted(
+                    chain: Array<X509Certificate>,
+                    authType: String,
+                ) {}
+
+                override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+            }
+    }
+
+    /**
+     * Create a client with default transport settings.
+     *
+     * Equivalent to `DefaultApiClient(TransportOptions.builder().build())`.
+     */
+    constructor() : this(TransportOptions.builder().build())
+
+    /**
+     * Create a client configured from the given [TransportOptions].
+     *
+     * Applies proxy, custom CA certificate, TLS verification, timeout,
+     * and redirect settings to the underlying OkHttp client.
+     *
+     * @param transportOptions transport configuration to apply
+     */
+    constructor(transportOptions: TransportOptions) {
+        this.transportOptions = transportOptions
+        val builder = OkHttpClient.Builder()
+
+        if (transportOptions.proxy != null) {
+            val proxyUri = java.net.URI.create(transportOptions.proxy)
+            val port =
+                if (proxyUri.port == -1) {
+                    if ("https" == proxyUri.scheme) 443 else 8080
+                } else {
+                    proxyUri.port
+                }
+            builder.proxy(Proxy(Proxy.Type.HTTP, InetSocketAddress(proxyUri.host, port)))
+        }
+
+        if (!transportOptions.verifySsl) {
+            val sslContext = SSLContext.getInstance("TLS")
+            sslContext.init(null, arrayOf(TRUST_ALL_MANAGER), null)
+            builder.sslSocketFactory(sslContext.socketFactory, TRUST_ALL_MANAGER)
+            builder.hostnameVerifier { _, _ -> true }
+        } else if (transportOptions.caCertPath != null) {
+            val cf = CertificateFactory.getInstance("X.509")
+            val caCert =
+                java.io.FileInputStream(transportOptions.caCertPath).use { fis ->
+                    cf.generateCertificate(fis) as X509Certificate
+                }
+            val trustStore = KeyStore.getInstance(KeyStore.getDefaultType())
+            trustStore.load(null, null)
+            trustStore.setCertificateEntry("ca", caCert)
+            val tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
+            tmf.init(trustStore)
+            val sslContext = SSLContext.getInstance("TLS")
+            sslContext.init(null, tmf.trustManagers, null)
+            val trustManager = tmf.trustManagers[0] as X509TrustManager
+            builder.sslSocketFactory(sslContext.socketFactory, trustManager)
+        }
+
+        builder.followRedirects(transportOptions.followRedirects)
+
+        if (transportOptions.timeout != null) {
+            builder.connectTimeout(transportOptions.timeout.toLong(), TimeUnit.MILLISECONDS)
+            builder.readTimeout(transportOptions.timeout.toLong(), TimeUnit.MILLISECONDS)
+            builder.writeTimeout(transportOptions.timeout.toLong(), TimeUnit.MILLISECONDS)
+        }
+
+        this.httpClient = builder.build()
+    }
+
+    /**
+     * Create a client with a pre-configured OkHttp client.
+     *
+     * Uses default [TransportOptions] for header injection settings.
+     *
+     * @param httpClient the OkHttp client to use
+     */
+    constructor(httpClient: OkHttpClient) {
+        this.httpClient = httpClient
+        this.transportOptions = TransportOptions.builder().build()
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    override suspend fun sendRequest(
+        method: String,
+        url: String,
+        headers: Map<String, String>,
+        body: Any?,
+    ): ApiResponse =
+        withContext(Dispatchers.IO) {
+            val mergedHeaders = mutableMapOf<String, String>()
+            mergedHeaders.putAll(transportOptions.defaultHeaders)
+            mergedHeaders.putAll(headers)
+
+            if (transportOptions.userAgent != null && "User-Agent" !in mergedHeaders) {
+                mergedHeaders["User-Agent"] = transportOptions.userAgent!!
+            }
+            if (transportOptions.injectRequestId && "X-Request-ID" !in mergedHeaders) {
+                mergedHeaders["X-Request-ID"] = UUID.randomUUID().toString()
+            }
+
+            val requestBody: RequestBody? =
+                when {
+                    body == null && method in listOf("POST", "PUT", "PATCH") ->
+                        "".toRequestBody(null)
+                    body == null ->
+                        null
+                    body is Map<*, *> -> {
+                        val multipartBuilder =
+                            MultipartBody
+                                .Builder()
+                                .setType(MultipartBody.FORM)
+                        val formFields = body as Map<String, Any?>
+                        for ((fieldName, value) in formFields) {
+                            when (value) {
+                                is List<*> ->
+                                    value.forEach { item ->
+                                        addMultipartField(multipartBuilder, fieldName, item)
+                                    }
+                                else -> addMultipartField(multipartBuilder, fieldName, value)
+                            }
+                        }
+                        multipartBuilder.build()
+                    }
+                    body is ByteArray ->
+                        body.toRequestBody("application/octet-stream".toMediaType())
+                    body is InputStream ->
+                        body.readBytes().toRequestBody("application/octet-stream".toMediaType())
+                    else -> {
+                        val contentType = mergedHeaders["Content-Type"] ?: "application/json"
+                        body.toString().toRequestBody(contentType.toMediaType())
+                    }
+                }
+
+            if (!mergedHeaders.containsKey("Accept-Encoding")) {
+                mergedHeaders["Accept-Encoding"] = getSupportedEncodings()
+            }
+
+            val requestBuilder =
+                Request
+                    .Builder()
+                    .url(url)
+                    .method(method, requestBody)
+                    .headers(mergedHeaders.toHeaders())
+
+            val response = httpClient.newCall(requestBuilder.build()).execute()
+
+            val responseHeaders = mutableMapOf<String, String>()
+            for (name in response.headers.names()) {
+                responseHeaders[name] = response.headers.values(name).joinToString(", ")
+            }
+
+            val contentEncoding = response.header("content-encoding") ?: "identity"
+            val bodyBytes = response.body?.bytes() ?: ByteArray(0)
+            val responseBody = decompressBody(bodyBytes, contentEncoding)
+
+            ApiResponse(
+                statusCode = response.code,
+                body = responseBody,
+                headers = responseHeaders,
+            )
+        }
+
+    private fun decompressBody(
+        data: ByteArray,
+        encoding: String,
+    ): String {
+        if (data.isEmpty()) return ""
+        val decompressed =
+            when (encoding.lowercase()) {
+                "gzip", "x-gzip" ->
+                    GZIPInputStream(data.inputStream()).readBytes()
+                "deflate" ->
+                    InflaterInputStream(data.inputStream()).readBytes()
+                "br" -> decompressBrotli(data)
+                "zstd" -> decompressZstd(data)
+                else -> data
+            }
+        return String(decompressed, Charsets.UTF_8)
+    }
+
+    private fun decompressBrotli(data: ByteArray): ByteArray =
+        try {
+            val brotliClass = Class.forName("org.brotli.dec.BrotliInputStream")
+            val bis =
+                brotliClass
+                    .getConstructor(InputStream::class.java)
+                    .newInstance(data.inputStream()) as InputStream
+            bis.use { it.readBytes() }
+        } catch (_: ClassNotFoundException) {
+            data
+        } catch (_: ReflectiveOperationException) {
+            data
+        }
+
+    private fun decompressZstd(data: ByteArray): ByteArray =
+        try {
+            val zstdClass = Class.forName("com.github.luben.zstd.Zstd")
+            val originalSize =
+                zstdClass
+                    .getMethod("decompressedSize", ByteArray::class.java)
+                    .invoke(null, data) as Long
+            val size = if (originalSize > 0) originalSize.toInt() else data.size * 4
+            zstdClass
+                .getMethod("decompress", ByteArray::class.java, Int::class.java)
+                .invoke(null, data, size) as ByteArray
+        } catch (_: ClassNotFoundException) {
+            data
+        } catch (_: ReflectiveOperationException) {
+            data
+        }
+
+    @Suppress("SwallowedException")
+    private fun getSupportedEncodings(): String {
+        val sb = StringBuilder("gzip, deflate")
+        try {
+            Class.forName("org.brotli.dec.BrotliInputStream")
+            sb.append(", br")
+        } catch (_: ClassNotFoundException) {
+        }
+        try {
+            Class.forName("com.github.luben.zstd.Zstd")
+            sb.append(", zstd")
+        } catch (_: ClassNotFoundException) {
+        }
+        return sb.toString()
+    }
+
+    private fun addMultipartField(
+        builder: MultipartBody.Builder,
+        fieldName: String,
+        value: Any?,
+    ) {
+        when (value) {
+            is File -> {
+                val mediaType =
+                    java.nio.file.Files
+                        .probeContentType(value.toPath())
+                        ?: "application/octet-stream"
+                builder.addFormDataPart(
+                    fieldName,
+                    value.name,
+                    value.asRequestBody(mediaType.toMediaType()),
+                )
+            }
+            is ByteArray -> {
+                builder.addFormDataPart(
+                    fieldName,
+                    fieldName,
+                    value.toRequestBody("application/octet-stream".toMediaType()),
+                )
+            }
+            is InputStream -> {
+                builder.addFormDataPart(
+                    fieldName,
+                    fieldName,
+                    value.readBytes().toRequestBody("application/octet-stream".toMediaType()),
+                )
+            }
+            is String, is Number, is Boolean -> {
+                builder.addFormDataPart(fieldName, value.toString())
+            }
+            else -> {
+                val json =
+                    kotlinx.serialization.json.Json.encodeToString(
+                        kotlinx.serialization.serializer<Any>(),
+                        value as Any,
+                    )
+                builder.addFormDataPart(
+                    fieldName,
+                    null,
+                    json.toRequestBody("application/json".toMediaType()),
+                )
+            }
+        }
+    }
+}

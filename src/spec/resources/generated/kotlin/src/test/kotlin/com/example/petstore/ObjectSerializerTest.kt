@@ -1,0 +1,285 @@
+package com.example.petstore
+
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+import java.time.LocalDate
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
+import java.util.UUID
+
+class ObjectSerializerTest {
+    private val serializer = ObjectSerializer()
+
+    @Nested
+    @DisplayName("serialize")
+    inner class SerializeTests {
+        @Test
+        @DisplayName("handles null")
+        fun handlesNull() {
+            val json = serializer.serialize(null)
+            assertEquals("null", json)
+        }
+
+        @Test
+        @DisplayName("handles string")
+        fun handlesString() {
+            val json = serializer.serialize("hello")
+            assertEquals("\"hello\"", json)
+        }
+    }
+
+    @Nested
+    @DisplayName("deserialize")
+    inner class DeserializeTests {
+        @Test
+        @DisplayName("returns null for empty string")
+        fun returnsNullForEmptyString() {
+            val result: String? = serializer.deserialize("")
+            assertNull(result)
+        }
+
+        @Test
+        @DisplayName("returns null for null input")
+        fun returnsNullForNullInput() {
+            val result: String? = serializer.deserialize(null)
+            assertNull(result)
+        }
+
+        @Test
+        @DisplayName("deserializes string from JSON")
+        fun deserializesStringFromJson() {
+            val result: String? = serializer.deserialize("\"hello\"")
+            assertEquals("hello", result)
+        }
+    }
+
+    @Nested
+    @DisplayName("stringify")
+    inner class StringifyTests {
+        @Test
+        @DisplayName("null returns empty string")
+        fun nullReturnsEmptyString() {
+            assertEquals("", ObjectSerializer.stringify(null))
+        }
+
+        @Test
+        @DisplayName("boolean true returns \"true\"")
+        fun booleanTrueReturnsTrue() {
+            assertEquals("true", ObjectSerializer.stringify(true))
+        }
+
+        @Test
+        @DisplayName("boolean false returns \"false\"")
+        fun booleanFalseReturnsFalse() {
+            assertEquals("false", ObjectSerializer.stringify(false))
+        }
+
+        @Test
+        @DisplayName("integer returns string representation")
+        fun integerReturnsString() {
+            assertEquals("42", ObjectSerializer.stringify(42))
+        }
+
+        @Test
+        @DisplayName("double returns string representation")
+        fun doubleReturnsString() {
+            assertEquals("3.14", ObjectSerializer.stringify(3.14))
+        }
+
+        @Test
+        @DisplayName("string passes through unchanged")
+        fun stringPassesThrough() {
+            assertEquals("hello", ObjectSerializer.stringify("hello"))
+        }
+
+        @Test
+        @DisplayName("OffsetDateTime returns ISO 8601 string")
+        fun offsetDateTimeReturnsIso8601() {
+            val dt = OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, ZoneOffset.UTC)
+            val result = ObjectSerializer.stringify(dt)
+            assertTrue(result.startsWith("2024-01-15T10:30:00"))
+        }
+
+        @Test
+        @DisplayName("LocalDate returns ISO 8601 date string")
+        fun localDateReturnsIso8601() {
+            val date = LocalDate.of(2024, 1, 15)
+            assertEquals("2024-01-15", ObjectSerializer.stringify(date))
+        }
+
+        @Test
+        @DisplayName("UUID returns string representation")
+        fun uuidReturnsString() {
+            val uuid = UUID.fromString("550e8400-e29b-41d4-a716-446655440000")
+            assertEquals("550e8400-e29b-41d4-a716-446655440000", ObjectSerializer.stringify(uuid))
+        }
+
+        @Test
+        @DisplayName("long returns string representation")
+        fun longReturnsString() {
+            assertEquals("9007199254740993", ObjectSerializer.stringify(9007199254740993L))
+        }
+    }
+
+    @Nested
+    @DisplayName("toPathValue")
+    inner class ToPathValueTests {
+        @Test
+        @DisplayName("returns empty string for null")
+        fun returnsEmptyStringForNull() {
+            assertEquals("", ObjectSerializer.toPathValue(null))
+        }
+
+        @Test
+        @DisplayName("returns the string for a string value")
+        fun returnsStringForStringValue() {
+            assertEquals("hello", ObjectSerializer.toPathValue("hello"))
+        }
+
+        @Test
+        @DisplayName("converts integer to string")
+        fun convertsIntegerToString() {
+            assertEquals("42", ObjectSerializer.toPathValue(42))
+        }
+
+        @Test
+        @DisplayName("converts true to \"true\"")
+        fun convertsTrueToString() {
+            assertEquals("true", ObjectSerializer.toPathValue(true))
+        }
+
+        @Test
+        @DisplayName("converts false to \"false\"")
+        fun convertsFalseToString() {
+            assertEquals("false", ObjectSerializer.toPathValue(false))
+        }
+    }
+
+    @Nested
+    @DisplayName("toQueryValue")
+    inner class ToQueryValueTests {
+        @Test
+        @DisplayName("returns null for null value")
+        fun returnsNullForNull() {
+            assertNull(ObjectSerializer.toQueryValue(null, null))
+        }
+
+        @Test
+        @DisplayName("returns the string for a string value")
+        fun returnsStringForStringValue() {
+            assertEquals("hello", ObjectSerializer.toQueryValue("hello", null))
+        }
+
+        @Test
+        @DisplayName("joins collection with comma by default (csv)")
+        fun joinsWithCommaByDefault() {
+            val list = listOf("a", "b", "c")
+            assertEquals("a,b,c", ObjectSerializer.toQueryValue(list, null))
+        }
+
+        @Test
+        @DisplayName("joins collection with comma for csv")
+        fun joinsWithCommaForCsv() {
+            val list = listOf("a", "b", "c")
+            assertEquals("a,b,c", ObjectSerializer.toQueryValue(list, "csv"))
+        }
+
+        @Test
+        @DisplayName("joins collection with space for ssv")
+        fun joinsWithSpaceForSsv() {
+            val list = listOf("a", "b", "c")
+            assertEquals("a b c", ObjectSerializer.toQueryValue(list, "ssv"))
+        }
+
+        @Test
+        @DisplayName("joins collection with pipe for pipes")
+        fun joinsWithPipeForPipes() {
+            val list = listOf("a", "b", "c")
+            assertEquals("a|b|c", ObjectSerializer.toQueryValue(list, "pipes"))
+        }
+
+        @Test
+        @DisplayName("returns list as-is for multi")
+        fun returnsListForMulti() {
+            val list = listOf("a", "b", "c")
+            assertEquals(list, ObjectSerializer.toQueryValue(list, "multi"))
+        }
+
+        @Test
+        @DisplayName("converts integer to string")
+        fun convertsIntegerToString() {
+            assertEquals("42", ObjectSerializer.toQueryValue(42, null))
+        }
+
+        @Test
+        @DisplayName("converts true to \"true\"")
+        fun convertsTrueToString() {
+            assertEquals("true", ObjectSerializer.toQueryValue(true, null))
+        }
+    }
+
+    @Nested
+    @DisplayName("toHeaderValue")
+    inner class ToHeaderValueTests {
+        @Test
+        @DisplayName("returns empty string for null")
+        fun returnsEmptyStringForNull() {
+            assertEquals("", ObjectSerializer.toHeaderValue(null))
+        }
+
+        @Test
+        @DisplayName("returns the string for a string value")
+        fun returnsStringForStringValue() {
+            assertEquals("hello", ObjectSerializer.toHeaderValue("hello"))
+        }
+
+        @Test
+        @DisplayName("joins collection with comma")
+        fun joinsCollectionWithComma() {
+            val list = listOf("a", "b", "c")
+            assertEquals("a,b,c", ObjectSerializer.toHeaderValue(list))
+        }
+
+        @Test
+        @DisplayName("converts integer to string")
+        fun convertsIntegerToString() {
+            assertEquals("42", ObjectSerializer.toHeaderValue(42))
+        }
+    }
+
+    @Nested
+    @DisplayName("toFormValue")
+    inner class ToFormValueTests {
+        @Test
+        @DisplayName("returns empty string for null")
+        fun returnsEmptyStringForNull() {
+            assertEquals("", ObjectSerializer.toFormValue(null))
+        }
+
+        @Test
+        @DisplayName("returns the string for a string value")
+        fun returnsStringForStringValue() {
+            assertEquals("hello", ObjectSerializer.toFormValue("hello"))
+        }
+
+        @Test
+        @DisplayName("converts integer to string")
+        fun convertsIntegerToString() {
+            assertEquals("42", ObjectSerializer.toFormValue(42))
+        }
+
+        @Test
+        @DisplayName("converts true to \"true\"")
+        fun convertsTrueToString() {
+            assertEquals("true", ObjectSerializer.toFormValue(true))
+        }
+
+        @Test
+        @DisplayName("converts false to \"false\"")
+        fun convertsFalseToString() {
+            assertEquals("false", ObjectSerializer.toFormValue(false))
+        }
+    }
+}

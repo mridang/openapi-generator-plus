@@ -1,0 +1,11 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"net/url"
+	"strings"
+)
+
+func replacePathParam(path, name string, value string) string {
+	return strings.ReplaceAll(path, "{"+name+"}", url.PathEscape(value))
+}

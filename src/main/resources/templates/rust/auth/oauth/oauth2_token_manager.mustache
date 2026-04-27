@@ -1,0 +1,151 @@
+use std::collections::HashMap;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
+
+use crate::api_client::ApiClient;
+
+/// OAuth2TokenManager manages the OAuth2 token lifecycle: fetching, caching,
+/// and refreshing.
+///
+/// Uses the shared ApiClient instance so that token exchange requests honour
+/// the same transport configuration (proxy, TLS, timeouts) as regular API calls.
+pub struct OAuth2TokenManager {
+    inner: Mutex<TokenManagerInner>,
+}
+
+struct TokenManagerInner {
+    api_client: Option<Box<dyn ApiClient>>,
+    access_token: String,
+    refresh_token: String,
+    token_expiry: Option<Instant>,
+}
+
+impl OAuth2TokenManager {
+    /// Creates a new token manager.
+    ///
+    /// The ApiClient must be injected via `set_api_client` before any token
+    /// requests are made.
+    pub fn new() -> Self {
+        Self {
+            inner: Mutex::new(TokenManagerInner {
+                api_client: None,
+                access_token: String::new(),
+                refresh_token: String::new(),
+                token_expiry: None,
+            }),
+        }
+    }
+
+    /// Injects the shared API client for making token requests.
+    pub fn set_api_client(&self, client: Box<dyn ApiClient>) {
+        let mut inner = self.inner.lock().unwrap();
+        inner.api_client = Some(client);
+    }
+
+    /// Returns the current refresh token, if any.
+    pub fn refresh_token(&self) -> String {
+        let inner = self.inner.lock().unwrap();
+        inner.refresh_token.clone()
+    }
+
+    /// Returns a valid access token, fetching or refreshing as necessary.
+    ///
+    /// This method is synchronized to prevent concurrent token requests.
+    pub fn get_access_token(
+        &self,
+        token_url: &str,
+        params: &HashMap<String, String>,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let mut inner = self.inner.lock().unwrap();
+
+        if !inner.access_token.is_empty() {
+            if let Some(expiry) = inner.token_expiry {
+                if Instant::now() < expiry {
+                    return Ok(inner.access_token.clone());
+                }
+            }
+        }
+
+        Self::fetch_token(&mut inner, token_url, params)?;
+        Ok(inner.access_token.clone())
+    }
+
+    /// Manually sets an access token, bypassing the token endpoint.
+    pub fn set_access_token(&self, token: &str) {
+        let mut inner = self.inner.lock().unwrap();
+        inner.access_token = token.to_string();
+        inner.token_expiry = None;
+    }
+
+    fn fetch_token(
+        inner: &mut TokenManagerInner,
+        token_url: &str,
+        params: &HashMap<String, String>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let client = inner.api_client.as_ref().ok_or_else(|| {
+            "ApiClient has not been injected. \
+             Ensure the {{clientClassName}} constructor calls set_api_client \
+             on HttpAwareAuthenticator before making API requests"
+        })?;
+
+        let mut headers = HashMap::new();
+        headers.insert(
+            "Content-Type".to_string(),
+            "application/x-www-form-urlencoded".to_string(),
+        );
+
+        let body: String = params
+            .iter()
+            .map(|(k, v)| format!("{}={}", urlencoding(k), urlencoding(v)))
+            .collect::<Vec<_>>()
+            .join("&");
+
+        let response = client.send_request("POST", token_url, &headers, body.as_bytes())?;
+
+        if response.status_code < 200 || response.status_code >= 300 {
+            return Err(format!(
+                "token request failed with status {}",
+                response.status_code
+            )
+            .into());
+        }
+
+        let parsed: serde_json::Value = serde_json::from_str(&response.body)?;
+
+        if let Some(token) = parsed.get("access_token").and_then(|v| v.as_str()) {
+            inner.access_token = token.to_string();
+        }
+        if let Some(refresh) = parsed.get("refresh_token").and_then(|v| v.as_str()) {
+            inner.refresh_token = refresh.to_string();
+        }
+        if let Some(expires_in) = parsed.get("expires_in").and_then(|v| v.as_u64()) {
+            let buffer_secs = 30;
+            if expires_in > buffer_secs {
+                inner.token_expiry =
+                    Some(Instant::now() + Duration::from_secs(expires_in - buffer_secs));
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// Percent-encodes a string for use in application/x-www-form-urlencoded bodies.
+fn urlencoding(s: &str) -> String {
+    let mut result = String::new();
+    for byte in s.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                result.push(byte as char);
+            }
+            b' ' => result.push('+'),
+            _ => {
+                result.push_str(&format!("%{:02X}", byte));
+            }
+        }
+    }
+    result
+}
+
+unsafe impl Send for OAuth2TokenManager {}
+unsafe impl Sync for OAuth2TokenManager {}

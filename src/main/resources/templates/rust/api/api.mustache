@@ -1,0 +1,280 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use crate::api::base_api::BaseApi;
+use crate::api::base_api::InvokeApiParams;
+use crate::api_client::ApiClient;
+use crate::api_result::ApiResult;
+use crate::authenticator::Authenticator;
+use crate::configuration::Configuration;
+use crate::models::*;
+use crate::object_serializer;
+use crate::value_serializer;
+#[allow(unused_imports)]
+use crate::api::options::*;
+{{#operations}}
+
+/// {{classname}} provides methods for the {{baseName}} API group.
+{{#tagDescription}}
+/// {{.}}
+{{/tagDescription}}
+{{#tagExternalDocs}}
+/// See {{url}} {{description}}
+{{/tagExternalDocs}}
+pub struct {{classname}} {
+    base: BaseApi,
+}
+
+impl {{classname}} {
+    /// Creates a new {{classname}} instance.
+    pub fn new(api_client: Arc<dyn ApiClient>, config: Configuration) -> Self {
+        Self {
+            base: BaseApi::new(api_client, config),
+        }
+    }
+{{#operation}}
+
+{{#summary}}
+    /// {{{summary}}}
+{{/summary}}
+{{#notes}}
+    /// {{{.}}}
+{{/notes}}
+{{#isDeprecated}}
+    #[deprecated]
+{{/isDeprecated}}
+{{#externalDocs}}
+    /// See {{url}} {{description}}
+{{/externalDocs}}
+    pub fn {{operationId}}(
+        &self,
+{{#hasAuthMethods}}
+        auth: &dyn Authenticator,
+{{/hasAuthMethods}}
+{{#pathParams}}
+        {{paramName}}: {{{dataType}}},
+{{/pathParams}}
+{{#bodyParam}}
+        {{paramName}}: {{^required}}Option<{{/required}}{{{dataType}}}{{^required}}>{{/required}},
+{{/bodyParam}}
+{{#queryParams}}{{#-first}}
+        options: Option<&{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options>,
+{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
+        options: Option<&{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options>,
+{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
+        options: Option<&{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options>,
+{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
+        options: Option<&{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options>,
+{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+    ) -> Result<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.{{operationId}}_with_http_info(
+{{#hasAuthMethods}}
+            auth,
+{{/hasAuthMethods}}
+{{#pathParams}}
+            {{paramName}},
+{{/pathParams}}
+{{#bodyParam}}
+            {{paramName}},
+{{/bodyParam}}
+{{#queryParams}}{{#-first}}
+            options,
+{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
+            options,
+{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
+            options,
+{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
+            options,
+{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+        )?;
+{{#returnType}}
+        Ok(result.data)
+{{/returnType}}
+{{^returnType}}
+        let _ = result;
+        Ok(())
+{{/returnType}}
+    }
+
+    /// Performs the {{operationId}} operation and returns the full API result.
+    pub fn {{operationId}}_with_http_info(
+        &self,
+{{#hasAuthMethods}}
+        auth: &dyn Authenticator,
+{{/hasAuthMethods}}
+{{#pathParams}}
+        {{paramName}}: {{{dataType}}},
+{{/pathParams}}
+{{#bodyParam}}
+        {{paramName}}: {{^required}}Option<{{/required}}{{{dataType}}}{{^required}}>{{/required}},
+{{/bodyParam}}
+{{#queryParams}}{{#-first}}
+        options: Option<&{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options>,
+{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
+        options: Option<&{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options>,
+{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
+        options: Option<&{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options>,
+{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
+        options: Option<&{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options>,
+{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+    ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>> {
+{{#pathParams}}
+{{#required}}
+{{#isString}}
+        if {{paramName}}.is_empty() {
+            return Err(format!("missing required parameter '{}' when calling {{classname}}.{{operationId}}", "{{paramName}}").into());
+        }
+{{/isString}}
+{{/required}}
+{{/pathParams}}
+
+        let mut path = "{{{path}}}".to_string();
+{{#pathParams}}
+{{=<% %>=}}
+        path = path.replace("{<%baseName%>}", &urlencoding::encode(&format!("{}", <%paramName%>)));
+<%={{ }}=%>
+{{/pathParams}}
+
+        let mut query_params: HashMap<String, String> = HashMap::new();
+{{#queryParams}}
+        if let Some(opts) = options {
+{{#isDeepObject}}
+            if let Some(ref val) = opts.{{paramName}} {
+                for (k, v) in value_serializer::serialize_deep_object("{{baseName}}", val) {
+                    query_params.insert(k, v);
+                }
+            }
+{{/isDeepObject}}
+{{^isDeepObject}}
+{{#content}}
+            if let Some(ref val) = opts.{{paramName}} {
+                query_params.insert("{{baseName}}".to_string(), serde_json::to_string(val).unwrap_or_default());
+            }
+{{/content}}
+{{^content}}
+            if let Some(ref val) = opts.{{paramName}} {
+                if let Some(serialized) = value_serializer::serialize_styled(
+                    "{{baseName}}",
+                    Some(&object_serializer::stringify(val)),
+                    None,
+                    "query",
+                    "{{{dataType}}}",
+                    "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}",
+                    "{{style}}",
+                    {{isExplode}},
+                ) {
+                    query_params.insert("{{baseName}}".to_string(), serialized);
+                }
+            }
+{{/content}}
+{{/isDeepObject}}
+        }
+{{/queryParams}}
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+{{#headerParams}}
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.{{paramName}} {
+                if let Some(serialized) = value_serializer::serialize_styled(
+                    "{{baseName}}",
+                    Some(&object_serializer::stringify(val)),
+                    None,
+                    "header",
+                    "{{{dataType}}}",
+                    "",
+                    "{{style}}",
+                    {{isExplode}},
+                ) {
+                    header_params.insert("{{baseName}}".to_string(), serialized);
+                }
+            }
+        }
+{{/headerParams}}
+{{#hasCookieParams}}
+        let mut cookie_parts: Vec<String> = Vec::new();
+{{#cookieParams}}
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.{{paramName}} {
+                if let Some(serialized) = value_serializer::serialize_styled(
+                    "{{baseName}}",
+                    Some(&object_serializer::stringify(val)),
+                    None,
+                    "cookie",
+                    "{{{dataType}}}",
+                    "",
+                    "{{style}}",
+                    {{isExplode}},
+                ) {
+                    cookie_parts.push(format!("{{baseName}}={}", serialized));
+                }
+            }
+        }
+{{/cookieParams}}
+        if !cookie_parts.is_empty() {
+            header_params.insert("Cookie".to_string(), cookie_parts.join("; "));
+        }
+{{/hasCookieParams}}
+
+{{#hasFormParams}}
+        let mut form_body: HashMap<String, String> = HashMap::new();
+{{#formParams}}
+        if let Some(opts) = options {
+{{#required}}
+            form_body.insert("{{baseName}}".to_string(), object_serializer::stringify(&opts.{{paramName}}));
+{{/required}}
+{{^required}}
+            if let Some(ref val) = opts.{{paramName}} {
+                form_body.insert("{{baseName}}".to_string(), object_serializer::stringify(val));
+            }
+{{/required}}
+        }
+{{/formParams}}
+        let request_body = Some(serde_json::to_vec(&form_body)?);
+{{/hasFormParams}}
+{{^hasFormParams}}
+{{#bodyParam}}
+        let request_body = Some(object_serializer::serialize(&{{paramName}})?);
+{{/bodyParam}}
+{{^bodyParam}}
+        let request_body: Option<Vec<u8>> = None;
+{{/bodyParam}}
+{{/hasFormParams}}
+
+        let response = self.base.invoke_api(InvokeApiParams {
+            method: "{{httpMethod}}",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec![{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
+            content_type: {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
+            return_type: "{{#returnType}}{{{.}}}{{/returnType}}",
+            auth: {{#hasAuthMethods}}Some(auth){{/hasAuthMethods}}{{^hasAuthMethods}}None{{/hasAuthMethods}},
+        })?;
+
+{{#returnType}}
+        let data: {{{.}}} = if !response.body.is_empty() {
+            object_serializer::deserialize(response.body.as_bytes())?
+        } else {
+            return Err("empty response body".into());
+        };
+
+        Ok(ApiResult {
+            status_code: response.status_code,
+            data,
+            raw_body: response.body,
+            headers: response.headers,
+        })
+{{/returnType}}
+{{^returnType}}
+        Ok(ApiResult {
+            status_code: response.status_code,
+            data: (),
+            raw_body: response.body,
+            headers: response.headers,
+        })
+{{/returnType}}
+    }
+{{/operation}}
+}
+{{/operations}}

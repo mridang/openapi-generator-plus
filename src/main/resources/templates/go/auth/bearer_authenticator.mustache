@@ -1,0 +1,29 @@
+{{>api_info}}
+package auth
+
+// BearerAuthenticator provides HTTP Bearer token authentication.
+type BearerAuthenticator struct {
+	BaseAuthenticator
+	host  string
+	token string
+}
+
+// NewBearerAuthenticator creates a new Bearer authenticator.
+func NewBearerAuthenticator(host, token string) *BearerAuthenticator {
+	return &BearerAuthenticator{
+		host:  host,
+		token: token,
+	}
+}
+
+// Host returns the API base URL.
+func (a *BearerAuthenticator) Host() string {
+	return a.host
+}
+
+// AuthHeaders returns the Bearer authentication header.
+func (a *BearerAuthenticator) AuthHeaders() map[string]string {
+	return map[string]string{
+		"Authorization": "Bearer " + a.token,
+	}
+}

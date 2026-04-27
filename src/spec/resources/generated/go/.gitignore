@@ -1,0 +1,6 @@
+# Coverage output
+.out/
+# Go build artifacts
+*.exe
+*.test
+*.out

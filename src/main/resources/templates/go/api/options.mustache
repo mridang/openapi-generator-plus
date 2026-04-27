@@ -1,0 +1,20 @@
+package {{packageName}}
+{{#hasModelImport}}
+
+import . "{{moduleName}}/models"
+{{/hasModelImport}}
+
+// {{className}} holds optional parameters for the {{operationId}} operation.
+type {{className}} struct {
+{{#params}}
+{{#description}}
+	// {{name}} {{{.}}}
+{{/description}}
+{{#required}}
+	{{name}} {{{dataType}}}
+{{/required}}
+{{^required}}
+	{{name}} *{{{dataType}}}
+{{/required}}
+{{/params}}
+}

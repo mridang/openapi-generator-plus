@@ -1,0 +1,264 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"testing"
+
+	"{{packageName}}"
+)
+
+// ── SerializeValue by location ──
+
+func TestSerializeValue_QueryString(t *testing.T) {
+	result := {{packageName}}.SerializeValue("hello", "query", "string", "")
+	if result != "hello" {
+		t.Errorf("expected 'hello', got %v", result)
+	}
+}
+
+func TestSerializeValue_PathString(t *testing.T) {
+	result := {{packageName}}.SerializeValue("hello world", "path", "string", "")
+	str, ok := result.(string)
+	if !ok {
+		t.Fatalf("expected string result, got %T", result)
+	}
+	if str != "hello%20world" {
+		t.Errorf("expected URL-encoded path value 'hello%%20world', got %q", str)
+	}
+}
+
+func TestSerializeValue_HeaderString(t *testing.T) {
+	result := {{packageName}}.SerializeValue("hello", "header", "string", "")
+	if result != "hello" {
+		t.Errorf("expected 'hello', got %v", result)
+	}
+}
+
+func TestSerializeValue_CookieString(t *testing.T) {
+	result := {{packageName}}.SerializeValue("hello", "cookie", "string", "")
+	if result != "hello" {
+		t.Errorf("expected 'hello', got %v", result)
+	}
+}
+
+func TestSerializeValue_NilQuery(t *testing.T) {
+	result := {{packageName}}.SerializeValue(nil, "query", "string", "")
+	if result != nil {
+		t.Errorf("expected nil for nil query value, got %v", result)
+	}
+}
+
+func TestSerializeValue_NilPath(t *testing.T) {
+	result := {{packageName}}.SerializeValue(nil, "path", "string", "")
+	if result != "" {
+		t.Errorf("expected empty string for nil path value, got %v", result)
+	}
+}
+
+func TestSerializeValue_QueryArray(t *testing.T) {
+	result := {{packageName}}.SerializeValue([]string{"a", "b", "c"}, "query", "array", "csv")
+	if result != "a,b,c" {
+		t.Errorf("expected 'a,b,c', got %v", result)
+	}
+}
+
+func TestSerializeValue_QueryArrayMulti(t *testing.T) {
+	result := {{packageName}}.SerializeValue([]string{"a", "b"}, "query", "array", "multi")
+	items, ok := result.([]string)
+	if !ok {
+		t.Fatalf("expected []string for multi collection format, got %T", result)
+	}
+	if len(items) != 2 || items[0] != "a" || items[1] != "b" {
+		t.Errorf("expected [a b], got %v", items)
+	}
+}
+
+func TestSerializeValue_HeaderArray(t *testing.T) {
+	result := {{packageName}}.SerializeValue([]string{"a", "b", "c"}, "header", "array", "")
+	if result != "a,b,c" {
+		t.Errorf("expected 'a,b,c', got %v", result)
+	}
+}
+
+// ── SerializeStyled: matrix ──
+
+func TestSerializeStyled_MatrixScalar(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("id", "5", "path", "string", "", "matrix", false)
+	if result != ";id=5" {
+		t.Errorf("expected ';id=5', got %v", result)
+	}
+}
+
+func TestSerializeStyled_MatrixArrayNoExplode(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("color", []string{"red", "green", "blue"}, "path", "array", "", "matrix", false)
+	if result != ";color=red,green,blue" {
+		t.Errorf("expected ';color=red,green,blue', got %v", result)
+	}
+}
+
+func TestSerializeStyled_MatrixArrayExplode(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("color", []string{"red", "green", "blue"}, "path", "array", "", "matrix", true)
+	if result != ";color=red;color=green;color=blue" {
+		t.Errorf("expected ';color=red;color=green;color=blue', got %v", result)
+	}
+}
+
+func TestSerializeStyled_MatrixNil(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("id", nil, "path", "string", "", "matrix", false)
+	if result != "" {
+		t.Errorf("expected empty string for nil matrix path, got %v", result)
+	}
+}
+
+// ── SerializeStyled: label ──
+
+func TestSerializeStyled_LabelScalar(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("id", "5", "path", "string", "", "label", false)
+	if result != ".5" {
+		t.Errorf("expected '.5', got %v", result)
+	}
+}
+
+func TestSerializeStyled_LabelArrayNoExplode(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("color", []string{"red", "green"}, "path", "array", "", "label", false)
+	if result != ".red,green" {
+		t.Errorf("expected '.red,green', got %v", result)
+	}
+}
+
+func TestSerializeStyled_LabelArrayExplode(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("color", []string{"red", "green"}, "path", "array", "", "label", true)
+	if result != ".red.green" {
+		t.Errorf("expected '.red.green', got %v", result)
+	}
+}
+
+// ── SerializeStyled: simple ──
+
+func TestSerializeStyled_SimpleScalar(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("id", "5", "path", "string", "", "simple", false)
+	if result != "5" {
+		t.Errorf("expected '5', got %v", result)
+	}
+}
+
+func TestSerializeStyled_SimpleArray(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("color", []string{"red", "green"}, "path", "array", "", "simple", false)
+	if result != "red,green" {
+		t.Errorf("expected 'red,green', got %v", result)
+	}
+}
+
+func TestSerializeStyled_SimpleNil(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("id", nil, "path", "string", "", "simple", false)
+	if result != "" {
+		t.Errorf("expected empty string for nil simple path, got %v", result)
+	}
+}
+
+// ── SerializeStyled: form ──
+
+func TestSerializeStyled_FormScalar(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("color", "blue", "query", "string", "", "form", true)
+	if result != "blue" {
+		t.Errorf("expected 'blue', got %v", result)
+	}
+}
+
+func TestSerializeStyled_FormArrayExplode(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("color", []string{"red", "green"}, "query", "array", "", "form", true)
+	items, ok := result.([]string)
+	if !ok {
+		t.Fatalf("expected []string for exploded form array, got %T", result)
+	}
+	if len(items) != 2 || items[0] != "red" || items[1] != "green" {
+		t.Errorf("expected [red green], got %v", items)
+	}
+}
+
+func TestSerializeStyled_FormArrayNoExplode(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("color", []string{"red", "green"}, "query", "array", "", "form", false)
+	if result != "red,green" {
+		t.Errorf("expected 'red,green', got %v", result)
+	}
+}
+
+func TestSerializeStyled_FormNilQuery(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("color", nil, "query", "string", "", "form", true)
+	if result != nil {
+		t.Errorf("expected nil for nil form query, got %v", result)
+	}
+}
+
+// ── SerializeStyled: spaceDelimited ──
+
+func TestSerializeStyled_SpaceDelimitedArray(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("color", []string{"red", "green", "blue"}, "query", "array", "", "spaceDelimited", false)
+	if result != "red green blue" {
+		t.Errorf("expected 'red green blue', got %v", result)
+	}
+}
+
+func TestSerializeStyled_SpaceDelimitedScalar(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("color", "red", "query", "string", "", "spaceDelimited", false)
+	if result != "red" {
+		t.Errorf("expected 'red', got %v", result)
+	}
+}
+
+// ── SerializeStyled: pipeDelimited ──
+
+func TestSerializeStyled_PipeDelimitedArray(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("color", []string{"red", "green", "blue"}, "query", "array", "", "pipeDelimited", false)
+	if result != "red|green|blue" {
+		t.Errorf("expected 'red|green|blue', got %v", result)
+	}
+}
+
+func TestSerializeStyled_PipeDelimitedScalar(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("color", "red", "query", "string", "", "pipeDelimited", false)
+	if result != "red" {
+		t.Errorf("expected 'red', got %v", result)
+	}
+}
+
+// ── SerializeDeepObject ──
+
+func TestSerializeDeepObject(t *testing.T) {
+	result := {{packageName}}.SerializeDeepObject("filter", map[string]interface{}{
+		"status": "active",
+		"type":   "dog",
+	})
+
+	if result["filter[status]"] != "active" {
+		t.Errorf("expected filter[status]='active', got %q", result["filter[status]"])
+	}
+	if result["filter[type]"] != "dog" {
+		t.Errorf("expected filter[type]='dog', got %q", result["filter[type]"])
+	}
+}
+
+func TestSerializeDeepObject_Nil(t *testing.T) {
+	result := {{packageName}}.SerializeDeepObject("filter", nil)
+	if len(result) != 0 {
+		t.Errorf("expected empty map for nil, got %v", result)
+	}
+}
+
+// ── SerializeStyled: fallback to SerializeValue for unknown style ──
+
+func TestSerializeStyled_UnknownStyleFallback(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("id", "5", "query", "string", "", "unknownStyle", false)
+	if result != "5" {
+		t.Errorf("expected '5' (fallback to SerializeValue), got %v", result)
+	}
+}
+
+// ── SerializeStyled: empty style delegates to SerializeValue ──
+
+func TestSerializeStyled_EmptyStyle(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("id", "5", "query", "string", "", "", false)
+	if result != "5" {
+		t.Errorf("expected '5', got %v", result)
+	}
+}

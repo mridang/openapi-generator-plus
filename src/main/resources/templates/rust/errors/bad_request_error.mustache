@@ -1,0 +1,27 @@
+use std::fmt;
+
+use crate::errors::client_error::ClientError;
+
+/// BadRequestError represents an HTTP 400 Bad Request error.
+#[derive(Debug, Clone)]
+pub struct BadRequestError {
+    pub client_error: ClientError,
+}
+
+impl fmt::Display for BadRequestError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Bad request (400): {}", self.client_error.api_error.message)
+    }
+}
+
+impl std::error::Error for BadRequestError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.client_error)
+    }
+}
+
+impl From<ClientError> for BadRequestError {
+    fn from(client_error: ClientError) -> Self {
+        Self { client_error }
+    }
+}

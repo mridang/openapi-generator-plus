@@ -1,0 +1,11 @@
+package com.example.petstore.exceptions
+
+/**
+ * Exception for HTTP 422 Unprocessable Entity.
+ */
+class UnprocessableEntityException(
+    message: String,
+    responseHeaders: Map<String, String>?,
+    responseBody: String?,
+    errorBody: Any? = null,
+) : ClientException(422, message, responseHeaders, responseBody, errorBody)

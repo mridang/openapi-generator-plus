@@ -1,0 +1,206 @@
+use std::collections::HashMap;
+
+use regex::Regex;
+
+/// HeaderSelector selects Accept and Content-Type headers for API requests
+/// based on the MIME types declared in the OpenAPI specification.
+pub struct HeaderSelector;
+
+struct HeaderData {
+    header: String,
+    weight: i32,
+}
+
+impl HeaderSelector {
+    /// Creates a new HeaderSelector instance.
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// Selects the Accept and Content-Type headers for an API request.
+    ///
+    /// # Arguments
+    ///
+    /// * `accepts` - Acceptable MIME types for the response
+    /// * `content_type` - The Content-Type for the request body
+    /// * `is_multipart` - Whether this is a multipart request
+    pub fn select_headers(
+        &self,
+        accepts: &[&str],
+        content_type: &str,
+        is_multipart: bool,
+    ) -> HashMap<String, String> {
+        let mut headers = HashMap::new();
+
+        let accept_header = self.select_accept_header(accepts);
+        if !accept_header.is_empty() {
+            headers.insert("Accept".to_string(), accept_header);
+        }
+
+        if !is_multipart {
+            let ct = if content_type.is_empty() {
+                "application/json"
+            } else {
+                content_type
+            };
+            headers.insert("Content-Type".to_string(), ct.to_string());
+        }
+
+        headers
+    }
+
+    /// Detects whether a string contains a valid JSON MIME type.
+    pub fn is_json_mime(&self, search_string: &str) -> bool {
+        if search_string.is_empty() {
+            return false;
+        }
+        let pattern = Regex::new(r"^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)").unwrap();
+        pattern.is_match(search_string)
+    }
+
+    fn get_next_weight(&self, current_weight: i32, has_more_than_28_headers: bool) -> i32 {
+        if current_weight <= 1 {
+            return 1;
+        }
+        if has_more_than_28_headers {
+            return current_weight - 1;
+        }
+
+        let step = 10_f64.powf(((current_weight - 1) as f64).log10().floor()) as i32;
+        current_weight - step
+    }
+
+    fn select_accept_header(&self, accepts: &[&str]) -> String {
+        if accepts.is_empty() {
+            return String::new();
+        }
+
+        let filtered: Vec<&str> = accepts.iter().filter(|s| !s.is_empty()).copied().collect();
+
+        if filtered.is_empty() {
+            return String::new();
+        }
+        if filtered.len() == 1 {
+            return filtered[0].to_string();
+        }
+
+        let headers_with_json = self.select_json_mime_list(&filtered);
+        if headers_with_json.is_empty() {
+            return filtered.join(",");
+        }
+
+        self.get_accept_header_with_adjusted_weight(&filtered, &headers_with_json)
+    }
+
+    fn select_json_mime_list(&self, mime_list: &[&str]) -> Vec<String> {
+        mime_list
+            .iter()
+            .filter(|mime| self.is_json_mime(mime))
+            .map(|s| s.to_string())
+            .collect()
+    }
+
+    fn get_accept_header_with_adjusted_weight(
+        &self,
+        accepts: &[&str],
+        headers_with_json: &[String],
+    ) -> String {
+        let json_set: std::collections::HashSet<&str> =
+            headers_with_json.iter().map(|s| s.as_str()).collect();
+
+        let mut with_application_json: Vec<HeaderData> = Vec::new();
+        let mut with_json: Vec<HeaderData> = Vec::new();
+        let mut without_json: Vec<HeaderData> = Vec::new();
+
+        for header in accepts {
+            let hd = self.get_header_and_weight(header);
+            let lower_header = hd.header.to_lowercase();
+
+            if lower_header.starts_with("application/json") {
+                with_application_json.push(hd);
+            } else if json_set.contains(*header) {
+                with_json.push(hd);
+            } else {
+                without_json.push(hd);
+            }
+        }
+
+        let mut accept_headers: Vec<String> = Vec::new();
+        let mut current_weight: i32 = 1000;
+        let has_more_than_28_headers = accepts.len() > 28;
+
+        let groups = vec![
+            &mut with_application_json,
+            &mut with_json,
+            &mut without_json,
+        ];
+        for group in groups {
+            if !group.is_empty() {
+                let adjusted =
+                    self.adjust_weight(group, &mut current_weight, has_more_than_28_headers);
+                accept_headers.extend(adjusted);
+            }
+        }
+
+        accept_headers.join(",")
+    }
+
+    fn get_header_and_weight(&self, header: &str) -> HeaderData {
+        let weight_pattern = Regex::new(r"(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$").unwrap();
+        if let Some(caps) = weight_pattern.captures(header) {
+            let weight: f64 = caps[2].parse().unwrap_or(1.0);
+            HeaderData {
+                header: caps[1].to_string(),
+                weight: (weight * 1000.0) as i32,
+            }
+        } else {
+            HeaderData {
+                header: header.trim().to_string(),
+                weight: 1000,
+            }
+        }
+    }
+
+    fn adjust_weight(
+        &self,
+        headers: &mut Vec<HeaderData>,
+        current_weight: &mut i32,
+        has_more_than_28_headers: bool,
+    ) -> Vec<String> {
+        // Sort by weight descending (stable sort)
+        headers.sort_by(|a, b| b.weight.cmp(&a.weight));
+
+        let mut accept_headers: Vec<String> = Vec::new();
+        for i in 0..headers.len() {
+            if i > 0 && headers[i - 1].weight > headers[i].weight {
+                *current_weight = self.get_next_weight(*current_weight, has_more_than_28_headers);
+            }
+
+            accept_headers.push(self.build_accept_header(&headers[i].header, *current_weight));
+        }
+
+        *current_weight = self.get_next_weight(*current_weight, has_more_than_28_headers);
+        accept_headers
+    }
+
+    fn build_accept_header(&self, header: &str, weight: i32) -> String {
+        if weight == 1000 {
+            return header.to_string();
+        }
+
+        let clean_header = header.trim_end_matches(|c| c == ';' || c == ' ');
+        let weight_val = weight as f64 / 1000.0;
+        let weight_str = format!("{:.3}", weight_val)
+            .trim_end_matches('0')
+            .trim_end_matches('.')
+            .to_string();
+
+        format!("{};q={}", clean_header, weight_str)
+    }
+}
+
+impl Default for HeaderSelector {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -1,0 +1,86 @@
+{{>api_info}}
+package oauth
+
+import (
+	"fmt"
+	"net/http"
+	"net/url"
+	"strings"
+
+	"{{packageName}}/auth"
+)
+
+// OAuth2ImplicitAuthenticator provides OAuth2 implicit flow authentication.
+//
+// Implements HttpAwareAuthenticator for interface consistency with other
+// OAuth2 authenticators. The implicit flow does not make token exchange
+// requests.
+//
+// Usage:
+//  1. Call BuildAuthorizationURL to get the authorization URL
+//  2. Redirect the user to that URL
+//  3. Extract the access token from the fragment and call SetAccessToken
+//  4. Use the authenticator normally
+type OAuth2ImplicitAuthenticator struct {
+	auth.BaseAuthenticator
+	host             string
+	clientID         string
+	authorizationURL string
+	scopes           []string
+	accessToken      string
+}
+
+// NewOAuth2ImplicitAuthenticator creates a new implicit flow authenticator.
+func NewOAuth2ImplicitAuthenticator(host, clientID, authorizationURL string, scopes []string) *OAuth2ImplicitAuthenticator {
+	return &OAuth2ImplicitAuthenticator{
+		host:             host,
+		clientID:         clientID,
+		authorizationURL: authorizationURL,
+		scopes:           scopes,
+	}
+}
+
+// Host returns the API base URL.
+func (a *OAuth2ImplicitAuthenticator) Host() string {
+	return a.host
+}
+
+// SetHTTPClient is a no-op for the implicit flow, but implements
+// the HttpAwareAuthenticator interface for consistency.
+func (a *OAuth2ImplicitAuthenticator) SetHTTPClient(_ *http.Client) {
+	// Implicit flow does not make token exchange requests,
+	// but implements the interface for consistency.
+}
+
+// SetAccessToken sets the access token obtained from the authorization redirect fragment.
+func (a *OAuth2ImplicitAuthenticator) SetAccessToken(token string) {
+	a.accessToken = token
+}
+
+// BuildAuthorizationURL builds the authorization URL to redirect the user to.
+//
+// The state parameter is optional and used for CSRF protection.
+func (a *OAuth2ImplicitAuthenticator) BuildAuthorizationURL(state string) string {
+	params := url.Values{
+		"response_type": {"token"},
+		"client_id":     {a.clientID},
+	}
+	if len(a.scopes) > 0 {
+		params.Set("scope", strings.Join(a.scopes, " "))
+	}
+	if state != "" {
+		params.Set("state", state)
+	}
+	return a.authorizationURL + "?" + params.Encode()
+}
+
+// AuthHeaders returns the Bearer authentication header.
+func (a *OAuth2ImplicitAuthenticator) AuthHeaders() map[string]string {
+	if a.accessToken == "" {
+		panic(fmt.Sprintf("must set access token before making API requests"))
+	}
+
+	return map[string]string{
+		"Authorization": "Bearer " + a.accessToken,
+	}
+}

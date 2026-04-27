@@ -1,0 +1,157 @@
+use std::collections::HashMap;
+use std::sync::Mutex;
+
+use crate::api_client::ApiClient;
+use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
+use crate::auth::oauth::oauth2_auth_code_authenticator::OAuth2AuthorizationCodeAuthenticator;
+use crate::authenticator::Authenticator;
+
+/// OpenIdConnectAuthenticator provides OpenID Connect authentication.
+///
+/// Fetches the OIDC discovery document to discover the authorization and
+/// token endpoints, then delegates to an OAuth2AuthorizationCodeAuthenticator.
+///
+/// Implements HttpAwareAuthenticator so that both the discovery request and
+/// subsequent token exchange requests use the shared ApiClient with the same
+/// transport configuration (proxy, TLS, timeouts) as regular API calls.
+pub struct OpenIdConnectAuthenticator {
+    host: String,
+    openid_connect_url: String,
+    client_id: String,
+    client_secret: String,
+    redirect_uri: String,
+    scopes: Vec<String>,
+    api_client: Mutex<Option<Box<dyn ApiClient>>>,
+    delegate: Mutex<Option<OAuth2AuthorizationCodeAuthenticator>>,
+}
+
+impl OpenIdConnectAuthenticator {
+    /// Creates a new OpenID Connect authenticator.
+    pub fn new(
+        host: &str,
+        openid_connect_url: &str,
+        client_id: &str,
+        client_secret: &str,
+        redirect_uri: &str,
+        scopes: Vec<String>,
+    ) -> Self {
+        Self {
+            host: host.to_string(),
+            openid_connect_url: openid_connect_url.to_string(),
+            client_id: client_id.to_string(),
+            client_secret: client_secret.to_string(),
+            redirect_uri: redirect_uri.to_string(),
+            scopes,
+            api_client: Mutex::new(None),
+            delegate: Mutex::new(None),
+        }
+    }
+
+    /// Builds the authorization URL using the discovered authorization endpoint.
+    pub fn build_authorization_url(
+        &self,
+        state: &str,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let delegate = self.resolve_delegate()?;
+        Ok(delegate.build_authorization_url(state))
+    }
+
+    /// Exchanges an authorization code for tokens using the discovered token
+    /// endpoint.
+    pub fn exchange_code(
+        &self,
+        code: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let mut delegate_guard = self.delegate.lock().unwrap();
+        let delegate = delegate_guard.as_mut().ok_or(
+            "delegate not initialized; call build_authorization_url first",
+        )?;
+        delegate.exchange_code(code)
+    }
+
+    /// Lazily resolves the delegate by fetching the OIDC discovery document
+    /// using the injected API client.
+    fn resolve_delegate(
+        &self,
+    ) -> Result<OAuth2AuthorizationCodeAuthenticator, Box<dyn std::error::Error + Send + Sync>>
+    {
+        let mut delegate_guard = self.delegate.lock().unwrap();
+
+        if let Some(ref delegate) = *delegate_guard {
+            return Ok(delegate.clone());
+        }
+
+        let client_guard = self.api_client.lock().unwrap();
+        let client = client_guard.as_ref().ok_or(
+            "ApiClient has not been injected. \
+             Ensure the {{clientClassName}} constructor calls set_api_client \
+             on HttpAwareAuthenticator before making API requests",
+        )?;
+
+        let mut headers = HashMap::new();
+        headers.insert("Accept".to_string(), "application/json".to_string());
+
+        let response =
+            client.send_request("GET", &self.openid_connect_url, &headers, &[])?;
+
+        let parsed: serde_json::Value = serde_json::from_str(&response.body)?;
+
+        let authorization_endpoint = parsed
+            .get("authorization_endpoint")
+            .and_then(|v| v.as_str())
+            .ok_or("missing authorization_endpoint in OIDC discovery document")?
+            .to_string();
+
+        let token_endpoint = parsed
+            .get("token_endpoint")
+            .and_then(|v| v.as_str())
+            .ok_or("missing token_endpoint in OIDC discovery document")?
+            .to_string();
+
+        let mut delegate = OAuth2AuthorizationCodeAuthenticator::new(
+            &self.host,
+            &self.client_id,
+            &self.client_secret,
+            &authorization_endpoint,
+            &token_endpoint,
+            &self.redirect_uri,
+            self.scopes.clone(),
+            "",
+        );
+
+        // Inject the API client clone into the delegate's token manager.
+        // The delegate needs its own client reference for token exchange.
+        drop(client_guard);
+        let client_guard = self.api_client.lock().unwrap();
+        if let Some(ref client) = *client_guard {
+            delegate.set_api_client(client.clone_box());
+        }
+
+        let result = delegate.clone();
+        *delegate_guard = Some(delegate);
+        Ok(result)
+    }
+}
+
+impl Authenticator for OpenIdConnectAuthenticator {
+    fn host(&self) -> &str {
+        &self.host
+    }
+
+    fn auth_headers(&self) -> HashMap<String, String> {
+        match self.resolve_delegate() {
+            Ok(delegate) => delegate.auth_headers(),
+            Err(_) => HashMap::new(),
+        }
+    }
+}
+
+impl HttpAwareAuthenticator for OpenIdConnectAuthenticator {
+    fn set_api_client(&mut self, client: Box<dyn ApiClient>) {
+        let mut guard = self.api_client.lock().unwrap();
+        *guard = Some(client);
+    }
+}
+
+unsafe impl Send for OpenIdConnectAuthenticator {}
+unsafe impl Sync for OpenIdConnectAuthenticator {}

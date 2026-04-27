@@ -1,0 +1,55 @@
+use std::collections::HashMap;
+
+use petstore::trace_context_util;
+
+#[test]
+fn test_inject_trace_context_no_op_when_no_tracer() {
+    let mut headers = HashMap::new();
+    headers.insert("X-Existing".to_string(), "value".to_string());
+
+    // inject_trace_context should be a no-op when OpenTelemetry is not configured.
+    // It should not panic or modify existing headers.
+    trace_context_util::inject_trace_context(&mut headers);
+
+    assert_eq!(headers.get("X-Existing").unwrap(), "value");
+}
+
+#[test]
+fn test_inject_trace_context_does_not_panic_with_empty_headers() {
+    let mut headers = HashMap::new();
+
+    // Should not panic with empty headers map
+    trace_context_util::inject_trace_context(&mut headers);
+}
+
+#[test]
+fn test_inject_trace_context_does_not_inject_without_otel() {
+    let mut headers = HashMap::new();
+
+    trace_context_util::inject_trace_context(&mut headers);
+
+    // Without OpenTelemetry configured, traceparent and tracestate should not
+    // be injected
+    assert!(
+        !headers.contains_key("traceparent"),
+        "expected no traceparent header without OpenTelemetry"
+    );
+    assert!(
+        !headers.contains_key("tracestate"),
+        "expected no tracestate header without OpenTelemetry"
+    );
+}
+
+#[test]
+fn test_inject_trace_context_preserves_existing_headers() {
+    let mut headers = HashMap::new();
+    headers.insert("Authorization".to_string(), "Bearer token".to_string());
+    headers.insert("Content-Type".to_string(), "application/json".to_string());
+    headers.insert("X-Request-ID".to_string(), "abc-123".to_string());
+
+    trace_context_util::inject_trace_context(&mut headers);
+
+    assert_eq!(headers.get("Authorization").unwrap(), "Bearer token");
+    assert_eq!(headers.get("Content-Type").unwrap(), "application/json");
+    assert_eq!(headers.get("X-Request-ID").unwrap(), "abc-123");
+}

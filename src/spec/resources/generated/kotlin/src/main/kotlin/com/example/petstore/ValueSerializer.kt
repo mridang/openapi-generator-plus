@@ -1,0 +1,113 @@
+package com.example.petstore
+
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+
+/**
+ * Serializes parameter values for HTTP requests based on their location and format.
+ */
+object ValueSerializer {
+    @JvmStatic
+    fun serialize(
+        value: Any?,
+        location: String,
+        schemaType: String?,
+        collectionFormat: String?,
+    ): Any? {
+        if (value == null) {
+            return if ("query" == location) null else ""
+        }
+
+        if (value is Collection<*>) {
+            val items = value.map { ObjectSerializer.stringify(it) }
+
+            if ("query" == location) {
+                if ("multi" == collectionFormat) return items
+                val separator =
+                    when (collectionFormat) {
+                        "ssv" -> " "
+                        "tsv" -> "\t"
+                        "pipes" -> "|"
+                        else -> ","
+                    }
+                return items.joinToString(separator)
+            }
+
+            if ("header" == location) {
+                return items.joinToString(",")
+            }
+        }
+
+        val str = ObjectSerializer.stringify(value)
+        if ("path" == location) {
+            return URLEncoder.encode(str, StandardCharsets.UTF_8).replace("+", "%20")
+        }
+        return str
+    }
+
+    @JvmStatic
+    fun serializeDeepObject(
+        paramName: String,
+        value: Map<*, *>?,
+    ): Map<String, String> {
+        val result = linkedMapOf<String, String>()
+        if (value == null) return result
+        for ((key, v) in value) {
+            result["$paramName[$key]"] = ObjectSerializer.stringify(v)
+        }
+        return result
+    }
+
+    @JvmStatic
+    fun serializeStyled(
+        paramName: String,
+        value: Any?,
+        location: String,
+        schemaType: String?,
+        collectionFormat: String?,
+        style: String?,
+        explode: Boolean,
+    ): Any? {
+        if (value == null) {
+            return if ("query" == location) null else ""
+        }
+
+        if (style.isNullOrEmpty()) {
+            return serialize(value, location, schemaType, collectionFormat)
+        }
+
+        val items = toStringList(value)
+
+        return when (style) {
+            "matrix" ->
+                if (explode) {
+                    items.joinToString("") { ";$paramName=$it" }
+                } else {
+                    ";$paramName=${items.joinToString(",")}"
+                }
+            "label" ->
+                if (explode) {
+                    ".${items.joinToString(".")}"
+                } else {
+                    ".${items.joinToString(",")}"
+                }
+            "simple" -> items.joinToString(",")
+            "form" ->
+                if (explode && value is Collection<*>) {
+                    ArrayList(items)
+                } else {
+                    items.joinToString(",")
+                }
+            "spaceDelimited" -> items.joinToString(" ")
+            "pipeDelimited" -> items.joinToString("|")
+            else -> serialize(value, location, schemaType, collectionFormat)
+        }
+    }
+
+    private fun toStringList(value: Any?): List<String> {
+        if (value is Collection<*>) {
+            return value.map { ObjectSerializer.stringify(it) }
+        }
+        return listOf(ObjectSerializer.stringify(value))
+    }
+}

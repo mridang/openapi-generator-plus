@@ -1,0 +1,27 @@
+package com.example.petstore.auth.oauth
+
+import com.example.petstore.auth.HttpAwareAuthenticator
+
+/**
+ * OAuth2 Implicit flow authenticator.
+ */
+open class OAuth2ImplicitAuthenticator(
+    private val host: String,
+    private val clientId: String,
+    private val authorizationUrl: String,
+    private val scopes: List<String>,
+) : HttpAwareAuthenticator() {
+    @Volatile
+    private var accessToken: String? = null
+
+    override fun getHost(): String = host
+
+    override fun getAuthHeaders(): Map<String, String> {
+        val token = accessToken ?: throw IllegalStateException("No access token. Complete the implicit flow first.")
+        return mapOf("Authorization" to "Bearer $token")
+    }
+
+    fun setAccessToken(token: String) {
+        this.accessToken = token
+    }
+}

@@ -1,0 +1,65 @@
+use std::collections::HashMap;
+
+use crate::server_configuration::{ServerConfiguration, ServerVariable};
+
+/// Generated server configurations from the OpenAPI specification.
+///
+/// Each function corresponds to a server entry defined in the spec's
+/// servers array. Use these with `ConfigurationBuilder::server` to select a server:
+///
+/// ```rust,no_run
+/// # use std::collections::HashMap;
+/// # use {{packageName}}::ConfigurationBuilder;
+/// # use {{packageName}}::servers::server_0;
+/// let config = ConfigurationBuilder::new()
+///     .server(&server_0(), &HashMap::new())
+///     .build();
+/// ```
+///
+/// For servers with variables, pass overrides:
+///
+/// ```rust,no_run
+/// # use std::collections::HashMap;
+/// # use {{packageName}}::ConfigurationBuilder;
+/// # use {{packageName}}::servers::server_1;
+/// let mut vars = HashMap::new();
+/// vars.insert("environment".to_string(), "staging".to_string());
+/// let config = ConfigurationBuilder::new()
+///     .server(&server_1(), &vars)
+///     .build();
+/// ```
+{{#serverConfigs}}
+/// Server configuration for: {{serverUrl}}
+{{#serverDescription}}
+/// {{serverDescription}}
+{{/serverDescription}}
+pub fn server_{{serverIndex}}() -> ServerConfiguration {
+    ServerConfiguration {
+        url_template: "{{{serverUrl}}}".to_string(),
+        description: "{{#serverDescription}}{{{serverDescription}}}{{/serverDescription}}".to_string(),
+        variables: {{#hasVariables}}{
+            let mut vars = HashMap::new();
+{{#serverVariables}}
+            vars.insert(
+                "{{{varName}}}".to_string(),
+                ServerVariable {
+                    default_value: "{{{varDefault}}}".to_string(),
+                    description: "{{#varDescription}}{{{varDescription}}}{{/varDescription}}".to_string(),
+                    enum_values: {{#hasEnumValues}}vec![{{#varEnumValues}}"{{{.}}}".to_string(){{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}vec![]{{/hasEnumValues}},
+                },
+            );
+{{/serverVariables}}
+            vars
+        }{{/hasVariables}}{{^hasVariables}}HashMap::new(){{/hasVariables}},
+    }
+}
+{{/serverConfigs}}
+
+/// Returns all server configurations in declaration order.
+pub fn all_servers() -> Vec<ServerConfiguration> {
+    vec![
+{{#serverConfigs}}
+        server_{{serverIndex}}(),
+{{/serverConfigs}}
+    ]
+}

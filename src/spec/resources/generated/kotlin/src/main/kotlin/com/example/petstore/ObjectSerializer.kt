@@ -1,0 +1,81 @@
+package com.example.petstore
+
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.serializer
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.temporal.TemporalAccessor
+
+/**
+ * Handles JSON serialization and deserialization for API requests and responses.
+ */
+class ObjectSerializer(
+    val json: Json = createDefaultJson(),
+) {
+    fun serialize(obj: Any?): String {
+        if (obj == null) return "null"
+        return json.encodeToString(serializer(obj::class.java), obj)
+    }
+
+    inline fun <reified T> deserialize(jsonString: String?): T? {
+        if (jsonString.isNullOrEmpty()) return null
+        return json.decodeFromString<T>(jsonString)
+    }
+
+    companion object {
+        fun createDefaultJson(): Json =
+            Json {
+                ignoreUnknownKeys = true
+                encodeDefaults = false
+                isLenient = true
+                coerceInputValues = true
+            }
+
+        fun stringify(value: Any?): String {
+            if (value == null) return ""
+            return when (value) {
+                is Boolean -> if (value) "true" else "false"
+                is LocalDate -> DateTimeFormatter.ISO_LOCAL_DATE.format(value)
+                is TemporalAccessor -> DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(value)
+                else -> value.toString()
+            }
+        }
+
+        fun toPathValue(value: Any?): String = stringify(value)
+
+        fun toQueryValue(
+            value: Any?,
+            collectionFormat: String?,
+        ): Any? {
+            if (value == null) return null
+            if (value is Collection<*>) {
+                val items = value.map { stringify(it) }
+                if ("multi" == collectionFormat) return items
+                val sep =
+                    when (collectionFormat) {
+                        "ssv" -> " "
+                        "tsv" -> "\t"
+                        "pipes" -> "|"
+                        else -> ","
+                    }
+                return items.joinToString(sep)
+            }
+            return stringify(value)
+        }
+
+        fun toHeaderValue(value: Any?): String {
+            if (value == null) return ""
+            if (value is Collection<*>) {
+                return value.joinToString(",") { stringify(it) }
+            }
+            return stringify(value)
+        }
+
+        fun toFormValue(value: Any?): String = stringify(value)
+    }
+
+    class SerializationException : RuntimeException {
+        constructor(message: String, cause: Throwable) : super(message, cause)
+        constructor(message: String) : super(message)
+    }
+}

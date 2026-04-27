@@ -1,0 +1,14 @@
+use std::collections::HashMap;
+
+/// ApiResponse wraps an HTTP response with status code, body, and headers.
+#[derive(Debug, Clone)]
+pub struct ApiResponse {
+    /// The HTTP status code of the response.
+    pub status_code: u16,
+
+    /// The raw response body as a string.
+    pub body: String,
+
+    /// The response headers.
+    pub headers: HashMap<String, String>,
+}

@@ -1,0 +1,35 @@
+#[allow(unused_imports)]
+use crate::models::*;
+
+/// Options for the {{operationId}} operation.
+#[derive(Debug, Clone, Default)]
+pub struct {{className}} {
+{{#params}}
+{{#description}}
+    /// {{{.}}}
+{{/description}}
+{{#required}}
+    pub {{name}}: {{{dataType}}},
+{{/required}}
+{{^required}}
+    pub {{name}}: Option<{{{dataType}}}>,
+{{/required}}
+{{/params}}
+}
+
+impl {{className}} {
+    /// Creates a new {{className}} with default values.
+    pub fn new() -> Self {
+        Self::default()
+    }
+{{#params}}
+{{^required}}
+
+    /// Sets the {{name}} field.
+    pub fn {{name}}(mut self, {{name}}: {{{dataType}}}) -> Self {
+        self.{{name}} = Some({{name}});
+        self
+    }
+{{/required}}
+{{/params}}
+}

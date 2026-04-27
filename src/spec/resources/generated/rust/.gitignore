@@ -1,0 +1,6 @@
+target/
+Cargo.lock
+tests/fixtures/wiremock/
+tests/fixtures/certs/
+tests/fixtures/proxy/
+tests/fixtures/openapi.yaml

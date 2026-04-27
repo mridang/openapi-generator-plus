@@ -1,0 +1,151 @@
+package {{invokerPackage}}.models
+
+import {{modelPackage}}.*
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+
+class ComposedSchemaTest {
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = false
+        isLenient = true
+        coerceInputValues = true
+    }
+
+    @Nested
+    @DisplayName("oneOf with discriminator - DryFood")
+    inner class DryFoodTests {
+
+        @Test
+        @DisplayName("deserializes DryFood from JSON")
+        fun testDeserializeDryFood() {
+            val jsonString = """{"foodType":"dry","weightKg":2.5}"""
+
+            val result = json.decodeFromString<DryFood>(jsonString)
+
+            assertNotNull(result)
+            assertEquals("dry", result.foodType)
+            assertEquals(2.5, result.weightKg)
+        }
+
+        @Test
+        @DisplayName("deserializes WetFood from JSON")
+        fun testDeserializeWetFood() {
+            val jsonString = """{"foodType":"wet","volumeMl":400}"""
+
+            val result = json.decodeFromString<WetFood>(jsonString)
+
+            assertNotNull(result)
+            assertEquals("wet", result.foodType)
+            assertEquals(400, result.volumeMl)
+        }
+
+        @Test
+        @DisplayName("serializes DryFood back to JSON")
+        fun testSerializeDryFood() {
+            val dryFood = DryFood(foodType = "dry", weightKg = 2.5)
+
+            val jsonString = json.encodeToString(dryFood)
+
+            assertNotNull(jsonString)
+            assertTrue(jsonString.contains("dry"))
+            assertTrue(jsonString.contains("2.5"))
+        }
+    }
+
+    @Nested
+    @DisplayName("anyOf - PetTreatment")
+    inner class PetTreatmentTests {
+
+        @Test
+        @DisplayName("deserializes PetTreatment from JSON without error")
+        fun testDeserialize() {
+            val jsonString = """{}"""
+
+            val result = json.decodeFromString<PetTreatment>(jsonString)
+
+            assertNotNull(result)
+        }
+
+        @Test
+        @DisplayName("constructs PetTreatment with medication instance")
+        fun testConstructWithMedication() {
+            val medication = Medication(drugName = "Amoxicillin", dosage = "500mg")
+            val treatment = PetTreatment(actualInstance = medication)
+
+            assertNotNull(treatment.actualInstance)
+            assertTrue(treatment.actualInstance is Medication)
+        }
+
+        @Test
+        @DisplayName("constructs PetTreatment with surgery instance")
+        fun testConstructWithSurgery() {
+            val surgery = Surgery(procedureName = "Spay", durationMinutes = 45)
+            val treatment = PetTreatment(actualInstance = surgery)
+
+            assertNotNull(treatment.actualInstance)
+            assertTrue(treatment.actualInstance is Surgery)
+        }
+    }
+
+    @Nested
+    @DisplayName("allOf - PetWithOwner")
+    inner class PetWithOwnerTests {
+
+        @Test
+        @DisplayName("deserializes all properties from allOf composition")
+        fun testDeserialize() {
+            val jsonString =
+                """{"name":"doggie","photoUrls":["http://example.com/photo.jpg"],""" +
+                    """"ownerName":"John","ownerEmail":"john@example.com"}"""
+
+            val result = json.decodeFromString<PetWithOwner>(jsonString)
+
+            assertNotNull(result)
+            assertEquals("doggie", result.name)
+            assertEquals("John", result.ownerName)
+            assertEquals("john@example.com", result.ownerEmail)
+        }
+
+        @Test
+        @DisplayName("serializes PetWithOwner to JSON")
+        fun testSerialize() {
+            val petWithOwner = PetWithOwner(
+                name = "doggie",
+                photoUrls = setOf("http://example.com/photo.jpg"),
+                ownerName = "John",
+                ownerEmail = "john@example.com"
+            )
+
+            val jsonString = json.encodeToString(petWithOwner)
+
+            assertNotNull(jsonString)
+            assertTrue(jsonString.contains("doggie"))
+            assertTrue(jsonString.contains("John"))
+            assertTrue(jsonString.contains("john@example.com"))
+        }
+
+        @Test
+        @DisplayName("round-trip preserves all fields")
+        fun testRoundTrip() {
+            val original = PetWithOwner(
+                name = "doggie",
+                photoUrls = setOf("http://example.com/photo.jpg"),
+                ownerName = "John",
+                ownerEmail = "john@example.com"
+            )
+
+            val jsonString = json.encodeToString(original)
+            val deserialized = json.decodeFromString<PetWithOwner>(jsonString)
+
+            assertEquals(original.name, deserialized.name)
+            assertEquals(original.ownerName, deserialized.ownerName)
+            assertEquals(original.ownerEmail, deserialized.ownerEmail)
+        }
+    }
+}

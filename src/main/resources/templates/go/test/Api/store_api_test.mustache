@@ -1,0 +1,195 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+
+	"{{packageName}}"
+	"{{packageName}}/models"
+)
+
+// storeApiPrismBaseURL returns the Prism mock server base URL for store tests.
+func storeApiPrismBaseURL(t *testing.T) string {
+	t.Helper()
+	url := os.Getenv("API_BASE_URL")
+	if url == "" {
+		t.Skip("API_BASE_URL not set; skipping integration test (Prism mock server not available)")
+	}
+	return url
+}
+
+func newStoreApiForIntegration(t *testing.T) *{{packageName}}.StoreApi {
+	t.Helper()
+	baseURL := storeApiPrismBaseURL(t)
+	config := {{packageName}}.NewConfigurationBuilder().
+		BaseURL(baseURL).
+		DefaultHeader("Authorization", "Bearer test-token").
+		Build()
+	client := {{packageName}}.NewDefaultApiClient(nil)
+	return {{packageName}}.NewStoreApi(client, config)
+}
+
+func newStoreApiForMock(t *testing.T, server *httptest.Server) *{{packageName}}.StoreApi {
+	t.Helper()
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL(server.URL).Build()
+	client := {{packageName}}.NewDefaultApiClient(nil)
+	return {{packageName}}.NewStoreApi(client, config)
+}
+
+func TestStoreApi_PlaceOrder(t *testing.T) {
+	api := newStoreApiForIntegration(t)
+
+	order := models.NewOrder()
+
+	result, err := api.PlaceOrder(order)
+	if err != nil {
+		t.Fatalf("PlaceOrder failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result from PlaceOrder")
+	}
+}
+
+func TestStoreApi_PlaceOrderWithHTTPInfo(t *testing.T) {
+	api := newStoreApiForIntegration(t)
+
+	order := models.NewOrder()
+
+	result, err := api.PlaceOrderWithHTTPInfo(order)
+	if err != nil {
+		t.Fatalf("PlaceOrderWithHTTPInfo failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if result.StatusCode < 200 || result.StatusCode >= 300 {
+		t.Errorf("expected 2xx status, got %d", result.StatusCode)
+	}
+	if result.Data == nil {
+		t.Error("expected non-nil Data")
+	}
+	if result.RawBody == "" {
+		t.Error("expected non-empty RawBody")
+	}
+}
+
+func TestStoreApi_GetOrderById(t *testing.T) {
+	api := newStoreApiForIntegration(t)
+
+	result, err := api.GetOrderById(int64(1))
+	if err != nil {
+		t.Fatalf("GetOrderById failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result from GetOrderById")
+	}
+}
+
+func TestStoreApi_GetOrderByIdWithHTTPInfo(t *testing.T) {
+	api := newStoreApiForIntegration(t)
+
+	result, err := api.GetOrderByIdWithHTTPInfo(int64(1))
+	if err != nil {
+		t.Fatalf("GetOrderByIdWithHTTPInfo failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if result.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", result.StatusCode)
+	}
+	if result.Headers == nil {
+		t.Error("expected non-nil Headers")
+	}
+}
+
+func TestStoreApi_DeleteOrder(t *testing.T) {
+	api := newStoreApiForIntegration(t)
+
+	err := api.DeleteOrder(int64(1))
+	if err != nil {
+		t.Fatalf("DeleteOrder failed: %v", err)
+	}
+}
+
+func TestStoreApi_GetInventory(t *testing.T) {
+	api := newStoreApiForIntegration(t)
+
+	result, err := api.GetInventory()
+	if err != nil {
+		t.Fatalf("GetInventory failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result from GetInventory")
+	}
+}
+
+func TestStoreApi_GetInventoryWithHTTPInfo(t *testing.T) {
+	api := newStoreApiForIntegration(t)
+
+	result, err := api.GetInventoryWithHTTPInfo()
+	if err != nil {
+		t.Fatalf("GetInventoryWithHTTPInfo failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if result.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", result.StatusCode)
+	}
+	if result.Data == nil {
+		t.Error("expected non-nil Data")
+	}
+}
+
+func TestStoreApi_GetOrderNotFound(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(404)
+		_, _ = w.Write([]byte(`{"message":"Order not found"}`))
+	}))
+	defer server.Close()
+
+	api := newStoreApiForMock(t, server)
+
+	_, err := api.GetOrderById(int64(99999))
+	if err == nil {
+		t.Fatal("expected error for non-existent order")
+	}
+}
+
+func TestStoreApi_PlaceOrderServerError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(500)
+		_, _ = w.Write([]byte(`{"message":"Internal server error"}`))
+	}))
+	defer server.Close()
+
+	api := newStoreApiForMock(t, server)
+
+	order := models.NewOrder()
+	_, err := api.PlaceOrder(order)
+	if err == nil {
+		t.Fatal("expected error for server error response")
+	}
+}
+
+func TestStoreApi_DeleteOrderNotFound(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(404)
+		_, _ = w.Write([]byte(`{"message":"Order not found"}`))
+	}))
+	defer server.Close()
+
+	api := newStoreApiForMock(t, server)
+
+	err := api.DeleteOrder(int64(99999))
+	if err == nil {
+		t.Fatal("expected error for deleting non-existent order")
+	}
+}

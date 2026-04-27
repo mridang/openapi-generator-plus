@@ -1,0 +1,142 @@
+use std::collections::HashMap;
+
+use crate::api_client::ApiClient;
+use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
+use crate::auth::oauth::oauth2_token_manager::OAuth2TokenManager;
+use crate::authenticator::Authenticator;
+
+/// OAuth2AuthorizationCodeAuthenticator provides OAuth2 authorization code
+/// flow authentication.
+///
+/// Implements HttpAwareAuthenticator so that token exchange requests use the
+/// shared ApiClient with the same transport configuration (proxy, TLS, timeouts)
+/// as regular API calls.
+///
+/// Usage:
+///  1. Call `build_authorization_url` to get the authorization URL
+///  2. Redirect the user to that URL
+///  3. After the callback, call `exchange_code` with the auth code
+///  4. Use the authenticator normally -- tokens are managed automatically
+pub struct OAuth2AuthorizationCodeAuthenticator {
+    host: String,
+    client_id: String,
+    client_secret: String,
+    authorization_url: String,
+    token_url: String,
+    refresh_url: String,
+    redirect_uri: String,
+    scopes: Vec<String>,
+    token_manager: OAuth2TokenManager,
+    token_exchanged: bool,
+}
+
+impl OAuth2AuthorizationCodeAuthenticator {
+    /// Creates a new authorization code authenticator.
+    ///
+    /// If `refresh_url` is empty, the `token_url` is used for refresh requests.
+    pub fn new(
+        host: &str,
+        client_id: &str,
+        client_secret: &str,
+        authorization_url: &str,
+        token_url: &str,
+        redirect_uri: &str,
+        scopes: Vec<String>,
+        refresh_url: &str,
+    ) -> Self {
+        let effective_refresh_url = if refresh_url.is_empty() {
+            token_url.to_string()
+        } else {
+            refresh_url.to_string()
+        };
+
+        Self {
+            host: host.to_string(),
+            client_id: client_id.to_string(),
+            client_secret: client_secret.to_string(),
+            authorization_url: authorization_url.to_string(),
+            token_url: token_url.to_string(),
+            refresh_url: effective_refresh_url,
+            redirect_uri: redirect_uri.to_string(),
+            scopes,
+            token_manager: OAuth2TokenManager::new(),
+            token_exchanged: false,
+        }
+    }
+
+    /// Builds the authorization URL to redirect the user to.
+    ///
+    /// The `state` parameter is optional and used for CSRF protection.
+    pub fn build_authorization_url(&self, state: &str) -> String {
+        let mut params = vec![
+            format!("response_type=code"),
+            format!("client_id={}", &self.client_id),
+            format!("redirect_uri={}", &self.redirect_uri),
+        ];
+        if !self.scopes.is_empty() {
+            params.push(format!("scope={}", self.scopes.join(" ")));
+        }
+        if !state.is_empty() {
+            params.push(format!("state={}", state));
+        }
+        format!("{}?{}", self.authorization_url, params.join("&"))
+    }
+
+    /// Exchanges an authorization code for an access token.
+    pub fn exchange_code(
+        &mut self,
+        code: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let mut params = HashMap::new();
+        params.insert("grant_type".to_string(), "authorization_code".to_string());
+        params.insert("code".to_string(), code.to_string());
+        params.insert("client_id".to_string(), self.client_id.clone());
+        params.insert("client_secret".to_string(), self.client_secret.clone());
+        params.insert("redirect_uri".to_string(), self.redirect_uri.clone());
+
+        self.token_manager
+            .get_access_token(&self.token_url, &params)?;
+        self.token_exchanged = true;
+        Ok(())
+    }
+}
+
+impl Authenticator for OAuth2AuthorizationCodeAuthenticator {
+    fn host(&self) -> &str {
+        &self.host
+    }
+
+    fn auth_headers(&self) -> HashMap<String, String> {
+        if !self.token_exchanged {
+            panic!("must call exchange_code before making API requests");
+        }
+
+        let mut params = HashMap::new();
+        params.insert("grant_type".to_string(), "refresh_token".to_string());
+        let refresh_token = self.token_manager.refresh_token();
+        if !refresh_token.is_empty() {
+            params.insert("refresh_token".to_string(), refresh_token);
+        }
+
+        match self
+            .token_manager
+            .get_access_token(&self.refresh_url, &params)
+        {
+            Ok(token) => {
+                let mut headers = HashMap::new();
+                headers.insert(
+                    "Authorization".to_string(),
+                    format!("Bearer {}", token),
+                );
+                headers
+            }
+            Err(_) => HashMap::new(),
+        }
+    }
+}
+
+impl HttpAwareAuthenticator for OAuth2AuthorizationCodeAuthenticator {
+    fn set_api_client(&mut self, client: Box<dyn ApiClient>) {
+        self.token_manager.set_api_client(client);
+    }
+}

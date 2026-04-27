@@ -1,0 +1,168 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+	"time"
+)
+
+const defaultDateTimeFormat = "2006-01-02T15:04:05-07:00"
+
+// SerializationError is returned when serialization or deserialization fails.
+type SerializationError struct {
+	Message string
+	Cause   error
+}
+
+func (e *SerializationError) Error() string {
+	if e.Cause != nil {
+		return fmt.Sprintf("%s: %v", e.Message, e.Cause)
+	}
+	return e.Message
+}
+
+func (e *SerializationError) Unwrap() error {
+	return e.Cause
+}
+
+// Serialize converts an object to a JSON byte slice.
+func Serialize(object interface{}) ([]byte, error) {
+	data, err := json.Marshal(object)
+	if err != nil {
+		return nil, &SerializationError{
+			Message: fmt.Sprintf("failed to serialize object to JSON: %v", err),
+			Cause:   err,
+		}
+	}
+	return data, nil
+}
+
+// Deserialize parses a JSON byte slice into the target value.
+func Deserialize(data []byte, target interface{}) error {
+	if len(data) == 0 {
+		return nil
+	}
+
+	if err := json.Unmarshal(data, target); err != nil {
+		return &SerializationError{
+			Message: fmt.Sprintf("failed to deserialize JSON: %v", err),
+			Cause:   err,
+		}
+	}
+	return nil
+}
+
+// Stringify converts a single scalar value to its string representation.
+//
+// This is the canonical type-conversion method used by all parameter
+// encoding helpers (ToPathValue, ToQueryValue, etc.) and by
+// ValueSerializer for transport formatting.
+func Stringify(value interface{}) string {
+	if value == nil {
+		return ""
+	}
+
+	switch v := value.(type) {
+	case bool:
+		if v {
+			return "true"
+		}
+		return "false"
+	case time.Time:
+		return v.Format(defaultDateTimeFormat)
+	case *time.Time:
+		if v == nil {
+			return ""
+		}
+		return v.Format(defaultDateTimeFormat)
+	case string:
+		return v
+	case *string:
+		if v == nil {
+			return ""
+		}
+		return *v
+	case int:
+		return fmt.Sprintf("%d", v)
+	case int32:
+		return fmt.Sprintf("%d", v)
+	case int64:
+		return fmt.Sprintf("%d", v)
+	case float32:
+		return fmt.Sprintf("%g", v)
+	case float64:
+		return fmt.Sprintf("%g", v)
+	case fmt.Stringer:
+		return v.String()
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+// ToPathValue converts a value to a string suitable for use as a URL path parameter.
+func ToPathValue(value interface{}) string {
+	return Stringify(value)
+}
+
+// ToQueryValue converts a value to a representation suitable for use as a query parameter.
+// For collections, joins using the specified collection format delimiter.
+func ToQueryValue(value interface{}, collectionFormat string) interface{} {
+	if value == nil {
+		return nil
+	}
+
+	switch v := value.(type) {
+	case []string:
+		return joinCollection(v, collectionFormat)
+	case []interface{}:
+		items := make([]string, len(v))
+		for i, item := range v {
+			items[i] = Stringify(item)
+		}
+		return joinCollection(items, collectionFormat)
+	default:
+		return Stringify(value)
+	}
+}
+
+// ToHeaderValue converts a value to a string suitable for use as an HTTP header value.
+func ToHeaderValue(value interface{}) string {
+	if value == nil {
+		return ""
+	}
+
+	switch v := value.(type) {
+	case []string:
+		return strings.Join(v, ",")
+	case []interface{}:
+		items := make([]string, len(v))
+		for i, item := range v {
+			items[i] = Stringify(item)
+		}
+		return strings.Join(items, ",")
+	default:
+		return Stringify(value)
+	}
+}
+
+// ToFormValue converts a value to a representation suitable for use as a form parameter.
+func ToFormValue(value interface{}) string {
+	return Stringify(value)
+}
+
+func joinCollection(items []string, collectionFormat string) interface{} {
+	switch collectionFormat {
+	case "ssv":
+		return strings.Join(items, " ")
+	case "tsv":
+		return strings.Join(items, "\t")
+	case "pipes":
+		return strings.Join(items, "|")
+	case "multi":
+		return items
+	default:
+		return strings.Join(items, ",")
+	}
+}

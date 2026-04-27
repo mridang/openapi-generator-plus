@@ -1,0 +1,64 @@
+use std::collections::HashMap;
+
+use crate::auth::api_key_location::ApiKeyLocation;
+use crate::authenticator::Authenticator;
+
+/// ApiKeyAuthenticator provides API key authentication.
+///
+/// The API key can be sent as a header, query parameter, or cookie,
+/// depending on the location specified at construction.
+pub struct ApiKeyAuthenticator {
+    host: String,
+    key_name: String,
+    key_value: String,
+    location: ApiKeyLocation,
+}
+
+impl ApiKeyAuthenticator {
+    /// Creates a new API key authenticator.
+    ///
+    /// # Arguments
+    ///
+    /// * `host` - API base URL
+    /// * `key_name` - name of the key parameter
+    /// * `key_value` - the API key value
+    /// * `location` - where to send the key (header, query, or cookie)
+    pub fn new(host: &str, key_name: &str, key_value: &str, location: ApiKeyLocation) -> Self {
+        Self {
+            host: host.to_string(),
+            key_name: key_name.to_string(),
+            key_value: key_value.to_string(),
+            location,
+        }
+    }
+}
+
+impl Authenticator for ApiKeyAuthenticator {
+    fn host(&self) -> &str {
+        &self.host
+    }
+
+    fn auth_headers(&self) -> HashMap<String, String> {
+        let mut result = HashMap::new();
+        if self.location == ApiKeyLocation::Header {
+            result.insert(self.key_name.clone(), self.key_value.clone());
+        }
+        result
+    }
+
+    fn query_params(&self) -> HashMap<String, String> {
+        let mut result = HashMap::new();
+        if self.location == ApiKeyLocation::Query {
+            result.insert(self.key_name.clone(), self.key_value.clone());
+        }
+        result
+    }
+
+    fn cookie_params(&self) -> HashMap<String, String> {
+        let mut result = HashMap::new();
+        if self.location == ApiKeyLocation::Cookie {
+            result.insert(self.key_name.clone(), self.key_value.clone());
+        }
+        result
+    }
+}

@@ -1,0 +1,11 @@
+package com.example.petstore.exceptions
+
+/**
+ * Exception for HTTP 401 Unauthorized.
+ */
+class UnauthorizedException(
+    message: String,
+    responseHeaders: Map<String, String>?,
+    responseBody: String?,
+    errorBody: Any? = null,
+) : ClientException(401, message, responseHeaders, responseBody, errorBody)

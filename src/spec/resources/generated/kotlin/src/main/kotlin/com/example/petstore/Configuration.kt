@@ -1,0 +1,52 @@
+package com.example.petstore
+
+/**
+ * API-level configuration for generated client classes.
+ */
+class Configuration private constructor(
+    val baseUrl: String,
+    val defaultHeaders: Map<String, String>,
+) {
+    companion object {
+        @Volatile
+        private var defaultInstance: Configuration? = null
+
+        fun builder(): Builder = Builder()
+
+        fun getDefault(): Configuration = defaultInstance ?: builder().build().also { defaultInstance = it }
+
+        fun setDefault(config: Configuration) {
+            defaultInstance = config
+        }
+    }
+
+    class Builder {
+        private var baseUrl: String = "/api/v3"
+        private val defaultHeaders: MutableMap<String, String> = mutableMapOf()
+
+        fun baseUrl(baseUrl: String): Builder = apply { this.baseUrl = baseUrl }
+
+        fun defaultHeader(
+            name: String,
+            value: String,
+        ): Builder =
+            apply {
+                defaultHeaders[name] = value
+            }
+
+        fun defaultHeaders(headers: Map<String, String>): Builder =
+            apply {
+                defaultHeaders.putAll(headers)
+            }
+
+        fun server(
+            serverConfig: ServerConfiguration,
+            variables: Map<String, String>? = null,
+        ): Builder =
+            apply {
+                this.baseUrl = serverConfig.getUrl(variables ?: emptyMap())
+            }
+
+        fun build(): Configuration = Configuration(baseUrl, defaultHeaders.toMap())
+    }
+}

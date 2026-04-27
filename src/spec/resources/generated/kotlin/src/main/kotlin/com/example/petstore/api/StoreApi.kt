@@ -1,0 +1,150 @@
+package com.example.petstore.api
+
+import com.example.petstore.ApiClient
+import com.example.petstore.ApiException
+import com.example.petstore.ApiResult
+import com.example.petstore.Configuration
+import com.example.petstore.ValueSerializer
+import com.example.petstore.models.Order
+import kotlin.collections.Map
+
+/**
+ * StoreApi provides methods for the Store API group.
+ * Access to Petstore orders
+ */
+class StoreApi : BaseApi {
+    constructor() : super()
+
+    constructor(apiClient: ApiClient, config: Configuration) : super(apiClient, config)
+
+    /**
+     * Delete purchase order by ID
+     * @param orderId ID of the order to delete (required)
+
+     * @throws ApiException if fails to make API call
+     */
+
+    suspend fun deleteOrder(orderId: Long) {
+        deleteOrderWithHttpInfo(orderId)
+    }
+
+    suspend fun deleteOrderWithHttpInfo(orderId: Long): ApiResult<Unit> {
+        requireNotNull(orderId) {
+            "Missing the required parameter 'orderId' when calling deleteOrder"
+        }
+        var path =
+            "/store/order/{orderId}"
+                .replace(
+                    "{" + "orderId" + "}",
+                    ValueSerializer.serializeStyled("orderId", orderId, "path", "Long", null, "simple", false) as String,
+                )
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+        val response =
+            invokeApi(
+                "DELETE",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                arrayOf(),
+                "application/json",
+                null,
+            )
+        return ApiResult(response.statusCode, Unit, response.body, response.headers)
+    }
+
+    /**
+     * Returns pet inventories by status
+
+     * @return Map<String, Int>
+     * @throws ApiException if fails to make API call
+     */
+
+    suspend fun getInventory(): Map<String, Int>? = getInventoryWithHttpInfo().data
+
+    suspend fun getInventoryWithHttpInfo(): ApiResult<Map<String, Int>> {
+        var path = "/store/inventory"
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+        val response =
+            invokeApi(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                arrayOf("application/json"),
+                "application/json",
+                null,
+            )
+        val data = objectSerializer.deserialize<Map<String, Int>>(response.body)
+        return ApiResult(response.statusCode, data, response.body, response.headers)
+    }
+
+    /**
+     * Find purchase order by ID
+     * @param orderId ID of order to return (required)
+
+     * @return Order
+     * @throws ApiException if fails to make API call
+     */
+
+    suspend fun getOrderById(orderId: Long): Order? = getOrderByIdWithHttpInfo(orderId).data
+
+    suspend fun getOrderByIdWithHttpInfo(orderId: Long): ApiResult<Order> {
+        requireNotNull(orderId) {
+            "Missing the required parameter 'orderId' when calling getOrderById"
+        }
+        var path =
+            "/store/order/{orderId}"
+                .replace(
+                    "{" + "orderId" + "}",
+                    ValueSerializer.serializeStyled("orderId", orderId, "path", "Long", null, "simple", false) as String,
+                )
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+        val response =
+            invokeApi(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                arrayOf("application/json"),
+                "application/json",
+                null,
+            )
+        val data = objectSerializer.deserialize<Order>(response.body)
+        return ApiResult(response.statusCode, data, response.body, response.headers)
+    }
+
+    /**
+     * Place an order for a pet
+     * @param order  (optional)
+
+     * @return Order
+     * @throws ApiException if fails to make API call
+     */
+
+    suspend fun placeOrder(order: Order? = null): Order? = placeOrderWithHttpInfo(order).data
+
+    suspend fun placeOrderWithHttpInfo(order: Order? = null): ApiResult<Order> {
+        var path = "/store/order"
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+        val response =
+            invokeApi(
+                "POST",
+                path,
+                queryParams,
+                headerParams,
+                order,
+                arrayOf("application/json"),
+                "application/json",
+                null,
+            )
+        val data = objectSerializer.deserialize<Order>(response.body)
+        return ApiResult(response.statusCode, data, response.body, response.headers)
+    }
+}

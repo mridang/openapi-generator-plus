@@ -1,0 +1,43 @@
+#[allow(unused_imports)]
+use super::*;
+use serde::{Deserialize, Serialize};
+
+/// PetWithOwner A pet record extended with owner information
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct PetWithOwner {
+    #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
+    pub id: Option<i64>,
+    #[serde(rename = "name")]
+    pub name: String,
+    #[serde(rename = "category", skip_serializing_if = "Option::is_none")]
+    pub category: Option<Category>,
+    #[serde(rename = "photoUrls")]
+    pub photo_urls: Vec<String>,
+    #[serde(rename = "tags", skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<Tag>>,
+    /// pet status in the store
+    #[deprecated]
+    #[serde(rename = "status", skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    #[serde(rename = "ownerName")]
+    pub owner_name: String,
+    #[serde(rename = "ownerEmail", skip_serializing_if = "Option::is_none")]
+    pub owner_email: Option<String>,
+}
+
+#[allow(deprecated)]
+impl PetWithOwner {
+    /// Creates a new PetWithOwner instance with required parameters.
+    pub fn new(name: String, photo_urls: Vec<String>, owner_name: String) -> Self {
+        Self {
+            name,
+            photo_urls,
+            owner_name,
+            id: None,
+            category: None,
+            tags: None,
+            status: None,
+            owner_email: None,
+        }
+    }
+}

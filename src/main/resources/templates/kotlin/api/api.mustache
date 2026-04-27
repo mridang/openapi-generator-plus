@@ -1,0 +1,285 @@
+package {{package}}
+
+import {{invokerPackage}}.ApiClient
+import {{invokerPackage}}.ApiException
+import {{invokerPackage}}.ApiResult
+import {{invokerPackage}}.Configuration
+import {{invokerPackage}}.ObjectSerializer
+import {{invokerPackage}}.ValueSerializer
+{{#hasAnyAuthMethods}}
+import {{invokerPackage}}.auth.Authenticator
+{{/hasAnyAuthMethods}}
+{{#operations}}
+{{#operation}}
+{{#hasAuthMethods}}
+{{#authMethods}}
+{{#isOAuth}}
+import {{invokerPackage}}.auth.oauth.{{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}{{#isCode}}AuthorizationCode{{/isCode}}{{#isPassword}}Password{{/isPassword}}{{#isApplication}}ClientCredentials{{/isApplication}}{{#isImplicit}}Implicit{{/isImplicit}}Authenticator
+{{/isOAuth}}
+{{#isOpenId}}
+import {{invokerPackage}}.auth.oauth.{{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}Authenticator
+{{/isOpenId}}
+{{^isOAuth}}
+{{^isOpenId}}
+import {{invokerPackage}}.auth.{{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}Authenticator
+{{/isOpenId}}
+{{/isOAuth}}
+{{/authMethods}}
+{{/hasAuthMethods}}
+{{/operation}}
+{{/operations}}
+{{#imports}}import {{import}}
+{{/imports}}
+{{#optionsImports}}
+import {{package}}.options.{{optionsClassName}}
+{{/optionsImports}}
+
+{{#operations}}
+/**
+ * {{classname}} provides methods for the {{baseName}} API group.
+{{#tagDescription}}
+ * {{.}}
+{{/tagDescription}}
+{{#tagExternalDocs}}
+ * @see <a href="{{url}}">{{description}}</a>
+{{/tagExternalDocs}}
+ */
+class {{classname}} : BaseApi {
+{{#serverTypeDefs}}
+
+    /**
+     * Server type for the {{operationId}} operation.
+     */
+    sealed interface {{serverTypeName}} {
+        fun getUrl(): String
+{{#variants}}
+{{#serverVariables}}
+{{#hasEnumValues}}
+
+        enum class {{pascalName}}(val value: String) {
+{{#enumValues}}
+            {{name}}("{{value}}"){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+{{/enumValues}}
+        }
+{{/hasEnumValues}}
+{{/serverVariables}}
+{{/variants}}
+{{#variants}}
+
+{{#hasDescription}}
+        /** {{description}} */
+{{/hasDescription}}
+{{#hasVariables}}
+        data class {{variantName}}({{#serverVariables}}val {{camelName}}: {{#hasEnumValues}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}}{{^-last}}, {{/-last}}{{/serverVariables}}) : {{serverTypeName}} {
+
+            override fun getUrl(): String {
+                var url = "{{url}}"
+{{#serverVariables}}
+                url = url.replace("{" + "{{name}}" + "}", {{#hasEnumValues}}{{camelName}}.value{{/hasEnumValues}}{{^hasEnumValues}}{{camelName}}{{/hasEnumValues}})
+{{/serverVariables}}
+                return url
+            }
+        }
+{{/hasVariables}}
+{{^hasVariables}}
+        object {{variantName}} : {{serverTypeName}} {
+
+            override fun getUrl(): String = "{{url}}"
+        }
+{{/hasVariables}}
+{{/variants}}
+    }
+{{/serverTypeDefs}}
+
+    constructor() : super()
+
+    constructor(apiClient: ApiClient, config: Configuration) : super(apiClient, config)
+    {{#operation}}
+
+    /**
+     * {{summary}}
+{{#notes}}
+     * {{.}}
+{{/notes}}
+{{#pathParams}}
+     * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional{{^isContainer}}{{#defaultValue}}, default to {{.}}{{/defaultValue}}{{/isContainer}}){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/pathParams}}
+{{#bodyParam}}
+     * @param {{paramName}} {{description}}{{#required}} (required){{/required}}{{^required}} (optional){{/required}}{{#isDeprecated}} (deprecated){{/isDeprecated}}
+{{/bodyParam}}
+{{#queryParams}}{{#-first}}
+     * @param options options for query, header, form, and cookie parameters
+{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
+     * @param options options for query, header, form, and cookie parameters
+{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
+     * @param options options for query, header, form, and cookie parameters
+{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
+     * @param options options for query, header, form, and cookie parameters
+{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+{{#returnType}}
+     * @return {{{returnType}}}
+{{/returnType}}
+     * @throws ApiException if fails to make API call
+{{#isDeprecated}}
+     * @deprecated This operation is deprecated.
+{{/isDeprecated}}
+{{#externalDocs}}
+     * {{description}}
+     * @see <a href="{{url}}">{{summary}} Documentation</a>
+{{/externalDocs}}
+     */
+{{#isDeprecated}}
+    @Deprecated("This operation is deprecated.")
+{{/isDeprecated}}
+{{#hasAuthMethods}}
+    {{#authMethods}}
+    suspend fun {{operationId}}(auth: {{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}{{#isCode}}AuthorizationCode{{/isCode}}{{#isPassword}}Password{{/isPassword}}{{#isApplication}}ClientCredentials{{/isApplication}}{{#isImplicit}}Implicit{{/isImplicit}}Authenticator{{#pathParams}}, {{paramName}}: {{{dataType}}}{{/pathParams}}{{#bodyParam}}, {{paramName}}: {{{dataType}}}{{^required}}? = null{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server? = null{{/-first}}{{/servers}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}}{{#returnType}}?{{/returnType}} {
+        {{#returnType}}return {{operationId}}WithHttpInfo(auth{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server{{/-first}}{{/servers}}).data{{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo(auth{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server{{/-first}}{{/servers}}){{/returnType}}
+    }
+
+    suspend fun {{operationId}}WithHttpInfo(auth: {{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}{{#isCode}}AuthorizationCode{{/isCode}}{{#isPassword}}Password{{/isPassword}}{{#isApplication}}ClientCredentials{{/isApplication}}{{#isImplicit}}Implicit{{/isImplicit}}Authenticator{{#pathParams}}, {{paramName}}: {{{dataType}}}{{/pathParams}}{{#bodyParam}}, {{paramName}}: {{{dataType}}}{{^required}}? = null{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server? = null{{/-first}}{{/servers}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {
+        return {{operationId}}Internal(auth{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server{{/-first}}{{/servers}})
+    }
+
+{{#servers}}{{#-first}}
+    suspend fun {{operationId}}(auth: {{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}{{#isCode}}AuthorizationCode{{/isCode}}{{#isPassword}}Password{{/isPassword}}{{#isApplication}}ClientCredentials{{/isApplication}}{{#isImplicit}}Implicit{{/isImplicit}}Authenticator{{#pathParams}}, {{paramName}}: {{{dataType}}}{{/pathParams}}{{#bodyParam}}, {{paramName}}: {{{dataType}}}{{^required}}? = null{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}}{{#returnType}}?{{/returnType}} {
+        {{#returnType}}return {{operationId}}(auth{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, null){{/returnType}}{{^returnType}}{{operationId}}(auth{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, null){{/returnType}}
+    }
+
+    suspend fun {{operationId}}WithHttpInfo(auth: {{#lambda.pascalcase}}{{name}}{{/lambda.pascalcase}}{{#isCode}}AuthorizationCode{{/isCode}}{{#isPassword}}Password{{/isPassword}}{{#isApplication}}ClientCredentials{{/isApplication}}{{#isImplicit}}Implicit{{/isImplicit}}Authenticator{{#pathParams}}, {{paramName}}: {{{dataType}}}{{/pathParams}}{{#bodyParam}}, {{paramName}}: {{{dataType}}}{{^required}}? = null{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {
+        return {{operationId}}WithHttpInfo(auth{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, null)
+    }
+{{/-first}}{{/servers}}
+    {{/authMethods}}
+    private suspend fun {{operationId}}Internal(auth: Authenticator{{#pathParams}}, {{paramName}}: {{{dataType}}}{{/pathParams}}{{#bodyParam}}, {{paramName}}: {{{dataType}}}{{^required}}? = null{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server? = null{{/-first}}{{/servers}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {
+{{/hasAuthMethods}}
+{{^hasAuthMethods}}
+{{#servers}}{{#-first}}
+    suspend fun {{operationId}}({{#pathParams}}{{{paramName}}}: {{{dataType}}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{paramName}}: {{{dataType}}}{{^required}}? = null{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}}{{#returnType}}?{{/returnType}} {
+        {{#returnType}}return {{operationId}}({{#pathParams}}{{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, null){{/returnType}}{{^returnType}}{{operationId}}({{#pathParams}}{{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, null){{/returnType}}
+    }
+
+    suspend fun {{operationId}}WithHttpInfo({{#pathParams}}{{{paramName}}}: {{{dataType}}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{paramName}}: {{{dataType}}}{{^required}}? = null{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {
+        return {{operationId}}WithHttpInfo({{#pathParams}}{{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, null)
+    }
+{{/-first}}{{/servers}}
+    suspend fun {{operationId}}({{#pathParams}}{{{paramName}}}: {{{dataType}}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{paramName}}: {{{dataType}}}{{^required}}? = null{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server? = null{{/-first}}{{/servers}}): {{{returnType}}}{{^returnType}}Unit{{/returnType}}{{#returnType}}?{{/returnType}} {
+        {{#returnType}}return {{operationId}}WithHttpInfo({{#pathParams}}{{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server{{/-first}}{{/servers}}).data{{/returnType}}{{^returnType}}{{operationId}}WithHttpInfo({{#pathParams}}{{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server{{/-first}}{{/servers}}){{/returnType}}
+    }
+
+    suspend fun {{operationId}}WithHttpInfo({{#pathParams}}{{{paramName}}}: {{{dataType}}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{paramName}}: {{{dataType}}}{{^required}}? = null{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{/hasPathParams}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server? = null{{/-first}}{{/servers}}): ApiResult<{{{returnType}}}{{^returnType}}Unit{{/returnType}}> {
+{{/hasAuthMethods}}
+{{#pathParams}}
+{{#required}}
+        requireNotNull({{paramName}}) {
+            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+        }
+{{/required}}
+{{/pathParams}}
+{{#bodyParam}}
+{{#required}}
+        requireNotNull({{paramName}}) {
+            "Missing the required parameter '{{paramName}}' when calling {{operationId}}"
+        }
+{{/required}}
+{{/bodyParam}}
+        var path{{^pathParams}} = "{{{path}}}"{{/pathParams}}{{#pathParams}}{{#-first}} =
+                "{{{path}}}"{{/-first}}
+                        .replace(
+                                "{" + "{{baseName}}" + "}",
+                                ValueSerializer.serializeStyled("{{baseName}}", {{{paramName}}}, "path", "{{{dataType}}}", null, "{{style}}", {{isExplode}}) as String){{/pathParams}}{{#pathParams}}{{#-last}}{{/-last}}{{/pathParams}}
+{{#servers}}
+{{#-first}}
+        if (server != null) {
+            val serverUrl = server.getUrl()
+            if (serverUrl.startsWith("http://") || serverUrl.startsWith("https://")) {
+                path = serverUrl + path
+            }
+        } else if ("{{url}}".startsWith("http://") || "{{url}}".startsWith("https://")) {
+            path = "{{url}}" + path
+        }
+{{/-first}}
+{{/servers}}
+        val queryParams = mutableMapOf<String, Any?>()
+{{#queryParams}}
+{{#isDeepObject}}
+        if (options.{{paramName}} != null) {
+            queryParams.putAll(ValueSerializer.serializeDeepObject("{{baseName}}", options.{{paramName}}))
+        }
+{{/isDeepObject}}
+{{^isDeepObject}}
+{{#content}}
+        if (options.{{paramName}} != null) {
+            queryParams["{{baseName}}"] = objectSerializer.serialize(options.{{paramName}})
+        }
+{{/content}}
+{{^content}}
+{{#isAllowEmptyValue}}
+        run {
+            val _{{paramName}}Val = ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}, "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}})
+            if (_{{paramName}}Val != null) {
+                queryParams["{{baseName}}"] = _{{paramName}}Val
+            } else {
+                queryParams["{{baseName}}"] = ""
+            }
+        }
+{{/isAllowEmptyValue}}
+{{^isAllowEmptyValue}}
+        if (options.{{paramName}} != null) {
+            queryParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}, "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}})
+        }
+{{/isAllowEmptyValue}}
+{{/content}}
+{{/isDeepObject}}
+{{/queryParams}}
+        val headerParams = mutableMapOf<String, String>()
+{{#headerParams}}
+        if (options.{{paramName}} != null) {
+            headerParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}, "header", "{{{dataType}}}", null, "{{style}}", {{isExplode}}) as String
+        }
+{{/headerParams}}
+{{#hasCookieParams}}
+        val cookieParts = mutableListOf<String>()
+{{#cookieParams}}
+        if (options.{{paramName}} != null) {
+            cookieParts.add("{{baseName}}=" + ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}, "cookie", "{{{dataType}}}", null, "{{style}}", {{isExplode}}))
+        }
+{{/cookieParams}}
+        if (cookieParts.isNotEmpty()) {
+            headerParams["Cookie"] = cookieParts.joinToString("; ")
+        }
+{{/hasCookieParams}}
+{{#hasFormParams}}
+        val formBody = mutableMapOf<String, Any?>()
+{{#formParams}}
+{{#required}}
+        formBody["{{baseName}}"] = options.{{paramName}}
+{{/required}}
+{{^required}}
+        if (options.{{paramName}} != null) {
+            formBody["{{baseName}}"] = options.{{paramName}}
+        }
+{{/required}}
+{{/formParams}}
+
+{{/hasFormParams}}
+        val response = invokeApi(
+                "{{httpMethod}}",
+                path,
+                queryParams,
+                headerParams,
+                {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
+                arrayOf({{#produces}}"{{{mediaType}}}"{{^-last}}, {{/-last}}{{/produces}}),
+                {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
+                {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}})
+{{#returnType}}
+        val data = objectSerializer.deserialize<{{{returnType}}}>(response.body)
+        return ApiResult(response.statusCode, data, response.body, response.headers)
+{{/returnType}}
+{{^returnType}}
+        return ApiResult(response.statusCode, Unit, response.body, response.headers)
+{{/returnType}}
+    }
+    {{/operation}}
+}
+{{/operations}}

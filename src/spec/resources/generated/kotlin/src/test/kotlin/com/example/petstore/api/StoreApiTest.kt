@@ -1,0 +1,207 @@
+package com.example.petstore.api
+
+import com.example.petstore.*
+import com.example.petstore.models.*
+import kotlinx.coroutines.runBlocking
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
+
+class StoreApiTest {
+    companion object {
+        private fun getBaseUrl(): String? = System.getenv("API_BASE_URL")
+    }
+
+    @Nested
+    @DisplayName("Integration tests")
+    inner class IntegrationTests {
+        private lateinit var api: StoreApi
+
+        @BeforeEach
+        fun setUp() {
+            val baseUrl = getBaseUrl()
+            assumeTrue(baseUrl != null, "API_BASE_URL not set, skipping integration tests")
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl(baseUrl!!)
+                    .defaultHeader("Authorization", "Bearer test-token")
+                    .build()
+            api = StoreApi(DefaultApiClient(), config)
+        }
+
+        @Test
+        @DisplayName("placeOrder creates a new order")
+        fun testPlaceOrder() {
+            val order =
+                Order(
+                    id = 1L,
+                    petId = 12345L,
+                    quantity = 1,
+                    shipDate = OffsetDateTime.now(ZoneOffset.UTC),
+                    status = Order.StatusEnum.PLACED,
+                    complete = false,
+                )
+
+            val result = runBlocking { api.placeOrder(order) }
+
+            assertNotNull(result)
+            assertNotNull(result!!.id)
+        }
+
+        @Test
+        @DisplayName("placeOrder with HttpInfo returns status and headers")
+        fun testPlaceOrderWithHttpInfo() {
+            val order =
+                Order(
+                    id = 1L,
+                    petId = 12345L,
+                    quantity = 1,
+                    shipDate = OffsetDateTime.now(ZoneOffset.UTC),
+                    status = Order.StatusEnum.PLACED,
+                    complete = false,
+                )
+
+            val result = runBlocking { api.placeOrderWithHttpInfo(order) }
+
+            assertNotNull(result)
+            assertTrue(result.statusCode in 200..299)
+            assertNotNull(result.data)
+        }
+
+        @Test
+        @DisplayName("getOrderById returns an order")
+        fun testGetOrderById() {
+            val result = runBlocking { api.getOrderById(1L) }
+
+            assertNotNull(result)
+            assertNotNull(result!!.id)
+        }
+
+        @Test
+        @DisplayName("getOrderById with HttpInfo returns status and headers")
+        fun testGetOrderByIdWithHttpInfo() {
+            val result = runBlocking { api.getOrderByIdWithHttpInfo(1L) }
+
+            assertNotNull(result)
+            assertTrue(result.statusCode in 200..299)
+            assertNotNull(result.data)
+        }
+
+        @Test
+        @DisplayName("deleteOrder deletes an order")
+        fun testDeleteOrder() {
+            assertDoesNotThrow { runBlocking { api.deleteOrder(1L) } }
+        }
+
+        @Test
+        @DisplayName("getInventory returns inventory map")
+        fun testGetInventory() {
+            val result = runBlocking { api.getInventory() }
+
+            assertNotNull(result)
+        }
+
+        @Test
+        @DisplayName("getInventory with HttpInfo returns status and headers")
+        fun testGetInventoryWithHttpInfo() {
+            val result = runBlocking { api.getInventoryWithHttpInfo() }
+
+            assertNotNull(result)
+            assertTrue(result.statusCode in 200..299)
+            assertNotNull(result.data)
+        }
+    }
+
+    @Nested
+    @DisplayName("Mock tests")
+    inner class MockTests {
+        private lateinit var mockServer: MockWebServer
+        private lateinit var api: StoreApi
+
+        @BeforeEach
+        fun setUp() {
+            mockServer = MockWebServer()
+            mockServer.start()
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl(mockServer.url("/").toString().trimEnd('/'))
+                    .build()
+            api = StoreApi(DefaultApiClient(), config)
+        }
+
+        @AfterEach
+        fun tearDown() {
+            mockServer.shutdown()
+        }
+
+        @Test
+        @DisplayName("getOrderById 404 throws ApiException")
+        fun testGetOrderNotFound() {
+            mockServer.enqueue(
+                MockResponse()
+                    .setResponseCode(404)
+                    .setHeader("Content-Type", "application/json")
+                    .setBody("""{"code":404,"message":"Order not found"}"""),
+            )
+
+            val exception =
+                assertThrows(ApiException::class.java) {
+                    runBlocking { api.getOrderById(99999L) }
+                }
+            assertEquals(404, exception.code)
+        }
+
+        @Test
+        @DisplayName("placeOrder 500 throws ApiException")
+        fun testPlaceOrderServerError() {
+            mockServer.enqueue(
+                MockResponse()
+                    .setResponseCode(500)
+                    .setHeader("Content-Type", "application/json")
+                    .setBody("""{"code":500,"message":"Internal Server Error"}"""),
+            )
+
+            val order =
+                Order(
+                    id = 1L,
+                    petId = 12345L,
+                    quantity = 1,
+                    status = Order.StatusEnum.PLACED,
+                    complete = false,
+                )
+
+            val exception =
+                assertThrows(ApiException::class.java) {
+                    runBlocking { api.placeOrder(order) }
+                }
+            assertEquals(500, exception.code)
+        }
+
+        @Test
+        @DisplayName("deleteOrder 404 throws ApiException")
+        fun testDeleteOrderNotFound() {
+            mockServer.enqueue(
+                MockResponse()
+                    .setResponseCode(404)
+                    .setHeader("Content-Type", "application/json")
+                    .setBody("""{"code":404,"message":"Order not found"}"""),
+            )
+
+            val exception =
+                assertThrows(ApiException::class.java) {
+                    runBlocking { api.deleteOrder(99999L) }
+                }
+            assertEquals(404, exception.code)
+        }
+    }
+}

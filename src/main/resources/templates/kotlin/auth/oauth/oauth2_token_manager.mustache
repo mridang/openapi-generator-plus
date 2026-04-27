@@ -1,0 +1,101 @@
+package {{invokerPackage}}.auth.oauth
+
+import {{invokerPackage}}.ApiClient
+import {{invokerPackage}}.ApiResponse
+import com.fasterxml.jackson.databind.ObjectMapper
+import kotlinx.coroutines.runBlocking
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+import java.time.Instant
+
+/**
+ * Manages OAuth2 token lifecycle including fetching, caching, and refreshing tokens.
+ *
+ * Uses the shared [ApiClient] instance so that token exchange requests
+ * honour the same transport configuration (proxy, TLS, timeouts) as regular
+ * API calls.
+ */
+class OAuth2TokenManager {
+
+    private val objectMapper = ObjectMapper()
+    var apiClient: ApiClient? = null
+
+    @Volatile
+    private var accessToken: String? = null
+
+    @Volatile
+    private var tokenExpiry: Instant? = null
+
+    @Volatile
+    private var refreshToken: String? = null
+
+    /**
+     * Get a valid access token, fetching or refreshing as necessary.
+     *
+     * This method is synchronized to prevent concurrent token requests.
+     *
+     * @param tokenUrl the OAuth2 token endpoint URL
+     * @param params   the token request parameters (grant_type, client_id, etc.)
+     * @return a valid access token
+     * @throws IllegalStateException if no API client has been injected or token fetch fails
+     */
+    @Synchronized
+    fun getAccessToken(tokenUrl: String, params: Map<String, String>): String {
+        val token = accessToken
+        val expiry = tokenExpiry
+        if (token != null && expiry != null && Instant.now().isBefore(expiry)) {
+            return token
+        }
+        fetchToken(tokenUrl, params)
+        return accessToken ?: throw IllegalStateException("Token fetch did not return an access token")
+    }
+
+    /**
+     * Manually set an access token, bypassing the token endpoint.
+     *
+     * @param token the access token to use
+     */
+    @Synchronized
+    fun setAccessToken(token: String) {
+        this.accessToken = token
+        this.tokenExpiry = null
+    }
+
+    /**
+     * Get the refresh token, if one was returned by the token endpoint.
+     *
+     * @return the refresh token, or null if not available
+     */
+    fun getRefreshToken(): String? = refreshToken
+
+    private fun fetchToken(tokenUrl: String, params: Map<String, String>) {
+        val client = apiClient ?: throw IllegalStateException(
+            "ApiClient has not been injected. " +
+                "Ensure the client constructor sets the apiClient property " +
+                "on HttpAwareAuthenticator before making API requests."
+        )
+
+        val body = params.entries.joinToString("&") { (k, v) ->
+            "${URLEncoder.encode(k, StandardCharsets.UTF_8)}=${URLEncoder.encode(v, StandardCharsets.UTF_8)}"
+        }
+
+        val headers = mapOf("Content-Type" to "application/x-www-form-urlencoded")
+
+        val response: ApiResponse = runBlocking { client.sendRequest("POST", tokenUrl, headers, body) }
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+            throw RuntimeException(
+                "Token request failed with status ${response.statusCode}: ${response.body}"
+            )
+        }
+
+        val json = objectMapper.readTree(response.body)
+        this.accessToken = json.get("access_token").asText()
+        if (json.has("refresh_token")) {
+            this.refreshToken = json.get("refresh_token").asText()
+        }
+        if (json.has("expires_in")) {
+            val expiresIn = json.get("expires_in").asLong()
+            this.tokenExpiry = Instant.now().plusSeconds(expiresIn - 30)
+        }
+    }
+}

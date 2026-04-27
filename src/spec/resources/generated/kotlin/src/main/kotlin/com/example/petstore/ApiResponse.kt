@@ -1,0 +1,10 @@
+package com.example.petstore
+
+/**
+ * Represents an HTTP API response.
+ */
+data class ApiResponse(
+    val statusCode: Int,
+    val body: String,
+    val headers: Map<String, String>,
+)

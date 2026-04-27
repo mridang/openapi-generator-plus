@@ -1,0 +1,187 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/url"
+	"strings"
+
+	. "{{packageName}}/models"
+{{#optionsImports}}
+{{#-first}}
+	. "{{packageName}}/options"
+{{/-first}}
+{{/optionsImports}}
+)
+
+{{#operations}}
+// {{classname}} provides methods for the {{baseName}} API group.
+{{#tagDescription}}
+// {{.}}
+{{/tagDescription}}
+{{#tagExternalDocs}}
+// See {{url}} {{description}}
+{{/tagExternalDocs}}
+type {{classname}} struct {
+	*BaseApi
+}
+
+// New{{classname}} creates a new {{classname}} instance.
+func New{{classname}}(apiClient ApiClient, config *Configuration) *{{classname}} {
+	return &{{classname}}{
+		BaseApi: NewBaseApi(apiClient, config),
+	}
+}
+{{#operation}}
+
+{{#summary}}
+// {{operationId}} {{{summary}}}
+{{/summary}}
+{{#notes}}
+// {{{.}}}
+{{/notes}}
+{{#isDeprecated}}
+// Deprecated: This operation is deprecated.
+{{/isDeprecated}}
+{{#externalDocs}}
+// See {{url}} {{description}}
+{{/externalDocs}}
+func (a *{{classname}}) {{operationId}}({{#hasAuthMethods}}auth Authenticator, {{/hasAuthMethods}}{{#pathParams}}{{paramName}} {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}} {{^required}}*{{/required}}{{{dataType}}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}) ({{#returnType}}*{{{.}}}, {{/returnType}}error) {
+	result, err := a.{{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth, {{/hasAuthMethods}}{{#pathParams}}{{paramName}}, {{/pathParams}}{{#bodyParam}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}})
+	if err != nil {
+		return {{#returnType}}nil, {{/returnType}}err
+	}
+{{#returnType}}
+	return result.Data, nil
+{{/returnType}}
+{{^returnType}}
+	_ = result
+	return nil
+{{/returnType}}
+}
+
+// {{operationId}}WithHTTPInfo performs the {{operationId}} operation and returns the full API result.
+func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Authenticator, {{/hasAuthMethods}}{{#pathParams}}{{paramName}} {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}} {{^required}}*{{/required}}{{{dataType}}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}) (*ApiResult[{{#returnType}}*{{{.}}}{{/returnType}}{{^returnType}}interface{}{{/returnType}}], error) {
+{{#pathParams}}
+{{#required}}
+{{#isString}}
+	if {{paramName}} == "" {
+		return nil, fmt.Errorf("missing required parameter '%s' when calling {{classname}}.{{operationId}}", "{{paramName}}")
+	}
+{{/isString}}
+{{/required}}
+{{/pathParams}}
+
+
+	path := "{{{path}}}"
+{{#pathParams}}
+{{=<% %>=}}
+	path = replacePathParam(path, "<%baseName%>", fmt.Sprintf("%v", <%paramName%>))
+<%={{ }}=%>
+{{/pathParams}}
+
+	queryParams := make(map[string]interface{})
+{{#queryParams}}
+	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
+{{#isDeepObject}}
+		for k, v := range SerializeDeepObject("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}) {
+			queryParams[k] = v
+		}
+{{/isDeepObject}}
+{{^isDeepObject}}
+{{#content}}
+		jsonBytes, _ := json.Marshal(options.{{#pascalcase}}{{paramName}}{{/pascalcase}})
+		queryParams["{{baseName}}"] = string(jsonBytes)
+{{/content}}
+{{^content}}
+		queryParams["{{baseName}}"] = SerializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
+{{/content}}
+{{/isDeepObject}}
+	}
+{{/queryParams}}
+
+	headerParams := make(map[string]string)
+{{#headerParams}}
+	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
+		headerParams["{{baseName}}"] = fmt.Sprintf("%v", SerializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "header", "{{{dataType}}}", "", "{{style}}", {{isExplode}}))
+	}
+{{/headerParams}}
+{{#hasCookieParams}}
+	var cookieParts []string
+{{#cookieParams}}
+	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
+		cookieParts = append(cookieParts, fmt.Sprintf("{{baseName}}=%v", SerializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "cookie", "{{{dataType}}}", "", "{{style}}", {{isExplode}})))
+	}
+{{/cookieParams}}
+	if len(cookieParts) > 0 {
+		headerParams["Cookie"] = strings.Join(cookieParts, "; ")
+	}
+{{/hasCookieParams}}
+
+{{#hasFormParams}}
+	formBody := make(map[string]string)
+{{#formParams}}
+{{#required}}
+	if options != nil {
+		formBody["{{baseName}}"] = fmt.Sprintf("%v", options.{{#pascalcase}}{{paramName}}{{/pascalcase}})
+	}
+{{/required}}
+{{^required}}
+	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
+		formBody["{{baseName}}"] = fmt.Sprintf("%v", *options.{{#pascalcase}}{{paramName}}{{/pascalcase}})
+	}
+{{/required}}
+{{/formParams}}
+	var requestBody interface{} = formBody
+{{/hasFormParams}}
+{{^hasFormParams}}
+{{#bodyParam}}
+	var requestBody interface{} = {{paramName}}
+{{/bodyParam}}
+{{^bodyParam}}
+	var requestBody interface{}
+{{/bodyParam}}
+{{/hasFormParams}}
+
+	response, err := a.invokeAPI(invokeAPIParams{
+		method:       "{{httpMethod}}",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{ {{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}} },
+		contentType:  {{#consumes.0}}"{{mediaType}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
+		returnType:   "{{#returnType}}{{{.}}}{{/returnType}}",
+		auth:         {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}nil{{/hasAuthMethods}},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+{{#returnType}}
+	var data {{{.}}}
+	if response.Body != "" {
+		if err := Deserialize([]byte(response.Body), &data); err != nil {
+			return nil, err
+		}
+	}
+
+	return &ApiResult[*{{{returnType}}}]{
+		StatusCode: response.StatusCode,
+		Data:       &data,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+{{/returnType}}
+{{^returnType}}
+	return &ApiResult[interface{}]{
+		StatusCode: response.StatusCode,
+		Data:       nil,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+{{/returnType}}
+}
+{{/operation}}
+{{/operations}}

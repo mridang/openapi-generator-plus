@@ -1,0 +1,70 @@
+package com.example.petstore.models
+
+import com.example.petstore.models.Metadata
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+
+class MetadataTest {
+    private val json =
+        Json {
+            ignoreUnknownKeys = true
+            encodeDefaults = false
+            isLenient = true
+            coerceInputValues = true
+        }
+
+    @Test
+    @DisplayName("serialize Metadata without contextual fields")
+    fun testSerialize() {
+        val metadata = Metadata()
+
+        val jsonString = json.encodeToString(metadata)
+
+        assertNotNull(jsonString)
+    }
+
+    @Test
+    @DisplayName("deserialize empty object")
+    fun testDeserializeEmptyObject() {
+        val jsonString = "{}"
+
+        val metadata = json.decodeFromString<Metadata>(jsonString)
+
+        assertNotNull(metadata)
+    }
+
+    @Test
+    @DisplayName("additional properties are preserved")
+    fun testAdditionalProperties() {
+        val metadata = Metadata()
+        metadata.additionalProperties["customField"] = "hello"
+        metadata.additionalProperties["anotherField"] = "world"
+
+        assertEquals("hello", metadata.additionalProperties["customField"])
+        assertEquals("world", metadata.additionalProperties["anotherField"])
+        assertEquals(2, metadata.additionalProperties.size)
+    }
+
+    @Test
+    @DisplayName("default values are null")
+    fun testDefaultValues() {
+        val metadata = Metadata()
+
+        assertNull(metadata.createdAt)
+    }
+
+    @Test
+    @DisplayName("round-trip without contextual fields")
+    fun testRoundTrip() {
+        val original = Metadata()
+
+        val jsonString = json.encodeToString(original)
+        val deserialized = json.decodeFromString<Metadata>(jsonString)
+
+        assertNotNull(deserialized)
+        assertEquals(original.createdAt, deserialized.createdAt)
+    }
+}

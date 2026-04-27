@@ -1,0 +1,35 @@
+use std::collections::HashMap;
+
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
+
+use crate::authenticator::Authenticator;
+
+/// BasicAuthenticator provides HTTP Basic authentication.
+pub struct BasicAuthenticator {
+    host: String,
+    auth_header: String,
+}
+
+impl BasicAuthenticator {
+    /// Creates a new Basic authenticator.
+    pub fn new(host: &str, username: &str, password: &str) -> Self {
+        let encoded = STANDARD.encode(format!("{}:{}", username, password));
+        Self {
+            host: host.to_string(),
+            auth_header: format!("Basic {}", encoded),
+        }
+    }
+}
+
+impl Authenticator for BasicAuthenticator {
+    fn host(&self) -> &str {
+        &self.host
+    }
+
+    fn auth_headers(&self) -> HashMap<String, String> {
+        let mut headers = HashMap::new();
+        headers.insert("Authorization".to_string(), self.auth_header.clone());
+        headers
+    }
+}

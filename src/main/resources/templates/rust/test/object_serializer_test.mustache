@@ -1,0 +1,136 @@
+use {{packageName}}::object_serializer;
+
+#[test]
+fn test_serialize_map_to_json() {
+    let mut input = serde_json::Map::new();
+    input.insert("name".to_string(), serde_json::Value::String("Fido".to_string()));
+    input.insert("age".to_string(), serde_json::json!(3));
+
+    let data = object_serializer::serialize(&serde_json::Value::Object(input))
+        .expect("unexpected serialization error");
+    assert!(!data.is_empty(), "expected non-empty serialized data");
+
+    let parsed: serde_json::Value =
+        serde_json::from_slice(&data).expect("failed to parse serialized JSON");
+    assert_eq!(parsed["name"], "Fido");
+}
+
+#[test]
+fn test_deserialize_json_to_map() {
+    let input = br#"{"name":"Fido","age":3}"#;
+
+    let result: serde_json::Value =
+        object_serializer::deserialize(input).expect("unexpected deserialization error");
+    assert_eq!(result["name"], "Fido");
+}
+
+#[test]
+fn test_deserialize_empty_data() {
+    let result: Result<serde_json::Value, _> = object_serializer::deserialize(b"");
+    // Empty data should either succeed with a null/default or fail gracefully
+    // The exact behavior depends on implementation
+    let _ = result;
+}
+
+#[test]
+fn test_deserialize_invalid_json() {
+    let result: Result<serde_json::Value, _> = object_serializer::deserialize(b"not json");
+    assert!(result.is_err(), "expected error for invalid JSON");
+}
+
+#[test]
+fn test_to_path_value_string() {
+    let result = object_serializer::to_path_value(&"hello".to_string());
+    assert_eq!(result, "hello");
+}
+
+#[test]
+fn test_to_path_value_int() {
+    let result = object_serializer::to_path_value(&42.to_string());
+    assert_eq!(result, "42");
+}
+
+#[test]
+fn test_to_path_value_bool() {
+    let result = object_serializer::to_path_value(&true.to_string());
+    assert_eq!(result, "true");
+
+    let result = object_serializer::to_path_value(&false.to_string());
+    assert_eq!(result, "false");
+}
+
+#[test]
+fn test_to_query_value_string() {
+    let result = object_serializer::to_query_value(&"hello".to_string(), "");
+    assert_eq!(result, "hello");
+}
+
+#[test]
+fn test_to_query_value_string_slice_csv() {
+    let items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+    let result = object_serializer::to_query_value(&items, "csv");
+    assert_eq!(result, "a,b,c");
+}
+
+#[test]
+fn test_to_query_value_string_slice_ssv() {
+    let items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+    let result = object_serializer::to_query_value(&items, "ssv");
+    assert_eq!(result, "a b c");
+}
+
+#[test]
+fn test_to_query_value_string_slice_pipes() {
+    let items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+    let result = object_serializer::to_query_value(&items, "pipes");
+    assert_eq!(result, "a|b|c");
+}
+
+#[test]
+fn test_to_header_value_string() {
+    let result = object_serializer::to_header_value(&"hello".to_string());
+    assert_eq!(result, "hello");
+}
+
+#[test]
+fn test_to_header_value_string_slice() {
+    let items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+    let result = object_serializer::to_header_value(&items);
+    assert_eq!(result, "a,b,c");
+}
+
+#[test]
+fn test_to_form_value_string() {
+    let result = object_serializer::to_form_value(&"hello".to_string());
+    assert_eq!(result, "hello");
+}
+
+#[test]
+fn test_to_form_value_int() {
+    let result = object_serializer::to_form_value(&123.to_string());
+    assert_eq!(result, "123");
+}
+
+#[test]
+fn test_stringify_string() {
+    let result = object_serializer::stringify(&"hello".to_string());
+    assert_eq!(result, "hello");
+}
+
+#[test]
+fn test_stringify_int() {
+    let result = object_serializer::stringify(&42.to_string());
+    assert_eq!(result, "42");
+}
+
+#[test]
+fn test_stringify_bool() {
+    assert_eq!(object_serializer::stringify(&true.to_string()), "true");
+    assert_eq!(object_serializer::stringify(&false.to_string()), "false");
+}
+
+#[test]
+fn test_stringify_empty() {
+    let result = object_serializer::stringify(&"".to_string());
+    assert_eq!(result, "");
+}

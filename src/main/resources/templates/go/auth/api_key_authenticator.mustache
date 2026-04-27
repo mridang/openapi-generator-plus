@@ -1,0 +1,62 @@
+{{>api_info}}
+package auth
+
+// ApiKeyAuthenticator provides API key authentication.
+//
+// The API key can be sent as a header, query parameter, or cookie,
+// depending on the location specified at construction.
+type ApiKeyAuthenticator struct {
+	BaseAuthenticator
+	host         string
+	keyParamName string
+	apiKey       string
+	location     ApiKeyLocation
+}
+
+// NewApiKeyAuthenticator creates a new API key authenticator.
+//
+// Parameters:
+//   - host: API base URL
+//   - keyParamName: name of the key parameter
+//   - apiKey: the API key value
+//   - location: where to send the key (header, query, or cookie)
+func NewApiKeyAuthenticator(host, keyParamName, apiKey string, location ApiKeyLocation) *ApiKeyAuthenticator {
+	return &ApiKeyAuthenticator{
+		host:         host,
+		keyParamName: keyParamName,
+		apiKey:       apiKey,
+		location:     location,
+	}
+}
+
+// Host returns the API base URL.
+func (a *ApiKeyAuthenticator) Host() string {
+	return a.host
+}
+
+// AuthHeaders returns the API key as a header if the location is Header.
+func (a *ApiKeyAuthenticator) AuthHeaders() map[string]string {
+	result := map[string]string{}
+	if a.location == ApiKeyLocationHeader {
+		result[a.keyParamName] = a.apiKey
+	}
+	return result
+}
+
+// QueryParams returns the API key as a query parameter if the location is Query.
+func (a *ApiKeyAuthenticator) QueryParams() map[string]string {
+	result := map[string]string{}
+	if a.location == ApiKeyLocationQuery {
+		result[a.keyParamName] = a.apiKey
+	}
+	return result
+}
+
+// CookieParams returns the API key as a cookie if the location is Cookie.
+func (a *ApiKeyAuthenticator) CookieParams() map[string]string {
+	result := map[string]string{}
+	if a.location == ApiKeyLocationCookie {
+		result[a.keyParamName] = a.apiKey
+	}
+	return result
+}

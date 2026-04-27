@@ -1,0 +1,26 @@
+package {{invokerPackage}}
+
+/**
+ * Generated server configurations from the OpenAPI specification.
+ */
+object Servers {
+
+{{#serverConfigs}}
+    /** Server {{serverIndex}}: {{serverUrl}}{{#serverDescription}} - {{serverDescription}}{{/serverDescription}} */
+    val SERVER_{{serverIndex}}: ServerConfiguration = ServerConfiguration(
+        "{{{serverUrl}}}",
+        {{#serverDescription}}"{{{serverDescription}}}"{{/serverDescription}}{{^serverDescription}}null{{/serverDescription}},
+        {{#hasVariables}}mapOf(
+{{#serverVariables}}            "{{varName}}" to ServerVariable(
+                "{{{varDefault}}}",
+                {{#varDescription}}"{{{varDescription}}}"{{/varDescription}}{{^varDescription}}null{{/varDescription}},
+                {{#hasEnumValues}}listOf({{#varEnumValues}}"{{{.}}}"{{^-last}}, {{/-last}}{{/varEnumValues}}){{/hasEnumValues}}{{^hasEnumValues}}emptyList(){{/hasEnumValues}}){{^-last}},{{/-last}}
+{{/serverVariables}}        ){{/hasVariables}}{{^hasVariables}}emptyMap(){{/hasVariables}}
+    )
+
+{{/serverConfigs}}
+    /** All server configurations in declaration order. */
+    val ALL: List<ServerConfiguration> = listOf(
+{{#serverConfigs}}        SERVER_{{serverIndex}}{{^-last}},{{/-last}}
+{{/serverConfigs}}    )
+}

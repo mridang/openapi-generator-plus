@@ -1,0 +1,29 @@
+#[allow(unused_imports)]
+use super::*;
+use serde::{Deserialize, Serialize};
+
+/// PhotoMetadata is a model class generated from the OpenAPI schema.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct PhotoMetadata {
+    #[serde(rename = "caption", skip_serializing_if = "Option::is_none")]
+    pub caption: Option<String>,
+    #[serde(rename = "isPrimary", skip_serializing_if = "Option::is_none")]
+    pub is_primary: Option<bool>,
+    #[serde(rename = "takenAt", skip_serializing_if = "Option::is_none")]
+    pub taken_at: Option<String>,
+    #[serde(rename = "location", skip_serializing_if = "Option::is_none")]
+    pub location: Option<PhotoMetadataLocation>,
+}
+
+#[allow(deprecated)]
+impl PhotoMetadata {
+    /// Creates a new PhotoMetadata instance with required parameters.
+    pub fn new() -> Self {
+        Self {
+            caption: None,
+            is_primary: None,
+            taken_at: None,
+            location: None,
+        }
+    }
+}

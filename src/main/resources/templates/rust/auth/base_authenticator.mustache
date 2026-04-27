@@ -1,0 +1,31 @@
+use std::collections::HashMap;
+
+use crate::authenticator::Authenticator;
+
+/// BaseAuthenticator provides a minimal Authenticator implementation that
+/// returns the stored host and empty credentials.
+///
+/// Use this as a building block when no authentication is needed but an
+/// Authenticator instance is required.
+pub struct BaseAuthenticator {
+    host: String,
+}
+
+impl BaseAuthenticator {
+    /// Creates a new BaseAuthenticator with the given API host URL.
+    pub fn new(host: &str) -> Self {
+        Self {
+            host: host.to_string(),
+        }
+    }
+}
+
+impl Authenticator for BaseAuthenticator {
+    fn host(&self) -> &str {
+        &self.host
+    }
+
+    fn auth_headers(&self) -> HashMap<String, String> {
+        HashMap::new()
+    }
+}

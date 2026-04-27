@@ -1,0 +1,31 @@
+use std::fmt;
+
+use crate::errors::client_error::ClientError;
+
+/// UnauthorizedError represents an HTTP 401 Unauthorized error.
+#[derive(Debug, Clone)]
+pub struct UnauthorizedError {
+    pub client_error: ClientError,
+}
+
+impl fmt::Display for UnauthorizedError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Unauthorized (401): {}",
+            self.client_error.api_error.message
+        )
+    }
+}
+
+impl std::error::Error for UnauthorizedError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.client_error)
+    }
+}
+
+impl From<ClientError> for UnauthorizedError {
+    fn from(client_error: ClientError) -> Self {
+        Self { client_error }
+    }
+}

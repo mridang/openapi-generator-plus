@@ -1,0 +1,198 @@
+{{>api_info}}
+package models
+
+import (
+	"encoding/json"
+	"fmt"
+)
+
+{{#models}}
+{{#model}}
+{{#isEnum}}
+// {{classname}} is an enumeration of allowed values.
+type {{classname}} string
+
+const (
+{{#allowableValues}}
+{{#enumVars}}
+	// {{classname}}{{name}} represents the value {{{value}}}.
+	{{classname}}{{name}} {{classname}} = {{{value}}}
+{{/enumVars}}
+{{/allowableValues}}
+)
+
+// All{{classname}}Values returns all allowed values of {{classname}}.
+func All{{classname}}Values() []{{classname}} {
+	return []{{classname}}{
+{{#allowableValues}}
+{{#enumVars}}
+		{{classname}}{{name}},
+{{/enumVars}}
+{{/allowableValues}}
+	}
+}
+{{/isEnum}}
+{{^isEnum}}
+{{^oneOf}}
+{{^anyOf}}
+{{#description}}
+// {{classname}} {{{.}}}
+{{/description}}
+{{^description}}
+// {{classname}} is a model class generated from the OpenAPI schema.
+{{/description}}
+{{#isDeprecated}}
+// Deprecated: This schema is deprecated.
+{{/isDeprecated}}
+{{#externalDocumentation}}
+// See {{url}} {{description}}
+{{/externalDocumentation}}
+type {{classname}} struct {
+{{#vars}}
+{{#description}}
+	// {{name}} {{{.}}}
+{{/description}}
+{{#deprecated}}
+	// Deprecated: This property is deprecated.
+{{/deprecated}}
+{{#required}}
+	{{name}} {{{dataType}}} `json:"{{baseName}}"`
+{{/required}}
+{{^required}}
+	{{name}} {{#isNullable}}*{{/isNullable}}{{^isNullable}}*{{/isNullable}}{{{dataType}}} `json:"{{baseName}},omitempty"`
+{{/required}}
+{{/vars}}
+}
+
+{{#hasVars}}
+// New{{classname}} creates a new {{classname}} instance.
+func New{{classname}}({{#requiredVars}}{{nameInCamelCase}} {{{dataType}}}{{^-last}}, {{/-last}}{{/requiredVars}}) *{{classname}} {
+	return &{{classname}}{
+{{#requiredVars}}
+		{{name}}: {{nameInCamelCase}},
+{{/requiredVars}}
+	}
+}
+{{/hasVars}}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (o {{classname}}) MarshalJSON() ([]byte, error) {
+	type Alias {{classname}}
+	return json.Marshal((Alias)(o))
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (o *{{classname}}) UnmarshalJSON(data []byte) error {
+	type Alias {{classname}}
+	aux := &Alias{}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	*o = {{classname}}(*aux)
+	return nil
+}
+{{/anyOf}}
+{{/oneOf}}
+{{#oneOf}}
+{{#-first}}
+{{#description}}
+// {{classname}} {{{.}}}
+{{/description}}
+{{^description}}
+// {{classname}} is a union type (oneOf).
+{{/description}}
+{{#isDeprecated}}
+// Deprecated: This schema is deprecated.
+{{/isDeprecated}}
+type {{classname}} struct {
+	value interface{}
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (o {{classname}}) MarshalJSON() ([]byte, error) {
+	return json.Marshal(o.value)
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (o *{{classname}}) UnmarshalJSON(data []byte) error {
+{{#discriminator}}
+	// Use discriminator to determine type
+	var disc struct {
+		{{#pascalcase}}{{propertyBaseName}}{{/pascalcase}} string `json:"{{propertyBaseName}}"`
+	}
+	if err := json.Unmarshal(data, &disc); err != nil {
+		return err
+	}
+	switch disc.{{#pascalcase}}{{propertyBaseName}}{{/pascalcase}} {
+{{#mappedModels}}
+	case "{{{mappingName}}}":
+		var v {{{modelName}}}
+		if err := json.Unmarshal(data, &v); err != nil {
+			return err
+		}
+		o.value = v
+		return nil
+{{/mappedModels}}
+	}
+	return fmt.Errorf("unknown discriminator value: %s", disc.{{#pascalcase}}{{propertyBaseName}}{{/pascalcase}})
+{{/discriminator}}
+{{^discriminator}}
+	// Try each oneOf type
+{{#oneOf}}
+	var {{#goVarName}}{{{.}}}{{/goVarName}} {{{.}}}
+	if err := json.Unmarshal(data, &{{#goVarName}}{{{.}}}{{/goVarName}}); err == nil {
+		o.value = {{#goVarName}}{{{.}}}{{/goVarName}}
+		return nil
+	}
+{{/oneOf}}
+	return fmt.Errorf("data does not match any oneOf schemas for {{classname}}")
+{{/discriminator}}
+}
+
+// Value returns the underlying value of the union type.
+func (o *{{classname}}) Value() interface{} {
+	return o.value
+}
+{{/-first}}
+{{/oneOf}}
+{{#anyOf}}
+{{#-first}}
+{{#description}}
+// {{classname}} {{{.}}}
+{{/description}}
+{{^description}}
+// {{classname}} is a union type (anyOf).
+{{/description}}
+{{#isDeprecated}}
+// Deprecated: This schema is deprecated.
+{{/isDeprecated}}
+type {{classname}} struct {
+	value interface{}
+}
+
+// MarshalJSON implements the json.Marshaler interface.
+func (o {{classname}}) MarshalJSON() ([]byte, error) {
+	return json.Marshal(o.value)
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface.
+func (o *{{classname}}) UnmarshalJSON(data []byte) error {
+{{#anyOf}}
+	var {{#goVarName}}{{{.}}}{{/goVarName}} {{{.}}}
+	if err := json.Unmarshal(data, &{{#goVarName}}{{{.}}}{{/goVarName}}); err == nil {
+		o.value = {{#goVarName}}{{{.}}}{{/goVarName}}
+		return nil
+	}
+{{/anyOf}}
+	return fmt.Errorf("data does not match any anyOf schemas for {{classname}}")
+}
+
+// Value returns the underlying value of the union type.
+func (o *{{classname}}) Value() interface{} {
+	return o.value
+}
+{{/-first}}
+{{/anyOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}

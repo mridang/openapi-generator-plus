@@ -1,0 +1,34 @@
+use std::collections::HashMap;
+
+use crate::authenticator::Authenticator;
+
+/// BearerAuthenticator provides HTTP Bearer token authentication.
+pub struct BearerAuthenticator {
+    host: String,
+    token: String,
+}
+
+impl BearerAuthenticator {
+    /// Creates a new Bearer authenticator.
+    pub fn new(host: &str, token: &str) -> Self {
+        Self {
+            host: host.to_string(),
+            token: token.to_string(),
+        }
+    }
+}
+
+impl Authenticator for BearerAuthenticator {
+    fn host(&self) -> &str {
+        &self.host
+    }
+
+    fn auth_headers(&self) -> HashMap<String, String> {
+        let mut headers = HashMap::new();
+        headers.insert(
+            "Authorization".to_string(),
+            format!("Bearer {}", self.token),
+        );
+        headers
+    }
+}

@@ -1,0 +1,155 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"testing"
+
+	"{{packageName}}"
+)
+
+func TestConfiguration_DefaultValues(t *testing.T) {
+	config := {{packageName}}.DefaultConfiguration()
+
+	if config.BaseURL() != "{{{basePath}}}" {
+		t.Errorf("expected default base URL %q, got %q", "{{{basePath}}}", config.BaseURL())
+	}
+	if len(config.DefaultHeaders()) != 0 {
+		t.Errorf("expected empty default headers, got %v", config.DefaultHeaders())
+	}
+}
+
+func TestConfiguration_BuilderReturnsBuilderInstance(t *testing.T) {
+	builder := {{packageName}}.NewConfigurationBuilder()
+	if builder == nil {
+		t.Fatal("expected non-nil builder")
+	}
+}
+
+func TestConfiguration_BuilderSetsBaseURL(t *testing.T) {
+	config := {{packageName}}.NewConfigurationBuilder().
+		BaseURL("https://custom.example.com").
+		Build()
+
+	if config.BaseURL() != "https://custom.example.com" {
+		t.Errorf("expected base URL 'https://custom.example.com', got %q", config.BaseURL())
+	}
+}
+
+func TestConfiguration_BuilderSetsDefaultHeader(t *testing.T) {
+	config := {{packageName}}.NewConfigurationBuilder().
+		DefaultHeader("X-Custom", "value").
+		Build()
+
+	headers := config.DefaultHeaders()
+	if headers["X-Custom"] != "value" {
+		t.Errorf("expected default header X-Custom='value', got %q", headers["X-Custom"])
+	}
+}
+
+func TestConfiguration_BuilderSetsMultipleDefaultHeaders(t *testing.T) {
+	config := {{packageName}}.NewConfigurationBuilder().
+		DefaultHeaders(map[string]string{
+			"X-First":  "one",
+			"X-Second": "two",
+		}).
+		Build()
+
+	headers := config.DefaultHeaders()
+	if headers["X-First"] != "one" {
+		t.Errorf("expected X-First='one', got %q", headers["X-First"])
+	}
+	if headers["X-Second"] != "two" {
+		t.Errorf("expected X-Second='two', got %q", headers["X-Second"])
+	}
+}
+
+func TestConfiguration_BuilderChaining(t *testing.T) {
+	config := {{packageName}}.NewConfigurationBuilder().
+		BaseURL("https://api.example.com").
+		DefaultHeader("Authorization", "Bearer token").
+		Build()
+
+	if config.BaseURL() != "https://api.example.com" {
+		t.Errorf("expected base URL 'https://api.example.com', got %q", config.BaseURL())
+	}
+	if config.DefaultHeaders()["Authorization"] != "Bearer token" {
+		t.Errorf("expected Authorization header, got %v", config.DefaultHeaders())
+	}
+}
+
+func TestConfiguration_ServerURLResolution(t *testing.T) {
+	server := &{{packageName}}.ServerConfiguration{
+		URLTemplate: "https://{env}.example.com/api/{version}",
+		Description: "Test server",
+		Variables: map[string]{{packageName}}.ServerVariable{
+			"env": {
+				DefaultValue: "api",
+				EnumValues:   []string{"api", "staging"},
+			},
+			"version": {
+				DefaultValue: "v3",
+				EnumValues:   []string{"v2", "v3"},
+			},
+		},
+	}
+
+	config := {{packageName}}.NewConfigurationBuilder().
+		Server(server, map[string]string{"env": "staging"}).
+		Build()
+
+	expected := "https://staging.example.com/api/v3"
+	if config.BaseURL() != expected {
+		t.Errorf("expected base URL %q, got %q", expected, config.BaseURL())
+	}
+}
+
+func TestConfiguration_ServerURLResolutionWithDefaults(t *testing.T) {
+	server := &{{packageName}}.ServerConfiguration{
+		URLTemplate: "https://{env}.example.com/api/{version}",
+		Description: "Test server",
+		Variables: map[string]{{packageName}}.ServerVariable{
+			"env": {
+				DefaultValue: "api",
+				EnumValues:   []string{"api", "staging"},
+			},
+			"version": {
+				DefaultValue: "v3",
+				EnumValues:   []string{"v2", "v3"},
+			},
+		},
+	}
+
+	config := {{packageName}}.NewConfigurationBuilder().
+		Server(server, nil).
+		Build()
+
+	expected := "https://api.example.com/api/v3"
+	if config.BaseURL() != expected {
+		t.Errorf("expected base URL %q, got %q", expected, config.BaseURL())
+	}
+}
+
+func TestConfiguration_BaseURLOverride(t *testing.T) {
+	config := {{packageName}}.NewConfigurationBuilder().
+		BaseURL("https://original.example.com").
+		BaseURL("https://override.example.com").
+		Build()
+
+	if config.BaseURL() != "https://override.example.com" {
+		t.Errorf("expected overridden base URL, got %q", config.BaseURL())
+	}
+}
+
+func TestConfiguration_DefaultHeadersCopyIsolation(t *testing.T) {
+	config := {{packageName}}.NewConfigurationBuilder().
+		DefaultHeader("X-Test", "value").
+		Build()
+
+	headers := config.DefaultHeaders()
+	headers["X-Mutated"] = "should-not-affect-config"
+
+	original := config.DefaultHeaders()
+	if _, found := original["X-Mutated"]; found {
+		t.Error("modifying returned headers should not affect the configuration")
+	}
+}

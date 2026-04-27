@@ -1,0 +1,194 @@
+package com.example.petstore
+
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+
+class TransportOptionsTest {
+    @Nested
+    @DisplayName("defaults")
+    inner class Defaults {
+        @Test
+        @DisplayName("verifySsl defaults to true")
+        fun verifySslDefaultsToTrue() {
+            val opts = TransportOptions.builder().build()
+            assertTrue(opts.verifySsl)
+        }
+
+        @Test
+        @DisplayName("caCertPath defaults to null")
+        fun caCertPathDefaultsToNull() {
+            val opts = TransportOptions.builder().build()
+            assertNull(opts.caCertPath)
+        }
+
+        @Test
+        @DisplayName("proxy defaults to null")
+        fun proxyDefaultsToNull() {
+            val opts = TransportOptions.builder().build()
+            assertNull(opts.proxy)
+        }
+
+        @Test
+        @DisplayName("timeout defaults to null")
+        fun timeoutDefaultsToNull() {
+            val opts = TransportOptions.builder().build()
+            assertNull(opts.timeout)
+        }
+
+        @Test
+        @DisplayName("followRedirects defaults to true")
+        fun followRedirectsDefaultsToTrue() {
+            val opts = TransportOptions.builder().build()
+            assertTrue(opts.followRedirects)
+        }
+
+        @Test
+        @DisplayName("maxRedirects defaults to null")
+        fun maxRedirectsDefaultsToNull() {
+            val opts = TransportOptions.builder().build()
+            assertNull(opts.maxRedirects)
+        }
+
+        @Test
+        @DisplayName("userAgent defaults to non-empty string")
+        fun userAgentDefaultsToNonEmpty() {
+            val opts = TransportOptions.builder().build()
+            assertNotNull(opts.userAgent)
+            assertTrue(opts.userAgent!!.isNotEmpty())
+        }
+
+        @Test
+        @DisplayName("defaultHeaders defaults to empty map")
+        fun defaultHeadersDefaultsToEmpty() {
+            val opts = TransportOptions.builder().build()
+            assertTrue(opts.defaultHeaders.isEmpty())
+        }
+
+        @Test
+        @DisplayName("injectRequestId defaults to false")
+        fun injectRequestIdDefaultsToFalse() {
+            val opts = TransportOptions.builder().build()
+            assertFalse(opts.injectRequestId)
+        }
+    }
+
+    @Nested
+    @DisplayName("setting all fields")
+    inner class SettingAllFields {
+        @Test
+        @DisplayName("builder sets all fields")
+        fun builderSetsAllFields() {
+            val opts =
+                TransportOptions
+                    .builder()
+                    .verifySsl(false)
+                    .caCertPath("/path/to/ca.pem")
+                    .proxy("http://proxy:8080")
+                    .timeout(5000)
+                    .followRedirects(false)
+                    .maxRedirects(3)
+                    .userAgent("TestAgent/1.0")
+                    .defaultHeader("X-Custom", "value")
+                    .injectRequestId(true)
+                    .build()
+
+            assertFalse(opts.verifySsl)
+            assertEquals("/path/to/ca.pem", opts.caCertPath)
+            assertEquals("http://proxy:8080", opts.proxy)
+            assertEquals(5000, opts.timeout)
+            assertFalse(opts.followRedirects)
+            assertEquals(3, opts.maxRedirects)
+            assertEquals("TestAgent/1.0", opts.userAgent)
+            assertEquals(mapOf("X-Custom" to "value"), opts.defaultHeaders)
+            assertTrue(opts.injectRequestId)
+        }
+    }
+
+    @Nested
+    @DisplayName("builder chaining")
+    inner class BuilderChaining {
+        @Test
+        @DisplayName("builder methods return the same builder instance")
+        fun builderMethodsReturnSameInstance() {
+            val builder = TransportOptions.builder()
+
+            assertSame(builder, builder.verifySsl(true))
+            assertSame(builder, builder.caCertPath(null))
+            assertSame(builder, builder.proxy(null))
+            assertSame(builder, builder.timeout(null))
+            assertSame(builder, builder.followRedirects(true))
+            assertSame(builder, builder.maxRedirects(null))
+            assertSame(builder, builder.userAgent(null))
+            assertSame(builder, builder.defaultHeader("X-Key", "val"))
+            assertSame(builder, builder.defaultHeaders(emptyMap()))
+            assertSame(builder, builder.injectRequestId(false))
+        }
+    }
+
+    @Nested
+    @DisplayName("multiple default headers")
+    inner class MultipleDefaultHeaders {
+        @Test
+        @DisplayName("accumulates headers from defaultHeader calls")
+        fun accumulatesHeadersFromDefaultHeaderCalls() {
+            val opts =
+                TransportOptions
+                    .builder()
+                    .defaultHeader("X-First", "one")
+                    .defaultHeader("X-Second", "two")
+                    .build()
+            assertEquals(2, opts.defaultHeaders.size)
+            assertEquals("one", opts.defaultHeaders["X-First"])
+            assertEquals("two", opts.defaultHeaders["X-Second"])
+        }
+
+        @Test
+        @DisplayName("merges headers from defaultHeaders call")
+        fun mergesHeadersFromDefaultHeadersCall() {
+            val opts =
+                TransportOptions
+                    .builder()
+                    .defaultHeader("X-First", "one")
+                    .defaultHeaders(mapOf("X-Second" to "two", "X-Third" to "three"))
+                    .build()
+            assertEquals(3, opts.defaultHeaders.size)
+            assertEquals("one", opts.defaultHeaders["X-First"])
+            assertEquals("two", opts.defaultHeaders["X-Second"])
+            assertEquals("three", opts.defaultHeaders["X-Third"])
+        }
+    }
+
+    @Nested
+    @DisplayName("copy isolation")
+    inner class CopyIsolation {
+        @Test
+        @DisplayName("modifying source map does not affect built options")
+        fun modifyingSourceMapDoesNotAffectBuiltOptions() {
+            val headers = mutableMapOf("X-Original" to "original")
+            val opts =
+                TransportOptions
+                    .builder()
+                    .defaultHeaders(headers)
+                    .build()
+
+            headers["X-Added"] = "added"
+
+            assertEquals(1, opts.defaultHeaders.size)
+            assertEquals("original", opts.defaultHeaders["X-Original"])
+            assertNull(opts.defaultHeaders["X-Added"])
+        }
+
+        @Test
+        @DisplayName("builder produces independent instances")
+        fun builderProducesIndependentInstances() {
+            val builder = TransportOptions.builder().verifySsl(false)
+            val first = builder.build()
+            val second = builder.build()
+
+            assertEquals(first.verifySsl, second.verifySsl)
+            assertNotSame(first, second)
+        }
+    }
+}

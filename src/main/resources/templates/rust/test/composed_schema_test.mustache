@@ -1,0 +1,135 @@
+use {{packageName}}::models::*;
+
+// -- oneOf with discriminator: PetFood --
+
+#[test]
+fn test_pet_food_deserialize_dry_food() {
+    let json_data = r#"{"foodType":"dry","weightKg":2.5}"#;
+
+    let food: PetFood =
+        serde_json::from_str(json_data).expect("failed to deserialize PetFood as DryFood");
+
+    match food {
+        PetFood::DryFood(_) => {} // expected
+        _ => panic!("expected DryFood variant, got {:?}", food),
+    }
+}
+
+#[test]
+fn test_pet_food_deserialize_wet_food() {
+    let json_data = r#"{"foodType":"wet","volumeMl":400}"#;
+
+    let food: PetFood =
+        serde_json::from_str(json_data).expect("failed to deserialize PetFood as WetFood");
+
+    match food {
+        PetFood::WetFood(_) => {} // expected
+        _ => panic!("expected WetFood variant, got {:?}", food),
+    }
+}
+
+#[test]
+fn test_pet_food_deserialize_unknown_discriminator() {
+    let json_data = r#"{"foodType":"raw","calories":300}"#;
+
+    let result = serde_json::from_str::<PetFood>(json_data);
+    assert!(
+        result.is_err(),
+        "expected error for unknown discriminator value"
+    );
+}
+
+#[test]
+fn test_pet_food_serialize_dry_food() {
+    let json_data = r#"{"foodType":"dry","weightKg":2.5}"#;
+    let food: PetFood =
+        serde_json::from_str(json_data).expect("failed to set up test");
+
+    let data = serde_json::to_string(&food).expect("failed to serialize PetFood");
+
+    let parsed: serde_json::Value =
+        serde_json::from_str(&data).expect("failed to parse serialized JSON");
+    assert_eq!(parsed["foodType"], "dry");
+}
+
+// -- anyOf without discriminator: PetTreatment --
+
+#[test]
+fn test_pet_treatment_deserialize_medication() {
+    let json_data = r#"{"drugName":"Amoxicillin","dosage":"500mg"}"#;
+
+    let treatment: PetTreatment =
+        serde_json::from_str(json_data).expect("failed to deserialize PetTreatment as Medication");
+    let _ = treatment;
+}
+
+#[test]
+fn test_pet_treatment_deserialize_surgery() {
+    let json_data = r#"{"procedureName":"Spay","durationMinutes":45}"#;
+
+    let treatment: PetTreatment =
+        serde_json::from_str(json_data).expect("failed to deserialize PetTreatment as Surgery");
+    let _ = treatment;
+}
+
+#[test]
+fn test_pet_treatment_serialize_round_trip() {
+    let json_data = r#"{"drugName":"Amoxicillin","dosage":"500mg"}"#;
+
+    let treatment: PetTreatment =
+        serde_json::from_str(json_data).expect("failed to deserialize");
+
+    let data = serde_json::to_string(&treatment).expect("failed to serialize PetTreatment");
+    assert!(!data.is_empty(), "expected non-empty serialized data");
+}
+
+// -- allOf: PetWithOwner extends Pet fields --
+
+#[test]
+fn test_pet_with_owner_deserialize() {
+    let json_data = r#"{
+        "name": "Fido",
+        "photoUrls": ["http://example.com/fido.jpg"],
+        "ownerName": "John Doe",
+        "ownerEmail": "john@example.com"
+    }"#;
+
+    let pet_with_owner: PetWithOwner =
+        serde_json::from_str(json_data).expect("failed to deserialize PetWithOwner");
+    let _ = pet_with_owner;
+}
+
+#[test]
+fn test_pet_with_owner_serialize() {
+    let pet = PetWithOwner::new(
+        "Fido".to_string(),
+        vec!["http://example.com/fido.jpg".to_string()],
+        "John Doe".to_string(),
+    );
+
+    let data = serde_json::to_string(&pet).expect("failed to serialize PetWithOwner");
+    assert!(!data.is_empty(), "expected non-empty serialized data");
+
+    let parsed: serde_json::Value =
+        serde_json::from_str(&data).expect("failed to parse serialized JSON");
+    assert_eq!(parsed["name"], "Fido");
+    assert_eq!(parsed["ownerName"], "John Doe");
+}
+
+#[test]
+fn test_pet_with_owner_round_trip() {
+    let json_data = r#"{
+        "name": "Buddy",
+        "photoUrls": ["http://example.com/buddy.jpg"],
+        "ownerName": "Jane Smith"
+    }"#;
+
+    let pet: PetWithOwner =
+        serde_json::from_str(json_data).expect("failed to deserialize");
+
+    let data = serde_json::to_string(&pet).expect("failed to serialize");
+
+    let restored: PetWithOwner =
+        serde_json::from_str(&data).expect("failed to deserialize after round-trip");
+    let _ = restored;
+}

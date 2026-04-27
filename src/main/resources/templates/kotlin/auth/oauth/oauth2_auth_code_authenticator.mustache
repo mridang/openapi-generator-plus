@@ -1,0 +1,55 @@
+package {{invokerPackage}}.auth.oauth
+
+import {{invokerPackage}}.ApiClient
+import {{invokerPackage}}.auth.HttpAwareAuthenticator
+
+/**
+ * Authenticator for the OAuth2 Authorization Code flow.
+ *
+ * Implements [HttpAwareAuthenticator] so that token exchange requests
+ * use the shared [ApiClient] with the same transport configuration
+ * (proxy, TLS, timeouts) as regular API calls.
+ */
+open class OAuth2AuthorizationCodeAuthenticator(
+    private val host: String,
+    private val clientId: String,
+    private val clientSecret: String,
+    private val authorizationUrl: String,
+    private val tokenUrl: String,
+    private val refreshUrl: String?,
+    private val redirectUri: String,
+    private val scopes: List<String>
+) : HttpAwareAuthenticator() {
+
+    private val tokenManager = OAuth2TokenManager()
+
+    override fun getHost(): String = host
+
+    override fun getAuthHeaders(): Map<String, String> {
+        val params = mutableMapOf(
+            "grant_type" to "authorization_code",
+            "client_id" to clientId,
+            "client_secret" to clientSecret,
+            "redirect_uri" to redirectUri
+        )
+        if (scopes.isNotEmpty()) {
+            params["scope"] = scopes.joinToString(" ")
+        }
+        val refreshToken = tokenManager.getRefreshToken()
+        if (refreshToken != null) {
+            params["grant_type"] = "refresh_token"
+            params["refresh_token"] = refreshToken
+        }
+        val token = tokenManager.getAccessToken(tokenUrl, params)
+        return mapOf("Authorization" to "Bearer $token")
+    }
+
+    override var apiClient: ApiClient?
+        get() = super.apiClient
+        set(value) {
+            super.apiClient = value
+            if (value != null) {
+                tokenManager.apiClient = value
+            }
+        }
+}

@@ -1,0 +1,9 @@
+package {{package}}
+
+{{#imports}}
+import {{.}}
+{{/imports}}
+
+class {{className}} : {{baseClass}} {
+    constructor({{#constructorParams}}{{name}}: {{type}}{{^-last}}, {{/-last}}{{/constructorParams}}) : super({{#superArgs}}{{.}}{{^-last}}, {{/-last}}{{/superArgs}})
+}

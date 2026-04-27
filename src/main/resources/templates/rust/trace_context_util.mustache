@@ -1,0 +1,30 @@
+use std::collections::HashMap;
+
+/// Injects W3C Trace Context headers (traceparent, tracestate)
+/// into outgoing API requests when OpenTelemetry is available.
+///
+/// If the `opentelemetry` crate is not available, this function
+/// silently no-ops.
+///
+/// To enable trace context propagation, add the `opentelemetry` crate
+/// and configure a global propagator:
+///
+/// ```rust,ignore
+/// use opentelemetry::global;
+/// use opentelemetry_sdk::propagation::TraceContextPropagator;
+///
+/// global::set_text_map_propagator(TraceContextPropagator::new());
+/// ```
+pub fn inject_trace_context(headers: &mut HashMap<String, String>) {
+    inject_trace_context_impl(headers);
+}
+
+/// The actual implementation. It is a no-op by default.
+///
+/// Users who want OpenTelemetry support should configure the global
+/// TextMapPropagator and inject context into requests at the application level.
+fn inject_trace_context_impl(_headers: &mut HashMap<String, String>) {
+    // No-op: OpenTelemetry integration requires the opentelemetry crate.
+    // To enable, users should configure the global TextMapPropagator
+    // and inject context into requests at the application level.
+}

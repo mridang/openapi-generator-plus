@@ -1,0 +1,261 @@
+package {{modelPackage}}
+
+{{#imports}}
+import {{import}}
+{{/imports}}
+import kotlinx.serialization.Contextual
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonClassDiscriminator
+
+{{#models}}
+{{#model}}
+{{#isEnum}}
+{{#description}}
+/** {{{.}}} */
+{{/description}}
+@Serializable
+enum class {{classname}}(val value: String) {
+  {{#allowableValues}}
+  {{#enumVars}}
+  @SerialName({{{value}}})
+  {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+  {{/enumVars}}
+  {{/allowableValues}}
+
+  companion object {
+    fun fromValue(value: String): {{classname}} =
+      entries.firstOrNull { it.value == value }
+        ?: throw IllegalArgumentException("Unexpected value '$value'")
+  }
+}
+{{/isEnum}}
+{{^isEnum}}
+{{#oneOf}}
+{{#-first}}
+{{#isDeprecated}}
+/**
+{{#description}}
+ * {{{.}}}
+ *
+{{/description}}
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see <a href="{{url}}">{{description}}</a>
+{{/externalDocumentation}}
+ */
+@Deprecated("This schema is deprecated.")
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{{.}}}
+ *
+ * @see <a href="{{url}}">{{description}}</a>
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
+/** {{{.}}} */
+{{/externalDocumentation}}
+{{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * {{classname}}.
+ *
+ * @see <a href="{{url}}">{{description}}</a>
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
+{{#discriminator}}
+@Serializable
+@JsonClassDiscriminator("{{discriminator.propertyBaseName}}")
+abstract class {{classname}}
+{{/discriminator}}
+{{^discriminator}}
+@Serializable
+class {{classname}}(
+  @Contextual
+  val actualInstance: Any? = null
+)
+{{/discriminator}}
+{{/-first}}
+{{/oneOf}}
+{{^oneOf}}
+{{#anyOf}}
+{{#-first}}
+{{#isDeprecated}}
+/**
+{{#description}}
+ * {{{.}}}
+ *
+{{/description}}
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see <a href="{{url}}">{{description}}</a>
+{{/externalDocumentation}}
+ */
+@Deprecated("This schema is deprecated.")
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{{.}}}
+ *
+ * @see <a href="{{url}}">{{description}}</a>
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
+/** {{{.}}} */
+{{/externalDocumentation}}
+{{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * {{classname}}.
+ *
+ * @see <a href="{{url}}">{{description}}</a>
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
+@Serializable
+class {{classname}}(
+  @Contextual
+  val actualInstance: Any? = null
+)
+{{/-first}}
+{{/anyOf}}
+{{^anyOf}}
+{{#isDeprecated}}
+{{#description}}
+/**
+ * {{{.}}}
+ *
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see <a href="{{url}}">{{description}}</a>
+{{/externalDocumentation}}
+ */
+{{/description}}
+{{^description}}
+/**
+ * @deprecated This schema is deprecated.
+{{#externalDocumentation}}
+ * @see <a href="{{url}}">{{description}}</a>
+{{/externalDocumentation}}
+ */
+{{/description}}
+@Deprecated("This schema is deprecated.")
+{{/isDeprecated}}
+{{^isDeprecated}}
+{{#description}}
+{{#externalDocumentation}}
+/**
+ * {{{.}}}
+ *
+ * @see <a href="{{url}}">{{description}}</a>
+ */
+{{/externalDocumentation}}
+{{^externalDocumentation}}
+/** {{{.}}} */
+{{/externalDocumentation}}
+{{/description}}
+{{^description}}
+{{#externalDocumentation}}
+/**
+ * {{classname}}.
+ *
+ * @see <a href="{{url}}">{{description}}</a>
+ */
+{{/externalDocumentation}}
+{{/description}}
+{{/isDeprecated}}
+@Serializable
+{{#parent}}open {{/parent}}data class {{classname}}(
+{{#vars}}
+  {{#deprecated}}
+  {{#description}}
+  /**
+   * {{{.}}}
+   *
+  {{#example}}
+   * Example: `{{{.}}}`
+   *
+  {{/example}}
+   * @deprecated This property is deprecated.
+   */
+  {{/description}}
+  {{^description}}
+  {{#example}}
+  /**
+   * Example: `{{{.}}}`
+   *
+   * @deprecated This property is deprecated.
+   */
+  {{/example}}
+  {{^example}}
+  /** @deprecated This property is deprecated. */
+  {{/example}}
+  {{/description}}
+  @Deprecated("This property is deprecated.")
+  {{/deprecated}}
+  {{^deprecated}}
+  {{#description}}
+  {{#example}}
+  /**
+   * {{{description}}}
+   *
+   * Example: `{{{example}}}`
+   */
+  {{/example}}
+  {{^example}}
+  /** {{{.}}} */
+  {{/example}}
+  {{/description}}
+  {{^description}}
+  {{#example}}
+  /** Example: `{{{.}}}` */
+  {{/example}}
+  {{/description}}
+  {{/deprecated}}
+  @SerialName("{{baseName}}")
+{{#isDateTime}}  @Contextual
+{{/isDateTime}}{{#isDate}}  @Contextual
+{{/isDate}}  val {{name}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}{{^required}} = null{{/required}}{{#required}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/required}}{{^-last}},{{/-last}}
+{{/vars}}
+){{#parent}} : {{{.}}}(){{/parent}} {
+{{#vars}}
+{{#isEnum}}
+
+  @Serializable
+  enum class {{enumName}}(val value: String) {
+    {{#allowableValues}}
+    {{#enumVars}}
+    @SerialName({{{value}}})
+    {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
+    {{/enumVars}}
+    {{/allowableValues}}
+
+    companion object {
+      fun fromValue(value: String): {{enumName}} =
+        entries.firstOrNull { it.value == value }
+          ?: throw IllegalArgumentException("Unexpected value '$value'")
+    }
+  }
+{{/isEnum}}
+{{/vars}}
+{{#isAdditionalPropertiesTrue}}
+
+  @kotlinx.serialization.Transient
+  val additionalProperties: MutableMap<String, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}@Contextual Any?{{/additionalPropertiesType}}> = mutableMapOf()
+{{/isAdditionalPropertiesTrue}}
+}
+{{/anyOf}}
+{{/oneOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}

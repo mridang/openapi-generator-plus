@@ -1,0 +1,237 @@
+package {{invokerPackage}}.api
+
+import {{invokerPackage}}.*
+import {{invokerPackage}}.auth.PetStoreBearerAuthenticator
+import {{invokerPackage}}.auth.oauth.MachineAuthClientCredentialsAuthenticator
+import {{apiPackage}}.options.FindPetsByStatusOptions
+import {{apiPackage}}.options.UploadPetCertificateOptions
+import {{modelPackage}}.*
+import kotlinx.coroutines.runBlocking
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Assumptions.assumeTrue
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+
+class PetApiTest {
+
+    companion object {
+        private fun getBaseUrl(): String? = System.getenv("API_BASE_URL")
+    }
+
+    private val bearerAuth = PetStoreBearerAuthenticator(
+        getBaseUrl() ?: "http://localhost:4010",
+        "test-token"
+    )
+
+    private val clientCredentialsAuth = MachineAuthClientCredentialsAuthenticator(
+        getBaseUrl() ?: "http://localhost:4010",
+        "test-client-id",
+        "test-client-secret"
+    )
+
+    @Nested
+    @DisplayName("Integration tests")
+    inner class IntegrationTests {
+
+        private lateinit var api: PetApi
+
+        @BeforeEach
+        fun setUp() {
+            val baseUrl = getBaseUrl()
+            assumeTrue(baseUrl != null, "API_BASE_URL not set, skipping integration tests")
+            val config = Configuration.builder()
+                .baseUrl(baseUrl!!)
+                .defaultHeader("Authorization", "Bearer test-token")
+                .build()
+            api = PetApi(DefaultApiClient(), config)
+        }
+
+        @Test
+        @DisplayName("addPet creates a new pet")
+        fun testAddPet() {
+            val pet = Pet(
+                name = "TestDog",
+                photoUrls = setOf("http://example.com/photo.jpg")
+            )
+
+            val result = runBlocking { api.addPet(bearerAuth, pet) }
+
+            assertNotNull(result)
+            assertNotNull(result!!.name)
+        }
+
+        @Test
+        @DisplayName("addPet with HttpInfo returns status and headers")
+        fun testAddPetWithHttpInfo() {
+            val pet = Pet(
+                name = "TestDog",
+                photoUrls = setOf("http://example.com/photo.jpg")
+            )
+
+            val result = runBlocking { api.addPetWithHttpInfo(bearerAuth, pet) }
+
+            assertNotNull(result)
+            assertTrue(result.statusCode in 200..299)
+            assertNotNull(result.data)
+        }
+
+        @Test
+        @DisplayName("getPetById returns a pet")
+        fun testGetPetById() {
+            val result = runBlocking { api.getPetById(1L) }
+
+            assertNotNull(result)
+            assertNotNull(result!!.id)
+            assertNotNull(result.name)
+        }
+
+        @Test
+        @DisplayName("getPetById with HttpInfo returns status and headers")
+        fun testGetPetByIdWithHttpInfo() {
+            val result = runBlocking { api.getPetByIdWithHttpInfo(1L) }
+
+            assertNotNull(result)
+            assertTrue(result.statusCode in 200..299)
+            assertNotNull(result.data)
+        }
+
+        @Test
+        @DisplayName("updatePet updates an existing pet")
+        fun testUpdatePet() {
+            val pet = Pet(
+                name = "UpdatedDog",
+                photoUrls = setOf("http://example.com/updated.jpg")
+            )
+
+            val result = runBlocking { api.updatePet(1L, pet) }
+
+            assertNotNull(result)
+        }
+
+        @Test
+        @DisplayName("deletePet deletes a pet")
+        fun testDeletePet() {
+            assertDoesNotThrow { runBlocking { api.deletePet(clientCredentialsAuth, 1L) } }
+        }
+
+        @Test
+        @DisplayName("findPetsByStatus returns a list of pets")
+        fun testFindPetsByStatus() {
+            val result = runBlocking {
+                api.findPetsByStatus(
+                    FindPetsByStatusOptions().status("available")
+                )
+            }
+
+            assertNotNull(result)
+            assertTrue(result!!.isNotEmpty())
+        }
+
+        @Test
+        @DisplayName("getPetPassport returns passport with embedded fields")
+        fun testGetPetPassport() {
+            val result = runBlocking { api.getPetPassport(1L) }
+
+            assertNotNull(result)
+            assertNotNull(result!!.pet)
+            assertNotNull(result.thumbnail)
+            assertNotNull(result.scans)
+            assertNotNull(result.issuedAt)
+        }
+    }
+
+    @Nested
+    @DisplayName("Mock tests")
+    inner class MockTests {
+
+        private lateinit var mockServer: MockWebServer
+        private lateinit var api: PetApi
+
+        @BeforeEach
+        fun setUp() {
+            mockServer = MockWebServer()
+            mockServer.start()
+            val config = Configuration.builder()
+                .baseUrl(mockServer.url("/").toString().trimEnd('/'))
+                .build()
+            api = PetApi(DefaultApiClient(), config)
+        }
+
+        @AfterEach
+        fun tearDown() {
+            mockServer.shutdown()
+        }
+
+        @Test
+        @DisplayName("setPetAvatar sends binary body")
+        fun testSetPetAvatar() {
+            mockServer.enqueue(
+                MockResponse()
+                    .setResponseCode(204)
+            )
+
+            val imageData = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())
+            runBlocking { api.setPetAvatar(1L, imageData) }
+
+            val request = mockServer.takeRequest()
+            assertEquals("PUT", request.method)
+            assertTrue(request.path!!.contains("/pet/1/avatar"))
+            assertEquals(4, request.bodySize)
+        }
+
+        @Test
+        @DisplayName("upload multipart sends correct request")
+        fun testUploadMultipart() {
+            mockServer.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .setHeader("Content-Type", "application/json")
+                    .setBody("""{"code":200,"type":"ok","message":"uploaded"}""")
+            )
+
+            val fileBytes = byteArrayOf(0x25, 0x50, 0x44, 0x46)
+            runBlocking { api.uploadPetCertificate(1L, UploadPetCertificateOptions(fileBytes)) }
+
+            val request = mockServer.takeRequest()
+            assertEquals("POST", request.method)
+            assertTrue(request.path!!.contains("/pet/1/certificate"))
+        }
+
+        @Test
+        @DisplayName("404 response throws ApiException")
+        fun testErrorHandlingNotFound() {
+            mockServer.enqueue(
+                MockResponse()
+                    .setResponseCode(404)
+                    .setHeader("Content-Type", "application/json")
+                    .setBody("""{"code":404,"message":"Pet not found"}""")
+            )
+
+            val exception = assertThrows(ApiException::class.java) {
+                runBlocking { api.getPetById(99999L) }
+            }
+            assertEquals(404, exception.code)
+        }
+
+        @Test
+        @DisplayName("500 response throws ApiException")
+        fun testErrorHandlingServerError() {
+            mockServer.enqueue(
+                MockResponse()
+                    .setResponseCode(500)
+                    .setHeader("Content-Type", "application/json")
+                    .setBody("""{"code":500,"message":"Internal Server Error"}""")
+            )
+
+            val exception = assertThrows(ApiException::class.java) {
+                runBlocking { api.getPetById(1L) }
+            }
+            assertEquals(500, exception.code)
+        }
+    }
+}

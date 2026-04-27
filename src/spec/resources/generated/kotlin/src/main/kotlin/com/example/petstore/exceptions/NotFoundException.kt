@@ -1,0 +1,11 @@
+package com.example.petstore.exceptions
+
+/**
+ * Exception for HTTP 404 Not Found.
+ */
+class NotFoundException(
+    message: String,
+    responseHeaders: Map<String, String>?,
+    responseBody: String?,
+    errorBody: Any? = null,
+) : ClientException(404, message, responseHeaders, responseBody, errorBody)

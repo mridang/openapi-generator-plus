@@ -1,0 +1,31 @@
+use std::fmt;
+
+use crate::errors::client_error::ClientError;
+
+/// NotFoundError represents an HTTP 404 Not Found error.
+#[derive(Debug, Clone)]
+pub struct NotFoundError {
+    pub client_error: ClientError,
+}
+
+impl fmt::Display for NotFoundError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Not found (404): {}",
+            self.client_error.api_error.message
+        )
+    }
+}
+
+impl std::error::Error for NotFoundError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.client_error)
+    }
+}
+
+impl From<ClientError> for NotFoundError {
+    fn from(client_error: ClientError) -> Self {
+        Self { client_error }
+    }
+}

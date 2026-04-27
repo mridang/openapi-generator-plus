@@ -1,0 +1,72 @@
+{{>api_info}}
+package {{packageName}}
+
+import (
+	"{{packageName}}/auth"
+)
+
+// {{clientClassName}} is the unified entry point for all API services.
+//
+// Takes an Authenticator and optionally TransportOptions, then exposes
+// each API group as a typed field. If the authenticator implements
+// auth.HttpAwareAuthenticator, the shared HTTP client is injected so that
+// authentication HTTP calls (token exchange, discovery) use the same
+// transport configuration as regular API calls.
+//
+// Example with default transport:
+//
+//	client := {{packageName}}.New{{clientClassName}}(authenticator, nil)
+//
+// Example with custom transport (proxy, timeouts, etc.):
+//
+//	transport := {{packageName}}.NewTransportOptionsBuilder().
+//		Proxy("http://proxy:3128").
+//		Timeout(5 * time.Second).
+//		Build()
+//	client := {{packageName}}.New{{clientClassName}}(authenticator, transport)
+type {{clientClassName}} struct {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+	// {{classname}} provides methods for the {{baseName}} API group.
+	{{classname}} *{{classname}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+}
+
+// New{{clientClassName}} creates a new client with the given authenticator and optional transport options.
+//
+// If the authenticator implements auth.HttpAwareAuthenticator, the shared HTTP client
+// is injected so that token exchange and discovery requests use the same proxy,
+// TLS, and timeout settings.
+func New{{clientClassName}}(authenticator Authenticator, transportOptions *TransportOptions) *{{clientClassName}} {
+	if transportOptions == nil {
+		transportOptions = NewTransportOptionsBuilder().Build()
+	}
+	apiClient := NewDefaultApiClient(transportOptions)
+
+	if httpAware, ok := authenticator.(auth.HttpAwareAuthenticator); ok {
+		httpAware.SetHTTPClient(apiClient.HTTPClient())
+	}
+
+	config := NewConfigurationBuilder().
+		BaseURL(authenticator.Host()).
+		DefaultHeaders(authenticator.AuthHeaders()).
+		Build()
+
+	return &{{clientClassName}}{
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+		{{classname}}: New{{classname}}(apiClient, config),
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+	}
+}
+
+// New{{clientClassName}}WithToken creates a client authenticated with a static Bearer token.
+func New{{clientClassName}}WithToken(host, accessToken string) *{{clientClassName}} {
+	return New{{clientClassName}}(auth.NewBearerAuthenticator(host, accessToken), nil)
+}

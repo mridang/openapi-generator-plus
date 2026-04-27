@@ -1,0 +1,78 @@
+package com.example.petstore
+
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+
+class TraceContextUtilTest {
+    @Test
+    @DisplayName("injectTraceContext is a no-op when no tracer is configured")
+    fun noOpWithoutTracer() {
+        val headers = mutableMapOf<String, String>()
+        assertDoesNotThrow { TraceContextUtil.injectTraceContext(headers) }
+        assertTrue(headers.isEmpty())
+    }
+
+    @Test
+    @DisplayName("empty headers map does not cause an exception")
+    fun emptyHeadersDoNotCauseException() {
+        val headers = mutableMapOf<String, String>()
+        assertDoesNotThrow { TraceContextUtil.injectTraceContext(headers) }
+    }
+
+    @Test
+    @DisplayName("does not inject traceparent without OpenTelemetry")
+    fun doesNotInjectTraceparentWithoutOTel() {
+        val headers = mutableMapOf<String, String>()
+        TraceContextUtil.injectTraceContext(headers)
+        assertFalse(headers.containsKey("traceparent"))
+    }
+
+    @Test
+    @DisplayName("does not inject tracestate without OpenTelemetry")
+    fun doesNotInjectTracestateWithoutOTel() {
+        val headers = mutableMapOf<String, String>()
+        TraceContextUtil.injectTraceContext(headers)
+        assertFalse(headers.containsKey("tracestate"))
+    }
+
+    @Test
+    @DisplayName("preserves existing Authorization header")
+    fun preservesAuthorizationHeader() {
+        val headers = mutableMapOf("Authorization" to "Bearer token123")
+        TraceContextUtil.injectTraceContext(headers)
+        assertEquals("Bearer token123", headers["Authorization"])
+    }
+
+    @Test
+    @DisplayName("preserves existing Content-Type header")
+    fun preservesContentTypeHeader() {
+        val headers = mutableMapOf("Content-Type" to "application/json")
+        TraceContextUtil.injectTraceContext(headers)
+        assertEquals("application/json", headers["Content-Type"])
+    }
+
+    @Test
+    @DisplayName("preserves existing X-Request-ID header")
+    fun preservesXRequestIdHeader() {
+        val headers = mutableMapOf("X-Request-ID" to "req-12345")
+        TraceContextUtil.injectTraceContext(headers)
+        assertEquals("req-12345", headers["X-Request-ID"])
+    }
+
+    @Test
+    @DisplayName("preserves all existing headers together")
+    fun preservesAllExistingHeaders() {
+        val headers =
+            mutableMapOf(
+                "Authorization" to "Bearer token",
+                "Content-Type" to "application/json",
+                "X-Request-ID" to "abc-123",
+            )
+        TraceContextUtil.injectTraceContext(headers)
+        assertEquals(3, headers.size)
+        assertEquals("Bearer token", headers["Authorization"])
+        assertEquals("application/json", headers["Content-Type"])
+        assertEquals("abc-123", headers["X-Request-ID"])
+    }
+}

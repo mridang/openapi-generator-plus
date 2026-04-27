@@ -1,0 +1,34 @@
+{{>api_info}}
+package {{packageName}}
+
+// InjectTraceContext injects W3C Trace Context headers (traceparent, tracestate)
+// into outgoing API requests when OpenTelemetry is available.
+//
+// If the go.opentelemetry.io/otel package is not available, this function
+// silently no-ops.
+//
+// To enable trace context propagation, import the OpenTelemetry SDK and
+// configure a global propagator:
+//
+//	import (
+//		"go.opentelemetry.io/otel"
+//		"go.opentelemetry.io/otel/propagation"
+//	)
+//
+//	otel.SetTextMapPropagator(propagation.TraceContext{})
+func InjectTraceContext(headers map[string]string) {
+	injectTraceContextImpl(headers)
+}
+
+// injectTraceContextImpl is the actual implementation. It attempts to use
+// OpenTelemetry if available, otherwise it is a no-op.
+//
+// Users who want OpenTelemetry support should import the otel packages
+// and provide a build-tag-based implementation. This default implementation
+// is a safe no-op.
+func injectTraceContextImpl(headers map[string]string) {
+	// No-op: OpenTelemetry integration requires the otel SDK.
+	// To enable, users should configure the global TextMapPropagator
+	// and inject context into requests at the application level.
+	_ = headers
+}

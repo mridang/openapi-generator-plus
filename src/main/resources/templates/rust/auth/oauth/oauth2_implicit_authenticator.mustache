@@ -1,0 +1,90 @@
+use std::collections::HashMap;
+
+use crate::api_client::ApiClient;
+use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
+use crate::authenticator::Authenticator;
+
+/// OAuth2ImplicitAuthenticator provides OAuth2 implicit flow authentication.
+///
+/// Implements HttpAwareAuthenticator for interface consistency with other
+/// OAuth2 authenticators. The implicit flow does not make token exchange
+/// requests.
+///
+/// Usage:
+///  1. Call `build_authorization_url` to get the authorization URL
+///  2. Redirect the user to that URL
+///  3. Extract the access token from the fragment and call `set_access_token`
+///  4. Use the authenticator normally
+pub struct OAuth2ImplicitAuthenticator {
+    host: String,
+    client_id: String,
+    authorization_url: String,
+    scopes: Vec<String>,
+    access_token: String,
+}
+
+impl OAuth2ImplicitAuthenticator {
+    /// Creates a new implicit flow authenticator.
+    pub fn new(
+        host: &str,
+        client_id: &str,
+        authorization_url: &str,
+        scopes: Vec<String>,
+    ) -> Self {
+        Self {
+            host: host.to_string(),
+            client_id: client_id.to_string(),
+            authorization_url: authorization_url.to_string(),
+            scopes,
+            access_token: String::new(),
+        }
+    }
+
+    /// Sets the access token obtained from the authorization redirect fragment.
+    pub fn set_access_token(&mut self, token: &str) {
+        self.access_token = token.to_string();
+    }
+
+    /// Builds the authorization URL to redirect the user to.
+    ///
+    /// The `state` parameter is optional and used for CSRF protection.
+    pub fn build_authorization_url(&self, state: &str) -> String {
+        let mut params = vec![
+            format!("response_type=token"),
+            format!("client_id={}", &self.client_id),
+        ];
+        if !self.scopes.is_empty() {
+            params.push(format!("scope={}", self.scopes.join(" ")));
+        }
+        if !state.is_empty() {
+            params.push(format!("state={}", state));
+        }
+        format!("{}?{}", self.authorization_url, params.join("&"))
+    }
+}
+
+impl Authenticator for OAuth2ImplicitAuthenticator {
+    fn host(&self) -> &str {
+        &self.host
+    }
+
+    fn auth_headers(&self) -> HashMap<String, String> {
+        if self.access_token.is_empty() {
+            panic!("must set access token before making API requests");
+        }
+
+        let mut headers = HashMap::new();
+        headers.insert(
+            "Authorization".to_string(),
+            format!("Bearer {}", self.access_token),
+        );
+        headers
+    }
+}
+
+impl HttpAwareAuthenticator for OAuth2ImplicitAuthenticator {
+    fn set_api_client(&mut self, _client: Box<dyn ApiClient>) {
+        // Implicit flow does not make token exchange requests,
+        // but implements the trait for consistency.
+    }
+}

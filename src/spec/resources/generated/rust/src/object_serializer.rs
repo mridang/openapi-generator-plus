@@ -1,0 +1,132 @@
+use serde::de::DeserializeOwned;
+use serde::Serialize;
+use std::fmt;
+
+/// SerializationError is returned when serialization or deserialization fails.
+#[derive(Debug)]
+pub struct SerializationError {
+    pub message: String,
+    pub cause: Option<Box<dyn std::error::Error + Send + Sync>>,
+}
+
+impl fmt::Display for SerializationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.cause {
+            Some(cause) => write!(f, "{}: {}", self.message, cause),
+            None => write!(f, "{}", self.message),
+        }
+    }
+}
+
+impl std::error::Error for SerializationError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.cause
+            .as_ref()
+            .map(|e| e.as_ref() as &(dyn std::error::Error + 'static))
+    }
+}
+
+/// Serializes an object to a JSON byte vector.
+pub fn serialize<T: Serialize>(value: &T) -> Result<Vec<u8>, SerializationError> {
+    serde_json::to_vec(value).map_err(|e| SerializationError {
+        message: format!("failed to serialize object to JSON: {}", e),
+        cause: Some(Box::new(e)),
+    })
+}
+
+/// Deserializes a JSON byte slice into the target type.
+pub fn deserialize<T: DeserializeOwned>(data: &[u8]) -> Result<T, SerializationError> {
+    if data.is_empty() {
+        return Err(SerializationError {
+            message: "cannot deserialize empty data".to_string(),
+            cause: None,
+        });
+    }
+    serde_json::from_slice(data).map_err(|e| SerializationError {
+        message: format!("failed to deserialize JSON: {}", e),
+        cause: Some(Box::new(e)),
+    })
+}
+
+/// Converts a single scalar value to its string representation.
+///
+/// This is the canonical type-conversion method used by all parameter
+/// encoding helpers (to_path_value, to_query_value, etc.) and by
+/// ValueSerializer for transport formatting.
+pub fn stringify<T: Serialize>(value: &T) -> String {
+    match serde_json::to_value(value) {
+        Ok(serde_json::Value::String(s)) => s,
+        Ok(serde_json::Value::Bool(b)) => b.to_string(),
+        Ok(serde_json::Value::Number(n)) => n.to_string(),
+        Ok(serde_json::Value::Null) => String::new(),
+        Ok(other) => other.to_string(),
+        Err(_) => String::new(),
+    }
+}
+
+/// Converts a value to a string suitable for use as a URL path parameter.
+pub fn to_path_value<T: Serialize>(value: &T) -> String {
+    stringify(value)
+}
+
+/// Converts a value to a representation suitable for use as a query parameter.
+/// For collections, joins using the specified collection format delimiter.
+pub fn to_query_value<T: Serialize>(value: &T, collection_format: &str) -> String {
+    let json_value = match serde_json::to_value(value) {
+        Ok(v) => v,
+        Err(_) => return String::new(),
+    };
+
+    match json_value {
+        serde_json::Value::Array(items) => {
+            let strings: Vec<String> = items
+                .iter()
+                .map(|item| match item {
+                    serde_json::Value::String(s) => s.clone(),
+                    other => other.to_string(),
+                })
+                .collect();
+            join_collection(&strings, collection_format)
+        }
+        serde_json::Value::String(s) => s,
+        other => other.to_string(),
+    }
+}
+
+/// Converts a value to a string suitable for use as an HTTP header value.
+pub fn to_header_value<T: Serialize>(value: &T) -> String {
+    let json_value = match serde_json::to_value(value) {
+        Ok(v) => v,
+        Err(_) => return String::new(),
+    };
+
+    match json_value {
+        serde_json::Value::Array(items) => {
+            let strings: Vec<String> = items
+                .iter()
+                .map(|item| match item {
+                    serde_json::Value::String(s) => s.clone(),
+                    other => other.to_string(),
+                })
+                .collect();
+            strings.join(",")
+        }
+        serde_json::Value::String(s) => s,
+        other => other.to_string(),
+    }
+}
+
+/// Converts a value to a representation suitable for use as a form parameter.
+pub fn to_form_value<T: Serialize>(value: &T) -> String {
+    stringify(value)
+}
+
+fn join_collection(items: &[String], collection_format: &str) -> String {
+    match collection_format {
+        "ssv" => items.join(" "),
+        "tsv" => items.join("\t"),
+        "pipes" => items.join("|"),
+        "multi" => items.join("&"),
+        _ => items.join(","),
+    }
+}

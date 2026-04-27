@@ -1,0 +1,27 @@
+mod base_authenticator;
+pub use base_authenticator::*;
+
+mod http_aware_authenticator;
+pub use http_aware_authenticator::*;
+
+{{#hasBasicAuth}}
+mod basic_authenticator;
+pub use basic_authenticator::*;
+{{/hasBasicAuth}}
+
+{{#hasBearerAuth}}
+mod bearer_authenticator;
+pub use bearer_authenticator::*;
+{{/hasBearerAuth}}
+
+{{#hasApiKeyAuth}}
+mod api_key_authenticator;
+pub use api_key_authenticator::*;
+
+mod api_key_location;
+pub use api_key_location::*;
+{{/hasApiKeyAuth}}
+
+{{#hasAnyOAuth2}}
+pub mod oauth;
+{{/hasAnyOAuth2}}

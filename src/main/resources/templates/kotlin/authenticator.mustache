@@ -1,0 +1,11 @@
+package {{invokerPackage}}.auth
+
+/**
+ * Interface for providing authentication credentials to the API client.
+ */
+interface Authenticator {
+    fun getHost(): String
+    fun getAuthHeaders(): Map<String, String>
+    fun getQueryParams(): Map<String, String> = emptyMap()
+    fun getCookieParams(): Map<String, String> = emptyMap()
+}

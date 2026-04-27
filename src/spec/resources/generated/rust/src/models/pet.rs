@@ -1,0 +1,37 @@
+#[allow(unused_imports)]
+use super::*;
+use serde::{Deserialize, Serialize};
+
+/// Pet is a model class generated from the OpenAPI schema.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct Pet {
+    #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
+    pub id: Option<i64>,
+    #[serde(rename = "name")]
+    pub name: String,
+    #[serde(rename = "category", skip_serializing_if = "Option::is_none")]
+    pub category: Option<Category>,
+    #[serde(rename = "photoUrls")]
+    pub photo_urls: Vec<String>,
+    #[serde(rename = "tags", skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<Tag>>,
+    /// pet status in the store
+    #[deprecated]
+    #[serde(rename = "status", skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+}
+
+#[allow(deprecated)]
+impl Pet {
+    /// Creates a new Pet instance with required parameters.
+    pub fn new(name: String, photo_urls: Vec<String>) -> Self {
+        Self {
+            name,
+            photo_urls,
+            id: None,
+            category: None,
+            tags: None,
+            status: None,
+        }
+    }
+}

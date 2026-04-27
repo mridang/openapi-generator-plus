@@ -1,0 +1,135 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"strings"
+	"testing"
+
+	"{{packageName}}"
+)
+
+func TestHeaderSelector_IsJSONMIME(t *testing.T) {
+	hs := {{packageName}}.NewHeaderSelector()
+
+	testCases := []struct {
+		input    string
+		expected bool
+	}{
+		{"application/json", true},
+		{"application/json; charset=utf-8", true},
+		{"application/vnd.api+json", true},
+		{"application/xml", false},
+		{"text/plain", false},
+		{"", false},
+		{"application/octet-stream", false},
+		{"application/hal+json", true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.input, func(t *testing.T) {
+			result := hs.IsJSONMIME(tc.input)
+			if result != tc.expected {
+				t.Errorf("IsJSONMIME(%q) = %v, want %v", tc.input, result, tc.expected)
+			}
+		})
+	}
+}
+
+func TestHeaderSelector_SelectHeadersWithSingleAccept(t *testing.T) {
+	hs := {{packageName}}.NewHeaderSelector()
+
+	headers := hs.SelectHeaders([]string{"application/json"}, "application/json", false)
+
+	if headers["Accept"] != "application/json" {
+		t.Errorf("expected Accept 'application/json', got %q", headers["Accept"])
+	}
+	if headers["Content-Type"] != "application/json" {
+		t.Errorf("expected Content-Type 'application/json', got %q", headers["Content-Type"])
+	}
+}
+
+func TestHeaderSelector_SelectHeadersWithMultipleAccepts(t *testing.T) {
+	hs := {{packageName}}.NewHeaderSelector()
+
+	headers := hs.SelectHeaders([]string{"application/json", "application/xml"}, "application/json", false)
+
+	accept := headers["Accept"]
+	if !strings.Contains(accept, "application/json") {
+		t.Errorf("expected Accept to contain 'application/json', got %q", accept)
+	}
+}
+
+func TestHeaderSelector_SelectHeadersWithEmptyAccepts(t *testing.T) {
+	hs := {{packageName}}.NewHeaderSelector()
+
+	headers := hs.SelectHeaders([]string{}, "application/json", false)
+
+	if _, ok := headers["Accept"]; ok {
+		t.Error("expected no Accept header for empty accepts list")
+	}
+}
+
+func TestHeaderSelector_SelectHeadersMultipartOmitsContentType(t *testing.T) {
+	hs := {{packageName}}.NewHeaderSelector()
+
+	headers := hs.SelectHeaders([]string{"application/json"}, "multipart/form-data", true)
+
+	if _, ok := headers["Content-Type"]; ok {
+		t.Error("expected no Content-Type header for multipart requests")
+	}
+}
+
+func TestHeaderSelector_SelectHeadersDefaultContentType(t *testing.T) {
+	hs := {{packageName}}.NewHeaderSelector()
+
+	headers := hs.SelectHeaders([]string{"application/json"}, "", false)
+
+	if headers["Content-Type"] != "application/json" {
+		t.Errorf("expected default Content-Type 'application/json', got %q", headers["Content-Type"])
+	}
+}
+
+func TestHeaderSelector_QualityWeighting(t *testing.T) {
+	hs := {{packageName}}.NewHeaderSelector()
+
+	// When multiple JSON and non-JSON types are provided, JSON types should be
+	// preferred with higher quality weights
+	headers := hs.SelectHeaders(
+		[]string{"application/json", "application/xml", "text/plain"},
+		"application/json",
+		false,
+	)
+
+	accept := headers["Accept"]
+	if accept == "" {
+		t.Fatal("expected non-empty Accept header")
+	}
+
+	// application/json should appear first (highest priority)
+	jsonIdx := strings.Index(accept, "application/json")
+	xmlIdx := strings.Index(accept, "application/xml")
+	if jsonIdx < 0 {
+		t.Error("expected application/json in Accept header")
+	}
+	if xmlIdx < 0 {
+		t.Error("expected application/xml in Accept header")
+	}
+	if jsonIdx > xmlIdx {
+		t.Error("expected application/json to appear before application/xml")
+	}
+}
+
+func TestHeaderSelector_SelectHeadersWithVendorJSON(t *testing.T) {
+	hs := {{packageName}}.NewHeaderSelector()
+
+	headers := hs.SelectHeaders(
+		[]string{"application/vnd.api+json", "application/xml"},
+		"application/json",
+		false,
+	)
+
+	accept := headers["Accept"]
+	if !strings.Contains(accept, "application/vnd.api+json") {
+		t.Errorf("expected Accept to contain vendor JSON MIME, got %q", accept)
+	}
+}

@@ -1,0 +1,67 @@
+use std::sync::Arc;
+
+use crate::api_client::ApiClient;
+use crate::auth::bearer_authenticator::BearerAuthenticator;
+use crate::authenticator::Authenticator;
+use crate::configuration::ConfigurationBuilder;
+use crate::default_api_client::DefaultApiClient;
+use crate::transport_options::TransportOptions;
+use crate::transport_options::TransportOptionsBuilder;
+use crate::api::pet_api::PetApi;
+use crate::api::store_api::StoreApi;
+
+/// Client is the unified entry point for all API services.
+///
+/// Takes an [`Authenticator`] and optionally [`TransportOptions`], then exposes
+/// each API group as a typed field.
+///
+/// # Example with default transport
+///
+/// ```rust,ignore
+/// let client = Client::new(authenticator, None);
+/// ```
+///
+/// # Example with custom transport (proxy, timeouts, etc.)
+///
+/// ```rust,ignore
+/// let transport = TransportOptionsBuilder::new()
+///     .proxy("http://proxy:3128")
+///     .timeout(Duration::from_secs(5))
+///     .build();
+/// let client = Client::new(authenticator, Some(transport));
+/// ```
+pub struct Client {
+    /// API operations for the PetApi group.
+    pub pet: PetApi,
+    /// API operations for the StoreApi group.
+    pub store: StoreApi,
+}
+
+impl Client {
+    /// Creates a new client with the given authenticator and optional transport options.
+    pub fn new(
+        authenticator: Box<dyn Authenticator>,
+        transport_options: Option<TransportOptions>,
+    ) -> Self {
+        let transport = transport_options.unwrap_or_else(|| TransportOptionsBuilder::new().build());
+        let api_client: Arc<dyn ApiClient> = Arc::new(DefaultApiClient::new(Some(transport)));
+
+        let config = ConfigurationBuilder::new()
+            .base_url(authenticator.host())
+            .default_headers(authenticator.auth_headers())
+            .build();
+
+        Self {
+            pet: PetApi::new(api_client.clone(), config.clone()),
+            store: StoreApi::new(api_client.clone(), config.clone()),
+        }
+    }
+
+    /// Creates a client authenticated with a static Bearer token.
+    pub fn with_token(host: &str, access_token: &str) -> Self {
+        Self::new(
+            Box::new(BearerAuthenticator::new(host, access_token)),
+            None,
+        )
+    }
+}

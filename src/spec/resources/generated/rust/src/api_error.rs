@@ -1,0 +1,69 @@
+use std::collections::HashMap;
+use std::fmt;
+
+/// ApiError represents an error returned by the API, including the HTTP status
+/// code, response headers, and response body.
+#[derive(Debug, Clone)]
+pub struct ApiError {
+    /// The HTTP status code.
+    pub code: u16,
+
+    /// The error message.
+    pub message: String,
+
+    /// The raw response body.
+    pub response_body: String,
+
+    /// The response headers.
+    pub response_headers: HashMap<String, String>,
+}
+
+impl ApiError {
+    /// Creates a new ApiError.
+    pub fn new(
+        code: u16,
+        message: String,
+        response_body: String,
+        response_headers: HashMap<String, String>,
+    ) -> Self {
+        Self {
+            code,
+            message,
+            response_body,
+            response_headers,
+        }
+    }
+
+    /// Deserializes the response body into the target type.
+    pub fn typed_error_body<T: serde::de::DeserializeOwned>(&self) -> Result<T, serde_json::Error> {
+        serde_json::from_str(&self.response_body)
+    }
+
+    /// Returns the HTTP status code of the error.
+    pub fn status_code(&self) -> u16 {
+        self.code
+    }
+}
+
+impl fmt::Display for ApiError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut msg = if self.message.is_empty() {
+            "Error message: the server returns an error".to_string()
+        } else {
+            self.message.clone()
+        };
+
+        if self.code != 0 {
+            msg.push_str(&format!("\nHTTP status code: {}", self.code));
+        }
+        if !self.response_headers.is_empty() {
+            msg.push_str(&format!("\nResponse headers: {:?}", self.response_headers));
+        }
+        if !self.response_body.is_empty() {
+            msg.push_str(&format!("\nResponse body: {}", self.response_body));
+        }
+        write!(f, "{}", msg)
+    }
+}
+
+impl std::error::Error for ApiError {}

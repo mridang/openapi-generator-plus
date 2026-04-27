@@ -1,0 +1,17 @@
+{{>api_info}}
+package {{packageName}}
+
+// ApiClient is the interface for HTTP clients. Implementations must provide
+// SendRequest to perform the actual HTTP call.
+type ApiClient interface {
+	// SendRequest sends an HTTP request and returns the response.
+	//
+	// Parameters:
+	//   - method: HTTP method (GET, POST, PUT, DELETE, etc.)
+	//   - url: fully qualified URL
+	//   - headers: caller-provided headers
+	//   - body: request body, or nil
+	//
+	// Returns an HttpResponse and any error that occurred.
+	SendRequest(method, url string, headers map[string]string, body []byte) (*HttpResponse, error)
+}

@@ -1,0 +1,31 @@
+package {{package}}
+
+{{#hasModelImports}}
+{{#modelImports}}
+import {{modelPackage}}.{{.}}
+{{/modelImports}}
+{{/hasModelImports}}
+
+/**
+ * Options for the {{operationId}} operation.
+ */
+class {{className}}({{#requiredParams}}{{paramName}}: {{{dataType}}}{{^-last}}, {{/-last}}{{/requiredParams}}) {
+{{#params}}
+{{#required}}
+    val {{paramName}}: {{{dataType}}} = {{paramName}}
+{{/required}}
+{{^required}}
+    var {{paramName}}: {{{dataType}}}? = null
+        private set
+{{/required}}
+{{/params}}
+
+{{#params}}
+{{^required}}
+    fun {{paramName}}({{paramName}}: {{{dataType}}}): {{className}} = apply {
+        this.{{paramName}} = {{paramName}}
+    }
+
+{{/required}}
+{{/params}}
+}

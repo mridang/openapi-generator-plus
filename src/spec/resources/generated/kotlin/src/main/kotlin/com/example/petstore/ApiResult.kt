@@ -1,0 +1,11 @@
+package com.example.petstore
+
+/**
+ * Represents a typed API response with deserialized data.
+ */
+data class ApiResult<T>(
+    val statusCode: Int,
+    val data: T?,
+    val rawBody: String?,
+    val headers: Map<String, String>,
+)

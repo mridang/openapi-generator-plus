@@ -1,0 +1,40 @@
+{{>api_info}}
+package {{packageName}}
+
+// Generated server configurations from the OpenAPI specification.
+//
+// Each variable corresponds to a server entry defined in the spec's
+// servers array. Use these with ConfigurationBuilder.Server to select a server:
+//
+//	config := {{packageName}}.NewConfigurationBuilder().
+//		Server({{packageName}}.Server0, nil).
+//		Build()
+//
+// For servers with variables, pass overrides:
+//
+//	config := {{packageName}}.NewConfigurationBuilder().
+//		Server({{packageName}}.Server1, map[string]string{"environment": "staging"}).
+//		Build()
+var (
+{{#serverConfigs}}
+	// Server{{serverIndex}} is the server configuration for: {{serverUrl}}{{#serverDescription}}
+	// {{serverDescription}}{{/serverDescription}}
+	Server{{serverIndex}} = &ServerConfiguration{
+		URLTemplate: "{{{serverUrl}}}",
+		Description: "{{#serverDescription}}{{{serverDescription}}}{{/serverDescription}}",
+		Variables: {{#hasVariables}}map[string]ServerVariable{
+{{#serverVariables}}			"{{{varName}}}": {
+				DefaultValue: "{{{varDefault}}}",
+				Description:  "{{#varDescription}}{{{varDescription}}}{{/varDescription}}",
+				EnumValues:   {{#hasEnumValues}}[]string{ {{#varEnumValues}}"{{{.}}}"{{^-last}}, {{/-last}}{{/varEnumValues}} }{{/hasEnumValues}}{{^hasEnumValues}}nil{{/hasEnumValues}},
+			},
+{{/serverVariables}}		}{{/hasVariables}}{{^hasVariables}}map[string]ServerVariable{}{{/hasVariables}},
+	}
+
+{{/serverConfigs}}
+)
+
+// AllServers contains all server configurations in declaration order.
+var AllServers = []*ServerConfiguration{
+{{#serverConfigs}}	Server{{serverIndex}},
+{{/serverConfigs}}}

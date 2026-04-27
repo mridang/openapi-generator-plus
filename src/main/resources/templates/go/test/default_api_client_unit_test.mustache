@@ -1,0 +1,162 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"{{packageName}}"
+)
+
+func TestDefaultApiClient_UserAgentHeader(t *testing.T) {
+	var receivedUA string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedUA = r.Header.Get("User-Agent")
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	transport := {{packageName}}.NewTransportOptionsBuilder().
+		UserAgent("TestAgent/1.0").
+		Build()
+	client := {{packageName}}.NewDefaultApiClient(transport)
+
+	_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if receivedUA != "TestAgent/1.0" {
+		t.Errorf("expected User-Agent 'TestAgent/1.0', got %q", receivedUA)
+	}
+}
+
+func TestDefaultApiClient_DefaultUserAgent(t *testing.T) {
+	var receivedUA string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedUA = r.Header.Get("User-Agent")
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	client := {{packageName}}.NewDefaultApiClient(nil)
+	_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if receivedUA == "" {
+		t.Error("expected non-empty User-Agent header")
+	}
+}
+
+func TestDefaultApiClient_XRequestIDInjection(t *testing.T) {
+	var receivedRequestID string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedRequestID = r.Header.Get("X-Request-ID")
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	transport := {{packageName}}.NewTransportOptionsBuilder().
+		InjectRequestID(true).
+		Build()
+	client := {{packageName}}.NewDefaultApiClient(transport)
+
+	_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if receivedRequestID == "" {
+		t.Error("expected X-Request-ID header to be injected")
+	}
+}
+
+func TestDefaultApiClient_XRequestIDNotInjectedWhenDisabled(t *testing.T) {
+	var receivedRequestID string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedRequestID = r.Header.Get("X-Request-ID")
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	transport := {{packageName}}.NewTransportOptionsBuilder().
+		InjectRequestID(false).
+		Build()
+	client := {{packageName}}.NewDefaultApiClient(transport)
+
+	_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if receivedRequestID != "" {
+		t.Errorf("expected no X-Request-ID header, got %q", receivedRequestID)
+	}
+}
+
+func TestDefaultApiClient_XRequestIDNotOverriddenWhenAlreadySet(t *testing.T) {
+	var receivedRequestID string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedRequestID = r.Header.Get("X-Request-ID")
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	transport := {{packageName}}.NewTransportOptionsBuilder().
+		InjectRequestID(true).
+		Build()
+	client := {{packageName}}.NewDefaultApiClient(transport)
+
+	headers := map[string]string{"X-Request-ID": "my-custom-id"}
+	_, err := client.SendRequest("GET", server.URL+"/test", headers, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if receivedRequestID != "my-custom-id" {
+		t.Errorf("expected X-Request-ID 'my-custom-id', got %q", receivedRequestID)
+	}
+}
+
+func TestDefaultApiClient_DefaultHeaders(t *testing.T) {
+	var receivedCustom string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedCustom = r.Header.Get("X-Default")
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	transport := {{packageName}}.NewTransportOptionsBuilder().
+		DefaultHeader("X-Default", "default-value").
+		Build()
+	client := {{packageName}}.NewDefaultApiClient(transport)
+
+	_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if receivedCustom != "default-value" {
+		t.Errorf("expected X-Default 'default-value', got %q", receivedCustom)
+	}
+}
+
+func TestDefaultApiClient_CallerHeadersOverrideDefaults(t *testing.T) {
+	var receivedCustom string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedCustom = r.Header.Get("X-Default")
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	transport := {{packageName}}.NewTransportOptionsBuilder().
+		DefaultHeader("X-Default", "transport-value").
+		Build()
+	client := {{packageName}}.NewDefaultApiClient(transport)
+
+	headers := map[string]string{"X-Default": "caller-value"}
+	_, err := client.SendRequest("GET", server.URL+"/test", headers, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if receivedCustom != "caller-value" {
+		t.Errorf("expected caller header to override default, got %q", receivedCustom)
+	}
+}

@@ -1,0 +1,12 @@
+/// ApiKeyLocation specifies where the API key should be sent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ApiKeyLocation {
+    /// Sends the API key as a request header.
+    Header,
+
+    /// Sends the API key as a query parameter.
+    Query,
+
+    /// Sends the API key as a cookie.
+    Cookie,
+}
