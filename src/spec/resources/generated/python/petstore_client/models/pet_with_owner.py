@@ -36,7 +36,9 @@ class PetWithOwner(BaseModel):
     photo_urls: Set[str] = Field(alias='photoUrls')
     tags: Optional[List[Tag]] = Field(default=None, alias='tags')
     # .. deprecated:: This property is deprecated.
-    status: Optional[PetWithOwnerStatusEnum] = Field(default=None, alias='status', description="pet status in the store")
+    status: Optional[PetWithOwnerStatusEnum] = Field(
+        default=None, alias='status', description='pet status in the store'
+    )
     owner_name: str = Field(alias='ownerName')
     owner_email: Optional[str] = Field(default=None, alias='ownerEmail')
     additional_properties: Dict[str, Any] = {}

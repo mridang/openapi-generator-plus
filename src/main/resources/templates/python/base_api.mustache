@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any, Dict, List, Optional, TypeVar
 from urllib.parse import urlencode
 
@@ -60,7 +61,7 @@ class BaseApi:
         self._object_serializer = ObjectSerializer()
         self._header_selector = HeaderSelector()
 
-    def _invoke_api_for_result(
+    async def _invoke_api_for_result(
         self,
         method: str,
         path: str,
@@ -145,7 +146,7 @@ class BaseApi:
             else:
                 serialized_body = self._object_serializer.serialize(body)
 
-        response = self._api_client.send_request(method, url, headers, serialized_body)
+        response = await asyncio.to_thread(self._api_client.send_request, method, url, headers, serialized_body)
 
         if response.status_code < 200 or response.status_code >= 300:
             self._throw_api_exception(response)
@@ -169,7 +170,7 @@ class BaseApi:
             headers=response.headers,
         )
 
-    def _invoke_api(
+    async def _invoke_api(
         self,
         method: str,
         path: str,
@@ -200,7 +201,7 @@ class BaseApi:
         Raises:
             ApiException: If the API call fails.
         """
-        return self._invoke_api_for_result(
+        result = await self._invoke_api_for_result(
             method,
             path,
             query_params,
@@ -210,7 +211,8 @@ class BaseApi:
             content_type,
             return_type,
             auth,
-        ).data
+        )
+        return result.data
 
     @staticmethod
     def _throw_api_exception(response: 'ApiResponse') -> None:

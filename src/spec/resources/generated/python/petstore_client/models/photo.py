@@ -34,5 +34,4 @@ class Photo(BaseModel):
     )
 
 
-
 Photo.model_rebuild(raise_errors=False)

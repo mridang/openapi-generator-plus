@@ -9,7 +9,6 @@ from .base_api import BaseApi
 from ..value_serializer import ValueSerializer
 
 
-
 class StoreApi(BaseApi):
     """StoreApi provides methods for the store API group.
     Access to Petstore orders
@@ -22,11 +21,9 @@ class StoreApi(BaseApi):
     ):
         super().__init__(api_client, config)
 
-    def delete_order(
+    async def delete_order(
         self,
         order_id: int,
-
-
     ) -> None:
         """Delete purchase order by ID
         :param order_id: ID of the order to delete (required)
@@ -36,14 +33,12 @@ class StoreApi(BaseApi):
         if order_id is None:
             raise ValueError("Missing the required parameter 'order_id'")
 
-        result = self.delete_order_with_http_info(order_id)
+        result = await self.delete_order_with_http_info(order_id)
         return result.data
 
-    def delete_order_with_http_info(
+    async def delete_order_with_http_info(
         self,
         order_id: int,
-
-
     ) -> 'ApiResult[None]':
         """Delete purchase order by ID (with HTTP info)
         :param order_id: ID of the order to delete (required)
@@ -55,12 +50,15 @@ class StoreApi(BaseApi):
             raise ValueError("Missing the required parameter 'order_id'")
 
         path = '/store/order/{orderId}'
-        path = path.replace('{' + 'orderId' + '}', str(ValueSerializer.serialize_styled('orderId', order_id, 'path', 'int', None, 'simple', False)))
+        path = path.replace(
+            '{' + 'orderId' + '}',
+            str(ValueSerializer.serialize_styled('orderId', order_id, 'path', 'int', None, 'simple', False)),
+        )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
 
-        return self._invoke_api_for_result(
+        return await self._invoke_api_for_result(
             'DELETE',
             path,
             query_params,
@@ -72,24 +70,20 @@ class StoreApi(BaseApi):
             None,
         )
 
-    def get_inventory(
+    async def get_inventory(
         self,
-
-
     ) -> Dict[str, int]:
         """Returns pet inventories by status
 
         :return: Dict[str, int]
         :raises ApiException: if fails to make API call
         """
-        result = self.get_inventory_with_http_info()
+        result = await self.get_inventory_with_http_info()
         assert result.data is not None
         return result.data
 
-    def get_inventory_with_http_info(
+    async def get_inventory_with_http_info(
         self,
-
-
     ) -> 'ApiResult[Dict[str, int]]':
         """Returns pet inventories by status (with HTTP info)
 
@@ -101,7 +95,7 @@ class StoreApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = None
 
-        return self._invoke_api_for_result(
+        return await self._invoke_api_for_result(
             'GET',
             path,
             query_params,
@@ -113,11 +107,9 @@ class StoreApi(BaseApi):
             None,
         )
 
-    def get_order_by_id(
+    async def get_order_by_id(
         self,
         order_id: int,
-
-
     ) -> Order:
         """Find purchase order by ID
         :param order_id: ID of order to return (required)
@@ -128,15 +120,13 @@ class StoreApi(BaseApi):
         if order_id is None:
             raise ValueError("Missing the required parameter 'order_id'")
 
-        result = self.get_order_by_id_with_http_info(order_id)
+        result = await self.get_order_by_id_with_http_info(order_id)
         assert result.data is not None
         return result.data
 
-    def get_order_by_id_with_http_info(
+    async def get_order_by_id_with_http_info(
         self,
         order_id: int,
-
-
     ) -> 'ApiResult[Order]':
         """Find purchase order by ID (with HTTP info)
         :param order_id: ID of order to return (required)
@@ -148,12 +138,15 @@ class StoreApi(BaseApi):
             raise ValueError("Missing the required parameter 'order_id'")
 
         path = '/store/order/{orderId}'
-        path = path.replace('{' + 'orderId' + '}', str(ValueSerializer.serialize_styled('orderId', order_id, 'path', 'int', None, 'simple', False)))
+        path = path.replace(
+            '{' + 'orderId' + '}',
+            str(ValueSerializer.serialize_styled('orderId', order_id, 'path', 'int', None, 'simple', False)),
+        )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
 
-        return self._invoke_api_for_result(
+        return await self._invoke_api_for_result(
             'GET',
             path,
             query_params,
@@ -165,11 +158,9 @@ class StoreApi(BaseApi):
             None,
         )
 
-    def place_order(
+    async def place_order(
         self,
         order: Optional[Order] = None,
-
-
     ) -> Order:
         """Place an order for a pet
         :param order:  (optional)
@@ -177,15 +168,13 @@ class StoreApi(BaseApi):
         :return: Order
         :raises ApiException: if fails to make API call
         """
-        result = self.place_order_with_http_info(order)
+        result = await self.place_order_with_http_info(order)
         assert result.data is not None
         return result.data
 
-    def place_order_with_http_info(
+    async def place_order_with_http_info(
         self,
         order: Optional[Order] = None,
-
-
     ) -> 'ApiResult[Order]':
         """Place an order for a pet (with HTTP info)
         :param order:  (optional)
@@ -198,7 +187,7 @@ class StoreApi(BaseApi):
         header_params: Dict[str, str] = {}
         body = order
 
-        return self._invoke_api_for_result(
+        return await self._invoke_api_for_result(
             'POST',
             path,
             query_params,

@@ -32,5 +32,4 @@ class DryFood(BaseModel):
     )
 
 
-
 DryFood.model_rebuild(raise_errors=False)

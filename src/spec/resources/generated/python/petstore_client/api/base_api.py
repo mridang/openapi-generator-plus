@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any, Dict, List, Optional, TypeVar
 from urllib.parse import urlencode
 
@@ -60,7 +61,7 @@ class BaseApi:
         self._object_serializer = ObjectSerializer()
         self._header_selector = HeaderSelector()
 
-    def _invoke_api_for_result(
+    async def _invoke_api_for_result(
         self,
         method: str,
         path: str,
@@ -145,7 +146,7 @@ class BaseApi:
             else:
                 serialized_body = self._object_serializer.serialize(body)
 
-        response = self._api_client.send_request(method, url, headers, serialized_body)
+        response = await asyncio.to_thread(self._api_client.send_request, method, url, headers, serialized_body)
 
         if response.status_code < 200 or response.status_code >= 300:
             self._throw_api_exception(response)
@@ -157,7 +158,11 @@ class BaseApi:
                 if k.lower() == 'content-type':
                     resp_content_type = v.split(';')[0].strip()
                     break
-            if resp_content_type and not resp_content_type.startswith('application/json') and '+json' not in resp_content_type:
+            if (
+                resp_content_type
+                and not resp_content_type.startswith('application/json')
+                and '+json' not in resp_content_type
+            ):
                 data = response.body
             else:
                 data = self._object_serializer.deserialize(response.body, return_type)
@@ -169,7 +174,7 @@ class BaseApi:
             headers=response.headers,
         )
 
-    def _invoke_api(
+    async def _invoke_api(
         self,
         method: str,
         path: str,
@@ -200,7 +205,7 @@ class BaseApi:
         Raises:
             ApiException: If the API call fails.
         """
-        return self._invoke_api_for_result(
+        result = await self._invoke_api_for_result(
             method,
             path,
             query_params,
@@ -210,7 +215,8 @@ class BaseApi:
             content_type,
             return_type,
             auth,
-        ).data
+        )
+        return result.data
 
     @staticmethod
     def _throw_api_exception(response: 'ApiResponse') -> None:
@@ -236,20 +242,40 @@ class BaseApi:
 
         if 400 <= code < 500:
             if code == 400:
-                raise BadRequestException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise BadRequestException(
+                    message=message, response_body=body, response_headers=headers, error_body=error_body
+                )
             if code == 401:
-                raise UnauthorizedException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise UnauthorizedException(
+                    message=message, response_body=body, response_headers=headers, error_body=error_body
+                )
             if code == 403:
-                raise ForbiddenException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise ForbiddenException(
+                    message=message, response_body=body, response_headers=headers, error_body=error_body
+                )
             if code == 404:
-                raise NotFoundException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise NotFoundException(
+                    message=message, response_body=body, response_headers=headers, error_body=error_body
+                )
             if code == 409:
-                raise ConflictException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise ConflictException(
+                    message=message, response_body=body, response_headers=headers, error_body=error_body
+                )
             if code == 422:
-                raise UnprocessableEntityException(message=message, response_body=body, response_headers=headers, error_body=error_body)
-            raise ClientException(code=code, message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise UnprocessableEntityException(
+                    message=message, response_body=body, response_headers=headers, error_body=error_body
+                )
+            raise ClientException(
+                code=code, message=message, response_body=body, response_headers=headers, error_body=error_body
+            )
         if code >= 500:
             if code == 500:
-                raise InternalServerErrorException(message=message, response_body=body, response_headers=headers, error_body=error_body)
-            raise ServerException(code=code, message=message, response_body=body, response_headers=headers, error_body=error_body)
-        raise ApiException(code=code, message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise InternalServerErrorException(
+                    message=message, response_body=body, response_headers=headers, error_body=error_body
+                )
+            raise ServerException(
+                code=code, message=message, response_body=body, response_headers=headers, error_body=error_body
+            )
+        raise ApiException(
+            code=code, message=message, response_body=body, response_headers=headers, error_body=error_body
+        )

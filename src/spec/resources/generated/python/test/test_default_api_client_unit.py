@@ -12,31 +12,31 @@ class _EchoHandler(BaseHTTPRequestHandler):
         self._respond()
 
     def do_POST(self) -> None:
-        length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(length).decode() if length else ""
+        length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(length).decode() if length else ''
         self._respond(body)
 
     def do_PUT(self) -> None:
-        length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(length).decode() if length else ""
+        length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(length).decode() if length else ''
         self._respond(body)
 
     def do_DELETE(self) -> None:
         self._respond()
 
-    def _respond(self, body: str = "") -> None:
-        if self.path == "/not-found":
+    def _respond(self, body: str = '') -> None:
+        if self.path == '/not-found':
             self.send_response(404)
             self.end_headers()
-            self.wfile.write(b"not found")
+            self.wfile.write(b'not found')
             return
 
         # Echo back all received headers as JSON
         received_headers = dict(self.headers)
-        data = json.dumps({"method": self.command, "body": body, "headers": received_headers})
+        data = json.dumps({'method': self.command, 'body': body, 'headers': received_headers})
         self.send_response(200)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("X-Test-Header", "test-value")
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('X-Test-Header', 'test-value')
         self.end_headers()
         self.wfile.write(data.encode())
 
@@ -52,9 +52,9 @@ class TestDefaultApiClientUnit:
 
     @classmethod
     def setup_class(cls) -> None:
-        cls.server = HTTPServer(("127.0.0.1", 0), _EchoHandler)
+        cls.server = HTTPServer(('127.0.0.1', 0), _EchoHandler)
         cls.port = cls.server.server_address[1]
-        cls.base_url = f"http://127.0.0.1:{cls.port}"
+        cls.base_url = f'http://127.0.0.1:{cls.port}'
         cls.thread = Thread(target=cls.server.serve_forever, daemon=True)
         cls.thread.start()
 
@@ -64,118 +64,104 @@ class TestDefaultApiClientUnit:
 
     def test_sends_get_request(self) -> None:
         client = DefaultApiClient()
-        response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
+        response = client.send_request('GET', f'{self.base_url}/echo', {}, None)
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert body["method"] == "GET"
+        assert body['method'] == 'GET'
 
     def test_sends_post_with_json_body(self) -> None:
         client = DefaultApiClient()
-        headers = {"Content-Type": "application/json"}
-        response = client.send_request(
-            "POST", f"{self.base_url}/echo", headers, '{"key":"value"}'
-        )
+        headers = {'Content-Type': 'application/json'}
+        response = client.send_request('POST', f'{self.base_url}/echo', headers, '{"key":"value"}')
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert body["method"] == "POST"
-        assert "key" in body["body"]
+        assert body['method'] == 'POST'
+        assert 'key' in body['body']
 
     def test_returns_response_headers(self) -> None:
         client = DefaultApiClient()
-        response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
+        response = client.send_request('GET', f'{self.base_url}/echo', {}, None)
         lower_headers = {k.lower(): v for k, v in response.headers.items()}
-        assert "x-test-header" in lower_headers
-        assert lower_headers["x-test-header"] == "test-value"
+        assert 'x-test-header' in lower_headers
+        assert lower_headers['x-test-header'] == 'test-value'
 
     def test_returns_non_2xx_status(self) -> None:
         client = DefaultApiClient()
-        response = client.send_request("GET", f"{self.base_url}/not-found", {}, None)
+        response = client.send_request('GET', f'{self.base_url}/not-found', {}, None)
         assert response.status_code == 404
-        assert response.body == "not found"
+        assert response.body == 'not found'
 
     def test_sends_put_request(self) -> None:
         client = DefaultApiClient()
-        response = client.send_request("PUT", f"{self.base_url}/echo", {}, "update")
+        response = client.send_request('PUT', f'{self.base_url}/echo', {}, 'update')
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert body["method"] == "PUT"
+        assert body['method'] == 'PUT'
 
     def test_sends_delete_request(self) -> None:
         client = DefaultApiClient()
-        response = client.send_request("DELETE", f"{self.base_url}/echo", {}, None)
+        response = client.send_request('DELETE', f'{self.base_url}/echo', {}, None)
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert body["method"] == "DELETE"
+        assert body['method'] == 'DELETE'
 
     def test_injects_user_agent_header(self) -> None:
-        transport = TransportOptions.builder().user_agent("TestAgent/1.0").build()
+        transport = TransportOptions.builder().user_agent('TestAgent/1.0').build()
         client = DefaultApiClient(transport)
-        response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
+        response = client.send_request('GET', f'{self.base_url}/echo', {}, None)
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert body["headers"].get("User-Agent") == "TestAgent/1.0"
+        assert body['headers'].get('User-Agent') == 'TestAgent/1.0'
 
     def test_does_not_override_caller_user_agent(self) -> None:
-        transport = TransportOptions.builder().user_agent("TestAgent/1.0").build()
+        transport = TransportOptions.builder().user_agent('TestAgent/1.0').build()
         client = DefaultApiClient(transport)
-        response = client.send_request(
-            "GET", f"{self.base_url}/echo", {"User-Agent": "CallerAgent/2.0"}, None
-        )
+        response = client.send_request('GET', f'{self.base_url}/echo', {'User-Agent': 'CallerAgent/2.0'}, None)
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert body["headers"].get("User-Agent") == "CallerAgent/2.0"
+        assert body['headers'].get('User-Agent') == 'CallerAgent/2.0'
 
     def test_injects_request_id_header(self) -> None:
         transport = TransportOptions.builder().inject_request_id(True).build()
         client = DefaultApiClient(transport)
-        response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
+        response = client.send_request('GET', f'{self.base_url}/echo', {}, None)
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert "X-Request-ID" in body["headers"]
-        assert len(body["headers"]["X-Request-ID"]) > 0
+        assert 'X-Request-ID' in body['headers']
+        assert len(body['headers']['X-Request-ID']) > 0
 
     def test_does_not_inject_request_id_when_disabled(self) -> None:
         transport = TransportOptions.builder().inject_request_id(False).build()
         client = DefaultApiClient(transport)
-        response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
+        response = client.send_request('GET', f'{self.base_url}/echo', {}, None)
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert "X-Request-ID" not in body["headers"]
+        assert 'X-Request-ID' not in body['headers']
 
     def test_transport_default_headers_are_sent(self) -> None:
-        transport = (
-            TransportOptions.builder()
-            .default_header("X-Custom-Transport", "transport-value")
-            .build()
-        )
+        transport = TransportOptions.builder().default_header('X-Custom-Transport', 'transport-value').build()
         client = DefaultApiClient(transport)
-        response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
+        response = client.send_request('GET', f'{self.base_url}/echo', {}, None)
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert body["headers"].get("X-Custom-Transport") == "transport-value"
+        assert body['headers'].get('X-Custom-Transport') == 'transport-value'
 
     def test_caller_headers_override_transport_defaults(self) -> None:
-        transport = (
-            TransportOptions.builder()
-            .default_header("X-Override", "transport")
-            .build()
-        )
+        transport = TransportOptions.builder().default_header('X-Override', 'transport').build()
         client = DefaultApiClient(transport)
-        response = client.send_request(
-            "GET", f"{self.base_url}/echo", {"X-Override": "caller"}, None
-        )
+        response = client.send_request('GET', f'{self.base_url}/echo', {'X-Override': 'caller'}, None)
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert body["headers"].get("X-Override") == "caller"
+        assert body['headers'].get('X-Override') == 'caller'
 
     def test_vendor_json_content_type_is_deserialized_as_json(self) -> None:
         """Responses with Content-Type application/vnd.api+json should be
         JSON-deserialized, not returned as a raw string."""
         client = DefaultApiClient()
-        response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
+        response = client.send_request('GET', f'{self.base_url}/echo', {}, None)
         # The echo handler returns application/json; verify the body is valid JSON
         body = json.loads(response.body)
         assert isinstance(body, dict)
         # Simulate a +json content type check inline
-        content_type = "application/vnd.api+json"
-        assert content_type.startswith("application/json") or "+json" in content_type
+        content_type = 'application/vnd.api+json'
+        assert content_type.startswith('application/json') or '+json' in content_type

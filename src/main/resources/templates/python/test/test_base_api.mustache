@@ -22,11 +22,11 @@ from {{packageName}} import servers as Servers
 class StubApi(BaseApi):
     """Concrete subclass exposing _invoke_api for direct testing."""
 
-    def call(self, method: str, path: str, query_params: dict[str, Any],
-             header_params: dict[str, str], body: Any,
-             accepts: list[str], content_type: str,
-             return_type: Optional[str], auth: Optional[Authenticator] = None) -> Any:
-        return self._invoke_api(
+    async def call(self, method: str, path: str, query_params: dict[str, Any],
+                   header_params: dict[str, str], body: Any,
+                   accepts: list[str], content_type: str,
+                   return_type: Optional[str], auth: Optional[Authenticator] = None) -> Any:
+        return await self._invoke_api(
             method, path, query_params, header_params, body,
             accepts, content_type, return_type, auth)
 
@@ -73,10 +73,10 @@ class TestExceptionDispatch:
         (500, InternalServerErrorException),
         (502, ServerException),
     ])
-    def test_throws_correct_exception(self, api: Any, status: Any, expected_class: Any) -> None:
+    async def test_throws_correct_exception(self, api: Any, status: Any, expected_class: Any) -> None:
         with pytest.raises(expected_class) as exc_info:
-            api.call('GET', f'/api/error/{status}', {}, {}, None,
-                     ['application/json'], 'application/json', None)
+            await api.call('GET', f'/api/error/{status}', {}, {}, None,
+                           ['application/json'], 'application/json', None)
         assert exc_info.value.code == status
         assert exc_info.value.response_body is not None
         assert len(exc_info.value.response_body) > 0
@@ -84,80 +84,80 @@ class TestExceptionDispatch:
 
 class TestExceptionHierarchy:
 
-    def test_not_found_hierarchy(self, api: Any) -> None:
+    async def test_not_found_hierarchy(self, api: Any) -> None:
         with pytest.raises(NotFoundException) as exc_info:
-            api.call('GET', '/api/error/404', {}, {}, None,
-                     ['application/json'], 'application/json', None)
+            await api.call('GET', '/api/error/404', {}, {}, None,
+                           ['application/json'], 'application/json', None)
         assert isinstance(exc_info.value, ClientException)
         assert isinstance(exc_info.value, ApiException)
 
-    def test_internal_server_error_hierarchy(self, api: Any) -> None:
+    async def test_internal_server_error_hierarchy(self, api: Any) -> None:
         with pytest.raises(InternalServerErrorException) as exc_info:
-            api.call('GET', '/api/error/500', {}, {}, None,
-                     ['application/json'], 'application/json', None)
+            await api.call('GET', '/api/error/500', {}, {}, None,
+                           ['application/json'], 'application/json', None)
         assert isinstance(exc_info.value, ServerException)
         assert isinstance(exc_info.value, ApiException)
 
 
 class TestSuccessDeserialization:
 
-    def test_deserializes_json_response(self, api: Any) -> None:
-        result = api.call('GET', '/api/test', {}, {}, None,
-                          ['application/json'], 'application/json', 'object')
+    async def test_deserializes_json_response(self, api: Any) -> None:
+        result = await api.call('GET', '/api/test', {}, {}, None,
+                                ['application/json'], 'application/json', 'object')
         assert result is not None
         assert result['message'] == 'success'
 
-    def test_returns_raw_string_for_non_json(self, api: Any) -> None:
-        result = api.call('GET', '/api/text', {}, {}, None,
-                          ['text/plain'], 'application/json', 'str')
+    async def test_returns_raw_string_for_non_json(self, api: Any) -> None:
+        result = await api.call('GET', '/api/text', {}, {}, None,
+                                ['text/plain'], 'application/json', 'str')
         assert result is not None
         assert 'hello plain text' in result
 
-    def test_returns_none_when_return_type_is_none(self, api: Any) -> None:
-        result = api.call('GET', '/api/test', {}, {}, None,
-                          ['application/json'], 'application/json', None)
+    async def test_returns_none_when_return_type_is_none(self, api: Any) -> None:
+        result = await api.call('GET', '/api/test', {}, {}, None,
+                                ['application/json'], 'application/json', None)
         assert result is None
 
 
 class TestQueryParameters:
 
-    def test_appends_query_params(self, api: Any) -> None:
-        result = api.call('GET', '/api/test', {'foo': 'bar'}, {}, None,
-                          ['application/json'], 'application/json', None)
+    async def test_appends_query_params(self, api: Any) -> None:
+        result = await api.call('GET', '/api/test', {'foo': 'bar'}, {}, None,
+                                ['application/json'], 'application/json', None)
         assert result is None
 
-    def test_includes_empty_value_param_in_query_string(self, api: Any) -> None:
-        result = api.call('GET', '/api/test', {'filter': ''}, {}, None,
-                          ['application/json'], 'application/json', None)
+    async def test_includes_empty_value_param_in_query_string(self, api: Any) -> None:
+        result = await api.call('GET', '/api/test', {'filter': ''}, {}, None,
+                                ['application/json'], 'application/json', None)
         assert result is None
 
 
 class TestAuthInjection:
 
-    def test_forwards_auth_headers(self, api: Any) -> None:
+    async def test_forwards_auth_headers(self, api: Any) -> None:
         auth = StubAuthenticator(headers={'X-Custom': 'auth-value'})
-        result = api.call('GET', '/api/echo-headers', {}, {}, None,
-                          ['application/json'], 'application/json', 'object', auth)
+        result = await api.call('GET', '/api/echo-headers', {}, {}, None,
+                                ['application/json'], 'application/json', 'object', auth)
         assert result is not None
         assert result['x-custom'] == 'auth-value'
 
-    def test_sets_cookie_header(self, api: Any) -> None:
+    async def test_sets_cookie_header(self, api: Any) -> None:
         auth = StubAuthenticator(cookies={'session': 'abc123'})
-        api.call('GET', '/api/test', {}, {}, None,
-                 ['application/json'], 'application/json', None, auth)
+        await api.call('GET', '/api/test', {}, {}, None,
+                       ['application/json'], 'application/json', None, auth)
 
 
 class TestBodySerialization:
 
-    def test_serializes_json_body(self, api: Any) -> None:
-        result = api.call('POST', '/api/echo-body', {}, {}, {'key': 'value'},
-                          ['application/json'], 'application/json', 'object')
+    async def test_serializes_json_body(self, api: Any) -> None:
+        result = await api.call('POST', '/api/echo-body', {}, {}, {'key': 'value'},
+                                ['application/json'], 'application/json', 'object')
         assert result is not None
         assert result['key'] == 'value'
 
-    def test_sends_no_body_when_none(self, api: Any) -> None:
-        api.call('GET', '/api/test', {}, {}, None,
-                 ['application/json'], 'application/json', None)
+    async def test_sends_no_body_when_none(self, api: Any) -> None:
+        await api.call('GET', '/api/test', {}, {}, None,
+                       ['application/json'], 'application/json', None)
 
 
 class TestServerVariableOverrides:

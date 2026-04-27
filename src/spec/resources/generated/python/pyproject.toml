@@ -15,6 +15,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
     "mypy>=1.0",
     "ruff>=0.1.0",
     "types-python-dateutil>=2.8.0",
@@ -55,4 +56,5 @@ cache_dir = ".mypy"
 cache_dir = ".pytest"
 testpaths = ["test", "spec"]
 python_files = "test_*.py *_spec.py"
+asyncio_mode = "auto"
 addopts = "--cov=petstore_client --cov-report=xml:.out/coverage.xml --cov-report=term-missing --junitxml=.out/reports/junit.xml"

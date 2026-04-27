@@ -4,7 +4,6 @@ from petstore_client.models.medication import Medication
 
 
 class TestComposedSchemaDeserialization:
-
     def test_all_of_deserializes_pet_with_owner(self) -> None:
         json_str = '{"name":"doggie","photoUrls":["http://example.com/photo.jpg"],"ownerName":"John","ownerEmail":"john@example.com"}'
         result = ObjectSerializer().deserialize(json_str, 'PetWithOwner')

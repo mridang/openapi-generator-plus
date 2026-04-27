@@ -24,4 +24,10 @@ class UnauthorizedException(ClientException):
         response_body: Optional[str] = None,
         error_body: Optional[Any] = None,
     ) -> None:
-        super().__init__(code=401, message=message, response_headers=response_headers, response_body=response_body, error_body=error_body)
+        super().__init__(
+            code=401,
+            message=message,
+            response_headers=response_headers,
+            response_body=response_body,
+            error_body=error_body,
+        )

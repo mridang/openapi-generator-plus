@@ -35,5 +35,4 @@ class Tag(BaseModel):
     )
 
 
-
 Tag.model_rebuild(raise_errors=False)

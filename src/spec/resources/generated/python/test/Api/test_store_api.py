@@ -13,39 +13,38 @@ class TestStoreApi:
 
     @pytest.fixture(autouse=True)
     def setup(self, api_base_url: Any) -> None:
-        config = Configuration.builder() \
-            .base_url(api_base_url) \
-            .default_header('Authorization', 'Bearer test-token') \
-            .build()
+        config = (
+            Configuration.builder().base_url(api_base_url).default_header('Authorization', 'Bearer test-token').build()
+        )
         self.api = StoreApi(config=config)
 
-    def test_get_inventory(self) -> None:
-        result = self.api.get_inventory()
+    async def test_get_inventory(self) -> None:
+        result = await self.api.get_inventory()
 
         assert isinstance(result, dict)
 
-    def test_place_order(self) -> None:
+    async def test_place_order(self) -> None:
         order = Order(
             id=1,
             petId=12345,
             quantity=1,
             shipDate=datetime.now(timezone.utc),
             status=OrderStatusEnum.PLACED,
-            complete=False
+            complete=False,
         )
 
-        result = self.api.place_order(order)
+        result = await self.api.place_order(order)
 
         assert result is not None
         assert result.id is not None
 
-    def test_get_order_by_id(self) -> None:
-        result = self.api.get_order_by_id(1)
+    async def test_get_order_by_id(self) -> None:
+        result = await self.api.get_order_by_id(1)
 
         assert result is not None
         assert result.id is not None
 
-    def test_delete_order(self) -> None:
-        self.api.delete_order(1)
+    async def test_delete_order(self) -> None:
+        await self.api.delete_order(1)
 
         assert True
