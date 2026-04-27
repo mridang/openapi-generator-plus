@@ -47,7 +47,7 @@ impl {{classname}} {
 {{#externalDocs}}
     /// See {{url}} {{description}}
 {{/externalDocs}}
-    pub fn {{operationId}}(
+    pub async fn {{operationId}}(
         &self,
 {{#hasAuthMethods}}
         auth: &dyn Authenticator,
@@ -87,7 +87,7 @@ impl {{classname}} {
 {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
             options,
 {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
-        )?;
+        ).await?;
 {{#returnType}}
         Ok(result.data)
 {{/returnType}}
@@ -98,7 +98,7 @@ impl {{classname}} {
     }
 
     /// Performs the {{operationId}} operation and returns the full API result.
-    pub fn {{operationId}}_with_http_info(
+    pub async fn {{operationId}}_with_http_info(
         &self,
 {{#hasAuthMethods}}
         auth: &dyn Authenticator,
@@ -264,7 +264,7 @@ impl {{classname}} {
             content_type: {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
             return_type: "{{#returnType}}{{{.}}}{{/returnType}}",
             auth: {{#hasAuthMethods}}Some(auth){{/hasAuthMethods}}{{^hasAuthMethods}}None{{/hasAuthMethods}},
-        })?;
+        }).await?;
 
 {{#returnType}}
         let data: {{{.}}} = if !response.body.is_empty() {

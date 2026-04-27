@@ -49,7 +49,7 @@ impl BaseApi {
     }
 
     /// Dispatches an API request and returns the full response.
-    pub fn invoke_api(
+    pub async fn invoke_api(
         &self,
         params: InvokeApiParams<'_>,
     ) -> Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>> {
@@ -132,12 +132,15 @@ impl BaseApi {
         let serialized_body = serialize_body(params.body, params.content_type)?;
 
         // Send request
-        let response = self.api_client.send_request(
-            params.method,
-            &request_url,
-            &headers,
-            serialized_body.as_deref(),
-        )?;
+        let response = self
+            .api_client
+            .send_request(
+                params.method,
+                &request_url,
+                &headers,
+                serialized_body.as_deref(),
+            )
+            .await?;
 
         // Check for errors
         if response.status_code < 200 || response.status_code >= 300 {

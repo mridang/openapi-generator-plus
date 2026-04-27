@@ -58,18 +58,18 @@ fn new_pet_api_for_mock(status: u16, content_type: &str, body: &str) -> (PetApi,
     (PetApi::new(Arc::new(client), config), base_url)
 }
 
-#[test]
-fn test_pet_api_get_pet_by_id() {
+#[tokio::test]
+async fn test_pet_api_get_pet_by_id() {
     if let Some(api) = new_pet_api_for_integration() {
-        let result = api.get_pet_by_id(1);
+        let result = api.get_pet_by_id(1).await;
         assert!(result.is_ok(), "GetPetById failed: {:?}", result.err());
     }
 }
 
-#[test]
-fn test_pet_api_find_pets_by_status() {
+#[tokio::test]
+async fn test_pet_api_find_pets_by_status() {
     if let Some(api) = new_pet_api_for_integration() {
-        let result = api.find_pets_by_status(None);
+        let result = api.find_pets_by_status(None).await;
         assert!(
             result.is_ok(),
             "FindPetsByStatus failed: {:?}",
@@ -78,38 +78,38 @@ fn test_pet_api_find_pets_by_status() {
     }
 }
 
-#[test]
-fn test_pet_api_get_pet_passport() {
+#[tokio::test]
+async fn test_pet_api_get_pet_passport() {
     if let Some(api) = new_pet_api_for_integration() {
-        let result = api.get_pet_passport(1);
+        let result = api.get_pet_passport(1).await;
         assert!(result.is_ok(), "GetPetPassport failed: {:?}", result.err());
     }
 }
 
-#[test]
-fn test_pet_api_error_handling_not_found() {
+#[tokio::test]
+async fn test_pet_api_error_handling_not_found() {
     let (api, _) = new_pet_api_for_mock(404, "application/json", r#"{"message":"Pet not found"}"#);
 
-    let result = api.get_pet_by_id(99999);
+    let result = api.get_pet_by_id(99999).await;
     assert!(result.is_err(), "expected error for non-existent pet");
 }
 
-#[test]
-fn test_pet_api_error_handling_server_error() {
+#[tokio::test]
+async fn test_pet_api_error_handling_server_error() {
     let (api, _) = new_pet_api_for_mock(
         500,
         "application/json",
         r#"{"message":"Internal server error"}"#,
     );
 
-    let result = api.get_pet_by_id(1);
+    let result = api.get_pet_by_id(1).await;
     assert!(result.is_err(), "expected error for server error response");
 }
 
-#[test]
-fn test_pet_api_download_binary_mock() {
+#[tokio::test]
+async fn test_pet_api_download_binary_mock() {
     let (api, _) = new_pet_api_for_mock(200, "application/octet-stream", "FAKE_BINARY_DATA");
 
     // This exercises the HTTP plumbing for binary download endpoints.
-    let _ = api.get_pet_avatar(1);
+    let _ = api.get_pet_avatar(1).await;
 }

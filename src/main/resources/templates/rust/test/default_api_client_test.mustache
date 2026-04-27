@@ -37,22 +37,23 @@ fn start_server(status: u16, content_type: &str, body: &str) -> String {
     base_url
 }
 
-#[test]
-fn test_default_api_client_get() {
+#[tokio::test]
+async fn test_default_api_client_get() {
     let base_url = start_server(200, "application/json", r#"{"message":"success"}"#);
 
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
         .send_request("GET", &format!("{}/test", base_url), &headers, None)
+        .await
         .expect("unexpected error");
 
     assert_eq!(resp.status_code, 200);
     assert!(resp.body.contains("success"));
 }
 
-#[test]
-fn test_default_api_client_post_with_json_body() {
+#[tokio::test]
+async fn test_default_api_client_post_with_json_body() {
     let base_url = start_server(201, "application/json", r#"{"id":1}"#);
 
     let client = DefaultApiClient::new(None);
@@ -62,19 +63,21 @@ fn test_default_api_client_post_with_json_body() {
 
     let resp = client
         .send_request("POST", &format!("{}/items", base_url), &headers, Some(body))
+        .await
         .expect("unexpected error");
 
     assert_eq!(resp.status_code, 201);
 }
 
-#[test]
-fn test_default_api_client_response_headers() {
+#[tokio::test]
+async fn test_default_api_client_response_headers() {
     let base_url = start_server(200, "application/json", "{}");
 
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
         .send_request("GET", &format!("{}/test", base_url), &headers, None)
+        .await
         .expect("unexpected error");
 
     assert_eq!(resp.status_code, 200);
@@ -82,22 +85,23 @@ fn test_default_api_client_response_headers() {
     assert!(!resp.headers.is_empty());
 }
 
-#[test]
-fn test_default_api_client_non_2xx_status() {
+#[tokio::test]
+async fn test_default_api_client_non_2xx_status() {
     let base_url = start_server(500, "application/json", r#"{"error":"internal"}"#);
 
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
         .send_request("GET", &format!("{}/fail", base_url), &headers, None)
+        .await
         .expect("unexpected error");
 
     // DefaultApiClient returns the response as-is; error dispatch is done by BaseApi
     assert_eq!(resp.status_code, 500);
 }
 
-#[test]
-fn test_default_api_client_put() {
+#[tokio::test]
+async fn test_default_api_client_put() {
     let base_url = start_server(200, "application/json", "{}");
 
     let client = DefaultApiClient::new(None);
@@ -107,13 +111,14 @@ fn test_default_api_client_put() {
 
     let resp = client
         .send_request("PUT", &format!("{}/items/1", base_url), &headers, Some(body))
+        .await
         .expect("unexpected error");
 
     assert_eq!(resp.status_code, 200);
 }
 
-#[test]
-fn test_default_api_client_delete() {
+#[tokio::test]
+async fn test_default_api_client_delete() {
     let base_url = start_server(204, "application/json", "");
 
     let client = DefaultApiClient::new(None);
@@ -121,6 +126,7 @@ fn test_default_api_client_delete() {
 
     let resp = client
         .send_request("DELETE", &format!("{}/items/1", base_url), &headers, None)
+        .await
         .expect("unexpected error");
 
     assert_eq!(resp.status_code, 204);

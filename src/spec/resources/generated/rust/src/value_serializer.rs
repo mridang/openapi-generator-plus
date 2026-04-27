@@ -90,7 +90,9 @@ pub fn serialize_styled(
         return match value {
             Some(val) => {
                 if location == "path" {
-                    Some(SerializedValue::Single(urlencoding::encode(val).into_owned()))
+                    Some(SerializedValue::Single(
+                        urlencoding::encode(val).into_owned(),
+                    ))
                 } else {
                     Some(SerializedValue::Single(val.to_string()))
                 }
@@ -104,7 +106,11 @@ pub fn serialize_styled(
     match style {
         "matrix" => {
             if value.is_none() && !is_array {
-                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
+                return if location == "query" {
+                    None
+                } else {
+                    Some(SerializedValue::Single(String::new()))
+                };
             }
             if let Some(arr) = items {
                 if explode {
@@ -114,15 +120,27 @@ pub fn serialize_styled(
                         .collect();
                     Some(SerializedValue::Single(parts.join("")))
                 } else {
-                    Some(SerializedValue::Single(format!(";{}={}", param_name, arr.join(","))))
+                    Some(SerializedValue::Single(format!(
+                        ";{}={}",
+                        param_name,
+                        arr.join(",")
+                    )))
                 }
             } else {
-                Some(SerializedValue::Single(format!(";{}={}", param_name, value.unwrap_or(""))))
+                Some(SerializedValue::Single(format!(
+                    ";{}={}",
+                    param_name,
+                    value.unwrap_or("")
+                )))
             }
         }
         "label" => {
             if value.is_none() && !is_array {
-                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
+                return if location == "query" {
+                    None
+                } else {
+                    Some(SerializedValue::Single(String::new()))
+                };
             }
             if let Some(arr) = items {
                 if explode {
@@ -136,7 +154,11 @@ pub fn serialize_styled(
         }
         "spaceDelimited" => {
             if value.is_none() && !is_array {
-                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
+                return if location == "query" {
+                    None
+                } else {
+                    Some(SerializedValue::Single(String::new()))
+                };
             }
             if let Some(arr) = items {
                 Some(SerializedValue::Single(arr.join(" ")))
@@ -146,7 +168,11 @@ pub fn serialize_styled(
         }
         "pipeDelimited" => {
             if value.is_none() && !is_array {
-                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
+                return if location == "query" {
+                    None
+                } else {
+                    Some(SerializedValue::Single(String::new()))
+                };
             }
             if let Some(arr) = items {
                 Some(SerializedValue::Single(arr.join("|")))
@@ -156,7 +182,11 @@ pub fn serialize_styled(
         }
         "form" => {
             if value.is_none() && !is_array {
-                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
+                return if location == "query" {
+                    None
+                } else {
+                    Some(SerializedValue::Single(String::new()))
+                };
             }
             if let Some(arr) = items {
                 if explode {
@@ -170,7 +200,11 @@ pub fn serialize_styled(
         }
         "simple" => {
             if value.is_none() && !is_array {
-                return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
+                return if location == "query" {
+                    None
+                } else {
+                    Some(SerializedValue::Single(String::new()))
+                };
             }
             if let Some(arr) = items {
                 Some(SerializedValue::Single(arr.join(",")))
@@ -181,7 +215,9 @@ pub fn serialize_styled(
         _ => match value {
             Some(val) => {
                 if location == "path" {
-                    Some(SerializedValue::Single(urlencoding::encode(val).into_owned()))
+                    Some(SerializedValue::Single(
+                        urlencoding::encode(val).into_owned(),
+                    ))
                 } else {
                     Some(SerializedValue::Single(val.to_string()))
                 }

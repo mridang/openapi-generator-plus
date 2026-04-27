@@ -8,6 +8,7 @@
 #![allow(clippy::manual_is_ascii_check)]
 #![allow(clippy::too_many_arguments)]
 #![allow(clippy::manual_pattern_char_comparison)]
+#![allow(clippy::type_complexity)]
 
 //! Swagger Petstore - OpenAPI 3.0
 //!

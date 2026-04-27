@@ -29,17 +29,17 @@ impl StoreApi {
     }
 
     /// Delete purchase order by ID
-    pub fn delete_order(
+    pub async fn delete_order(
         &self,
         order_id: i64,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.delete_order_with_http_info(order_id)?;
+        let result = self.delete_order_with_http_info(order_id).await?;
         let _ = result;
         Ok(())
     }
 
     /// Performs the delete_order operation and returns the full API result.
-    pub fn delete_order_with_http_info(
+    pub async fn delete_order_with_http_info(
         &self,
         order_id: i64,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
@@ -52,17 +52,20 @@ impl StoreApi {
 
         let request_body: Option<Vec<u8>> = None;
 
-        let response = self.base.invoke_api(InvokeApiParams {
-            method: "DELETE",
-            path: &path,
-            query_params,
-            header_params,
-            body: request_body,
-            accepts: vec![],
-            content_type: "application/json",
-            return_type: "",
-            auth: None,
-        })?;
+        let response = self
+            .base
+            .invoke_api(InvokeApiParams {
+                method: "DELETE",
+                path: &path,
+                query_params,
+                header_params,
+                body: request_body,
+                accepts: vec![],
+                content_type: "application/json",
+                return_type: "",
+                auth: None,
+            })
+            .await?;
 
         Ok(ApiResult {
             status_code: response.status_code,
@@ -73,16 +76,16 @@ impl StoreApi {
     }
 
     /// Returns pet inventories by status
-    pub fn get_inventory(
+    pub async fn get_inventory(
         &self,
     ) -> Result<std::collections::HashMap<String, i32>, Box<dyn std::error::Error + Send + Sync>>
     {
-        let result = self.get_inventory_with_http_info()?;
+        let result = self.get_inventory_with_http_info().await?;
         Ok(result.data)
     }
 
     /// Performs the get_inventory operation and returns the full API result.
-    pub fn get_inventory_with_http_info(
+    pub async fn get_inventory_with_http_info(
         &self,
     ) -> Result<
         ApiResult<std::collections::HashMap<String, i32>>,
@@ -96,17 +99,20 @@ impl StoreApi {
 
         let request_body: Option<Vec<u8>> = None;
 
-        let response = self.base.invoke_api(InvokeApiParams {
-            method: "GET",
-            path: &path,
-            query_params,
-            header_params,
-            body: request_body,
-            accepts: vec!["application/json"],
-            content_type: "application/json",
-            return_type: "std::collections::HashMap<String, i32>",
-            auth: None,
-        })?;
+        let response = self
+            .base
+            .invoke_api(InvokeApiParams {
+                method: "GET",
+                path: &path,
+                query_params,
+                header_params,
+                body: request_body,
+                accepts: vec!["application/json"],
+                content_type: "application/json",
+                return_type: "std::collections::HashMap<String, i32>",
+                auth: None,
+            })
+            .await?;
 
         let data: std::collections::HashMap<String, i32> = if !response.body.is_empty() {
             object_serializer::deserialize(response.body.as_bytes())?
@@ -123,16 +129,16 @@ impl StoreApi {
     }
 
     /// Find purchase order by ID
-    pub fn get_order_by_id(
+    pub async fn get_order_by_id(
         &self,
         order_id: i64,
     ) -> Result<Order, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_order_by_id_with_http_info(order_id)?;
+        let result = self.get_order_by_id_with_http_info(order_id).await?;
         Ok(result.data)
     }
 
     /// Performs the get_order_by_id operation and returns the full API result.
-    pub fn get_order_by_id_with_http_info(
+    pub async fn get_order_by_id_with_http_info(
         &self,
         order_id: i64,
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
@@ -145,17 +151,20 @@ impl StoreApi {
 
         let request_body: Option<Vec<u8>> = None;
 
-        let response = self.base.invoke_api(InvokeApiParams {
-            method: "GET",
-            path: &path,
-            query_params,
-            header_params,
-            body: request_body,
-            accepts: vec!["application/json"],
-            content_type: "application/json",
-            return_type: "Order",
-            auth: None,
-        })?;
+        let response = self
+            .base
+            .invoke_api(InvokeApiParams {
+                method: "GET",
+                path: &path,
+                query_params,
+                header_params,
+                body: request_body,
+                accepts: vec!["application/json"],
+                content_type: "application/json",
+                return_type: "Order",
+                auth: None,
+            })
+            .await?;
 
         let data: Order = if !response.body.is_empty() {
             object_serializer::deserialize(response.body.as_bytes())?
@@ -172,16 +181,16 @@ impl StoreApi {
     }
 
     /// Place an order for a pet
-    pub fn place_order(
+    pub async fn place_order(
         &self,
         order: Option<Order>,
     ) -> Result<Order, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.place_order_with_http_info(order)?;
+        let result = self.place_order_with_http_info(order).await?;
         Ok(result.data)
     }
 
     /// Performs the place_order operation and returns the full API result.
-    pub fn place_order_with_http_info(
+    pub async fn place_order_with_http_info(
         &self,
         order: Option<Order>,
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
@@ -193,17 +202,20 @@ impl StoreApi {
 
         let request_body = Some(object_serializer::serialize(&order)?);
 
-        let response = self.base.invoke_api(InvokeApiParams {
-            method: "POST",
-            path: &path,
-            query_params,
-            header_params,
-            body: request_body,
-            accepts: vec!["application/json"],
-            content_type: "application/json",
-            return_type: "Order",
-            auth: None,
-        })?;
+        let response = self
+            .base
+            .invoke_api(InvokeApiParams {
+                method: "POST",
+                path: &path,
+                query_params,
+                header_params,
+                body: request_body,
+                accepts: vec!["application/json"],
+                content_type: "application/json",
+                return_type: "Order",
+                auth: None,
+            })
+            .await?;
 
         let data: Order = if !response.body.is_empty() {
             object_serializer::deserialize(response.body.as_bytes())?

@@ -46,98 +46,98 @@ fn start_mock_server(status: u16, content_type: &str, body: &str) -> String {
 // Tests that the correct error types are returned for various HTTP status codes.
 // We use PetApi.get_pet_by_id as the test surface since BaseApi methods are internal.
 
-#[test]
-fn test_base_api_error_dispatch_400() {
+#[tokio::test]
+async fn test_base_api_error_dispatch_400() {
     let base_url = start_mock_server(400, "application/json", r#"{"error":"test error"}"#);
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config);
 
-    let result = api.get_pet_by_id(1);
+    let result = api.get_pet_by_id(1).await;
     assert!(result.is_err(), "expected error for status 400");
 }
 
-#[test]
-fn test_base_api_error_dispatch_401() {
+#[tokio::test]
+async fn test_base_api_error_dispatch_401() {
     let base_url = start_mock_server(401, "application/json", r#"{"error":"test error"}"#);
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config);
 
-    let result = api.get_pet_by_id(1);
+    let result = api.get_pet_by_id(1).await;
     assert!(result.is_err(), "expected error for status 401");
 }
 
-#[test]
-fn test_base_api_error_dispatch_403() {
+#[tokio::test]
+async fn test_base_api_error_dispatch_403() {
     let base_url = start_mock_server(403, "application/json", r#"{"error":"test error"}"#);
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config);
 
-    let result = api.get_pet_by_id(1);
+    let result = api.get_pet_by_id(1).await;
     assert!(result.is_err(), "expected error for status 403");
 }
 
-#[test]
-fn test_base_api_error_dispatch_404() {
+#[tokio::test]
+async fn test_base_api_error_dispatch_404() {
     let base_url = start_mock_server(404, "application/json", r#"{"error":"test error"}"#);
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config);
 
-    let result = api.get_pet_by_id(1);
+    let result = api.get_pet_by_id(1).await;
     assert!(result.is_err(), "expected error for status 404");
 }
 
-#[test]
-fn test_base_api_error_dispatch_409() {
+#[tokio::test]
+async fn test_base_api_error_dispatch_409() {
     let base_url = start_mock_server(409, "application/json", r#"{"error":"test error"}"#);
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config);
 
-    let result = api.get_pet_by_id(1);
+    let result = api.get_pet_by_id(1).await;
     assert!(result.is_err(), "expected error for status 409");
 }
 
-#[test]
-fn test_base_api_error_dispatch_422() {
+#[tokio::test]
+async fn test_base_api_error_dispatch_422() {
     let base_url = start_mock_server(422, "application/json", r#"{"error":"test error"}"#);
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config);
 
-    let result = api.get_pet_by_id(1);
+    let result = api.get_pet_by_id(1).await;
     assert!(result.is_err(), "expected error for status 422");
 }
 
-#[test]
-fn test_base_api_error_dispatch_500() {
+#[tokio::test]
+async fn test_base_api_error_dispatch_500() {
     let base_url = start_mock_server(500, "application/json", r#"{"error":"test error"}"#);
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config);
 
-    let result = api.get_pet_by_id(1);
+    let result = api.get_pet_by_id(1).await;
     assert!(result.is_err(), "expected error for status 500");
 }
 
-#[test]
-fn test_base_api_error_dispatch_502() {
+#[tokio::test]
+async fn test_base_api_error_dispatch_502() {
     let base_url = start_mock_server(502, "application/json", r#"{"error":"test error"}"#);
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config);
 
-    let result = api.get_pet_by_id(1);
+    let result = api.get_pet_by_id(1).await;
     assert!(result.is_err(), "expected error for status 502");
 }
 
 // -- JSON response deserialization --
 
-#[test]
-fn test_base_api_deserializes_json_response() {
+#[tokio::test]
+async fn test_base_api_deserializes_json_response() {
     let base_url = start_mock_server(
         200,
         "application/json",
@@ -147,14 +147,14 @@ fn test_base_api_deserializes_json_response() {
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config);
 
-    let result = api.get_pet_by_id(1);
+    let result = api.get_pet_by_id(1).await;
     assert!(result.is_ok(), "expected successful response");
 }
 
 // -- Auth header forwarding --
 
-#[test]
-fn test_base_api_forwards_auth_headers() {
+#[tokio::test]
+async fn test_base_api_forwards_auth_headers() {
     let base_url = start_mock_server(
         200,
         "application/json",
@@ -167,7 +167,7 @@ fn test_base_api_forwards_auth_headers() {
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config);
 
-    let result = api.get_pet_by_id(1);
+    let result = api.get_pet_by_id(1).await;
     assert!(
         result.is_ok(),
         "expected successful response with auth header"
@@ -176,8 +176,8 @@ fn test_base_api_forwards_auth_headers() {
 
 // -- Nil body handling --
 
-#[test]
-fn test_base_api_handles_nil_body() {
+#[tokio::test]
+async fn test_base_api_handles_nil_body() {
     let base_url = start_mock_server(
         200,
         "application/json",
@@ -187,7 +187,7 @@ fn test_base_api_handles_nil_body() {
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config);
 
-    let result = api.get_pet_by_id(1);
+    let result = api.get_pet_by_id(1).await;
     assert!(
         result.is_ok(),
         "expected successful response for GET with no body"

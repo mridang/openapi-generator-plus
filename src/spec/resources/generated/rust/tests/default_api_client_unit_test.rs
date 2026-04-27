@@ -28,8 +28,8 @@ fn start_echo_server() -> String {
     base_url
 }
 
-#[test]
-fn test_default_api_client_user_agent_header() {
+#[tokio::test]
+async fn test_default_api_client_user_agent_header() {
     let base_url = start_echo_server();
 
     let transport = TransportOptionsBuilder::new()
@@ -40,13 +40,14 @@ fn test_default_api_client_user_agent_header() {
     let headers = HashMap::new();
     let resp = client
         .send_request("GET", &format!("{}/test", base_url), &headers, None)
+        .await
         .expect("unexpected error");
 
     assert_eq!(resp.status_code, 200);
 }
 
-#[test]
-fn test_default_api_client_default_user_agent() {
+#[tokio::test]
+async fn test_default_api_client_default_user_agent() {
     let base_url = start_echo_server();
 
     let client = DefaultApiClient::new(None);
@@ -54,13 +55,14 @@ fn test_default_api_client_default_user_agent() {
 
     let resp = client
         .send_request("GET", &format!("{}/test", base_url), &headers, None)
+        .await
         .expect("unexpected error");
 
     assert_eq!(resp.status_code, 200);
 }
 
-#[test]
-fn test_default_api_client_x_request_id_injection() {
+#[tokio::test]
+async fn test_default_api_client_x_request_id_injection() {
     let base_url = start_echo_server();
 
     let transport = TransportOptionsBuilder::new()
@@ -71,13 +73,14 @@ fn test_default_api_client_x_request_id_injection() {
     let headers = HashMap::new();
     let resp = client
         .send_request("GET", &format!("{}/test", base_url), &headers, None)
+        .await
         .expect("unexpected error");
 
     assert_eq!(resp.status_code, 200);
 }
 
-#[test]
-fn test_default_api_client_x_request_id_not_injected_when_disabled() {
+#[tokio::test]
+async fn test_default_api_client_x_request_id_not_injected_when_disabled() {
     let base_url = start_echo_server();
 
     let transport = TransportOptionsBuilder::new()
@@ -88,13 +91,14 @@ fn test_default_api_client_x_request_id_not_injected_when_disabled() {
     let headers = HashMap::new();
     let resp = client
         .send_request("GET", &format!("{}/test", base_url), &headers, None)
+        .await
         .expect("unexpected error");
 
     assert_eq!(resp.status_code, 200);
 }
 
-#[test]
-fn test_default_api_client_x_request_id_not_overridden_when_already_set() {
+#[tokio::test]
+async fn test_default_api_client_x_request_id_not_overridden_when_already_set() {
     let base_url = start_echo_server();
 
     let transport = TransportOptionsBuilder::new()
@@ -107,13 +111,14 @@ fn test_default_api_client_x_request_id_not_overridden_when_already_set() {
 
     let resp = client
         .send_request("GET", &format!("{}/test", base_url), &headers, None)
+        .await
         .expect("unexpected error");
 
     assert_eq!(resp.status_code, 200);
 }
 
-#[test]
-fn test_default_api_client_default_headers() {
+#[tokio::test]
+async fn test_default_api_client_default_headers() {
     let base_url = start_echo_server();
 
     let transport = TransportOptionsBuilder::new()
@@ -124,13 +129,14 @@ fn test_default_api_client_default_headers() {
     let headers = HashMap::new();
     let resp = client
         .send_request("GET", &format!("{}/test", base_url), &headers, None)
+        .await
         .expect("unexpected error");
 
     assert_eq!(resp.status_code, 200);
 }
 
-#[test]
-fn test_default_api_client_caller_headers_override_defaults() {
+#[tokio::test]
+async fn test_default_api_client_caller_headers_override_defaults() {
     let base_url = start_echo_server();
 
     let transport = TransportOptionsBuilder::new()
@@ -143,6 +149,7 @@ fn test_default_api_client_caller_headers_override_defaults() {
 
     let resp = client
         .send_request("GET", &format!("{}/test", base_url), &headers, None)
+        .await
         .expect("unexpected error");
 
     assert_eq!(resp.status_code, 200);

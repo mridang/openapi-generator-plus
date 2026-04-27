@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 
 use crate::api_response::ApiResponse;
 
@@ -23,5 +25,11 @@ pub trait ApiClient: Send + Sync {
         url: &str,
         headers: &HashMap<String, String>,
         body: Option<&[u8]>,
-    ) -> Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>;
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
+                + Send
+                + '_,
+        >,
+    >;
 }

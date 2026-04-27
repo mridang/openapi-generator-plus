@@ -58,18 +58,18 @@ fn new_store_api_for_mock(status: u16, content_type: &str, body: &str) -> StoreA
     StoreApi::new(Arc::new(client), config)
 }
 
-#[test]
-fn test_store_api_get_inventory() {
+#[tokio::test]
+async fn test_store_api_get_inventory() {
     if let Some(api) = new_store_api_for_integration() {
-        let result = api.get_inventory();
+        let result = api.get_inventory().await;
         assert!(result.is_ok(), "GetInventory failed: {:?}", result.err());
     }
 }
 
-#[test]
-fn test_store_api_get_order_by_id() {
+#[tokio::test]
+async fn test_store_api_get_order_by_id() {
     if let Some(api) = new_store_api_for_integration() {
-        let result = api.get_order_by_id(1);
+        let result = api.get_order_by_id(1).await;
         assert!(
             result.is_ok(),
             "GetOrderById failed: {:?}",
@@ -78,37 +78,37 @@ fn test_store_api_get_order_by_id() {
     }
 }
 
-#[test]
-fn test_store_api_place_order() {
+#[tokio::test]
+async fn test_store_api_place_order() {
     if let Some(api) = new_store_api_for_integration() {
         let order = Order::new();
-        let result = api.place_order(Some(order));
+        let result = api.place_order(Some(order)).await;
         assert!(result.is_ok(), "PlaceOrder failed: {:?}", result.err());
     }
 }
 
-#[test]
-fn test_store_api_delete_order() {
+#[tokio::test]
+async fn test_store_api_delete_order() {
     if let Some(api) = new_store_api_for_integration() {
-        let result = api.delete_order(1);
+        let result = api.delete_order(1).await;
         assert!(result.is_ok(), "DeleteOrder failed: {:?}", result.err());
     }
 }
 
-#[test]
-fn test_store_api_get_order_not_found() {
+#[tokio::test]
+async fn test_store_api_get_order_not_found() {
     let api = new_store_api_for_mock(
         404,
         "application/json",
         r#"{"message":"Order not found"}"#,
     );
 
-    let result = api.get_order_by_id(99999);
+    let result = api.get_order_by_id(99999).await;
     assert!(result.is_err(), "expected error for non-existent order");
 }
 
-#[test]
-fn test_store_api_place_order_server_error() {
+#[tokio::test]
+async fn test_store_api_place_order_server_error() {
     let api = new_store_api_for_mock(
         500,
         "application/json",
@@ -116,22 +116,22 @@ fn test_store_api_place_order_server_error() {
     );
 
     let order = Order::new();
-    let result = api.place_order(Some(order));
+    let result = api.place_order(Some(order)).await;
     assert!(
         result.is_err(),
         "expected error for server error response"
     );
 }
 
-#[test]
-fn test_store_api_delete_order_not_found() {
+#[tokio::test]
+async fn test_store_api_delete_order_not_found() {
     let api = new_store_api_for_mock(
         404,
         "application/json",
         r#"{"message":"Order not found"}"#,
     );
 
-    let result = api.delete_order(99999);
+    let result = api.delete_order(99999).await;
     assert!(
         result.is_err(),
         "expected error for deleting non-existent order"
