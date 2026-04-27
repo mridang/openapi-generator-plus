@@ -13,21 +13,21 @@ import Foundation
 /// Each variable has a default value and may optionally restrict values to
 /// an enumerated set.
 public struct ServerVariable: Sendable {
-    /// The default value for this variable.
-    public let defaultValue: String
+  /// The default value for this variable.
+  public let defaultValue: String
 
-    /// A human-readable description of this variable.
-    public let description: String
+  /// A human-readable description of this variable.
+  public let description: String
 
-    /// The allowed values for this variable. An empty array
-    /// means any value is accepted.
-    public let enumValues: [String]
+  /// The allowed values for this variable. An empty array
+  /// means any value is accepted.
+  public let enumValues: [String]
 
-    public init(defaultValue: String, description: String = "", enumValues: [String] = []) {
-        self.defaultValue = defaultValue
-        self.description = description
-        self.enumValues = enumValues
-    }
+  public init(defaultValue: String, description: String = "", enumValues: [String] = []) {
+    self.defaultValue = defaultValue
+    self.description = description
+    self.enumValues = enumValues
+  }
 }
 
 /// ServerConfiguration represents a single server entry from the OpenAPI specification.
@@ -37,44 +37,47 @@ public struct ServerVariable: Sendable {
 /// the URL with default variable values, or pass overrides to substitute specific
 /// variables.
 public struct ServerConfiguration: Sendable {
-    /// The raw URL template before variable substitution.
-    public let urlTemplate: String
+  /// The raw URL template before variable substitution.
+  public let urlTemplate: String
 
-    /// A human-readable description of this server.
-    public let description: String
+  /// A human-readable description of this server.
+  public let description: String
 
-    /// The server variables and their definitions.
-    public let variables: [String: ServerVariable]
+  /// The server variables and their definitions.
+  public let variables: [String: ServerVariable]
 
-    public init(urlTemplate: String, description: String = "", variables: [String: ServerVariable] = [:]) {
-        self.urlTemplate = urlTemplate
-        self.description = description
-        self.variables = variables
-    }
+  public init(
+    urlTemplate: String, description: String = "", variables: [String: ServerVariable] = [:]
+  ) {
+    self.urlTemplate = urlTemplate
+    self.description = description
+    self.variables = variables
+  }
 
-    /// Resolves the URL template using default variable values or the given overrides.
-    ///
-    /// Variables not present in overrides use their default values. If a variable
-    /// has an enum constraint, the override value is validated against the allowed values.
-    ///
-    /// - Parameter variables: Optional dictionary of variable overrides.
-    /// - Returns: The resolved URL string.
-    public func url(variables overrides: [String: String]? = nil) -> String {
-        var result = urlTemplate
-        for (varName, variable) in variables {
-            var value = variable.defaultValue
-            if let override = overrides?[varName] {
-                value = override
-            }
+  /// Resolves the URL template using default variable values or the given overrides.
+  ///
+  /// Variables not present in overrides use their default values. If a variable
+  /// has an enum constraint, the override value is validated against the allowed values.
+  ///
+  /// - Parameter variables: Optional dictionary of variable overrides.
+  /// - Returns: The resolved URL string.
+  public func url(variables overrides: [String: String]? = nil) -> String {
+    var result = urlTemplate
+    for (varName, variable) in variables {
+      var value = variable.defaultValue
+      if let override = overrides?[varName] {
+        value = override
+      }
 
-            if !variable.enumValues.isEmpty {
-                guard variable.enumValues.contains(value) else {
-                    fatalError("Invalid value '\(value)' for variable '\(varName)'; allowed: \(variable.enumValues)")
-                }
-            }
-
-            result = result.replacingOccurrences(of: "{\(varName)}", with: value)
+      if !variable.enumValues.isEmpty {
+        guard variable.enumValues.contains(value) else {
+          fatalError(
+            "Invalid value '\(value)' for variable '\(varName)'; allowed: \(variable.enumValues)")
         }
-        return result
+      }
+
+      result = result.replacingOccurrences(of: "{\(varName)}", with: value)
     }
+    return result
+  }
 }

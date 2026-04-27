@@ -5,6 +5,13 @@ import 'auth/http_aware_authenticator.dart';
 import 'configuration.dart';
 import 'default_api_client.dart';
 import 'transport_options.dart';
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+import 'api/{{classFilename}}.dart';
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
 
 /// {{clientClassName}} is the unified entry point for all API services.
 ///

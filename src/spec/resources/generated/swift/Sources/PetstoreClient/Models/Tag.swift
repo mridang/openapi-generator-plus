@@ -10,15 +10,15 @@ import Foundation
 /// Tag Tags are deprecated, use categories instead
 @available(*, deprecated, message: "This schema is deprecated.")
 public struct Tag: Codable, Sendable {
-    public var id: Int64?
-    public var name: String?
+  public var id: Int64?
+  public var name: String?
 
-    enum CodingKeys: String, CodingKey {
-        case id = "id"
-        case name = "name"
-    }
+  enum CodingKeys: String, CodingKey {
+    case id = "id"
+    case name = "name"
+  }
 
-    /// Creates a new Tag instance.
-    public init() {
-    }
+  /// Creates a new Tag instance.
+  public init() {
+  }
 }

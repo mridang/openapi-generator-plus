@@ -306,7 +306,8 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                 new SupportingFile(
                         "default_api_client.mustache", srcDir, "DefaultApiClient.swift"));
         supportingFiles.add(
-                new SupportingFile("base_api.mustache", srcDir, "BaseApi.swift"));
+                new SupportingFile(
+                        "base_api.mustache", Path.of(srcDir, "Api").toString(), "BaseApi.swift"));
         supportingFiles.add(
                 new SupportingFile("authenticator.mustache", srcDir, "Authenticator.swift"));
         supportingFiles.add(
@@ -396,11 +397,11 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
 
     /**
      * Returns the output directory for API source files.
-     * Swift APIs go in Sources/{packageName}/.
+     * Swift APIs go in Sources/{packageName}/Api/.
      */
     @Override
     public String apiFileFolder() {
-        return Path.of(outputFolder, "Sources", packageName).toString();
+        return Path.of(outputFolder, "Sources", packageName, "Api").toString();
     }
 
     /**
@@ -596,6 +597,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                         getOutputDir(),
                         "Sources",
                         packageName,
+                        "Api",
                         "Options",
                         optionsClassName + ".swift")
                 .toString();

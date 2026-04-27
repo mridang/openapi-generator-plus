@@ -10,14 +10,15 @@ import Foundation
 /// ApiClient is the protocol for HTTP clients. Implementations must provide
 /// ``sendRequest(method:url:headers:body:)`` to perform the actual HTTP call.
 public protocol ApiClient: Sendable {
-    /// Sends an HTTP request and returns the response.
-    ///
-    /// - Parameters:
-    ///   - method: HTTP method (GET, POST, PUT, DELETE, etc.)
-    ///   - url: Fully qualified URL
-    ///   - headers: Caller-provided headers
-    ///   - body: Request body, or nil
-    /// - Returns: An ``ApiResponse`` with status code, body, and headers.
-    /// - Throws: An error if the request fails at the transport level.
-    func sendRequest(method: String, url: String, headers: [String: String], body: Data?) async throws -> ApiResponse
+  /// Sends an HTTP request and returns the response.
+  ///
+  /// - Parameters:
+  ///   - method: HTTP method (GET, POST, PUT, DELETE, etc.)
+  ///   - url: Fully qualified URL
+  ///   - headers: Caller-provided headers
+  ///   - body: Request body, or nil
+  /// - Returns: An ``ApiResponse`` with status code, body, and headers.
+  /// - Throws: An error if the request fails at the transport level.
+  func sendRequest(method: String, url: String, headers: [String: String], body: Data?) async throws
+    -> ApiResponse
 }

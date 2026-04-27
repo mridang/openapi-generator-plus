@@ -31,35 +31,35 @@ import Foundation
 /// let client = Client(authenticator: authenticator, transportOptions: transport)
 /// ```
 public final class Client: Sendable {
-    /// Provides methods for the Pet API group.
-    public let petApi: PetApi
-    /// Provides methods for the Store API group.
-    public let storeApi: StoreApi
+  /// Provides methods for the Pet API group.
+  public let petApi: PetApi
+  /// Provides methods for the Store API group.
+  public let storeApi: StoreApi
 
-    /// Creates a new client with the given authenticator and optional transport options.
-    ///
-    /// If the authenticator conforms to ``HttpAwareAuthenticator``, the shared
-    /// URLSession is injected so that token exchange and discovery requests use
-    /// the same proxy, TLS, and timeout settings.
-    public init(authenticator: Authenticator, transportOptions: TransportOptions? = nil) {
-        let opts = transportOptions ?? TransportOptionsBuilder().build()
-        let apiClient = DefaultApiClient(transportOptions: opts)
+  /// Creates a new client with the given authenticator and optional transport options.
+  ///
+  /// If the authenticator conforms to ``HttpAwareAuthenticator``, the shared
+  /// URLSession is injected so that token exchange and discovery requests use
+  /// the same proxy, TLS, and timeout settings.
+  public init(authenticator: Authenticator, transportOptions: TransportOptions? = nil) {
+    let opts = transportOptions ?? TransportOptionsBuilder().build()
+    let apiClient = DefaultApiClient(transportOptions: opts)
 
-        if let httpAware = authenticator as? HttpAwareAuthenticator {
-            httpAware.setURLSession(apiClient.urlSession)
-        }
-
-        let config = ConfigurationBuilder()
-            .baseURL(authenticator.host())
-            .defaultHeaders(authenticator.authHeaders())
-            .build()
-
-        self.petApi = PetApi(apiClient: apiClient, config: config)
-        self.storeApi = StoreApi(apiClient: apiClient, config: config)
+    if let httpAware = authenticator as? HttpAwareAuthenticator {
+      httpAware.setURLSession(apiClient.urlSession)
     }
 
-    /// Creates a client authenticated with a static Bearer token.
-    public convenience init(host: String, accessToken: String) {
-        self.init(authenticator: BearerAuthenticator(host: host, token: accessToken))
-    }
+    let config = ConfigurationBuilder()
+      .baseURL(authenticator.host())
+      .defaultHeaders(authenticator.authHeaders())
+      .build()
+
+    self.petApi = PetApi(apiClient: apiClient, config: config)
+    self.storeApi = StoreApi(apiClient: apiClient, config: config)
+  }
+
+  /// Creates a client authenticated with a static Bearer token.
+  public convenience init(host: String, accessToken: String) {
+    self.init(authenticator: BearerAuthenticator(host: host, token: accessToken))
+  }
 }

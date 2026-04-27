@@ -11,7 +11,7 @@ import '../api_client.dart';
 import '../api_response.dart';
 import '../api_result.dart';
 import '../authenticator.dart';
-import '../base_api.dart';
+import 'base_api.dart';
 import '../configuration.dart';
 import '../object_serializer.dart';
 import '../value_serializer.dart';
@@ -25,14 +25,21 @@ class StoreApi extends BaseApi {
   }) : super(apiClient: apiClient, config: config);
 
   /// Delete purchase order by ID
-  Future<void> deleteOrder(int orderId, ) async {
-    final result = await deleteOrderWithHTTPInfo(orderId, );
+  Future<void> deleteOrder(
+    int orderId,
+  ) async {
+    final result = await deleteOrderWithHTTPInfo(
+      orderId,
+    );
   }
 
   /// Performs the deleteOrder operation and returns the full API result.
-  Future<ApiResult<void>> deleteOrderWithHTTPInfo(int orderId, ) async {
+  Future<ApiResult<void>> deleteOrderWithHTTPInfo(
+    int orderId,
+  ) async {
     if (orderId == null) {
-      throw ArgumentError("Missing required parameter 'orderId' when calling StoreApi.deleteOrder");
+      throw ArgumentError(
+          "Missing required parameter 'orderId' when calling StoreApi.deleteOrder");
     }
 
     var path = '/store/order/{orderId}';
@@ -72,7 +79,6 @@ class StoreApi extends BaseApi {
 
   /// Performs the getInventory operation and returns the full API result.
   Future<ApiResult<Map<String, int>>> getInventoryWithHTTPInfo() async {
-
     var path = '/store/inventory';
 
     final queryParams = <String, Object?>{};
@@ -93,9 +99,8 @@ class StoreApi extends BaseApi {
       auth: null,
     );
 
-    final data = response.body.isNotEmpty
-        ? deserializeRaw(response.body)
-        : null;
+    final data =
+        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
 
     return ApiResult<Map<String, int>>(
       statusCode: response.statusCode,
@@ -106,15 +111,22 @@ class StoreApi extends BaseApi {
   }
 
   /// Find purchase order by ID
-  Future<Order> getOrderById(int orderId, ) async {
-    final result = await getOrderByIdWithHTTPInfo(orderId, );
+  Future<Order> getOrderById(
+    int orderId,
+  ) async {
+    final result = await getOrderByIdWithHTTPInfo(
+      orderId,
+    );
     return result.data;
   }
 
   /// Performs the getOrderById operation and returns the full API result.
-  Future<ApiResult<Order>> getOrderByIdWithHTTPInfo(int orderId, ) async {
+  Future<ApiResult<Order>> getOrderByIdWithHTTPInfo(
+    int orderId,
+  ) async {
     if (orderId == null) {
-      throw ArgumentError("Missing required parameter 'orderId' when calling StoreApi.getOrderById");
+      throw ArgumentError(
+          "Missing required parameter 'orderId' when calling StoreApi.getOrderById");
     }
 
     var path = '/store/order/{orderId}';
@@ -138,9 +150,8 @@ class StoreApi extends BaseApi {
       auth: null,
     );
 
-    final data = response.body.isNotEmpty
-        ? deserializeRaw(response.body)
-        : null;
+    final data =
+        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
 
     return ApiResult<Order>(
       statusCode: response.statusCode,
@@ -151,14 +162,19 @@ class StoreApi extends BaseApi {
   }
 
   /// Place an order for a pet
-  Future<Order> placeOrder(Order? order, ) async {
-    final result = await placeOrderWithHTTPInfo(order, );
+  Future<Order> placeOrder(
+    Order? order,
+  ) async {
+    final result = await placeOrderWithHTTPInfo(
+      order,
+    );
     return result.data;
   }
 
   /// Performs the placeOrder operation and returns the full API result.
-  Future<ApiResult<Order>> placeOrderWithHTTPInfo(Order? order, ) async {
-
+  Future<ApiResult<Order>> placeOrderWithHTTPInfo(
+    Order? order,
+  ) async {
     var path = '/store/order';
 
     final queryParams = <String, Object?>{};
@@ -179,9 +195,8 @@ class StoreApi extends BaseApi {
       auth: null,
     );
 
-    final data = response.body.isNotEmpty
-        ? deserializeRaw(response.body)
-        : null;
+    final data =
+        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
 
     return ApiResult<Order>(
       statusCode: response.statusCode,

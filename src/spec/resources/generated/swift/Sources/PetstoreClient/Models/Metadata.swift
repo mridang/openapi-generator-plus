@@ -9,13 +9,13 @@ import Foundation
 
 /// Metadata is a model class generated from the OpenAPI schema.
 public struct Metadata: Codable, Sendable {
-    public var createdAt: Date?
+  public var createdAt: Date?
 
-    enum CodingKeys: String, CodingKey {
-        case createdAt = "createdAt"
-    }
+  enum CodingKeys: String, CodingKey {
+    case createdAt = "createdAt"
+  }
 
-    /// Creates a new Metadata instance.
-    public init() {
-    }
+  /// Creates a new Metadata instance.
+  public init() {
+  }
 }

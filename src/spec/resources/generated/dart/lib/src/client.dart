@@ -11,6 +11,8 @@ import 'auth/http_aware_authenticator.dart';
 import 'configuration.dart';
 import 'default_api_client.dart';
 import 'transport_options.dart';
+import 'api/pet_api.dart';
+import 'api/store_api.dart';
 
 /// Client is the unified entry point for all API services.
 ///
@@ -41,6 +43,7 @@ import 'transport_options.dart';
 class Client {
   /// Provides methods for the Pet API group.
   final PetApi petApi;
+
   /// Provides methods for the Store API group.
   final StoreApi storeApi;
 
@@ -53,15 +56,16 @@ class Client {
   Client({
     required Authenticator authenticator,
     TransportOptions? transportOptions,
-  }) : petApi = _createPetApi(authenticator, transportOptions),
-       storeApi = _createStoreApi(authenticator, transportOptions) {
+  })  : petApi = _createPetApi(authenticator, transportOptions),
+        storeApi = _createStoreApi(authenticator, transportOptions) {
     final apiClient = DefaultApiClient(transportOptions);
     if (authenticator is HttpAwareAuthenticator) {
       authenticator.setHttpClient(apiClient.httpClient);
     }
   }
 
-  static PetApi _createPetApi(Authenticator authenticator, TransportOptions? transportOptions) {
+  static PetApi _createPetApi(
+      Authenticator authenticator, TransportOptions? transportOptions) {
     final apiClient = DefaultApiClient(transportOptions);
     final config = ConfigurationBuilder()
         .baseUrl(authenticator.host())
@@ -69,7 +73,9 @@ class Client {
         .build();
     return PetApi(apiClient: apiClient, config: config);
   }
-  static StoreApi _createStoreApi(Authenticator authenticator, TransportOptions? transportOptions) {
+
+  static StoreApi _createStoreApi(
+      Authenticator authenticator, TransportOptions? transportOptions) {
     final apiClient = DefaultApiClient(transportOptions);
     final config = ConfigurationBuilder()
         .baseUrl(authenticator.host())

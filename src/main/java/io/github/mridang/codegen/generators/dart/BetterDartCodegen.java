@@ -318,7 +318,10 @@ public class BetterDartCodegen extends AbstractBetterCodegen {
                 new SupportingFile(
                         "default_api_client.mustache", srcDir, "default_api_client.dart"));
         supportingFiles.add(
-                new SupportingFile("base_api.mustache", srcDir, "base_api.dart"));
+                new SupportingFile(
+                        "base_api.mustache",
+                        Path.of(srcDir, "api").toString(),
+                        "base_api.dart"));
         supportingFiles.add(
                 new SupportingFile("authenticator.mustache", srcDir, "authenticator.dart"));
 
@@ -413,11 +416,11 @@ public class BetterDartCodegen extends AbstractBetterCodegen {
 
     /**
      * Returns the output directory for API source files.
-     * Dart APIs go in lib/src/.
+     * Dart APIs go in lib/src/api/.
      */
     @Override
     public String apiFileFolder() {
-        return Path.of(outputFolder, "lib", "src").toString();
+        return Path.of(outputFolder, "lib", "src", "api").toString();
     }
 
     /**
@@ -609,7 +612,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen {
     protected String getOptionsFilePath(String operationId, String optionsClassName) {
         final String fileName = NamingConvention.SNAKE_CASE.apply(optionsClassName);
         return Path.of(
-                        getOutputDir(), "lib", "src", "options", fileName + ".dart")
+                        getOutputDir(), "lib", "src", "api", "options", fileName + ".dart")
                 .toString();
     }
 }

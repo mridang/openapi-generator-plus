@@ -45,7 +45,8 @@ T deserialize<T>(String data, T Function(Map<String, dynamic>) fromJson) {
     if (decoded is Map<String, dynamic>) {
       return fromJson(decoded);
     }
-    throw SerializationError('Expected JSON object, got ${decoded.runtimeType}');
+    throw SerializationError(
+        'Expected JSON object, got ${decoded.runtimeType}');
   } catch (e) {
     if (e is SerializationError) rethrow;
     throw SerializationError('Failed to deserialize JSON: $e', e);
@@ -53,7 +54,8 @@ T deserialize<T>(String data, T Function(Map<String, dynamic>) fromJson) {
 }
 
 /// Parses a JSON string into a list of values.
-List<T> deserializeList<T>(String data, T Function(Map<String, dynamic>) fromJson) {
+List<T> deserializeList<T>(
+    String data, T Function(Map<String, dynamic>) fromJson) {
   if (data.isEmpty) {
     throw SerializationError('Cannot deserialize empty data');
   }

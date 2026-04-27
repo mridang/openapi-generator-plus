@@ -36,7 +36,9 @@ class Order {
       petId: json['petId'] as int?,
       quantity: json['quantity'] as int?,
       shipDate: json['shipDate'] as DateTime?,
-      status: json['status'] != null ? String.fromJson(json['status'] as String) : null,
+      status: json['status'] != null
+          ? String.fromJson(json['status'] as String)
+          : null,
       complete: json['complete'] as bool?,
     );
   }

@@ -9,32 +9,32 @@ import Foundation
 
 /// PetWithOwner A pet record extended with owner information
 public struct PetWithOwner: Codable, Sendable {
-    public var id: Int64?
-    public var name: String
-    public var category: Category?
-    public var photoUrls: [String]
-    public var tags: [Tag]?
-    /// pet status in the store
-    @available(*, deprecated, message: "This property is deprecated.")
-    public var status: String?
-    public var ownerName: String
-    public var ownerEmail: String?
+  public var id: Int64?
+  public var name: String
+  public var category: Category?
+  public var photoUrls: [String]
+  public var tags: [Tag]?
+  /// pet status in the store
+  @available(*, deprecated, message: "This property is deprecated.")
+  public var status: String?
+  public var ownerName: String
+  public var ownerEmail: String?
 
-    enum CodingKeys: String, CodingKey {
-        case id = "id"
-        case name = "name"
-        case category = "category"
-        case photoUrls = "photoUrls"
-        case tags = "tags"
-        case status = "status"
-        case ownerName = "ownerName"
-        case ownerEmail = "ownerEmail"
-    }
+  enum CodingKeys: String, CodingKey {
+    case id = "id"
+    case name = "name"
+    case category = "category"
+    case photoUrls = "photoUrls"
+    case tags = "tags"
+    case status = "status"
+    case ownerName = "ownerName"
+    case ownerEmail = "ownerEmail"
+  }
 
-    /// Creates a new PetWithOwner instance.
-    public init(name: String, photoUrls: [String], ownerName: String) {
-        self.name = name
-        self.photoUrls = photoUrls
-        self.ownerName = ownerName
-    }
+  /// Creates a new PetWithOwner instance.
+  public init(name: String, photoUrls: [String], ownerName: String) {
+    self.name = name
+    self.photoUrls = photoUrls
+    self.ownerName = ownerName
+  }
 }

@@ -15,122 +15,126 @@ import Foundation
 /// Conforms to ``HttpAwareAuthenticator`` so that both the discovery request and
 /// subsequent token exchange requests use the shared URLSession with the same
 /// transport configuration (proxy, TLS, timeouts) as regular API calls.
-public final class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticator, @unchecked Sendable {
-    private let _host: String
-    private let openIDConnectURL: String
-    private let clientID: String
-    private let clientSecret: String
-    private let redirectURI: String
-    private let scopes: [String]
-    private var urlSession: URLSession?
-    private var delegate: OAuth2AuthorizationCodeAuthenticator?
-    private let lock = NSLock()
+public final class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticator, @unchecked
+  Sendable
+{
+  private let _host: String
+  private let openIDConnectURL: String
+  private let clientID: String
+  private let clientSecret: String
+  private let redirectURI: String
+  private let scopes: [String]
+  private var urlSession: URLSession?
+  private var delegate: OAuth2AuthorizationCodeAuthenticator?
+  private let lock = NSLock()
 
-    /// Creates a new OpenID Connect authenticator.
-    public init(
-        host: String,
-        openIDConnectURL: String,
-        clientID: String,
-        clientSecret: String,
-        redirectURI: String,
-        scopes: [String] = []
-    ) {
-        self._host = host
-        self.openIDConnectURL = openIDConnectURL
-        self.clientID = clientID
-        self.clientSecret = clientSecret
-        self.redirectURI = redirectURI
-        self.scopes = scopes
-        super.init()
+  /// Creates a new OpenID Connect authenticator.
+  public init(
+    host: String,
+    openIDConnectURL: String,
+    clientID: String,
+    clientSecret: String,
+    redirectURI: String,
+    scopes: [String] = []
+  ) {
+    self._host = host
+    self.openIDConnectURL = openIDConnectURL
+    self.clientID = clientID
+    self.clientSecret = clientSecret
+    self.redirectURI = redirectURI
+    self.scopes = scopes
+    super.init()
+  }
+
+  /// Returns the API base URL.
+  override public func host() -> String {
+    return _host
+  }
+
+  /// Injects the shared URLSession for making discovery and token requests.
+  public func setURLSession(_ session: URLSession) {
+    lock.lock()
+    defer { lock.unlock() }
+    self.urlSession = session
+  }
+
+  /// Builds the authorization URL using the discovered authorization endpoint.
+  public func buildAuthorizationURL(state: String = "") async throws -> String {
+    let delegate = try await resolveDelegate()
+    return delegate.buildAuthorizationURL(state: state)
+  }
+
+  /// Exchanges an authorization code for tokens using the discovered token endpoint.
+  public func exchangeCode(_ code: String) async throws {
+    let delegate = try await resolveDelegate()
+    try await delegate.exchangeCode(code)
+  }
+
+  /// Returns the Bearer authentication header.
+  override public func authHeaders() -> [String: String] {
+    var resolved: OAuth2AuthorizationCodeAuthenticator?
+    let semaphore = DispatchSemaphore(value: 0)
+    Task {
+      resolved = try? await self.resolveDelegate()
+      semaphore.signal()
+    }
+    semaphore.wait()
+
+    guard let delegate = resolved else { return [:] }
+    return delegate.authHeaders()
+  }
+
+  /// Lazily resolves the delegate by fetching the OIDC discovery document
+  /// using the injected URLSession.
+  private func resolveDelegate() async throws -> OAuth2AuthorizationCodeAuthenticator {
+    lock.lock()
+    if let existing = delegate {
+      lock.unlock()
+      return existing
     }
 
-    /// Returns the API base URL.
-    override public func host() -> String {
-        return _host
+    guard let session = urlSession else {
+      lock.unlock()
+      throw NSError(
+        domain: "OpenIdConnectAuthenticator", code: -1,
+        userInfo: [
+          NSLocalizedDescriptionKey: "URLSession has not been injected. "
+            + "Ensure the Client constructor calls setURLSession "
+            + "on HttpAwareAuthenticator before making API requests"
+        ])
+    }
+    lock.unlock()
+
+    guard let url = URL(string: openIDConnectURL) else {
+      throw URLError(.badURL)
     }
 
-    /// Injects the shared URLSession for making discovery and token requests.
-    public func setURLSession(_ session: URLSession) {
-        lock.lock()
-        defer { lock.unlock() }
-        self.urlSession = session
+    var request = URLRequest(url: url)
+    request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+    let (data, _) = try await session.data(for: request)
+
+    struct DiscoveryDocument: Decodable {
+      let authorization_endpoint: String
+      let token_endpoint: String
     }
 
-    /// Builds the authorization URL using the discovered authorization endpoint.
-    public func buildAuthorizationURL(state: String = "") async throws -> String {
-        let delegate = try await resolveDelegate()
-        return delegate.buildAuthorizationURL(state: state)
-    }
+    let discovery = try JSONDecoder().decode(DiscoveryDocument.self, from: data)
 
-    /// Exchanges an authorization code for tokens using the discovered token endpoint.
-    public func exchangeCode(_ code: String) async throws {
-        let delegate = try await resolveDelegate()
-        try await delegate.exchangeCode(code)
-    }
+    let newDelegate = OAuth2AuthorizationCodeAuthenticator(
+      host: _host,
+      clientID: clientID,
+      clientSecret: clientSecret,
+      authorizationURL: discovery.authorization_endpoint,
+      tokenURL: discovery.token_endpoint,
+      redirectURI: redirectURI,
+      scopes: scopes
+    )
+    newDelegate.tokenManager.setURLSession(session)
 
-    /// Returns the Bearer authentication header.
-    override public func authHeaders() -> [String: String] {
-        var resolved: OAuth2AuthorizationCodeAuthenticator?
-        let semaphore = DispatchSemaphore(value: 0)
-        Task {
-            resolved = try? await self.resolveDelegate()
-            semaphore.signal()
-        }
-        semaphore.wait()
-
-        guard let delegate = resolved else { return [:] }
-        return delegate.authHeaders()
-    }
-
-    /// Lazily resolves the delegate by fetching the OIDC discovery document
-    /// using the injected URLSession.
-    private func resolveDelegate() async throws -> OAuth2AuthorizationCodeAuthenticator {
-        lock.lock()
-        if let existing = delegate {
-            lock.unlock()
-            return existing
-        }
-
-        guard let session = urlSession else {
-            lock.unlock()
-            throw NSError(domain: "OpenIdConnectAuthenticator", code: -1, userInfo: [
-                NSLocalizedDescriptionKey: "URLSession has not been injected. " +
-                    "Ensure the Client constructor calls setURLSession " +
-                    "on HttpAwareAuthenticator before making API requests"
-            ])
-        }
-        lock.unlock()
-
-        guard let url = URL(string: openIDConnectURL) else {
-            throw URLError(.badURL)
-        }
-
-        var request = URLRequest(url: url)
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-        let (data, _) = try await session.data(for: request)
-
-        struct DiscoveryDocument: Decodable {
-            let authorization_endpoint: String
-            let token_endpoint: String
-        }
-
-        let discovery = try JSONDecoder().decode(DiscoveryDocument.self, from: data)
-
-        let newDelegate = OAuth2AuthorizationCodeAuthenticator(
-            host: _host,
-            clientID: clientID,
-            clientSecret: clientSecret,
-            authorizationURL: discovery.authorization_endpoint,
-            tokenURL: discovery.token_endpoint,
-            redirectURI: redirectURI,
-            scopes: scopes
-        )
-        newDelegate.tokenManager.setURLSession(session)
-
-        lock.lock()
-        defer { lock.unlock() }
-        self.delegate = newDelegate
-        return newDelegate
-    }
+    lock.lock()
+    defer { lock.unlock() }
+    self.delegate = newDelegate
+    return newDelegate
+  }
 }

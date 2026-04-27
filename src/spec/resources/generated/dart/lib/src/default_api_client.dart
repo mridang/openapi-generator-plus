@@ -36,8 +36,10 @@ class DefaultApiClient implements ApiClient {
   /// Creates a client with the given transport settings.
   /// If [transportOptions] is null, default transport settings are used.
   DefaultApiClient([TransportOptions? transportOptions])
-      : _transportOptions = transportOptions ?? TransportOptionsBuilder().build(),
-        _httpClient = _buildHttpClient(transportOptions ?? TransportOptionsBuilder().build());
+      : _transportOptions =
+            transportOptions ?? TransportOptionsBuilder().build(),
+        _httpClient = _buildHttpClient(
+            transportOptions ?? TransportOptionsBuilder().build());
 
   /// Returns the underlying HTTP client for use by HTTP-aware authenticators.
   http.Client get httpClient => _httpClient;
@@ -58,12 +60,14 @@ class DefaultApiClient implements ApiClient {
     merged.addAll(headers);
 
     // 3. User-Agent injection
-    if (!merged.containsKey('User-Agent') && _transportOptions.userAgent.isNotEmpty) {
+    if (!merged.containsKey('User-Agent') &&
+        _transportOptions.userAgent.isNotEmpty) {
       merged['User-Agent'] = _transportOptions.userAgent;
     }
 
     // 4. X-Request-ID injection
-    if (!merged.containsKey('X-Request-ID') && _transportOptions.injectRequestId) {
+    if (!merged.containsKey('X-Request-ID') &&
+        _transportOptions.injectRequestId) {
       merged['X-Request-ID'] = _generateUuid();
     }
 
@@ -107,7 +111,8 @@ class DefaultApiClient implements ApiClient {
     }
 
     if (opts.proxy != null) {
-      httpClient.findProxy = (uri) => 'PROXY ${opts.proxy!.host}:${opts.proxy!.port}';
+      httpClient.findProxy =
+          (uri) => 'PROXY ${opts.proxy!.host}:${opts.proxy!.port}';
     }
 
     if (opts.timeout != null) {

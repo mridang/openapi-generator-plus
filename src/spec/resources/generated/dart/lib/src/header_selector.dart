@@ -10,7 +10,8 @@ import 'dart:math';
 /// HeaderSelector selects Accept and Content-Type headers for API requests
 /// based on the MIME types declared in the OpenAPI specification.
 class HeaderSelector {
-  static final _jsonMIMEPattern = RegExp(r'^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)');
+  static final _jsonMIMEPattern =
+      RegExp(r'^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)');
   static final _weightPattern = RegExp(r'(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$');
 
   /// Selects the Accept and Content-Type headers for an API request.
@@ -34,7 +35,8 @@ class HeaderSelector {
     }
 
     if (!isMultipart) {
-      headers['Content-Type'] = contentType.isEmpty ? 'application/json' : contentType;
+      headers['Content-Type'] =
+          contentType.isEmpty ? 'application/json' : contentType;
     }
 
     return headers;
@@ -97,7 +99,8 @@ class HeaderSelector {
 
     for (final group in [withApplicationJSON, withJSON, withoutJSON]) {
       if (group.isNotEmpty) {
-        final adjusted = _adjustWeight(group, currentWeight, hasMoreThan28Headers);
+        final adjusted =
+            _adjustWeight(group, currentWeight, hasMoreThan28Headers);
         acceptHeaders.addAll(adjusted.headers);
         currentWeight = adjusted.weight;
       }

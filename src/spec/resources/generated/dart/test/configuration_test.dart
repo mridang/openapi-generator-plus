@@ -23,29 +23,25 @@ void main() {
     });
 
     test('builder sets baseUrl', () {
-      final config = ConfigurationBuilder()
-          .baseUrl('https://custom.example.com')
-          .build();
+      final config =
+          ConfigurationBuilder().baseUrl('https://custom.example.com').build();
 
       expect(config.baseUrl, equals('https://custom.example.com'));
     });
 
     test('builder sets default header', () {
-      final config = ConfigurationBuilder()
-          .defaultHeader('X-Custom', 'value')
-          .build();
+      final config =
+          ConfigurationBuilder().defaultHeader('X-Custom', 'value').build();
 
       final headers = config.defaultHeaders;
       expect(headers['X-Custom'], equals('value'));
     });
 
     test('builder sets multiple default headers', () {
-      final config = ConfigurationBuilder()
-          .defaultHeaders({
-            'X-First': 'one',
-            'X-Second': 'two',
-          })
-          .build();
+      final config = ConfigurationBuilder().defaultHeaders({
+        'X-First': 'one',
+        'X-Second': 'two',
+      }).build();
 
       final headers = config.defaultHeaders;
       expect(headers['X-First'], equals('one'));
@@ -78,9 +74,8 @@ void main() {
         },
       );
 
-      final config = ConfigurationBuilder()
-          .server(server, {'env': 'staging'})
-          .build();
+      final config =
+          ConfigurationBuilder().server(server, {'env': 'staging'}).build();
 
       expect(config.baseUrl, equals('https://staging.example.com/api/v3'));
     });
@@ -101,9 +96,7 @@ void main() {
         },
       );
 
-      final config = ConfigurationBuilder()
-          .server(server)
-          .build();
+      final config = ConfigurationBuilder().server(server).build();
 
       expect(config.baseUrl, equals('https://api.example.com/api/v3'));
     });
@@ -118,9 +111,8 @@ void main() {
     });
 
     test('default headers copy isolation', () {
-      final config = ConfigurationBuilder()
-          .defaultHeader('X-Test', 'value')
-          .build();
+      final config =
+          ConfigurationBuilder().defaultHeader('X-Test', 'value').build();
 
       final headers = config.defaultHeaders;
       headers['X-Mutated'] = 'should-not-affect-config';

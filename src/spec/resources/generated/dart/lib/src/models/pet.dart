@@ -38,7 +38,9 @@ class Pet {
       category: json['category'] as Category?,
       photoUrls: json['photoUrls'] as List<String>,
       tags: json['tags'] as List<Tag>?,
-      status: json['status'] != null ? String.fromJson(json['status'] as String) : null,
+      status: json['status'] != null
+          ? String.fromJson(json['status'] as String)
+          : null,
     );
   }
 

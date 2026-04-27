@@ -10,17 +10,17 @@ import Foundation
 /// BaseAuthenticator provides default no-op implementations for optional
 /// Authenticator methods. Concrete authenticators should inherit from this class.
 open class BaseAuthenticator: Authenticator {
-    public init() {}
+  public init() {}
 
-    /// Returns the base URL of the API. Override in subclasses.
-    open func host() -> String { return "" }
+  /// Returns the base URL of the API. Override in subclasses.
+  open func host() -> String { return "" }
 
-    /// Returns authentication headers. Override in subclasses.
-    open func authHeaders() -> [String: String] { return [:] }
+  /// Returns authentication headers. Override in subclasses.
+  open func authHeaders() -> [String: String] { return [:] }
 
-    /// Returns an empty dictionary. Override in concrete authenticators if needed.
-    open func queryParams() -> [String: String] { return [:] }
+  /// Returns an empty dictionary. Override in concrete authenticators if needed.
+  open func queryParams() -> [String: String] { return [:] }
 
-    /// Returns an empty dictionary. Override in concrete authenticators if needed.
-    open func cookieParams() -> [String: String] { return [:] }
+  /// Returns an empty dictionary. Override in concrete authenticators if needed.
+  open func cookieParams() -> [String: String] { return [:] }
 }

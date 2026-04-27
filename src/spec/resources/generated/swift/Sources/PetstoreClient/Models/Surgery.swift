@@ -9,16 +9,16 @@ import Foundation
 
 /// Surgery is a model class generated from the OpenAPI schema.
 public struct Surgery: Codable, Sendable {
-    public var procedureName: String
-    public var durationMinutes: Int?
+  public var procedureName: String
+  public var durationMinutes: Int?
 
-    enum CodingKeys: String, CodingKey {
-        case procedureName = "procedureName"
-        case durationMinutes = "durationMinutes"
-    }
+  enum CodingKeys: String, CodingKey {
+    case procedureName = "procedureName"
+    case durationMinutes = "durationMinutes"
+  }
 
-    /// Creates a new Surgery instance.
-    public init(procedureName: String) {
-        self.procedureName = procedureName
-    }
+  /// Creates a new Surgery instance.
+  public init(procedureName: String) {
+    self.procedureName = procedureName
+  }
 }
