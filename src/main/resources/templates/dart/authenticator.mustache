@@ -1,0 +1,16 @@
+{{>api_info}}
+/// Authenticator provides authentication credentials to the API client.
+/// Implementations supply the API host URL and authorization headers.
+abstract class Authenticator {
+  /// Returns the base URL of the API.
+  String host();
+
+  /// Returns the authentication headers to include in every request.
+  Map<String, String> authHeaders();
+
+  /// Returns query parameters to include for authentication.
+  Map<String, String> queryParams();
+
+  /// Returns cookie parameters to include for authentication.
+  Map<String, String> cookieParams();
+}

@@ -1,0 +1,156 @@
+{{>api_info}}
+import 'dart:convert';
+import 'dart:typed_data';
+
+/// SerializationError is thrown when serialization or deserialization fails.
+class SerializationError implements Exception {
+  final String message;
+  final Object? cause;
+
+  const SerializationError(this.message, [this.cause]);
+
+  @override
+  String toString() {
+    if (cause != null) {
+      return 'SerializationError: $message: $cause';
+    }
+    return 'SerializationError: $message';
+  }
+}
+
+/// Converts an object to a JSON byte list.
+Uint8List serialize(Object object) {
+  try {
+    final jsonString = jsonEncode(object);
+    return utf8.encode(jsonString);
+  } catch (e) {
+    throw SerializationError('Failed to serialize object to JSON: $e', e);
+  }
+}
+
+/// Parses a JSON string into a dynamic value.
+T deserialize<T>(String data, T Function(Map<String, dynamic>) fromJson) {
+  if (data.isEmpty) {
+    throw SerializationError('Cannot deserialize empty data');
+  }
+
+  try {
+    final decoded = jsonDecode(data);
+    if (decoded is Map<String, dynamic>) {
+      return fromJson(decoded);
+    }
+    throw SerializationError('Expected JSON object, got ${decoded.runtimeType}');
+  } catch (e) {
+    if (e is SerializationError) rethrow;
+    throw SerializationError('Failed to deserialize JSON: $e', e);
+  }
+}
+
+/// Parses a JSON string into a list of values.
+List<T> deserializeList<T>(String data, T Function(Map<String, dynamic>) fromJson) {
+  if (data.isEmpty) {
+    throw SerializationError('Cannot deserialize empty data');
+  }
+
+  try {
+    final decoded = jsonDecode(data);
+    if (decoded is List) {
+      return decoded
+          .map((item) => fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+    throw SerializationError('Expected JSON array, got ${decoded.runtimeType}');
+  } catch (e) {
+    if (e is SerializationError) rethrow;
+    throw SerializationError('Failed to deserialize JSON list: $e', e);
+  }
+}
+
+/// Parses a JSON string into a raw dynamic value.
+dynamic deserializeRaw(String data) {
+  if (data.isEmpty) return null;
+  try {
+    return jsonDecode(data);
+  } catch (e) {
+    throw SerializationError('Failed to deserialize JSON: $e', e);
+  }
+}
+
+/// Converts a single scalar value to its string representation.
+///
+/// This is the canonical type-conversion method used by all parameter
+/// encoding helpers ([toPathValue], [toQueryValue], etc.) and by
+/// ValueSerializer for transport formatting.
+String stringify(Object? value) {
+  if (value == null) return '';
+
+  if (value is bool) return value ? 'true' : 'false';
+  if (value is DateTime) return value.toIso8601String();
+  if (value is String) return value;
+  if (value is int) return value.toString();
+  if (value is double) {
+    if (value == value.truncateToDouble()) {
+      return value.toInt().toString();
+    }
+    return value.toString();
+  }
+
+  return value.toString();
+}
+
+/// Converts a value to a string suitable for use as a URL path parameter.
+String toPathValue(Object? value) {
+  return stringify(value);
+}
+
+/// Converts a value to a representation suitable for use as a query parameter.
+/// For collections, joins using the specified collection format delimiter.
+Object? toQueryValue(Object? value, String collectionFormat) {
+  if (value == null) return null;
+
+  if (value is List<String>) {
+    return _joinCollection(value, collectionFormat);
+  }
+
+  if (value is List) {
+    final items = value.map((item) => stringify(item)).toList();
+    return _joinCollection(items, collectionFormat);
+  }
+
+  return stringify(value);
+}
+
+/// Converts a value to a string suitable for use as an HTTP header value.
+String toHeaderValue(Object? value) {
+  if (value == null) return '';
+
+  if (value is List<String>) {
+    return value.join(',');
+  }
+
+  if (value is List) {
+    return value.map((item) => stringify(item)).join(',');
+  }
+
+  return stringify(value);
+}
+
+/// Converts a value to a representation suitable for use as a form parameter.
+String toFormValue(Object? value) {
+  return stringify(value);
+}
+
+Object? _joinCollection(List<String> items, String collectionFormat) {
+  switch (collectionFormat) {
+    case 'ssv':
+      return items.join(' ');
+    case 'tsv':
+      return items.join('\t');
+    case 'pipes':
+      return items.join('|');
+    case 'multi':
+      return items;
+    default:
+      return items.join(',');
+  }
+}

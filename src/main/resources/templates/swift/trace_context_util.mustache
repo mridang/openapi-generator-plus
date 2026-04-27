@@ -1,0 +1,22 @@
+{{>api_info}}
+import Foundation
+
+/// TraceContextUtil injects W3C Trace Context headers (traceparent, tracestate)
+/// into outgoing API requests when distributed tracing is available.
+///
+/// This default implementation is a safe no-op. To enable trace context
+/// propagation, integrate with your preferred tracing library (e.g.
+/// swift-distributed-tracing) and override the injection behavior at the
+/// application level.
+public enum TraceContextUtil {
+    /// Injects trace context headers into the given header dictionary.
+    ///
+    /// This default implementation is a no-op. Override at the application
+    /// level to inject W3C traceparent and tracestate headers from your
+    /// tracing library.
+    public static func injectTraceContext(headers: inout [String: String]) {
+        // No-op: Distributed tracing integration requires a tracing library.
+        // To enable, users should integrate with swift-distributed-tracing
+        // or their preferred tracing framework.
+    }
+}

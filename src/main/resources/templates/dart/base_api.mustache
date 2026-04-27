@@ -1,0 +1,269 @@
+{{>api_info}}
+import 'dart:convert';
+
+import 'api_client.dart';
+import 'api_response.dart';
+import 'authenticator.dart';
+import 'configuration.dart';
+import 'default_api_client.dart';
+import 'header_selector.dart';
+import 'object_serializer.dart';
+import 'trace_context_util.dart';
+import 'errors/api_error.dart';
+import 'errors/client_error.dart';
+import 'errors/server_error.dart';
+import 'errors/bad_request_error.dart';
+import 'errors/unauthorized_error.dart';
+import 'errors/forbidden_error.dart';
+import 'errors/not_found_error.dart';
+import 'errors/conflict_error.dart';
+import 'errors/unprocessable_entity_error.dart';
+import 'errors/internal_server_error.dart';
+
+/// BaseApi provides common functionality for all API classes.
+class BaseApi {
+  final Configuration config;
+  final ApiClient apiClient;
+  final HeaderSelector _headerSelector;
+
+  BaseApi({
+    ApiClient? apiClient,
+    Configuration? config,
+  })  : apiClient = apiClient ?? DefaultApiClient(),
+        config = config ?? Configuration.defaultConfiguration(),
+        _headerSelector = HeaderSelector();
+
+  /// Dispatches an API request and returns the full result.
+  Future<ApiResponse> invokeApi({
+    required String method,
+    required String path,
+    Map<String, Object?>? queryParams,
+    Map<String, String>? headerParams,
+    Object? body,
+    List<String> accepts = const [],
+    String contentType = 'application/json',
+    String returnType = '',
+    Authenticator? auth,
+  }) async {
+    var requestUrl = path;
+    if (!requestUrl.startsWith('http://') && !requestUrl.startsWith('https://')) {
+      requestUrl = config.baseUrl + path;
+    }
+
+    // Merge authentication query params
+    final allQueryParams = <String, Object?>{};
+    if (queryParams != null) {
+      allQueryParams.addAll(queryParams);
+    }
+    if (auth != null) {
+      allQueryParams.addAll(auth.queryParams());
+    }
+
+    // Build query string
+    final queryString = _buildQueryString(allQueryParams);
+    if (queryString.isNotEmpty) {
+      requestUrl = '$requestUrl?$queryString';
+    }
+
+    // Select headers
+    final isMultipart = contentType == 'multipart/form-data';
+    final ct = contentType.isEmpty ? 'application/json' : contentType;
+    final selected = _headerSelector.selectHeaders(accepts, ct, isMultipart);
+
+    final headers = <String, String>{};
+    if (selected.containsKey('Accept')) {
+      headers['Accept'] = selected['Accept']!;
+    }
+    if (selected.containsKey('Content-Type')) {
+      headers['Content-Type'] = selected['Content-Type']!;
+    }
+
+    // Merge config default headers
+    headers.addAll(config.defaultHeaders);
+
+    // Merge operation-specific headers
+    if (headerParams != null) {
+      headers.addAll(headerParams);
+    }
+
+    // Merge auth headers
+    if (auth != null) {
+      headers.addAll(auth.authHeaders());
+
+      // Handle cookie params
+      final cookies = auth.cookieParams();
+      if (cookies.isNotEmpty) {
+        final cookieParts = cookies.entries
+            .map((e) => '${e.key}=${e.value}')
+            .toList();
+        final cookieStr = cookieParts.join('; ');
+        if (headers.containsKey('Cookie')) {
+          headers['Cookie'] = '${headers["Cookie"]}; $cookieStr';
+        } else {
+          headers['Cookie'] = cookieStr;
+        }
+      }
+    }
+
+    // Inject trace context
+    TraceContextUtil.injectTraceContext(headers);
+
+    // Serialize body
+    final serializedBody = _serializeBody(body, contentType);
+
+    // Send request
+    final response = await apiClient.sendRequest(
+      method,
+      requestUrl,
+      headers,
+      serializedBody,
+    );
+
+    // Check for errors
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw _throwApiError(response);
+    }
+
+    return response;
+  }
+
+  String _buildQueryString(Map<String, Object?> queryParams) {
+    if (queryParams.isEmpty) return '';
+
+    final parts = <String>[];
+    for (final entry in queryParams.entries) {
+      final key = entry.key;
+      final value = entry.value;
+      if (value == null) continue;
+
+      final encodedKey = Uri.encodeQueryComponent(key);
+      if (value is List<String>) {
+        for (final item in value) {
+          parts.add('$encodedKey=${Uri.encodeQueryComponent(item)}');
+        }
+      } else if (value is String) {
+        parts.add('$encodedKey=${Uri.encodeQueryComponent(value)}');
+      } else {
+        parts.add('$encodedKey=${Uri.encodeQueryComponent(stringify(value))}');
+      }
+    }
+
+    return parts.join('&');
+  }
+
+  static dynamic _serializeBody(Object? body, String contentType) {
+    if (body == null) return null;
+
+    if (contentType == 'multipart/form-data') {
+      return null;
+    }
+
+    if (contentType.startsWith('image/') || contentType == 'application/octet-stream') {
+      if (body is List<int>) return body;
+      if (body is String) return utf8.encode(body);
+    }
+
+    if (contentType == 'text/plain') {
+      return utf8.encode('$body');
+    }
+
+    if (contentType == 'application/x-www-form-urlencoded') {
+      if (body is Map<String, String>) {
+        final values = body.entries
+            .map((e) => '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+            .join('&');
+        return utf8.encode(values);
+      }
+    }
+
+    return serialize(body);
+  }
+
+  static ApiError _throwApiError(ApiResponse response) {
+    final code = response.statusCode;
+    final msg = 'API returned status code $code';
+    final body = response.body;
+
+    Object? parsed;
+    if (body.isNotEmpty) {
+      try {
+        parsed = jsonDecode(body);
+      } catch (_) {
+        // Ignore parse errors
+      }
+    }
+
+    final baseErr = ApiError(
+      code: code,
+      message: msg,
+      responseBody: body,
+      responseHeaders: response.headers,
+      errorBody: parsed,
+    );
+
+    if (code >= 400 && code < 500) {
+      final clientErr = ClientError(
+        code: code,
+        message: msg,
+        responseBody: body,
+        responseHeaders: response.headers,
+        errorBody: parsed,
+      );
+      switch (code) {
+        case 400:
+          return BadRequestError(
+            code: code, message: msg, responseBody: body,
+            responseHeaders: response.headers, errorBody: parsed,
+          );
+        case 401:
+          return UnauthorizedError(
+            code: code, message: msg, responseBody: body,
+            responseHeaders: response.headers, errorBody: parsed,
+          );
+        case 403:
+          return ForbiddenError(
+            code: code, message: msg, responseBody: body,
+            responseHeaders: response.headers, errorBody: parsed,
+          );
+        case 404:
+          return NotFoundError(
+            code: code, message: msg, responseBody: body,
+            responseHeaders: response.headers, errorBody: parsed,
+          );
+        case 409:
+          return ConflictError(
+            code: code, message: msg, responseBody: body,
+            responseHeaders: response.headers, errorBody: parsed,
+          );
+        case 422:
+          return UnprocessableEntityError(
+            code: code, message: msg, responseBody: body,
+            responseHeaders: response.headers, errorBody: parsed,
+          );
+        default:
+          return clientErr;
+      }
+    }
+
+    if (code >= 500) {
+      final serverErr = ServerError(
+        code: code,
+        message: msg,
+        responseBody: body,
+        responseHeaders: response.headers,
+        errorBody: parsed,
+      );
+      switch (code) {
+        case 500:
+          return InternalServerError(
+            code: code, message: msg, responseBody: body,
+            responseHeaders: response.headers, errorBody: parsed,
+          );
+        default:
+          return serverErr;
+      }
+    }
+
+    return baseErr;
+  }
+}

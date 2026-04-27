@@ -1,0 +1,88 @@
+{{>api_info}}
+{{#generateTests}}
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+void main() {
+  group('TransportOptions', () {
+    test('defaults', () {
+      final opts = TransportOptionsBuilder().build();
+
+      expect(opts.verifySSL, isTrue);
+      expect(opts.caCertPath, isEmpty);
+      expect(opts.proxy, isNull);
+      expect(opts.timeout, isNull);
+      expect(opts.followRedirects, isTrue);
+      expect(opts.maxRedirects, equals(0));
+      expect(opts.userAgent, isNotEmpty);
+      expect(opts.defaultHeaders, isEmpty);
+      expect(opts.injectRequestId, isFalse);
+    });
+
+    test('set all fields', () {
+      final opts = TransportOptionsBuilder()
+          .verifySSL(false)
+          .caCertPath('/path/to/ca.pem')
+          .proxy('http://proxy.example.com:8080')
+          .timeout(const Duration(seconds: 30))
+          .followRedirects(false)
+          .maxRedirects(5)
+          .userAgent('CustomAgent/2.0')
+          .defaultHeader('X-Custom', 'value')
+          .injectRequestId(true)
+          .build();
+
+      expect(opts.verifySSL, isFalse);
+      expect(opts.caCertPath, equals('/path/to/ca.pem'));
+      expect(opts.proxy, isNotNull);
+      expect(opts.proxy.toString(), contains('proxy.example.com'));
+      expect(opts.timeout, equals(const Duration(seconds: 30)));
+      expect(opts.followRedirects, isFalse);
+      expect(opts.maxRedirects, equals(5));
+      expect(opts.userAgent, equals('CustomAgent/2.0'));
+      expect(opts.defaultHeaders['X-Custom'], equals('value'));
+      expect(opts.injectRequestId, isTrue);
+    });
+
+    test('builder chaining', () {
+      final builder = TransportOptionsBuilder();
+
+      final result = builder
+          .verifySSL(true)
+          .userAgent('Test/1.0')
+          .timeout(const Duration(seconds: 10));
+
+      expect(result, isNotNull);
+
+      final opts = result.build();
+      expect(opts.userAgent, equals('Test/1.0'));
+      expect(opts.timeout, equals(const Duration(seconds: 10)));
+    });
+
+    test('multiple default headers', () {
+      final opts = TransportOptionsBuilder()
+          .defaultHeaders({
+            'X-First': 'one',
+            'X-Second': 'two',
+          })
+          .build();
+
+      final headers = opts.defaultHeaders;
+      expect(headers['X-First'], equals('one'));
+      expect(headers['X-Second'], equals('two'));
+    });
+
+    test('default headers copy isolation', () {
+      final opts = TransportOptionsBuilder()
+          .defaultHeader('X-Test', 'value')
+          .build();
+
+      final headers = opts.defaultHeaders;
+      headers['X-Mutated'] = 'should-not-affect-options';
+
+      final original = opts.defaultHeaders;
+      expect(original.containsKey('X-Mutated'), isFalse);
+    });
+  });
+}
+{{/generateTests}}

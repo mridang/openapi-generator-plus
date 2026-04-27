@@ -1,0 +1,41 @@
+{{>api_info}}
+/// Generated server configurations from the OpenAPI specification.
+///
+/// Each variable corresponds to a server entry defined in the spec's
+/// servers array. Use these with [ConfigurationBuilder.server] to select a
+/// server:
+///
+/// ```dart
+/// final config = ConfigurationBuilder()
+///   .server(server0)
+///   .build();
+/// ```
+///
+/// For servers with variables, pass overrides:
+///
+/// ```dart
+/// final config = ConfigurationBuilder()
+///   .server(server1, {'environment': 'staging'})
+///   .build();
+/// ```
+{{#serverConfigs}}
+
+/// Server configuration for: {{serverUrl}}{{#serverDescription}}
+/// {{serverDescription}}{{/serverDescription}}
+final server{{serverIndex}} = ServerConfiguration(
+  urlTemplate: '{{{serverUrl}}}',
+  description: '{{#serverDescription}}{{{serverDescription}}}{{/serverDescription}}',
+  variables: {{#hasVariables}}{
+{{#serverVariables}}    '{{{varName}}}': ServerVariable(
+      defaultValue: '{{{varDefault}}}',
+      description: '{{#varDescription}}{{{varDescription}}}{{/varDescription}}',
+      enumValues: {{#hasEnumValues}}[{{#varEnumValues}}'{{{.}}}'{{^-last}}, {{/-last}}{{/varEnumValues}}]{{/hasEnumValues}}{{^hasEnumValues}}[]{{/hasEnumValues}},
+    ),
+{{/serverVariables}}  }{{/hasVariables}}{{^hasVariables}}{}{{/hasVariables}},
+);
+{{/serverConfigs}}
+
+/// All server configurations in declaration order.
+final allServers = <ServerConfiguration>[
+{{#serverConfigs}}  server{{serverIndex}},
+{{/serverConfigs}}];

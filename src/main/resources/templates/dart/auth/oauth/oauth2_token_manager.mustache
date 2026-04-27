@@ -1,0 +1,88 @@
+{{>api_info}}
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+
+/// OAuth2TokenManager manages OAuth2 token lifecycle: fetching, caching, and
+/// refreshing.
+///
+/// Uses the shared [http.Client] instance so that token exchange requests
+/// honour the same transport configuration (proxy, TLS, timeouts) as regular
+/// API calls.
+class OAuth2TokenManager {
+  http.Client? _httpClient;
+  String _accessToken = '';
+  String _refreshToken = '';
+  DateTime? _tokenExpiry;
+
+  /// Sets the shared HTTP client for making token requests.
+  void setHttpClient(http.Client client) {
+    _httpClient = client;
+  }
+
+  /// Returns the current refresh token, if any.
+  String get refreshToken => _refreshToken;
+
+  /// Returns a valid access token, fetching or refreshing as necessary.
+  Future<String> getAccessToken(
+    String tokenUrl,
+    Map<String, String> params,
+  ) async {
+    if (_accessToken.isNotEmpty &&
+        _tokenExpiry != null &&
+        DateTime.now().isBefore(_tokenExpiry!)) {
+      return _accessToken;
+    }
+
+    await _fetchToken(tokenUrl, params);
+    return _accessToken;
+  }
+
+  /// Manually sets an access token, bypassing the token endpoint.
+  void setAccessToken(String token) {
+    _accessToken = token;
+    _tokenExpiry = null;
+  }
+
+  Future<void> _fetchToken(
+    String tokenUrl,
+    Map<String, String> params,
+  ) async {
+    final client = _httpClient;
+    if (client == null) {
+      throw StateError(
+        'HTTP client has not been injected. '
+        'Ensure the {{clientClassName}} constructor calls setHttpClient '
+        'on HttpAwareAuthenticator before making API requests',
+      );
+    }
+
+    final body = params.entries
+        .map((e) =>
+            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
+
+    final response = await client.post(
+      Uri.parse(tokenUrl),
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: body,
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw StateError(
+        'Token request failed with status ${response.statusCode}',
+      );
+    }
+
+    final parsed = jsonDecode(response.body) as Map<String, dynamic>;
+    _accessToken = parsed['access_token'] as String? ?? '';
+    final newRefreshToken = parsed['refresh_token'] as String?;
+    if (newRefreshToken != null && newRefreshToken.isNotEmpty) {
+      _refreshToken = newRefreshToken;
+    }
+    final expiresIn = parsed['expires_in'] as int?;
+    if (expiresIn != null && expiresIn > 0) {
+      _tokenExpiry = DateTime.now().add(Duration(seconds: expiresIn - 30));
+    }
+  }
+}

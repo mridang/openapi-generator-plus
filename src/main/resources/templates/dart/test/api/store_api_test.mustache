@@ -1,0 +1,120 @@
+{{>api_info}}
+{{#generateTests}}
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+String? _prismBaseUrl() {
+  return Platform.environment['API_BASE_URL'];
+}
+
+StoreApi _newStoreApiForIntegration() {
+  final baseUrl = _prismBaseUrl();
+  if (baseUrl == null) return StoreApi();
+  final config = ConfigurationBuilder()
+      .baseUrl(baseUrl)
+      .defaultHeader('Authorization', 'Bearer test-token')
+      .build();
+  final client = DefaultApiClient();
+  return StoreApi(apiClient: client, config: config);
+}
+
+void main() {
+  group('StoreApi', () {
+    test('getInventory', () async {
+      final baseUrl = _prismBaseUrl();
+      if (baseUrl == null) return;
+
+      final api = _newStoreApiForIntegration();
+
+      final result = await api.getInventory();
+      expect(result, isNotNull);
+    }, skip: _prismBaseUrl() == null ? 'API_BASE_URL not set' : null);
+
+    test('getInventoryWithHTTPInfo', () async {
+      final baseUrl = _prismBaseUrl();
+      if (baseUrl == null) return;
+
+      final api = _newStoreApiForIntegration();
+
+      final result = await api.getInventoryWithHTTPInfo();
+      expect(result.statusCode, equals(200));
+      expect(result.data, isNotNull);
+    }, skip: _prismBaseUrl() == null ? 'API_BASE_URL not set' : null);
+
+    test('getOrderById', () async {
+      final baseUrl = _prismBaseUrl();
+      if (baseUrl == null) return;
+
+      final api = _newStoreApiForIntegration();
+
+      final result = await api.getOrderById(1);
+      expect(result, isNotNull);
+    }, skip: _prismBaseUrl() == null ? 'API_BASE_URL not set' : null);
+
+    test('deleteOrder', () async {
+      final baseUrl = _prismBaseUrl();
+      if (baseUrl == null) return;
+
+      final api = _newStoreApiForIntegration();
+      await api.deleteOrder(1);
+    }, skip: _prismBaseUrl() == null ? 'API_BASE_URL not set' : null);
+
+    test('getOrderNotFound', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 404
+          ..headers.contentType = ContentType.json
+          ..write('{"message":"Order not found"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        try {
+          await api.getOrderById(99999);
+          fail('Expected error for non-existent order');
+        } on NotFoundError {
+          // Expected
+        }
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('serverError', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 500
+          ..headers.contentType = ContentType.json
+          ..write('{"message":"Internal server error"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        try {
+          await api.getOrderById(1);
+          fail('Expected error for server error response');
+        } on InternalServerError {
+          // Expected
+        }
+      } finally {
+        await server.close();
+      }
+    });
+  });
+}
+{{/generateTests}}

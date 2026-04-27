@@ -1,0 +1,153 @@
+{{>api_info}}
+import 'dart:convert';
+
+import '../api_client.dart';
+import '../api_response.dart';
+import '../api_result.dart';
+import '../authenticator.dart';
+import '../base_api.dart';
+import '../configuration.dart';
+import '../object_serializer.dart';
+import '../value_serializer.dart';
+
+{{#operations}}
+/// {{classname}} provides methods for the {{baseName}} API group.
+{{#tagDescription}}
+/// {{.}}
+{{/tagDescription}}
+class {{classname}} extends BaseApi {
+  {{classname}}({
+    ApiClient? apiClient,
+    Configuration? config,
+  }) : super(apiClient: apiClient, config: config);
+{{#operation}}
+
+{{#summary}}
+  /// {{{summary}}}
+{{/summary}}
+{{#notes}}
+  /// {{{.}}}
+{{/notes}}
+{{#isDeprecated}}
+  @Deprecated('This operation is deprecated.')
+{{/isDeprecated}}
+  Future<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}> {{operationId}}({{#hasAuthMethods}}Authenticator auth, {{/hasAuthMethods}}{{#pathParams}}{{{dataType}}} {{paramName}}, {{/pathParams}}{{#bodyParam}}{{^required}}{{{dataType}}}? {{/required}}{{#required}}{{{dataType}}} {{/required}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}{{{operationId}}}Options? options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{{operationId}}}Options? options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{{operationId}}}Options? options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{{operationId}}}Options? options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}) async {
+    final result = await {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth, {{/hasAuthMethods}}{{#pathParams}}{{paramName}}, {{/pathParams}}{{#bodyParam}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}});
+{{#returnType}}
+    return result.data;
+{{/returnType}}
+  }
+
+  /// Performs the {{operationId}} operation and returns the full API result.
+  Future<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}>> {{operationId}}WithHTTPInfo({{#hasAuthMethods}}Authenticator auth, {{/hasAuthMethods}}{{#pathParams}}{{{dataType}}} {{paramName}}, {{/pathParams}}{{#bodyParam}}{{^required}}{{{dataType}}}? {{/required}}{{#required}}{{{dataType}}} {{/required}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}{{{operationId}}}Options? options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{{operationId}}}Options? options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{{operationId}}}Options? options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{{operationId}}}Options? options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}) async {
+{{#pathParams}}
+{{#required}}
+    if ({{paramName}} == {{#isString}}''{{/isString}}{{^isString}}{{#isInteger}}0{{/isInteger}}{{^isInteger}}null{{/isInteger}}{{/isString}}) {
+      throw ArgumentError("Missing required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
+    }
+{{/required}}
+{{/pathParams}}
+
+    var path = '{{{path}}}';
+{{#pathParams}}
+    path = path.replaceAll('{{{baseName}}}', Uri.encodeComponent('${{paramName}}'));
+{{/pathParams}}
+
+    final queryParams = <String, Object?>{};
+{{#queryParams}}
+    if (options != null && options.{{paramName}} != null) {
+{{#isDeepObject}}
+      serializeDeepObject('{{baseName}}', options.{{paramName}} as Map<String, Object?>?).forEach((k, v) {
+        queryParams[k] = v;
+      });
+{{/isDeepObject}}
+{{^isDeepObject}}
+{{#content}}
+      queryParams['{{baseName}}'] = jsonEncode(options.{{paramName}});
+{{/content}}
+{{^content}}
+      queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
+{{/content}}
+{{/isDeepObject}}
+    }
+{{/queryParams}}
+
+    final headerParams = <String, String>{};
+{{#headerParams}}
+    if (options != null && options.{{paramName}} != null) {
+      headerParams['{{baseName}}'] = '${serializeStyled('{{baseName}}', options.{{paramName}}, 'header', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}';
+    }
+{{/headerParams}}
+{{#hasCookieParams}}
+    final cookieParts = <String>[];
+{{#cookieParams}}
+    if (options != null && options.{{paramName}} != null) {
+      cookieParts.add('{{baseName}}=${serializeStyled('{{baseName}}', options.{{paramName}}, 'cookie', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}');
+    }
+{{/cookieParams}}
+    if (cookieParts.isNotEmpty) {
+      headerParams['Cookie'] = cookieParts.join('; ');
+    }
+{{/hasCookieParams}}
+
+{{#hasFormParams}}
+    final formBody = <String, String>{};
+{{#formParams}}
+{{#required}}
+    if (options != null) {
+      formBody['{{baseName}}'] = '${options.{{paramName}}}';
+    }
+{{/required}}
+{{^required}}
+    if (options != null && options.{{paramName}} != null) {
+      formBody['{{baseName}}'] = '${options.{{paramName}}}';
+    }
+{{/required}}
+{{/formParams}}
+    final Object? requestBody = formBody;
+{{/hasFormParams}}
+{{^hasFormParams}}
+{{#bodyParam}}
+    final Object? requestBody = {{paramName}};
+{{/bodyParam}}
+{{^bodyParam}}
+    final Object? requestBody = null;
+{{/bodyParam}}
+{{/hasFormParams}}
+
+    final response = await invokeApi(
+      method: '{{httpMethod}}',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: [{{#produces}}'{{mediaType}}'{{^-last}}, {{/-last}}{{/produces}}],
+      contentType: {{#consumes.0}}'{{mediaType}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
+      returnType: '{{#returnType}}{{{.}}}{{/returnType}}',
+      auth: {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}},
+    );
+
+{{#returnType}}
+    final data = response.body.isNotEmpty
+        ? deserializeRaw(response.body)
+        : null;
+
+    return ApiResult<{{{returnType}}}>(
+      statusCode: response.statusCode,
+      data: data as {{{returnType}}},
+      rawBody: response.body,
+      headers: response.headers,
+    );
+{{/returnType}}
+{{^returnType}}
+    return ApiResult<void>(
+      statusCode: response.statusCode,
+      data: null,
+      rawBody: response.body,
+      headers: response.headers,
+    );
+{{/returnType}}
+  }
+{{/operation}}
+}
+{{/operations}}

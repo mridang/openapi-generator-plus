@@ -1,0 +1,22 @@
+import Foundation
+
+/// {{className}} holds optional parameters for the {{operationId}} operation.
+public struct {{className}}: Sendable {
+{{#params}}
+{{#description}}
+    /// {{{.}}}
+{{/description}}
+{{#required}}
+    public var {{name}}: {{{dataType}}}
+{{/required}}
+{{^required}}
+    public var {{name}}: {{{dataType}}}?
+{{/required}}
+{{/params}}
+
+    public init({{#params}}{{name}}: {{#required}}{{{dataType}}}{{/required}}{{^required}}{{{dataType}}}? = nil{{/required}}{{^-last}}, {{/-last}}{{/params}}) {
+{{#params}}
+        self.{{name}} = {{name}}
+{{/params}}
+    }
+}

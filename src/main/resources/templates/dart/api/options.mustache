@@ -1,0 +1,25 @@
+/// {{className}} holds optional parameters for the {{operationId}} operation.
+class {{className}} {
+{{#params}}
+{{#description}}
+  /// {{{.}}}
+{{/description}}
+{{#required}}
+  final {{{dataType}}} {{name}};
+{{/required}}
+{{^required}}
+  final {{{dataType}}}? {{name}};
+{{/required}}
+
+{{/params}}
+  const {{className}}({
+{{#params}}
+{{#required}}
+    required this.{{name}},
+{{/required}}
+{{^required}}
+    this.{{name}},
+{{/required}}
+{{/params}}
+  });
+}

@@ -1,0 +1,212 @@
+{{>api_info}}
+{{#generateTests}}
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+void main() {
+  group('ValueSerializer', () {
+    // serializeValue by location
+
+    test('serializeValue query string', () {
+      final result = serializeValue('hello', 'query', 'string', '');
+      expect(result, equals('hello'));
+    });
+
+    test('serializeValue path string', () {
+      final result = serializeValue('hello world', 'path', 'string', '');
+      expect(result, equals('hello%20world'));
+    });
+
+    test('serializeValue header string', () {
+      final result = serializeValue('hello', 'header', 'string', '');
+      expect(result, equals('hello'));
+    });
+
+    test('serializeValue cookie string', () {
+      final result = serializeValue('hello', 'cookie', 'string', '');
+      expect(result, equals('hello'));
+    });
+
+    test('serializeValue nil query', () {
+      final result = serializeValue(null, 'query', 'string', '');
+      expect(result, isNull);
+    });
+
+    test('serializeValue nil path', () {
+      final result = serializeValue(null, 'path', 'string', '');
+      expect(result, equals(''));
+    });
+
+    test('serializeValue query array', () {
+      final result =
+          serializeValue(['a', 'b', 'c'], 'query', 'array', 'csv');
+      expect(result, equals('a,b,c'));
+    });
+
+    test('serializeValue query array multi', () {
+      final result = serializeValue(['a', 'b'], 'query', 'array', 'multi');
+      expect(result, isA<List<String>>());
+      final items = result as List<String>;
+      expect(items, equals(['a', 'b']));
+    });
+
+    test('serializeValue header array', () {
+      final result = serializeValue(['a', 'b', 'c'], 'header', 'array', '');
+      expect(result, equals('a,b,c'));
+    });
+
+    // SerializeStyled: matrix
+
+    test('serializeStyled matrix scalar', () {
+      final result = serializeStyled(
+          'id', '5', 'path', 'string', '', 'matrix', false);
+      expect(result, equals(';id=5'));
+    });
+
+    test('serializeStyled matrix array no explode', () {
+      final result = serializeStyled(
+          'color', ['red', 'green', 'blue'], 'path', 'array', '', 'matrix', false);
+      expect(result, equals(';color=red,green,blue'));
+    });
+
+    test('serializeStyled matrix array explode', () {
+      final result = serializeStyled(
+          'color', ['red', 'green', 'blue'], 'path', 'array', '', 'matrix', true);
+      expect(result, equals(';color=red;color=green;color=blue'));
+    });
+
+    test('serializeStyled matrix nil', () {
+      final result = serializeStyled(
+          'id', null, 'path', 'string', '', 'matrix', false);
+      expect(result, equals(''));
+    });
+
+    // SerializeStyled: label
+
+    test('serializeStyled label scalar', () {
+      final result = serializeStyled(
+          'id', '5', 'path', 'string', '', 'label', false);
+      expect(result, equals('.5'));
+    });
+
+    test('serializeStyled label array no explode', () {
+      final result = serializeStyled(
+          'color', ['red', 'green'], 'path', 'array', '', 'label', false);
+      expect(result, equals('.red,green'));
+    });
+
+    test('serializeStyled label array explode', () {
+      final result = serializeStyled(
+          'color', ['red', 'green'], 'path', 'array', '', 'label', true);
+      expect(result, equals('.red.green'));
+    });
+
+    // SerializeStyled: simple
+
+    test('serializeStyled simple scalar', () {
+      final result = serializeStyled(
+          'id', '5', 'path', 'string', '', 'simple', false);
+      expect(result, equals('5'));
+    });
+
+    test('serializeStyled simple array', () {
+      final result = serializeStyled(
+          'color', ['red', 'green'], 'path', 'array', '', 'simple', false);
+      expect(result, equals('red,green'));
+    });
+
+    test('serializeStyled simple nil', () {
+      final result = serializeStyled(
+          'id', null, 'path', 'string', '', 'simple', false);
+      expect(result, equals(''));
+    });
+
+    // SerializeStyled: form
+
+    test('serializeStyled form scalar', () {
+      final result = serializeStyled(
+          'color', 'blue', 'query', 'string', '', 'form', true);
+      expect(result, equals('blue'));
+    });
+
+    test('serializeStyled form array explode', () {
+      final result = serializeStyled(
+          'color', ['red', 'green'], 'query', 'array', '', 'form', true);
+      expect(result, isA<List<String>>());
+      final items = result as List<String>;
+      expect(items, equals(['red', 'green']));
+    });
+
+    test('serializeStyled form array no explode', () {
+      final result = serializeStyled(
+          'color', ['red', 'green'], 'query', 'array', '', 'form', false);
+      expect(result, equals('red,green'));
+    });
+
+    test('serializeStyled form nil query', () {
+      final result = serializeStyled(
+          'color', null, 'query', 'string', '', 'form', true);
+      expect(result, isNull);
+    });
+
+    // SerializeStyled: spaceDelimited
+
+    test('serializeStyled spaceDelimited array', () {
+      final result = serializeStyled(
+          'color', ['red', 'green', 'blue'], 'query', 'array', '', 'spaceDelimited', false);
+      expect(result, equals('red green blue'));
+    });
+
+    test('serializeStyled spaceDelimited scalar', () {
+      final result = serializeStyled(
+          'color', 'red', 'query', 'string', '', 'spaceDelimited', false);
+      expect(result, equals('red'));
+    });
+
+    // SerializeStyled: pipeDelimited
+
+    test('serializeStyled pipeDelimited array', () {
+      final result = serializeStyled(
+          'color', ['red', 'green', 'blue'], 'query', 'array', '', 'pipeDelimited', false);
+      expect(result, equals('red|green|blue'));
+    });
+
+    test('serializeStyled pipeDelimited scalar', () {
+      final result = serializeStyled(
+          'color', 'red', 'query', 'string', '', 'pipeDelimited', false);
+      expect(result, equals('red'));
+    });
+
+    // SerializeDeepObject
+
+    test('serializeDeepObject', () {
+      final result = serializeDeepObject('filter', {
+        'status': 'active',
+        'type': 'dog',
+      });
+
+      expect(result['filter[status]'], equals('active'));
+      expect(result['filter[type]'], equals('dog'));
+    });
+
+    test('serializeDeepObject null', () {
+      final result = serializeDeepObject('filter', null);
+      expect(result, isEmpty);
+    });
+
+    // Fallback
+
+    test('serializeStyled unknown style fallback', () {
+      final result = serializeStyled(
+          'id', '5', 'query', 'string', '', 'unknownStyle', false);
+      expect(result, equals('5'));
+    });
+
+    test('serializeStyled empty style', () {
+      final result = serializeStyled(
+          'id', '5', 'query', 'string', '', '', false);
+      expect(result, equals('5'));
+    });
+  });
+}
+{{/generateTests}}

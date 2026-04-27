@@ -1,0 +1,58 @@
+{{>api_info}}
+import 'dart:convert';
+
+/// ApiError represents an error returned by the API, including the HTTP status
+/// code, response headers, and response body.
+class ApiError implements Exception {
+  /// The HTTP status code.
+  final int code;
+
+  /// The error message.
+  final String message;
+
+  /// The raw response body.
+  final String responseBody;
+
+  /// The response headers.
+  final Map<String, String> responseHeaders;
+
+  /// The parsed response body, if JSON.
+  final Object? errorBody;
+
+  const ApiError({
+    required this.code,
+    required this.message,
+    this.responseBody = '',
+    this.responseHeaders = const {},
+    this.errorBody,
+  });
+
+  @override
+  String toString() {
+    final buf = StringBuffer(message.isEmpty
+        ? 'Error message: the server returns an error'
+        : message);
+    if (code != 0) {
+      buf.write('\nHTTP status code: $code');
+    }
+    if (responseHeaders.isNotEmpty) {
+      buf.write('\nResponse headers: $responseHeaders');
+    }
+    if (responseBody.isNotEmpty) {
+      buf.write('\nResponse body: $responseBody');
+    }
+    return buf.toString();
+  }
+
+  /// Deserializes the response body into a typed value.
+  T typedErrorBody<T>(T Function(Map<String, dynamic>) fromJson) {
+    if (responseBody.isEmpty) {
+      throw StateError('Response body is empty');
+    }
+    final decoded = jsonDecode(responseBody);
+    return fromJson(decoded as Map<String, dynamic>);
+  }
+
+  /// Returns the HTTP status code of the error.
+  int get statusCode => code;
+}

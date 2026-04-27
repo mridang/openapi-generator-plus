@@ -15,7 +15,7 @@ import org.openapitools.codegen.DefaultGenerator;
 import org.openapitools.codegen.config.CodegenConfigurator;
 
 /**
- * Generates all 9 client SDKs into src/spec/resources/generated/{lang} so that the generated
+ * Generates all 12 client SDKs into src/spec/resources/generated/{lang} so that the generated
  * snapshot files stay in sync with template changes. Run with: mvn test -Dtest=GenerateClientsTest
  */
 class GenerateClientsTest {
@@ -162,6 +162,30 @@ class GenerateClientsTest {
     void generateRustClient() throws IOException {
         Path outputDir = Path.of("src/spec/resources/generated/rust").toAbsolutePath();
         generateClient("rust-plus", Map.of("packageName", "petstore"), outputDir);
+
+    }
+
+    @Test
+    void generateSwiftClient() throws IOException {
+        Path outputDir = Path.of("src/spec/resources/generated/swift").toAbsolutePath();
+        generateClient("swift-plus", Map.of("packageName", "PetstoreClient"), outputDir);
+
+    }
+
+    @Test
+    void generateDartClient() throws IOException {
+        Path outputDir = Path.of("src/spec/resources/generated/dart").toAbsolutePath();
+        generateClient("dart-plus", Map.of("packageName", "petstore_client"), outputDir);
+
+    }
+
+    @Test
+    void generateElixirClient() throws IOException {
+        Path outputDir = Path.of("src/spec/resources/generated/elixir").toAbsolutePath();
+        generateClient(
+                "elixir-plus",
+                Map.of("packageName", "petstore_client", "moduleName", "PetstoreClient"),
+                outputDir);
 
     }
 }

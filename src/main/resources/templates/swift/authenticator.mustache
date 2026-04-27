@@ -1,0 +1,18 @@
+{{>api_info}}
+import Foundation
+
+/// Authenticator provides authentication credentials to the API client.
+/// Implementations supply the API host URL and authorization headers.
+public protocol Authenticator: Sendable {
+    /// Returns the base URL of the API.
+    func host() -> String
+
+    /// Returns the authentication headers to include in every request.
+    func authHeaders() -> [String: String]
+
+    /// Returns query parameters to include for authentication.
+    func queryParams() -> [String: String]
+
+    /// Returns cookie parameters to include for authentication.
+    func cookieParams() -> [String: String]
+}

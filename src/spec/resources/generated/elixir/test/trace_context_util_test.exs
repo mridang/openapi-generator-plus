@@ -1,0 +1,22 @@
+defmodule PetstoreClient.TraceContextUtilTest do
+  use ExUnit.Case, async: true
+
+  describe "inject_trace_context/1" do
+    test "does not inject traceparent when OpenTelemetry is not installed" do
+      headers = %{}
+      result = PetstoreClient.TraceContextUtil.inject_trace_context(headers)
+      refute Map.has_key?(result, "traceparent")
+    end
+
+    test "does not raise any exception" do
+      headers = %{}
+      PetstoreClient.TraceContextUtil.inject_trace_context(headers)
+    end
+
+    test "returns headers unchanged when OTel is not available" do
+      headers = %{"X-Custom" => "value"}
+      result = PetstoreClient.TraceContextUtil.inject_trace_context(headers)
+      assert result == headers
+    end
+  end
+end

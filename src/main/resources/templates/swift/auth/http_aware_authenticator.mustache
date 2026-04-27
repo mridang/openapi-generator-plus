@@ -1,0 +1,27 @@
+{{>api_info}}
+import Foundation
+
+/// HttpAwareAuthenticator is implemented by authentication schemes that
+/// require making HTTP requests (e.g. OAuth2 token exchange, OpenID
+/// Connect discovery).
+///
+/// Implementations receive a shared URLSession instance so that
+/// authentication-related HTTP calls (token endpoints, discovery documents)
+/// use the same transport configuration (proxy, TLS, timeouts) as regular
+/// API calls.
+///
+/// The URLSession is injected by the ``{{clientClassName}}`` constructor after
+/// creation, via ``setURLSession(_:)``. Implementations must not make HTTP calls
+/// before the session is injected.
+///
+/// Only OAuth2 and OpenID Connect authenticators conform to this protocol.
+/// Simple authenticators (Basic, Bearer, API Key) do not need HTTP access.
+public protocol HttpAwareAuthenticator: Authenticator {
+    /// Injects the shared URLSession for making HTTP requests.
+    ///
+    /// Called by the ``{{clientClassName}}`` constructor after the URLSession has been
+    /// created with the user's TransportOptions. Implementations should store
+    /// this reference and use it for all outbound HTTP calls (token exchange,
+    /// discovery, etc.).
+    func setURLSession(_ session: URLSession)
+}

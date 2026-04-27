@@ -1,0 +1,108 @@
+ExUnit.start(formatters: [ExUnit.CLIFormatter, JUnitFormatter])
+
+host_app_path = System.get_env("HOST_APP_PATH", File.cwd!())
+spec_path = Path.join([host_app_path, "test", "fixtures", "openapi.yaml"])
+
+# Start Prism mock server
+{prism, _} =
+  System.cmd("docker", [
+    "run", "-d", "--rm",
+    "-p", "0:4010",
+    "-v", "#{spec_path}:/tmp/openapi.yaml:ro",
+    "stoplight/prism:5",
+    "mock", "-m", "false", "-h", "0.0.0.0", "/tmp/openapi.yaml"
+  ])
+
+prism_id = String.trim(prism)
+
+# Wait for Prism to be ready
+prism_port =
+  1..60
+  |> Enum.reduce_while(nil, fn _, _ ->
+    {output, _} = System.cmd("docker", ["port", prism_id, "4010"])
+    port_str = String.trim(output)
+
+    if port_str != "" do
+      [_, port] = String.split(port_str, ":")
+      {:halt, port}
+    else
+      Process.sleep(1000)
+      {:cont, nil}
+    end
+  end)
+
+testcontainers_host = System.get_env("TESTCONTAINERS_HOST_OVERRIDE", "localhost")
+prism_url = "http://#{testcontainers_host}:#{prism_port}"
+
+System.put_env("API_BASE_URL", prism_url)
+
+# Start WireMock
+keystore_path = Path.join([host_app_path, "test", "fixtures", "certs", "server-keystore.p12"])
+mappings_path = Path.join([host_app_path, "test", "fixtures", "wiremock", "mappings"])
+
+{wiremock, _} =
+  System.cmd("docker", [
+    "run", "-d", "--rm",
+    "-p", "0:8080", "-p", "0:8443",
+    "-v", "#{keystore_path}:/tmp/keystore.p12:ro",
+    "-v", "#{mappings_path}:/home/wiremock/mappings:ro",
+    "wiremock/wiremock:3.13.0",
+    "--port", "8080",
+    "--https-port", "8443",
+    "--https-keystore", "/tmp/keystore.p12",
+    "--keystore-type", "PKCS12",
+    "--keystore-password", "changeit",
+    "--key-manager-password", "changeit",
+    "--verbose"
+  ])
+
+wiremock_id = String.trim(wiremock)
+
+# Wait for WireMock
+wiremock_http_port =
+  1..60
+  |> Enum.reduce_while(nil, fn _, _ ->
+    {output, _} = System.cmd("docker", ["port", wiremock_id, "8080"])
+    port_str = String.trim(output)
+
+    if port_str != "" do
+      [_, port] = String.split(port_str, ":")
+      {:halt, port}
+    else
+      Process.sleep(1000)
+      {:cont, nil}
+    end
+  end)
+
+{https_output, _} = System.cmd("docker", ["port", wiremock_id, "8443"])
+[_, wiremock_https_port] = String.split(String.trim(https_output), ":")
+
+System.put_env("WIREMOCK_HTTP_URL", "http://#{testcontainers_host}:#{wiremock_http_port}")
+System.put_env("WIREMOCK_HTTPS_URL", "https://#{testcontainers_host}:#{wiremock_https_port}")
+System.put_env("CA_CERT_PATH", Path.join([File.cwd!(), "test", "fixtures", "certs", "ca.pem"]))
+
+# Start Squid proxy
+squid_conf_path = Path.join([host_app_path, "test", "fixtures", "proxy", "squid.conf"])
+
+{squid, _} =
+  System.cmd("docker", [
+    "run", "-d", "--rm",
+    "-p", "0:3128",
+    "-v", "#{squid_conf_path}:/etc/squid/squid.conf:ro",
+    "ubuntu/squid:5.2-22.04_beta"
+  ])
+
+squid_id = String.trim(squid)
+
+Process.sleep(3000)
+
+{squid_output, _} = System.cmd("docker", ["port", squid_id, "3128"])
+[_, squid_port] = String.split(String.trim(squid_output), ":")
+System.put_env("PROXY_URL", "http://#{testcontainers_host}:#{squid_port}")
+
+# Cleanup on exit
+System.at_exit(fn _ ->
+  System.cmd("docker", ["stop", prism_id])
+  System.cmd("docker", ["stop", wiremock_id])
+  System.cmd("docker", ["stop", squid_id])
+end)

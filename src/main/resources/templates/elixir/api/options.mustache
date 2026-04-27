@@ -1,0 +1,17 @@
+defmodule {{moduleName}}.Api.Options.{{className}} do
+  @moduledoc """
+  Options for the `{{operationId}}` operation.
+  """
+
+  @type t :: %__MODULE__{
+{{#params}}
+          {{name}}: term(){{^-last}},{{/-last}}
+{{/params}}
+        }
+
+  defstruct [
+{{#params}}
+    {{name}}: nil{{^-last}},{{/-last}}
+{{/params}}
+  ]
+end

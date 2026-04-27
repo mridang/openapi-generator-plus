@@ -1,0 +1,217 @@
+{{>api_info}}
+{{#generateTests}}
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+class _BaseApiAuth implements Authenticator {
+  final Map<String, String> headers;
+  final Map<String, String> query;
+  final Map<String, String> cookies;
+
+  _BaseApiAuth({
+    this.headers = const {},
+    this.query = const {},
+    this.cookies = const {},
+  });
+
+  @override
+  String host() => '';
+  @override
+  Map<String, String> authHeaders() => headers;
+  @override
+  Map<String, String> queryParams() => query;
+  @override
+  Map<String, String> cookieParams() => cookies;
+}
+
+void main() {
+  group('BaseApi', () {
+    // Exception dispatch
+
+    test('error dispatch', () async {
+      final testCases = <int, Type>{
+        400: BadRequestError,
+        401: UnauthorizedError,
+        403: ForbiddenError,
+        404: NotFoundError,
+        409: ConflictError,
+        422: UnprocessableEntityError,
+        500: InternalServerError,
+        502: ServerError,
+      };
+
+      for (final entry in testCases.entries) {
+        final status = entry.key;
+        final errType = entry.value;
+
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = status
+            ..headers.contentType = ContentType.json
+            ..write('{"error":"test error"}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          try {
+            await api.getPetById(1);
+            fail('Expected error for status $status');
+          } on ApiError catch (e) {
+            expect(e.runtimeType, equals(errType),
+                reason: 'Status $status should throw $errType, got ${e.runtimeType}');
+          }
+        } finally {
+          await server.close();
+        }
+      }
+    });
+
+    // JSON response deserialization
+
+    test('deserializes JSON response', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Fido","photoUrls":["http://example.com/fido.jpg"]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getPetByIdWithHTTPInfo(1);
+        expect(result.rawBody, isNotEmpty);
+
+        final parsed = jsonDecode(result.rawBody) as Map<String, dynamic>;
+        expect(parsed['name'], equals('Fido'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    // Non-JSON response
+
+    test('returns raw body for non-JSON', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.text
+          ..write('hello plain text')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/text',
+          {},
+          null,
+        );
+        expect(resp.body, contains('hello plain text'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    // Auth header injection
+
+    test('forwards auth headers', () async {
+      String? receivedAuth;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        receivedAuth = request.headers.value('authorization');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .defaultHeader('Authorization', 'Bearer test-token')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.getPetById(1);
+        expect(receivedAuth, equals('Bearer test-token'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    // Cookie injection via authenticator
+
+    test('sets cookie from auth', () async {
+      String? receivedCookie;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        receivedCookie = request.headers.value('cookie');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final auth = _BaseApiAuth(cookies: {'session': 'abc123'});
+
+        await api.addPet(auth, {'name': 'Test', 'photoUrls': []});
+        expect(receivedCookie, isNotNull);
+        expect(receivedCookie, contains('session=abc123'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    // Nil body
+
+    test('handles nil body', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        // GET requests have no body
+        final result = await api.getPetById(1);
+        expect(result, isNotNull);
+      } finally {
+        await server.close();
+      }
+    });
+  });
+}
+{{/generateTests}}

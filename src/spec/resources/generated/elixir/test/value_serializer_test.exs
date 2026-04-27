@@ -1,0 +1,151 @@
+defmodule PetstoreClient.ValueSerializerTest do
+  use ExUnit.Case, async: true
+
+  describe "path location" do
+    test "null returns empty string" do
+      assert PetstoreClient.ValueSerializer.serialize(nil, :path, "string") == ""
+    end
+
+    test "string returns URL-encoded value" do
+      assert PetstoreClient.ValueSerializer.serialize("hello", :path, "string") == "hello"
+    end
+
+    test "string with spaces is URL-encoded" do
+      assert PetstoreClient.ValueSerializer.serialize("hello world", :path, "string") == "hello%20world"
+    end
+
+    test "string with slash is URL-encoded" do
+      assert PetstoreClient.ValueSerializer.serialize("a/b", :path, "string") == "a%2Fb"
+    end
+
+    test "integer returns string" do
+      assert PetstoreClient.ValueSerializer.serialize(42, :path, "integer") == "42"
+    end
+
+    test "boolean true returns true" do
+      assert PetstoreClient.ValueSerializer.serialize(true, :path, "boolean") == "true"
+    end
+
+    test "boolean false returns false" do
+      assert PetstoreClient.ValueSerializer.serialize(false, :path, "boolean") == "false"
+    end
+  end
+
+  describe "query location" do
+    test "null returns nil" do
+      assert PetstoreClient.ValueSerializer.serialize(nil, :query, "string") == nil
+    end
+
+    test "string returns as-is" do
+      assert PetstoreClient.ValueSerializer.serialize("hello", :query, "string") == "hello"
+    end
+
+    test "integer returns string" do
+      assert PetstoreClient.ValueSerializer.serialize(42, :query, "integer") == "42"
+    end
+
+    test "boolean true returns true" do
+      assert PetstoreClient.ValueSerializer.serialize(true, :query, "boolean") == "true"
+    end
+
+    test "boolean false returns false" do
+      assert PetstoreClient.ValueSerializer.serialize(false, :query, "boolean") == "false"
+    end
+
+    test "array joins with comma by default" do
+      assert PetstoreClient.ValueSerializer.serialize(["a", "b", "c"], :query, "array") == "a,b,c"
+    end
+
+    test "array joins with space for ssv" do
+      assert PetstoreClient.ValueSerializer.serialize(["a", "b", "c"], :query, "array", collection_format: :ssv) == "a b c"
+    end
+
+    test "array joins with tab for tsv" do
+      assert PetstoreClient.ValueSerializer.serialize(["a", "b", "c"], :query, "array", collection_format: :tsv) == "a\tb\tc"
+    end
+
+    test "array joins with pipe for pipes" do
+      assert PetstoreClient.ValueSerializer.serialize(["a", "b", "c"], :query, "array", collection_format: :pipes) == "a|b|c"
+    end
+
+    test "array returns list for multi" do
+      assert PetstoreClient.ValueSerializer.serialize(["a", "b", "c"], :query, "array", collection_format: :multi) == ["a", "b", "c"]
+    end
+  end
+
+  describe "header location" do
+    test "null returns empty string" do
+      assert PetstoreClient.ValueSerializer.serialize(nil, :header, "string") == ""
+    end
+
+    test "string returns as-is" do
+      assert PetstoreClient.ValueSerializer.serialize("hello", :header, "string") == "hello"
+    end
+
+    test "array joins with comma" do
+      assert PetstoreClient.ValueSerializer.serialize(["a", "b", "c"], :header, "array") == "a,b,c"
+    end
+  end
+
+  describe "serialize_styled/7" do
+    test "matrix scalar returns semicolon-prefixed name=value" do
+      result = PetstoreClient.ValueSerializer.serialize_styled("color", "blue", :path, "string", nil, "matrix", true)
+      assert result == ";color=blue"
+    end
+
+    test "matrix array with explode false joins with comma" do
+      result = PetstoreClient.ValueSerializer.serialize_styled("color", ["blue", "black"], :path, "array", nil, "matrix", false)
+      assert result == ";color=blue,black"
+    end
+
+    test "matrix array with explode true repeats name" do
+      result = PetstoreClient.ValueSerializer.serialize_styled("color", ["blue", "black"], :path, "array", nil, "matrix", true)
+      assert result == ";color=blue;color=black"
+    end
+
+    test "matrix null returns empty string" do
+      result = PetstoreClient.ValueSerializer.serialize_styled("color", nil, :path, "string", nil, "matrix", true)
+      assert result == ""
+    end
+
+    test "label scalar returns dot-prefixed value" do
+      result = PetstoreClient.ValueSerializer.serialize_styled("color", "blue", :path, "string", nil, "label", true)
+      assert result == ".blue"
+    end
+
+    test "label array with explode true joins with dot separator" do
+      result = PetstoreClient.ValueSerializer.serialize_styled("color", ["blue", "black"], :path, "array", nil, "label", true)
+      assert result == ".blue.black"
+    end
+
+    test "spaceDelimited array joins with space" do
+      result = PetstoreClient.ValueSerializer.serialize_styled("color", ["blue", "black"], :query, "array", nil, "spaceDelimited", false)
+      assert result == "blue black"
+    end
+
+    test "pipeDelimited array joins with pipe" do
+      result = PetstoreClient.ValueSerializer.serialize_styled("color", ["blue", "black"], :query, "array", nil, "pipeDelimited", false)
+      assert result == "blue|black"
+    end
+
+    test "form array with explode false joins with comma" do
+      result = PetstoreClient.ValueSerializer.serialize_styled("color", ["blue", "black"], :query, "array", nil, "form", false)
+      assert result == "blue,black"
+    end
+
+    test "form array with explode true returns list" do
+      result = PetstoreClient.ValueSerializer.serialize_styled("color", ["blue", "black"], :query, "array", nil, "form", true)
+      assert result == ["blue", "black"]
+    end
+
+    test "simple scalar returns stringified value" do
+      result = PetstoreClient.ValueSerializer.serialize_styled("id", "5", :path, "string", nil, "simple", false)
+      assert result == "5"
+    end
+
+    test "simple array joins with comma" do
+      result = PetstoreClient.ValueSerializer.serialize_styled("id", ["3", "4", "5"], :path, "array", nil, "simple", false)
+      assert result == "3,4,5"
+    end
+  end
+end

@@ -1,0 +1,128 @@
+{{>api_info}}
+{{#generateTests}}
+import 'dart:convert';
+
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+void main() {
+  group('ObjectSerializer', () {
+    test('serialize map to JSON', () {
+      final input = {'name': 'Fido', 'age': 3};
+
+      final data = serialize(input);
+      expect(data, isNotEmpty);
+
+      final parsed = jsonDecode(utf8.decode(data)) as Map<String, dynamic>;
+      expect(parsed['name'], equals('Fido'));
+    });
+
+    test('deserializeRaw JSON to map', () {
+      final input = '{"name":"Fido","age":3}';
+
+      final result = deserializeRaw(input) as Map<String, dynamic>;
+      expect(result['name'], equals('Fido'));
+    });
+
+    test('deserializeRaw empty data', () {
+      final result = deserializeRaw('');
+      expect(result, isNull);
+    });
+
+    test('deserializeRaw invalid JSON', () {
+      expect(
+        () => deserializeRaw('not json'),
+        throwsA(isA<SerializationError>()),
+      );
+    });
+
+    test('toPathValue string', () {
+      expect(toPathValue('hello'), equals('hello'));
+    });
+
+    test('toPathValue int', () {
+      expect(toPathValue(42), equals('42'));
+    });
+
+    test('toPathValue bool', () {
+      expect(toPathValue(true), equals('true'));
+      expect(toPathValue(false), equals('false'));
+    });
+
+    test('toPathValue null', () {
+      expect(toPathValue(null), equals(''));
+    });
+
+    test('toQueryValue string', () {
+      expect(toQueryValue('hello', ''), equals('hello'));
+    });
+
+    test('toQueryValue string slice CSV', () {
+      expect(toQueryValue(['a', 'b', 'c'], 'csv'), equals('a,b,c'));
+    });
+
+    test('toQueryValue string slice SSV', () {
+      expect(toQueryValue(['a', 'b', 'c'], 'ssv'), equals('a b c'));
+    });
+
+    test('toQueryValue string slice pipes', () {
+      expect(toQueryValue(['a', 'b', 'c'], 'pipes'), equals('a|b|c'));
+    });
+
+    test('toQueryValue null', () {
+      expect(toQueryValue(null, ''), isNull);
+    });
+
+    test('toHeaderValue string', () {
+      expect(toHeaderValue('hello'), equals('hello'));
+    });
+
+    test('toHeaderValue string slice', () {
+      expect(toHeaderValue(['a', 'b', 'c']), equals('a,b,c'));
+    });
+
+    test('toHeaderValue null', () {
+      expect(toHeaderValue(null), equals(''));
+    });
+
+    test('toFormValue string', () {
+      expect(toFormValue('hello'), equals('hello'));
+    });
+
+    test('toFormValue int', () {
+      expect(toFormValue(123), equals('123'));
+    });
+
+    test('stringify string', () {
+      expect(stringify('hello'), equals('hello'));
+    });
+
+    test('stringify int', () {
+      expect(stringify(42), equals('42'));
+    });
+
+    test('stringify int64', () {
+      expect(stringify(9999999999), equals('9999999999'));
+    });
+
+    test('stringify double', () {
+      expect(stringify(3.14), equals('3.14'));
+    });
+
+    test('stringify bool', () {
+      expect(stringify(true), equals('true'));
+      expect(stringify(false), equals('false'));
+    });
+
+    test('stringify DateTime', () {
+      final ts = DateTime.utc(2024, 1, 15, 10, 30, 0);
+      final result = stringify(ts);
+      expect(result, isNotEmpty);
+    });
+
+    test('stringify null', () {
+      expect(stringify(null), equals(''));
+    });
+  });
+}
+{{/generateTests}}

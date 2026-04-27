@@ -1,0 +1,155 @@
+{{>api_info}}
+import Foundation
+
+{{#operations}}
+/// {{classname}} provides methods for the {{baseName}} API group.
+{{#tagDescription}}
+/// {{.}}
+{{/tagDescription}}
+{{#tagExternalDocs}}
+/// See {{url}} {{description}}
+{{/tagExternalDocs}}
+public final class {{classname}}: BaseApi {
+{{#operation}}
+
+{{#summary}}
+    /// {{{summary}}}
+{{/summary}}
+{{#notes}}
+    /// {{{.}}}
+{{/notes}}
+{{#isDeprecated}}
+    @available(*, deprecated, message: "This operation is deprecated.")
+{{/isDeprecated}}
+{{#externalDocs}}
+    /// See {{url}} {{description}}
+{{/externalDocs}}
+    public func {{operationId}}({{#hasAuthMethods}}auth: Authenticator, {{/hasAuthMethods}}{{#pathParams}}{{paramName}}: {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{^required}}{{{dataType}}}?{{/required}}{{#required}}{{{dataType}}}{{/required}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}) async throws{{#returnType}} -> {{{.}}}{{/returnType}} {
+        let result = try await {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth: auth, {{/hasAuthMethods}}{{#pathParams}}{{paramName}}: {{paramName}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}})
+{{#returnType}}
+        return result.data
+{{/returnType}}
+{{^returnType}}
+        _ = result
+{{/returnType}}
+    }
+
+    /// Performs the {{operationId}} operation and returns the full API result.
+    public func {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth: Authenticator, {{/hasAuthMethods}}{{#pathParams}}{{paramName}}: {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{^required}}{{{dataType}}}?{{/required}}{{#required}}{{{dataType}}}{{/required}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}> {
+{{#pathParams}}
+{{#required}}
+{{#isString}}
+        guard !{{paramName}}.isEmpty else {
+            throw ApiError(code: 0, message: "Missing required parameter '\({{paramName}})' when calling {{classname}}.{{operationId}}")
+        }
+{{/isString}}
+{{/required}}
+{{/pathParams}}
+
+        var path = "{{{path}}}"
+{{#pathParams}}
+{{=<% %>=}}
+        path = replacePathParam(path, name: "<%baseName%>", value: "\(<%paramName%>)")
+<%={{ }}=%>
+{{/pathParams}}
+
+        var queryParams: [String: Any?] = [:]
+{{#queryParams}}
+        if let options = options, let val = options.{{name}} {
+{{#isDeepObject}}
+            if let dict = val as? [String: Any] {
+                for (k, v) in ValueSerializer.serializeDeepObject("{{baseName}}", value: dict) {
+                    queryParams[k] = v
+                }
+            }
+{{/isDeepObject}}
+{{^isDeepObject}}
+{{#content}}
+            if let jsonData = try? JSONEncoder().encode(val) {
+                queryParams["{{baseName}}"] = String(data: jsonData, encoding: .utf8)
+            }
+{{/content}}
+{{^content}}
+            queryParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}})
+{{/content}}
+{{/isDeepObject}}
+        }
+{{/queryParams}}
+
+        var headerParams: [String: String] = [:]
+{{#headerParams}}
+        if let options = options, let val = options.{{name}} {
+            headerParams["{{baseName}}"] = "\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"
+        }
+{{/headerParams}}
+{{#hasCookieParams}}
+        var cookieParts: [String] = []
+{{#cookieParams}}
+        if let options = options, let val = options.{{name}} {
+            cookieParts.append("{{baseName}}=\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")")
+        }
+{{/cookieParams}}
+        if !cookieParts.isEmpty {
+            headerParams["Cookie"] = cookieParts.joined(separator: "; ")
+        }
+{{/hasCookieParams}}
+
+{{#hasFormParams}}
+        var formBody: [String: String] = [:]
+{{#formParams}}
+{{#required}}
+        if let options = options {
+            formBody["{{baseName}}"] = "\(options.{{name}})"
+        }
+{{/required}}
+{{^required}}
+        if let options = options, let val = options.{{name}} {
+            formBody["{{baseName}}"] = "\(val)"
+        }
+{{/required}}
+{{/formParams}}
+        let requestBody: Any? = formBody
+{{/hasFormParams}}
+{{^hasFormParams}}
+{{#bodyParam}}
+        let requestBody: Any? = {{paramName}}
+{{/bodyParam}}
+{{^bodyParam}}
+        let requestBody: Any? = nil
+{{/bodyParam}}
+{{/hasFormParams}}
+
+        let response = try await invokeAPI(InvokeAPIParams(
+            method: "{{httpMethod}}",
+            path: path,
+            queryParams: queryParams,
+            headerParams: headerParams,
+            body: requestBody,
+            accepts: [{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
+            contentType: {{#consumes.0}}"{{mediaType}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
+            returnType: "{{#returnType}}{{{.}}}{{/returnType}}",
+            auth: {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}nil{{/hasAuthMethods}}
+        ))
+
+{{#returnType}}
+        let data = try ObjectSerializer.deserialize(response.body, as: {{{.}}}.self)
+
+        return ApiResult<{{{returnType}}}>(
+            statusCode: response.statusCode,
+            data: data,
+            rawBody: response.body,
+            headers: response.headers
+        )
+{{/returnType}}
+{{^returnType}}
+        return ApiResult<Void>(
+            statusCode: response.statusCode,
+            data: (),
+            rawBody: response.body,
+            headers: response.headers
+        )
+{{/returnType}}
+    }
+{{/operation}}
+}
+{{/operations}}

@@ -1,0 +1,171 @@
+{{>api_info}}
+import 'object_serializer.dart';
+
+/// Serializes a parameter value for HTTP requests based on its location.
+///
+/// Parameters:
+///   - [value]: the value to serialize
+///   - [location]: "path", "query", "header", or "cookie"
+///   - [schemaType]: the schema type (e.g. "string", "array")
+///   - [collectionFormat]: legacy collection format (e.g. "csv", "ssv",
+///     "tsv", "pipes", "multi")
+///
+/// Returns the serialized value.
+Object? serializeValue(
+  Object? value,
+  String location,
+  String schemaType,
+  String collectionFormat,
+) {
+  if (value == null) {
+    return _serializeNil(location);
+  }
+
+  final items = _toStringList(value);
+  if (items != null) {
+    return _serializeArray(items, location, collectionFormat);
+  }
+
+  final strVal = stringify(value);
+  if (location == 'path') {
+    return Uri.encodeComponent(strVal);
+  }
+  return strVal;
+}
+
+/// Serializes a deepObject-style query parameter.
+///
+/// Produces a map of flattened keys in the form `paramName[key]` to
+/// stringified values.
+Map<String, String> serializeDeepObject(
+  String paramName,
+  Map<String, Object?>? value,
+) {
+  final result = <String, String>{};
+  if (value == null) return result;
+
+  for (final entry in value.entries) {
+    result['$paramName[${entry.key}]'] = stringify(entry.value);
+  }
+  return result;
+}
+
+/// Serializes a parameter value according to OAS 3.0 style and explode rules.
+///
+/// Parameters:
+///   - [paramName]: the parameter name
+///   - [value]: the value to serialize
+///   - [location]: "path", "query", "header", "cookie"
+///   - [schemaType]: the schema type
+///   - [collectionFormat]: legacy collection format
+///   - [style]: OAS 3.0 style (e.g. "matrix", "label", "form", "simple",
+///     "spaceDelimited", "pipeDelimited")
+///   - [explode]: whether to explode array values
+Object? serializeStyled(
+  String paramName,
+  Object? value,
+  String location,
+  String schemaType,
+  String collectionFormat,
+  String style,
+  bool explode,
+) {
+  if (style.isEmpty) {
+    return serializeValue(value, location, schemaType, collectionFormat);
+  }
+
+  final items = _toStringList(value);
+  final isArray = items != null;
+
+  switch (style) {
+    case 'matrix':
+      if (value == null) return location == 'query' ? null : '';
+      if (isArray) {
+        if (explode) {
+          return items.map((v) => ';$paramName=$v').join();
+        }
+        return ';$paramName=${items.join(",")}';
+      }
+      return ';$paramName=${stringify(value)}';
+
+    case 'label':
+      if (value == null) return location == 'query' ? null : '';
+      if (isArray) {
+        if (explode) {
+          return '.${items.join(".")}';
+        }
+        return '.${items.join(",")}';
+      }
+      return '.${stringify(value)}';
+
+    case 'spaceDelimited':
+      if (value == null) return location == 'query' ? null : '';
+      if (isArray) return items.join(' ');
+      return stringify(value);
+
+    case 'pipeDelimited':
+      if (value == null) return location == 'query' ? null : '';
+      if (isArray) return items.join('|');
+      return stringify(value);
+
+    case 'form':
+      if (value == null) return location == 'query' ? null : '';
+      if (isArray) {
+        if (explode) return items;
+        return items.join(',');
+      }
+      return stringify(value);
+
+    case 'simple':
+      if (value == null) return location == 'query' ? null : '';
+      if (isArray) return items.join(',');
+      return stringify(value);
+
+    default:
+      return serializeValue(value, location, schemaType, collectionFormat);
+  }
+}
+
+Object? _serializeNil(String location) {
+  if (location == 'query') return null;
+  return '';
+}
+
+Object? _serializeArray(
+  List<String> items,
+  String location,
+  String collectionFormat,
+) {
+  if (location == 'query') {
+    return _serializeQueryArray(items, collectionFormat);
+  }
+  if (location == 'header') {
+    return items.join(',');
+  }
+  return items.join(',');
+}
+
+Object? _serializeQueryArray(List<String> items, String collectionFormat) {
+  switch (collectionFormat) {
+    case 'multi':
+      return items;
+    case 'ssv':
+      return items.join(' ');
+    case 'tsv':
+      return items.join('\t');
+    case 'pipes':
+      return items.join('|');
+    default:
+      return items.join(',');
+  }
+}
+
+/// Attempts to convert a value to a [List<String>].
+/// Returns null if the conversion is not possible.
+List<String>? _toStringList(Object? value) {
+  if (value is List<String>) return value;
+  if (value is List) {
+    return value.map((item) => stringify(item)).toList();
+  }
+  return null;
+}

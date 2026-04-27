@@ -1,0 +1,68 @@
+{{>api_info}}
+import Foundation
+
+/// {{clientClassName}} is the unified entry point for all API services.
+///
+/// Takes an ``Authenticator`` and optionally ``TransportOptions``, then exposes
+/// each API group as a typed property. If the authenticator conforms to
+/// ``HttpAwareAuthenticator``, the shared URLSession is injected so that
+/// authentication HTTP calls (token exchange, discovery) use the same
+/// transport configuration as regular API calls.
+///
+/// Example with default transport:
+///
+/// ```swift
+/// let client = {{clientClassName}}(authenticator: authenticator)
+/// ```
+///
+/// Example with custom transport (proxy, timeouts, etc.):
+///
+/// ```swift
+/// let transport = TransportOptionsBuilder()
+///     .proxy("http://proxy:3128")
+///     .timeout(5)
+///     .build()
+/// let client = {{clientClassName}}(authenticator: authenticator, transportOptions: transport)
+/// ```
+public final class {{clientClassName}}: Sendable {
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    /// Provides methods for the {{baseName}} API group.
+    public let {{#lambda.camelcase}}{{classname}}{{/lambda.camelcase}}: {{classname}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    /// Creates a new client with the given authenticator and optional transport options.
+    ///
+    /// If the authenticator conforms to ``HttpAwareAuthenticator``, the shared
+    /// URLSession is injected so that token exchange and discovery requests use
+    /// the same proxy, TLS, and timeout settings.
+    public init(authenticator: Authenticator, transportOptions: TransportOptions? = nil) {
+        let opts = transportOptions ?? TransportOptionsBuilder().build()
+        let apiClient = DefaultApiClient(transportOptions: opts)
+
+        if let httpAware = authenticator as? HttpAwareAuthenticator {
+            httpAware.setURLSession(apiClient.urlSession)
+        }
+
+        let config = ConfigurationBuilder()
+            .baseURL(authenticator.host())
+            .defaultHeaders(authenticator.authHeaders())
+            .build()
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        self.{{#lambda.camelcase}}{{classname}}{{/lambda.camelcase}} = {{classname}}(apiClient: apiClient, config: config)
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+
+    /// Creates a client authenticated with a static Bearer token.
+    public convenience init(host: String, accessToken: String) {
+        self.init(authenticator: BearerAuthenticator(host: host, token: accessToken))
+    }
+}

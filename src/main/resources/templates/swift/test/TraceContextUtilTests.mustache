@@ -1,0 +1,50 @@
+{{>api_info}}
+import XCTest
+@testable import {{packageName}}
+
+final class TraceContextUtilTests: XCTestCase {
+
+    func testInjectTraceContextNoOpWhenNoTracer() {
+        var headers: [String: String] = [
+            "X-Existing": "value"
+        ]
+
+        // InjectTraceContext should be a no-op when tracing is not configured.
+        // It should not modify existing headers.
+        TraceContextUtil.injectTraceContext(headers: &headers)
+
+        XCTAssertEqual(headers["X-Existing"], "value")
+    }
+
+    func testInjectTraceContextDoesNotPanicWithEmptyHeaders() {
+        var headers: [String: String] = [:]
+
+        // Should not crash with empty headers dictionary
+        TraceContextUtil.injectTraceContext(headers: &headers)
+    }
+
+    func testInjectTraceContextDoesNotInjectWithoutTracing() {
+        var headers: [String: String] = [:]
+
+        TraceContextUtil.injectTraceContext(headers: &headers)
+
+        // Without a tracing library configured, traceparent and tracestate should not
+        // be injected
+        XCTAssertNil(headers["traceparent"])
+        XCTAssertNil(headers["tracestate"])
+    }
+
+    func testInjectTraceContextPreservesExistingHeaders() {
+        var headers: [String: String] = [
+            "Authorization": "Bearer token",
+            "Content-Type": "application/json",
+            "X-Request-ID": "abc-123"
+        ]
+
+        TraceContextUtil.injectTraceContext(headers: &headers)
+
+        XCTAssertEqual(headers["Authorization"], "Bearer token")
+        XCTAssertEqual(headers["Content-Type"], "application/json")
+        XCTAssertEqual(headers["X-Request-ID"], "abc-123")
+    }
+}

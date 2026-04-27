@@ -1,0 +1,17 @@
+name: {{packageName}}
+{{#appDescription}}
+description: {{{.}}}
+{{/appDescription}}
+{{^appDescription}}
+description: Generated API client for {{#appName}}{{{.}}}{{/appName}}
+{{/appDescription}}
+version: {{#version}}{{{.}}}{{/version}}{{^version}}1.0.0{{/version}}
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  http: ^1.2.0
+
+dev_dependencies:
+  test: ^1.25.0

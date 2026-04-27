@@ -1,0 +1,26 @@
+{{>api_info}}
+import 'dart:convert';
+
+import 'base_authenticator.dart';
+
+/// BasicAuthenticator provides HTTP Basic authentication.
+class BasicAuthenticator extends BaseAuthenticator {
+  final String _host;
+  final String _authHeader;
+
+  /// Creates a new Basic authenticator.
+  BasicAuthenticator({
+    required String host,
+    required String username,
+    required String password,
+  })  : _host = host,
+        _authHeader = 'Basic ${base64Encode(utf8.encode('$username:$password'))}';
+
+  @override
+  String host() => _host;
+
+  @override
+  Map<String, String> authHeaders() => {
+        'Authorization': _authHeader,
+      };
+}

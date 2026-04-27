@@ -1,0 +1,205 @@
+{{>api_info}}
+{{#models}}
+{{#model}}
+{{#isEnum}}
+/// {{classname}} is an enumeration of allowed values.
+enum {{classname}} {
+{{#allowableValues}}
+{{#enumVars}}
+  /// Represents the value {{{value}}}.
+  {{name}}({{{value}}}),
+{{/enumVars}}
+{{/allowableValues}}
+  ;
+
+  final String value;
+  const {{classname}}(this.value);
+
+  /// Returns the enum value matching the given [value], or throws.
+  static {{classname}} fromJson(String value) {
+    return {{classname}}.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => throw ArgumentError('Unknown {{classname}} value: $value'),
+    );
+  }
+
+  String toJson() => value;
+
+  @override
+  String toString() => value;
+}
+{{/isEnum}}
+{{^isEnum}}
+{{^oneOf}}
+{{^anyOf}}
+{{#description}}
+/// {{classname}} {{{.}}}
+{{/description}}
+{{^description}}
+/// {{classname}} is a model class generated from the OpenAPI schema.
+{{/description}}
+{{#isDeprecated}}
+@Deprecated('This schema is deprecated.')
+{{/isDeprecated}}
+class {{classname}} {
+{{#vars}}
+{{#description}}
+  /// {{{.}}}
+{{/description}}
+{{#deprecated}}
+  @Deprecated('This property is deprecated.')
+{{/deprecated}}
+{{#required}}
+  final {{{dataType}}} {{name}};
+{{/required}}
+{{^required}}
+  final {{{dataType}}}? {{name}};
+{{/required}}
+
+{{/vars}}
+  const {{classname}}({
+{{#vars}}
+{{#required}}
+    required this.{{name}},
+{{/required}}
+{{^required}}
+    this.{{name}},
+{{/required}}
+{{/vars}}
+  });
+
+  /// Creates a [{{classname}}] from a JSON map.
+  factory {{classname}}.fromJson(Map<String, dynamic> json) {
+    return {{classname}}(
+{{#vars}}
+{{#required}}
+      {{name}}: json['{{baseName}}']{{#isEnum}} != null ? {{dataType}}.fromJson(json['{{baseName}}'] as String) : {{dataType}}.values.first{{/isEnum}}{{^isEnum}} as {{{dataType}}}{{/isEnum}},
+{{/required}}
+{{^required}}
+      {{name}}: json['{{baseName}}']{{#isEnum}} != null ? {{dataType}}.fromJson(json['{{baseName}}'] as String) : null{{/isEnum}}{{^isEnum}} as {{{dataType}}}?{{/isEnum}},
+{{/required}}
+{{/vars}}
+    );
+  }
+
+  /// Converts this [{{classname}}] to a JSON map.
+  Map<String, dynamic> toJson() {
+    final json = <String, dynamic>{};
+{{#vars}}
+{{#required}}
+    json['{{baseName}}'] = {{name}}{{#isEnum}}.toJson(){{/isEnum}};
+{{/required}}
+{{^required}}
+    if ({{name}} != null) {
+      json['{{baseName}}'] = {{name}}{{#isEnum}}?.toJson(){{/isEnum}};
+    }
+{{/required}}
+{{/vars}}
+    return json;
+  }
+}
+{{/anyOf}}
+{{/oneOf}}
+{{#oneOf}}
+{{#-first}}
+{{#description}}
+/// {{classname}} {{{.}}}
+{{/description}}
+{{^description}}
+/// {{classname}} is a union type (oneOf).
+{{/description}}
+{{#isDeprecated}}
+@Deprecated('This schema is deprecated.')
+{{/isDeprecated}}
+class {{classname}} {
+  final Object? _value;
+
+  const {{classname}}._(this._value);
+
+  /// Returns the underlying value of the union type.
+  Object? get value => _value;
+
+  /// Converts this union type to a JSON value.
+  Object? toJson() {
+    final v = _value;
+    if (v == null) return null;
+    if (v is Map) return v;
+    try {
+      return (v as dynamic).toJson();
+    } catch (_) {
+      return v;
+    }
+  }
+
+  /// Creates a [{{classname}}] from a JSON value.
+  factory {{classname}}.fromJson(Map<String, dynamic> json) {
+{{#discriminator}}
+    final disc = json['{{propertyBaseName}}'];
+    switch (disc) {
+{{#mappedModels}}
+      case '{{{mappingName}}}':
+        return {{classname}}._({{{modelName}}}.fromJson(json));
+{{/mappedModels}}
+      default:
+        throw ArgumentError('Unknown discriminator value: $disc');
+    }
+{{/discriminator}}
+{{^discriminator}}
+    // Try each oneOf type
+{{#oneOf}}
+    try {
+      return {{classname}}._({{{.}}}.fromJson(json));
+    } catch (_) {}
+{{/oneOf}}
+    throw ArgumentError('Data does not match any oneOf schemas for {{classname}}');
+{{/discriminator}}
+  }
+}
+{{/-first}}
+{{/oneOf}}
+{{#anyOf}}
+{{#-first}}
+{{#description}}
+/// {{classname}} {{{.}}}
+{{/description}}
+{{^description}}
+/// {{classname}} is a union type (anyOf).
+{{/description}}
+{{#isDeprecated}}
+@Deprecated('This schema is deprecated.')
+{{/isDeprecated}}
+class {{classname}} {
+  final Object? _value;
+
+  const {{classname}}._(this._value);
+
+  /// Returns the underlying value of the union type.
+  Object? get value => _value;
+
+  /// Converts this union type to a JSON value.
+  Object? toJson() {
+    final v = _value;
+    if (v == null) return null;
+    if (v is Map) return v;
+    try {
+      return (v as dynamic).toJson();
+    } catch (_) {
+      return v;
+    }
+  }
+
+  /// Creates a [{{classname}}] from a JSON value.
+  factory {{classname}}.fromJson(Map<String, dynamic> json) {
+{{#anyOf}}
+    try {
+      return {{classname}}._({{{.}}}.fromJson(json));
+    } catch (_) {}
+{{/anyOf}}
+    throw ArgumentError('Data does not match any anyOf schemas for {{classname}}');
+  }
+}
+{{/-first}}
+{{/anyOf}}
+{{/isEnum}}
+{{/model}}
+{{/models}}

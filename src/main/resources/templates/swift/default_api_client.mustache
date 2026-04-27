@@ -1,0 +1,115 @@
+{{>api_info}}
+import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+
+/// DefaultApiClient is the default HTTP client implementation backed by URLSession.
+///
+/// Applies transport-level settings from ``TransportOptions``: TLS verification,
+/// custom CA certificates, proxy routing, timeouts, redirect handling,
+/// User-Agent injection, X-Request-ID injection, and transport-level
+/// default headers.
+///
+/// Header merge order (lowest to highest priority):
+///  1. TransportOptions.defaultHeaders -- transport-level defaults
+///  2. Caller-provided headers (from BaseApi -- includes config defaults, auth, operation headers)
+///  3. TransportOptions.userAgent -- injected if not already set
+///  4. TransportOptions.injectRequestID -- injected if not already set
+public final class DefaultApiClient: ApiClient, @unchecked Sendable {
+    private let transportOptions: TransportOptions
+    private let session: URLSession
+
+    /// Creates a client with the given transport settings.
+    /// If transportOptions is nil, default transport settings are used.
+    public init(transportOptions: TransportOptions? = nil) {
+        let opts = transportOptions ?? TransportOptionsBuilder().build()
+        self.transportOptions = opts
+        self.session = DefaultApiClient.buildSession(opts)
+    }
+
+    /// Sends an HTTP request with transport-level settings applied.
+    ///
+    /// Merges headers according to the priority order documented on the class,
+    /// then dispatches via URLSession.
+    public func sendRequest(method: String, url: String, headers: [String: String], body: Data?) async throws -> ApiResponse {
+        guard let requestURL = URL(string: url) else {
+            throw URLError(.badURL)
+        }
+
+        var merged: [String: String] = [:]
+        for (k, v) in transportOptions.defaultHeaders {
+            merged[k] = v
+        }
+        for (k, v) in headers {
+            merged[k] = v
+        }
+        if merged["User-Agent"] == nil && !transportOptions.userAgent.isEmpty {
+            merged["User-Agent"] = transportOptions.userAgent
+        }
+        if merged["X-Request-ID"] == nil && transportOptions.injectRequestID {
+            merged["X-Request-ID"] = UUID().uuidString
+        }
+        if merged["Accept-Encoding"] == nil {
+            merged["Accept-Encoding"] = "gzip, deflate"
+        }
+
+        var request = URLRequest(url: requestURL)
+        request.httpMethod = method
+        request.httpBody = body
+
+        for (k, v) in merged {
+            request.setValue(v, forHTTPHeaderField: k)
+        }
+
+        let (data, response) = try await session.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
+        }
+
+        var respHeaders: [String: String] = [:]
+        for (key, value) in httpResponse.allHeaderFields {
+            if let k = key as? String, let v = value as? String {
+                respHeaders[k] = v
+            }
+        }
+
+        return ApiResponse(
+            statusCode: httpResponse.statusCode,
+            body: String(data: data, encoding: .utf8) ?? "",
+            headers: respHeaders
+        )
+    }
+
+    /// Returns the underlying URLSession for use by HTTP-aware authenticators.
+    public var urlSession: URLSession {
+        return session
+    }
+
+    private static func buildSession(_ opts: TransportOptions) -> URLSession {
+        let config = URLSessionConfiguration.default
+
+        if opts.timeout > 0 {
+            config.timeoutIntervalForRequest = opts.timeout
+            config.timeoutIntervalForResource = opts.timeout
+        }
+
+        if let proxy = opts.proxy {
+            var proxyDict: [AnyHashable: Any] = [:]
+            let scheme = proxy.scheme ?? "http"
+            if scheme == "https" {
+                proxyDict[kCFNetworkProxiesHTTPSEnable] = true
+                proxyDict[kCFNetworkProxiesHTTPSProxy] = proxy.host
+                proxyDict[kCFNetworkProxiesHTTPSPort] = proxy.port ?? 443
+            } else {
+                proxyDict[kCFNetworkProxiesHTTPEnable] = true
+                proxyDict[kCFNetworkProxiesHTTPProxy] = proxy.host
+                proxyDict[kCFNetworkProxiesHTTPPort] = proxy.port ?? 8080
+            }
+            config.connectionProxyDictionary = proxyDict
+        }
+
+        return URLSession(configuration: config)
+    }
+}

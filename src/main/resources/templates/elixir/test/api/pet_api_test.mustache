@@ -1,0 +1,131 @@
+{{#generateTests}}
+defmodule {{moduleName}}.Api.PetApiTest do
+  use ExUnit.Case, async: false
+
+  setup do
+    base_url = System.get_env("API_BASE_URL", "http://localhost:4010")
+    auth = {{moduleName}}.Auth.BearerAuthenticator.new(base_url, "test-token")
+
+    config = {{moduleName}}.Configuration.new(
+      base_url: base_url,
+      default_headers: %{"Authorization" => "Bearer test-token"}
+    )
+
+    api = {{moduleName}}.Api.PetApi.new(nil, config)
+
+    %{api: api, auth: auth, base_url: base_url}
+  end
+
+  test "add_pet creates a new pet", %{api: api, auth: auth} do
+    pet = %{{moduleName}}.Models.Pet{
+      id: 12_345,
+      name: "TestDog",
+      photo_urls: ["http://example.com/photo.jpg"],
+      status: "available"
+    }
+
+    assert {:ok, result} = {{moduleName}}.Api.PetApi.add_pet(api, auth, pet)
+    assert result != nil
+  end
+
+  test "find_pets_by_status returns pets by status", %{api: api} do
+    options = %{{moduleName}}.Api.Options.FindPetsByStatusOptions{status: "available"}
+    assert {:ok, result} = {{moduleName}}.Api.PetApi.find_pets_by_status(api, options)
+    assert is_list(result)
+    assert length(result) > 0
+  end
+
+  test "get_pet_by_id returns a pet by id", %{api: api} do
+    assert {:ok, result} = {{moduleName}}.Api.PetApi.get_pet_by_id(api, 1)
+    assert result != nil
+    assert result.id != nil
+    assert result.name != nil
+  end
+
+  test "update_pet updates an existing pet", %{api: api} do
+    pet = %{{moduleName}}.Models.Pet{
+      id: 1,
+      name: "UpdatedDog",
+      photo_urls: ["http://example.com/updated.jpg"],
+      status: "pending"
+    }
+
+    assert {:ok, result} = {{moduleName}}.Api.PetApi.update_pet(api, 1, pet)
+    assert result != nil
+  end
+
+  test "delete_pet deletes a pet", %{api: api, auth: auth} do
+    assert {:ok, _result} = {{moduleName}}.Api.PetApi.delete_pet(api, auth, 1)
+  end
+
+  test "set_pet_avatar uploads binary image data", %{api: api} do
+    assert {:ok, _result} = {{moduleName}}.Api.PetApi.set_pet_avatar(api, 1, <<0xFF, 0xD8, 0xFF>>)
+  end
+
+  test "get_pet_avatar downloads the pet avatar as binary", %{api: api} do
+    assert {:ok, result} = {{moduleName}}.Api.PetApi.get_pet_avatar(api, 1)
+    assert result != nil
+  end
+
+  test "get_pet_avatar_thumbnail returns a base64-encoded thumbnail", %{api: api} do
+    assert {:ok, result} = {{moduleName}}.Api.PetApi.get_pet_avatar_thumbnail(api, 1)
+    assert result != nil
+  end
+
+  test "set_pet_avatar_thumbnail uploads a base64 thumbnail via JSON", %{api: api} do
+    request = "iVBORw0KGgoAAAANSUhEUg=="
+    assert {:ok, _result} = {{moduleName}}.Api.PetApi.set_pet_avatar_thumbnail(api, 1, request)
+  end
+
+  test "upload_pet_certificate uploads a certificate via multipart", %{api: api} do
+    options = %{{moduleName}}.Api.Options.UploadPetCertificateOptions{
+      file: "cert-data"
+    }
+
+    assert {:ok, result} = {{moduleName}}.Api.PetApi.upload_pet_certificate(api, 1, options)
+    assert result != nil
+  end
+
+  test "upload_pet_document uploads a document with metadata via multipart", %{api: api} do
+    options = %{{moduleName}}.Api.Options.UploadPetDocumentOptions{
+      file: "doc-data",
+      document_type: "vaccination_record",
+      notes: "Annual checkup"
+    }
+
+    assert {:ok, result} = {{moduleName}}.Api.PetApi.upload_pet_document(api, 1, options)
+    assert result != nil
+  end
+
+  @tag :skip
+  test "add_pet_photos uploads photos with metadata via multipart" do
+    # Prism mock server does not support multipart array fields
+  end
+
+  test "download_pet_document downloads a document as binary", %{api: api} do
+    assert {:ok, result} = {{moduleName}}.Api.PetApi.download_pet_document(api, 1, 1)
+    assert result != nil
+  end
+
+  @tag :skip
+  test "get_pet_photo returns a photo via content negotiation" do
+    # Prism returns JSON for image content type
+  end
+
+  test "get_pet_passport returns a passport with embedded byte fields", %{api: api} do
+    assert {:ok, result} = {{moduleName}}.Api.PetApi.get_pet_passport(api, 1)
+    assert result != nil
+    assert %{{moduleName}}.Models.PetPassport{} = result
+  end
+
+  @tag :skip
+  test "get_pet_tag sends styled path and query parameters" do
+    # Prism does not support matrix/label path styles
+  end
+
+  @tag :skip
+  test "get_external_pet_info uses per-operation server URL" do
+    # Per-operation server URL cannot be verified against mock server
+  end
+end
+{{/generateTests}}
