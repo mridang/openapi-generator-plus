@@ -1,4 +1,4 @@
-.PHONY: all build test format lint clean
+.PHONY: all build test format lint docs clean
 
 all: build
 
@@ -13,6 +13,9 @@ format:
 
 lint:
 	swift format --recursive --check Sources Tests
+
+docs:
+	swift package generate-documentation
 
 clean:
 	swift package clean

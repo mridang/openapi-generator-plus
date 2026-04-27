@@ -1,4 +1,4 @@
-.PHONY: install build test lint format analyze clean
+.PHONY: install build test lint format analyze docs clean
 
 install:
 	composer install --no-interaction --prefer-dist
@@ -17,5 +17,8 @@ format: install
 analyze: install
 	vendor/bin/phpstan analyse
 
+docs: install
+	vendor/bin/phpdoc run -d lib -t docs
+
 clean:
-	rm -rf vendor .phpunit.result.cache
+	rm -rf vendor .phpunit.result.cache docs

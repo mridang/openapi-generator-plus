@@ -1,4 +1,4 @@
-.PHONY: all build test lint fmt vet clean
+.PHONY: all build test lint fmt vet docs clean
 
 all: build
 
@@ -16,6 +16,9 @@ fmt:
 
 vet:
 	go vet ./...
+
+docs:
+	go doc ./...
 
 clean:
 	go clean ./...

@@ -1,4 +1,4 @@
-.PHONY: all build test lint format clean
+.PHONY: all build test lint format docs clean
 
 all: build
 
@@ -13,6 +13,9 @@ build:
 
 test:
 	cargo test
+
+docs:
+	cargo doc --no-deps
 
 clean:
 	cargo clean

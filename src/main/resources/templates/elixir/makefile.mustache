@@ -1,4 +1,4 @@
-.PHONY: install build test lint format clean
+.PHONY: install build test lint format docs clean
 
 install:
 	mix deps.get
@@ -15,6 +15,9 @@ lint: install
 format: install
 	mix format
 
+docs: install
+	mix docs
+
 clean:
 	mix clean
-	rm -rf _build deps
+	rm -rf _build deps doc

@@ -1,4 +1,4 @@
-.PHONY: build test format clean
+.PHONY: build test format docs clean
 
 build:
 	dotnet build
@@ -8,6 +8,9 @@ test:
 
 format:
 	dotnet csharpier .
+
+docs:
+	dotnet build /p:DocumentationFile=docs/api.xml
 
 clean:
 	dotnet clean

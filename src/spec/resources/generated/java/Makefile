@@ -1,4 +1,4 @@
-.PHONY: build test lint format analyze clean
+.PHONY: build test lint format analyze docs clean
 
 build:
 	mvn compile -q -B
@@ -14,6 +14,9 @@ format:
 
 analyze:
 	mvn compile spotbugs:check -q -B
+
+docs:
+	mvn javadoc:javadoc -q -B
 
 clean:
 	mvn clean -q -B

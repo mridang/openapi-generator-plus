@@ -1,4 +1,4 @@
-.PHONY: install build test lint format typecheck clean
+.PHONY: install build test lint format typecheck docs clean
 
 install:
 	bundle install --quiet
@@ -17,5 +17,8 @@ format: install
 typecheck: install
 	bundle exec steep check
 
+docs: install
+	bundle exec yard doc
+
 clean:
-	rm -rf .bundle vendor
+	rm -rf .bundle vendor doc

@@ -1,4 +1,4 @@
-.PHONY: install build test lint format typecheck clean
+.PHONY: install build test lint format typecheck docs clean
 
 install:
 	npm install
@@ -18,5 +18,8 @@ format: install
 typecheck: install
 	npx tsc --noEmit
 
+docs: install
+	npx typedoc --out docs src/
+
 clean:
-	rm -rf node_modules dist coverage
+	rm -rf node_modules dist coverage docs

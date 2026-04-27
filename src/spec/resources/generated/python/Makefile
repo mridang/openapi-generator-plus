@@ -1,4 +1,4 @@
-.PHONY: install build test lint format typecheck clean
+.PHONY: install build test lint format typecheck docs clean
 
 install:
 	pip install --quiet -e . --group dev
@@ -17,6 +17,9 @@ format: install
 typecheck: install
 	mypy petstore_client/
 
+docs: install
+	pdoc --output-dir docs petstore_client
+
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-	rm -rf .pytest .mypy .ruff
+	rm -rf .pytest .mypy .ruff docs
