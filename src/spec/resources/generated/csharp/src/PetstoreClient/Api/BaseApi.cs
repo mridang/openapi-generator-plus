@@ -71,6 +71,7 @@ public abstract class BaseApi
         object? body,
         string[] accepts,
         string contentType,
+        Type? returnType,
         IAuthenticator? auth = null
     )
     {
@@ -196,7 +197,7 @@ public abstract class BaseApi
         }
 
         T? data = default;
-        if (!string.IsNullOrEmpty(response.Body))
+        if (returnType != null && !string.IsNullOrEmpty(response.Body))
         {
             string? responseContentType = response
                 .Headers.Where(h =>
@@ -240,6 +241,7 @@ public abstract class BaseApi
         object? body,
         string[] accepts,
         string contentType,
+        Type? returnType,
         IAuthenticator? auth = null
     )
     {
@@ -251,6 +253,7 @@ public abstract class BaseApi
                 body,
                 accepts,
                 contentType,
+                returnType,
                 auth
             )
             .ConfigureAwait(false);

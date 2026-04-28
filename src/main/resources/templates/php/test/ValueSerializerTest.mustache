@@ -274,6 +274,16 @@ class ValueSerializerTest extends TestCase
         $this->assertSame(['blue', 'black'], ValueSerializer::serializeStyled('color', ['blue', 'black'], 'query', 'array', null, 'form', true));
     }
 
+    public function testFormStyleScalarWithExplodeTrueReturnsStringNotList(): void
+    {
+        $this->assertSame('blue', ValueSerializer::serializeStyled('color', 'blue', 'query', 'string', null, 'form', true));
+    }
+
+    public function testFormStyleSingleElementArrayWithExplodeTrueReturnsList(): void
+    {
+        $this->assertSame(['blue'], ValueSerializer::serializeStyled('color', ['blue'], 'query', 'array', null, 'form', true));
+    }
+
     // -- serializeStyled: simple style backward compatibility --
 
     public function testSimpleScalarReturnsStringifiedValue(): void
@@ -284,6 +294,11 @@ class ValueSerializerTest extends TestCase
     public function testSimpleArrayJoinsWithComma(): void
     {
         $this->assertSame('3,4,5', ValueSerializer::serializeStyled('id', ['3', '4', '5'], 'path', 'array', null, 'simple', false));
+    }
+
+    public function testSimpleScalarDoesNotUrlEncode(): void
+    {
+        $this->assertSame('hello world', ValueSerializer::serializeStyled('id', 'hello world', 'path', 'string', null, 'simple', false));
     }
 
     // -- serializeStyled: null style falls back to location default --

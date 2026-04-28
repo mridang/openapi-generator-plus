@@ -183,6 +183,18 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == ["blue", "black"]
     end
 
+    test "form scalar with explode true returns string not list" do
+      result = PetstoreClient.ValueSerializer.serialize_styled("color", "blue", :query, "string", nil, "form", true)
+      assert is_binary(result)
+      assert result == "blue"
+    end
+
+    test "form single-element array with explode true returns list" do
+      result = PetstoreClient.ValueSerializer.serialize_styled("color", ["blue"], :query, "array", nil, "form", true)
+      assert is_list(result)
+      assert result == ["blue"]
+    end
+
     test "simple scalar returns stringified value" do
       result = PetstoreClient.ValueSerializer.serialize_styled("id", "5", :path, "string", nil, "simple", false)
       assert result == "5"
@@ -193,6 +205,13 @@ defmodule PetstoreClient.ValueSerializerTest do
         PetstoreClient.ValueSerializer.serialize_styled("id", ["3", "4", "5"], :path, "array", nil, "simple", false)
 
       assert result == "3,4,5"
+    end
+
+    test "simple scalar does not URL-encode" do
+      result =
+        PetstoreClient.ValueSerializer.serialize_styled("id", "hello world", :path, "string", nil, "simple", false)
+
+      assert result == "hello world"
     end
   end
 end

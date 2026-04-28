@@ -228,6 +228,16 @@ describe('ValueSerializer', () => {
         ['blue', 'black']
       );
     });
+
+    test('scalar with explode true returns string not list', () => {
+      expect(ValueSerializer.serializeStyled('color', 'blue', 'query', 'string', null, 'form', true)).toBe('blue');
+    });
+
+    test('single-element array with explode true returns list', () => {
+      expect(ValueSerializer.serializeStyled('color', ['blue'], 'query', 'array', null, 'form', true)).toEqual([
+        'blue'
+      ]);
+    });
   });
 
   describe('serializeStyled - simple style backward compatibility', () => {
@@ -238,6 +248,12 @@ describe('ValueSerializer', () => {
     test('array joins with comma', () => {
       expect(ValueSerializer.serializeStyled('id', ['3', '4', '5'], 'path', 'array', null, 'simple', false)).toBe(
         '3,4,5'
+      );
+    });
+
+    test('scalar does not URL-encode path value', () => {
+      expect(ValueSerializer.serializeStyled('id', 'hello world', 'path', 'string', null, 'simple', false)).toBe(
+        'hello world'
       );
     });
   });

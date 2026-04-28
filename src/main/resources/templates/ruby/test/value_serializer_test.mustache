@@ -257,6 +257,20 @@ describe {{moduleName}}::ValueSerializer do
         )
         _(result).must_equal(%w[blue black])
       end
+
+      it 'scalar with explode true returns string not list' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled(
+          'color', 'blue', :query, 'string', nil, 'form', true
+        )
+        _(result).must_equal('blue')
+      end
+
+      it 'single-element array with explode true returns list' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled(
+          'color', ['blue'], :query, 'array', nil, 'form', true
+        )
+        _(result).must_equal(['blue'])
+      end
     end
 
     describe 'simple style backward compatibility' do
@@ -270,6 +284,13 @@ describe {{moduleName}}::ValueSerializer do
           'id', %w[3 4 5], :path, 'array', nil, 'simple', false
         )
         _(result).must_equal('3,4,5')
+      end
+
+      it 'scalar does not URL-encode' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled(
+          'id', 'hello world', :path, 'string', nil, 'simple', false
+        )
+        _(result).must_equal('hello world')
       end
     end
 

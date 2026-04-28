@@ -118,3 +118,50 @@ fn test_header_selector_with_vendor_json() {
     let accept = headers.get("Accept").unwrap();
     assert!(accept.contains("application/vnd.api+json"));
 }
+
+#[test]
+fn test_header_selector_is_json_mime_case_insensitive() {
+    let hs = HeaderSelector::new();
+
+    assert!(hs.is_json_mime("APPLICATION/JSON"));
+}
+
+#[test]
+fn test_get_next_weight_standard_sequence() {
+    let hs = HeaderSelector::new();
+
+    assert_eq!(hs.get_next_weight(1000, false), 900);
+    assert_eq!(hs.get_next_weight(900, false), 800);
+    assert_eq!(hs.get_next_weight(200, false), 100);
+    assert_eq!(hs.get_next_weight(100, false), 90);
+    assert_eq!(hs.get_next_weight(90, false), 80);
+}
+
+#[test]
+fn test_get_next_weight_more_than_28_headers() {
+    let hs = HeaderSelector::new();
+
+    assert_eq!(hs.get_next_weight(1000, true), 999);
+    assert_eq!(hs.get_next_weight(999, true), 998);
+    assert_eq!(hs.get_next_weight(998, true), 997);
+}
+
+#[test]
+fn test_get_next_weight_minimum() {
+    let hs = HeaderSelector::new();
+
+    assert_eq!(hs.get_next_weight(1, false), 1);
+    assert_eq!(hs.get_next_weight(0, false), 1);
+    assert_eq!(hs.get_next_weight(-1, false), 1);
+}
+
+#[test]
+fn test_get_next_weight_27_steps() {
+    let hs = HeaderSelector::new();
+
+    let mut weight = 1000;
+    for _ in 0..27 {
+        weight = hs.get_next_weight(weight, false);
+    }
+    assert_eq!(weight, 1);
+}

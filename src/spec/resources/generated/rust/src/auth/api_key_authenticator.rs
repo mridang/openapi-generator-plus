@@ -16,8 +16,8 @@ use crate::auth::api_key_location::ApiKeyLocation;
 /// depending on the location specified at construction.
 pub struct ApiKeyAuthenticator {
     host: String,
-    key_name: String,
-    key_value: String,
+    key_param_name: String,
+    api_key: String,
     location: ApiKeyLocation,
 }
 
@@ -27,14 +27,14 @@ impl ApiKeyAuthenticator {
     /// # Arguments
     ///
     /// * `host` - API base URL
-    /// * `key_name` - name of the key parameter
-    /// * `key_value` - the API key value
+    /// * `key_param_name` - name of the key parameter
+    /// * `api_key` - the API key value
     /// * `location` - where to send the key (header, query, or cookie)
-    pub fn new(host: &str, key_name: &str, key_value: &str, location: ApiKeyLocation) -> Self {
+    pub fn new(host: &str, key_param_name: &str, api_key: &str, location: ApiKeyLocation) -> Self {
         Self {
             host: host.to_string(),
-            key_name: key_name.to_string(),
-            key_value: key_value.to_string(),
+            key_param_name: key_param_name.to_string(),
+            api_key: api_key.to_string(),
             location,
         }
     }
@@ -48,7 +48,7 @@ impl Authenticator for ApiKeyAuthenticator {
     fn auth_headers(&self) -> HashMap<String, String> {
         let mut result = HashMap::new();
         if self.location == ApiKeyLocation::Header {
-            result.insert(self.key_name.clone(), self.key_value.clone());
+            result.insert(self.key_param_name.clone(), self.api_key.clone());
         }
         result
     }
@@ -56,7 +56,7 @@ impl Authenticator for ApiKeyAuthenticator {
     fn query_params(&self) -> HashMap<String, String> {
         let mut result = HashMap::new();
         if self.location == ApiKeyLocation::Query {
-            result.insert(self.key_name.clone(), self.key_value.clone());
+            result.insert(self.key_param_name.clone(), self.api_key.clone());
         }
         result
     }
@@ -64,7 +64,7 @@ impl Authenticator for ApiKeyAuthenticator {
     fn cookie_params(&self) -> HashMap<String, String> {
         let mut result = HashMap::new();
         if self.location == ApiKeyLocation::Cookie {
-            result.insert(self.key_name.clone(), self.key_value.clone());
+            result.insert(self.key_param_name.clone(), self.api_key.clone());
         }
         result
     }

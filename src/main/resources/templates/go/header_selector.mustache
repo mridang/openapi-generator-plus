@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-var jsonMIMEPattern = regexp.MustCompile(`^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)`)
+var jsonMIMEPattern = regexp.MustCompile(`(?i)^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)`)
 var weightPattern = regexp.MustCompile(`(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$`)
 
 // HeaderSelector selects Accept and Content-Type headers for API requests
@@ -60,13 +60,13 @@ func (h *HeaderSelector) IsJSONMIME(searchString string) bool {
 	return jsonMIMEPattern.MatchString(searchString)
 }
 
-// getNextWeight calculates the next weight based on the current one.
+// GetNextWeight calculates the next weight based on the current one.
 //
 // If there are fewer than 28 "Accept" headers, the weights are decreased
 // by 1 on the highest significant digit. Starting from 1000, this generates:
 // 1000, 900, 800, 700, 600, 500, 400, 300, 200, 100,
 // 90, 80, 70, 60, 50, 40, 30, 20, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
-func (h *HeaderSelector) getNextWeight(currentWeight int, hasMoreThan28Headers bool) int {
+func (h *HeaderSelector) GetNextWeight(currentWeight int, hasMoreThan28Headers bool) int {
 	if currentWeight <= 1 {
 		return 1
 	}
@@ -173,13 +173,13 @@ func (h *HeaderSelector) adjustWeight(headers []headerData, currentWeight *int, 
 	var acceptHeaders []string
 	for i, hd := range headers {
 		if i > 0 && headers[i-1].weight > hd.weight {
-			*currentWeight = h.getNextWeight(*currentWeight, hasMoreThan28Headers)
+			*currentWeight = h.GetNextWeight(*currentWeight, hasMoreThan28Headers)
 		}
 
 		acceptHeaders = append(acceptHeaders, h.buildAcceptHeader(hd.header, *currentWeight))
 	}
 
-	*currentWeight = h.getNextWeight(*currentWeight, hasMoreThan28Headers)
+	*currentWeight = h.GetNextWeight(*currentWeight, hasMoreThan28Headers)
 	return acceptHeaders
 }
 

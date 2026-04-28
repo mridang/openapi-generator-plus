@@ -23,8 +23,12 @@ open class OAuth2ClientCredentialsAuthenticator(
     private val clientSecret: String,
     private val tokenUrl: String,
     private val scopes: List<String>,
-) : HttpAwareAuthenticator() {
+) : HttpAwareAuthenticator {
     private val tokenManager = OAuth2TokenManager()
+
+    override fun setApiClient(apiClient: ApiClient) {
+        tokenManager.apiClient = apiClient
+    }
 
     override fun getHost(): String = host
 
@@ -41,13 +45,4 @@ open class OAuth2ClientCredentialsAuthenticator(
         val token = tokenManager.getAccessToken(tokenUrl, params)
         return mapOf("Authorization" to "Bearer $token")
     }
-
-    override var apiClient: ApiClient?
-        get() = super.apiClient
-        set(value) {
-            super.apiClient = value
-            if (value != null) {
-                tokenManager.apiClient = value
-            }
-        }
 }

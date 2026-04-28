@@ -426,6 +426,23 @@ class ValueSerializerTest {
           ValueSerializer.serializeStyled(
               "color", Arrays.asList("blue", "black"), "query", "array", null, "form", true));
     }
+
+    @Test
+    @DisplayName("scalar with explode true returns string not list")
+    void scalarExplodeTrueReturnsString() {
+      assertEquals(
+          "blue",
+          ValueSerializer.serializeStyled("color", "blue", "query", "string", null, "form", true));
+    }
+
+    @Test
+    @DisplayName("single-element array with explode true returns list")
+    void singleElementArrayExplodeTrueReturnsList() {
+      assertEquals(
+          List.of("blue"),
+          ValueSerializer.serializeStyled(
+              "color", List.of("blue"), "query", "array", null, "form", true));
+    }
   }
 
   @Nested
@@ -446,6 +463,15 @@ class ValueSerializerTest {
           "3,4,5",
           ValueSerializer.serializeStyled(
               "id", Arrays.asList("3", "4", "5"), "path", "array", null, "simple", false));
+    }
+
+    @Test
+    @DisplayName("scalar does not URL-encode path value")
+    void scalarDoesNotUrlEncodePath() {
+      assertEquals(
+          "hello world",
+          ValueSerializer.serializeStyled(
+              "id", "hello world", "path", "string", null, "simple", false));
     }
   }
 

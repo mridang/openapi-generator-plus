@@ -243,6 +243,7 @@ public class PetApi : BaseApi
                 pet,
                 AddPetAccepts,
                 "application/json",
+                typeof(Pet),
                 auth
             )
             .ConfigureAwait(false);
@@ -303,6 +304,7 @@ public class PetApi : BaseApi
                 formBody,
                 AddPetPhotosAccepts,
                 "multipart/form-data",
+                typeof(List<Photo>),
                 null
             )
             .ConfigureAwait(false);
@@ -368,6 +370,7 @@ public class PetApi : BaseApi
                 petTreatment,
                 AddPetTreatmentAccepts,
                 "application/json",
+                typeof(PetTreatment),
                 auth
             )
             .ConfigureAwait(false);
@@ -420,6 +423,7 @@ public class PetApi : BaseApi
                 null,
                 [],
                 "application/json",
+                null,
                 auth
             )
             .ConfigureAwait(false);
@@ -493,6 +497,7 @@ public class PetApi : BaseApi
                 null,
                 DownloadPetDocumentAccepts,
                 "application/json",
+                typeof(System.IO.Stream),
                 null
             )
             .ConfigureAwait(false);
@@ -558,6 +563,7 @@ public class PetApi : BaseApi
                 null,
                 FindPetsByStatusAccepts,
                 "application/json",
+                typeof(List<Pet>),
                 null
             )
             .ConfigureAwait(false);
@@ -624,6 +630,7 @@ public class PetApi : BaseApi
                 null,
                 GetExternalPetInfoAccepts,
                 "application/json",
+                typeof(Pet),
                 null
             )
             .ConfigureAwait(false);
@@ -690,6 +697,7 @@ public class PetApi : BaseApi
                 null,
                 GetMultiServerPetInfoAccepts,
                 "application/json",
+                typeof(Pet),
                 null
             )
             .ConfigureAwait(false);
@@ -742,6 +750,7 @@ public class PetApi : BaseApi
                 null,
                 GetPetAvatarAccepts,
                 "application/json",
+                typeof(System.IO.Stream),
                 null
             )
             .ConfigureAwait(false);
@@ -794,6 +803,7 @@ public class PetApi : BaseApi
                 null,
                 GetPetAvatarThumbnailAccepts,
                 "application/json",
+                typeof(byte[]),
                 null
             )
             .ConfigureAwait(false);
@@ -847,6 +857,7 @@ public class PetApi : BaseApi
                 null,
                 GetPetByIdAccepts,
                 "application/json",
+                typeof(Pet),
                 null
             )
             .ConfigureAwait(false);
@@ -899,6 +910,7 @@ public class PetApi : BaseApi
                 null,
                 GetPetPassportAccepts,
                 "application/json",
+                typeof(PetPassport),
                 null
             )
             .ConfigureAwait(false);
@@ -969,6 +981,7 @@ public class PetApi : BaseApi
                 null,
                 GetPetPhotoAccepts,
                 "application/json",
+                typeof(System.IO.Stream),
                 null
             )
             .ConfigureAwait(false);
@@ -1077,6 +1090,7 @@ public class PetApi : BaseApi
                 null,
                 GetPetTagAccepts,
                 "application/json",
+                typeof(Pet),
                 null
             )
             .ConfigureAwait(false);
@@ -1144,6 +1158,7 @@ public class PetApi : BaseApi
                 null,
                 GetStagingPetInfoAccepts,
                 "application/json",
+                typeof(Pet),
                 null
             )
             .ConfigureAwait(false);
@@ -1197,6 +1212,7 @@ public class PetApi : BaseApi
                 body,
                 [],
                 "image/jpeg",
+                null,
                 null
             )
             .ConfigureAwait(false);
@@ -1256,6 +1272,7 @@ public class PetApi : BaseApi
                 setPetAvatarThumbnailRequest,
                 [],
                 "application/json",
+                null,
                 null
             )
             .ConfigureAwait(false);
@@ -1308,6 +1325,7 @@ public class PetApi : BaseApi
                 pet,
                 UpdatePetAccepts,
                 "application/json",
+                typeof(Pet),
                 null
             )
             .ConfigureAwait(false);
@@ -1370,6 +1388,7 @@ public class PetApi : BaseApi
                 formBody,
                 UploadPetCertificateAccepts,
                 "multipart/form-data",
+                typeof(ApiResponse),
                 null
             )
             .ConfigureAwait(false);
@@ -1440,6 +1459,7 @@ public class PetApi : BaseApi
                 formBody,
                 UploadPetDocumentAccepts,
                 "multipart/form-data",
+                typeof(ApiResponse),
                 null
             )
             .ConfigureAwait(false);

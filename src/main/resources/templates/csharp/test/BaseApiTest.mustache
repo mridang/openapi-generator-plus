@@ -36,7 +36,7 @@ public class BaseApiTest
         {
             return await InvokeApiAsync<T>(
                 method, path, queryParams, headerParams, body,
-                accepts, contentType, auth);
+                accepts, contentType, typeof(T), auth);
         }
     }
 

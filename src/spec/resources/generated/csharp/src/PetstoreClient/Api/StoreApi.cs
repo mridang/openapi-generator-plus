@@ -75,6 +75,7 @@ public class StoreApi : BaseApi
                 null,
                 [],
                 "application/json",
+                null,
                 null
             )
             .ConfigureAwait(false);
@@ -111,6 +112,7 @@ public class StoreApi : BaseApi
                 null,
                 GetInventoryAccepts,
                 "application/json",
+                typeof(Dictionary<string, int>),
                 null
             )
             .ConfigureAwait(false);
@@ -162,6 +164,7 @@ public class StoreApi : BaseApi
                 null,
                 GetOrderByIdAccepts,
                 "application/json",
+                typeof(Order),
                 null
             )
             .ConfigureAwait(false);
@@ -199,6 +202,7 @@ public class StoreApi : BaseApi
                 order,
                 PlaceOrderAccepts,
                 "application/json",
+                typeof(Order),
                 null
             )
             .ConfigureAwait(false);

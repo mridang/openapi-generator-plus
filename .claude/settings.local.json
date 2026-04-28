@@ -674,7 +674,14 @@
       "Bash(gh run view 24818838545 --log-failed 2>&1 | tail -80)",
       "Bash(gh run view 24818838545 --log-failed 2>&1 | grep -E \"^\\\\S+\\\\s+\\\\S+\\\\s+.*error:\" | head -10)",
       "Bash(git add pom.xml src/main/java/io/github/mridang/codegen/generators/AbstractBetterCodegen.java && git commit --amend --no-edit && git push --force)",
-      "Bash(git add -A && git commit --amend --no-edit && git push --force)"
+      "Bash(git add -A && git commit --amend --no-edit && git push --force)",
+      "Bash(if grep -q '{{>api_info}}' \"src/main/resources/templates/csharp/test/tests_csproj.mustache\" 2>/dev/null; then echo \"BAD: tests_csproj has api_info\"; else echo \"OK: tests_csproj excluded\"; fi)",
+      "Bash(git stash && devbox run -- mvn test -Dtest=\"GenerateClientsTest#generateRustClient\" -pl . -q 2>&1 | tail -5)",
+      "Bash(git commit -m \"$\\(cat <<'EOF'\nchore: remove redundant codegen smoke tests\n\nThese tests duplicated what GenerateClientsTest already covers by\nrunning the generator into a temp directory and discarding the output.\nGenerateClientsTest exercises the same code path for all 12 languages.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\" && git push)"
     ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
   }
 }

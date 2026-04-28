@@ -180,10 +180,13 @@ public final class ValueSerializer {
       }
       case "simple" -> String.join(",", items);
       case "form" -> {
-        if (explode) {
-          yield new ArrayList<>(items);
+        if (value instanceof Collection<?>) {
+          if (explode) {
+            yield new ArrayList<>(items);
+          }
+          yield String.join(",", items);
         }
-        yield String.join(",", items);
+        yield ObjectSerializer.stringify(value);
       }
       case "spaceDelimited" -> String.join(" ", items);
       case "pipeDelimited" -> String.join("|", items);

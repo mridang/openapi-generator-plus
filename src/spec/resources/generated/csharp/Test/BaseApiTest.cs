@@ -49,6 +49,7 @@ public class BaseApiTest
                 body,
                 accepts,
                 contentType,
+                typeof(T),
                 auth
             );
         }

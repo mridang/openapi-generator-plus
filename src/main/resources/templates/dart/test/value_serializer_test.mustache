@@ -207,6 +207,29 @@ void main() {
           'id', '5', 'query', 'string', '', '', false);
       expect(result, equals('5'));
     });
+
+    // Regression tests
+
+    test('serializeStyled form explode scalar returns single string', () {
+      final result = serializeStyled(
+          'color', 'blue', 'query', 'string', '', 'form', true);
+      expect(result, isA<String>());
+      expect(result, equals('blue'));
+    });
+
+    test('serializeStyled simple path does not URL-encode', () {
+      final result = serializeStyled(
+          'name', 'hello world', 'path', 'string', '', 'simple', false);
+      expect(result, equals('hello world'));
+    });
+
+    test('serializeStyled form explode single-element array', () {
+      final result = serializeStyled(
+          'color', ['red'], 'query', 'array', '', 'form', true);
+      expect(result, isA<List<String>>());
+      final items = result as List<String>;
+      expect(items, equals(['red']));
+    });
   });
 }
 {{/generateTests}}

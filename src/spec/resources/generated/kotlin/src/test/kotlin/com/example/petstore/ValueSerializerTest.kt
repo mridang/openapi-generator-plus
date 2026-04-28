@@ -243,6 +243,12 @@ class ValueSerializerTest {
         fun nullReturnsEmptyString() {
             assertEquals("", ValueSerializer.serializeStyled("id", null, "path", "string", null, "simple", true))
         }
+
+        @Test
+        @DisplayName("scalar does not URL-encode path value")
+        fun scalarDoesNotUrlEncodePath() {
+            assertEquals("hello world", ValueSerializer.serializeStyled("id", "hello world", "path", "string", null, "simple", false))
+        }
     }
 
     @Nested
@@ -276,6 +282,18 @@ class ValueSerializerTest {
         @DisplayName("null returns null for query location")
         fun nullReturnsNullForQuery() {
             assertNull(ValueSerializer.serializeStyled("color", null, "query", "string", null, "form", true))
+        }
+
+        @Test
+        @DisplayName("scalar with explode true returns string not list")
+        fun scalarExplodeTrueReturnsString() {
+            assertEquals("blue", ValueSerializer.serializeStyled("color", "blue", "query", "string", null, "form", true))
+        }
+
+        @Test
+        @DisplayName("single-element array with explode true returns list")
+        fun singleElementArrayExplodeTrueReturnsList() {
+            assertEquals(listOf("blue"), ValueSerializer.serializeStyled("color", listOf("blue"), "query", "array", null, "form", true))
         }
     }
 

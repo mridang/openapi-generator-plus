@@ -32,7 +32,7 @@ module PetstoreClient
     def self.serialize_array(value, location, collection_format)
       if location == :query
         serialize_query_array(value, collection_format)
-      elsif location == :header
+      else
         value.map { |v| ObjectSerializer.stringify(v) }.join(',')
       end
     end

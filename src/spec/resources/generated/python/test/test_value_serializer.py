@@ -198,6 +198,12 @@ class TestFormStyleWithExplode:
             'black',
         ]
 
+    def test_scalar_with_explode_true_returns_string_not_list(self) -> None:
+        assert ValueSerializer.serialize_styled('color', 'blue', 'query', 'string', None, 'form', True) == 'blue'
+
+    def test_single_element_array_with_explode_true_returns_list(self) -> None:
+        assert ValueSerializer.serialize_styled('color', ['blue'], 'query', 'array', None, 'form', True) == ['blue']
+
 
 class TestSimpleStyleBackwardCompatibility:
     def test_scalar_returns_stringified_value(self) -> None:
@@ -206,6 +212,12 @@ class TestSimpleStyleBackwardCompatibility:
     def test_array_joins_with_comma(self) -> None:
         assert (
             ValueSerializer.serialize_styled('id', ['3', '4', '5'], 'path', 'array', None, 'simple', False) == '3,4,5'
+        )
+
+    def test_scalar_does_not_url_encode(self) -> None:
+        assert (
+            ValueSerializer.serialize_styled('id', 'hello world', 'path', 'string', None, 'simple', False)
+            == 'hello world'
         )
 
 

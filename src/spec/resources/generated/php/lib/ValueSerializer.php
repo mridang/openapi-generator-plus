@@ -132,7 +132,7 @@ final class ValueSerializer
      */
     private static function serializeMatrix(string $paramName, array $items, bool $explode): string
     {
-        if ($explode && count($items) > 1) {
+        if ($explode) {
             return implode('', array_map(
                 static fn (string $v): string => ';' . $paramName . '=' . $v,
                 $items,
@@ -147,7 +147,7 @@ final class ValueSerializer
      */
     private static function serializeLabel(array $items, bool $explode): string
     {
-        if ($explode && count($items) > 1) {
+        if ($explode) {
             return '.' . implode('.', $items);
         }
 
@@ -160,7 +160,7 @@ final class ValueSerializer
      */
     private static function serializeForm(array $items, bool $explode): string|array
     {
-        if ($explode && count($items) > 1) {
+        if ($explode) {
             return $items;
         }
 

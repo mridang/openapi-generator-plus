@@ -135,14 +135,16 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
   }
 
   /**
-   * Returns the authentication headers with a valid Bearer token.
+   * Returns the authentication headers synchronously.
    *
-   * This method is synchronous and will throw. Use {@link getAuthHeadersAsync} instead.
+   * Because OpenID Connect requires async discovery and token exchange,
+   * this method returns empty headers. Use {@link getAuthHeadersAsync}
+   * to obtain a valid Bearer token.
    *
-   * @throws Error always -- use getAuthHeadersAsync() instead
+   * @returns empty headers
    */
   getAuthHeaders(): Record<string, string> {
-    throw new Error('Use getAuthHeadersAsync() instead');
+    return {};
   }
 
   /**

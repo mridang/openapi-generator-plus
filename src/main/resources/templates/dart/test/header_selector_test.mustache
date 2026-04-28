@@ -105,6 +105,48 @@ void main() {
 
       expect(headers['Accept'], contains('application/vnd.api+json'));
     });
+
+    test('isJsonMime case insensitive', () {
+      final hs = HeaderSelector();
+
+      expect(hs.isJsonMime('APPLICATION/JSON'), isTrue);
+    });
+
+    test('getNextWeight standard sequence', () {
+      final hs = HeaderSelector();
+
+      expect(hs.getNextWeight(1000, false), equals(900));
+      expect(hs.getNextWeight(900, false), equals(800));
+      expect(hs.getNextWeight(200, false), equals(100));
+      expect(hs.getNextWeight(100, false), equals(90));
+      expect(hs.getNextWeight(90, false), equals(80));
+    });
+
+    test('getNextWeight more than 28 headers', () {
+      final hs = HeaderSelector();
+
+      expect(hs.getNextWeight(1000, true), equals(999));
+      expect(hs.getNextWeight(999, true), equals(998));
+      expect(hs.getNextWeight(998, true), equals(997));
+    });
+
+    test('getNextWeight minimum', () {
+      final hs = HeaderSelector();
+
+      expect(hs.getNextWeight(1, false), equals(1));
+      expect(hs.getNextWeight(0, false), equals(1));
+      expect(hs.getNextWeight(-1, false), equals(1));
+    });
+
+    test('getNextWeight 27 steps from 1000 to 1', () {
+      final hs = HeaderSelector();
+
+      var weight = 1000;
+      for (var i = 0; i < 27; i++) {
+        weight = hs.getNextWeight(weight, false);
+      }
+      expect(weight, equals(1));
+    });
   });
 }
 {{/generateTests}}

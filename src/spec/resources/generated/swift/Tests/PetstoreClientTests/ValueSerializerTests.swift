@@ -241,4 +241,29 @@ final class ValueSerializerTests: XCTestCase {
       explode: false)
     XCTAssertEqual(result as? String, "5")
   }
+
+  // MARK: - Regression tests
+
+  func testSerializeStyledFormExplodeScalarReturnsSingleString() {
+    let result = ValueSerializer.serializeStyled(
+      "color", value: "blue", location: "query", schemaType: "string", collectionFormat: "",
+      style: "form", explode: true)
+    XCTAssertTrue(result is String, "expected a String, not an Array")
+    XCTAssertEqual(result as? String, "blue")
+  }
+
+  func testSerializeStyledSimplePathDoesNotURLEncode() {
+    let result = ValueSerializer.serializeStyled(
+      "name", value: "hello world", location: "path", schemaType: "string", collectionFormat: "",
+      style: "simple", explode: false)
+    XCTAssertEqual(result as? String, "hello world")
+  }
+
+  func testSerializeStyledFormExplodeSingleElementArray() {
+    let result = ValueSerializer.serializeStyled(
+      "color", value: ["red"], location: "query", schemaType: "array", collectionFormat: "",
+      style: "form", explode: true)
+    let items = result as? [String]
+    XCTAssertEqual(items, ["red"])
+  }
 }

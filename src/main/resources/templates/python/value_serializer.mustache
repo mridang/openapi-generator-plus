@@ -133,10 +133,7 @@ class ValueSerializer:
             if isinstance(value, list):
                 items = [ObjectSerializer.stringify(v) for v in value]
                 return ','.join(items)
-            str_val = ObjectSerializer.stringify(value)
-            if location == 'path':
-                return quote(str_val, safe='')
-            return str_val
+            return ObjectSerializer.stringify(value)
 
         return cls.serialize(value, location, schema_type, collection_format)
 

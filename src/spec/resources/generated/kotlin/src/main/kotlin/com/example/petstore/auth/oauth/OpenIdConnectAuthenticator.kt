@@ -7,6 +7,7 @@
 
 package com.example.petstore.auth.oauth
 
+import com.example.petstore.ApiClient
 import com.example.petstore.auth.HttpAwareAuthenticator
 
 /**
@@ -19,9 +20,12 @@ open class OpenIdConnectAuthenticator(
     private val clientSecret: String,
     private val redirectUri: String,
     private val scopes: List<String>,
-) : HttpAwareAuthenticator() {
+) : HttpAwareAuthenticator {
     @Volatile
     private var accessToken: String? = null
+
+    override fun setApiClient(apiClient: ApiClient) {
+    }
 
     override fun getHost(): String = host
 

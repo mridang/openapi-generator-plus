@@ -162,6 +162,13 @@ func TestSerializeStyled_SimpleNil(t *testing.T) {
 	}
 }
 
+func TestSerializeStyled_SimpleScalarDoesNotUrlEncode(t *testing.T) {
+	result := petstore.SerializeStyled("id", "hello world", "path", "string", "", "simple", false)
+	if result != "hello world" {
+		t.Errorf("expected 'hello world' (not URL-encoded), got %v", result)
+	}
+}
+
 // ── SerializeStyled: form ──
 
 func TestSerializeStyled_FormScalar(t *testing.T) {
@@ -186,6 +193,28 @@ func TestSerializeStyled_FormArrayNoExplode(t *testing.T) {
 	result := petstore.SerializeStyled("color", []string{"red", "green"}, "query", "array", "", "form", false)
 	if result != "red,green" {
 		t.Errorf("expected 'red,green', got %v", result)
+	}
+}
+
+func TestSerializeStyled_FormScalarExplodeTrueReturnsString(t *testing.T) {
+	result := petstore.SerializeStyled("color", "blue", "query", "string", "", "form", true)
+	str, ok := result.(string)
+	if !ok {
+		t.Fatalf("expected string result, got %T", result)
+	}
+	if str != "blue" {
+		t.Errorf("expected 'blue', got %q", str)
+	}
+}
+
+func TestSerializeStyled_FormSingleElementArrayExplodeTrueReturnsList(t *testing.T) {
+	result := petstore.SerializeStyled("color", []string{"blue"}, "query", "array", "", "form", true)
+	items, ok := result.([]string)
+	if !ok {
+		t.Fatalf("expected []string for exploded form single-element array, got %T", result)
+	}
+	if len(items) != 1 || items[0] != "blue" {
+		t.Errorf("expected [blue], got %v", items)
 	}
 }
 

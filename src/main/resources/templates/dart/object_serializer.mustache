@@ -88,12 +88,7 @@ String stringify(Object? value) {
   if (value is DateTime) return value.toIso8601String();
   if (value is String) return value;
   if (value is int) return value.toString();
-  if (value is double) {
-    if (value == value.truncateToDouble()) {
-      return value.toInt().toString();
-    }
-    return value.toString();
-  }
+  if (value is double) return value.toString();
 
   return value.toString();
 }

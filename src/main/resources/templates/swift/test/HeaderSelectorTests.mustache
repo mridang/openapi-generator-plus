@@ -92,4 +92,46 @@ final class HeaderSelectorTests: XCTestCase {
         let accept = headers["Accept"] ?? ""
         XCTAssertTrue(accept.contains("application/vnd.api+json"))
     }
+
+    func testIsJSONMIMECaseInsensitive() {
+        let hs = HeaderSelector()
+
+        XCTAssertTrue(hs.isJSONMIME("APPLICATION/JSON"))
+    }
+
+    func testGetNextWeightStandardSequence() {
+        let hs = HeaderSelector()
+
+        XCTAssertEqual(hs.getNextWeight(1000, hasMoreThan28Headers: false), 900)
+        XCTAssertEqual(hs.getNextWeight(900, hasMoreThan28Headers: false), 800)
+        XCTAssertEqual(hs.getNextWeight(200, hasMoreThan28Headers: false), 100)
+        XCTAssertEqual(hs.getNextWeight(100, hasMoreThan28Headers: false), 90)
+        XCTAssertEqual(hs.getNextWeight(90, hasMoreThan28Headers: false), 80)
+    }
+
+    func testGetNextWeightMoreThan28Headers() {
+        let hs = HeaderSelector()
+
+        XCTAssertEqual(hs.getNextWeight(1000, hasMoreThan28Headers: true), 999)
+        XCTAssertEqual(hs.getNextWeight(999, hasMoreThan28Headers: true), 998)
+        XCTAssertEqual(hs.getNextWeight(998, hasMoreThan28Headers: true), 997)
+    }
+
+    func testGetNextWeightMinimum() {
+        let hs = HeaderSelector()
+
+        XCTAssertEqual(hs.getNextWeight(1, hasMoreThan28Headers: false), 1)
+        XCTAssertEqual(hs.getNextWeight(0, hasMoreThan28Headers: false), 1)
+        XCTAssertEqual(hs.getNextWeight(-1, hasMoreThan28Headers: false), 1)
+    }
+
+    func testGetNextWeight27Steps() {
+        let hs = HeaderSelector()
+
+        var weight = 1000
+        for _ in 0..<27 {
+            weight = hs.getNextWeight(weight, hasMoreThan28Headers: false)
+        }
+        XCTAssertEqual(weight, 1)
+    }
 }

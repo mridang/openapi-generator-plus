@@ -29,6 +29,7 @@ func TestHeaderSelector_IsJSONMIME(t *testing.T) {
 		{"", false},
 		{"application/octet-stream", false},
 		{"application/hal+json", true},
+		{"APPLICATION/JSON", true},
 	}
 
 	for _, tc := range testCases {
@@ -137,5 +138,88 @@ func TestHeaderSelector_SelectHeadersWithVendorJSON(t *testing.T) {
 	accept := headers["Accept"]
 	if !strings.Contains(accept, "application/vnd.api+json") {
 		t.Errorf("expected Accept to contain vendor JSON MIME, got %q", accept)
+	}
+}
+
+func TestHeaderSelector_GetNextWeight_StandardSequence(t *testing.T) {
+	hs := petstore.NewHeaderSelector()
+
+	testCases := []struct {
+		input    int
+		expected int
+	}{
+		{1000, 900},
+		{900, 800},
+		{800, 700},
+		{700, 600},
+		{600, 500},
+		{500, 400},
+		{400, 300},
+		{300, 200},
+		{200, 100},
+		{100, 90},
+		{90, 80},
+	}
+
+	for _, tc := range testCases {
+		result := hs.GetNextWeight(tc.input, false)
+		if result != tc.expected {
+			t.Errorf("GetNextWeight(%d, false) = %d, want %d", tc.input, result, tc.expected)
+		}
+	}
+}
+
+func TestHeaderSelector_GetNextWeight_MoreThan28Headers(t *testing.T) {
+	hs := petstore.NewHeaderSelector()
+
+	testCases := []struct {
+		input    int
+		expected int
+	}{
+		{1000, 999},
+		{999, 998},
+		{998, 997},
+	}
+
+	for _, tc := range testCases {
+		result := hs.GetNextWeight(tc.input, true)
+		if result != tc.expected {
+			t.Errorf("GetNextWeight(%d, true) = %d, want %d", tc.input, result, tc.expected)
+		}
+	}
+}
+
+func TestHeaderSelector_GetNextWeight_MinimumWeight(t *testing.T) {
+	hs := petstore.NewHeaderSelector()
+
+	testCases := []struct {
+		input    int
+		expected int
+	}{
+		{1, 1},
+		{0, 1},
+		{-1, 1},
+	}
+
+	for _, tc := range testCases {
+		result := hs.GetNextWeight(tc.input, false)
+		if result != tc.expected {
+			t.Errorf("GetNextWeight(%d, false) = %d, want %d", tc.input, result, tc.expected)
+		}
+	}
+}
+
+func TestHeaderSelector_GetNextWeight_Produces27Steps(t *testing.T) {
+	hs := petstore.NewHeaderSelector()
+
+	weight := 1000
+	count := 0
+	for weight > 1 {
+		weight = hs.GetNextWeight(weight, false)
+		count++
+	}
+
+	if count != 27 {
+		t.Errorf("expected 27 steps from 1000 to 1, got %d", count)
 	}
 }

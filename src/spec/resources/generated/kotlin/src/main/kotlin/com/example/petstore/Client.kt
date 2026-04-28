@@ -63,7 +63,7 @@ class Client {
         val apiClient: ApiClient = DefaultApiClient(transportOptions)
 
         if (authenticator is HttpAwareAuthenticator) {
-            authenticator.apiClient = apiClient
+            authenticator.setApiClient(apiClient)
         }
 
         val configBuilder =

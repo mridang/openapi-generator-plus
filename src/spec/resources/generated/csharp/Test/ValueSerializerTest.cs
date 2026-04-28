@@ -479,6 +479,30 @@ public class ValueSerializerTest
         Assert.Equal(new List<string> { "blue", "black" }, result);
     }
 
+    [Fact]
+    public void FormStyleScalarExplodeTrueReturnsStringNotList()
+    {
+        Assert.Equal(
+            "blue",
+            ValueSerializer.SerializeStyled("color", "blue", "query", "string", null, "form", true)
+        );
+    }
+
+    [Fact]
+    public void FormStyleSingleElementArrayExplodeTrueReturnsList()
+    {
+        var result = ValueSerializer.SerializeStyled(
+            "color",
+            new List<object> { "blue" },
+            "query",
+            "array",
+            null,
+            "form",
+            true
+        );
+        Assert.Equal(new List<string> { "blue" }, result);
+    }
+
     // -- serializeStyled: simple style backward compatibility --
 
     [Fact]
@@ -500,6 +524,23 @@ public class ValueSerializerTest
                 new List<object> { "3", "4", "5" },
                 "path",
                 "array",
+                null,
+                "simple",
+                false
+            )
+        );
+    }
+
+    [Fact]
+    public void SimpleStyleScalarDoesNotUrlEncodePath()
+    {
+        Assert.Equal(
+            "hello world",
+            ValueSerializer.SerializeStyled(
+                "id",
+                "hello world",
+                "path",
+                "string",
                 null,
                 "simple",
                 false

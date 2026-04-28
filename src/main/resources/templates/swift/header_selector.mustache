@@ -5,7 +5,8 @@ import Foundation
 /// based on the MIME types declared in the OpenAPI specification.
 public final class HeaderSelector: Sendable {
     private static let jsonMIMEPattern = try! NSRegularExpression(
-        pattern: #"^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)"#
+        pattern: #"^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)"#,
+        options: .caseInsensitive
     )
     private static let weightPattern = try! NSRegularExpression(
         pattern: #"(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$"#
@@ -48,7 +49,7 @@ public final class HeaderSelector: Sendable {
         return Self.jsonMIMEPattern.firstMatch(in: searchString, range: range) != nil
     }
 
-    private func getNextWeight(_ currentWeight: Int, hasMoreThan28Headers: Bool) -> Int {
+    public func getNextWeight(_ currentWeight: Int, hasMoreThan28Headers: Bool) -> Int {
         if currentWeight <= 1 { return 1 }
         if hasMoreThan28Headers { return currentWeight - 1 }
 
@@ -136,7 +137,10 @@ public final class HeaderSelector: Sendable {
             return header
         }
 
-        let cleanHeader = header.trimmingCharacters(in: CharacterSet(charactersIn: "; "))
+        var cleanHeader = header
+        while cleanHeader.hasSuffix(";") || cleanHeader.hasSuffix(" ") {
+            cleanHeader = String(cleanHeader.dropLast())
+        }
         var weightStr = String(format: "%0.3f", Double(weight) / 1000.0)
         // Trim trailing zeros
         while weightStr.hasSuffix("0") { weightStr = String(weightStr.dropLast()) }

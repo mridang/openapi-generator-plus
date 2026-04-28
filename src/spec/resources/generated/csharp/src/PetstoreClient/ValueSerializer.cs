@@ -153,8 +153,7 @@ public static class ValueSerializer
                 {
                     return string.Join(",", items);
                 }
-                string str = ObjectSerializer.Stringify(value);
-                return location == "path" ? Uri.EscapeDataString(str) : str;
+                return ObjectSerializer.Stringify(value);
         }
     }
 

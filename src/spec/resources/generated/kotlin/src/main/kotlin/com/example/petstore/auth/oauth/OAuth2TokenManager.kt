@@ -84,7 +84,7 @@ class OAuth2TokenManager {
         val client =
             apiClient ?: throw IllegalStateException(
                 "ApiClient has not been injected. " +
-                    "Ensure the client constructor sets the apiClient property " +
+                    "Ensure the client constructor calls setApiClient() " +
                     "on HttpAwareAuthenticator before making API requests.",
             )
 

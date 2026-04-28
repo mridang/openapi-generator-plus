@@ -662,28 +662,28 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                         "base-authenticator.ts"));
         supportingFiles.add(
                 new SupportingFile(
-                        "auth/http_aware_authenticator.mustache",
+                        "auth/http-aware-authenticator.mustache",
                         authFolder,
                         "http-aware-authenticator.ts"));
 
         if (hasBasicAuth) {
             supportingFiles.add(
                     new SupportingFile(
-                            "auth/basic_authenticator.mustache",
+                            "auth/basic-authenticator.mustache",
                             authFolder,
                             "basic-authenticator.ts"));
         }
         if (hasBearerAuth) {
             supportingFiles.add(
                     new SupportingFile(
-                            "auth/bearer_authenticator.mustache",
+                            "auth/bearer-authenticator.mustache",
                             authFolder,
                             "bearer-authenticator.ts"));
         }
         if (hasApiKeyAuth) {
             supportingFiles.add(
                     new SupportingFile(
-                            "auth/api_key_authenticator.mustache",
+                            "auth/api-key-authenticator.mustache",
                             authFolder,
                             "api-key-authenticator.ts"));
             supportingFiles.add(

@@ -241,3 +241,33 @@ fn test_serialize_styled_empty_style() {
     );
     assert_eq!(unwrap_single(result), "5");
 }
+
+// -- regression tests --
+
+#[test]
+fn test_serialize_styled_form_explode_scalar_returns_single() {
+    let result = value_serializer::serialize_styled(
+        "color", Some("blue"), None, "query", "string", "", "form", true,
+    );
+    match result {
+        Some(SerializedValue::Single(s)) => assert_eq!(s, "blue"),
+        other => panic!("expected Single(\"blue\"), got {:?}", other),
+    }
+}
+
+#[test]
+fn test_serialize_styled_simple_path_no_url_encode() {
+    let result = value_serializer::serialize_styled(
+        "name", Some("hello world"), None, "path", "string", "", "simple", false,
+    );
+    assert_eq!(unwrap_single(result), "hello world");
+}
+
+#[test]
+fn test_serialize_styled_form_explode_single_element_array() {
+    let items: Vec<String> = vec!["red".into()];
+    let result = value_serializer::serialize_styled(
+        "color", None, Some(&items), "query", "array", "", "form", true,
+    );
+    assert_eq!(unwrap_multi(result), vec!["red"]);
+}
