@@ -1,4 +1,4 @@
-.PHONY: all build test lint fmt vet docs clean
+.PHONY: all build test lint format vet docs clean
 
 all: build
 
@@ -13,7 +13,7 @@ test:
 lint:
 	golangci-lint run ./...
 
-fmt:
+format:
 	gofmt -s -w .
 
 vet:

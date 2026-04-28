@@ -1,5 +1,7 @@
-import { DefaultApiClient } from '../src/default-api-client';
-import { TransportOptions } from '../src/transport-options';
+{{>api_info}}
+
+import { DefaultApiClient } from '../src/default-api-client{{importFileExtension}}';
+import { TransportOptions } from '../src/transport-options{{importFileExtension}}';
 import * as zlib from 'node:zlib';
 
 describe('DefaultApiClient', () => {

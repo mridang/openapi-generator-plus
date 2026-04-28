@@ -1,5 +1,7 @@
-import { ObjectSerializer } from '../src/object-serializer';
-import { Metadata } from '../src/models';
+{{>api_info}}
+
+import { ObjectSerializer } from '../src/object-serializer{{importFileExtension}}';
+import { Metadata } from '../src/models/index{{importFileExtension}}';
 
 describe('Metadata model (typed additionalProperties)', () => {
   test('deserializes additional string properties', () => {

@@ -40,6 +40,11 @@ public class PhpFormattingSpec extends AbstractFormattingSpec implements PhpSpec
     return !file.getFileName().toString().equals("rector.php");
   }
 
+  @Override
+  protected boolean skipFileHeaderComments() {
+    return true;
+  }
+
   @Test
   void generatedCodeShouldBeProperlyFormatted() {
     ExecResult result = executeInRuntimeContainer(getBuildCommands());

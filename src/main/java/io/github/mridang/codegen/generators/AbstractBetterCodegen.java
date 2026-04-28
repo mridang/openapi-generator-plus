@@ -12,6 +12,7 @@ import io.swagger.v3.oas.models.servers.ServerVariable;
 import io.swagger.v3.oas.models.tags.Tag;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -1472,6 +1473,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * apiTemplateFiles mechanism cannot produce per-operation files.
      */
     protected String renderOptionsTemplate(String templateName, Map<String, Object> context) {
+        for (Map.Entry<String, Object> entry : additionalProperties.entrySet()) {
+            context.putIfAbsent(entry.getKey(), entry.getValue());
+        }
         final String templatePath = embeddedTemplateDir + "/" + templateName;
         try (InputStream is =
                         getClass().getClassLoader().getResourceAsStream(templatePath);
@@ -1480,7 +1484,25 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                                 Objects.requireNonNull(
                                         is, "Template not found: " + templatePath),
                                 StandardCharsets.UTF_8)) {
-            return Mustache.compiler().escapeHTML(false).compile(reader).execute(context);
+            return Mustache.compiler()
+                    .escapeHTML(false)
+                    .withLoader(
+                            name -> {
+                                String partialPath =
+                                        embeddedTemplateDir + "/" + name + ".mustache";
+                                InputStream partialIs =
+                                        getClass()
+                                                .getClassLoader()
+                                                .getResourceAsStream(partialPath);
+                                if (partialIs == null) {
+                                    throw new FileNotFoundException(
+                                            "Partial not found: " + partialPath);
+                                }
+                                return new InputStreamReader(
+                                        partialIs, StandardCharsets.UTF_8);
+                            })
+                    .compile(reader)
+                    .execute(context);
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to render template: " + templatePath, e);
         }

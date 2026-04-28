@@ -1,6 +1,8 @@
+{{>api_info}}
+
 import * as http from 'http';
-import { DefaultApiClient } from '../src/default-api-client';
-import { HeaderSelector } from '../src/header-selector';
+import { DefaultApiClient } from '../src/default-api-client{{importFileExtension}}';
+import { HeaderSelector } from '../src/header-selector{{importFileExtension}}';
 
 let server: http.Server;
 let baseUrl: string;

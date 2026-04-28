@@ -1,7 +1,9 @@
-import { PetApi, UploadPetDocumentDocumentTypeEnum } from '../../src/api/pet-api';
-import { BearerAuthenticator } from '../../src/auth/bearer-authenticator';
-import { Configuration } from '../../src/configuration';
-import { Pet, PhotoMetadata, SetPetAvatarThumbnailRequest } from '../../src/models';
+{{>api_info}}
+
+import { PetApi, UploadPetDocumentDocumentTypeEnum } from '../../src/api/pet-api{{importFileExtension}}';
+import { BearerAuthenticator } from '../../src/auth/bearer-authenticator{{importFileExtension}}';
+import { Configuration } from '../../src/configuration{{importFileExtension}}';
+import { Pet, PhotoMetadata, SetPetAvatarThumbnailRequest } from '../../src/models/index{{importFileExtension}}';
 
 const baseUrl = process.env.API_BASE_URL || 'http://localhost:4010';
 const config = Configuration.builder()

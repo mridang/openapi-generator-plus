@@ -313,22 +313,22 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
             supportingFiles.add(new SupportingFile("test/setup.ts", "test", "setup.ts"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/Api/pet-api.test.ts",
+                            "test/Api/pet-api.test.mustache",
                             Path.of("test", "Api").toString(),
                             "pet-api.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/Api/store-api.test.ts",
+                            "test/Api/store-api.test.mustache",
                             Path.of("test", "Api").toString(),
                             "store-api.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/default-api-client.test.ts",
+                            "test/default-api-client.test.mustache",
                             "test",
                             "default-api-client.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/default-api-client-unit.test.ts",
+                            "test/default-api-client-unit.test.mustache",
                             "test",
                             "default-api-client-unit.test.ts"));
             supportingFiles.add(
@@ -338,17 +338,17 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                             "transport-options.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/object-serializer.test.ts",
+                            "test/object-serializer.test.mustache",
                             "test",
                             "object-serializer.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/value-serializer.test.ts",
+                            "test/value-serializer.test.mustache",
                             "test",
                             "value-serializer.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/trace-context-util.test.ts",
+                            "test/trace-context-util.test.mustache",
                             "test",
                             "trace-context-util.test.ts"));
             supportingFiles.add(
@@ -358,17 +358,17 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                             "base-api.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/metadata.test.ts",
+                            "test/metadata.test.mustache",
                             "test",
                             "metadata.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/composed-schema.test.ts",
+                            "test/composed-schema.test.mustache",
                             "test",
                             "composed-schema.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/header-selector.test.ts",
+                            "test/header-selector.test.mustache",
                             "test",
                             "header-selector.test.ts"));
             supportingFiles.add(

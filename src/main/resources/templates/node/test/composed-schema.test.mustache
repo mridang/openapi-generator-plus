@@ -1,6 +1,8 @@
-import { ObjectSerializer } from '../src/object-serializer';
-import { PetWithOwner, PetFood, DryFood, Medication } from '../src/models';
-import * as models from '../src/models';
+{{>api_info}}
+
+import { ObjectSerializer } from '../src/object-serializer{{importFileExtension}}';
+import { PetWithOwner, PetFood, DryFood, Medication } from '../src/models/index{{importFileExtension}}';
+import * as models from '../src/models/index{{importFileExtension}}';
 
 describe('Composed Schema Deserialization', () => {
   test('allOf: PetWithOwner deserializes all properties', () => {
