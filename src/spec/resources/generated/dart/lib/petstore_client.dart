@@ -24,7 +24,7 @@ export 'src/header_selector.dart';
 export 'src/object_serializer.dart';
 export 'src/value_serializer.dart';
 export 'src/trace_context_util.dart';
-export 'src/authenticator.dart';
+export 'src/auth/authenticator.dart';
 
 // Errors
 export 'src/errors/api_error.dart';

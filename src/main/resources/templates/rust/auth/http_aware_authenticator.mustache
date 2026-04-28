@@ -1,5 +1,9 @@
+{{>api_info}}
+
+use std::sync::Arc;
+
 use crate::api_client::ApiClient;
-use crate::authenticator::Authenticator;
+use super::Authenticator;
 
 /// HttpAwareAuthenticator extends Authenticator for authentication schemes
 /// that require making HTTP requests (e.g. OAuth2 token exchange, OpenID
@@ -23,5 +27,5 @@ pub trait HttpAwareAuthenticator: Authenticator {
     /// created with the user's TransportOptions. Implementations should store
     /// this reference and use it for all outbound HTTP calls (token exchange,
     /// discovery, etc.).
-    fn set_api_client(&mut self, client: Box<dyn ApiClient>);
+    fn set_api_client(&mut self, client: Arc<dyn ApiClient>);
 }

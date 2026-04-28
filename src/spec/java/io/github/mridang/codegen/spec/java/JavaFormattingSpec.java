@@ -37,6 +37,11 @@ public class JavaFormattingSpec extends AbstractFormattingSpec implements JavaSp
     return file.toString().contains("/src/main/");
   }
 
+  @Override
+  protected boolean skipFileHeaderComments() {
+    return true;
+  }
+
   @Test
   void generatedCodeShouldBeProperlyFormatted() {
     ExecResult result = executeInRuntimeContainer(getBuildCommands());

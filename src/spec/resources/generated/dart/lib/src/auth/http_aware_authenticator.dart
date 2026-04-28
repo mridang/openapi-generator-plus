@@ -7,7 +7,7 @@
 
 import 'package:http/http.dart' as http;
 
-import '../authenticator.dart';
+import 'authenticator.dart';
 
 /// HttpAwareAuthenticator is implemented by authentication schemes that
 /// require making HTTP requests (e.g. OAuth2 token exchange, OpenID

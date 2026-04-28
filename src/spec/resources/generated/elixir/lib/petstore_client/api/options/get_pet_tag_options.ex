@@ -9,9 +9,7 @@ defmodule PetstoreClient.Api.Options.GetPetTagOptions do
           filter: term()
         }
 
-  defstruct [
-    colors: nil,
-    sizes: nil,
-    filter: nil
-  ]
+  defstruct colors: nil,
+            sizes: nil,
+            filter: nil
 end

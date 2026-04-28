@@ -6,11 +6,20 @@ spec_path = Path.join([host_app_path, "test", "fixtures", "openapi.yaml"])
 # Start Prism mock server
 {prism, _} =
   System.cmd("docker", [
-    "run", "-d", "--rm",
-    "-p", "0:4010",
-    "-v", "#{spec_path}:/tmp/openapi.yaml:ro",
+    "run",
+    "-d",
+    "--rm",
+    "-p",
+    "0:4010",
+    "-v",
+    "#{spec_path}:/tmp/openapi.yaml:ro",
     "stoplight/prism:5",
-    "mock", "-m", "false", "-h", "0.0.0.0", "/tmp/openapi.yaml"
+    "mock",
+    "-m",
+    "false",
+    "-h",
+    "0.0.0.0",
+    "/tmp/openapi.yaml"
   ])
 
 prism_id = String.trim(prism)
@@ -42,17 +51,30 @@ mappings_path = Path.join([host_app_path, "test", "fixtures", "wiremock", "mappi
 
 {wiremock, _} =
   System.cmd("docker", [
-    "run", "-d", "--rm",
-    "-p", "0:8080", "-p", "0:8443",
-    "-v", "#{keystore_path}:/tmp/keystore.p12:ro",
-    "-v", "#{mappings_path}:/home/wiremock/mappings:ro",
+    "run",
+    "-d",
+    "--rm",
+    "-p",
+    "0:8080",
+    "-p",
+    "0:8443",
+    "-v",
+    "#{keystore_path}:/tmp/keystore.p12:ro",
+    "-v",
+    "#{mappings_path}:/home/wiremock/mappings:ro",
     "wiremock/wiremock:3.13.0",
-    "--port", "8080",
-    "--https-port", "8443",
-    "--https-keystore", "/tmp/keystore.p12",
-    "--keystore-type", "PKCS12",
-    "--keystore-password", "changeit",
-    "--key-manager-password", "changeit",
+    "--port",
+    "8080",
+    "--https-port",
+    "8443",
+    "--https-keystore",
+    "/tmp/keystore.p12",
+    "--keystore-type",
+    "PKCS12",
+    "--keystore-password",
+    "changeit",
+    "--key-manager-password",
+    "changeit",
     "--verbose"
   ])
 
@@ -86,9 +108,13 @@ squid_conf_path = Path.join([host_app_path, "test", "fixtures", "proxy", "squid.
 
 {squid, _} =
   System.cmd("docker", [
-    "run", "-d", "--rm",
-    "-p", "0:3128",
-    "-v", "#{squid_conf_path}:/etc/squid/squid.conf:ro",
+    "run",
+    "-d",
+    "--rm",
+    "-p",
+    "0:3128",
+    "-v",
+    "#{squid_conf_path}:/etc/squid/squid.conf:ro",
     "ubuntu/squid:5.2-22.04_beta"
   ])
 

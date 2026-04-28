@@ -63,5 +63,4 @@ defmodule PetstoreClient.Models.Order do
       complete: "boolean()"
     }
   end
-
 end

@@ -1,5 +1,7 @@
+{{>api_info}}
+
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::api_client::ApiClient;
@@ -14,7 +16,7 @@ pub struct OAuth2TokenManager {
 }
 
 struct TokenManagerInner {
-    api_client: Option<Box<dyn ApiClient>>,
+    api_client: Option<Arc<dyn ApiClient>>,
     access_token: String,
     refresh_token: String,
     token_expiry: Option<Instant>,
@@ -37,7 +39,7 @@ impl OAuth2TokenManager {
     }
 
     /// Injects the shared API client for making token requests.
-    pub fn set_api_client(&self, client: Box<dyn ApiClient>) {
+    pub fn set_api_client(&self, client: Arc<dyn ApiClient>) {
         let mut inner = self.inner.lock().unwrap();
         inner.api_client = Some(client);
     }
@@ -51,6 +53,8 @@ impl OAuth2TokenManager {
     /// Returns a valid access token, fetching or refreshing as necessary.
     ///
     /// This method is synchronized to prevent concurrent token requests.
+    /// Uses `tokio::task::block_in_place` to call the async `send_request`
+    /// method from within synchronous code.
     pub fn get_access_token(
         &self,
         token_url: &str,
@@ -66,27 +70,11 @@ impl OAuth2TokenManager {
             }
         }
 
-        Self::fetch_token(&mut inner, token_url, params)?;
-        Ok(inner.access_token.clone())
-    }
-
-    /// Manually sets an access token, bypassing the token endpoint.
-    pub fn set_access_token(&self, token: &str) {
-        let mut inner = self.inner.lock().unwrap();
-        inner.access_token = token.to_string();
-        inner.token_expiry = None;
-    }
-
-    fn fetch_token(
-        inner: &mut TokenManagerInner,
-        token_url: &str,
-        params: &HashMap<String, String>,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let client = inner.api_client.as_ref().ok_or_else(|| {
+        let client = inner.api_client.as_ref().ok_or(
             "ApiClient has not been injected. \
              Ensure the {{clientClassName}} constructor calls set_api_client \
              on HttpAwareAuthenticator before making API requests"
-        })?;
+        )?.clone();
 
         let mut headers = HashMap::new();
         headers.insert(
@@ -100,7 +88,11 @@ impl OAuth2TokenManager {
             .collect::<Vec<_>>()
             .join("&");
 
-        let response = client.send_request("POST", token_url, &headers, body.as_bytes())?;
+        let response = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(
+                client.send_request("POST", token_url, &headers, Some(body.as_bytes()))
+            )
+        })?;
 
         if response.status_code < 200 || response.status_code >= 300 {
             return Err(format!(
@@ -126,7 +118,14 @@ impl OAuth2TokenManager {
             }
         }
 
-        Ok(())
+        Ok(inner.access_token.clone())
+    }
+
+    /// Manually sets an access token, bypassing the token endpoint.
+    pub fn set_access_token(&self, token: &str) {
+        let mut inner = self.inner.lock().unwrap();
+        inner.access_token = token.to_string();
+        inner.token_expiry = None;
     }
 }
 

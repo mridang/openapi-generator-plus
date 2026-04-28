@@ -16,7 +16,7 @@ beforeAll(async () => {
     if (req.url === '/vendor-json') {
       const response = JSON.stringify({ format: 'vendor' });
       res.writeHead(200, {
-        'Content-Type': 'application/vnd.api+json',
+        'Content-Type': 'application/vnd.api+json'
       });
       res.end(response);
       return;
@@ -28,13 +28,13 @@ beforeAll(async () => {
       const response = JSON.stringify({ method: req.method, body });
       res.writeHead(200, {
         'Content-Type': 'application/json',
-        'X-Test-Header': 'test-value',
+        'X-Test-Header': 'test-value'
       });
       res.end(response);
     });
   });
 
-  await new Promise<void>(resolve => {
+  await new Promise<void>((resolve) => {
     server.listen(0, '127.0.0.1', resolve);
   });
 
@@ -43,7 +43,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await new Promise<void>(resolve => server.close(() => resolve()));
+  await new Promise<void>((resolve) => server.close(() => resolve()));
 });
 
 describe('DefaultApiClient unit', () => {

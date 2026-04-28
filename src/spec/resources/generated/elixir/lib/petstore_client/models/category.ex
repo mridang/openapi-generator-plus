@@ -47,5 +47,4 @@ defmodule PetstoreClient.Models.Category do
       name: "String.t()"
     }
   end
-
 end

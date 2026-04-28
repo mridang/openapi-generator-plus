@@ -8,8 +8,6 @@ defmodule PetstoreClient.Api.Options.AddPetPhotosOptions do
           metadata: term()
         }
 
-  defstruct [
-    files: nil,
-    metadata: nil
-  ]
+  defstruct files: nil,
+            metadata: nil
 end

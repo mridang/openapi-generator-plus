@@ -332,7 +332,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile("base_api.mustache", "src/api", "base_api.rs"));
         supportingFiles.add(
-                new SupportingFile("authenticator.mustache", "src", "authenticator.rs"));
+                new SupportingFile("authenticator.mustache", Path.of("src", "auth").toString(), "authenticator.rs"));
         final String clientClassName =
                 Objects.requireNonNull((String) additionalProperties.get("clientClassName"));
         final String clientClassFile = NamingConvention.SNAKE_CASE.apply(clientClassName);

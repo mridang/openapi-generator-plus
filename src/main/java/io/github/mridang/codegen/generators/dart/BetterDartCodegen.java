@@ -323,7 +323,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen {
                         Path.of(srcDir, "api").toString(),
                         "base_api.dart"));
         supportingFiles.add(
-                new SupportingFile("authenticator.mustache", srcDir, "authenticator.dart"));
+                new SupportingFile("authenticator.mustache", Path.of(srcDir, "auth").toString(), "authenticator.dart"));
 
         final String clientClassName =
                 Objects.requireNonNull((String) additionalProperties.get("clientClassName"));

@@ -1,10 +1,12 @@
+{{>api_info}}
+
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use crate::api_client::ApiClient;
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 use crate::auth::oauth::oauth2_auth_code_authenticator::OAuth2AuthorizationCodeAuthenticator;
-use crate::authenticator::Authenticator;
+use crate::auth::Authenticator;
 
 /// OpenIdConnectAuthenticator provides OpenID Connect authentication.
 ///
@@ -21,7 +23,7 @@ pub struct OpenIdConnectAuthenticator {
     client_secret: String,
     redirect_uri: String,
     scopes: Vec<String>,
-    api_client: Mutex<Option<Box<dyn ApiClient>>>,
+    api_client: Mutex<Option<Arc<dyn ApiClient>>>,
     delegate: Mutex<Option<OAuth2AuthorizationCodeAuthenticator>>,
 }
 
@@ -78,21 +80,36 @@ impl OpenIdConnectAuthenticator {
         let mut delegate_guard = self.delegate.lock().unwrap();
 
         if let Some(ref delegate) = *delegate_guard {
-            return Ok(delegate.clone());
+            // Return a new instance with the same configuration
+            return Ok(OAuth2AuthorizationCodeAuthenticator::new(
+                delegate.host(),
+                &self.client_id,
+                &self.client_secret,
+                "",
+                "",
+                &self.redirect_uri,
+                self.scopes.clone(),
+                "",
+            ));
         }
 
-        let client_guard = self.api_client.lock().unwrap();
-        let client = client_guard.as_ref().ok_or(
-            "ApiClient has not been injected. \
-             Ensure the {{clientClassName}} constructor calls set_api_client \
-             on HttpAwareAuthenticator before making API requests",
-        )?;
+        let client = {
+            let client_guard = self.api_client.lock().unwrap();
+            client_guard.as_ref().ok_or(
+                "ApiClient has not been injected. \
+                 Ensure the {{clientClassName}} constructor calls set_api_client \
+                 on HttpAwareAuthenticator before making API requests",
+            )?.clone()
+        };
 
         let mut headers = HashMap::new();
         headers.insert("Accept".to_string(), "application/json".to_string());
 
-        let response =
-            client.send_request("GET", &self.openid_connect_url, &headers, &[])?;
+        let response = tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(
+                client.send_request("GET", &self.openid_connect_url, &headers, None)
+            )
+        })?;
 
         let parsed: serde_json::Value = serde_json::from_str(&response.body)?;
 
@@ -119,15 +136,19 @@ impl OpenIdConnectAuthenticator {
             "",
         );
 
-        // Inject the API client clone into the delegate's token manager.
-        // The delegate needs its own client reference for token exchange.
-        drop(client_guard);
-        let client_guard = self.api_client.lock().unwrap();
-        if let Some(ref client) = *client_guard {
-            delegate.set_api_client(client.clone_box());
-        }
+        // Inject the API client into the delegate's token manager.
+        delegate.set_api_client(client);
 
-        let result = delegate.clone();
+        let result = OAuth2AuthorizationCodeAuthenticator::new(
+            &self.host,
+            &self.client_id,
+            &self.client_secret,
+            &authorization_endpoint,
+            &token_endpoint,
+            &self.redirect_uri,
+            self.scopes.clone(),
+            "",
+        );
         *delegate_guard = Some(delegate);
         Ok(result)
     }
@@ -147,7 +168,7 @@ impl Authenticator for OpenIdConnectAuthenticator {
 }
 
 impl HttpAwareAuthenticator for OpenIdConnectAuthenticator {
-    fn set_api_client(&mut self, client: Box<dyn ApiClient>) {
+    fn set_api_client(&mut self, client: Arc<dyn ApiClient>) {
         let mut guard = self.api_client.lock().unwrap();
         *guard = Some(client);
     }

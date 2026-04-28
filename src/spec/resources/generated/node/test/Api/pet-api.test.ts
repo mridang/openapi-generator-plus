@@ -4,10 +4,7 @@ import { Configuration } from '../../src/configuration';
 import { Pet, PhotoMetadata, SetPetAvatarThumbnailRequest } from '../../src/models';
 
 const baseUrl = process.env.API_BASE_URL || 'http://localhost:4010';
-const config = Configuration.builder()
-  .baseUrl(baseUrl)
-  .defaultHeader('Authorization', 'Bearer test-token')
-  .build();
+const config = Configuration.builder().baseUrl(baseUrl).defaultHeader('Authorization', 'Bearer test-token').build();
 const api = new PetApi(undefined, config);
 const auth = new BearerAuthenticator(baseUrl, 'test-token');
 
@@ -17,7 +14,7 @@ describe('PetApi', () => {
       id: 12345,
       name: 'TestDog',
       photoUrls: new Set(['http://example.com/photo.jpg']),
-      status: 'available',
+      status: 'available'
     };
 
     const result = await api.addPet(auth, pet);
@@ -46,7 +43,7 @@ describe('PetApi', () => {
       id: 1,
       name: 'UpdatedDog',
       photoUrls: new Set(['http://example.com/updated.jpg']),
-      status: 'pending',
+      status: 'pending'
     };
 
     const result = await api.updatePet(1, pet);
@@ -59,7 +56,7 @@ describe('PetApi', () => {
   });
 
   test('setPetAvatar', async () => {
-    const body = Buffer.from([0xFF, 0xD8, 0xFF]);
+    const body = Buffer.from([0xff, 0xd8, 0xff]);
 
     await api.setPetAvatar(1, body);
   });
@@ -93,19 +90,21 @@ describe('PetApi', () => {
   test('uploadPetDocument', async () => {
     const file = Buffer.from([0x25, 0x50, 0x44, 0x46]);
 
-    const result = await api.uploadPetDocument(1, { file, documentType: UploadPetDocumentDocumentTypeEnum.HealthCertificate, notes: 'Annual checkup document' });
+    const result = await api.uploadPetDocument(1, {
+      file,
+      documentType: UploadPetDocumentDocumentTypeEnum.HealthCertificate,
+      notes: 'Annual checkup document'
+    });
 
     expect(result).toBeDefined();
   });
 
   // Prism does not validate multipart array fields correctly
   test.skip('addPetPhotos', async () => {
-    const files = [
-      Buffer.from([0xFF, 0xD8, 0xFF]),
-    ];
+    const files = [Buffer.from([0xff, 0xd8, 0xff])];
     const metadata = new PhotoMetadata({
       caption: 'Test photo',
-      isPrimary: true,
+      isPrimary: true
     });
 
     const result = await api.addPetPhotos(1, { files, metadata });
@@ -133,9 +132,7 @@ describe('PetApi', () => {
   });
 
   test('getExternalPetInfo uses per-operation server URL', async () => {
-    const externalConfig = Configuration.builder()
-      .baseUrl(baseUrl)
-      .build();
+    const externalConfig = Configuration.builder().baseUrl(baseUrl).build();
     const externalApi = new PetApi(undefined, externalConfig);
 
     try {

@@ -9,7 +9,7 @@ import 'dart:convert';
 
 import '../api_client.dart';
 import '../api_response.dart';
-import '../authenticator.dart';
+import '../auth/authenticator.dart';
 import '../configuration.dart';
 import '../default_api_client.dart';
 import '../header_selector.dart';

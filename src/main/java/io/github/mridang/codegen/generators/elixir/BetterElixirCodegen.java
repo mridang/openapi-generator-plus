@@ -319,7 +319,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                         Path.of(libDir, "api").toString(),
                         "base_api.ex"));
         supportingFiles.add(
-                new SupportingFile("authenticator.mustache", libDir, "authenticator.ex"));
+                new SupportingFile("authenticator.mustache", Path.of(libDir, "auth").toString(), "authenticator.ex"));
 
         final String clientClassName =
                 Objects.requireNonNull((String) additionalProperties.get("clientClassName"));

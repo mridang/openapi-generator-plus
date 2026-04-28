@@ -1,8 +1,10 @@
+{{>api_info}}
+
 use std::sync::Arc;
 
 use crate::api_client::ApiClient;
 use crate::auth::bearer_authenticator::BearerAuthenticator;
-use crate::authenticator::Authenticator;
+use crate::auth::Authenticator;
 use crate::configuration::ConfigurationBuilder;
 use crate::default_api_client::DefaultApiClient;
 use crate::transport_options::TransportOptions;

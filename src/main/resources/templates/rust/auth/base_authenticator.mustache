@@ -1,6 +1,8 @@
+{{>api_info}}
+
 use std::collections::HashMap;
 
-use crate::authenticator::Authenticator;
+use super::Authenticator;
 
 /// BaseAuthenticator provides a minimal Authenticator implementation that
 /// returns the stored host and empty credentials.

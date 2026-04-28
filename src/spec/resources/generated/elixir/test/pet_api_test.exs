@@ -5,10 +5,11 @@ defmodule PetstoreClient.Api.PetApiTest do
     base_url = System.get_env("API_BASE_URL", "http://localhost:4010")
     auth = PetstoreClient.Auth.BearerAuthenticator.new(base_url, "test-token")
 
-    config = PetstoreClient.Configuration.new(
-      base_url: base_url,
-      default_headers: %{"Authorization" => "Bearer test-token"}
-    )
+    config =
+      PetstoreClient.Configuration.new(
+        base_url: base_url,
+        default_headers: %{"Authorization" => "Bearer test-token"}
+      )
 
     api = PetstoreClient.Api.PetApi.new(nil, config)
 

@@ -1,9 +1,13 @@
+{{>api_info}}
+
 use std::collections::HashMap;
+
+use std::sync::Arc;
 
 use crate::api_client::ApiClient;
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 use crate::auth::oauth::oauth2_token_manager::OAuth2TokenManager;
-use crate::authenticator::Authenticator;
+use crate::auth::Authenticator;
 
 /// OAuth2AuthorizationCodeAuthenticator provides OAuth2 authorization code
 /// flow authentication.
@@ -136,7 +140,7 @@ impl Authenticator for OAuth2AuthorizationCodeAuthenticator {
 }
 
 impl HttpAwareAuthenticator for OAuth2AuthorizationCodeAuthenticator {
-    fn set_api_client(&mut self, client: Box<dyn ApiClient>) {
+    fn set_api_client(&mut self, client: Arc<dyn ApiClient>) {
         self.token_manager.set_api_client(client);
     }
 }

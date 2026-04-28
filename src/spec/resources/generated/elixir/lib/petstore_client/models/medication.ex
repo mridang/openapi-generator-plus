@@ -48,5 +48,4 @@ defmodule PetstoreClient.Models.Medication do
       dosage: "String.t()"
     }
   end
-
 end

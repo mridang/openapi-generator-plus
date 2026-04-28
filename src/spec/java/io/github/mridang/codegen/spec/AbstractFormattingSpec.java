@@ -49,6 +49,14 @@ public abstract class AbstractFormattingSpec extends AbstractIntegrationSpec {
     return true;
   }
 
+  /**
+   * Return true to skip leading file-header comment lines when checking for inline comments.
+   * When enabled, contiguous comment or blank lines at the start of each file are ignored.
+   */
+  protected boolean skipFileHeaderComments() {
+    return false;
+  }
+
   @Test
   void generatedCodeShouldNotContainHtmlEntities() throws IOException {
     Pattern htmlEntity = Pattern.compile("&(lt|gt|amp|quot);");
@@ -97,7 +105,18 @@ public abstract class AbstractFormattingSpec extends AbstractIntegrationSpec {
               p -> {
                 try {
                   List<String> lines = Files.readAllLines(p);
-                  for (int i = 0; i < lines.size(); i++) {
+                  int start = 0;
+                  if (skipFileHeaderComments()) {
+                    while (start < lines.size()) {
+                      String line = lines.get(start).trim();
+                      if (line.isEmpty() || inlineComment.matcher(lines.get(start)).find()) {
+                        start++;
+                      } else {
+                        break;
+                      }
+                    }
+                  }
+                  for (int i = start; i < lines.size(); i++) {
                     if (inlineComment.matcher(lines.get(i)).find()) {
                       violations.add(
                           p.getFileName() + ":" + (i + 1) + ": " + lines.get(i).trim());

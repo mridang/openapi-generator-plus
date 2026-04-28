@@ -43,6 +43,11 @@ public class CSharpFormattingSpec extends AbstractFormattingSpec implements CSha
     return !path.contains("/Models/") && path.contains("/src/PetstoreClient/");
   }
 
+  @Override
+  protected boolean skipFileHeaderComments() {
+    return true;
+  }
+
   @Test
   void generatedCodeShouldBeProperlyFormatted() {
     ExecResult result = executeInRuntimeContainer(getBuildCommands());

@@ -3,7 +3,9 @@ defmodule PetstoreClient.ComposedSchemaTest do
 
   describe "allOf PetWithOwner" do
     test "deserializes all properties from allOf composition" do
-      json = ~s({"name":"doggie","photoUrls":["http://example.com/photo.jpg"],"ownerName":"John","ownerEmail":"john@example.com"})
+      json =
+        ~s({"name":"doggie","photoUrls":["http://example.com/photo.jpg"],"ownerName":"John","ownerEmail":"john@example.com"})
+
       result = PetstoreClient.ObjectSerializer.deserialize(json, "PetWithOwner")
 
       assert %PetstoreClient.Models.PetWithOwner{} = result

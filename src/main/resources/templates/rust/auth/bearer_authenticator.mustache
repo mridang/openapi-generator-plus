@@ -1,6 +1,8 @@
+{{>api_info}}
+
 use std::collections::HashMap;
 
-use crate::authenticator::Authenticator;
+use super::Authenticator;
 
 /// BearerAuthenticator provides HTTP Bearer token authentication.
 pub struct BearerAuthenticator {

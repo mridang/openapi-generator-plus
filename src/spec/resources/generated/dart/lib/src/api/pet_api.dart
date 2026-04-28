@@ -10,7 +10,7 @@ import 'dart:convert';
 import '../api_client.dart';
 import '../api_response.dart';
 import '../api_result.dart';
-import '../authenticator.dart';
+import '../auth/authenticator.dart';
 import 'base_api.dart';
 import '../configuration.dart';
 import '../object_serializer.dart';

@@ -32,6 +32,11 @@ public class NodeFormattingSpec extends AbstractFormattingSpec implements NodeSp
     return tempOutputDir.resolve("src");
   }
 
+  @Override
+  protected boolean skipFileHeaderComments() {
+    return true;
+  }
+
   @Test
   void generatedCodeShouldBeProperlyFormatted() {
     ExecResult result = executeInRuntimeContainer(getBuildCommands());

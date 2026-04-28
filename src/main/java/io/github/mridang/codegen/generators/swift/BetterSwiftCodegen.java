@@ -309,7 +309,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                 new SupportingFile(
                         "base_api.mustache", Path.of(srcDir, "Api").toString(), "BaseApi.swift"));
         supportingFiles.add(
-                new SupportingFile("authenticator.mustache", srcDir, "Authenticator.swift"));
+                new SupportingFile("authenticator.mustache", Path.of(srcDir, "Auth").toString(), "Authenticator.swift"));
         supportingFiles.add(
                 new SupportingFile("any_codable.mustache", srcDir, "AnyCodable.swift"));
 

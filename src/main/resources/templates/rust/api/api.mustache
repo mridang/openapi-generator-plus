@@ -1,3 +1,5 @@
+{{>api_info}}
+
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -5,7 +7,7 @@ use crate::api::base_api::BaseApi;
 use crate::api::base_api::InvokeApiParams;
 use crate::api_client::ApiClient;
 use crate::api_result::ApiResult;
-use crate::authenticator::Authenticator;
+use crate::auth::Authenticator;
 use crate::configuration::Configuration;
 use crate::models::*;
 use crate::object_serializer;

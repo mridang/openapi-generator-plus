@@ -1,8 +1,12 @@
+{{>api_info}}
+
 use std::collections::HashMap;
+
+use std::sync::Arc;
 
 use crate::api_client::ApiClient;
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
-use crate::authenticator::Authenticator;
+use crate::auth::Authenticator;
 
 /// OAuth2ImplicitAuthenticator provides OAuth2 implicit flow authentication.
 ///
@@ -83,7 +87,7 @@ impl Authenticator for OAuth2ImplicitAuthenticator {
 }
 
 impl HttpAwareAuthenticator for OAuth2ImplicitAuthenticator {
-    fn set_api_client(&mut self, _client: Box<dyn ApiClient>) {
+    fn set_api_client(&mut self, _client: Arc<dyn ApiClient>) {
         // Implicit flow does not make token exchange requests,
         // but implements the trait for consistency.
     }
