@@ -6,7 +6,9 @@ build:
 	swift build
 
 test:
-	swift test
+	mkdir -p .out/reports
+	swift test --enable-code-coverage --xunit-output .out/reports/junit.xml
+	cp $$(swift test --show-codecov-path 2>/dev/null) .out/coverage.xml 2>/dev/null || true
 
 format:
 	swift format --recursive --in-place Sources Tests

@@ -333,6 +333,8 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile("mix_exs.mustache", "", "mix.exs"));
         supportingFiles.add(
+                new SupportingFile("coveralls_json.mustache", "", "coveralls.json"));
+        supportingFiles.add(
                 new SupportingFile("formatter_exs.mustache", "", ".formatter.exs"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));

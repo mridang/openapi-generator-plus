@@ -12,7 +12,7 @@ build:
 	cargo build
 
 test:
-	cargo test
+	cargo llvm-cov nextest --cobertura --output-path .out/coverage.xml --profile ci
 
 docs:
 	cargo doc --no-deps

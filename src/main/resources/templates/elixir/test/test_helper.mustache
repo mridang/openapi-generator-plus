@@ -1,5 +1,8 @@
 ExUnit.start(formatters: [ExUnit.CLIFormatter, JUnitFormatter])
 
+Application.put_env(:junit_formatter, :report_dir, ".out/reports")
+Application.put_env(:junit_formatter, :report_file, "junit.xml")
+
 host_app_path = System.get_env("HOST_APP_PATH", File.cwd!())
 spec_path = Path.join([host_app_path, "test", "fixtures", "openapi.yaml"])
 

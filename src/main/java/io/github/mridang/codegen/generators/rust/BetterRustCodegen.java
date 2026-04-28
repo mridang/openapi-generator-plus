@@ -342,6 +342,11 @@ public class BetterRustCodegen extends AbstractBetterCodegen {
         supportingFiles.add(new SupportingFile("lib.mustache", "src", "lib.rs"));
         supportingFiles.add(new SupportingFile("cargo_toml.mustache", "", "Cargo.toml"));
         supportingFiles.add(new SupportingFile("rustfmt_toml.mustache", "", "rustfmt.toml"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "nextest_toml.mustache",
+                        Path.of(".config", "nextest").toString(),
+                        "default.toml"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
 

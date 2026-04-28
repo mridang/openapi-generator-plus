@@ -7,6 +7,7 @@ build: install
 	mix compile
 
 test: install
+	mkdir -p .out/reports
 	mix test
 
 lint: install

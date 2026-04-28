@@ -4,7 +4,7 @@ build:
 	./gradlew build
 
 test:
-	./gradlew test
+	./gradlew test koverXmlReport
 
 clean:
 	./gradlew clean
