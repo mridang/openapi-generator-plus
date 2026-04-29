@@ -3,7 +3,6 @@ package oauth
 
 import (
 	"fmt"
-	"net/http"
 	"net/url"
 	"strings"
 
@@ -45,9 +44,9 @@ func (a *OAuth2ImplicitAuthenticator) Host() string {
 	return a.host
 }
 
-// SetHTTPClient is a no-op for the implicit flow, but implements
+// SetApiClient is a no-op for the implicit flow, but implements
 // the HttpAwareAuthenticator interface for consistency.
-func (a *OAuth2ImplicitAuthenticator) SetHTTPClient(_ *http.Client) {
+func (a *OAuth2ImplicitAuthenticator) SetApiClient(_ auth.ApiClient) {
 	// Implicit flow does not make token exchange requests,
 	// but implements the interface for consistency.
 }

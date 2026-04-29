@@ -11,23 +11,23 @@ import Foundation
 /// require making HTTP requests (e.g. OAuth2 token exchange, OpenID
 /// Connect discovery).
 ///
-/// Implementations receive a shared URLSession instance so that
+/// Implementations receive a shared ``ApiClient`` instance so that
 /// authentication-related HTTP calls (token endpoints, discovery documents)
 /// use the same transport configuration (proxy, TLS, timeouts) as regular
 /// API calls.
 ///
-/// The URLSession is injected by the ``Client`` constructor after
-/// creation, via ``setURLSession(_:)``. Implementations must not make HTTP calls
-/// before the session is injected.
+/// The ApiClient is injected by the ``Client`` constructor after
+/// creation, via ``setApiClient(_:)``. Implementations must not make HTTP calls
+/// before the client is injected.
 ///
 /// Only OAuth2 and OpenID Connect authenticators conform to this protocol.
 /// Simple authenticators (Basic, Bearer, API Key) do not need HTTP access.
 public protocol HttpAwareAuthenticator: Authenticator {
-  /// Injects the shared URLSession for making HTTP requests.
+  /// Injects the shared ``ApiClient`` for making HTTP requests.
   ///
-  /// Called by the ``Client`` constructor after the URLSession has been
+  /// Called by the ``Client`` constructor after the ``ApiClient`` has been
   /// created with the user's TransportOptions. Implementations should store
   /// this reference and use it for all outbound HTTP calls (token exchange,
   /// discovery, etc.).
-  func setURLSession(_ session: URLSession)
+  func setApiClient(_ client: ApiClient)
 }

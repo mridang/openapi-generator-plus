@@ -151,11 +151,6 @@ func (c *DefaultApiClient) SendMultipartRequest(method, url string, headers map[
 	return c.SendRequest(method, url, merged, buf.Bytes())
 }
 
-// HTTPClient returns the underlying HTTP client for use by HTTP-aware authenticators.
-func (c *DefaultApiClient) HTTPClient() *http.Client {
-	return c.httpClient
-}
-
 func buildHTTPClient(opts *TransportOptions) *http.Client {
 	transport := &http.Transport{}
 

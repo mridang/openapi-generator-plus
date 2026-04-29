@@ -7,8 +7,7 @@
 
 import 'dart:convert';
 
-import 'package:http/http.dart' as http;
-
+import '../../api_client.dart';
 import '../base_authenticator.dart';
 import '../http_aware_authenticator.dart';
 import 'oauth2_auth_code_authenticator.dart';
@@ -20,7 +19,7 @@ import 'oauth2_auth_code_authenticator.dart';
 /// [OAuth2AuthorizationCodeAuthenticator].
 ///
 /// Implements [HttpAwareAuthenticator] so that both the discovery request and
-/// subsequent token exchange requests use the shared [http.Client] with the
+/// subsequent token exchange requests use the shared [ApiClient] with the
 /// same transport configuration (proxy, TLS, timeouts) as regular API calls.
 class OpenIdConnectAuthenticator extends BaseAuthenticator
     implements HttpAwareAuthenticator {
@@ -30,7 +29,7 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
   final String _clientSecret;
   final String _redirectUri;
   final List<String> _scopes;
-  http.Client? _httpClient;
+  ApiClient? _apiClient;
   OAuth2AuthorizationCodeAuthenticator? _delegate;
 
   /// Creates a new OpenID Connect authenticator.
@@ -52,8 +51,8 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
   String host() => _host;
 
   @override
-  void setHttpClient(http.Client client) {
-    _httpClient = client;
+  void setApiClient(ApiClient client) {
+    _apiClient = client;
   }
 
   /// Builds the authorization URL using the discovered authorization endpoint.
@@ -86,18 +85,20 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
   Future<OAuth2AuthorizationCodeAuthenticator> _resolveDelegate() async {
     if (_delegate != null) return _delegate!;
 
-    final client = _httpClient;
+    final client = _apiClient;
     if (client == null) {
       throw StateError(
-        'HTTP client has not been injected. '
-        'Ensure the Client constructor calls setHttpClient '
+        'API client has not been injected. '
+        'Ensure the Client constructor calls setApiClient '
         'on HttpAwareAuthenticator before making API requests',
       );
     }
 
-    final response = await client.get(
-      Uri.parse(_openIdConnectUrl),
-      headers: {'Accept': 'application/json'},
+    final response = await client.sendRequest(
+      'GET',
+      _openIdConnectUrl,
+      {'Accept': 'application/json'},
+      null,
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -120,7 +121,7 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
       redirectUri: _redirectUri,
       scopes: _scopes,
     );
-    _delegate!.setHttpClient(client);
+    _delegate!.setApiClient(client);
 
     return _delegate!;
   }

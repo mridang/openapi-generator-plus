@@ -3,7 +3,6 @@ package oauth
 
 import (
 	"fmt"
-	"net/http"
 	"net/url"
 	"strings"
 
@@ -13,7 +12,7 @@ import (
 // OAuth2AuthorizationCodeAuthenticator provides OAuth2 authorization code flow authentication.
 //
 // Implements HttpAwareAuthenticator so that token exchange requests use the
-// shared *http.Client with the same transport configuration (proxy, TLS, timeouts)
+// shared ApiClient with the same transport configuration (proxy, TLS, timeouts)
 // as regular API calls.
 //
 // Usage:
@@ -60,9 +59,9 @@ func (a *OAuth2AuthorizationCodeAuthenticator) Host() string {
 	return a.host
 }
 
-// SetHTTPClient injects the shared HTTP client for making token requests.
-func (a *OAuth2AuthorizationCodeAuthenticator) SetHTTPClient(client *http.Client) {
-	a.tokenManager.SetHTTPClient(client)
+// SetApiClient injects the shared API client for making token requests.
+func (a *OAuth2AuthorizationCodeAuthenticator) SetApiClient(client auth.ApiClient) {
+	a.tokenManager.SetApiClient(client)
 }
 
 // BuildAuthorizationURL builds the authorization URL to redirect the user to.

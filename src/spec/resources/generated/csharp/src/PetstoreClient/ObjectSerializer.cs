@@ -151,6 +151,44 @@ public class ObjectSerializer
         return Stringify(value);
     }
 
+    /// <summary>
+    /// Resolve a oneOf schema by attempting deserialization against each candidate.
+    /// Returns the first successful deserialization result.
+    /// </summary>
+    public object? ResolveOneOf(string json, params Type[] schemas)
+    {
+        ArgumentNullException.ThrowIfNull(schemas);
+
+        if (string.IsNullOrEmpty(json))
+        {
+            return null;
+        }
+
+        foreach (Type schema in schemas)
+        {
+            try
+            {
+                object? result = JsonSerializer.Deserialize(json, schema, _options);
+                if (result != null)
+                {
+                    return result;
+                }
+            }
+            catch (JsonException) { }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Resolve an anyOf schema by attempting deserialization against each candidate.
+    /// Returns the first successful deserialization result.
+    /// </summary>
+    public object? ResolveAnyOf(string json, params Type[] schemas)
+    {
+        return ResolveOneOf(json, schemas);
+    }
+
     private static JsonSerializerOptions CreateDefaultOptions()
     {
         JsonSerializerOptions options = new()

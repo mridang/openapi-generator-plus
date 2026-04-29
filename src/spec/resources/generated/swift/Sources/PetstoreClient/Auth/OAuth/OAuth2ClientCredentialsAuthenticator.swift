@@ -10,7 +10,7 @@ import Foundation
 /// OAuth2ClientCredentialsAuthenticator provides OAuth2 client credentials flow authentication.
 ///
 /// Conforms to ``HttpAwareAuthenticator`` so that token exchange requests use the
-/// shared URLSession with the same transport configuration (proxy, TLS, timeouts)
+/// shared ``ApiClient`` with the same transport configuration (proxy, TLS, timeouts)
 /// as regular API calls.
 public final class OAuth2ClientCredentialsAuthenticator: BaseAuthenticator, HttpAwareAuthenticator,
   @unchecked Sendable
@@ -40,9 +40,9 @@ public final class OAuth2ClientCredentialsAuthenticator: BaseAuthenticator, Http
     return _host
   }
 
-  /// Injects the shared URLSession for making token requests.
-  public func setURLSession(_ session: URLSession) {
-    tokenManager.setURLSession(session)
+  /// Injects the shared ``ApiClient`` for making token requests.
+  public func setApiClient(_ client: ApiClient) {
+    tokenManager.setApiClient(client)
   }
 
   /// Returns the Bearer authentication header with a valid access token.

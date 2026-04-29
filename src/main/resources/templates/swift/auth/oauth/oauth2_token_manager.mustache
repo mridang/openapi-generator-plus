@@ -3,26 +3,26 @@ import Foundation
 
 /// OAuth2TokenManager manages OAuth2 token lifecycle: fetching, caching, and refreshing.
 ///
-/// Uses the shared URLSession instance so that token exchange requests honour
+/// Uses the shared ``ApiClient`` instance so that token exchange requests honour
 /// the same transport configuration (proxy, TLS, timeouts) as regular API calls.
 public final class OAuth2TokenManager: @unchecked Sendable {
     private let lock = NSLock()
-    private var urlSession: URLSession?
+    private var apiClient: ApiClient?
     private var accessToken: String = ""
     private var _refreshToken: String = ""
     private var tokenExpiry: Date = .distantPast
 
     /// Creates a new token manager.
     ///
-    /// The URLSession must be injected via ``setURLSession(_:)`` before any token requests
+    /// The ``ApiClient`` must be injected via ``setApiClient(_:)`` before any token requests
     /// are made.
     public init() {}
 
-    /// Injects the shared URLSession for making token requests.
-    public func setURLSession(_ session: URLSession) {
+    /// Injects the shared ``ApiClient`` for making token requests.
+    public func setApiClient(_ client: ApiClient) {
         lock.lock()
         defer { lock.unlock() }
-        self.urlSession = session
+        self.apiClient = client
     }
 
     /// Returns the current refresh token, if any.
@@ -61,37 +61,30 @@ public final class OAuth2TokenManager: @unchecked Sendable {
 
     private func fetchToken(tokenURL: String, params: [String: String]) async throws {
         lock.lock()
-        guard let session = urlSession else {
+        guard let client = apiClient else {
             lock.unlock()
             throw NSError(domain: "OAuth2TokenManager", code: -1, userInfo: [
-                NSLocalizedDescriptionKey: "URLSession has not been injected. " +
-                    "Ensure the {{clientClassName}} constructor calls setURLSession " +
+                NSLocalizedDescriptionKey: "ApiClient has not been injected. " +
+                    "Ensure the {{clientClassName}} constructor calls setApiClient " +
                     "on HttpAwareAuthenticator before making API requests"
             ])
         }
         lock.unlock()
 
-        guard let url = URL(string: tokenURL) else {
-            throw URLError(.badURL)
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-
         let body = params.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
-        request.httpBody = body.data(using: .utf8)
+        let bodyData = body.data(using: .utf8)
 
-        let (data, response) = try await session.data(for: request)
+        let headers = ["Content-Type": "application/x-www-form-urlencoded"]
+        let response = try await client.sendRequest(method: "POST", url: tokenURL, headers: headers, body: bodyData)
 
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw URLError(.badServerResponse)
+        guard response.statusCode >= 200 && response.statusCode < 300 else {
+            throw NSError(domain: "OAuth2TokenManager", code: response.statusCode, userInfo: [
+                NSLocalizedDescriptionKey: "Token request failed with status \(response.statusCode)"
+            ])
         }
 
-        guard httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 else {
-            throw NSError(domain: "OAuth2TokenManager", code: httpResponse.statusCode, userInfo: [
-                NSLocalizedDescriptionKey: "Token request failed with status \(httpResponse.statusCode)"
-            ])
+        guard let data = response.body.data(using: .utf8) else {
+            throw URLError(.badServerResponse)
         }
 
         struct TokenResponse: Decodable {

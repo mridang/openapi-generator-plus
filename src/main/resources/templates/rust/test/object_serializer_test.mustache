@@ -64,28 +64,50 @@ fn test_to_path_value_bool() {
 #[test]
 fn test_to_query_value_string() {
     let result = object_serializer::to_query_value(&"hello".to_string(), "");
-    assert_eq!(result, "hello");
+    match result {
+        object_serializer::QueryValue::Single(s) => assert_eq!(s, "hello"),
+        _ => panic!("expected QueryValue::Single"),
+    }
 }
 
 #[test]
 fn test_to_query_value_string_slice_csv() {
     let items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
     let result = object_serializer::to_query_value(&items, "csv");
-    assert_eq!(result, "a,b,c");
+    match result {
+        object_serializer::QueryValue::Single(s) => assert_eq!(s, "a,b,c"),
+        _ => panic!("expected QueryValue::Single"),
+    }
 }
 
 #[test]
 fn test_to_query_value_string_slice_ssv() {
     let items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
     let result = object_serializer::to_query_value(&items, "ssv");
-    assert_eq!(result, "a b c");
+    match result {
+        object_serializer::QueryValue::Single(s) => assert_eq!(s, "a b c"),
+        _ => panic!("expected QueryValue::Single"),
+    }
 }
 
 #[test]
 fn test_to_query_value_string_slice_pipes() {
     let items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
     let result = object_serializer::to_query_value(&items, "pipes");
-    assert_eq!(result, "a|b|c");
+    match result {
+        object_serializer::QueryValue::Single(s) => assert_eq!(s, "a|b|c"),
+        _ => panic!("expected QueryValue::Single"),
+    }
+}
+
+#[test]
+fn test_to_query_value_string_slice_multi() {
+    let items = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+    let result = object_serializer::to_query_value(&items, "multi");
+    match result {
+        object_serializer::QueryValue::Multi(v) => assert_eq!(v, vec!["a", "b", "c"]),
+        _ => panic!("expected QueryValue::Multi"),
+    }
 }
 
 #[test]

@@ -10,7 +10,7 @@ import Foundation
 /// OAuth2AuthorizationCodeAuthenticator provides OAuth2 authorization code flow authentication.
 ///
 /// Conforms to ``HttpAwareAuthenticator`` so that token exchange requests use the
-/// shared URLSession with the same transport configuration (proxy, TLS, timeouts)
+/// shared ``ApiClient`` with the same transport configuration (proxy, TLS, timeouts)
 /// as regular API calls.
 ///
 /// Usage:
@@ -62,9 +62,9 @@ public final class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, Http
     return _host
   }
 
-  /// Injects the shared URLSession for making token requests.
-  public func setURLSession(_ session: URLSession) {
-    tokenManager.setURLSession(session)
+  /// Injects the shared ``ApiClient`` for making token requests.
+  public func setApiClient(_ client: ApiClient) {
+    tokenManager.setApiClient(client)
   }
 
   /// Builds the authorization URL to redirect the user to.

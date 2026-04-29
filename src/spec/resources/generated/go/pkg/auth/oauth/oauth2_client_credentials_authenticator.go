@@ -8,7 +8,6 @@
 package oauth
 
 import (
-	"net/http"
 	"strings"
 
 	"petstore/pkg/auth"
@@ -17,7 +16,7 @@ import (
 // OAuth2ClientCredentialsAuthenticator provides OAuth2 client credentials flow authentication.
 //
 // Implements HttpAwareAuthenticator so that token exchange requests use the
-// shared *http.Client with the same transport configuration (proxy, TLS, timeouts)
+// shared ApiClient with the same transport configuration (proxy, TLS, timeouts)
 // as regular API calls.
 type OAuth2ClientCredentialsAuthenticator struct {
 	auth.BaseAuthenticator
@@ -46,9 +45,9 @@ func (a *OAuth2ClientCredentialsAuthenticator) Host() string {
 	return a.host
 }
 
-// SetHTTPClient injects the shared HTTP client for making token requests.
-func (a *OAuth2ClientCredentialsAuthenticator) SetHTTPClient(client *http.Client) {
-	a.tokenManager.SetHTTPClient(client)
+// SetApiClient injects the shared API client for making token requests.
+func (a *OAuth2ClientCredentialsAuthenticator) SetApiClient(client auth.ApiClient) {
+	a.tokenManager.SetApiClient(client)
 }
 
 // AuthHeaders returns the Bearer authentication header with a valid access token.

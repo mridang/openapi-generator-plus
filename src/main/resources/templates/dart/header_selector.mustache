@@ -40,14 +40,6 @@ class HeaderSelector {
     return _jsonMIMEPattern.hasMatch(searchString);
   }
 
-  int getNextWeight(int currentWeight, bool hasMoreThan28Headers) {
-    if (currentWeight <= 1) return 1;
-    if (hasMoreThan28Headers) return currentWeight - 1;
-
-    final step = pow(10, (log(currentWeight - 1) / ln10).floor()).toInt();
-    return currentWeight - step;
-  }
-
   String _selectAcceptHeader(List<String> accept) {
     final filtered = accept.where((s) => s.isNotEmpty).toList();
 
@@ -86,14 +78,13 @@ class HeaderSelector {
     }
 
     final acceptHeaders = <String>[];
-    var currentWeight = 1000;
+    final currentWeight = [1000];
     final hasMoreThan28Headers = accept.length > 28;
 
     for (final group in [withApplicationJSON, withJSON, withoutJSON]) {
       if (group.isNotEmpty) {
         final adjusted = _adjustWeight(group, currentWeight, hasMoreThan28Headers);
-        acceptHeaders.addAll(adjusted.headers);
-        currentWeight = adjusted.weight;
+        acceptHeaders.addAll(adjusted);
       }
     }
 
@@ -109,24 +100,23 @@ class HeaderSelector {
     return _HeaderData(header.trim(), 1000);
   }
 
-  _AdjustResult _adjustWeight(
+  List<String> _adjustWeight(
     List<_HeaderData> headers,
-    int currentWeight,
+    List<int> currentWeight,
     bool hasMoreThan28Headers,
   ) {
     headers.sort((a, b) => b.weight.compareTo(a.weight));
 
-    var weight = currentWeight;
     final acceptHeaders = <String>[];
     for (var i = 0; i < headers.length; i++) {
       if (i > 0 && headers[i - 1].weight > headers[i].weight) {
-        weight = getNextWeight(weight, hasMoreThan28Headers);
+        currentWeight[0] = getNextWeight(currentWeight[0], hasMoreThan28Headers);
       }
-      acceptHeaders.add(_buildAcceptHeader(headers[i].header, weight));
+      acceptHeaders.add(_buildAcceptHeader(headers[i].header, currentWeight[0]));
     }
 
-    weight = getNextWeight(weight, hasMoreThan28Headers);
-    return _AdjustResult(acceptHeaders, weight);
+    currentWeight[0] = getNextWeight(currentWeight[0], hasMoreThan28Headers);
+    return acceptHeaders;
   }
 
   String _buildAcceptHeader(String header, int weight) {
@@ -138,16 +128,18 @@ class HeaderSelector {
     weightStr = weightStr.replaceAll(RegExp(r'\.$'), '');
     return '$cleanHeader;q=$weightStr';
   }
+
+  int getNextWeight(int currentWeight, bool hasMoreThan28Headers) {
+    if (currentWeight <= 1) return 1;
+    if (hasMoreThan28Headers) return currentWeight - 1;
+
+    final step = pow(10, (log(currentWeight - 1) / ln10).floor()).toInt();
+    return currentWeight - step;
+  }
 }
 
 class _HeaderData {
   final String header;
   final int weight;
   _HeaderData(this.header, this.weight);
-}
-
-class _AdjustResult {
-  final List<String> headers;
-  final int weight;
-  _AdjustResult(this.headers, this.weight);
 }

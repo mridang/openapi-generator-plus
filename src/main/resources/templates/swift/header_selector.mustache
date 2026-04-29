@@ -49,14 +49,6 @@ public final class HeaderSelector: Sendable {
         return Self.jsonMIMEPattern.firstMatch(in: searchString, range: range) != nil
     }
 
-    public func getNextWeight(_ currentWeight: Int, hasMoreThan28Headers: Bool) -> Int {
-        if currentWeight <= 1 { return 1 }
-        if hasMoreThan28Headers { return currentWeight - 1 }
-
-        let step = Int(pow(10.0, floor(log10(Double(currentWeight - 1)))))
-        return currentWeight - step
-    }
-
     private func selectAcceptHeader(_ accept: [String]) -> String {
         let filtered = accept.filter { !$0.isEmpty }
         if filtered.isEmpty { return "" }
@@ -137,15 +129,19 @@ public final class HeaderSelector: Sendable {
             return header
         }
 
-        var cleanHeader = header
-        while cleanHeader.hasSuffix(";") || cleanHeader.hasSuffix(" ") {
-            cleanHeader = String(cleanHeader.dropLast())
-        }
+        let cleanHeader = header.replacingOccurrences(of: "[;\\s]+$", with: "", options: .regularExpression)
         var weightStr = String(format: "%0.3f", Double(weight) / 1000.0)
-        // Trim trailing zeros
-        while weightStr.hasSuffix("0") { weightStr = String(weightStr.dropLast()) }
+        weightStr = weightStr.replacingOccurrences(of: "0+$", with: "", options: .regularExpression)
         if weightStr.hasSuffix(".") { weightStr = String(weightStr.dropLast()) }
 
         return "\(cleanHeader);q=\(weightStr)"
+    }
+
+    public func getNextWeight(_ currentWeight: Int, hasMoreThan28Headers: Bool) -> Int {
+        if currentWeight <= 1 { return 1 }
+        if hasMoreThan28Headers { return currentWeight - 1 }
+
+        let step = Int(pow(10.0, floor(log10(Double(currentWeight - 1)))))
+        return currentWeight - step
     }
 }

@@ -43,7 +43,7 @@ public final class OAuth2ImplicitAuthenticator: BaseAuthenticator, HttpAwareAuth
 
   /// No-op for the implicit flow, but conforms to
   /// ``HttpAwareAuthenticator`` for consistency.
-  public func setURLSession(_ session: URLSession) {
+  public func setApiClient(_ client: ApiClient) {
     // Implicit flow does not make token exchange requests,
     // but conforms to the protocol for consistency.
   }

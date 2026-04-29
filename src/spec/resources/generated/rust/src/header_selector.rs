@@ -32,18 +32,18 @@ impl HeaderSelector {
     ///
     /// # Arguments
     ///
-    /// * `accepts` - Acceptable MIME types for the response
+    /// * `accept` - Acceptable MIME types for the response
     /// * `content_type` - The Content-Type for the request body
     /// * `is_multipart` - Whether this is a multipart request
     pub fn select_headers(
         &self,
-        accepts: &[&str],
+        accept: &[&str],
         content_type: &str,
         is_multipart: bool,
     ) -> HashMap<String, String> {
         let mut headers = HashMap::new();
 
-        let accept_header = self.select_accept_header(accepts);
+        let accept_header = self.select_accept_header(accept);
         if !accept_header.is_empty() {
             headers.insert("Accept".to_string(), accept_header);
         }
@@ -71,24 +71,12 @@ impl HeaderSelector {
         pattern.is_match(search_string)
     }
 
-    pub fn get_next_weight(&self, current_weight: i32, has_more_than_28_headers: bool) -> i32 {
-        if current_weight <= 1 {
-            return 1;
-        }
-        if has_more_than_28_headers {
-            return current_weight - 1;
-        }
-
-        let step = 10_f64.powf(((current_weight - 1) as f64).log10().floor()) as i32;
-        current_weight - step
-    }
-
-    fn select_accept_header(&self, accepts: &[&str]) -> String {
-        if accepts.is_empty() {
+    fn select_accept_header(&self, accept: &[&str]) -> String {
+        if accept.is_empty() {
             return String::new();
         }
 
-        let filtered: Vec<&str> = accepts.iter().filter(|s| !s.is_empty()).copied().collect();
+        let filtered: Vec<&str> = accept.iter().filter(|s| !s.is_empty()).copied().collect();
 
         if filtered.is_empty() {
             return String::new();
@@ -115,7 +103,7 @@ impl HeaderSelector {
 
     fn get_accept_header_with_adjusted_weight(
         &self,
-        accepts: &[&str],
+        accept: &[&str],
         headers_with_json: &[String],
     ) -> String {
         let json_set: std::collections::HashSet<&str> =
@@ -125,7 +113,7 @@ impl HeaderSelector {
         let mut with_json: Vec<HeaderData> = Vec::new();
         let mut without_json: Vec<HeaderData> = Vec::new();
 
-        for header in accepts {
+        for header in accept {
             let hd = self.get_header_and_weight(header);
             let lower_header = hd.header.to_lowercase();
 
@@ -140,7 +128,7 @@ impl HeaderSelector {
 
         let mut accept_headers: Vec<String> = Vec::new();
         let mut current_weight: i32 = 1000;
-        let has_more_than_28_headers = accepts.len() > 28;
+        let has_more_than_28_headers = accept.len() > 28;
 
         let groups = vec![
             &mut with_application_json,
@@ -210,6 +198,18 @@ impl HeaderSelector {
             .to_string();
 
         format!("{};q={}", clean_header, weight_str)
+    }
+
+    pub fn get_next_weight(&self, current_weight: i32, has_more_than_28_headers: bool) -> i32 {
+        if current_weight <= 1 {
+            return 1;
+        }
+        if has_more_than_28_headers {
+            return current_weight - 1;
+        }
+
+        let step = 10_f64.powf(((current_weight - 1) as f64).log10().floor()) as i32;
+        current_weight - step
     }
 }
 

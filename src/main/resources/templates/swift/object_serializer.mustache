@@ -160,6 +160,24 @@ public enum ObjectSerializer {
         return stringify(value)
     }
 
+    /// Resolve a oneOf schema by attempting deserialization against each candidate.
+    /// Each candidate is a closure that takes JSON data and returns a deserialized value.
+    /// Returns the first successful result.
+    public static func resolveOneOf<T>(_ data: Data, candidates: [(Data) throws -> T]) -> T? {
+        for candidate in candidates {
+            if let result = try? candidate(data) {
+                return result
+            }
+        }
+        return nil
+    }
+
+    /// Resolve an anyOf schema by attempting deserialization against each candidate.
+    /// Returns the first successful result.
+    public static func resolveAnyOf<T>(_ data: Data, candidates: [(Data) throws -> T]) -> T? {
+        return resolveOneOf(data, candidates: candidates)
+    }
+
     private static func joinCollection(_ items: [String], collectionFormat: String) -> Any {
         switch collectionFormat {
         case "ssv":

@@ -62,7 +62,7 @@ class {{clientClassName}} {
        {{/-last}}{{#-last}} {
     final apiClient = DefaultApiClient(transportOptions);
     if (authenticator is HttpAwareAuthenticator) {
-      authenticator.setHttpClient(apiClient.httpClient);
+      authenticator.setApiClient(apiClient);
     }
   }{{/-last}}{{/operations}}{{/apis}}{{/apiInfo}}
 

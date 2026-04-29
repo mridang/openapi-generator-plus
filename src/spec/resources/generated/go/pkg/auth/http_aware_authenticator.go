@@ -7,19 +7,40 @@
 
 package auth
 
-import "net/http"
+// HttpResponse wraps an HTTP response from the API client.
+//
+// Mirrors the main package's HttpResponse to avoid circular imports.
+type HttpResponse struct {
+	// StatusCode is the HTTP status code of the response.
+	StatusCode int
+
+	// Body is the raw response body as a string.
+	Body string
+
+	// Headers contains the response headers.
+	Headers map[string]string
+}
+
+// ApiClient is the interface for HTTP clients used by authentication components.
+//
+// Mirrors the main package's ApiClient to avoid circular imports between the
+// auth subpackage and the root module package.
+type ApiClient interface {
+	// SendRequest sends an HTTP request and returns the response.
+	SendRequest(method, url string, headers map[string]string, body []byte) (*HttpResponse, error)
+}
 
 // HttpAwareAuthenticator is implemented by authentication schemes that
 // require making HTTP requests (e.g. OAuth2 token exchange, OpenID
 // Connect discovery).
 //
-// Implementations receive a shared *http.Client instance so that
+// Implementations receive a shared ApiClient instance so that
 // authentication-related HTTP calls (token endpoints, discovery documents)
 // use the same transport configuration (proxy, TLS, timeouts) as regular
 // API calls.
 //
-// The *http.Client is injected by the Client constructor after
-// creation, via SetHTTPClient. Implementations must not make HTTP calls
+// The ApiClient is injected by the Client constructor after
+// creation, via SetApiClient. Implementations must not make HTTP calls
 // before the client is injected.
 //
 // Only OAuth2 and OpenID Connect authenticators implement this interface.
@@ -37,11 +58,11 @@ type HttpAwareAuthenticator interface {
 	// CookieParams returns cookie parameters to include for authentication.
 	CookieParams() map[string]string
 
-	// SetHTTPClient injects the shared HTTP client for making HTTP requests.
+	// SetApiClient injects the shared API client for making HTTP requests.
 	//
-	// Called by the Client constructor after the http.Client has been
+	// Called by the Client constructor after the ApiClient has been
 	// created with the user's TransportOptions. Implementations should store
 	// this reference and use it for all outbound HTTP calls (token exchange,
 	// discovery, etc.).
-	SetHTTPClient(client *http.Client)
+	SetApiClient(client ApiClient)
 }

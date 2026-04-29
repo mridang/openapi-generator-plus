@@ -4,21 +4,20 @@ package oauth
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"net/url"
-	"strings"
 	"sync"
 	"time"
+
+	"{{packageName}}/pkg/auth"
 )
 
 // OAuth2TokenManager manages OAuth2 token lifecycle: fetching, caching, and refreshing.
 //
-// Uses the shared *http.Client instance so that token exchange requests honour
+// Uses the shared ApiClient instance so that token exchange requests honour
 // the same transport configuration (proxy, TLS, timeouts) as regular API calls.
 type OAuth2TokenManager struct {
 	mu           sync.Mutex
-	httpClient   *http.Client
+	apiClient    auth.ApiClient
 	accessToken  string
 	refreshToken string
 	tokenExpiry  time.Time
@@ -26,17 +25,17 @@ type OAuth2TokenManager struct {
 
 // NewOAuth2TokenManager creates a new token manager.
 //
-// The *http.Client must be injected via SetHTTPClient before any token requests
+// The ApiClient must be injected via SetApiClient before any token requests
 // are made.
 func NewOAuth2TokenManager() *OAuth2TokenManager {
 	return &OAuth2TokenManager{}
 }
 
-// SetHTTPClient injects the shared HTTP client for making token requests.
-func (m *OAuth2TokenManager) SetHTTPClient(client *http.Client) {
+// SetApiClient injects the shared API client for making token requests.
+func (m *OAuth2TokenManager) SetApiClient(client auth.ApiClient) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.httpClient = client
+	m.apiClient = client
 }
 
 // RefreshToken returns the current refresh token, if any.
@@ -72,10 +71,10 @@ func (m *OAuth2TokenManager) SetAccessToken(token string) {
 }
 
 func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]string) error {
-	client := m.httpClient
+	client := m.apiClient
 	if client == nil {
-		return fmt.Errorf("HTTP client has not been injected. " +
-			"Ensure the {{clientClassName}} constructor calls SetHTTPClient " +
+		return fmt.Errorf("API client has not been injected. " +
+			"Ensure the {{clientClassName}} constructor calls SetApiClient " +
 			"on HttpAwareAuthenticator before making API requests")
 	}
 
@@ -84,21 +83,13 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 		values.Set(k, v)
 	}
 
-	req, err := http.NewRequest("POST", tokenURL, strings.NewReader(values.Encode()))
-	if err != nil {
-		return fmt.Errorf("failed to create token request: %w", err)
+	headers := map[string]string{
+		"Content-Type": "application/x-www-form-urlencoded",
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := client.Do(req)
+	resp, err := client.SendRequest("POST", tokenURL, headers, []byte(values.Encode()))
 	if err != nil {
 		return fmt.Errorf("token request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read token response: %w", err)
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -110,7 +101,7 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 		RefreshToken string `json:"refresh_token"`
 		ExpiresIn    int    `json:"expires_in"`
 	}
-	if err := json.Unmarshal(body, &parsed); err != nil {
+	if err := json.Unmarshal([]byte(resp.Body), &parsed); err != nil {
 		return fmt.Errorf("failed to parse token response: %w", err)
 	}
 

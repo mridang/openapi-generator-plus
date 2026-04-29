@@ -76,6 +76,77 @@ class ObjectSerializer(
         return json.decodeFromString<T>(jsonString)
     }
 
+    fun stringify(value: Any?): String {
+        if (value == null) return ""
+        return when (value) {
+            is Boolean -> if (value) "true" else "false"
+            is LocalDate -> DateTimeFormatter.ISO_LOCAL_DATE.format(value)
+            is TemporalAccessor -> DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(value)
+            else -> value.toString()
+        }
+    }
+
+    fun toPathValue(value: Any?): String = stringify(value)
+
+    fun toQueryValue(
+        value: Any?,
+        collectionFormat: String?,
+    ): Any? {
+        if (value == null) return null
+        if (value is Collection<*>) {
+            val items = value.map { stringify(it) }
+            if ("multi" == collectionFormat) return items
+            val sep =
+                when (collectionFormat) {
+                    "ssv" -> " "
+                    "tsv" -> "\t"
+                    "pipes" -> "|"
+                    else -> ","
+                }
+            return items.joinToString(sep)
+        }
+        return stringify(value)
+    }
+
+    fun toHeaderValue(value: Any?): String {
+        if (value == null) return ""
+        if (value is Collection<*>) {
+            return value.joinToString(",") { stringify(it) }
+        }
+        return stringify(value)
+    }
+
+    fun toFormValue(value: Any?): String = stringify(value)
+
+    /**
+     * Resolve a oneOf schema by attempting deserialization against each candidate.
+     * Each candidate is a function that takes a JSON string and returns a deserialized value.
+     * Returns the first successful result, or null if none match.
+     */
+    fun resolveOneOf(
+        jsonString: String,
+        candidates: List<(String) -> Any?>,
+    ): Any? {
+        for (candidate in candidates) {
+            try {
+                val result = candidate(jsonString)
+                if (result != null) return result
+            } catch (_: Exception) {
+                continue
+            }
+        }
+        return null
+    }
+
+    /**
+     * Resolve an anyOf schema by attempting deserialization against each candidate.
+     * Returns the first successful result, or null if none match.
+     */
+    fun resolveAnyOf(
+        jsonString: String,
+        candidates: List<(String) -> Any?>,
+    ): Any? = resolveOneOf(jsonString, candidates)
+
     companion object {
         private object OffsetDateTimeSerializer : KSerializer<OffsetDateTime> {
             override val descriptor = PrimitiveSerialDescriptor("OffsetDateTime", PrimitiveKind.STRING)
@@ -113,48 +184,6 @@ class ObjectSerializer(
                         contextual(LocalDateSerializer)
                     }
             }
-
-        fun stringify(value: Any?): String {
-            if (value == null) return ""
-            return when (value) {
-                is Boolean -> if (value) "true" else "false"
-                is LocalDate -> DateTimeFormatter.ISO_LOCAL_DATE.format(value)
-                is TemporalAccessor -> DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(value)
-                else -> value.toString()
-            }
-        }
-
-        fun toPathValue(value: Any?): String = stringify(value)
-
-        fun toQueryValue(
-            value: Any?,
-            collectionFormat: String?,
-        ): Any? {
-            if (value == null) return null
-            if (value is Collection<*>) {
-                val items = value.map { stringify(it) }
-                if ("multi" == collectionFormat) return items
-                val sep =
-                    when (collectionFormat) {
-                        "ssv" -> " "
-                        "tsv" -> "\t"
-                        "pipes" -> "|"
-                        else -> ","
-                    }
-                return items.joinToString(sep)
-            }
-            return stringify(value)
-        }
-
-        fun toHeaderValue(value: Any?): String {
-            if (value == null) return ""
-            if (value is Collection<*>) {
-                return value.joinToString(",") { stringify(it) }
-            }
-            return stringify(value)
-        }
-
-        fun toFormValue(value: Any?): String = stringify(value)
     }
 
     class SerializationException : RuntimeException {

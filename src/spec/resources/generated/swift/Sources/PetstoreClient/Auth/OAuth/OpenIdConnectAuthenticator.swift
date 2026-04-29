@@ -13,7 +13,7 @@ import Foundation
 /// token endpoints, then delegates to an ``OAuth2AuthorizationCodeAuthenticator``.
 ///
 /// Conforms to ``HttpAwareAuthenticator`` so that both the discovery request and
-/// subsequent token exchange requests use the shared URLSession with the same
+/// subsequent token exchange requests use the shared ``ApiClient`` with the same
 /// transport configuration (proxy, TLS, timeouts) as regular API calls.
 public final class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticator, @unchecked
   Sendable
@@ -24,7 +24,7 @@ public final class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthe
   private let clientSecret: String
   private let redirectURI: String
   private let scopes: [String]
-  private var urlSession: URLSession?
+  private var apiClient: ApiClient?
   private var delegate: OAuth2AuthorizationCodeAuthenticator?
   private let lock = NSLock()
 
@@ -51,11 +51,11 @@ public final class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthe
     return _host
   }
 
-  /// Injects the shared URLSession for making discovery and token requests.
-  public func setURLSession(_ session: URLSession) {
+  /// Injects the shared ``ApiClient`` for making discovery and token requests.
+  public func setApiClient(_ client: ApiClient) {
     lock.lock()
     defer { lock.unlock() }
-    self.urlSession = session
+    self.apiClient = client
   }
 
   /// Builds the authorization URL using the discovered authorization endpoint.
@@ -85,7 +85,7 @@ public final class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthe
   }
 
   /// Lazily resolves the delegate by fetching the OIDC discovery document
-  /// using the injected URLSession.
+  /// using the injected ``ApiClient``.
   private func resolveDelegate() async throws -> OAuth2AuthorizationCodeAuthenticator {
     lock.lock()
     if let existing = delegate {
@@ -93,26 +93,25 @@ public final class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthe
       return existing
     }
 
-    guard let session = urlSession else {
+    guard let client = apiClient else {
       lock.unlock()
       throw NSError(
         domain: "OpenIdConnectAuthenticator", code: -1,
         userInfo: [
-          NSLocalizedDescriptionKey: "URLSession has not been injected. "
-            + "Ensure the Client constructor calls setURLSession "
+          NSLocalizedDescriptionKey: "ApiClient has not been injected. "
+            + "Ensure the Client constructor calls setApiClient "
             + "on HttpAwareAuthenticator before making API requests"
         ])
     }
     lock.unlock()
 
-    guard let url = URL(string: openIDConnectURL) else {
-      throw URLError(.badURL)
+    let headers = ["Accept": "application/json"]
+    let response = try await client.sendRequest(
+      method: "GET", url: openIDConnectURL, headers: headers, body: nil)
+
+    guard let data = response.body.data(using: .utf8) else {
+      throw URLError(.badServerResponse)
     }
-
-    var request = URLRequest(url: url)
-    request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-    let (data, _) = try await session.data(for: request)
 
     struct DiscoveryDocument: Decodable {
       let authorization_endpoint: String
@@ -130,7 +129,7 @@ public final class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthe
       redirectURI: redirectURI,
       scopes: scopes
     )
-    newDelegate.tokenManager.setURLSession(session)
+    newDelegate.setApiClient(client)
 
     lock.lock()
     defer { lock.unlock() }

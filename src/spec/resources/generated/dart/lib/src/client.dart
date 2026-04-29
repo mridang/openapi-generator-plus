@@ -60,7 +60,7 @@ class Client {
         storeApi = _createStoreApi(authenticator, transportOptions) {
     final apiClient = DefaultApiClient(transportOptions);
     if (authenticator is HttpAwareAuthenticator) {
-      authenticator.setHttpClient(apiClient.httpClient);
+      authenticator.setApiClient(apiClient);
     }
   }
 

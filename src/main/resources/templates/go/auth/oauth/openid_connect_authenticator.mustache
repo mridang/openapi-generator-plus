@@ -4,8 +4,6 @@ package oauth
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"sync"
 
 	"{{packageName}}/pkg/auth"
@@ -17,7 +15,7 @@ import (
 // token endpoints, then delegates to an OAuth2AuthorizationCodeAuthenticator.
 //
 // Implements HttpAwareAuthenticator so that both the discovery request and
-// subsequent token exchange requests use the shared *http.Client with the same
+// subsequent token exchange requests use the shared ApiClient with the same
 // transport configuration (proxy, TLS, timeouts) as regular API calls.
 type OpenIdConnectAuthenticator struct {
 	auth.BaseAuthenticator
@@ -27,7 +25,7 @@ type OpenIdConnectAuthenticator struct {
 	clientSecret      string
 	redirectURI       string
 	scopes            []string
-	httpClient        *http.Client
+	apiClient         auth.ApiClient
 	delegate          *OAuth2AuthorizationCodeAuthenticator
 	mu                sync.Mutex
 }
@@ -49,11 +47,11 @@ func (a *OpenIdConnectAuthenticator) Host() string {
 	return a.host
 }
 
-// SetHTTPClient injects the shared HTTP client for making discovery and token requests.
-func (a *OpenIdConnectAuthenticator) SetHTTPClient(client *http.Client) {
+// SetApiClient injects the shared API client for making discovery and token requests.
+func (a *OpenIdConnectAuthenticator) SetApiClient(client auth.ApiClient) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	a.httpClient = client
+	a.apiClient = client
 }
 
 // BuildAuthorizationURL builds the authorization URL using the discovered
@@ -86,7 +84,7 @@ func (a *OpenIdConnectAuthenticator) AuthHeaders() map[string]string {
 }
 
 // resolveDelegate lazily resolves the delegate by fetching the OIDC discovery
-// document using the injected HTTP client.
+// document using the injected API client.
 func (a *OpenIdConnectAuthenticator) resolveDelegate() (*OAuth2AuthorizationCodeAuthenticator, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -95,35 +93,27 @@ func (a *OpenIdConnectAuthenticator) resolveDelegate() (*OAuth2AuthorizationCode
 		return a.delegate, nil
 	}
 
-	client := a.httpClient
+	client := a.apiClient
 	if client == nil {
-		return nil, fmt.Errorf("HTTP client has not been injected. " +
-			"Ensure the {{clientClassName}} constructor calls SetHTTPClient " +
+		return nil, fmt.Errorf("API client has not been injected. " +
+			"Ensure the {{clientClassName}} constructor calls SetApiClient " +
 			"on HttpAwareAuthenticator before making API requests")
 	}
 
-	req, err := http.NewRequest("GET", a.openIDConnectURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create OIDC discovery request: %w", err)
+	headers := map[string]string{
+		"Accept": "application/json",
 	}
-	req.Header.Set("Accept", "application/json")
 
-	resp, err := client.Do(req)
+	resp, err := client.SendRequest("GET", a.openIDConnectURL, headers, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch OIDC discovery document: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read OIDC discovery response: %w", err)
 	}
 
 	var discovery struct {
 		AuthorizationEndpoint string `json:"authorization_endpoint"`
 		TokenEndpoint         string `json:"token_endpoint"`
 	}
-	if err := json.Unmarshal(body, &discovery); err != nil {
+	if err := json.Unmarshal([]byte(resp.Body), &discovery); err != nil {
 		return nil, fmt.Errorf("failed to parse OIDC discovery document: %w", err)
 	}
 
@@ -133,7 +123,7 @@ func (a *OpenIdConnectAuthenticator) resolveDelegate() (*OAuth2AuthorizationCode
 		discovery.TokenEndpoint,
 		a.redirectURI, a.scopes, "",
 	)
-	a.delegate.tokenManager.SetHTTPClient(client)
+	a.delegate.tokenManager.SetApiClient(client)
 
 	return a.delegate, nil
 }

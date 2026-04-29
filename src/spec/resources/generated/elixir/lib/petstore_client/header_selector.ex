@@ -59,25 +59,6 @@ defmodule PetstoreClient.HeaderSelector do
     Regex.match?(@json_mime_pattern, search_string)
   end
 
-  @doc """
-  Calculate the next weight, based on the current one.
-
-  If there are fewer than 28 "Accept" headers, the weights will be
-  decreased by 1 on the highest significant digit. Starting from 1000,
-  this generates the series: 1000, 900, 800, ..., 100, 90, 80, ..., 10, 9, 8, ..., 1.
-
-  For more than 28 headers, falls back to 1-by-1 decrement.
-  """
-  @spec get_next_weight(integer(), boolean()) :: integer()
-  def get_next_weight(current_weight, _has_more_than_28) when current_weight <= 1, do: 1
-
-  def get_next_weight(current_weight, true), do: current_weight - 1
-
-  def get_next_weight(current_weight, false) do
-    step = :math.pow(10, :math.log10(current_weight - 1) |> floor()) |> trunc()
-    current_weight - step
-  end
-
   defp select_accept_header(nil), do: nil
 
   defp select_accept_header(accept) do
@@ -180,5 +161,24 @@ defmodule PetstoreClient.HeaderSelector do
     weight_str = String.replace_trailing(weight_str, "0", "")
     weight_str = String.replace_trailing(weight_str, ".", "")
     "#{clean_header};q=#{weight_str}"
+  end
+
+  @doc """
+  Calculate the next weight, based on the current one.
+
+  If there are fewer than 28 "Accept" headers, the weights will be
+  decreased by 1 on the highest significant digit. Starting from 1000,
+  this generates the series: 1000, 900, 800, ..., 100, 90, 80, ..., 10, 9, 8, ..., 1.
+
+  For more than 28 headers, falls back to 1-by-1 decrement.
+  """
+  @spec get_next_weight(integer(), boolean()) :: integer()
+  def get_next_weight(current_weight, _has_more_than_28) when current_weight <= 1, do: 1
+
+  def get_next_weight(current_weight, true), do: current_weight - 1
+
+  def get_next_weight(current_weight, false) do
+    step = :math.pow(10, :math.log10(current_weight - 1) |> floor()) |> trunc()
+    current_weight - step
   end
 end

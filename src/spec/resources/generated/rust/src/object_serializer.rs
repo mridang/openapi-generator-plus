@@ -76,12 +76,21 @@ pub fn to_path_value<T: Serialize>(value: &T) -> String {
     stringify(value)
 }
 
+/// Represents a query parameter value, which can be either a single string
+/// or multiple values (for the "multi" collection format).
+#[derive(Debug, Clone)]
+pub enum QueryValue {
+    Single(String),
+    Multi(Vec<String>),
+}
+
 /// Converts a value to a representation suitable for use as a query parameter.
 /// For collections, joins using the specified collection format delimiter.
-pub fn to_query_value<T: Serialize>(value: &T, collection_format: &str) -> String {
+/// Returns `QueryValue::Multi` for the "multi" format, `QueryValue::Single` otherwise.
+pub fn to_query_value<T: Serialize>(value: &T, collection_format: &str) -> QueryValue {
     let json_value = match serde_json::to_value(value) {
         Ok(v) => v,
-        Err(_) => return String::new(),
+        Err(_) => return QueryValue::Single(String::new()),
     };
 
     match json_value {
@@ -95,8 +104,8 @@ pub fn to_query_value<T: Serialize>(value: &T, collection_format: &str) -> Strin
                 .collect();
             join_collection(&strings, collection_format)
         }
-        serde_json::Value::String(s) => s,
-        other => other.to_string(),
+        serde_json::Value::String(s) => QueryValue::Single(s),
+        other => QueryValue::Single(other.to_string()),
     }
 }
 
@@ -128,12 +137,39 @@ pub fn to_form_value<T: Serialize>(value: &T) -> String {
     stringify(value)
 }
 
-fn join_collection(items: &[String], collection_format: &str) -> String {
+/// Resolve a oneOf schema by attempting deserialization against each candidate.
+/// Each candidate is a closure that takes the raw JSON bytes and returns a boxed
+/// result. Returns the first successful deserialization.
+pub fn resolve_one_of(
+    data: &[u8],
+    candidates: &[fn(&[u8]) -> Result<Box<dyn std::any::Any>, SerializationError>],
+) -> Result<Box<dyn std::any::Any>, SerializationError> {
+    for candidate in candidates {
+        if let Ok(result) = candidate(data) {
+            return Ok(result);
+        }
+    }
+    Err(SerializationError {
+        message: "data does not match any oneOf schemas".to_string(),
+        cause: None,
+    })
+}
+
+/// Resolve an anyOf schema by attempting deserialization against each candidate.
+/// Returns the first successful deserialization.
+pub fn resolve_any_of(
+    data: &[u8],
+    candidates: &[fn(&[u8]) -> Result<Box<dyn std::any::Any>, SerializationError>],
+) -> Result<Box<dyn std::any::Any>, SerializationError> {
+    resolve_one_of(data, candidates)
+}
+
+fn join_collection(items: &[String], collection_format: &str) -> QueryValue {
     match collection_format {
-        "ssv" => items.join(" "),
-        "tsv" => items.join("\t"),
-        "pipes" => items.join("|"),
-        "multi" => items.join("&"),
-        _ => items.join(","),
+        "multi" => QueryValue::Multi(items.to_vec()),
+        "ssv" => QueryValue::Single(items.join(" ")),
+        "tsv" => QueryValue::Single(items.join("\t")),
+        "pipes" => QueryValue::Single(items.join("|")),
+        _ => QueryValue::Single(items.join(",")),
     }
 }

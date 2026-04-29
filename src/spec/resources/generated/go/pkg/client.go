@@ -15,7 +15,7 @@ import (
 //
 // Takes an Authenticator and optionally TransportOptions, then exposes
 // each API group as a typed field. If the authenticator implements
-// auth.HttpAwareAuthenticator, the shared HTTP client is injected so that
+// auth.HttpAwareAuthenticator, the shared ApiClient is injected so that
 // authentication HTTP calls (token exchange, discovery) use the same
 // transport configuration as regular API calls.
 //
@@ -39,7 +39,7 @@ type Client struct {
 
 // NewClient creates a new client with the given authenticator and optional transport options.
 //
-// If the authenticator implements auth.HttpAwareAuthenticator, the shared HTTP client
+// If the authenticator implements auth.HttpAwareAuthenticator, the shared ApiClient
 // is injected so that token exchange and discovery requests use the same proxy,
 // TLS, and timeout settings.
 func NewClient(authenticator Authenticator, transportOptions *TransportOptions) *Client {
@@ -49,7 +49,7 @@ func NewClient(authenticator Authenticator, transportOptions *TransportOptions) 
 	apiClient := NewDefaultApiClient(transportOptions)
 
 	if httpAware, ok := authenticator.(auth.HttpAwareAuthenticator); ok {
-		httpAware.SetHTTPClient(apiClient.HTTPClient())
+		httpAware.SetApiClient(&authApiClientAdapter{inner: apiClient})
 	}
 
 	config := NewConfigurationBuilder().
@@ -66,4 +66,23 @@ func NewClient(authenticator Authenticator, transportOptions *TransportOptions) 
 // NewClientWithToken creates a client authenticated with a static Bearer token.
 func NewClientWithToken(host, accessToken string) *Client {
 	return NewClient(auth.NewBearerAuthenticator(host, accessToken), nil)
+}
+
+// authApiClientAdapter adapts the main package's ApiClient interface to the
+// auth package's ApiClient interface, bridging the HttpResponse types to
+// avoid circular imports between the root module and the auth subpackage.
+type authApiClientAdapter struct {
+	inner ApiClient
+}
+
+func (a *authApiClientAdapter) SendRequest(method, url string, headers map[string]string, body []byte) (*auth.HttpResponse, error) {
+	resp, err := a.inner.SendRequest(method, url, headers, body)
+	if err != nil {
+		return nil, err
+	}
+	return &auth.HttpResponse{
+		StatusCode: resp.StatusCode,
+		Body:       resp.Body,
+		Headers:    resp.Headers,
+	}, nil
 }

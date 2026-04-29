@@ -5,7 +5,7 @@ import Foundation
 ///
 /// Takes an ``Authenticator`` and optionally ``TransportOptions``, then exposes
 /// each API group as a typed property. If the authenticator conforms to
-/// ``HttpAwareAuthenticator``, the shared URLSession is injected so that
+/// ``HttpAwareAuthenticator``, the shared ``ApiClient`` is injected so that
 /// authentication HTTP calls (token exchange, discovery) use the same
 /// transport configuration as regular API calls.
 ///
@@ -37,14 +37,14 @@ public final class {{clientClassName}}: Sendable {
     /// Creates a new client with the given authenticator and optional transport options.
     ///
     /// If the authenticator conforms to ``HttpAwareAuthenticator``, the shared
-    /// URLSession is injected so that token exchange and discovery requests use
+    /// ``ApiClient`` is injected so that token exchange and discovery requests use
     /// the same proxy, TLS, and timeout settings.
     public init(authenticator: Authenticator, transportOptions: TransportOptions? = nil) {
         let opts = transportOptions ?? TransportOptionsBuilder().build()
         let apiClient = DefaultApiClient(transportOptions: opts)
 
         if let httpAware = authenticator as? HttpAwareAuthenticator {
-            httpAware.setURLSession(apiClient.urlSession)
+            httpAware.setApiClient(apiClient)
         }
 
         let config = ConfigurationBuilder()

@@ -135,6 +135,27 @@ String toFormValue(Object? value) {
   return stringify(value);
 }
 
+/// Resolve a oneOf schema by attempting deserialization against each candidate.
+/// Each entry in [fromJsonCandidates] is a factory function that attempts to
+/// deserialize the given map. Returns the first successful result.
+T? resolveOneOf<T>(Map<String, dynamic> data, List<T Function(Map<String, dynamic>)> fromJsonCandidates) {
+  for (final fromJson in fromJsonCandidates) {
+    try {
+      return fromJson(data);
+    } catch (_) {
+      continue;
+    }
+  }
+  return null;
+}
+
+/// Resolve an anyOf schema by attempting deserialization against each candidate.
+/// Each entry in [fromJsonCandidates] is a factory function that attempts to
+/// deserialize the given map. Returns the first successful result.
+T? resolveAnyOf<T>(Map<String, dynamic> data, List<T Function(Map<String, dynamic>)> fromJsonCandidates) {
+  return resolveOneOf(data, fromJsonCandidates);
+}
+
 Object? _joinCollection(List<String> items, String collectionFormat) {
   switch (collectionFormat) {
     case 'ssv':

@@ -14,6 +14,8 @@ import java.nio.charset.StandardCharsets
  * Serializes parameter values for HTTP requests based on their location and format.
  */
 object ValueSerializer {
+    private val serializer = ObjectSerializer()
+
     @JvmStatic
     fun serialize(
         value: Any?,
@@ -26,7 +28,7 @@ object ValueSerializer {
         }
 
         if (value is Collection<*>) {
-            val items = value.map { ObjectSerializer.stringify(it) }
+            val items = value.map { serializer.stringify(it) }
 
             if ("query" == location) {
                 if ("multi" == collectionFormat) return items
@@ -45,7 +47,7 @@ object ValueSerializer {
             }
         }
 
-        val str = ObjectSerializer.stringify(value)
+        val str = serializer.stringify(value)
         if ("path" == location) {
             return URLEncoder.encode(str, StandardCharsets.UTF_8).replace("+", "%20")
         }
@@ -60,7 +62,7 @@ object ValueSerializer {
         val result = linkedMapOf<String, String>()
         if (value == null) return result
         for ((key, v) in value) {
-            result["$paramName[$key]"] = ObjectSerializer.stringify(v)
+            result["$paramName[$key]"] = serializer.stringify(v)
         }
         return result
     }
@@ -113,8 +115,8 @@ object ValueSerializer {
 
     private fun toStringList(value: Any?): List<String> {
         if (value is Collection<*>) {
-            return value.map { ObjectSerializer.stringify(it) }
+            return value.map { serializer.stringify(it) }
         }
-        return listOf(ObjectSerializer.stringify(value))
+        return listOf(serializer.stringify(value))
     }
 }
