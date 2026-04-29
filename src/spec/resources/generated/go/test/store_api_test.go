@@ -10,28 +10,16 @@ package petstore_test
 import (
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	petstore "petstore/pkg"
 	"petstore/pkg/models"
 )
 
-// storeApiPrismBaseURL returns the Prism mock server base URL for store tests.
-func storeApiPrismBaseURL(t *testing.T) string {
-	t.Helper()
-	url := os.Getenv("API_BASE_URL")
-	if url == "" {
-		t.Skip("API_BASE_URL not set; skipping integration test (Prism mock server not available)")
-	}
-	return url
-}
-
 func newStoreApiForIntegration(t *testing.T) *petstore.StoreApi {
 	t.Helper()
-	baseURL := storeApiPrismBaseURL(t)
 	config := petstore.NewConfigurationBuilder().
-		BaseURL(baseURL).
+		BaseURL(prismURL).
 		DefaultHeader("Authorization", "Bearer test-token").
 		Build()
 	client := petstore.NewDefaultApiClient(nil)

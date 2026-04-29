@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "GET",
-    "url": "/api/error/422"
+    "urlPathPattern": "/api/error/422(/.*)?"
   },
   "response": {
     "status": 422,

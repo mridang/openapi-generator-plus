@@ -311,6 +311,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         setModelPackage("");
         setApiPackage("");
 
+        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
         supportingFiles.add(new SupportingFile("configuration.mustache", "pkg", "configuration.go"));
         supportingFiles.add(
                 new SupportingFile("transport_options.mustache", "pkg", "transport_options.go"));
@@ -387,10 +388,15 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/Api/pet_api_test.mustache", "test", "pet_api_test.go"));
+                            "test/testcontainers_helper_test.mustache",
+                            "test",
+                            "testcontainers_helper_test.go"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/Api/store_api_test.mustache", "test", "store_api_test.go"));
+                            "test/api/pet_api_test.mustache", "test", "pet_api_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api/store_api_test.mustache", "test", "store_api_test.go"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/default_api_client_test.mustache",

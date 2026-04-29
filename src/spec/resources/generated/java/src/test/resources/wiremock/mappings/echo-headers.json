@@ -13,7 +13,8 @@
       "user-agent": "{{request.headers.User-Agent}}",
       "x-request-id": "{{request.headers.X-Request-ID}}",
       "x-custom": "{{request.headers.X-Custom}}",
-      "accept": "{{request.headers.Accept}}"
+      "accept": "{{request.headers.Accept}}",
+      "authorization": "{{request.headers.Authorization}}"
     }
   }
 }

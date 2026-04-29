@@ -236,6 +236,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
 
         final String invokerFolder =
                 Path.of(sourceFolder, invokerPackage.replace(".", "/")).toString();
+        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
         supportingFiles.add(
                 new SupportingFile("api_exception.mustache", invokerFolder, "ApiException.kt"));
 
@@ -343,6 +344,17 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             final String testFolder =
                     Path.of("src", "test", "kotlin", invokerPackage.replace(".", "/")).toString();
             final String testApiFolder = Path.of(testFolder, "api").toString();
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/PrismContainer.mustache", testFolder, "PrismContainer.kt"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/SquidContainer.mustache", testFolder, "SquidContainer.kt"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/WireMockContainer.mustache",
+                            testFolder,
+                            "WireMockContainer.kt"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/api/PetApiTest.mustache", testApiFolder, "PetApiTest.kt"));

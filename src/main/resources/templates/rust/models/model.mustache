@@ -54,11 +54,11 @@ pub struct {{classname}} {
     #[deprecated]
 {{/deprecated}}
 {{#required}}
-    #[serde(rename = "{{baseName}}")]
+    #[serde(rename = "{{baseName}}"{{#isByteArray}}, with = "super::base64_serde"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::vec"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}})]
     pub {{name}}: {{{dataType}}},
 {{/required}}
 {{^required}}
-    #[serde(rename = "{{baseName}}", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "{{baseName}}", skip_serializing_if = "Option::is_none"{{#isByteArray}}, with = "super::base64_serde::option"{{/isByteArray}}{{^isByteArray}}{{#isArray}}{{#items}}{{#isByteArray}}, with = "super::base64_serde::vec_option"{{/isByteArray}}{{/items}}{{/isArray}}{{/isByteArray}})]
     pub {{name}}: Option<{{{dataType}}}>,
 {{/required}}
 {{/vars}}

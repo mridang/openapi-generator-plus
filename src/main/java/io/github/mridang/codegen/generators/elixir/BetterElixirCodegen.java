@@ -236,6 +236,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
 
         final String libDir = Path.of("lib", packageName).toString();
 
+        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
         supportingFiles.add(
                 new SupportingFile("configuration.mustache", libDir, "configuration.ex"));
         supportingFiles.add(

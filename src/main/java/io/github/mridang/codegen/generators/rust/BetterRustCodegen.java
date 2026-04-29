@@ -264,6 +264,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen {
                             writer.write(name.toString());
                         });
 
+        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
         supportingFiles.add(
                 new SupportingFile("configuration.mustache", "src", "configuration.rs"));
         supportingFiles.add(
@@ -313,6 +314,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen {
                 new SupportingFile("errors/mod.mustache", "src/errors", "mod.rs"));
 
         supportingFiles.add(
+                new SupportingFile(
+                        "models/base64_serde.mustache", "src/models", "base64_serde.rs"));
+        supportingFiles.add(
                 new SupportingFile("header_selector.mustache", "src", "header_selector.rs"));
         supportingFiles.add(
                 new SupportingFile("object_serializer.mustache", "src", "object_serializer.rs"));
@@ -352,6 +356,11 @@ public class BetterRustCodegen extends AbstractBetterCodegen {
 
         if (generateTests) {
             supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/testcontainers_helper.mustache",
+                            "tests",
+                            "testcontainers_helper.rs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/api/pet_api_test.mustache", "tests", "pet_api_test.rs"));

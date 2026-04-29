@@ -2,6 +2,8 @@
 
 mod api_response;
 pub use api_response::*;
+mod base64_serde;
+pub use base64_serde::*;
 mod category;
 pub use category::*;
 mod dry_food;

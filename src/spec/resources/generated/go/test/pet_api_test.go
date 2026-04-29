@@ -10,23 +10,11 @@ package petstore_test
 import (
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	petstore "petstore/pkg"
 	"petstore/pkg/models"
 )
-
-// prismBaseURL returns the Prism mock server base URL from the environment.
-// Tests are skipped if the Prism server is not available.
-func prismBaseURL(t *testing.T) string {
-	t.Helper()
-	url := os.Getenv("API_BASE_URL")
-	if url == "" {
-		t.Skip("API_BASE_URL not set; skipping integration test (Prism mock server not available)")
-	}
-	return url
-}
 
 // petAuth implements Authenticator for PetApi integration tests.
 type petAuth struct{}
@@ -40,9 +28,8 @@ func (a *petAuth) CookieParams() map[string]string { return map[string]string{} 
 
 func newPetApiForIntegration(t *testing.T) *petstore.PetApi {
 	t.Helper()
-	baseURL := prismBaseURL(t)
 	config := petstore.NewConfigurationBuilder().
-		BaseURL(baseURL).
+		BaseURL(prismURL).
 		DefaultHeader("Authorization", "Bearer test-token").
 		Build()
 	client := petstore.NewDefaultApiClient(nil)
@@ -187,9 +174,6 @@ func TestPetApi_DownloadBinaryMock(t *testing.T) {
 
 	api := newPetApiForMock(t, server)
 
-	// This exercises the HTTP plumbing for binary download endpoints.
-	// Deserialization of the binary response to *os.File may not be fully
-	// supported yet, but the request/response flow should work.
 	_, _ = api.GetPetAvatarWithHTTPInfo(int64(1))
 }
 
@@ -203,8 +187,6 @@ func TestPetApi_UploadMultipartMock(t *testing.T) {
 
 	api := newPetApiForMock(t, server)
 
-	// Test that multipart upload endpoints are callable.
-	// The actual file handling may vary, but the API method should not panic.
 	_, _ = api.UploadPetCertificate(int64(1), nil)
 }
 

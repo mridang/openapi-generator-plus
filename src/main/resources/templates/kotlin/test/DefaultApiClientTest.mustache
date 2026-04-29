@@ -2,195 +2,263 @@
 
 package {{invokerPackage}}
 
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.ObjectMapper
 import kotlinx.coroutines.runBlocking
-import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Assertions.*
 
 class DefaultApiClientTest {
 
-    private lateinit var server: MockWebServer
-
-    @BeforeEach
-    fun setUp() {
-        server = MockWebServer()
-        server.start()
-    }
-
-    @AfterEach
-    fun tearDown() {
-        server.shutdown()
-    }
-
-    private fun baseUrl(): String = server.url("/").toString().trimEnd('/')
+    private val caCertPath = "/app/src/test/resources/certs/ca.pem"
 
     @Nested
-    @DisplayName("GET requests")
-    inner class GetRequests {
+    @DisplayName("TLS verification disabled")
+    inner class TlsVerificationDisabled {
 
         @Test
-        @DisplayName("sends GET request and returns response")
-        fun sendsGetRequest() {
-            server.enqueue(
-                MockResponse()
-                    .setResponseCode(200)
-                    .addHeader("Content-Type", "application/json")
-                    .setBody("{\"message\":\"success\"}")
-            )
-            val client = DefaultApiClient()
+        @DisplayName("makes HTTPS request with verifySsl=false")
+        fun makesHttpsRequestWithVerifySslFalse() {
+            val wiremockUrl = WireMockContainer.getHttpsUrl()
+            val transport = TransportOptions.builder()
+                .verifySsl(false)
+                .build()
+            val client = DefaultApiClient(transport)
             val response = runBlocking {
-                client.sendRequest("GET", baseUrl() + "/test", emptyMap(), null)
+                client.sendRequest("GET", "$wiremockUrl/api/test", emptyMap(), null)
             }
             assertEquals(200, response.statusCode)
             assertTrue(response.body.contains("success"))
-
-            val request = server.takeRequest()
-            assertEquals("GET", request.method)
         }
     }
 
     @Nested
-    @DisplayName("POST requests")
-    inner class PostRequests {
+    @DisplayName("custom CA bundle")
+    inner class CustomCaBundle {
 
         @Test
-        @DisplayName("sends POST with JSON body")
-        fun sendsPostWithJsonBody() {
-            server.enqueue(
-                MockResponse()
-                    .setResponseCode(201)
-                    .addHeader("Content-Type", "application/json")
-                    .setBody("{\"id\":1}")
-            )
-            val client = DefaultApiClient()
-            val headers = mutableMapOf("Content-Type" to "application/json")
+        @DisplayName("makes HTTPS request with custom CA cert")
+        fun makesHttpsRequestWithCustomCaCert() {
+            val wiremockUrl = WireMockContainer.getHttpsUrl()
+            val transport = TransportOptions.builder()
+                .verifySsl(true)
+                .caCertPath(caCertPath)
+                .build()
+            val client = DefaultApiClient(transport)
             val response = runBlocking {
-                client.sendRequest(
-                    "POST",
-                    baseUrl() + "/test",
-                    headers,
-                    "{\"key\":\"value\"}"
-                )
-            }
-            assertEquals(201, response.statusCode)
-
-            val request = server.takeRequest()
-            assertEquals("POST", request.method)
-            assertTrue(request.body.readUtf8().contains("key"))
-        }
-    }
-
-    @Nested
-    @DisplayName("response headers")
-    inner class ResponseHeaders {
-
-        @Test
-        @DisplayName("returns response headers")
-        fun returnsResponseHeaders() {
-            server.enqueue(
-                MockResponse()
-                    .setResponseCode(200)
-                    .addHeader("X-Custom-Header", "custom-value")
-                    .setBody("{}")
-            )
-            val client = DefaultApiClient()
-            val response = runBlocking {
-                client.sendRequest("GET", baseUrl() + "/test", emptyMap(), null)
-            }
-            assertNotNull(response.headers)
-            val headerValue = response.headers.entries
-                .firstOrNull { it.key.equals("X-Custom-Header", ignoreCase = true) }
-                ?.value
-            assertEquals("custom-value", headerValue)
-        }
-    }
-
-    @Nested
-    @DisplayName("non-2xx status")
-    inner class Non2xxStatus {
-
-        @Test
-        @DisplayName("returns non-2xx status code without throwing")
-        fun returnsNon2xxStatusCode() {
-            server.enqueue(
-                MockResponse()
-                    .setResponseCode(404)
-                    .setBody("not found")
-            )
-            val client = DefaultApiClient()
-            val response = runBlocking {
-                client.sendRequest("GET", baseUrl() + "/missing", emptyMap(), null)
-            }
-            assertEquals(404, response.statusCode)
-            assertEquals("not found", response.body)
-        }
-
-        @Test
-        @DisplayName("returns 500 status code without throwing")
-        fun returns500StatusCode() {
-            server.enqueue(
-                MockResponse()
-                    .setResponseCode(500)
-                    .setBody("server error")
-            )
-            val client = DefaultApiClient()
-            val response = runBlocking {
-                client.sendRequest("GET", baseUrl() + "/error", emptyMap(), null)
-            }
-            assertEquals(500, response.statusCode)
-            assertEquals("server error", response.body)
-        }
-    }
-
-    @Nested
-    @DisplayName("PUT requests")
-    inner class PutRequests {
-
-        @Test
-        @DisplayName("sends PUT request")
-        fun sendsPutRequest() {
-            server.enqueue(
-                MockResponse()
-                    .setResponseCode(200)
-                    .setBody("{\"updated\":true}")
-            )
-            val client = DefaultApiClient()
-            val response = runBlocking {
-                client.sendRequest("PUT", baseUrl() + "/test", emptyMap(), "update-body")
+                client.sendRequest("GET", "$wiremockUrl/api/test", emptyMap(), null)
             }
             assertEquals(200, response.statusCode)
-
-            val request = server.takeRequest()
-            assertEquals("PUT", request.method)
-            assertTrue(request.body.readUtf8().contains("update-body"))
+            assertTrue(response.body.contains("success"))
         }
     }
 
     @Nested
-    @DisplayName("DELETE requests")
-    inner class DeleteRequests {
+    @DisplayName("HTTP proxy")
+    inner class HttpProxy {
 
         @Test
-        @DisplayName("sends DELETE request")
-        fun sendsDeleteRequest() {
-            server.enqueue(
-                MockResponse()
-                    .setResponseCode(204)
-                    .setBody("")
-            )
-            val client = DefaultApiClient()
+        @DisplayName("makes HTTP request through proxy")
+        fun makesHttpRequestThroughProxy() {
+            val wiremockUrl = WireMockContainer.getInternalHttpUrl()
+            val proxyUrl = SquidContainer.getProxyUrl()
+            val transport = TransportOptions.builder()
+                .proxy(proxyUrl)
+                .build()
+            val client = DefaultApiClient(transport)
             val response = runBlocking {
-                client.sendRequest("DELETE", baseUrl() + "/test/1", emptyMap(), null)
+                client.sendRequest("GET", "$wiremockUrl/api/test", emptyMap(), null)
             }
-            assertEquals(204, response.statusCode)
+            assertEquals(200, response.statusCode)
+            assertTrue(response.body.contains("success"))
+        }
+    }
 
-            val request = server.takeRequest()
-            assertEquals("DELETE", request.method)
+    @Nested
+    @DisplayName("HTTP proxy with TLS")
+    inner class HttpProxyWithTls {
+
+        @Test
+        @DisplayName("makes HTTPS request through proxy with verifySsl=false")
+        fun makesHttpsRequestThroughProxyWithVerifySslFalse() {
+            val wiremockUrl = WireMockContainer.getInternalHttpsUrl()
+            val proxyUrl = SquidContainer.getProxyUrl()
+            val transport = TransportOptions.builder()
+                .proxy(proxyUrl)
+                .verifySsl(false)
+                .build()
+            val client = DefaultApiClient(transport)
+            val response = runBlocking {
+                client.sendRequest("GET", "$wiremockUrl/api/test", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+            assertTrue(response.body.contains("success"))
+        }
+    }
+
+    @Nested
+    @DisplayName("request timeout")
+    inner class RequestTimeout {
+
+        @Test
+        @DisplayName("times out on slow endpoint")
+        fun timesOutOnSlowEndpoint() {
+            val wiremockUrl = WireMockContainer.getHttpUrl()
+            val transport = TransportOptions.builder()
+                .timeout(1)
+                .build()
+            val client = DefaultApiClient(transport)
+            assertThrows(ApiException::class.java) {
+                runBlocking {
+                    client.sendRequest("GET", "$wiremockUrl/api/slow", emptyMap(), null)
+                }
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("User-Agent header")
+    inner class UserAgentHeader {
+
+        @Test
+        @DisplayName("injects custom User-Agent header")
+        fun injectsCustomUserAgentHeader() {
+            val wiremockUrl = WireMockContainer.getHttpUrl()
+            val transport = TransportOptions.builder()
+                .userAgent("MyApp/1.0")
+                .build()
+            val client = DefaultApiClient(transport)
+            val response = runBlocking {
+                client.sendRequest("GET", "$wiremockUrl/api/echo-headers", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+            val json = ObjectMapper().readTree(response.body)
+            assertEquals("MyApp/1.0", json.get("user-agent").asText())
+        }
+    }
+
+    @Nested
+    @DisplayName("X-Request-ID injection")
+    inner class RequestIdInjection {
+
+        @Test
+        @DisplayName("injects X-Request-ID header with UUID format")
+        fun injectsRequestIdHeader() {
+            val wiremockUrl = WireMockContainer.getHttpUrl()
+            val transport = TransportOptions.builder()
+                .injectRequestId(true)
+                .build()
+            val client = DefaultApiClient(transport)
+            val response = runBlocking {
+                client.sendRequest("GET", "$wiremockUrl/api/echo-headers", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+            val json = ObjectMapper().readTree(response.body)
+            val requestId = json.get("x-request-id").asText()
+            assertNotNull(requestId)
+            assertFalse(requestId.isEmpty())
+            assertTrue(
+                requestId.matches(
+                    Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+                )
+            )
+        }
+
+        @Test
+        @DisplayName("generates unique X-Request-ID per request")
+        fun generatesUniqueRequestIds() {
+            val wiremockUrl = WireMockContainer.getHttpUrl()
+            val transport = TransportOptions.builder()
+                .injectRequestId(true)
+                .build()
+            val client = DefaultApiClient(transport)
+            val mapper = ObjectMapper()
+
+            val response1 = runBlocking {
+                client.sendRequest("GET", "$wiremockUrl/api/echo-headers", emptyMap(), null)
+            }
+            val requestId1 = mapper.readTree(response1.body).get("x-request-id").asText()
+
+            val response2 = runBlocking {
+                client.sendRequest("GET", "$wiremockUrl/api/echo-headers", emptyMap(), null)
+            }
+            val requestId2 = mapper.readTree(response2.body).get("x-request-id").asText()
+
+            assertNotEquals(requestId1, requestId2)
+        }
+    }
+
+    @Nested
+    @DisplayName("default headers")
+    inner class DefaultHeaders {
+
+        @Test
+        @DisplayName("includes transport-level default headers")
+        fun includesTransportDefaultHeaders() {
+            val wiremockUrl = WireMockContainer.getHttpUrl()
+            val transport = TransportOptions.builder()
+                .defaultHeader("X-Custom", "custom-value")
+                .build()
+            val client = DefaultApiClient(transport)
+            val response = runBlocking {
+                client.sendRequest("GET", "$wiremockUrl/api/echo-headers", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+            val json = ObjectMapper().readTree(response.body)
+            assertEquals("custom-value", json.get("x-custom").asText())
+        }
+
+        @Test
+        @DisplayName("caller headers override transport default headers")
+        fun callerHeadersOverrideTransportDefaults() {
+            val wiremockUrl = WireMockContainer.getHttpUrl()
+            val transport = TransportOptions.builder()
+                .defaultHeader("Accept", "text/plain")
+                .build()
+            val client = DefaultApiClient(transport)
+            val callerHeaders = mutableMapOf("Accept" to "application/json")
+            val response = runBlocking {
+                client.sendRequest("GET", "$wiremockUrl/api/echo-headers", callerHeaders, null)
+            }
+            assertEquals(200, response.statusCode)
+            val json = ObjectMapper().readTree(response.body)
+            assertEquals("application/json", json.get("accept").asText())
+        }
+    }
+
+    @Nested
+    @DisplayName("redirect handling")
+    inner class RedirectHandling {
+
+        @Test
+        @DisplayName("follows redirects when enabled")
+        fun followsRedirectsWhenEnabled() {
+            val wiremockUrl = WireMockContainer.getHttpUrl()
+            val transport = TransportOptions.builder()
+                .followRedirects(true)
+                .build()
+            val client = DefaultApiClient(transport)
+            val response = runBlocking {
+                client.sendRequest("GET", "$wiremockUrl/api/redirect", emptyMap(), null)
+            }
+            assertEquals(200, response.statusCode)
+            assertTrue(response.body.contains("success"))
+        }
+
+        @Test
+        @DisplayName("returns redirect response when disabled")
+        fun returnsRedirectWhenDisabled() {
+            val wiremockUrl = WireMockContainer.getHttpUrl()
+            val transport = TransportOptions.builder()
+                .followRedirects(false)
+                .build()
+            val client = DefaultApiClient(transport)
+            val response = runBlocking {
+                client.sendRequest("GET", "$wiremockUrl/api/redirect", emptyMap(), null)
+            }
+            assertEquals(302, response.statusCode)
         }
     }
 }

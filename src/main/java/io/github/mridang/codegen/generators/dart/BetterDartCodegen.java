@@ -240,6 +240,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen {
 
         final String srcDir = Path.of("lib", "src").toString();
 
+        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
         supportingFiles.add(
                 new SupportingFile("configuration.mustache", srcDir, "configuration.dart"));
         supportingFiles.add(

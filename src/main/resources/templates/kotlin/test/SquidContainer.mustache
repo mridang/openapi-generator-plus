@@ -1,0 +1,35 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+import org.testcontainers.containers.GenericContainer
+import org.testcontainers.utility.MountableFile
+import java.nio.file.Path
+import java.time.Duration
+
+/**
+ * Singleton Squid proxy container shared across all test classes.
+ */
+object SquidContainer {
+
+    private val INSTANCE: GenericContainer<*>
+
+    init {
+        // Force WireMockContainer initialization so the shared network is created first.
+        WireMockContainer.getHttpUrl()
+
+        INSTANCE = GenericContainer("ubuntu/squid:5.2-22.04_beta")
+            .withExposedPorts(3128)
+            .withCopyFileToContainer(
+                MountableFile.forHostPath(Path.of("/app/src/test/resources/proxy/squid.conf")),
+                "/etc/squid/squid.conf"
+            )
+            .withNetwork(WireMockContainer.PROXY_NETWORK)
+            .withStartupTimeout(Duration.ofSeconds(60))
+        INSTANCE.start()
+        Thread.sleep(3000)
+    }
+
+    fun getProxyUrl(): String =
+        "http://${INSTANCE.host}:${INSTANCE.getMappedPort(3128)}"
+}

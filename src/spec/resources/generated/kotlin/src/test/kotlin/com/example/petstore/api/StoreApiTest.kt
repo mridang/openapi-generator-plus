@@ -14,7 +14,6 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -24,7 +23,7 @@ import java.time.ZoneOffset
 
 class StoreApiTest {
     companion object {
-        private fun getBaseUrl(): String? = System.getenv("API_BASE_URL")
+        private fun getBaseUrl(): String = PrismContainer.getBaseUrl()
     }
 
     @Nested
@@ -34,12 +33,10 @@ class StoreApiTest {
 
         @BeforeEach
         fun setUp() {
-            val baseUrl = getBaseUrl()
-            assumeTrue(baseUrl != null, "API_BASE_URL not set, skipping integration tests")
             val config =
                 Configuration
                     .builder()
-                    .baseUrl(baseUrl!!)
+                    .baseUrl(getBaseUrl())
                     .defaultHeader("Authorization", "Bearer test-token")
                     .build()
             api = StoreApi(DefaultApiClient(), config)

@@ -10,9 +10,8 @@ package petstore_test
 import (
 	"net/http"
 	"net/http/httptest"
-	"testing"
-
 	petstore "petstore/pkg"
+	"testing"
 )
 
 func TestDefaultApiClient_UserAgentHeader(t *testing.T) {

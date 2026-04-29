@@ -12,15 +12,14 @@ package com.example.petstore.api
 import com.example.petstore.*
 import com.example.petstore.api.options.FindPetsByStatusOptions
 import com.example.petstore.api.options.UploadPetCertificateOptions
+import com.example.petstore.auth.AdminBasicAuthenticator
 import com.example.petstore.auth.PetStoreBearerAuthenticator
-import com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator
 import com.example.petstore.models.*
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -28,20 +27,20 @@ import org.junit.jupiter.api.Test
 
 class PetApiTest {
     companion object {
-        private fun getBaseUrl(): String? = System.getenv("API_BASE_URL")
+        private fun getBaseUrl(): String = PrismContainer.getBaseUrl()
     }
 
     private val bearerAuth =
         PetStoreBearerAuthenticator(
-            getBaseUrl() ?: "http://localhost:4010",
+            getBaseUrl(),
             "test-token",
         )
 
-    private val clientCredentialsAuth =
-        MachineAuthClientCredentialsAuthenticator(
-            getBaseUrl() ?: "http://localhost:4010",
-            "test-client-id",
-            "test-client-secret",
+    private val basicAuth =
+        AdminBasicAuthenticator(
+            getBaseUrl(),
+            "admin",
+            "password",
         )
 
     @Nested
@@ -51,12 +50,10 @@ class PetApiTest {
 
         @BeforeEach
         fun setUp() {
-            val baseUrl = getBaseUrl()
-            assumeTrue(baseUrl != null, "API_BASE_URL not set, skipping integration tests")
             val config =
                 Configuration
                     .builder()
-                    .baseUrl(baseUrl!!)
+                    .baseUrl(getBaseUrl())
                     .defaultHeader("Authorization", "Bearer test-token")
                     .build()
             api = PetApi(DefaultApiClient(), config)
@@ -130,7 +127,7 @@ class PetApiTest {
         @Test
         @DisplayName("deletePet deletes a pet")
         fun testDeletePet() {
-            assertDoesNotThrow { runBlocking { api.deletePet(clientCredentialsAuth, 1L) } }
+            assertDoesNotThrow { runBlocking { api.deletePet(basicAuth, 1L) } }
         }
 
         @Test

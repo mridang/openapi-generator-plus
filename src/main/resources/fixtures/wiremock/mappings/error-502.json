@@ -1,7 +1,7 @@
 {
   "request": {
     "method": "GET",
-    "url": "/api/error/502"
+    "urlPathPattern": "/api/error/502(/.*)?"
   },
   "response": {
     "status": 502,

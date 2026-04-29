@@ -203,6 +203,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         final String apiPath = apiPackage.replace('.', File.separatorChar);
         final String packagePath = packageName.replace('.', File.separatorChar);
 
+        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
         supportingFiles.add(
                 new SupportingFile("models/__init__.mustache", modelPath, "__init__.py"));
         supportingFiles.add(
@@ -316,17 +317,17 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
             supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
             supportingFiles.add(
                     new SupportingFile("test/tests_init.py", "test", "__init__.py"));
-            final String testApiPath = Path.of("test", "Api").toString();
+            final String testApiPath = Path.of("test", "api").toString();
             supportingFiles.add(
-                    new SupportingFile("test/Api_init.py", testApiPath, "__init__.py"));
+                    new SupportingFile("test/api_init.py", testApiPath, "__init__.py"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/Api/test_pet_api.mustache",
+                            "test/api/test_pet_api.mustache",
                             testApiPath,
                             "test_pet_api.py"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/Api/test_store_api.mustache",
+                            "test/api/test_store_api.mustache",
                             testApiPath,
                             "test_store_api.py"));
             supportingFiles.add(

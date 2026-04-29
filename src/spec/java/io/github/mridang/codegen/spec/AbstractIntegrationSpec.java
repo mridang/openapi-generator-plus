@@ -74,6 +74,7 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
             .withEnv("HOST_APP_PATH", tempOutputDir.toAbsolutePath().toString())
             .withWorkingDirectory("/app")
             .withCommand("tail", "-f", "/dev/null")
+            .withCreateContainerCmdModifier(cmd -> cmd.withUser("root"))
             .withLogConsumer(new Slf4jLogConsumer(logger).withPrefix(getGeneratorName()))) {
 
       runtimeContainer.start();
@@ -81,6 +82,10 @@ public abstract class AbstractIntegrationSpec implements LanguageSpec {
       logger.info("Runtime container started:");
       logger.info("  - Image: {}", getRuntimeImage());
       logger.info("  - Container ID: {}", runtimeContainer.getContainerId());
+
+      // Ensure Docker socket is accessible for testcontainers inside the container
+      runtimeContainer.execInContainer("sh", "-c",
+          "chmod 666 /var/run/docker.sock 2>/dev/null || true");
 
       // Copy bind-mounted files to container-local storage to avoid file corruption
       // caused by heavy parallel I/O on macOS Docker bind mounts (VirtioFS/gRPC-FUSE).

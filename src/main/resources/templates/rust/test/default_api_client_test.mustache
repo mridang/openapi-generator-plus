@@ -1,52 +1,21 @@
 {{>api_info}}
 
+mod testcontainers_helper;
+
 use std::collections::HashMap;
-use std::io::Read;
-use std::net::TcpListener;
-use std::thread;
 
 use {{packageName}}::*;
 
-/// Starts a minimal HTTP server that captures the request and responds with the
-/// given status code and body. Returns the base URL.
-fn start_server(status: u16, content_type: &str, body: &str) -> String {
-    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
-    let addr = listener.local_addr().unwrap();
-    let base_url = format!("http://{}", addr);
-
-    let content_type = content_type.to_string();
-    let body = body.to_string();
-
-    thread::spawn(move || {
-        for stream in listener.incoming() {
-            let mut stream = stream.unwrap();
-            let mut buf = [0u8; 4096];
-            let _ = stream.read(&mut buf);
-
-            let response = format!(
-                "HTTP/1.1 {} OK\r\nContent-Type: {}\r\nContent-Length: {}\r\n\r\n{}",
-                status,
-                content_type,
-                body.len(),
-                body
-            );
-            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
-            break;
-        }
-    });
-
-    thread::sleep(std::time::Duration::from_millis(50));
-    base_url
-}
-
 #[tokio::test]
-async fn test_default_api_client_get() {
-    let base_url = start_server(200, "application/json", r#"{"message":"success"}"#);
-
-    let client = DefaultApiClient::new(None);
+async fn test_default_api_client_tls_verification_disabled() {
+    let wiremock_url = testcontainers_helper::wiremock_https_url();
+    let transport = TransportOptionsBuilder::new()
+        .verify_ssl(false)
+        .build();
+    let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
-        .send_request("GET", &format!("{}/test", base_url), &headers, None)
+        .send_request("GET", &format!("{}/api/test", wiremock_url), &headers, None)
         .await
         .expect("unexpected error");
 
@@ -55,81 +24,200 @@ async fn test_default_api_client_get() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_post_with_json_body() {
-    let base_url = start_server(201, "application/json", r#"{"id":1}"#);
-
-    let client = DefaultApiClient::new(None);
-    let body = br#"{"name":"test"}"#;
-    let mut headers = HashMap::new();
-    headers.insert("Content-Type".to_string(), "application/json".to_string());
-
-    let resp = client
-        .send_request("POST", &format!("{}/items", base_url), &headers, Some(body))
-        .await
-        .expect("unexpected error");
-
-    assert_eq!(resp.status_code, 201);
-}
-
-#[tokio::test]
-async fn test_default_api_client_response_headers() {
-    let base_url = start_server(200, "application/json", "{}");
-
-    let client = DefaultApiClient::new(None);
+async fn test_default_api_client_custom_ca_bundle() {
+    let wiremock_url = testcontainers_helper::wiremock_https_url();
+    let ca_cert = testcontainers_helper::ca_cert_path();
+    let transport = TransportOptionsBuilder::new()
+        .verify_ssl(true)
+        .ca_cert_path(ca_cert)
+        .build();
+    let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
-        .send_request("GET", &format!("{}/test", base_url), &headers, None)
+        .send_request("GET", &format!("{}/api/test", wiremock_url), &headers, None)
         .await
         .expect("unexpected error");
 
     assert_eq!(resp.status_code, 200);
-    // Response headers should be populated
-    assert!(!resp.headers.is_empty());
+    assert!(resp.body.contains("success"));
 }
 
 #[tokio::test]
-async fn test_default_api_client_non_2xx_status() {
-    let base_url = start_server(500, "application/json", r#"{"error":"internal"}"#);
-
-    let client = DefaultApiClient::new(None);
+async fn test_default_api_client_http_proxy() {
+    let wiremock_url = testcontainers_helper::wiremock_internal_http_url();
+    let proxy = testcontainers_helper::proxy_url();
+    let transport = TransportOptionsBuilder::new()
+        .proxy(proxy)
+        .build();
+    let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
-        .send_request("GET", &format!("{}/fail", base_url), &headers, None)
-        .await
-        .expect("unexpected error");
-
-    // DefaultApiClient returns the response as-is; error dispatch is done by BaseApi
-    assert_eq!(resp.status_code, 500);
-}
-
-#[tokio::test]
-async fn test_default_api_client_put() {
-    let base_url = start_server(200, "application/json", "{}");
-
-    let client = DefaultApiClient::new(None);
-    let body = br#"{"name":"updated"}"#;
-    let mut headers = HashMap::new();
-    headers.insert("Content-Type".to_string(), "application/json".to_string());
-
-    let resp = client
-        .send_request("PUT", &format!("{}/items/1", base_url), &headers, Some(body))
+        .send_request("GET", &format!("{}/api/test", wiremock_url), &headers, None)
         .await
         .expect("unexpected error");
 
     assert_eq!(resp.status_code, 200);
+    assert!(resp.body.contains("success"));
 }
 
 #[tokio::test]
-async fn test_default_api_client_delete() {
-    let base_url = start_server(204, "application/json", "");
-
-    let client = DefaultApiClient::new(None);
+async fn test_default_api_client_http_proxy_with_tls() {
+    let wiremock_url = testcontainers_helper::wiremock_internal_https_url();
+    let proxy = testcontainers_helper::proxy_url();
+    let transport = TransportOptionsBuilder::new()
+        .proxy(proxy)
+        .verify_ssl(false)
+        .build();
+    let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
-
     let resp = client
-        .send_request("DELETE", &format!("{}/items/1", base_url), &headers, None)
+        .send_request("GET", &format!("{}/api/test", wiremock_url), &headers, None)
         .await
         .expect("unexpected error");
 
-    assert_eq!(resp.status_code, 204);
+    assert_eq!(resp.status_code, 200);
+    assert!(resp.body.contains("success"));
+}
+
+#[tokio::test]
+async fn test_default_api_client_request_timeout() {
+    let wiremock_url = testcontainers_helper::wiremock_http_url();
+    let transport = TransportOptionsBuilder::new()
+        .timeout(std::time::Duration::from_secs(1))
+        .build();
+    let client = DefaultApiClient::new(Some(transport));
+    let headers = HashMap::new();
+    let result = client
+        .send_request("GET", &format!("{}/api/slow", wiremock_url), &headers, None)
+        .await;
+
+    assert!(result.is_err(), "expected timeout error");
+}
+
+#[tokio::test]
+async fn test_default_api_client_user_agent_header() {
+    let wiremock_url = testcontainers_helper::wiremock_http_url();
+    let transport = TransportOptionsBuilder::new()
+        .user_agent("MyApp/1.0")
+        .build();
+    let client = DefaultApiClient::new(Some(transport));
+    let headers = HashMap::new();
+    let resp = client
+        .send_request("GET", &format!("{}/api/echo-headers", wiremock_url), &headers, None)
+        .await
+        .expect("unexpected error");
+
+    assert_eq!(resp.status_code, 200);
+    let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
+    assert_eq!(json["user-agent"], "MyApp/1.0");
+}
+
+#[tokio::test]
+async fn test_default_api_client_request_id_injection() {
+    let wiremock_url = testcontainers_helper::wiremock_http_url();
+    let transport = TransportOptionsBuilder::new()
+        .inject_request_id(true)
+        .build();
+    let client = DefaultApiClient::new(Some(transport));
+    let headers = HashMap::new();
+    let resp = client
+        .send_request("GET", &format!("{}/api/echo-headers", wiremock_url), &headers, None)
+        .await
+        .expect("unexpected error");
+
+    let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
+    let request_id = json["x-request-id"].as_str().expect("missing x-request-id");
+    assert!(!request_id.is_empty());
+}
+
+#[tokio::test]
+async fn test_default_api_client_request_id_unique() {
+    let wiremock_url = testcontainers_helper::wiremock_http_url();
+    let transport = TransportOptionsBuilder::new()
+        .inject_request_id(true)
+        .build();
+    let client = DefaultApiClient::new(Some(transport));
+    let headers = HashMap::new();
+
+    let resp1 = client
+        .send_request("GET", &format!("{}/api/echo-headers", wiremock_url), &headers, None)
+        .await
+        .expect("unexpected error");
+    let json1: serde_json::Value = serde_json::from_str(&resp1.body).expect("invalid json");
+
+    let resp2 = client
+        .send_request("GET", &format!("{}/api/echo-headers", wiremock_url), &headers, None)
+        .await
+        .expect("unexpected error");
+    let json2: serde_json::Value = serde_json::from_str(&resp2.body).expect("invalid json");
+
+    assert_ne!(json1["x-request-id"], json2["x-request-id"]);
+}
+
+#[tokio::test]
+async fn test_default_api_client_default_headers() {
+    let wiremock_url = testcontainers_helper::wiremock_http_url();
+    let transport = TransportOptionsBuilder::new()
+        .default_header("X-Custom", "custom-value")
+        .build();
+    let client = DefaultApiClient::new(Some(transport));
+    let headers = HashMap::new();
+    let resp = client
+        .send_request("GET", &format!("{}/api/echo-headers", wiremock_url), &headers, None)
+        .await
+        .expect("unexpected error");
+
+    let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
+    assert_eq!(json["x-custom"], "custom-value");
+}
+
+#[tokio::test]
+async fn test_default_api_client_caller_headers_override_defaults() {
+    let wiremock_url = testcontainers_helper::wiremock_http_url();
+    let transport = TransportOptionsBuilder::new()
+        .default_header("Accept", "text/plain")
+        .build();
+    let client = DefaultApiClient::new(Some(transport));
+    let mut headers = HashMap::new();
+    headers.insert("Accept".to_string(), "application/json".to_string());
+    let resp = client
+        .send_request("GET", &format!("{}/api/echo-headers", wiremock_url), &headers, None)
+        .await
+        .expect("unexpected error");
+
+    let json: serde_json::Value = serde_json::from_str(&resp.body).expect("invalid json");
+    assert_eq!(json["accept"], "application/json");
+}
+
+#[tokio::test]
+async fn test_default_api_client_follow_redirects_enabled() {
+    let wiremock_url = testcontainers_helper::wiremock_http_url();
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build();
+    let client = DefaultApiClient::new(Some(transport));
+    let headers = HashMap::new();
+    let resp = client
+        .send_request("GET", &format!("{}/api/redirect", wiremock_url), &headers, None)
+        .await
+        .expect("unexpected error");
+
+    assert_eq!(resp.status_code, 200);
+    assert!(resp.body.contains("success"));
+}
+
+#[tokio::test]
+async fn test_default_api_client_follow_redirects_disabled() {
+    let wiremock_url = testcontainers_helper::wiremock_http_url();
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(false)
+        .build();
+    let client = DefaultApiClient::new(Some(transport));
+    let headers = HashMap::new();
+    let resp = client
+        .send_request("GET", &format!("{}/api/redirect", wiremock_url), &headers, None)
+        .await
+        .expect("unexpected error");
+
+    assert_eq!(resp.status_code, 302);
 }

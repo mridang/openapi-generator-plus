@@ -21,6 +21,7 @@ dependencies {
     testImplementation(kotlin("test"))
     testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+    testImplementation("org.testcontainers:testcontainers:1.21.4")
 }
 
 kotlin {
@@ -30,6 +31,16 @@ kotlin {
 tasks.test {
     useJUnitPlatform()
     reports.junitXml.outputLocation.set(file(".out/reports"))
+    // Pass Docker env vars to the forked test JVM for DinD support
+    listOf(
+        "DOCKER_HOST",
+        "TESTCONTAINERS_HOST_OVERRIDE",
+        "TC_HOST",
+        "TESTCONTAINERS_RYUK_DISABLED",
+        "HOST_APP_PATH"
+    ).forEach { key ->
+        System.getenv(key)?.let { environment(key, it) }
+    }
 }
 
 kover {

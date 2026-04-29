@@ -15,10 +15,18 @@ pub struct PetPassport {
     #[serde(rename = "pet", skip_serializing_if = "Option::is_none")]
     pub pet: Option<Pet>,
     /// Base64-encoded primary thumbnail
-    #[serde(rename = "thumbnail", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "thumbnail",
+        skip_serializing_if = "Option::is_none",
+        with = "super::base64_serde::option"
+    )]
     pub thumbnail: Option<Vec<u8>>,
     /// Base64-encoded scans of each passport page
-    #[serde(rename = "scans", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "scans",
+        skip_serializing_if = "Option::is_none",
+        with = "super::base64_serde::vec_option"
+    )]
     pub scans: Option<Vec<Vec<u8>>>,
     #[serde(rename = "issuedAt", skip_serializing_if = "Option::is_none")]
     pub issued_at: Option<String>,

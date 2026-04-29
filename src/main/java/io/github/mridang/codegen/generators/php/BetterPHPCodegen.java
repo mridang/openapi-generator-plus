@@ -208,6 +208,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         final String invokerFolder = toSrcPath(invokerPackage);
         final String apiFolder = toSrcPath(apiPackage);
 
+        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
         supportingFiles.add(
                 new SupportingFile("configuration.mustache", invokerFolder, "Configuration.php"));
         supportingFiles.add(

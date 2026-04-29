@@ -183,7 +183,11 @@ class DefaultApiClient : ApiClient {
             .method(method, requestBody)
             .headers(mergedHeaders.toHeaders())
 
-        val response = httpClient.newCall(requestBuilder.build()).execute()
+        val response = try {
+            httpClient.newCall(requestBuilder.build()).execute()
+        } catch (e: java.io.IOException) {
+            throw ApiException(e.toString())
+        }
 
         val responseHeaders = mutableMapOf<String, String>()
         for (name in response.headers.names()) {

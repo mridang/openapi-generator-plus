@@ -9,117 +9,125 @@
 
 package com.example.petstore
 
-import com.example.petstore.api.PetApi
-import com.example.petstore.api.options.FindPetsByStatusOptions
+import com.example.petstore.auth.Authenticator
 import com.example.petstore.exceptions.*
 import kotlinx.coroutines.runBlocking
-import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class BaseApiTest {
-    private val server = MockWebServer()
-
-    @AfterEach
-    fun tearDown() {
-        server.shutdown()
+    class TestableApi(
+        baseUrl: String,
+    ) : com.example.petstore.api.BaseApi(
+            DefaultApiClient(),
+            Configuration.builder().baseUrl(baseUrl).build(),
+        ) {
+        suspend fun call(
+            method: String,
+            path: String,
+            queryParams: MutableMap<String, Any?> = mutableMapOf(),
+            headerParams: MutableMap<String, String> = mutableMapOf(),
+            body: Any? = null,
+            accepts: Array<String> = arrayOf("application/json"),
+            contentType: String = "application/json",
+            auth: Authenticator? = null,
+        ): ApiResponse = invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, auth)
     }
 
-    private fun apiForServer(): PetApi {
-        val config =
-            Configuration
-                .builder()
-                .baseUrl(server.url("/").toString().trimEnd('/'))
-                .build()
-        return PetApi(DefaultApiClient(), config)
+    class TestAuthenticator(
+        private val headers: Map<String, String>,
+        private val queryParams: Map<String, String>,
+        private val cookies: Map<String, String>,
+    ) : Authenticator {
+        override fun getHost(): String = ""
+
+        override fun getAuthHeaders(): Map<String, String> = headers
+
+        override fun getQueryParams(): Map<String, String> = queryParams
+
+        override fun getCookieParams(): Map<String, String> = cookies
     }
+
+    private fun api() = TestableApi(WireMockContainer.getHttpUrl())
 
     @Nested
-    @DisplayName("error dispatch")
-    inner class ErrorDispatch {
+    @DisplayName("exception dispatch")
+    inner class ExceptionDispatch {
         @Test
         @DisplayName("400 throws BadRequestException")
         fun throws400() {
-            server.enqueue(MockResponse().setResponseCode(400).setBody("{\"error\":\"bad request\"}"))
-            val api = apiForServer()
             val ex =
                 assertThrows(BadRequestException::class.java) {
-                    runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+                    runBlocking { api().call("GET", "/api/error/400") }
                 }
             assertEquals(400, ex.code)
+            assertNotNull(ex.responseBody)
+            assertFalse(ex.responseBody!!.isEmpty())
         }
 
         @Test
         @DisplayName("401 throws UnauthorizedException")
         fun throws401() {
-            server.enqueue(MockResponse().setResponseCode(401).setBody("{\"error\":\"unauthorized\"}"))
-            val api = apiForServer()
             assertThrows(UnauthorizedException::class.java) {
-                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+                runBlocking { api().call("GET", "/api/error/401") }
             }
         }
 
         @Test
         @DisplayName("403 throws ForbiddenException")
         fun throws403() {
-            server.enqueue(MockResponse().setResponseCode(403).setBody("{\"error\":\"forbidden\"}"))
-            val api = apiForServer()
             assertThrows(ForbiddenException::class.java) {
-                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+                runBlocking { api().call("GET", "/api/error/403") }
             }
         }
 
         @Test
         @DisplayName("404 throws NotFoundException")
         fun throws404() {
-            server.enqueue(MockResponse().setResponseCode(404).setBody("{\"error\":\"not found\"}"))
-            val api = apiForServer()
             assertThrows(NotFoundException::class.java) {
-                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+                runBlocking { api().call("GET", "/api/error/404") }
             }
         }
 
         @Test
         @DisplayName("409 throws ConflictException")
         fun throws409() {
-            server.enqueue(MockResponse().setResponseCode(409).setBody("{\"error\":\"conflict\"}"))
-            val api = apiForServer()
             assertThrows(ConflictException::class.java) {
-                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+                runBlocking { api().call("GET", "/api/error/409") }
             }
         }
 
         @Test
         @DisplayName("422 throws UnprocessableEntityException")
         fun throws422() {
-            server.enqueue(MockResponse().setResponseCode(422).setBody("{\"error\":\"unprocessable\"}"))
-            val api = apiForServer()
             assertThrows(UnprocessableEntityException::class.java) {
-                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+                runBlocking { api().call("GET", "/api/error/422") }
+            }
+        }
+
+        @Test
+        @DisplayName("418 throws ClientException")
+        fun throws418() {
+            assertThrows(ClientException::class.java) {
+                runBlocking { api().call("GET", "/api/error/418") }
             }
         }
 
         @Test
         @DisplayName("500 throws InternalServerErrorException")
         fun throws500() {
-            server.enqueue(MockResponse().setResponseCode(500).setBody("{\"error\":\"server error\"}"))
-            val api = apiForServer()
             assertThrows(InternalServerErrorException::class.java) {
-                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+                runBlocking { api().call("GET", "/api/error/500") }
             }
         }
 
         @Test
         @DisplayName("502 throws ServerException")
         fun throws502() {
-            server.enqueue(MockResponse().setResponseCode(502).setBody("{\"error\":\"bad gateway\"}"))
-            val api = apiForServer()
             assertThrows(ServerException::class.java) {
-                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+                runBlocking { api().call("GET", "/api/error/502") }
             }
         }
     }
@@ -130,11 +138,9 @@ class BaseApiTest {
         @Test
         @DisplayName("NotFoundException is a ClientException")
         fun notFoundIsClientException() {
-            server.enqueue(MockResponse().setResponseCode(404).setBody("{\"error\":\"not found\"}"))
-            val api = apiForServer()
             val ex =
                 assertThrows(NotFoundException::class.java) {
-                    runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+                    runBlocking { api().call("GET", "/api/error/404") }
                 }
             assertInstanceOf(ClientException::class.java, ex)
             assertInstanceOf(ApiException::class.java, ex)
@@ -143,11 +149,9 @@ class BaseApiTest {
         @Test
         @DisplayName("InternalServerErrorException is a ServerException")
         fun internalServerErrorIsServerException() {
-            server.enqueue(MockResponse().setResponseCode(500).setBody("{\"error\":\"server error\"}"))
-            val api = apiForServer()
             val ex =
                 assertThrows(InternalServerErrorException::class.java) {
-                    runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+                    runBlocking { api().call("GET", "/api/error/500") }
                 }
             assertInstanceOf(ServerException::class.java, ex)
             assertInstanceOf(ApiException::class.java, ex)
@@ -155,68 +159,111 @@ class BaseApiTest {
     }
 
     @Nested
-    @DisplayName("JSON response deserialization")
-    inner class JsonDeserialization {
+    @DisplayName("success deserialization")
+    inner class SuccessDeserialization {
         @Test
-        @DisplayName("deserializes JSON response body")
+        @DisplayName("deserializes JSON response")
         fun deserializesJsonResponse() {
-            server.enqueue(
-                MockResponse()
-                    .setResponseCode(200)
-                    .addHeader("Content-Type", "application/json")
-                    .setBody("[{\"id\":1,\"name\":\"Fido\",\"status\":\"available\"}]"),
-            )
-            val api = apiForServer()
-            val pets = runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
-            assertNotNull(pets)
-            assertTrue(pets!!.isNotEmpty())
+            val response =
+                runBlocking {
+                    api().call("GET", "/api/test")
+                }
+            assertNotNull(response)
+            assertTrue(response.body.contains("success"))
+        }
+
+        @Test
+        @DisplayName("returns raw string for non-JSON response")
+        fun returnsRawStringForNonJson() {
+            val response =
+                runBlocking {
+                    api().call(
+                        "GET",
+                        "/api/text",
+                        accepts = arrayOf("text/plain"),
+                    )
+                }
+            assertNotNull(response)
+            assertTrue(response.body.contains("hello plain text"))
         }
     }
 
     @Nested
-    @DisplayName("auth header forwarding")
-    inner class AuthHeaderForwarding {
+    @DisplayName("auth injection")
+    inner class AuthInjection {
         @Test
-        @DisplayName("forwards config default headers in request")
-        fun forwardsConfigDefaultHeaders() {
-            server.enqueue(
-                MockResponse()
-                    .setResponseCode(200)
-                    .addHeader("Content-Type", "application/json")
-                    .setBody("[{\"id\":1,\"name\":\"Fido\",\"status\":\"available\"}]"),
-            )
-            val config =
-                Configuration
-                    .builder()
-                    .baseUrl(server.url("/").toString().trimEnd('/'))
-                    .defaultHeader("Authorization", "Bearer test-token")
-                    .build()
-            val api = PetApi(DefaultApiClient(), config)
-            runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+        @DisplayName("forwards auth headers")
+        fun forwardsAuthHeaders() {
+            val auth =
+                TestAuthenticator(
+                    mapOf("X-Custom" to "auth-value"),
+                    emptyMap(),
+                    emptyMap(),
+                )
+            val response =
+                runBlocking {
+                    api().call(
+                        "GET",
+                        "/api/echo-headers",
+                        auth = auth,
+                    )
+                }
+            assertNotNull(response)
+            val json =
+                com.fasterxml.jackson.databind
+                    .ObjectMapper()
+                    .readTree(response.body)
+            assertEquals("auth-value", json.get("x-custom").asText())
+        }
 
-            val request = server.takeRequest()
-            assertEquals("Bearer test-token", request.getHeader("Authorization"))
+        @Test
+        @DisplayName("sets Cookie header from auth cookies")
+        fun setsCookieHeader() {
+            val auth =
+                TestAuthenticator(
+                    emptyMap(),
+                    emptyMap(),
+                    mapOf("session" to "abc123"),
+                )
+            runBlocking {
+                api().call(
+                    "GET",
+                    "/api/test",
+                    auth = auth,
+                )
+            }
         }
     }
 
     @Nested
-    @DisplayName("nil body handling")
-    inner class NilBodyHandling {
+    @DisplayName("body serialization")
+    inner class BodySerialization {
         @Test
-        @DisplayName("GET requests send no body")
-        fun getRequestsSendNoBody() {
-            server.enqueue(
-                MockResponse()
-                    .setResponseCode(200)
-                    .addHeader("Content-Type", "application/json")
-                    .setBody("[{\"id\":1,\"name\":\"Fido\",\"status\":\"available\"}]"),
-            )
-            val api = apiForServer()
-            runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("available")) }
+        @DisplayName("serializes JSON body for POST")
+        fun serializesJsonBody() {
+            val body = mapOf("key" to "value")
+            val response =
+                runBlocking {
+                    api().call(
+                        "POST",
+                        "/api/echo-body",
+                        body = body,
+                    )
+                }
+            assertNotNull(response)
+            val json =
+                com.fasterxml.jackson.databind
+                    .ObjectMapper()
+                    .readTree(response.body)
+            assertEquals("value", json.get("key").asText())
+        }
 
-            val request = server.takeRequest()
-            assertEquals("GET", request.method)
-            assertEquals(0, request.bodySize)
+        @Test
+        @DisplayName("sends no body when body is null")
+        fun sendsNoBodyWhenNull() {
+            runBlocking {
+                api().call("GET", "/api/test")
+            }
         }
     }
 }

@@ -206,6 +206,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
 
         this.apiPackage = "api";
 
+        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
         supportingFiles.add(new SupportingFile("api_client.mustache", "src", "api-client.ts"));
         supportingFiles.add(
                 new SupportingFile(
@@ -313,13 +314,13 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
             supportingFiles.add(new SupportingFile("test/setup.ts", "test", "setup.ts"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/Api/pet-api.test.mustache",
-                            Path.of("test", "Api").toString(),
+                            "test/api/pet-api.test.mustache",
+                            Path.of("test", "api").toString(),
                             "pet-api.test.ts"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/Api/store-api.test.mustache",
-                            Path.of("test", "Api").toString(),
+                            "test/api/store-api.test.mustache",
+                            Path.of("test", "api").toString(),
                             "store-api.test.ts"));
             supportingFiles.add(
                     new SupportingFile(

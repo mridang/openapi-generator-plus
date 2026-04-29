@@ -225,6 +225,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         final String modulePath = NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("::", "/"));
         final String libPath = Path.of(LIB_FOLDER, modulePath).toString();
 
+        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
         supportingFiles.add(new SupportingFile("gem.mustache", LIB_FOLDER, gemName + ".rb"));
         supportingFiles.add(new SupportingFile("configuration.mustache", libPath, "configuration.rb"));
         supportingFiles.add(new SupportingFile("transport_options.mustache", libPath, "transport_options.rb"));
@@ -307,13 +308,13 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                     new SupportingFile("test/test_helper.mustache", "test", "test_helper.rb"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/Api/pet_api_test.mustache",
-                            Path.of("test", "Api").toString(),
+                            "test/api/pet_api_test.mustache",
+                            Path.of("test", "api").toString(),
                             "pet_api_test.rb"));
             supportingFiles.add(
                     new SupportingFile(
-                            "test/Api/store_api_test.mustache",
-                            Path.of("test", "Api").toString(),
+                            "test/api/store_api_test.mustache",
+                            Path.of("test", "api").toString(),
                             "store_api_test.rb"));
             supportingFiles.add(
                     new SupportingFile(

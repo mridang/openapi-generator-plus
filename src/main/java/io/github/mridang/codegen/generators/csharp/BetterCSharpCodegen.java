@@ -188,6 +188,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         final String invokerFolder =
                 Path.of(sourceFolder, packageName.replace(".", "/")).toString();
 
+        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
         supportingFiles.add(
                 new SupportingFile("api_client.mustache", invokerFolder, "ApiClient.cs"));
         supportingFiles.add(

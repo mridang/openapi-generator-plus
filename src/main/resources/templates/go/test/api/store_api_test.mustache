@@ -4,28 +4,16 @@ package {{packageName}}_test
 import (
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"{{packageName}}/pkg"
 	"{{packageName}}/pkg/models"
 )
 
-// storeApiPrismBaseURL returns the Prism mock server base URL for store tests.
-func storeApiPrismBaseURL(t *testing.T) string {
-	t.Helper()
-	url := os.Getenv("API_BASE_URL")
-	if url == "" {
-		t.Skip("API_BASE_URL not set; skipping integration test (Prism mock server not available)")
-	}
-	return url
-}
-
 func newStoreApiForIntegration(t *testing.T) *{{packageName}}.StoreApi {
 	t.Helper()
-	baseURL := storeApiPrismBaseURL(t)
 	config := {{packageName}}.NewConfigurationBuilder().
-		BaseURL(baseURL).
+		BaseURL(prismURL).
 		DefaultHeader("Authorization", "Bearer test-token").
 		Build()
 	client := {{packageName}}.NewDefaultApiClient(nil)

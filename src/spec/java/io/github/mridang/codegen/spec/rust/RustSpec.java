@@ -14,12 +14,12 @@ interface RustSpec extends LanguageSpec, DockerImageSpec {
 
     @Override
     default DockerImageName getRuntimeImage() {
-        return DockerImageName.parse("rust:1.86");
+        return DockerImageName.parse("rust:1.88");
     }
 
     @Override
     default String getDockerImage() {
-        return "rust:1.86";
+        return "rust:1.88";
     }
 
     @Override

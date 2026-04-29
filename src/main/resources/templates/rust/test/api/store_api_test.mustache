@@ -1,5 +1,7 @@
 {{>api_info}}
 
+mod testcontainers_helper;
+
 use std::collections::HashMap;
 use std::io::Read;
 use std::net::TcpListener;
@@ -10,20 +12,14 @@ use {{packageName}}::*;
 use {{packageName}}::api::*;
 use {{packageName}}::models::*;
 
-/// Returns the Prism mock server base URL from the environment.
-/// Tests are skipped if the Prism server is not available.
-fn store_prism_base_url() -> Option<String> {
-    std::env::var("API_BASE_URL").ok()
-}
-
-fn new_store_api_for_integration() -> Option<StoreApi> {
-    let base_url = store_prism_base_url()?;
+fn new_store_api_for_integration() -> StoreApi {
+    let base_url = testcontainers_helper::prism_url();
     let config = ConfigurationBuilder::new()
-        .base_url(&base_url)
+        .base_url(base_url)
         .default_header("Authorization", "Bearer test-token")
         .build();
     let client = DefaultApiClient::new(None);
-    Some(StoreApi::new(Arc::new(client), config))
+    StoreApi::new(Arc::new(client), config)
 }
 
 /// Starts a minimal HTTP mock server and returns a StoreApi configured against it.
@@ -62,39 +58,35 @@ fn new_store_api_for_mock(status: u16, content_type: &str, body: &str) -> StoreA
 
 #[tokio::test]
 async fn test_store_api_get_inventory() {
-    if let Some(api) = new_store_api_for_integration() {
-        let result = api.get_inventory().await;
-        assert!(result.is_ok(), "GetInventory failed: {:?}", result.err());
-    }
+    let api = new_store_api_for_integration();
+    let result = api.get_inventory().await;
+    assert!(result.is_ok(), "GetInventory failed: {:?}", result.err());
 }
 
 #[tokio::test]
 async fn test_store_api_get_order_by_id() {
-    if let Some(api) = new_store_api_for_integration() {
-        let result = api.get_order_by_id(1).await;
-        assert!(
-            result.is_ok(),
-            "GetOrderById failed: {:?}",
-            result.err()
-        );
-    }
+    let api = new_store_api_for_integration();
+    let result = api.get_order_by_id(1).await;
+    assert!(
+        result.is_ok(),
+        "GetOrderById failed: {:?}",
+        result.err()
+    );
 }
 
 #[tokio::test]
 async fn test_store_api_place_order() {
-    if let Some(api) = new_store_api_for_integration() {
-        let order = Order::new();
-        let result = api.place_order(Some(order)).await;
-        assert!(result.is_ok(), "PlaceOrder failed: {:?}", result.err());
-    }
+    let api = new_store_api_for_integration();
+    let order = Order::new();
+    let result = api.place_order(Some(order)).await;
+    assert!(result.is_ok(), "PlaceOrder failed: {:?}", result.err());
 }
 
 #[tokio::test]
 async fn test_store_api_delete_order() {
-    if let Some(api) = new_store_api_for_integration() {
-        let result = api.delete_order(1).await;
-        assert!(result.is_ok(), "DeleteOrder failed: {:?}", result.err());
-    }
+    let api = new_store_api_for_integration();
+    let result = api.delete_order(1).await;
+    assert!(result.is_ok(), "DeleteOrder failed: {:?}", result.err());
 }
 
 #[tokio::test]
