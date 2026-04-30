@@ -6,7 +6,7 @@ import decimal
 import json
 import re
 from enum import Enum
-from typing import Any, ClassVar, Optional, Type, TypeVar, Union
+from typing import Any, Callable, ClassVar, Optional, Type, TypeVar, Union
 
 from dateutil.parser import parse
 from pydantic import BaseModel, SecretStr
@@ -258,3 +258,36 @@ class ObjectSerializer:
         if value is None:
             return ''
         return cls.stringify(value)
+
+    def resolve_one_of(self, json_string: str, candidates: list[Callable[[str], Any]]) -> Any:
+        """Resolve a oneOf schema by trying each candidate deserializer in order.
+
+        Args:
+            json_string: The JSON string to deserialize.
+            candidates: List of callable deserializers that accept a JSON string.
+
+        Returns:
+            The first non-None successful result, or None if none match.
+        """
+        for candidate in candidates:
+            try:
+                result = candidate(json_string)
+                if result is not None:
+                    return result
+            except Exception:
+                continue
+        return None
+
+    def resolve_any_of(self, json_string: str, candidates: list[Callable[[str], Any]]) -> Any:
+        """Resolve an anyOf schema by trying each candidate deserializer in order.
+
+        Delegates to resolve_one_of.
+
+        Args:
+            json_string: The JSON string to deserialize.
+            candidates: List of callable deserializers that accept a JSON string.
+
+        Returns:
+            The first non-None successful result, or None if none match.
+        """
+        return self.resolve_one_of(json_string, candidates)

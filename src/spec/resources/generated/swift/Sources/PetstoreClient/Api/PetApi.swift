@@ -29,7 +29,7 @@ public final class PetApi: BaseApi {
 
         let requestBody: Any? = pet
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "POST",
             path: path,
             queryParams: queryParams,
@@ -39,16 +39,9 @@ public final class PetApi: BaseApi {
             contentType: "application/json",
             returnType: "Pet",
             auth: auth
-        ))
-
-        let data = try ObjectSerializer.deserialize(response.body, as: Pet.self)
-
-        return ApiResult<Pet>(
-            statusCode: response.statusCode,
-            data: data,
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForResult(params, as: Pet.self)
     }
 
     /// Add photos to the pet's gallery
@@ -77,7 +70,7 @@ public final class PetApi: BaseApi {
         }
         let requestBody: Any? = formBody
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "POST",
             path: path,
             queryParams: queryParams,
@@ -87,16 +80,9 @@ public final class PetApi: BaseApi {
             contentType: "multipart/form-data",
             returnType: "[Photo]",
             auth: nil
-        ))
-
-        let data = try ObjectSerializer.deserialize(response.body, as: [Photo].self)
-
-        return ApiResult<[Photo]>(
-            statusCode: response.statusCode,
-            data: data,
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForResult(params, as: [Photo].self)
     }
 
     /// Record a treatment for a pet
@@ -117,7 +103,7 @@ public final class PetApi: BaseApi {
 
         let requestBody: Any? = petTreatment
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "POST",
             path: path,
             queryParams: queryParams,
@@ -127,16 +113,9 @@ public final class PetApi: BaseApi {
             contentType: "application/json",
             returnType: "PetTreatment",
             auth: auth
-        ))
-
-        let data = try ObjectSerializer.deserialize(response.body, as: PetTreatment.self)
-
-        return ApiResult<PetTreatment>(
-            statusCode: response.statusCode,
-            data: data,
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForResult(params, as: PetTreatment.self)
     }
 
     /// Deletes a pet
@@ -157,7 +136,7 @@ public final class PetApi: BaseApi {
 
         let requestBody: Any? = nil
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "DELETE",
             path: path,
             queryParams: queryParams,
@@ -167,14 +146,9 @@ public final class PetApi: BaseApi {
             contentType: "application/json",
             returnType: "",
             auth: auth
-        ))
-
-        return ApiResult<Void>(
-            statusCode: response.statusCode,
-            data: (),
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForEmptyResult(params)
     }
 
     /// Download a vet document
@@ -197,7 +171,7 @@ public final class PetApi: BaseApi {
 
         let requestBody: Any? = nil
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "GET",
             path: path,
             queryParams: queryParams,
@@ -207,16 +181,9 @@ public final class PetApi: BaseApi {
             contentType: "application/json",
             returnType: "Data",
             auth: nil
-        ))
-
-        let data = try ObjectSerializer.deserialize(response.body, as: Data.self)
-
-        return ApiResult<Data>(
-            statusCode: response.statusCode,
-            data: data,
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForResult(params, as: Data.self)
     }
 
     /// Finds Pets by status
@@ -248,7 +215,7 @@ public final class PetApi: BaseApi {
 
         let requestBody: Any? = nil
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "GET",
             path: path,
             queryParams: queryParams,
@@ -258,16 +225,9 @@ public final class PetApi: BaseApi {
             contentType: "application/json",
             returnType: "[Pet]",
             auth: nil
-        ))
-
-        let data = try ObjectSerializer.deserialize(response.body, as: [Pet].self)
-
-        return ApiResult<[Pet]>(
-            statusCode: response.statusCode,
-            data: data,
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForResult(params, as: [Pet].self)
     }
 
     /// Get external pet info
@@ -288,7 +248,7 @@ public final class PetApi: BaseApi {
 
         let requestBody: Any? = nil
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "GET",
             path: path,
             queryParams: queryParams,
@@ -298,16 +258,9 @@ public final class PetApi: BaseApi {
             contentType: "application/json",
             returnType: "Pet",
             auth: nil
-        ))
-
-        let data = try ObjectSerializer.deserialize(response.body, as: Pet.self)
-
-        return ApiResult<Pet>(
-            statusCode: response.statusCode,
-            data: data,
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForResult(params, as: Pet.self)
     }
 
     /// Get multi-server pet info
@@ -328,7 +281,7 @@ public final class PetApi: BaseApi {
 
         let requestBody: Any? = nil
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "GET",
             path: path,
             queryParams: queryParams,
@@ -338,16 +291,9 @@ public final class PetApi: BaseApi {
             contentType: "application/json",
             returnType: "Pet",
             auth: nil
-        ))
-
-        let data = try ObjectSerializer.deserialize(response.body, as: Pet.self)
-
-        return ApiResult<Pet>(
-            statusCode: response.statusCode,
-            data: data,
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForResult(params, as: Pet.self)
     }
 
     /// Get the pet's profile photo
@@ -369,7 +315,7 @@ public final class PetApi: BaseApi {
 
         let requestBody: Any? = nil
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "GET",
             path: path,
             queryParams: queryParams,
@@ -379,16 +325,9 @@ public final class PetApi: BaseApi {
             contentType: "application/json",
             returnType: "Data",
             auth: nil
-        ))
-
-        let data = try ObjectSerializer.deserialize(response.body, as: Data.self)
-
-        return ApiResult<Data>(
-            statusCode: response.statusCode,
-            data: data,
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForResult(params, as: Data.self)
     }
 
     /// Get the pet's avatar thumbnail as base64
@@ -410,7 +349,7 @@ public final class PetApi: BaseApi {
 
         let requestBody: Any? = nil
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "GET",
             path: path,
             queryParams: queryParams,
@@ -420,16 +359,9 @@ public final class PetApi: BaseApi {
             contentType: "application/json",
             returnType: "Data",
             auth: nil
-        ))
-
-        let data = try ObjectSerializer.deserialize(response.body, as: Data.self)
-
-        return ApiResult<Data>(
-            statusCode: response.statusCode,
-            data: data,
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForResult(params, as: Data.self)
     }
 
     /// Find pet by ID
@@ -452,7 +384,7 @@ public final class PetApi: BaseApi {
 
         let requestBody: Any? = nil
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "GET",
             path: path,
             queryParams: queryParams,
@@ -462,16 +394,9 @@ public final class PetApi: BaseApi {
             contentType: "application/json",
             returnType: "Pet",
             auth: nil
-        ))
-
-        let data = try ObjectSerializer.deserialize(response.body, as: Pet.self)
-
-        return ApiResult<Pet>(
-            statusCode: response.statusCode,
-            data: data,
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForResult(params, as: Pet.self)
     }
 
     /// Get the pet's passport
@@ -493,7 +418,7 @@ public final class PetApi: BaseApi {
 
         let requestBody: Any? = nil
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "GET",
             path: path,
             queryParams: queryParams,
@@ -503,16 +428,9 @@ public final class PetApi: BaseApi {
             contentType: "application/json",
             returnType: "PetPassport",
             auth: nil
-        ))
-
-        let data = try ObjectSerializer.deserialize(response.body, as: PetPassport.self)
-
-        return ApiResult<PetPassport>(
-            statusCode: response.statusCode,
-            data: data,
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForResult(params, as: PetPassport.self)
     }
 
     /// Get a photo or its metadata
@@ -535,7 +453,7 @@ public final class PetApi: BaseApi {
 
         let requestBody: Any? = nil
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "GET",
             path: path,
             queryParams: queryParams,
@@ -545,16 +463,9 @@ public final class PetApi: BaseApi {
             contentType: "application/json",
             returnType: "Data",
             auth: nil
-        ))
-
-        let data = try ObjectSerializer.deserialize(response.body, as: Data.self)
-
-        return ApiResult<Data>(
-            statusCode: response.statusCode,
-            data: data,
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForResult(params, as: Data.self)
     }
 
     /// Get a tag for a pet
@@ -588,7 +499,7 @@ public final class PetApi: BaseApi {
 
         let requestBody: Any? = nil
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "GET",
             path: path,
             queryParams: queryParams,
@@ -598,16 +509,9 @@ public final class PetApi: BaseApi {
             contentType: "application/json",
             returnType: "Pet",
             auth: nil
-        ))
-
-        let data = try ObjectSerializer.deserialize(response.body, as: Pet.self)
-
-        return ApiResult<Pet>(
-            statusCode: response.statusCode,
-            data: data,
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForResult(params, as: Pet.self)
     }
 
     /// Get staging pet info
@@ -628,7 +532,7 @@ public final class PetApi: BaseApi {
 
         let requestBody: Any? = nil
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "GET",
             path: path,
             queryParams: queryParams,
@@ -638,16 +542,9 @@ public final class PetApi: BaseApi {
             contentType: "application/json",
             returnType: "Pet",
             auth: nil
-        ))
-
-        let data = try ObjectSerializer.deserialize(response.body, as: Pet.self)
-
-        return ApiResult<Pet>(
-            statusCode: response.statusCode,
-            data: data,
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForResult(params, as: Pet.self)
     }
 
     /// Set the pet's profile photo
@@ -669,7 +566,7 @@ public final class PetApi: BaseApi {
 
         let requestBody: Any? = body
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "PUT",
             path: path,
             queryParams: queryParams,
@@ -679,14 +576,9 @@ public final class PetApi: BaseApi {
             contentType: "image/jpeg",
             returnType: "",
             auth: nil
-        ))
-
-        return ApiResult<Void>(
-            statusCode: response.statusCode,
-            data: (),
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForEmptyResult(params)
     }
 
     /// Set the pet's avatar thumbnail as base64
@@ -708,7 +600,7 @@ public final class PetApi: BaseApi {
 
         let requestBody: Any? = setPetAvatarThumbnailRequest
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "PUT",
             path: path,
             queryParams: queryParams,
@@ -718,14 +610,9 @@ public final class PetApi: BaseApi {
             contentType: "application/json",
             returnType: "",
             auth: nil
-        ))
-
-        return ApiResult<Void>(
-            statusCode: response.statusCode,
-            data: (),
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForEmptyResult(params)
     }
 
     /// Update an existing pet
@@ -746,7 +633,7 @@ public final class PetApi: BaseApi {
 
         let requestBody: Any? = pet
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "PUT",
             path: path,
             queryParams: queryParams,
@@ -756,16 +643,9 @@ public final class PetApi: BaseApi {
             contentType: "application/json",
             returnType: "Pet",
             auth: nil
-        ))
-
-        let data = try ObjectSerializer.deserialize(response.body, as: Pet.self)
-
-        return ApiResult<Pet>(
-            statusCode: response.statusCode,
-            data: data,
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForResult(params, as: Pet.self)
     }
 
     /// Upload the pet's adoption certificate
@@ -791,7 +671,7 @@ public final class PetApi: BaseApi {
         }
         let requestBody: Any? = formBody
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "POST",
             path: path,
             queryParams: queryParams,
@@ -801,16 +681,9 @@ public final class PetApi: BaseApi {
             contentType: "multipart/form-data",
             returnType: "ApiResponse",
             auth: nil
-        ))
-
-        let data = try ObjectSerializer.deserialize(response.body, as: ApiResponse.self)
-
-        return ApiResult<ApiResponse>(
-            statusCode: response.statusCode,
-            data: data,
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForResult(params, as: ApiResponse.self)
     }
 
     /// Attach a vet document or health record
@@ -842,7 +715,7 @@ public final class PetApi: BaseApi {
         }
         let requestBody: Any? = formBody
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "POST",
             path: path,
             queryParams: queryParams,
@@ -852,15 +725,8 @@ public final class PetApi: BaseApi {
             contentType: "multipart/form-data",
             returnType: "ApiResponse",
             auth: nil
-        ))
-
-        let data = try ObjectSerializer.deserialize(response.body, as: ApiResponse.self)
-
-        return ApiResult<ApiResponse>(
-            statusCode: response.statusCode,
-            data: data,
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForResult(params, as: ApiResponse.self)
     }
 }

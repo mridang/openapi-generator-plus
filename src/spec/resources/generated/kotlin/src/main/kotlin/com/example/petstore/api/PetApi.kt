@@ -154,19 +154,16 @@ class PetApi : BaseApi {
         var path = "/pet"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
-        val response =
-            invokeApi(
-                "POST",
-                path,
-                queryParams,
-                headerParams,
-                pet,
-                arrayOf("application/json"),
-                "application/json",
-                auth,
-            )
-        val data = objectSerializer.deserialize<Pet>(response.body)
-        return ApiResult(response.statusCode, data, response.body, response.headers)
+        return invokeApiForResult<Pet>(
+            "POST",
+            path,
+            queryParams,
+            headerParams,
+            pet,
+            arrayOf("application/json"),
+            "application/json",
+            auth,
+        )
     }
 
     /**
@@ -204,19 +201,16 @@ class PetApi : BaseApi {
         formBody["files"] = options.files
         formBody["metadata"] = options.metadata
 
-        val response =
-            invokeApi(
-                "POST",
-                path,
-                queryParams,
-                headerParams,
-                formBody,
-                arrayOf("application/json"),
-                "multipart/form-data",
-                null,
-            )
-        val data = objectSerializer.deserialize<List<Photo>>(response.body)
-        return ApiResult(response.statusCode, data, response.body, response.headers)
+        return invokeApiForResult<List<Photo>>(
+            "POST",
+            path,
+            queryParams,
+            headerParams,
+            formBody,
+            arrayOf("application/json"),
+            "multipart/form-data",
+            null,
+        )
     }
 
     /**
@@ -270,19 +264,16 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
-        val response =
-            invokeApi(
-                "POST",
-                path,
-                queryParams,
-                headerParams,
-                petTreatment,
-                arrayOf("application/json"),
-                "application/json",
-                auth,
-            )
-        val data = objectSerializer.deserialize<PetTreatment>(response.body)
-        return ApiResult(response.statusCode, data, response.body, response.headers)
+        return invokeApiForResult<PetTreatment>(
+            "POST",
+            path,
+            queryParams,
+            headerParams,
+            petTreatment,
+            arrayOf("application/json"),
+            "application/json",
+            auth,
+        )
     }
 
     /**
@@ -330,18 +321,16 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
-        val response =
-            invokeApi(
-                "DELETE",
-                path,
-                queryParams,
-                headerParams,
-                null,
-                arrayOf(),
-                "application/json",
-                auth,
-            )
-        return ApiResult(response.statusCode, Unit, response.body, response.headers)
+        return invokeApiForResult<Unit>(
+            "DELETE",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf(),
+            "application/json",
+            auth,
+        )
     }
 
     /**
@@ -380,19 +369,16 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
-        val response =
-            invokeApi(
-                "GET",
-                path,
-                queryParams,
-                headerParams,
-                null,
-                arrayOf("application/octet-stream"),
-                "application/json",
-                null,
-            )
-        val data = objectSerializer.deserialize<ByteArray>(response.body)
-        return ApiResult(response.statusCode, data, response.body, response.headers)
+        return invokeApiForResult<ByteArray>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/octet-stream"),
+            "application/json",
+            null,
+        )
     }
 
     /**
@@ -419,19 +405,16 @@ class PetApi : BaseApi {
             queryParams.putAll(ValueSerializer.serializeDeepObject("filter", options.filter))
         }
         val headerParams = mutableMapOf<String, String>()
-        val response =
-            invokeApi(
-                "GET",
-                path,
-                queryParams,
-                headerParams,
-                null,
-                arrayOf("application/json"),
-                "application/json",
-                null,
-            )
-        val data = objectSerializer.deserialize<List<Pet>>(response.body)
-        return ApiResult(response.statusCode, data, response.body, response.headers)
+        return invokeApiForResult<List<Pet>>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
     }
 
     /**
@@ -476,19 +459,16 @@ class PetApi : BaseApi {
         }
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
-        val response =
-            invokeApi(
-                "GET",
-                path,
-                queryParams,
-                headerParams,
-                null,
-                arrayOf("application/json"),
-                "application/json",
-                null,
-            )
-        val data = objectSerializer.deserialize<Pet>(response.body)
-        return ApiResult(response.statusCode, data, response.body, response.headers)
+        return invokeApiForResult<Pet>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
     }
 
     /**
@@ -531,19 +511,16 @@ class PetApi : BaseApi {
         }
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
-        val response =
-            invokeApi(
-                "GET",
-                path,
-                queryParams,
-                headerParams,
-                null,
-                arrayOf("application/json"),
-                "application/json",
-                null,
-            )
-        val data = objectSerializer.deserialize<Pet>(response.body)
-        return ApiResult(response.statusCode, data, response.body, response.headers)
+        return invokeApiForResult<Pet>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
     }
 
     /**
@@ -569,19 +546,16 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
-        val response =
-            invokeApi(
-                "GET",
-                path,
-                queryParams,
-                headerParams,
-                null,
-                arrayOf("image/jpeg", "image/png"),
-                "application/json",
-                null,
-            )
-        val data = objectSerializer.deserialize<ByteArray>(response.body)
-        return ApiResult(response.statusCode, data, response.body, response.headers)
+        return invokeApiForResult<ByteArray>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("image/jpeg", "image/png"),
+            "application/json",
+            null,
+        )
     }
 
     /**
@@ -607,19 +581,16 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
-        val response =
-            invokeApi(
-                "GET",
-                path,
-                queryParams,
-                headerParams,
-                null,
-                arrayOf("application/json"),
-                "application/json",
-                null,
-            )
-        val data = objectSerializer.deserialize<ByteArray>(response.body)
-        return ApiResult(response.statusCode, data, response.body, response.headers)
+        return invokeApiForResult<ByteArray>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
     }
 
     /**
@@ -646,19 +617,16 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
-        val response =
-            invokeApi(
-                "GET",
-                path,
-                queryParams,
-                headerParams,
-                null,
-                arrayOf("application/json"),
-                "application/json",
-                null,
-            )
-        val data = objectSerializer.deserialize<Pet>(response.body)
-        return ApiResult(response.statusCode, data, response.body, response.headers)
+        return invokeApiForResult<Pet>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
     }
 
     /**
@@ -684,19 +652,16 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
-        val response =
-            invokeApi(
-                "GET",
-                path,
-                queryParams,
-                headerParams,
-                null,
-                arrayOf("application/json"),
-                "application/json",
-                null,
-            )
-        val data = objectSerializer.deserialize<PetPassport>(response.body)
-        return ApiResult(response.statusCode, data, response.body, response.headers)
+        return invokeApiForResult<PetPassport>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
     }
 
     /**
@@ -735,19 +700,16 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
-        val response =
-            invokeApi(
-                "GET",
-                path,
-                queryParams,
-                headerParams,
-                null,
-                arrayOf("image/jpeg", "image/png", "application/json"),
-                "application/json",
-                null,
-            )
-        val data = objectSerializer.deserialize<ByteArray>(response.body)
-        return ApiResult(response.statusCode, data, response.body, response.headers)
+        return invokeApiForResult<ByteArray>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("image/jpeg", "image/png", "application/json"),
+            "application/json",
+            null,
+        )
     }
 
     /**
@@ -805,19 +767,16 @@ class PetApi : BaseApi {
             }
         }
         val headerParams = mutableMapOf<String, String>()
-        val response =
-            invokeApi(
-                "GET",
-                path,
-                queryParams,
-                headerParams,
-                null,
-                arrayOf("application/json"),
-                "application/json",
-                null,
-            )
-        val data = objectSerializer.deserialize<Pet>(response.body)
-        return ApiResult(response.statusCode, data, response.body, response.headers)
+        return invokeApiForResult<Pet>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
     }
 
     /**
@@ -862,19 +821,16 @@ class PetApi : BaseApi {
         }
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
-        val response =
-            invokeApi(
-                "GET",
-                path,
-                queryParams,
-                headerParams,
-                null,
-                arrayOf("application/json"),
-                "application/json",
-                null,
-            )
-        val data = objectSerializer.deserialize<Pet>(response.body)
-        return ApiResult(response.statusCode, data, response.body, response.headers)
+        return invokeApiForResult<Pet>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
     }
 
     /**
@@ -911,18 +867,16 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
-        val response =
-            invokeApi(
-                "PUT",
-                path,
-                queryParams,
-                headerParams,
-                body,
-                arrayOf(),
-                "image/jpeg",
-                null,
-            )
-        return ApiResult(response.statusCode, Unit, response.body, response.headers)
+        return invokeApiForResult<Unit>(
+            "PUT",
+            path,
+            queryParams,
+            headerParams,
+            body,
+            arrayOf(),
+            "image/jpeg",
+            null,
+        )
     }
 
     /**
@@ -959,18 +913,16 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
-        val response =
-            invokeApi(
-                "PUT",
-                path,
-                queryParams,
-                headerParams,
-                setPetAvatarThumbnailRequest,
-                arrayOf(),
-                "application/json",
-                null,
-            )
-        return ApiResult(response.statusCode, Unit, response.body, response.headers)
+        return invokeApiForResult<Unit>(
+            "PUT",
+            path,
+            queryParams,
+            headerParams,
+            setPetAvatarThumbnailRequest,
+            arrayOf(),
+            "application/json",
+            null,
+        )
     }
 
     /**
@@ -1005,19 +957,16 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
-        val response =
-            invokeApi(
-                "PUT",
-                path,
-                queryParams,
-                headerParams,
-                pet,
-                arrayOf("application/json"),
-                "application/json",
-                null,
-            )
-        val data = objectSerializer.deserialize<Pet>(response.body)
-        return ApiResult(response.statusCode, data, response.body, response.headers)
+        return invokeApiForResult<Pet>(
+            "PUT",
+            path,
+            queryParams,
+            headerParams,
+            pet,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
     }
 
     /**
@@ -1054,19 +1003,16 @@ class PetApi : BaseApi {
         val formBody = mutableMapOf<String, Any?>()
         formBody["file"] = options._file
 
-        val response =
-            invokeApi(
-                "POST",
-                path,
-                queryParams,
-                headerParams,
-                formBody,
-                arrayOf("application/json"),
-                "multipart/form-data",
-                null,
-            )
-        val data = objectSerializer.deserialize<ApiResponse>(response.body)
-        return ApiResult(response.statusCode, data, response.body, response.headers)
+        return invokeApiForResult<ApiResponse>(
+            "POST",
+            path,
+            queryParams,
+            headerParams,
+            formBody,
+            arrayOf("application/json"),
+            "multipart/form-data",
+            null,
+        )
     }
 
     /**
@@ -1109,18 +1055,15 @@ class PetApi : BaseApi {
             formBody["notes"] = options.notes
         }
 
-        val response =
-            invokeApi(
-                "POST",
-                path,
-                queryParams,
-                headerParams,
-                formBody,
-                arrayOf("application/json"),
-                "multipart/form-data",
-                null,
-            )
-        val data = objectSerializer.deserialize<ApiResponse>(response.body)
-        return ApiResult(response.statusCode, data, response.body, response.headers)
+        return invokeApiForResult<ApiResponse>(
+            "POST",
+            path,
+            queryParams,
+            headerParams,
+            formBody,
+            arrayOf("application/json"),
+            "multipart/form-data",
+            null,
+        )
     }
 }

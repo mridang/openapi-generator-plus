@@ -99,9 +99,10 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   private static func buildSession(_ opts: TransportOptions) -> URLSession {
     let config = URLSessionConfiguration.default
 
-    if opts.timeout > 0 {
-      config.timeoutIntervalForRequest = opts.timeout
-      config.timeoutIntervalForResource = opts.timeout
+    if let timeout = opts.timeout {
+      let seconds = TimeInterval(timeout) / 1000.0
+      config.timeoutIntervalForRequest = seconds
+      config.timeoutIntervalForResource = seconds
     }
 
     if let proxy = opts.proxy {

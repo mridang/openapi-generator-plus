@@ -47,18 +47,16 @@ class StoreApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
-        val response =
-            invokeApi(
-                "DELETE",
-                path,
-                queryParams,
-                headerParams,
-                null,
-                arrayOf(),
-                "application/json",
-                null,
-            )
-        return ApiResult(response.statusCode, Unit, response.body, response.headers)
+        return invokeApiForResult<Unit>(
+            "DELETE",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf(),
+            "application/json",
+            null,
+        )
     }
 
     /**
@@ -74,19 +72,16 @@ class StoreApi : BaseApi {
         var path = "/store/inventory"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
-        val response =
-            invokeApi(
-                "GET",
-                path,
-                queryParams,
-                headerParams,
-                null,
-                arrayOf("application/json"),
-                "application/json",
-                null,
-            )
-        val data = objectSerializer.deserialize<Map<String, Int>>(response.body)
-        return ApiResult(response.statusCode, data, response.body, response.headers)
+        return invokeApiForResult<Map<String, Int>>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
     }
 
     /**
@@ -111,19 +106,16 @@ class StoreApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
-        val response =
-            invokeApi(
-                "GET",
-                path,
-                queryParams,
-                headerParams,
-                null,
-                arrayOf("application/json"),
-                "application/json",
-                null,
-            )
-        val data = objectSerializer.deserialize<Order>(response.body)
-        return ApiResult(response.statusCode, data, response.body, response.headers)
+        return invokeApiForResult<Order>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
     }
 
     /**
@@ -140,18 +132,15 @@ class StoreApi : BaseApi {
         var path = "/store/order"
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
-        val response =
-            invokeApi(
-                "POST",
-                path,
-                queryParams,
-                headerParams,
-                order,
-                arrayOf("application/json"),
-                "application/json",
-                null,
-            )
-        val data = objectSerializer.deserialize<Order>(response.body)
-        return ApiResult(response.statusCode, data, response.body, response.headers)
+        return invokeApiForResult<Order>(
+            "POST",
+            path,
+            queryParams,
+            headerParams,
+            order,
+            arrayOf("application/json"),
+            "application/json",
+            null,
+        )
     }
 }

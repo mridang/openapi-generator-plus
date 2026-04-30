@@ -8,7 +8,6 @@
 import 'dart:convert';
 
 import '../api_client.dart';
-import '../api_response.dart';
 import '../api_result.dart';
 import '../auth/authenticator.dart';
 import 'base_api.dart';
@@ -49,7 +48,7 @@ class PetApi extends BaseApi {
 
     final Object? requestBody = pet;
 
-    final response = await invokeApi(
+    return invokeApiForResult<Pet>(
       method: 'POST',
       path: path,
       queryParams: queryParams,
@@ -59,16 +58,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: auth,
-    );
-
-    final data =
-        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
-
-    return ApiResult<Pet>(
-      statusCode: response.statusCode,
-      data: data as Pet,
-      rawBody: response.body,
-      headers: response.headers,
+      deserialize: (body) => deserializeRaw(body) as Pet,
     );
   }
 
@@ -111,7 +101,7 @@ class PetApi extends BaseApi {
     }
     final Object? requestBody = formBody;
 
-    final response = await invokeApi(
+    return invokeApiForResult<List<Photo>>(
       method: 'POST',
       path: path,
       queryParams: queryParams,
@@ -121,16 +111,7 @@ class PetApi extends BaseApi {
       contentType: 'multipart/form-data',
       returnType: 'List<Photo>',
       auth: null,
-    );
-
-    final data =
-        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
-
-    return ApiResult<List<Photo>>(
-      statusCode: response.statusCode,
-      data: data as List<Photo>,
-      rawBody: response.body,
-      headers: response.headers,
+      deserialize: (body) => deserializeRaw(body) as List<Photo>,
     );
   }
 
@@ -168,7 +149,7 @@ class PetApi extends BaseApi {
 
     final Object? requestBody = petTreatment;
 
-    final response = await invokeApi(
+    return invokeApiForResult<PetTreatment>(
       method: 'POST',
       path: path,
       queryParams: queryParams,
@@ -178,16 +159,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'PetTreatment',
       auth: auth,
-    );
-
-    final data =
-        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
-
-    return ApiResult<PetTreatment>(
-      statusCode: response.statusCode,
-      data: data as PetTreatment,
-      rawBody: response.body,
-      headers: response.headers,
+      deserialize: (body) => deserializeRaw(body) as PetTreatment,
     );
   }
 
@@ -221,7 +193,7 @@ class PetApi extends BaseApi {
 
     final Object? requestBody = null;
 
-    final response = await invokeApi(
+    return invokeApiForResult<void>(
       method: 'DELETE',
       path: path,
       queryParams: queryParams,
@@ -231,13 +203,6 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: '',
       auth: auth,
-    );
-
-    return ApiResult<void>(
-      statusCode: response.statusCode,
-      data: null,
-      rawBody: response.body,
-      headers: response.headers,
     );
   }
 
@@ -278,7 +243,7 @@ class PetApi extends BaseApi {
 
     final Object? requestBody = null;
 
-    final response = await invokeApi(
+    return invokeApiForResult<List<int>>(
       method: 'GET',
       path: path,
       queryParams: queryParams,
@@ -288,16 +253,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'List<int>',
       auth: null,
-    );
-
-    final data =
-        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
-
-    return ApiResult<List<int>>(
-      statusCode: response.statusCode,
-      data: data as List<int>,
-      rawBody: response.body,
-      headers: response.headers,
+      deserialize: (body) => deserializeRaw(body) as List<int>,
     );
   }
 
@@ -334,7 +290,7 @@ class PetApi extends BaseApi {
 
     final Object? requestBody = null;
 
-    final response = await invokeApi(
+    return invokeApiForResult<List<Pet>>(
       method: 'GET',
       path: path,
       queryParams: queryParams,
@@ -344,16 +300,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'List<Pet>',
       auth: null,
-    );
-
-    final data =
-        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
-
-    return ApiResult<List<Pet>>(
-      statusCode: response.statusCode,
-      data: data as List<Pet>,
-      rawBody: response.body,
-      headers: response.headers,
+      deserialize: (body) => deserializeRaw(body) as List<Pet>,
     );
   }
 
@@ -385,7 +332,7 @@ class PetApi extends BaseApi {
 
     final Object? requestBody = null;
 
-    final response = await invokeApi(
+    return invokeApiForResult<Pet>(
       method: 'GET',
       path: path,
       queryParams: queryParams,
@@ -395,16 +342,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: null,
-    );
-
-    final data =
-        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
-
-    return ApiResult<Pet>(
-      statusCode: response.statusCode,
-      data: data as Pet,
-      rawBody: response.body,
-      headers: response.headers,
+      deserialize: (body) => deserializeRaw(body) as Pet,
     );
   }
 
@@ -436,7 +374,7 @@ class PetApi extends BaseApi {
 
     final Object? requestBody = null;
 
-    final response = await invokeApi(
+    return invokeApiForResult<Pet>(
       method: 'GET',
       path: path,
       queryParams: queryParams,
@@ -446,16 +384,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: null,
-    );
-
-    final data =
-        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
-
-    return ApiResult<Pet>(
-      statusCode: response.statusCode,
-      data: data as Pet,
-      rawBody: response.body,
-      headers: response.headers,
+      deserialize: (body) => deserializeRaw(body) as Pet,
     );
   }
 
@@ -488,7 +417,7 @@ class PetApi extends BaseApi {
 
     final Object? requestBody = null;
 
-    final response = await invokeApi(
+    return invokeApiForResult<List<int>>(
       method: 'GET',
       path: path,
       queryParams: queryParams,
@@ -498,16 +427,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'List<int>',
       auth: null,
-    );
-
-    final data =
-        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
-
-    return ApiResult<List<int>>(
-      statusCode: response.statusCode,
-      data: data as List<int>,
-      rawBody: response.body,
-      headers: response.headers,
+      deserialize: (body) => deserializeRaw(body) as List<int>,
     );
   }
 
@@ -540,7 +460,7 @@ class PetApi extends BaseApi {
 
     final Object? requestBody = null;
 
-    final response = await invokeApi(
+    return invokeApiForResult<List<int>>(
       method: 'GET',
       path: path,
       queryParams: queryParams,
@@ -550,16 +470,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'List<int>',
       auth: null,
-    );
-
-    final data =
-        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
-
-    return ApiResult<List<int>>(
-      statusCode: response.statusCode,
-      data: data as List<int>,
-      rawBody: response.body,
-      headers: response.headers,
+      deserialize: (body) => deserializeRaw(body) as List<int>,
     );
   }
 
@@ -593,7 +504,7 @@ class PetApi extends BaseApi {
 
     final Object? requestBody = null;
 
-    final response = await invokeApi(
+    return invokeApiForResult<Pet>(
       method: 'GET',
       path: path,
       queryParams: queryParams,
@@ -603,16 +514,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: null,
-    );
-
-    final data =
-        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
-
-    return ApiResult<Pet>(
-      statusCode: response.statusCode,
-      data: data as Pet,
-      rawBody: response.body,
-      headers: response.headers,
+      deserialize: (body) => deserializeRaw(body) as Pet,
     );
   }
 
@@ -645,7 +547,7 @@ class PetApi extends BaseApi {
 
     final Object? requestBody = null;
 
-    final response = await invokeApi(
+    return invokeApiForResult<PetPassport>(
       method: 'GET',
       path: path,
       queryParams: queryParams,
@@ -655,16 +557,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'PetPassport',
       auth: null,
-    );
-
-    final data =
-        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
-
-    return ApiResult<PetPassport>(
-      statusCode: response.statusCode,
-      data: data as PetPassport,
-      rawBody: response.body,
-      headers: response.headers,
+      deserialize: (body) => deserializeRaw(body) as PetPassport,
     );
   }
 
@@ -705,7 +598,7 @@ class PetApi extends BaseApi {
 
     final Object? requestBody = null;
 
-    final response = await invokeApi(
+    return invokeApiForResult<List<int>>(
       method: 'GET',
       path: path,
       queryParams: queryParams,
@@ -715,16 +608,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'List<int>',
       auth: null,
-    );
-
-    final data =
-        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
-
-    return ApiResult<List<int>>(
-      statusCode: response.statusCode,
-      data: data as List<int>,
-      rawBody: response.body,
-      headers: response.headers,
+      deserialize: (body) => deserializeRaw(body) as List<int>,
     );
   }
 
@@ -779,7 +663,7 @@ class PetApi extends BaseApi {
 
     final Object? requestBody = null;
 
-    final response = await invokeApi(
+    return invokeApiForResult<Pet>(
       method: 'GET',
       path: path,
       queryParams: queryParams,
@@ -789,16 +673,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: null,
-    );
-
-    final data =
-        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
-
-    return ApiResult<Pet>(
-      statusCode: response.statusCode,
-      data: data as Pet,
-      rawBody: response.body,
-      headers: response.headers,
+      deserialize: (body) => deserializeRaw(body) as Pet,
     );
   }
 
@@ -830,7 +705,7 @@ class PetApi extends BaseApi {
 
     final Object? requestBody = null;
 
-    final response = await invokeApi(
+    return invokeApiForResult<Pet>(
       method: 'GET',
       path: path,
       queryParams: queryParams,
@@ -840,16 +715,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: null,
-    );
-
-    final data =
-        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
-
-    return ApiResult<Pet>(
-      statusCode: response.statusCode,
-      data: data as Pet,
-      rawBody: response.body,
-      headers: response.headers,
+      deserialize: (body) => deserializeRaw(body) as Pet,
     );
   }
 
@@ -884,7 +750,7 @@ class PetApi extends BaseApi {
 
     final Object? requestBody = body;
 
-    final response = await invokeApi(
+    return invokeApiForResult<void>(
       method: 'PUT',
       path: path,
       queryParams: queryParams,
@@ -894,13 +760,6 @@ class PetApi extends BaseApi {
       contentType: 'image/jpeg',
       returnType: '',
       auth: null,
-    );
-
-    return ApiResult<void>(
-      statusCode: response.statusCode,
-      data: null,
-      rawBody: response.body,
-      headers: response.headers,
     );
   }
 
@@ -935,7 +794,7 @@ class PetApi extends BaseApi {
 
     final Object? requestBody = setPetAvatarThumbnailRequest;
 
-    final response = await invokeApi(
+    return invokeApiForResult<void>(
       method: 'PUT',
       path: path,
       queryParams: queryParams,
@@ -945,13 +804,6 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: '',
       auth: null,
-    );
-
-    return ApiResult<void>(
-      statusCode: response.statusCode,
-      data: null,
-      rawBody: response.body,
-      headers: response.headers,
     );
   }
 
@@ -986,7 +838,7 @@ class PetApi extends BaseApi {
 
     final Object? requestBody = pet;
 
-    final response = await invokeApi(
+    return invokeApiForResult<Pet>(
       method: 'PUT',
       path: path,
       queryParams: queryParams,
@@ -996,16 +848,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Pet',
       auth: null,
-    );
-
-    final data =
-        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
-
-    return ApiResult<Pet>(
-      statusCode: response.statusCode,
-      data: data as Pet,
-      rawBody: response.body,
-      headers: response.headers,
+      deserialize: (body) => deserializeRaw(body) as Pet,
     );
   }
 
@@ -1045,7 +888,7 @@ class PetApi extends BaseApi {
     }
     final Object? requestBody = formBody;
 
-    final response = await invokeApi(
+    return invokeApiForResult<ApiResponse>(
       method: 'POST',
       path: path,
       queryParams: queryParams,
@@ -1055,16 +898,7 @@ class PetApi extends BaseApi {
       contentType: 'multipart/form-data',
       returnType: 'ApiResponse',
       auth: null,
-    );
-
-    final data =
-        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
-
-    return ApiResult<ApiResponse>(
-      statusCode: response.statusCode,
-      data: data as ApiResponse,
-      rawBody: response.body,
-      headers: response.headers,
+      deserialize: (body) => deserializeRaw(body) as ApiResponse,
     );
   }
 
@@ -1110,7 +944,7 @@ class PetApi extends BaseApi {
     }
     final Object? requestBody = formBody;
 
-    final response = await invokeApi(
+    return invokeApiForResult<ApiResponse>(
       method: 'POST',
       path: path,
       queryParams: queryParams,
@@ -1120,16 +954,7 @@ class PetApi extends BaseApi {
       contentType: 'multipart/form-data',
       returnType: 'ApiResponse',
       auth: null,
-    );
-
-    final data =
-        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
-
-    return ApiResult<ApiResponse>(
-      statusCode: response.statusCode,
-      data: data as ApiResponse,
-      rawBody: response.body,
-      headers: response.headers,
+      deserialize: (body) => deserializeRaw(body) as ApiResponse,
     );
   }
 }

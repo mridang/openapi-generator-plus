@@ -110,6 +110,29 @@ open class BaseApi {
         return response
     }
 
+    /// Dispatches an API request, deserializes the response, and returns an ApiResult.
+    func invokeAPIForResult<T: Decodable>(_ params: InvokeAPIParams, as type: T.Type) async throws -> ApiResult<T> {
+        let response = try await invokeAPI(params)
+        let data = try ObjectSerializer.deserialize(response.body, as: type)
+        return ApiResult<T>(
+            statusCode: response.statusCode,
+            data: data,
+            rawBody: response.body,
+            headers: response.headers
+        )
+    }
+
+    /// Dispatches an API request and returns an ApiResult with Void data (for operations with no return type).
+    func invokeAPIForEmptyResult(_ params: InvokeAPIParams) async throws -> ApiResult<Void> {
+        let response = try await invokeAPI(params)
+        return ApiResult<Void>(
+            statusCode: response.statusCode,
+            data: (),
+            rawBody: response.body,
+            headers: response.headers
+        )
+    }
+
     static func buildQueryString(_ queryParams: [String: Any?]) -> String {
         guard !queryParams.isEmpty else { return "" }
 

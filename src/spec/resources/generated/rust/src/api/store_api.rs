@@ -59,27 +59,19 @@ impl StoreApi {
 
         let request_body: Option<Vec<u8>> = None;
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "DELETE",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec![],
-                content_type: "application/json",
-                return_type: "",
-                auth: None,
-            })
-            .await?;
+        let params = InvokeApiParams {
+            method: "DELETE",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec![],
+            content_type: "application/json",
+            return_type: "",
+            auth: None,
+        };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data: (),
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_empty_result(params).await
     }
 
     /// Returns pet inventories by status
@@ -106,33 +98,21 @@ impl StoreApi {
 
         let request_body: Option<Vec<u8>> = None;
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "GET",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec!["application/json"],
-                content_type: "application/json",
-                return_type: "std::collections::HashMap<String, i32>",
-                auth: None,
-            })
-            .await?;
-
-        let data: std::collections::HashMap<String, i32> = if !response.body.is_empty() {
-            object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "std::collections::HashMap<String, i32>",
+            auth: None,
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base
+            .invoke_api_for_result::<std::collections::HashMap<String, i32>>(params)
+            .await
     }
 
     /// Find purchase order by ID
@@ -158,33 +138,19 @@ impl StoreApi {
 
         let request_body: Option<Vec<u8>> = None;
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "GET",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec!["application/json"],
-                content_type: "application/json",
-                return_type: "Order",
-                auth: None,
-            })
-            .await?;
-
-        let data: Order = if !response.body.is_empty() {
-            object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "Order",
+            auth: None,
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_result::<Order>(params).await
     }
 
     /// Place an order for a pet
@@ -209,32 +175,18 @@ impl StoreApi {
 
         let request_body = Some(object_serializer::serialize(&order)?);
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "POST",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec!["application/json"],
-                content_type: "application/json",
-                return_type: "Order",
-                auth: None,
-            })
-            .await?;
-
-        let data: Order = if !response.body.is_empty() {
-            object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
+        let params = InvokeApiParams {
+            method: "POST",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "Order",
+            auth: None,
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_result::<Order>(params).await
     }
 }

@@ -10,6 +10,7 @@ package com.example.petstore.api
 import com.example.petstore.ApiClient
 import com.example.petstore.ApiException
 import com.example.petstore.ApiResponse
+import com.example.petstore.ApiResult
 import com.example.petstore.Configuration
 import com.example.petstore.DefaultApiClient
 import com.example.petstore.HeaderSelector
@@ -168,6 +169,45 @@ abstract class BaseApi {
         }
 
         return response
+    }
+
+    /**
+     * Invoke an API operation and return the full result including status code,
+     * headers, and raw body alongside the deserialized data.
+     *
+     * Calls [invokeApi] to get the raw [ApiResponse], then deserializes the
+     * response body using the [ObjectSerializer] when a return type is expected.
+     *
+     * @param T          the return type
+     * @param method     HTTP method (GET, POST, PUT, DELETE, etc.)
+     * @param path       URL path (with path params already substituted)
+     * @param queryParams query parameters
+     * @param headerParams custom header parameters
+     * @param body       request body (model object or null)
+     * @param accepts    acceptable response content types
+     * @param contentType request content type
+     * @param auth       optional authenticator for operation-specific auth
+     * @return ApiResult containing deserialized data, status code, raw body, and headers
+     * @throws ApiException if the API call fails
+     */
+    protected suspend inline fun <reified T> invokeApiForResult(
+        method: String,
+        path: String,
+        queryParams: MutableMap<String, Any?>,
+        headerParams: MutableMap<String, String>,
+        body: Any?,
+        accepts: Array<String>,
+        contentType: String,
+        auth: Authenticator?,
+    ): ApiResult<T> {
+        val response = invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, auth)
+        val data: T? =
+            if (response.body.isNotEmpty()) {
+                objectSerializer.deserialize<T>(response.body)
+            } else {
+                null
+            }
+        return ApiResult(response.statusCode, data, response.body, response.headers)
     }
 
     /**

@@ -89,8 +89,8 @@ defmodule PetstoreClient.Client do
 
     A configured `#{inspect(__MODULE__)}` instance.
   """
-  @spec with_token(String.t(), String.t()) :: t()
-  def with_token(host, access_token) do
-    new(PetstoreClient.Auth.BearerAuthenticator.new(host, access_token))
+  @spec with_token(String.t(), String.t(), PetstoreClient.TransportOptions.t() | nil) :: t()
+  def with_token(host, access_token, transport_options \\ nil) do
+    new(PetstoreClient.Auth.BearerAuthenticator.new(host, access_token), transport_options)
   end
 end

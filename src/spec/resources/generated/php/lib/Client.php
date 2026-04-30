@@ -83,10 +83,14 @@ class Client
      *
      * @param string $host API base URL.
      * @param string $accessToken Bearer token.
+     * @param TransportOptions|null $transportOptions Optional HTTP transport configuration.
      * @return self Configured client instance.
      */
-    public static function withToken(string $host, string $accessToken): self
-    {
-        return new self(new BearerAuthenticator($host, $accessToken));
+    public static function withToken(
+        string $host,
+        string $accessToken,
+        ?TransportOptions $transportOptions = null
+    ): self {
+        return new self(new BearerAuthenticator($host, $accessToken), $transportOptions);
     }
 }

@@ -67,8 +67,8 @@ func New{{clientClassName}}(authenticator Authenticator, transportOptions *Trans
 }
 
 // New{{clientClassName}}WithToken creates a client authenticated with a static Bearer token.
-func New{{clientClassName}}WithToken(host, accessToken string) *{{clientClassName}} {
-	return New{{clientClassName}}(auth.NewBearerAuthenticator(host, accessToken), nil)
+func New{{clientClassName}}WithToken(host, accessToken string, transportOptions *TransportOptions) *{{clientClassName}} {
+	return New{{clientClassName}}(auth.NewBearerAuthenticator(host, accessToken), transportOptions)
 }
 
 // authApiClientAdapter adapts the main package's ApiClient interface to the

@@ -179,6 +179,8 @@ module {{moduleName}}
     def self.find_and_cast_into_type: (untyped, untyped) -> untyped
     def self.sanitize_for_serialization: (untyped) -> untyped
     def self.deserialize_model: (untyped, untyped) -> untyped
+    def self.resolve_one_of: (untyped, Array[Proc]) -> untyped
+    def self.resolve_any_of: (untyped, Array[Proc]) -> untyped
   end
 
   class TraceContextUtil

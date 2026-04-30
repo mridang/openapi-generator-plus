@@ -29,7 +29,7 @@ public final class StoreApi: BaseApi {
 
         let requestBody: Any? = nil
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "DELETE",
             path: path,
             queryParams: queryParams,
@@ -39,14 +39,9 @@ public final class StoreApi: BaseApi {
             contentType: "application/json",
             returnType: "",
             auth: nil
-        ))
-
-        return ApiResult<Void>(
-            statusCode: response.statusCode,
-            data: (),
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForEmptyResult(params)
     }
 
     /// Returns pet inventories by status
@@ -66,7 +61,7 @@ public final class StoreApi: BaseApi {
 
         let requestBody: Any? = nil
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "GET",
             path: path,
             queryParams: queryParams,
@@ -76,16 +71,9 @@ public final class StoreApi: BaseApi {
             contentType: "application/json",
             returnType: "[String: Int]",
             auth: nil
-        ))
-
-        let data = try ObjectSerializer.deserialize(response.body, as: [String: Int].self)
-
-        return ApiResult<[String: Int]>(
-            statusCode: response.statusCode,
-            data: data,
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForResult(params, as: [String: Int].self)
     }
 
     /// Find purchase order by ID
@@ -106,7 +94,7 @@ public final class StoreApi: BaseApi {
 
         let requestBody: Any? = nil
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "GET",
             path: path,
             queryParams: queryParams,
@@ -116,16 +104,9 @@ public final class StoreApi: BaseApi {
             contentType: "application/json",
             returnType: "Order",
             auth: nil
-        ))
-
-        let data = try ObjectSerializer.deserialize(response.body, as: Order.self)
-
-        return ApiResult<Order>(
-            statusCode: response.statusCode,
-            data: data,
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForResult(params, as: Order.self)
     }
 
     /// Place an order for a pet
@@ -145,7 +126,7 @@ public final class StoreApi: BaseApi {
 
         let requestBody: Any? = order
 
-        let response = try await invokeAPI(InvokeAPIParams(
+        let params = InvokeAPIParams(
             method: "POST",
             path: path,
             queryParams: queryParams,
@@ -155,15 +136,8 @@ public final class StoreApi: BaseApi {
             contentType: "application/json",
             returnType: "Order",
             auth: nil
-        ))
-
-        let data = try ObjectSerializer.deserialize(response.body, as: Order.self)
-
-        return ApiResult<Order>(
-            statusCode: response.statusCode,
-            data: data,
-            rawBody: response.body,
-            headers: response.headers
         )
+
+        return try await invokeAPIForResult(params, as: Order.self)
     }
 }

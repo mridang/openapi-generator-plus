@@ -14,7 +14,7 @@ import Foundation
 /// let transport = TransportOptionsBuilder()
 ///     .verifySSL(false)
 ///     .proxy("http://proxy.example.com:8080")
-///     .timeout(30)
+///     .timeout(30000)
 ///     .userAgent("MyApp/1.0")
 ///     .build()
 /// ```
@@ -28,10 +28,10 @@ public final class TransportOptions: Sendable {
     /// HTTP or HTTPS proxy URL for all outbound requests.
     public let proxy: URL?
 
-    /// End-to-end request timeout in seconds. Covers the entire request
+    /// End-to-end request timeout in milliseconds. Covers the entire request
     /// lifecycle: connection, TLS handshake, sending the request body, and
-    /// reading the response. A zero value means no timeout.
-    public let timeout: TimeInterval
+    /// reading the response. A `nil` value means no timeout.
+    public let timeout: Int?
 
     /// Controls whether the client follows HTTP 3xx redirects.
     public let followRedirects: Bool
@@ -56,7 +56,7 @@ public final class TransportOptions: Sendable {
         verifySSL: Bool,
         caCertPath: String?,
         proxy: URL?,
-        timeout: TimeInterval,
+        timeout: Int?,
         followRedirects: Bool,
         maxRedirects: Int,
         userAgent: String,
@@ -80,7 +80,7 @@ public final class TransportOptionsBuilder {
     private var verifySSL: Bool = true
     private var caCertPath: String? = nil
     private var proxy: URL? = nil
-    private var timeout: TimeInterval = 0
+    private var timeout: Int? = nil
     private var followRedirects: Bool = true
     private var maxRedirects: Int = 0
     private var userAgent: String = "{{userAgentDefault}}"
@@ -115,9 +115,9 @@ public final class TransportOptionsBuilder {
         return self
     }
 
-    /// Sets the end-to-end request timeout in seconds.
+    /// Sets the end-to-end request timeout in milliseconds.
     @discardableResult
-    public func timeout(_ val: TimeInterval) -> TransportOptionsBuilder {
+    public func timeout(_ val: Int?) -> TransportOptionsBuilder {
         self.timeout = val
         return self
     }

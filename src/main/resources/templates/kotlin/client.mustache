@@ -93,9 +93,18 @@ class {{clientClassName}} {
          *
          * @param host API base URL
          * @param accessToken Bearer token
+         * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
          * @return configured client instance
          */
-        fun withToken(host: String, accessToken: String): {{clientClassName}} =
-            {{clientClassName}}(BearerAuthenticator(host, accessToken))
+        fun withToken(
+            host: String,
+            accessToken: String,
+            transportOptions: TransportOptions? = null,
+        ): {{clientClassName}} =
+            if (transportOptions != null) {
+                {{clientClassName}}(BearerAuthenticator(host, accessToken), transportOptions)
+            } else {
+                {{clientClassName}}(BearerAuthenticator(host, accessToken))
+            }
     }
 }

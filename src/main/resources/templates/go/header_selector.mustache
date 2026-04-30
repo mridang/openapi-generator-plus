@@ -12,6 +12,7 @@ import (
 
 var jsonMIMEPattern = regexp.MustCompile(`(?i)^application/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)`)
 var weightPattern = regexp.MustCompile(`(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$`)
+var trailingSemicolonPattern = regexp.MustCompile(`[;\s]+$`)
 
 // HeaderSelector selects Accept and Content-Type headers for API requests
 // based on the MIME types declared in the OpenAPI specification.
@@ -169,7 +170,7 @@ func (h *HeaderSelector) buildAcceptHeader(header string, weight int) string {
 		return header
 	}
 
-	cleanHeader := strings.TrimRight(header, "; ")
+	cleanHeader := trailingSemicolonPattern.ReplaceAllString(header, "")
 	weightStr := fmt.Sprintf("%0.3f", float64(weight)/1000.0)
 	weightStr = strings.TrimRight(weightStr, "0")
 	weightStr = strings.TrimRight(weightStr, ".")

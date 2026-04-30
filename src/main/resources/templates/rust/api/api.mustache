@@ -256,7 +256,7 @@ impl {{classname}} {
 {{/bodyParam}}
 {{/hasFormParams}}
 
-        let response = self.base.invoke_api(InvokeApiParams {
+        let params = InvokeApiParams {
             method: "{{httpMethod}}",
             path: &path,
             query_params,
@@ -266,29 +266,13 @@ impl {{classname}} {
             content_type: {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
             return_type: "{{#returnType}}{{{.}}}{{/returnType}}",
             auth: {{#hasAuthMethods}}Some(auth){{/hasAuthMethods}}{{^hasAuthMethods}}None{{/hasAuthMethods}},
-        }).await?;
-
-{{#returnType}}
-        let data: {{{.}}} = if !response.body.is_empty() {
-            object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+{{#returnType}}
+        self.base.invoke_api_for_result::<{{{.}}}>(params).await
 {{/returnType}}
 {{^returnType}}
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data: (),
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_empty_result(params).await
 {{/returnType}}
     }
 {{/operation}}

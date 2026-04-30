@@ -8,7 +8,6 @@
 import 'dart:convert';
 
 import '../api_client.dart';
-import '../api_response.dart';
 import '../api_result.dart';
 import '../auth/authenticator.dart';
 import 'base_api.dart';
@@ -51,7 +50,7 @@ class StoreApi extends BaseApi {
 
     final Object? requestBody = null;
 
-    final response = await invokeApi(
+    return invokeApiForResult<void>(
       method: 'DELETE',
       path: path,
       queryParams: queryParams,
@@ -61,13 +60,6 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: '',
       auth: null,
-    );
-
-    return ApiResult<void>(
-      statusCode: response.statusCode,
-      data: null,
-      rawBody: response.body,
-      headers: response.headers,
     );
   }
 
@@ -87,7 +79,7 @@ class StoreApi extends BaseApi {
 
     final Object? requestBody = null;
 
-    final response = await invokeApi(
+    return invokeApiForResult<Map<String, int>>(
       method: 'GET',
       path: path,
       queryParams: queryParams,
@@ -97,16 +89,7 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Map<String, int>',
       auth: null,
-    );
-
-    final data =
-        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
-
-    return ApiResult<Map<String, int>>(
-      statusCode: response.statusCode,
-      data: data as Map<String, int>,
-      rawBody: response.body,
-      headers: response.headers,
+      deserialize: (body) => deserializeRaw(body) as Map<String, int>,
     );
   }
 
@@ -138,7 +121,7 @@ class StoreApi extends BaseApi {
 
     final Object? requestBody = null;
 
-    final response = await invokeApi(
+    return invokeApiForResult<Order>(
       method: 'GET',
       path: path,
       queryParams: queryParams,
@@ -148,16 +131,7 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Order',
       auth: null,
-    );
-
-    final data =
-        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
-
-    return ApiResult<Order>(
-      statusCode: response.statusCode,
-      data: data as Order,
-      rawBody: response.body,
-      headers: response.headers,
+      deserialize: (body) => deserializeRaw(body) as Order,
     );
   }
 
@@ -183,7 +157,7 @@ class StoreApi extends BaseApi {
 
     final Object? requestBody = order;
 
-    final response = await invokeApi(
+    return invokeApiForResult<Order>(
       method: 'POST',
       path: path,
       queryParams: queryParams,
@@ -193,16 +167,7 @@ class StoreApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'Order',
       auth: null,
-    );
-
-    final data =
-        response.body.isNotEmpty ? deserializeRaw(response.body) : null;
-
-    return ApiResult<Order>(
-      statusCode: response.statusCode,
-      data: data as Order,
-      rawBody: response.body,
-      headers: response.headers,
+      deserialize: (body) => deserializeRaw(body) as Order,
     );
   }
 }

@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import '../api_client.dart';
 import '../api_response.dart';
+import '../api_result.dart';
 import '../auth/authenticator.dart';
 import '../configuration.dart';
 import '../default_api_client.dart';
@@ -125,6 +126,48 @@ class BaseApi {
     }
 
     return response;
+  }
+
+  /// Dispatches an API request and returns the full result including
+  /// deserialized data, status code, raw body, and headers.
+  ///
+  /// Calls [invokeApi] to get the raw [ApiResponse], then deserializes
+  /// the response body when [returnType] is not empty.
+  Future<ApiResult<T>> invokeApiForResult<T>({
+    required String method,
+    required String path,
+    Map<String, Object?>? queryParams,
+    Map<String, String>? headerParams,
+    Object? body,
+    List<String> accepts = const [],
+    String contentType = 'application/json',
+    String returnType = '',
+    Authenticator? auth,
+    T Function(String body)? deserialize,
+  }) async {
+    final response = await invokeApi(
+      method: method,
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: body,
+      accepts: accepts,
+      contentType: contentType,
+      returnType: returnType,
+      auth: auth,
+    );
+
+    T? data;
+    if (returnType.isNotEmpty && response.body.isNotEmpty && deserialize != null) {
+      data = deserialize(response.body);
+    }
+
+    return ApiResult<T>(
+      statusCode: response.statusCode,
+      data: data as T,
+      rawBody: response.body,
+      headers: response.headers,
+    );
   }
 
   String _buildQueryString(Map<String, Object?> queryParams) {

@@ -88,9 +88,28 @@ public final class Client {
    *
    * @param host API base URL
    * @param accessToken Bearer token
+   * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
+   * @return configured client instance
+   */
+  public static Client withToken(
+      String host,
+      String accessToken,
+      @javax.annotation.Nullable TransportOptions transportOptions) {
+    Client client =
+        (transportOptions != null)
+            ? new Client(new BearerAuthenticator(host, accessToken), transportOptions)
+            : new Client(new BearerAuthenticator(host, accessToken));
+    return client;
+  }
+
+  /**
+   * Creates a client authenticated with a static Bearer token and default transport.
+   *
+   * @param host API base URL
+   * @param accessToken Bearer token
    * @return configured client instance
    */
   public static Client withToken(String host, String accessToken) {
-    return new Client(new BearerAuthenticator(host, accessToken));
+    return withToken(host, accessToken, null);
   }
 }

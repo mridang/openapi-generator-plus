@@ -17,7 +17,7 @@ final class TransportOptionsTests: XCTestCase {
     XCTAssertTrue(opts.verifySSL)
     XCTAssertNil(opts.caCertPath)
     XCTAssertNil(opts.proxy)
-    XCTAssertEqual(opts.timeout, 0)
+    XCTAssertNil(opts.timeout)
     XCTAssertTrue(opts.followRedirects)
     XCTAssertEqual(opts.maxRedirects, 0)
     XCTAssertFalse(opts.userAgent.isEmpty)
@@ -30,7 +30,7 @@ final class TransportOptionsTests: XCTestCase {
       .verifySSL(false)
       .caCertPath("/path/to/ca.pem")
       .proxy("http://proxy.example.com:8080")
-      .timeout(30)
+      .timeout(30000)
       .followRedirects(false)
       .maxRedirects(5)
       .userAgent("CustomAgent/2.0")
@@ -42,7 +42,7 @@ final class TransportOptionsTests: XCTestCase {
     XCTAssertEqual(opts.caCertPath, "/path/to/ca.pem")
     XCTAssertNotNil(opts.proxy)
     XCTAssertEqual(opts.proxy?.absoluteString, "http://proxy.example.com:8080")
-    XCTAssertEqual(opts.timeout, 30)
+    XCTAssertEqual(opts.timeout, 30000)
     XCTAssertFalse(opts.followRedirects)
     XCTAssertEqual(opts.maxRedirects, 5)
     XCTAssertEqual(opts.userAgent, "CustomAgent/2.0")
@@ -54,11 +54,11 @@ final class TransportOptionsTests: XCTestCase {
     let opts = TransportOptionsBuilder()
       .verifySSL(true)
       .userAgent("Test/1.0")
-      .timeout(10)
+      .timeout(10000)
       .build()
 
     XCTAssertEqual(opts.userAgent, "Test/1.0")
-    XCTAssertEqual(opts.timeout, 10)
+    XCTAssertEqual(opts.timeout, 10000)
   }
 
   func testMultipleDefaultHeaders() {

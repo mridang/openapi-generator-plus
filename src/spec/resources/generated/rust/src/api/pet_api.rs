@@ -60,33 +60,19 @@ impl PetApi {
 
         let request_body = Some(object_serializer::serialize(&pet)?);
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "POST",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec!["application/json"],
-                content_type: "application/json",
-                return_type: "Pet",
-                auth: Some(auth),
-            })
-            .await?;
-
-        let data: Pet = if !response.body.is_empty() {
-            object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
+        let params = InvokeApiParams {
+            method: "POST",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "Pet",
+            auth: Some(auth),
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_result::<Pet>(params).await
     }
 
     /// Add photos to the pet's gallery
@@ -130,33 +116,19 @@ impl PetApi {
         }
         let request_body = Some(serde_json::to_vec(&form_body)?);
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "POST",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec!["application/json"],
-                content_type: "multipart/form-data",
-                return_type: "Vec<Photo>",
-                auth: None,
-            })
-            .await?;
-
-        let data: Vec<Photo> = if !response.body.is_empty() {
-            object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
+        let params = InvokeApiParams {
+            method: "POST",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec!["application/json"],
+            content_type: "multipart/form-data",
+            return_type: "Vec<Photo>",
+            auth: None,
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_result::<Vec<Photo>>(params).await
     }
 
     /// Record a treatment for a pet
@@ -188,33 +160,21 @@ impl PetApi {
 
         let request_body = Some(object_serializer::serialize(&pet_treatment)?);
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "POST",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec!["application/json"],
-                content_type: "application/json",
-                return_type: "PetTreatment",
-                auth: Some(auth),
-            })
-            .await?;
-
-        let data: PetTreatment = if !response.body.is_empty() {
-            object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
+        let params = InvokeApiParams {
+            method: "POST",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "PetTreatment",
+            auth: Some(auth),
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base
+            .invoke_api_for_result::<PetTreatment>(params)
+            .await
     }
 
     /// Deletes a pet
@@ -243,27 +203,19 @@ impl PetApi {
 
         let request_body: Option<Vec<u8>> = None;
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "DELETE",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec![],
-                content_type: "application/json",
-                return_type: "",
-                auth: Some(auth),
-            })
-            .await?;
+        let params = InvokeApiParams {
+            method: "DELETE",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec![],
+            content_type: "application/json",
+            return_type: "",
+            auth: Some(auth),
+        };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data: (),
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_empty_result(params).await
     }
 
     /// Download a vet document
@@ -298,33 +250,19 @@ impl PetApi {
 
         let request_body: Option<Vec<u8>> = None;
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "GET",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec!["application/octet-stream"],
-                content_type: "application/json",
-                return_type: "Vec<u8>",
-                auth: None,
-            })
-            .await?;
-
-        let data: Vec<u8> = if !response.body.is_empty() {
-            object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec!["application/octet-stream"],
+            content_type: "application/json",
+            return_type: "Vec<u8>",
+            auth: None,
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_result::<Vec<u8>>(params).await
     }
 
     /// Finds Pets by status
@@ -385,33 +323,19 @@ impl PetApi {
 
         let request_body: Option<Vec<u8>> = None;
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "GET",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec!["application/json"],
-                content_type: "application/json",
-                return_type: "Vec<Pet>",
-                auth: None,
-            })
-            .await?;
-
-        let data: Vec<Pet> = if !response.body.is_empty() {
-            object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "Vec<Pet>",
+            auth: None,
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_result::<Vec<Pet>>(params).await
     }
 
     /// Get external pet info
@@ -437,33 +361,19 @@ impl PetApi {
 
         let request_body: Option<Vec<u8>> = None;
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "GET",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec!["application/json"],
-                content_type: "application/json",
-                return_type: "Pet",
-                auth: None,
-            })
-            .await?;
-
-        let data: Pet = if !response.body.is_empty() {
-            object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "Pet",
+            auth: None,
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_result::<Pet>(params).await
     }
 
     /// Get multi-server pet info
@@ -491,33 +401,19 @@ impl PetApi {
 
         let request_body: Option<Vec<u8>> = None;
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "GET",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec!["application/json"],
-                content_type: "application/json",
-                return_type: "Pet",
-                auth: None,
-            })
-            .await?;
-
-        let data: Pet = if !response.body.is_empty() {
-            object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "Pet",
+            auth: None,
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_result::<Pet>(params).await
     }
 
     /// Get the pet's profile photo
@@ -544,33 +440,19 @@ impl PetApi {
 
         let request_body: Option<Vec<u8>> = None;
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "GET",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec!["image/jpeg", "image/png"],
-                content_type: "application/json",
-                return_type: "Vec<u8>",
-                auth: None,
-            })
-            .await?;
-
-        let data: Vec<u8> = if !response.body.is_empty() {
-            object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec!["image/jpeg", "image/png"],
+            content_type: "application/json",
+            return_type: "Vec<u8>",
+            auth: None,
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_result::<Vec<u8>>(params).await
     }
 
     /// Get the pet's avatar thumbnail as base64
@@ -597,33 +479,19 @@ impl PetApi {
 
         let request_body: Option<Vec<u8>> = None;
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "GET",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec!["application/json"],
-                content_type: "application/json",
-                return_type: "Vec<u8>",
-                auth: None,
-            })
-            .await?;
-
-        let data: Vec<u8> = if !response.body.is_empty() {
-            object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "Vec<u8>",
+            auth: None,
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_result::<Vec<u8>>(params).await
     }
 
     /// Find pet by ID
@@ -651,33 +519,19 @@ impl PetApi {
 
         let request_body: Option<Vec<u8>> = None;
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "GET",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec!["application/json"],
-                content_type: "application/json",
-                return_type: "Pet",
-                auth: None,
-            })
-            .await?;
-
-        let data: Pet = if !response.body.is_empty() {
-            object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "Pet",
+            auth: None,
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_result::<Pet>(params).await
     }
 
     /// Get the pet's passport
@@ -704,33 +558,19 @@ impl PetApi {
 
         let request_body: Option<Vec<u8>> = None;
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "GET",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec!["application/json"],
-                content_type: "application/json",
-                return_type: "PetPassport",
-                auth: None,
-            })
-            .await?;
-
-        let data: PetPassport = if !response.body.is_empty() {
-            object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "PetPassport",
+            auth: None,
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_result::<PetPassport>(params).await
     }
 
     /// Get a photo or its metadata
@@ -760,33 +600,19 @@ impl PetApi {
 
         let request_body: Option<Vec<u8>> = None;
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "GET",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec!["image/jpeg", "image/png", "application/json"],
-                content_type: "application/json",
-                return_type: "Vec<u8>",
-                auth: None,
-            })
-            .await?;
-
-        let data: Vec<u8> = if !response.body.is_empty() {
-            object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec!["image/jpeg", "image/png", "application/json"],
+            content_type: "application/json",
+            return_type: "Vec<u8>",
+            auth: None,
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_result::<Vec<u8>>(params).await
     }
 
     /// Get a tag for a pet
@@ -904,33 +730,19 @@ impl PetApi {
 
         let request_body: Option<Vec<u8>> = None;
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "GET",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec!["application/json"],
-                content_type: "application/json",
-                return_type: "Pet",
-                auth: None,
-            })
-            .await?;
-
-        let data: Pet = if !response.body.is_empty() {
-            object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "Pet",
+            auth: None,
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_result::<Pet>(params).await
     }
 
     /// Get staging pet info
@@ -956,33 +768,19 @@ impl PetApi {
 
         let request_body: Option<Vec<u8>> = None;
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "GET",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec!["application/json"],
-                content_type: "application/json",
-                return_type: "Pet",
-                auth: None,
-            })
-            .await?;
-
-        let data: Pet = if !response.body.is_empty() {
-            object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
+        let params = InvokeApiParams {
+            method: "GET",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "Pet",
+            auth: None,
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_result::<Pet>(params).await
     }
 
     /// Set the pet's profile photo
@@ -1012,27 +810,19 @@ impl PetApi {
 
         let request_body = Some(object_serializer::serialize(&body)?);
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "PUT",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec![],
-                content_type: "image/jpeg",
-                return_type: "",
-                auth: None,
-            })
-            .await?;
+        let params = InvokeApiParams {
+            method: "PUT",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec![],
+            content_type: "image/jpeg",
+            return_type: "",
+            auth: None,
+        };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data: (),
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_empty_result(params).await
     }
 
     /// Set the pet's avatar thumbnail as base64
@@ -1066,27 +856,19 @@ impl PetApi {
             &set_pet_avatar_thumbnail_request,
         )?);
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "PUT",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec![],
-                content_type: "application/json",
-                return_type: "",
-                auth: None,
-            })
-            .await?;
+        let params = InvokeApiParams {
+            method: "PUT",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec![],
+            content_type: "application/json",
+            return_type: "",
+            auth: None,
+        };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data: (),
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_empty_result(params).await
     }
 
     /// Update an existing pet
@@ -1114,33 +896,19 @@ impl PetApi {
 
         let request_body = Some(object_serializer::serialize(&pet)?);
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "PUT",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec!["application/json"],
-                content_type: "application/json",
-                return_type: "Pet",
-                auth: None,
-            })
-            .await?;
-
-        let data: Pet = if !response.body.is_empty() {
-            object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
+        let params = InvokeApiParams {
+            method: "PUT",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec!["application/json"],
+            content_type: "application/json",
+            return_type: "Pet",
+            auth: None,
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_result::<Pet>(params).await
     }
 
     /// Upload the pet's adoption certificate
@@ -1177,33 +945,19 @@ impl PetApi {
         }
         let request_body = Some(serde_json::to_vec(&form_body)?);
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "POST",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec!["application/json"],
-                content_type: "multipart/form-data",
-                return_type: "ApiResponse",
-                auth: None,
-            })
-            .await?;
-
-        let data: ApiResponse = if !response.body.is_empty() {
-            object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
+        let params = InvokeApiParams {
+            method: "POST",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec!["application/json"],
+            content_type: "multipart/form-data",
+            return_type: "ApiResponse",
+            auth: None,
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_result::<ApiResponse>(params).await
     }
 
     /// Attach a vet document or health record
@@ -1253,32 +1007,18 @@ impl PetApi {
         }
         let request_body = Some(serde_json::to_vec(&form_body)?);
 
-        let response = self
-            .base
-            .invoke_api(InvokeApiParams {
-                method: "POST",
-                path: &path,
-                query_params,
-                header_params,
-                body: request_body,
-                accepts: vec!["application/json"],
-                content_type: "multipart/form-data",
-                return_type: "ApiResponse",
-                auth: None,
-            })
-            .await?;
-
-        let data: ApiResponse = if !response.body.is_empty() {
-            object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
+        let params = InvokeApiParams {
+            method: "POST",
+            path: &path,
+            query_params,
+            header_params,
+            body: request_body,
+            accepts: vec!["application/json"],
+            content_type: "multipart/form-data",
+            return_type: "ApiResponse",
+            auth: None,
         };
 
-        Ok(ApiResult {
-            status_code: response.status_code,
-            data,
-            raw_body: response.body,
-            headers: response.headers,
-        })
+        self.base.invoke_api_for_result::<ApiResponse>(params).await
     }
 }

@@ -277,6 +277,35 @@ module PetstoreClient
 
       raise SchemaMismatchError, "#{data.inspect} doesn't match the #{klass_name} type"
     end
+
+    # Attempt to deserialize data against a list of candidate schemas, returning
+    # the first successful result. Each candidate is a lambda that accepts the
+    # raw JSON data and returns a deserialized object or raises on failure.
+    #
+    # @param data [Object] the parsed JSON data
+    # @param candidates [Array<Proc>] lambdas that attempt deserialization
+    # @return [Object] the first successfully deserialized result, or the
+    #   original data if no candidate matches
+    def self.resolve_one_of(data, candidates)
+      candidates.each do |candidate|
+        return candidate.call(data)
+      rescue StandardError
+        next
+      end
+      data
+    end
+
+    # Attempt to deserialize data against a list of candidate schemas using
+    # anyOf semantics. Delegates to {.resolve_one_of}.
+    #
+    # @param data [Object] the parsed JSON data
+    # @param candidates [Array<Proc>] lambdas that attempt deserialization
+    # @return [Object] the first successfully deserialized result, or the
+    #   original data if no candidate matches
+    def self.resolve_any_of(data, candidates)
+      resolve_one_of(data, candidates)
+    end
+
     # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 
     private_class_method :sanitize_for_serialization, :deserialize_model

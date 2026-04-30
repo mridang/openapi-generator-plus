@@ -56,9 +56,10 @@ module PetstoreClient
     # Creates a client authenticated with a static Bearer token.
     # @param host [String] API base URL.
     # @param access_token [String] Bearer token.
+    # @param transport_options [TransportOptions, nil] Optional HTTP transport configuration.
     # @return [Client] Configured client instance.
-    def self.with_token(host, access_token)
-      new(Auth::BearerAuthenticator.new(host, access_token))
+    def self.with_token(host, access_token, transport_options = nil)
+      new(Auth::BearerAuthenticator.new(host, access_token), transport_options)
     end
   end
 end

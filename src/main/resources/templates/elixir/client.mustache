@@ -99,8 +99,8 @@ defmodule {{moduleName}}.{{clientClassName}} do
 
     A configured `#{inspect(__MODULE__)}` instance.
   """
-  @spec with_token(String.t(), String.t()) :: t()
-  def with_token(host, access_token) do
-    new({{moduleName}}.Auth.BearerAuthenticator.new(host, access_token))
+  @spec with_token(String.t(), String.t(), {{moduleName}}.TransportOptions.t() | nil) :: t()
+  def with_token(host, access_token, transport_options \\ nil) do
+    new({{moduleName}}.Auth.BearerAuthenticator.new(host, access_token), transport_options)
   end
 end

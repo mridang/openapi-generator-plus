@@ -191,4 +191,37 @@ export class ObjectSerializer {
   static toFormValue(value: unknown): string {
     return ObjectSerializer.stringify(value);
   }
+
+  /**
+   * Resolve a oneOf schema by trying each candidate deserializer in order.
+   *
+   * @param json the JSON string to deserialize
+   * @param candidates array of deserializer functions that accept a JSON string
+   * @returns the first non-null successful result, or null if none match
+   */
+  static resolveOneOf<T>(json: string, candidates: Array<(json: string) => T | null>): T | null {
+    for (const candidate of candidates) {
+      try {
+        const result = candidate(json);
+        if (result !== null && result !== undefined) {
+          return result;
+        }
+      } catch {
+        continue;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Resolve an anyOf schema by trying each candidate deserializer in order.
+   * Delegates to resolveOneOf.
+   *
+   * @param json the JSON string to deserialize
+   * @param candidates array of deserializer functions that accept a JSON string
+   * @returns the first non-null successful result, or null if none match
+   */
+  static resolveAnyOf<T>(json: string, candidates: Array<(json: string) => T | null>): T | null {
+    return ObjectSerializer.resolveOneOf(json, candidates);
+  }
 }

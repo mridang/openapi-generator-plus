@@ -8,9 +8,12 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use serde::de::DeserializeOwned;
+
 use crate::api_client::ApiClient;
 use crate::api_error::ApiError;
 use crate::api_response::ApiResponse;
+use crate::api_result::ApiResult;
 use crate::auth::Authenticator;
 use crate::configuration::Configuration;
 use crate::errors::bad_request_error::BadRequestError;
@@ -155,6 +158,39 @@ impl BaseApi {
         }
 
         Ok(response)
+    }
+
+    /// Dispatches an API request, deserializes the response, and returns an ApiResult.
+    pub async fn invoke_api_for_result<T: DeserializeOwned>(
+        &self,
+        params: InvokeApiParams<'_>,
+    ) -> Result<ApiResult<T>, Box<dyn std::error::Error + Send + Sync>> {
+        let response = self.invoke_api(params).await?;
+        let data: T = if !response.body.is_empty() {
+            crate::object_serializer::deserialize(response.body.as_bytes())?
+        } else {
+            return Err("empty response body".into());
+        };
+        Ok(ApiResult {
+            status_code: response.status_code,
+            data,
+            raw_body: response.body,
+            headers: response.headers,
+        })
+    }
+
+    /// Dispatches an API request and returns an ApiResult with unit data (for operations with no return type).
+    pub async fn invoke_api_for_empty_result(
+        &self,
+        params: InvokeApiParams<'_>,
+    ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
+        let response = self.invoke_api(params).await?;
+        Ok(ApiResult {
+            status_code: response.status_code,
+            data: (),
+            raw_body: response.body,
+            headers: response.headers,
+        })
     }
 }
 

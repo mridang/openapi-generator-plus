@@ -93,9 +93,16 @@ export class {{clientClassName}} {
    *
    * @param host API base URL
    * @param accessToken Bearer token
+   * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
    * @returns configured client instance
    */
-  static withToken(host: string, accessToken: string): {{clientClassName}} {
-    return new {{clientClassName}}(new BearerAuthenticator(host, accessToken));
+  static withToken(
+    host: string,
+    accessToken: string,
+    transportOptions?: TransportOptions,
+  ): {{clientClassName}} {
+    return transportOptions
+      ? new {{clientClassName}}(new BearerAuthenticator(host, accessToken), transportOptions)
+      : new {{clientClassName}}(new BearerAuthenticator(host, accessToken));
   }
 }

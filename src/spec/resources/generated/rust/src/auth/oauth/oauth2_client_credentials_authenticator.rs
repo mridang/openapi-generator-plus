@@ -54,6 +54,10 @@ impl Authenticator for OAuth2ClientCredentialsAuthenticator {
         &self.host
     }
 
+    fn set_api_client(&mut self, client: Arc<dyn ApiClient>) {
+        self.token_manager.set_api_client(client);
+    }
+
     fn auth_headers(&self) -> HashMap<String, String> {
         let mut params = HashMap::new();
         params.insert("grant_type".to_string(), "client_credentials".to_string());
@@ -77,8 +81,4 @@ impl Authenticator for OAuth2ClientCredentialsAuthenticator {
     }
 }
 
-impl HttpAwareAuthenticator for OAuth2ClientCredentialsAuthenticator {
-    fn set_api_client(&mut self, client: Arc<dyn ApiClient>) {
-        self.token_manager.set_api_client(client);
-    }
-}
+impl HttpAwareAuthenticator for OAuth2ClientCredentialsAuthenticator {}

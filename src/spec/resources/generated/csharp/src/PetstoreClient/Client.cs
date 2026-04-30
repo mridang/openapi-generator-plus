@@ -88,10 +88,18 @@ public sealed class Client : IDisposable
     /// </summary>
     /// <param name="host">API base URL.</param>
     /// <param name="accessToken">Bearer token.</param>
+    /// <param name="transportOptions">Optional HTTP transport configuration.</param>
     /// <returns>Configured client instance.</returns>
-    public static Client WithToken(string host, string accessToken)
+    public static Client WithToken(
+        string host,
+        string accessToken,
+        TransportOptions? transportOptions = null
+    )
     {
-        return new Client(new BearerAuthenticator(host, accessToken));
+        return new Client(
+            new BearerAuthenticator(host, accessToken),
+            transportOptions ?? TransportOptions.Builder().Build()
+        );
     }
 
     /// <inheritdoc/>

@@ -47,11 +47,13 @@ pub struct Client {
 impl Client {
     /// Creates a new client with the given authenticator and optional transport options.
     pub fn new(
-        authenticator: Box<dyn Authenticator>,
+        mut authenticator: Box<dyn Authenticator>,
         transport_options: Option<TransportOptions>,
     ) -> Self {
         let transport = transport_options.unwrap_or_else(|| TransportOptionsBuilder::new().build());
         let api_client: Arc<dyn ApiClient> = Arc::new(DefaultApiClient::new(Some(transport)));
+
+        authenticator.set_api_client(api_client.clone());
 
         let config = ConfigurationBuilder::new()
             .base_url(authenticator.host())
@@ -65,10 +67,10 @@ impl Client {
     }
 
     /// Creates a client authenticated with a static Bearer token.
-    pub fn with_token(host: &str, access_token: &str) -> Self {
+    pub fn with_token(host: &str, access_token: &str, transport_options: Option<TransportOptions>) -> Self {
         Self::new(
             Box::new(BearerAuthenticator::new(host, access_token)),
-            None,
+            transport_options,
         )
     }
 }

@@ -72,6 +72,10 @@ impl Authenticator for OAuth2ImplicitAuthenticator {
         &self.host
     }
 
+    fn set_api_client(&mut self, _client: Arc<dyn ApiClient>) {
+        // Implicit flow does not make token exchange requests.
+    }
+
     fn auth_headers(&self) -> HashMap<String, String> {
         if self.access_token.is_empty() {
             panic!("must set access token before making API requests");
@@ -86,9 +90,4 @@ impl Authenticator for OAuth2ImplicitAuthenticator {
     }
 }
 
-impl HttpAwareAuthenticator for OAuth2ImplicitAuthenticator {
-    fn set_api_client(&mut self, _client: Arc<dyn ApiClient>) {
-        // Implicit flow does not make token exchange requests,
-        // but implements the trait for consistency.
-    }
-}
+impl HttpAwareAuthenticator for OAuth2ImplicitAuthenticator {}

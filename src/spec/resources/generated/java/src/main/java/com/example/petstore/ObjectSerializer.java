@@ -21,6 +21,8 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
 import java.util.Date;
+import java.util.List;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 
 /**
@@ -210,6 +212,44 @@ public final class ObjectSerializer {
     mapper.registerModule(new JavaTimeModule());
     mapper.setDateFormat(new StdDateFormat().withColonInTimeZone(true));
     return mapper;
+  }
+
+  /**
+   * Resolve a oneOf schema by trying each candidate deserializer in order.
+   *
+   * @param <T> the expected return type
+   * @param json the JSON string to deserialize
+   * @param candidates list of deserializer functions that accept a JSON string
+   * @return the first non-null successful result, or null if none match
+   */
+  @Nullable
+  @SuppressWarnings("EmptyCatch")
+  public <T> T resolveOneOf(String json, List<Function<String, T>> candidates) {
+    for (Function<String, T> candidate : candidates) {
+      try {
+        T result = candidate.apply(json);
+        if (result != null) {
+          return result;
+        }
+      } catch (Exception ignored) {
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Resolve an anyOf schema by trying each candidate deserializer in order.
+   *
+   * <p>Delegates to {@link #resolveOneOf(String, List)}.
+   *
+   * @param <T> the expected return type
+   * @param json the JSON string to deserialize
+   * @param candidates list of deserializer functions that accept a JSON string
+   * @return the first non-null successful result, or null if none match
+   */
+  @Nullable
+  public <T> T resolveAnyOf(String json, List<Function<String, T>> candidates) {
+    return resolveOneOf(json, candidates);
   }
 
   /** Exception raised when serialization or deserialization fails. */

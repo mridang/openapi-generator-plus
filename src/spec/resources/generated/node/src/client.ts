@@ -84,9 +84,12 @@ export class Client {
    *
    * @param host API base URL
    * @param accessToken Bearer token
+   * @param transportOptions optional HTTP transport configuration (proxy, TLS, timeouts, etc.)
    * @returns configured client instance
    */
-  static withToken(host: string, accessToken: string): Client {
-    return new Client(new BearerAuthenticator(host, accessToken));
+  static withToken(host: string, accessToken: string, transportOptions?: TransportOptions): Client {
+    return transportOptions
+      ? new Client(new BearerAuthenticator(host, accessToken), transportOptions)
+      : new Client(new BearerAuthenticator(host, accessToken));
   }
 }
