@@ -194,6 +194,31 @@ void main() {
       }
     });
 
+    // Empty body 200 response
+
+    test('returns null data for empty 200 response', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getPetByIdWithHTTPInfo(1);
+        expect(result.statusCode, equals(200));
+        expect(result.data, isNull);
+      } finally {
+        await server.close();
+      }
+    });
+
     // Nil body
 
     test('handles nil body', () async {

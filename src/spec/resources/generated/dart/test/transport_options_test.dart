@@ -29,7 +29,7 @@ void main() {
           .verifySSL(false)
           .caCertPath('/path/to/ca.pem')
           .proxy('http://proxy.example.com:8080')
-          .timeout(const Duration(seconds: 30))
+          .timeout(30000)
           .followRedirects(false)
           .maxRedirects(5)
           .userAgent('CustomAgent/2.0')
@@ -41,7 +41,7 @@ void main() {
       expect(opts.caCertPath, equals('/path/to/ca.pem'));
       expect(opts.proxy, isNotNull);
       expect(opts.proxy.toString(), contains('proxy.example.com'));
-      expect(opts.timeout, equals(const Duration(seconds: 30)));
+      expect(opts.timeout, equals(30000));
       expect(opts.followRedirects, isFalse);
       expect(opts.maxRedirects, equals(5));
       expect(opts.userAgent, equals('CustomAgent/2.0'));
@@ -52,16 +52,14 @@ void main() {
     test('builder chaining', () {
       final builder = TransportOptionsBuilder();
 
-      final result = builder
-          .verifySSL(true)
-          .userAgent('Test/1.0')
-          .timeout(const Duration(seconds: 10));
+      final result =
+          builder.verifySSL(true).userAgent('Test/1.0').timeout(10000);
 
       expect(result, isNotNull);
 
       final opts = result.build();
       expect(opts.userAgent, equals('Test/1.0'));
-      expect(opts.timeout, equals(const Duration(seconds: 10)));
+      expect(opts.timeout, equals(10000));
     });
 
     test('multiple default headers', () {

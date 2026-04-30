@@ -172,7 +172,7 @@ class BaseApi {
 
     return ApiResult<T>(
       statusCode: response.statusCode,
-      data: data as T,
+      data: data,
       rawBody: response.body,
       headers: response.headers,
     );

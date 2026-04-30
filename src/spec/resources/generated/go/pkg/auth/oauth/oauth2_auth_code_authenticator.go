@@ -9,6 +9,7 @@ package oauth
 
 import (
 	"fmt"
+	"log"
 	"net/url"
 	"strings"
 
@@ -120,6 +121,7 @@ func (a *OAuth2AuthorizationCodeAuthenticator) AuthHeaders() map[string]string {
 
 	token, err := a.tokenManager.GetAccessToken(a.refreshURL, params)
 	if err != nil {
+		log.Printf("oauth2 authorization code token error: %v", err)
 		return map[string]string{}
 	}
 

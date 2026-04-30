@@ -32,7 +32,7 @@ import 'api/{{classFilename}}.dart';
 /// ```dart
 /// final transport = TransportOptionsBuilder()
 ///   .proxy('http://proxy:3128')
-///   .timeout(Duration(seconds: 5))
+///   .timeout(5000)
 ///   .build();
 /// final client = {{clientClassName}}(
 ///   authenticator: authenticator,
@@ -52,25 +52,31 @@ class {{clientClassName}} {
   /// Creates a new client with the given authenticator and optional transport
   /// options.
   ///
-  /// If the authenticator implements [HttpAwareAuthenticator], the shared HTTP
-  /// client is injected so that token exchange and discovery requests use the
-  /// same proxy, TLS, and timeout settings.
-  {{clientClassName}}({
+  /// A single shared [DefaultApiClient] is created and used by all API groups
+  /// and the authenticator (if it implements [HttpAwareAuthenticator]), so that
+  /// token exchange and discovery requests use the same proxy, TLS, and timeout
+  /// settings as regular API calls.
+  {{clientClassName}}._({
+    required Authenticator authenticator,
+    required DefaultApiClient apiClient,
+  }) : {{#apiInfo}}{{#apis}}{{#operations}}{{#lambda.camelcase}}{{classname}}{{/lambda.camelcase}} = _create{{classname}}(authenticator, apiClient){{^-last}},
+       {{/-last}}{{#-last}};{{/-last}}{{/operations}}{{/apis}}{{/apiInfo}}
+
+  factory {{clientClassName}}({
     required Authenticator authenticator,
     TransportOptions? transportOptions,
-  }) : {{#apiInfo}}{{#apis}}{{#operations}}{{#lambda.camelcase}}{{classname}}{{/lambda.camelcase}} = _create{{classname}}(authenticator, transportOptions){{^-last}},
-       {{/-last}}{{#-last}} {
+  }) {
     final apiClient = DefaultApiClient(transportOptions);
     if (authenticator is HttpAwareAuthenticator) {
       authenticator.setApiClient(apiClient);
     }
-  }{{/-last}}{{/operations}}{{/apis}}{{/apiInfo}}
+    return {{clientClassName}}._(authenticator: authenticator, apiClient: apiClient);
+  }
 
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-  static {{classname}} _create{{classname}}(Authenticator authenticator, TransportOptions? transportOptions) {
-    final apiClient = DefaultApiClient(transportOptions);
+  static {{classname}} _create{{classname}}(Authenticator authenticator, DefaultApiClient apiClient) {
     final config = ConfigurationBuilder()
         .baseUrl(authenticator.host())
         .defaultHeaders(authenticator.authHeaders())

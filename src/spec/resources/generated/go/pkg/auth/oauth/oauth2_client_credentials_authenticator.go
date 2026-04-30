@@ -8,6 +8,7 @@
 package oauth
 
 import (
+	"log"
 	"strings"
 
 	"petstore/pkg/auth"
@@ -63,6 +64,7 @@ func (a *OAuth2ClientCredentialsAuthenticator) AuthHeaders() map[string]string {
 
 	token, err := a.tokenManager.GetAccessToken(a.tokenURL, params)
 	if err != nil {
+		log.Printf("oauth2 client credentials token error: %v", err)
 		return map[string]string{}
 	}
 

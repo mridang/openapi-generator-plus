@@ -129,6 +129,26 @@ async fn test_base_api_error_dispatch_502() {
     assert!(result.is_err(), "expected error for status 502");
 }
 
+// -- Empty 200 response --
+
+#[tokio::test]
+async fn test_base_api_handles_empty_200_response() {
+    let client = DefaultApiClient::new(None);
+    let headers = HashMap::new();
+    let resp = client
+        .send_request(
+            "GET",
+            &format!("{}/api/empty", testcontainers_helper::wiremock_http_url()),
+            &headers,
+            None,
+        )
+        .await
+        .expect("unexpected error");
+
+    assert_eq!(resp.status_code, 200);
+    assert!(resp.body.is_empty());
+}
+
 // -- JSON response deserialization --
 
 #[tokio::test]

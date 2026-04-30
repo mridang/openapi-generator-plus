@@ -33,7 +33,7 @@ import 'api/store_api.dart';
 /// ```dart
 /// final transport = TransportOptionsBuilder()
 ///   .proxy('http://proxy:3128')
-///   .timeout(Duration(seconds: 5))
+///   .timeout(5000)
 ///   .build();
 /// final client = Client(
 ///   authenticator: authenticator,
@@ -50,23 +50,29 @@ class Client {
   /// Creates a new client with the given authenticator and optional transport
   /// options.
   ///
-  /// If the authenticator implements [HttpAwareAuthenticator], the shared HTTP
-  /// client is injected so that token exchange and discovery requests use the
-  /// same proxy, TLS, and timeout settings.
-  Client({
+  /// A single shared [DefaultApiClient] is created and used by all API groups
+  /// and the authenticator (if it implements [HttpAwareAuthenticator]), so that
+  /// token exchange and discovery requests use the same proxy, TLS, and timeout
+  /// settings as regular API calls.
+  Client._({
+    required Authenticator authenticator,
+    required DefaultApiClient apiClient,
+  })  : petApi = _createPetApi(authenticator, apiClient),
+        storeApi = _createStoreApi(authenticator, apiClient);
+
+  factory Client({
     required Authenticator authenticator,
     TransportOptions? transportOptions,
-  })  : petApi = _createPetApi(authenticator, transportOptions),
-        storeApi = _createStoreApi(authenticator, transportOptions) {
+  }) {
     final apiClient = DefaultApiClient(transportOptions);
     if (authenticator is HttpAwareAuthenticator) {
       authenticator.setApiClient(apiClient);
     }
+    return Client._(authenticator: authenticator, apiClient: apiClient);
   }
 
   static PetApi _createPetApi(
-      Authenticator authenticator, TransportOptions? transportOptions) {
-    final apiClient = DefaultApiClient(transportOptions);
+      Authenticator authenticator, DefaultApiClient apiClient) {
     final config = ConfigurationBuilder()
         .baseUrl(authenticator.host())
         .defaultHeaders(authenticator.authHeaders())
@@ -75,8 +81,7 @@ class Client {
   }
 
   static StoreApi _createStoreApi(
-      Authenticator authenticator, TransportOptions? transportOptions) {
-    final apiClient = DefaultApiClient(transportOptions);
+      Authenticator authenticator, DefaultApiClient apiClient) {
     final config = ConfigurationBuilder()
         .baseUrl(authenticator.host())
         .defaultHeaders(authenticator.authHeaders())

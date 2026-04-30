@@ -154,11 +154,7 @@ impl BaseApi {
         params: InvokeApiParams<'_>,
     ) -> Result<ApiResult<T>, Box<dyn std::error::Error + Send + Sync>> {
         let response = self.invoke_api(params).await?;
-        let data: T = if !response.body.is_empty() {
-            crate::object_serializer::deserialize(response.body.as_bytes())?
-        } else {
-            return Err("empty response body".into());
-        };
+        let data: T = crate::object_serializer::deserialize(response.body.as_bytes())?;
         Ok(ApiResult {
             status_code: response.status_code,
             data,

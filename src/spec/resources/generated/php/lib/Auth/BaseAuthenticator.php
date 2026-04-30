@@ -22,6 +22,10 @@ namespace PetstoreClient\Auth;
  */
 abstract class BaseAuthenticator implements Authenticator
 {
+    abstract public function getHost(): string;
+
+    abstract public function getAuthHeaders(): array;
+
     /**
      * @return array<string, string>
      */

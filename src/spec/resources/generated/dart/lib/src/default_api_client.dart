@@ -116,7 +116,7 @@ class DefaultApiClient implements ApiClient {
     }
 
     if (opts.timeout != null) {
-      httpClient.connectionTimeout = opts.timeout;
+      httpClient.connectionTimeout = Duration(milliseconds: opts.timeout!);
     }
 
     if (!opts.followRedirects) {

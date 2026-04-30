@@ -59,7 +59,9 @@ impl OpenIdConnectAuthenticator {
         &self,
         state: &str,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
-        let delegate = self.resolve_delegate()?;
+        self.resolve_delegate()?;
+        let delegate_guard = self.delegate.lock().unwrap();
+        let delegate = delegate_guard.as_ref().unwrap();
         Ok(delegate.build_authorization_url(state))
     }
 
@@ -77,25 +79,13 @@ impl OpenIdConnectAuthenticator {
     }
 
     /// Lazily resolves the delegate by fetching the OIDC discovery document
-    /// using the injected API client.
-    fn resolve_delegate(
-        &self,
-    ) -> Result<OAuth2AuthorizationCodeAuthenticator, Box<dyn std::error::Error + Send + Sync>>
-    {
+    /// using the injected API client. Stores the injected delegate in the
+    /// mutex for reuse.
+    fn resolve_delegate(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut delegate_guard = self.delegate.lock().unwrap();
 
-        if let Some(ref delegate) = *delegate_guard {
-            // Return a new instance with the same configuration
-            return Ok(OAuth2AuthorizationCodeAuthenticator::new(
-                delegate.host(),
-                &self.client_id,
-                &self.client_secret,
-                "",
-                "",
-                &self.redirect_uri,
-                self.scopes.clone(),
-                "",
-            ));
+        if delegate_guard.is_some() {
+            return Ok(());
         }
 
         let client = {
@@ -150,18 +140,8 @@ impl OpenIdConnectAuthenticator {
         // Inject the API client into the delegate's token manager.
         delegate.set_api_client(client);
 
-        let result = OAuth2AuthorizationCodeAuthenticator::new(
-            &self.host,
-            &self.client_id,
-            &self.client_secret,
-            &authorization_endpoint,
-            &token_endpoint,
-            &self.redirect_uri,
-            self.scopes.clone(),
-            "",
-        );
         *delegate_guard = Some(delegate);
-        Ok(result)
+        Ok(())
     }
 }
 
@@ -177,7 +157,13 @@ impl Authenticator for OpenIdConnectAuthenticator {
 
     fn auth_headers(&self) -> HashMap<String, String> {
         match self.resolve_delegate() {
-            Ok(delegate) => delegate.auth_headers(),
+            Ok(()) => {
+                let delegate_guard = self.delegate.lock().unwrap();
+                match delegate_guard.as_ref() {
+                    Some(delegate) => delegate.auth_headers(),
+                    None => HashMap::new(),
+                }
+            }
             Err(_) => HashMap::new(),
         }
     }

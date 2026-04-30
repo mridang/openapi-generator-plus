@@ -19,7 +19,7 @@
 /// final transport = TransportOptionsBuilder()
 ///   .verifySSL(false)
 ///   .proxy('http://proxy.example.com:8080')
-///   .timeout(Duration(seconds: 5))
+///   .timeout(5000)
 ///   .userAgent('MyApp/1.0')
 ///   .build();
 /// ```
@@ -33,10 +33,10 @@ class TransportOptions {
   /// HTTP or HTTPS proxy URL for all outbound requests, or null if none.
   final Uri? proxy;
 
-  /// End-to-end request timeout. Covers the entire request lifecycle:
-  /// connection, TLS handshake, sending the request body, and reading the
-  /// response. A null value means no timeout.
-  final Duration? timeout;
+  /// End-to-end request timeout in milliseconds. Covers the entire request
+  /// lifecycle: connection, TLS handshake, sending the request body, and
+  /// reading the response. A null value means no timeout.
+  final int? timeout;
 
   /// Whether the client follows HTTP 3xx redirects.
   final bool followRedirects;
@@ -80,7 +80,7 @@ class TransportOptionsBuilder {
   bool _verifySSL = true;
   String _caCertPath = '';
   Uri? _proxy;
-  Duration? _timeout;
+  int? _timeout;
   bool _followRedirects = true;
   int _maxRedirects = 0;
   String _userAgent = 'petstore_client/1.0.0 (dart)';
@@ -109,8 +109,8 @@ class TransportOptionsBuilder {
     return this;
   }
 
-  /// Sets the end-to-end request timeout.
-  TransportOptionsBuilder timeout(Duration val) {
+  /// Sets the end-to-end request timeout in milliseconds.
+  TransportOptionsBuilder timeout(int val) {
     _timeout = val;
     return this;
   }

@@ -11,8 +11,8 @@ class ApiResult<T> {
   /// The HTTP status code of the response.
   final int statusCode;
 
-  /// The deserialized response body.
-  final T data;
+  /// The deserialized response body, or null if the response body was empty.
+  final T? data;
 
   /// The raw response body as a string.
   final String rawBody;
