@@ -79,7 +79,12 @@ impl {{classname}} {
             {{name}},
 {{/requiredVars}}
 {{#optionalVars}}
+{{#defaultValue}}
+            {{name}}: Some({{{defaultValue}}}),
+{{/defaultValue}}
+{{^defaultValue}}
             {{name}}: None,
+{{/defaultValue}}
 {{/optionalVars}}
 {{#isAdditionalPropertiesTrue}}
             additional_properties: std::collections::HashMap::new(),

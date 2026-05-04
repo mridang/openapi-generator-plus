@@ -173,6 +173,7 @@ module PetstoreClient
     def self.to_path_value: (untyped) -> String
     def self.to_query_value: (untyped, ?Symbol?) -> untyped
     def self.to_header_value: (untyped) -> String
+    def self.to_cookie_value: (untyped) -> String
     def self.to_form_value: (untyped) -> String
     def self.convert_to_type: (untyped, String) -> untyped
     def self.find_and_cast_into_type: (untyped, untyped) -> untyped

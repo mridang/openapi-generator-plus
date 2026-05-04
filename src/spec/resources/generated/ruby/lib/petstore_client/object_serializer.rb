@@ -120,6 +120,12 @@ module PetstoreClient
       end
     end
 
+    # Convert a value to a string suitable for use as an HTTP cookie value.
+    # Cookie values follow the same encoding rules as header values.
+    def self.to_cookie_value(value)
+      to_header_value(value)
+    end
+
     # Convert a value to a representation suitable for use as a form parameter.
     def self.to_form_value(value)
       stringify(value)

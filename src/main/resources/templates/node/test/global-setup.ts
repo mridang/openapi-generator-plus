@@ -1,6 +1,6 @@
 import { GenericContainer, Network, Wait } from 'testcontainers';
-import * as path from 'path';
-import * as fs from 'fs';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
 
 export default async function globalSetup() {
   const hostAppPath = process.env.HOST_APP_PATH || process.cwd();

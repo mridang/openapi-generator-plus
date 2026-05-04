@@ -31,6 +31,10 @@ class BaseApiTest {
             super(new DefaultApiClient(), new Configuration(baseUrl, Map.of()));
         }
 
+        TestableApi(ApiClient apiClient, String baseUrl) {
+            super(apiClient, new Configuration(baseUrl, Map.of()));
+        }
+
         <T> @Nullable T call(
                 String method,
                 String path,
@@ -45,6 +49,17 @@ class BaseApiTest {
             return invokeApi(
                     method, path, queryParams, headerParams, body, accepts, contentType,
                     returnType, auth);
+        }
+    }
+
+    static class CapturingApiClient implements ApiClient {
+        String capturedUrl = "";
+
+        @Override
+        public ApiResponse sendRequest(
+                String method, String url, Map<String, String> headers, @Nullable Object body) {
+            this.capturedUrl = url;
+            return new ApiResponse(200, "{}", Map.of("Content-Type", "application/json"));
         }
     }
 
@@ -274,6 +289,58 @@ class BaseApiTest {
                             null,
                             null);
             assertNull(result);
+        }
+
+        @Test
+        @DisplayName("expands array query params")
+        void expandsArrayQueryParams() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, Object> queryParams = new HashMap<>();
+            queryParams.put("tags", List.of("a", "b"));
+            testApi.call("GET", "/api/test", queryParams, new HashMap<>(), null,
+                    new String[] {"application/json"}, "application/json", null, null);
+            assertTrue(client.capturedUrl.contains("tags=a&tags=b"),
+                    "Expected expanded array params but got: " + client.capturedUrl);
+        }
+
+        @Test
+        @DisplayName("serializes boolean query params")
+        void serializesBooleanQueryParams() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, Object> queryParams = new HashMap<>();
+            queryParams.put("active", true);
+            testApi.call("GET", "/api/test", queryParams, new HashMap<>(), null,
+                    new String[] {"application/json"}, "application/json", null, null);
+            assertTrue(client.capturedUrl.contains("active=true"),
+                    "Expected active=true but got: " + client.capturedUrl);
+        }
+
+        @Test
+        @DisplayName("serializes number query params")
+        void serializesNumberQueryParams() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, Object> queryParams = new HashMap<>();
+            queryParams.put("limit", 10);
+            testApi.call("GET", "/api/test", queryParams, new HashMap<>(), null,
+                    new String[] {"application/json"}, "application/json", null, null);
+            assertTrue(client.capturedUrl.contains("limit=10"),
+                    "Expected limit=10 but got: " + client.capturedUrl);
+            assertFalse(client.capturedUrl.contains("limit=10.0"),
+                    "Should not contain limit=10.0 but got: " + client.capturedUrl);
+        }
+
+        @Test
+        @DisplayName("handles empty query params")
+        void handlesEmptyQueryParams() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call("GET", "/api/test", new HashMap<>(), new HashMap<>(), null,
+                    new String[] {"application/json"}, "application/json", null, null);
+            assertFalse(client.capturedUrl.contains("?"),
+                    "Expected no query string but got: " + client.capturedUrl);
         }
     }
 

@@ -53,8 +53,7 @@ class BaseApi {
     Authenticator? auth,
   }) async {
     var requestUrl = path;
-    if (!requestUrl.startsWith('http://') &&
-        !requestUrl.startsWith('https://')) {
+    if (!requestUrl.startsWith('http://') && !requestUrl.startsWith('https://')) {
       requestUrl = config.baseUrl + path;
     }
 
@@ -101,8 +100,9 @@ class BaseApi {
       // Handle cookie params
       final cookies = auth.cookieParams();
       if (cookies.isNotEmpty) {
-        final cookieParts =
-            cookies.entries.map((e) => '${e.key}=${e.value}').toList();
+        final cookieParts = cookies.entries
+            .map((e) => '${e.key}=${e.value}')
+            .toList();
         final cookieStr = cookieParts.join('; ');
         if (headers.containsKey('Cookie')) {
           headers['Cookie'] = '${headers["Cookie"]}; $cookieStr';
@@ -164,9 +164,7 @@ class BaseApi {
     );
 
     T? data;
-    if (returnType.isNotEmpty &&
-        response.body.isNotEmpty &&
-        deserialize != null) {
+    if (returnType.isNotEmpty && response.body.isNotEmpty && deserialize != null) {
       data = deserialize(response.body);
     }
 
@@ -209,8 +207,7 @@ class BaseApi {
       return null;
     }
 
-    if (contentType.startsWith('image/') ||
-        contentType == 'application/octet-stream') {
+    if (contentType.startsWith('image/') || contentType == 'application/octet-stream') {
       if (body is List<int>) return body;
       if (body is String) return utf8.encode(body);
     }
@@ -222,8 +219,7 @@ class BaseApi {
     if (contentType == 'application/x-www-form-urlencoded') {
       if (body is Map<String, String>) {
         final values = body.entries
-            .map((e) =>
-                '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+            .map((e) => '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
             .join('&');
         return utf8.encode(values);
       }
@@ -265,51 +261,33 @@ class BaseApi {
       switch (code) {
         case 400:
           return BadRequestError(
-            code: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed,
+            code: code, message: msg, responseBody: body,
+            responseHeaders: response.headers, errorBody: parsed,
           );
         case 401:
           return UnauthorizedError(
-            code: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed,
+            code: code, message: msg, responseBody: body,
+            responseHeaders: response.headers, errorBody: parsed,
           );
         case 403:
           return ForbiddenError(
-            code: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed,
+            code: code, message: msg, responseBody: body,
+            responseHeaders: response.headers, errorBody: parsed,
           );
         case 404:
           return NotFoundError(
-            code: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed,
+            code: code, message: msg, responseBody: body,
+            responseHeaders: response.headers, errorBody: parsed,
           );
         case 409:
           return ConflictError(
-            code: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed,
+            code: code, message: msg, responseBody: body,
+            responseHeaders: response.headers, errorBody: parsed,
           );
         case 422:
           return UnprocessableEntityError(
-            code: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed,
+            code: code, message: msg, responseBody: body,
+            responseHeaders: response.headers, errorBody: parsed,
           );
         default:
           return clientErr;
@@ -327,11 +305,8 @@ class BaseApi {
       switch (code) {
         case 500:
           return InternalServerError(
-            code: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed,
+            code: code, message: msg, responseBody: body,
+            responseHeaders: response.headers, errorBody: parsed,
           );
         default:
           return serverErr;

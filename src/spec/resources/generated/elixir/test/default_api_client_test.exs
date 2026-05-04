@@ -16,11 +16,10 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTPS_URL")
     ca_cert_path = System.fetch_env!("CA_CERT_PATH")
 
-    transport =
-      PetstoreClient.TransportOptions.new(
-        verify_ssl: true,
-        ca_cert_path: ca_cert_path
-      )
+    transport = PetstoreClient.TransportOptions.new(
+      verify_ssl: true,
+      ca_cert_path: ca_cert_path
+    )
 
     client = PetstoreClient.DefaultApiClient.new(transport)
     response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/test", %{}, nil)
@@ -96,7 +95,9 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   test "default headers includes transport-level default headers" do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
 
-    transport = PetstoreClient.TransportOptions.new(default_headers: %{"X-Custom" => "custom-value"})
+    transport = PetstoreClient.TransportOptions.new(
+      default_headers: %{"X-Custom" => "custom-value"}
+    )
 
     client = PetstoreClient.DefaultApiClient.new(transport)
     response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/echo-headers", %{}, nil)
@@ -109,7 +110,9 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   test "caller headers override transport default headers" do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
 
-    transport = PetstoreClient.TransportOptions.new(default_headers: %{"Accept" => "text/plain"})
+    transport = PetstoreClient.TransportOptions.new(
+      default_headers: %{"Accept" => "text/plain"}
+    )
 
     client = PetstoreClient.DefaultApiClient.new(transport)
 

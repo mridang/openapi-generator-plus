@@ -25,7 +25,7 @@ class Order {
     this.petId,
     this.quantity,
     this.shipDate,
-    this.status,
+    this.status = 'placed',
     this.complete,
   });
 
@@ -36,9 +36,7 @@ class Order {
       petId: json['petId'] as int?,
       quantity: json['quantity'] as int?,
       shipDate: json['shipDate'] as DateTime?,
-      status: json['status'] != null
-          ? String.fromJson(json['status'] as String)
-          : null,
+      status: json['status'] != null ? String.fromJson(json['status'] as String) : 'placed',
       complete: json['complete'] as bool?,
     );
   }

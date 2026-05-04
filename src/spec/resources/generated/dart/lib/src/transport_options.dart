@@ -28,7 +28,7 @@ class TransportOptions {
   final bool verifySSL;
 
   /// Path to a custom CA certificate bundle for TLS verification.
-  final String caCertPath;
+  final String? caCertPath;
 
   /// HTTP or HTTPS proxy URL for all outbound requests, or null if none.
   final Uri? proxy;
@@ -71,14 +71,13 @@ class TransportOptions {
   }) : _defaultHeaders = Map.unmodifiable(defaultHeaders);
 
   /// Returns a copy of the transport-level default headers.
-  Map<String, String> get defaultHeaders =>
-      Map<String, String>.from(_defaultHeaders);
+  Map<String, String> get defaultHeaders => Map<String, String>.from(_defaultHeaders);
 }
 
 /// Builds immutable [TransportOptions] instances.
 class TransportOptionsBuilder {
   bool _verifySSL = true;
-  String _caCertPath = '';
+  String? _caCertPath;
   Uri? _proxy;
   int? _timeout;
   bool _followRedirects = true;
@@ -94,7 +93,7 @@ class TransportOptionsBuilder {
   }
 
   /// Sets the path to a custom CA certificate bundle.
-  TransportOptionsBuilder caCertPath(String val) {
+  TransportOptionsBuilder caCertPath(String? val) {
     _caCertPath = val;
     return this;
   }

@@ -1,8 +1,23 @@
 package {{packageName}}
+{{#hasOsImport}}
+{{#hasModelImport}}
+
+import (
+	"os"
+	. "{{moduleName}}/pkg/models"
+)
+{{/hasModelImport}}
+{{^hasModelImport}}
+
+import "os"
+{{/hasModelImport}}
+{{/hasOsImport}}
+{{^hasOsImport}}
 {{#hasModelImport}}
 
 import . "{{moduleName}}/pkg/models"
 {{/hasModelImport}}
+{{/hasOsImport}}
 
 // {{className}} holds optional parameters for the {{operationId}} operation.
 type {{className}} struct {

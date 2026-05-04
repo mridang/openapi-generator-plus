@@ -74,4 +74,5 @@ defmodule PetstoreClient.Models.PetWithOwner do
       owner_email: "String.t()"
     }
   end
+
 end

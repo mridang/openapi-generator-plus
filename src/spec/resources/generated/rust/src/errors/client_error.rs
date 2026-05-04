@@ -17,11 +17,7 @@ pub struct ClientError {
 
 impl fmt::Display for ClientError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "Client error ({}): {}",
-            self.api_error.status_code, self.api_error.message
-        )
+        write!(f, "Client error ({}): {}", self.api_error.status_code, self.api_error.message)
     }
 }
 

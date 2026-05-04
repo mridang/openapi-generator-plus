@@ -697,7 +697,21 @@
       "Bash(devbox run -- mvn failsafe:integration-test failsafe:verify -B -Dit.test=\"io.github.mridang.codegen.spec.ruby.*\" -DskipTests 2>&1 | tee /private/tmp/claude-501/ruby-suite.log | tail -5)",
       "Bash(devbox run -- mvn verify -B -Dsurefire.failIfNoSpecifiedTests=false -Dtest=none -Dit.test=\"io.github.mridang.codegen.spec.ruby.*\" 2>&1 | tee /private/tmp/claude-501/ruby-suite.log | tail -5)",
       "Bash(devbox run -- mvn verify -B -Dsurefire.failIfNoSpecifiedTests=false -Dtest=none -Dfailsafe.failIfNoSpecifiedTests=false \"-Dit.test=Rust*Spec\" 2>&1 | tee /private/tmp/claude-501/rust-suite.log | tail -5)",
-      "Bash(docker container prune -f 2>&1 | tail -1; docker network prune -f 2>&1 | tail -1)"
+      "Bash(docker container prune -f 2>&1 | tail -1; docker network prune -f 2>&1 | tail -1)",
+      "Bash(git checkout HEAD -- src/spec/resources/generated/go/pkg/models/api_response.go src/spec/resources/generated/go/pkg/models/category.go src/spec/resources/generated/go/pkg/models/dry_food.go src/spec/resources/generated/go/pkg/models/medication.go src/spec/resources/generated/go/pkg/models/metadata.go src/spec/resources/generated/go/pkg/models/pet.go src/spec/resources/generated/go/pkg/models/pet_passport.go src/spec/resources/generated/go/pkg/models/pet_with_owner.go src/spec/resources/generated/go/pkg/models/photo.go src/spec/resources/generated/go/pkg/models/photo_metadata.go src/spec/resources/generated/go/pkg/models/photo_metadata_location.go src/spec/resources/generated/go/pkg/models/set_pet_avatar_request.go src/spec/resources/generated/go/pkg/models/surgery.go src/spec/resources/generated/go/pkg/models/tag.go src/spec/resources/generated/go/pkg/models/wet_food.go)",
+      "Bash(docker network prune -f && docker container prune -f)",
+      "Bash(docker network prune -f && docker container prune -f 2>&1 | tail -3)",
+      "Bash(devbox run -- mvn test -pl :codegen-plus -Dtest=\"io.github.mridang.codegen.spec.go.*\" 2>&1 | tee /private/tmp/claude-501/go-test.log | tail -20)",
+      "Bash(devbox run -- mvn test -pl :codegen-plus -Dtest=\"io.github.mridang.codegen.spec.go.**\" 2>&1 | tee /private/tmp/claude-501/go-test.log | tail -10)",
+      "Bash(devbox run -- mvn test -pl :codegen-plus -Dtest=\"io.github.mridang.codegen.spec.ruby.**\" 2>&1 | tee /private/tmp/claude-501/ruby-test.log | tail -10)",
+      "Bash(docker stats --no-stream 2>&1 | head -10)",
+      "Bash(docker network prune -f 2>&1 | tail -3 && docker system df 2>&1)",
+      "Bash(docker container prune -f && docker network prune -f 2>&1 | tail -2)",
+      "Bash(docker container prune -f 2>&1 | tail -1 && devbox run -- mvn test -pl :codegen-plus -Dtest=\"io.github.mridang.codegen.spec.python.**\" 2>&1 | tail -10)",
+      "Bash(gh run list --branch feat/better-generated-clients --limit 3 --json databaseId,status,conclusion,headSha)",
+      "Bash(gh run view 25336575325 --json status,conclusion)",
+      "Bash(gh run view 25336575325 --log-failed 2>&1 | tail -50)",
+      "Bash(gh run view 25336575325 --log-failed 2>&1 | grep -A5 \"GoFormattingSpec.generatedCodeShouldBeProperlyFormatted\")"
     ]
   },
   "sandbox": {

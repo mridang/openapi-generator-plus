@@ -94,7 +94,7 @@ class {{classname}} extends BaseApi {
 
     var path = '{{{path}}}';
 {{#pathParams}}
-    path = path.replaceAll('{{{baseName}}}', Uri.encodeComponent('${{paramName}}'));
+    path = path.replaceAll('{{{baseName}}}', '${serializeStyled('{{baseName}}', {{paramName}}, 'path', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}');
 {{/pathParams}}
 {{#servers}}
 {{#-first}}

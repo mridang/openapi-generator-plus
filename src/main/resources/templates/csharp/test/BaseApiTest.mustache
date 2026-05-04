@@ -24,6 +24,9 @@ public class BaseApiTest
         public TestableApi(string baseUrl)
             : base(new DefaultApiClient(), new Configuration(baseUrl)) { }
 
+        public TestableApi(IApiClient apiClient, string baseUrl)
+            : base(apiClient, new Configuration(baseUrl)) { }
+
         public async Task<T?> CallAsync<T>(
             string method,
             string path,
@@ -37,6 +40,21 @@ public class BaseApiTest
             return await InvokeApiAsync<T>(
                 method, path, queryParams, headerParams, body,
                 accepts, contentType, typeof(T), auth);
+        }
+    }
+
+    private sealed class CapturingApiClient : IApiClient
+    {
+        public Uri? CapturedUrl { get; private set; }
+
+        public Task<ApiResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            CapturedUrl = url;
+            return Task.FromResult(new ApiResponse(200, "{}", new Dictionary<string, string>
+            {
+                { "Content-Type", "application/json" }
+            }));
         }
     }
 
@@ -218,6 +236,59 @@ public class BaseApiTest
             new Dictionary<string, object?> { { "filter", "" } },
             new Dictionary<string, string>(),
             null, ["application/json"], "application/json");
+    }
+
+    [Fact]
+    public async Task ExpandsArrayQueryParams()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET", "/api/test",
+            new Dictionary<string, object?> { { "tags", new List<string> { "a", "b" } } },
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Contains("tags=a&tags=b", client.CapturedUrl!.ToString());
+    }
+
+    [Fact]
+    public async Task SerializesBooleanQueryParams()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET", "/api/test",
+            new Dictionary<string, object?> { { "active", true } },
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Contains("active=true", client.CapturedUrl!.ToString());
+    }
+
+    [Fact]
+    public async Task SerializesNumberQueryParams()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET", "/api/test",
+            new Dictionary<string, object?> { { "limit", 10 } },
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Contains("limit=10", client.CapturedUrl!.ToString());
+        Assert.DoesNotContain("limit=10.0", client.CapturedUrl!.ToString());
+    }
+
+    [Fact]
+    public async Task HandlesEmptyQueryParams()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET", "/api/test",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.DoesNotContain("?", client.CapturedUrl!.ToString());
     }
 
     [Fact]

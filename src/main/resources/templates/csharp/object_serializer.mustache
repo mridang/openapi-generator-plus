@@ -132,6 +132,15 @@ public class ObjectSerializer
     }
 
     /// <summary>
+    /// Convert a value to a string suitable for use as an HTTP cookie value.
+    /// Cookie values follow the same encoding rules as header values.
+    /// </summary>
+    public static string ToCookieValue(object? value)
+    {
+        return ToHeaderValue(value);
+    }
+
+    /// <summary>
     /// Convert a value to a representation suitable for use as a form parameter.
     /// </summary>
     public static string ToFormValue(object? value)

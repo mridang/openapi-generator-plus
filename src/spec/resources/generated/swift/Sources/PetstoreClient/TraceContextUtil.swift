@@ -15,14 +15,14 @@ import Foundation
 /// swift-distributed-tracing) and override the injection behavior at the
 /// application level.
 public enum TraceContextUtil {
-  /// Injects trace context headers into the given header dictionary.
-  ///
-  /// This default implementation is a no-op. Override at the application
-  /// level to inject W3C traceparent and tracestate headers from your
-  /// tracing library.
-  public static func injectTraceContext(headers: inout [String: String]) {
-    // No-op: Distributed tracing integration requires a tracing library.
-    // To enable, users should integrate with swift-distributed-tracing
-    // or their preferred tracing framework.
-  }
+    /// Injects trace context headers into the given header dictionary.
+    ///
+    /// This default implementation is a no-op. Override at the application
+    /// level to inject W3C traceparent and tracestate headers from your
+    /// tracing library.
+    public static func injectTraceContext(headers: inout [String: String]) {
+        // No-op: Distributed tracing integration requires a tracing library.
+        // To enable, users should integrate with swift-distributed-tracing
+        // or their preferred tracing framework.
+    }
 }

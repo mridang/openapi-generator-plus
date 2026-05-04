@@ -149,7 +149,7 @@ func (a *PetApi) AddPet(auth Authenticator, pet Pet) (*Pet, error) {
 }
 
 // AddPetWithHTTPInfo performs the AddPet operation and returns the full API result.
-func (a *PetApi) AddPetWithHTTPInfo(auth Authenticator, pet Pet) (*ApiResult[*Pet], error) {
+func (a *PetApi) AddPetWithHTTPInfo(auth Authenticator, pet Pet) (*ApiResult[Pet], error) {
 
 	path := "/pet"
 
@@ -181,7 +181,7 @@ func (a *PetApi) AddPetWithHTTPInfo(auth Authenticator, pet Pet) (*ApiResult[*Pe
 		}
 	}
 
-	return &ApiResult[*Pet]{
+	return &ApiResult[Pet]{
 		StatusCode: response.StatusCode,
 		Data:       &data,
 		RawBody:    response.Body,
@@ -200,7 +200,7 @@ func (a *PetApi) AddPetPhotos(petId int64, options *AddPetPhotosOptions) (*[]Pho
 }
 
 // AddPetPhotosWithHTTPInfo performs the AddPetPhotos operation and returns the full API result.
-func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *AddPetPhotosOptions) (*ApiResult[*[]Photo], error) {
+func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *AddPetPhotosOptions) (*ApiResult[[]Photo], error) {
 
 	path := "/pet/{petId}/photos"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
@@ -240,7 +240,7 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *AddPetPhotosOpti
 		}
 	}
 
-	return &ApiResult[*[]Photo]{
+	return &ApiResult[[]Photo]{
 		StatusCode: response.StatusCode,
 		Data:       &data,
 		RawBody:    response.Body,
@@ -258,7 +258,7 @@ func (a *PetApi) AddPetTreatment(auth Authenticator, petId int64, petTreatment P
 }
 
 // AddPetTreatmentWithHTTPInfo performs the AddPetTreatment operation and returns the full API result.
-func (a *PetApi) AddPetTreatmentWithHTTPInfo(auth Authenticator, petId int64, petTreatment PetTreatment) (*ApiResult[*PetTreatment], error) {
+func (a *PetApi) AddPetTreatmentWithHTTPInfo(auth Authenticator, petId int64, petTreatment PetTreatment) (*ApiResult[PetTreatment], error) {
 
 	path := "/pet/{petId}/treatment"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
@@ -291,7 +291,7 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(auth Authenticator, petId int64, pe
 		}
 	}
 
-	return &ApiResult[*PetTreatment]{
+	return &ApiResult[PetTreatment]{
 		StatusCode: response.StatusCode,
 		Data:       &data,
 		RawBody:    response.Body,
@@ -362,7 +362,7 @@ func (a *PetApi) DownloadPetDocument(petId int64, documentId int64) (**os.File, 
 }
 
 // DownloadPetDocumentWithHTTPInfo performs the DownloadPetDocument operation and returns the full API result.
-func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) (*ApiResult[**os.File], error) {
+func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) (*ApiResult[*os.File], error) {
 
 	path := "/pet/{petId}/documents/{documentId}"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
@@ -396,7 +396,7 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(petId int64, documentId int64) 
 		}
 	}
 
-	return &ApiResult[**os.File]{
+	return &ApiResult[*os.File]{
 		StatusCode: response.StatusCode,
 		Data:       &data,
 		RawBody:    response.Body,
@@ -416,7 +416,7 @@ func (a *PetApi) FindPetsByStatus(options *FindPetsByStatusOptions) (*[]Pet, err
 }
 
 // FindPetsByStatusWithHTTPInfo performs the FindPetsByStatus operation and returns the full API result.
-func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *FindPetsByStatusOptions) (*ApiResult[*[]Pet], error) {
+func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *FindPetsByStatusOptions) (*ApiResult[[]Pet], error) {
 
 	path := "/pet/findByStatus"
 
@@ -460,7 +460,7 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *FindPetsByStatusOptions) 
 		}
 	}
 
-	return &ApiResult[*[]Pet]{
+	return &ApiResult[[]Pet]{
 		StatusCode: response.StatusCode,
 		Data:       &data,
 		RawBody:    response.Body,
@@ -478,7 +478,7 @@ func (a *PetApi) GetExternalPetInfo(petId int64, server GetExternalPetInfoServer
 }
 
 // GetExternalPetInfoWithHTTPInfo performs the GetExternalPetInfo operation and returns the full API result.
-func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalPetInfoServer) (*ApiResult[*Pet], error) {
+func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalPetInfoServer) (*ApiResult[Pet], error) {
 
 	path := "/pet/{petId}/external"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
@@ -517,7 +517,7 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalP
 		}
 	}
 
-	return &ApiResult[*Pet]{
+	return &ApiResult[Pet]{
 		StatusCode: response.StatusCode,
 		Data:       &data,
 		RawBody:    response.Body,
@@ -535,7 +535,7 @@ func (a *PetApi) GetMultiServerPetInfo(petId int64, server GetMultiServerPetInfo
 }
 
 // GetMultiServerPetInfoWithHTTPInfo performs the GetMultiServerPetInfo operation and returns the full API result.
-func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiServerPetInfoServer) (*ApiResult[*Pet], error) {
+func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiServerPetInfoServer) (*ApiResult[Pet], error) {
 
 	path := "/pet/{petId}/multi"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
@@ -574,7 +574,7 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiS
 		}
 	}
 
-	return &ApiResult[*Pet]{
+	return &ApiResult[Pet]{
 		StatusCode: response.StatusCode,
 		Data:       &data,
 		RawBody:    response.Body,
@@ -593,7 +593,7 @@ func (a *PetApi) GetPetAvatar(petId int64) (**os.File, error) {
 }
 
 // GetPetAvatarWithHTTPInfo performs the GetPetAvatar operation and returns the full API result.
-func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[**os.File], error) {
+func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[*os.File], error) {
 
 	path := "/pet/{petId}/avatar"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
@@ -626,7 +626,7 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(petId int64) (*ApiResult[**os.File], e
 		}
 	}
 
-	return &ApiResult[**os.File]{
+	return &ApiResult[*os.File]{
 		StatusCode: response.StatusCode,
 		Data:       &data,
 		RawBody:    response.Body,
@@ -645,7 +645,7 @@ func (a *PetApi) GetPetAvatarThumbnail(petId int64) (*[]byte, error) {
 }
 
 // GetPetAvatarThumbnailWithHTTPInfo performs the GetPetAvatarThumbnail operation and returns the full API result.
-func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[*[]byte], error) {
+func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[[]byte], error) {
 
 	path := "/pet/{petId}/avatar/thumbnail"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
@@ -678,7 +678,7 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[*[]b
 		}
 	}
 
-	return &ApiResult[*[]byte]{
+	return &ApiResult[[]byte]{
 		StatusCode: response.StatusCode,
 		Data:       &data,
 		RawBody:    response.Body,
@@ -698,7 +698,7 @@ func (a *PetApi) GetPetById(petId int64, server GetPetByIdServer) (*Pet, error) 
 }
 
 // GetPetByIdWithHTTPInfo performs the GetPetById operation and returns the full API result.
-func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*ApiResult[*Pet], error) {
+func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*ApiResult[Pet], error) {
 
 	path := "/pet/{petId}"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
@@ -737,7 +737,7 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*
 		}
 	}
 
-	return &ApiResult[*Pet]{
+	return &ApiResult[Pet]{
 		StatusCode: response.StatusCode,
 		Data:       &data,
 		RawBody:    response.Body,
@@ -756,7 +756,7 @@ func (a *PetApi) GetPetPassport(petId int64) (*PetPassport, error) {
 }
 
 // GetPetPassportWithHTTPInfo performs the GetPetPassport operation and returns the full API result.
-func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[*PetPassport], error) {
+func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[PetPassport], error) {
 
 	path := "/pet/{petId}/passport"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
@@ -789,7 +789,7 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(petId int64) (*ApiResult[*PetPasspor
 		}
 	}
 
-	return &ApiResult[*PetPassport]{
+	return &ApiResult[PetPassport]{
 		StatusCode: response.StatusCode,
 		Data:       &data,
 		RawBody:    response.Body,
@@ -808,7 +808,7 @@ func (a *PetApi) GetPetPhoto(petId int64, photoId int64) (**os.File, error) {
 }
 
 // GetPetPhotoWithHTTPInfo performs the GetPetPhoto operation and returns the full API result.
-func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult[**os.File], error) {
+func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult[*os.File], error) {
 
 	path := "/pet/{petId}/photos/{photoId}"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
@@ -842,7 +842,7 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(petId int64, photoId int64) (*ApiResult
 		}
 	}
 
-	return &ApiResult[**os.File]{
+	return &ApiResult[*os.File]{
 		StatusCode: response.StatusCode,
 		Data:       &data,
 		RawBody:    response.Body,
@@ -860,7 +860,7 @@ func (a *PetApi) GetPetTag(petId int64, tagName string, options *GetPetTagOption
 }
 
 // GetPetTagWithHTTPInfo performs the GetPetTag operation and returns the full API result.
-func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *GetPetTagOptions) (*ApiResult[*Pet], error) {
+func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *GetPetTagOptions) (*ApiResult[Pet], error) {
 	if tagName == "" {
 		return nil, fmt.Errorf("missing required parameter '%s' when calling PetApi.GetPetTag", "tagName")
 	}
@@ -910,7 +910,7 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *Get
 		}
 	}
 
-	return &ApiResult[*Pet]{
+	return &ApiResult[Pet]{
 		StatusCode: response.StatusCode,
 		Data:       &data,
 		RawBody:    response.Body,
@@ -928,7 +928,7 @@ func (a *PetApi) GetStagingPetInfo(petId int64, server GetStagingPetInfoServer) 
 }
 
 // GetStagingPetInfoWithHTTPInfo performs the GetStagingPetInfo operation and returns the full API result.
-func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPetInfoServer) (*ApiResult[*Pet], error) {
+func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPetInfoServer) (*ApiResult[Pet], error) {
 
 	path := "/pet/{petId}/staging"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
@@ -967,7 +967,7 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPet
 		}
 	}
 
-	return &ApiResult[*Pet]{
+	return &ApiResult[Pet]{
 		StatusCode: response.StatusCode,
 		Data:       &data,
 		RawBody:    response.Body,
@@ -1077,7 +1077,7 @@ func (a *PetApi) UpdatePet(petId int64, pet Pet) (*Pet, error) {
 }
 
 // UpdatePetWithHTTPInfo performs the UpdatePet operation and returns the full API result.
-func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[*Pet], error) {
+func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[Pet], error) {
 
 	path := "/pet/{petId}"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
@@ -1110,7 +1110,7 @@ func (a *PetApi) UpdatePetWithHTTPInfo(petId int64, pet Pet) (*ApiResult[*Pet], 
 		}
 	}
 
-	return &ApiResult[*Pet]{
+	return &ApiResult[Pet]{
 		StatusCode: response.StatusCode,
 		Data:       &data,
 		RawBody:    response.Body,
@@ -1129,7 +1129,7 @@ func (a *PetApi) UploadPetCertificate(petId int64, options *UploadPetCertificate
 }
 
 // UploadPetCertificateWithHTTPInfo performs the UploadPetCertificate operation and returns the full API result.
-func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *UploadPetCertificateOptions) (*ApiResult[*ApiResponse], error) {
+func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *UploadPetCertificateOptions) (*ApiResult[ApiResponse], error) {
 
 	path := "/pet/{petId}/certificate"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
@@ -1166,7 +1166,7 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *UploadPe
 		}
 	}
 
-	return &ApiResult[*ApiResponse]{
+	return &ApiResult[ApiResponse]{
 		StatusCode: response.StatusCode,
 		Data:       &data,
 		RawBody:    response.Body,
@@ -1185,7 +1185,7 @@ func (a *PetApi) UploadPetDocument(petId int64, options *UploadPetDocumentOption
 }
 
 // UploadPetDocumentWithHTTPInfo performs the UploadPetDocument operation and returns the full API result.
-func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *UploadPetDocumentOptions) (*ApiResult[*ApiResponse], error) {
+func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *UploadPetDocumentOptions) (*ApiResult[ApiResponse], error) {
 
 	path := "/pet/{petId}/documents"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
@@ -1228,7 +1228,7 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *UploadPetDo
 		}
 	}
 
-	return &ApiResult[*ApiResponse]{
+	return &ApiResult[ApiResponse]{
 		StatusCode: response.StatusCode,
 		Data:       &data,
 		RawBody:    response.Body,

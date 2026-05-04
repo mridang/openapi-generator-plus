@@ -89,9 +89,7 @@ impl BaseApi {
         } else {
             params.content_type
         };
-        let selected = self
-            .header_selector
-            .select_headers(&params.accepts, ct, is_multipart);
+        let selected = self.header_selector.select_headers(&params.accepts, ct, is_multipart);
 
         let mut headers = HashMap::new();
         if let Some(accept) = selected.get("Accept") {
@@ -144,12 +142,7 @@ impl BaseApi {
         // Send request
         let response = self
             .api_client
-            .send_request(
-                params.method,
-                &request_url,
-                &headers,
-                serialized_body.as_deref(),
-            )
+            .send_request(params.method, &request_url, &headers, serialized_body.as_deref())
             .await?;
 
         // Check for errors
@@ -197,7 +190,13 @@ fn build_query_string(query_params: &[(String, String)]) -> String {
 
     let parts: Vec<String> = query_params
         .iter()
-        .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
+        .map(|(k, v)| {
+            format!(
+                "{}={}",
+                urlencoding::encode(k),
+                urlencoding::encode(v)
+            )
+        })
         .collect();
 
     parts.join("&")
@@ -237,7 +236,12 @@ fn throw_api_error(response: &ApiResponse) -> Box<dyn std::error::Error + Send +
     let msg = format!("API returned status code {}", code);
     let body = response.body.clone();
 
-    let base_err = ApiError::new(code, msg, body, response.headers.clone());
+    let base_err = ApiError::new(
+        code,
+        msg,
+        body,
+        response.headers.clone(),
+    );
 
     if code >= 400 && code < 500 {
         let client_err = ClientError::from(base_err);

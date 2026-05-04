@@ -179,7 +179,12 @@ defmodule {{moduleName}}.Models.{{classname}} do
   {{/vars}}
   defstruct [
   {{#vars}}
+{{#defaultValue}}
+    {{name}}: {{{defaultValue}}}{{^-last}},{{/-last}}
+{{/defaultValue}}
+{{^defaultValue}}
     :{{name}}{{^-last}},{{/-last}}
+{{/defaultValue}}
   {{/vars}}
   ]
 

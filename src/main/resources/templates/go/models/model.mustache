@@ -3,7 +3,12 @@ package models
 
 import (
 	"encoding/json"
+{{#hasFmtImport}}
 	"fmt"
+{{/hasFmtImport}}
+{{#hasTimeImport}}
+	"time"
+{{/hasTimeImport}}
 )
 
 {{#models}}
@@ -76,10 +81,20 @@ type {{classname}} struct {
 {{#hasVars}}
 // New{{classname}} creates a new {{classname}} instance.
 func New{{classname}}({{#requiredVars}}{{nameInCamelCase}} {{{dataType}}}{{^-last}}, {{/-last}}{{/requiredVars}}) *{{classname}} {
+{{#optionalVars}}
+{{#defaultValue}}
+	var default{{name}} {{{dataType}}} = {{{defaultValue}}}
+{{/defaultValue}}
+{{/optionalVars}}
 	return &{{classname}}{
 {{#requiredVars}}
 		{{name}}: {{nameInCamelCase}},
 {{/requiredVars}}
+{{#optionalVars}}
+{{#defaultValue}}
+		{{name}}: &default{{name}},
+{{/defaultValue}}
+{{/optionalVars}}
 	}
 }
 {{/hasVars}}

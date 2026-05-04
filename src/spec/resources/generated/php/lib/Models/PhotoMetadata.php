@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -31,7 +30,7 @@ class PhotoMetadata
 
     /** @example null */
     #[SerializedName('location')]
-    public ?PhotoMetadataLocation $location = null;
+    public ?\PetstoreClient\Models\PhotoMetadataLocation $location = null;
 
     /**
      */
@@ -39,7 +38,7 @@ class PhotoMetadata
         ?string $caption = null,
         ?bool $isPrimary = null,
         ?\DateTime $takenAt = null,
-        ?PhotoMetadataLocation $location = null,
+        ?\PetstoreClient\Models\PhotoMetadataLocation $location = null,
     ) {
         $this->caption = $caption;
         $this->isPrimary = $isPrimary;

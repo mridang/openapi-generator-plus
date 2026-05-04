@@ -66,7 +66,7 @@ class {{clientClassName}} {
     required Authenticator authenticator,
     TransportOptions? transportOptions,
   }) {
-    final apiClient = DefaultApiClient(transportOptions);
+    final apiClient = DefaultApiClient(transportOptions: transportOptions);
     if (authenticator is HttpAwareAuthenticator) {
       authenticator.setApiClient(apiClient);
     }

@@ -12,7 +12,9 @@
 
 using PetstoreClient.Models;
 
+
 namespace PetstoreClient.Api;
+
 
 /// <summary>
 /// StoreApi provides methods for the Store API group.
@@ -20,6 +22,7 @@ namespace PetstoreClient.Api;
 /// </summary>
 public class StoreApi : BaseApi
 {
+
     private static readonly string[] GetInventoryAccepts = ["application/json"];
 
     private static readonly string[] GetOrderByIdAccepts = ["application/json"];
@@ -52,16 +55,7 @@ public class StoreApi : BaseApi
         string path = "/store/order/{orderId}";
         path = path.Replace(
             "{" + nameof(orderId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(orderId),
-                    orderId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(orderId), orderId, "path", "long", null, "simple", false)!,
             StringComparison.Ordinal
         );
 
@@ -141,16 +135,7 @@ public class StoreApi : BaseApi
         string path = "/store/order/{orderId}";
         path = path.Replace(
             "{" + nameof(orderId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(orderId),
-                    orderId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(orderId), orderId, "path", "long", null, "simple", false)!,
             StringComparison.Ordinal
         );
 

@@ -7,9 +7,8 @@
 
 import Foundation
 import Security
-
 #if canImport(FoundationNetworking)
-  import FoundationNetworking
+import FoundationNetworking
 #endif
 
 /// DefaultApiClient is the default HTTP client implementation backed by URLSession.
@@ -25,114 +24,112 @@ import Security
 ///  3. TransportOptions.userAgent -- injected if not already set
 ///  4. TransportOptions.injectRequestID -- injected if not already set
 public final class DefaultApiClient: ApiClient, @unchecked Sendable {
-  private let transportOptions: TransportOptions
-  private let session: URLSession
-  private let sessionDelegate: SessionDelegate?
+    private let transportOptions: TransportOptions
+    private let session: URLSession
+    private let sessionDelegate: SessionDelegate?
 
-  /// Creates a client with the given transport settings.
-  /// If transportOptions is nil, default transport settings are used.
-  public init(transportOptions: TransportOptions? = nil) {
-    let opts = transportOptions ?? TransportOptionsBuilder().build()
-    self.transportOptions = opts
-    let (session, delegate) = DefaultApiClient.buildSession(opts)
-    self.session = session
-    self.sessionDelegate = delegate
-  }
-
-  /// Sends an HTTP request with transport-level settings applied.
-  ///
-  /// Merges headers according to the priority order documented on the class,
-  /// then dispatches via URLSession.
-  public func sendRequest(method: String, url: String, headers: [String: String], body: Data?)
-    async throws -> ApiResponse
-  {
-    guard let requestURL = URL(string: url) else {
-      throw URLError(.badURL)
+    /// Creates a client with the given transport settings.
+    /// If transportOptions is nil, default transport settings are used.
+    public init(transportOptions: TransportOptions? = nil) {
+        let opts = transportOptions ?? TransportOptionsBuilder().build()
+        self.transportOptions = opts
+        let (session, delegate) = DefaultApiClient.buildSession(opts)
+        self.session = session
+        self.sessionDelegate = delegate
     }
 
-    var merged: [String: String] = [:]
-    for (k, v) in transportOptions.defaultHeaders {
-      merged[k] = v
-    }
-    for (k, v) in headers {
-      merged[k] = v
-    }
-    if merged["User-Agent"] == nil && !transportOptions.userAgent.isEmpty {
-      merged["User-Agent"] = transportOptions.userAgent
-    }
-    if merged["X-Request-ID"] == nil && transportOptions.injectRequestID {
-      merged["X-Request-ID"] = UUID().uuidString
-    }
-    if merged["Accept-Encoding"] == nil {
-      merged["Accept-Encoding"] = "gzip, deflate"
-    }
+    /// Sends an HTTP request with transport-level settings applied.
+    ///
+    /// Merges headers according to the priority order documented on the class,
+    /// then dispatches via URLSession.
+    public func sendRequest(method: String, url: String, headers: [String: String], body: Data?) async throws -> ApiResponse {
+        guard let requestURL = URL(string: url) else {
+            throw URLError(.badURL)
+        }
 
-    var request = URLRequest(url: requestURL)
-    request.httpMethod = method
-    request.httpBody = body
+        var merged: [String: String] = [:]
+        for (k, v) in transportOptions.defaultHeaders {
+            merged[k] = v
+        }
+        for (k, v) in headers {
+            merged[k] = v
+        }
+        if merged["User-Agent"] == nil && !transportOptions.userAgent.isEmpty {
+            merged["User-Agent"] = transportOptions.userAgent
+        }
+        if merged["X-Request-ID"] == nil && transportOptions.injectRequestID {
+            merged["X-Request-ID"] = UUID().uuidString
+        }
+        if merged["Accept-Encoding"] == nil {
+            merged["Accept-Encoding"] = "gzip, deflate"
+        }
 
-    for (k, v) in merged {
-      request.setValue(v, forHTTPHeaderField: k)
-    }
+        var request = URLRequest(url: requestURL)
+        request.httpMethod = method
+        request.httpBody = body
 
-    let (data, response) = try await session.data(for: request)
+        for (k, v) in merged {
+            request.setValue(v, forHTTPHeaderField: k)
+        }
 
-    guard let httpResponse = response as? HTTPURLResponse else {
-      throw URLError(.badServerResponse)
-    }
+        let (data, response) = try await session.data(for: request)
 
-    var respHeaders: [String: String] = [:]
-    for (key, value) in httpResponse.allHeaderFields {
-      if let k = key as? String, let v = value as? String {
-        respHeaders[k] = v
-      }
-    }
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
+        }
 
-    return ApiResponse(
-      statusCode: httpResponse.statusCode,
-      body: String(data: data, encoding: .utf8) ?? "",
-      headers: respHeaders
-    )
-  }
+        var respHeaders: [String: String] = [:]
+        for (key, value) in httpResponse.allHeaderFields {
+            if let k = key as? String, let v = value as? String {
+                respHeaders[k] = v
+            }
+        }
 
-  /// Returns the underlying URLSession for use by HTTP-aware authenticators.
-  public var urlSession: URLSession {
-    return session
-  }
-
-  private static func buildSession(_ opts: TransportOptions) -> (URLSession, SessionDelegate?) {
-    let config = URLSessionConfiguration.default
-
-    if let timeout = opts.timeout {
-      let seconds = TimeInterval(timeout) / 1000.0
-      config.timeoutIntervalForRequest = seconds
-      config.timeoutIntervalForResource = seconds
+        return ApiResponse(
+            statusCode: httpResponse.statusCode,
+            body: String(data: data, encoding: .utf8) ?? "",
+            headers: respHeaders
+        )
     }
 
-    if let proxy = opts.proxy {
-      var proxyDict: [AnyHashable: Any] = [:]
-      let scheme = proxy.scheme ?? "http"
-      if scheme == "https" {
-        proxyDict[kCFNetworkProxiesHTTPSEnable] = true
-        proxyDict[kCFNetworkProxiesHTTPSProxy] = proxy.host
-        proxyDict[kCFNetworkProxiesHTTPSPort] = proxy.port ?? 443
-      } else {
-        proxyDict[kCFNetworkProxiesHTTPEnable] = true
-        proxyDict[kCFNetworkProxiesHTTPProxy] = proxy.host
-        proxyDict[kCFNetworkProxiesHTTPPort] = proxy.port ?? 8080
-      }
-      config.connectionProxyDictionary = proxyDict
+    /// Returns the underlying URLSession for use by HTTP-aware authenticators.
+    public var urlSession: URLSession {
+        return session
     }
 
-    // Use a session delegate when SSL verification is disabled or a custom
-    // CA certificate path is configured.
-    if !opts.verifySSL || opts.caCertPath != nil {
-      let delegate = SessionDelegate(verifySSL: opts.verifySSL, caCertPath: opts.caCertPath)
-      return (URLSession(configuration: config, delegate: delegate, delegateQueue: nil), delegate)
-    }
+    private static func buildSession(_ opts: TransportOptions) -> (URLSession, SessionDelegate?) {
+        let config = URLSessionConfiguration.default
 
-    return (URLSession(configuration: config), nil)
-  }
+        if let timeout = opts.timeout {
+            let seconds = TimeInterval(timeout) / 1000.0
+            config.timeoutIntervalForRequest = seconds
+            config.timeoutIntervalForResource = seconds
+        }
+
+        if let proxy = opts.proxy {
+            var proxyDict: [AnyHashable: Any] = [:]
+            let scheme = proxy.scheme ?? "http"
+            if scheme == "https" {
+                proxyDict[kCFNetworkProxiesHTTPSEnable] = true
+                proxyDict[kCFNetworkProxiesHTTPSProxy] = proxy.host
+                proxyDict[kCFNetworkProxiesHTTPSPort] = proxy.port ?? 443
+            } else {
+                proxyDict[kCFNetworkProxiesHTTPEnable] = true
+                proxyDict[kCFNetworkProxiesHTTPProxy] = proxy.host
+                proxyDict[kCFNetworkProxiesHTTPPort] = proxy.port ?? 8080
+            }
+            config.connectionProxyDictionary = proxyDict
+        }
+
+        // Use a session delegate when SSL verification is disabled or a custom
+        // CA certificate path is configured.
+        if !opts.verifySSL || opts.caCertPath != nil {
+            let delegate = SessionDelegate(verifySSL: opts.verifySSL, caCertPath: opts.caCertPath)
+            return (URLSession(configuration: config, delegate: delegate, delegateQueue: nil), delegate)
+        }
+
+        return (URLSession(configuration: config), nil)
+    }
 }
 
 /// URLSession delegate that handles custom TLS trust evaluation.
@@ -141,55 +138,53 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 /// from disk and evaluates the server trust against it. When SSL verification
 /// is disabled, the delegate accepts all server certificates unconditionally.
 private final class SessionDelegate: NSObject, URLSessionDelegate, @unchecked Sendable {
-  private let verifySSL: Bool
-  private let caCertPath: String?
+    private let verifySSL: Bool
+    private let caCertPath: String?
 
-  init(verifySSL: Bool, caCertPath: String?) {
-    self.verifySSL = verifySSL
-    self.caCertPath = caCertPath
-    super.init()
-  }
-
-  func urlSession(
-    _ session: URLSession,
-    didReceive challenge: URLAuthenticationChallenge,
-    completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
-  ) {
-    guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
-      let serverTrust = challenge.protectionSpace.serverTrust
-    else {
-      completionHandler(.performDefaultHandling, nil)
-      return
+    init(verifySSL: Bool, caCertPath: String?) {
+        self.verifySSL = verifySSL
+        self.caCertPath = caCertPath
+        super.init()
     }
 
-    // When SSL verification is disabled, accept any certificate.
-    if !verifySSL {
-      completionHandler(.useCredential, URLCredential(trust: serverTrust))
-      return
+    func urlSession(
+        _ session: URLSession,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+              let serverTrust = challenge.protectionSpace.serverTrust else {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+
+        // When SSL verification is disabled, accept any certificate.
+        if !verifySSL {
+            completionHandler(.useCredential, URLCredential(trust: serverTrust))
+            return
+        }
+
+        // When a custom CA certificate path is configured, load the certificate
+        // and set it as the sole anchor for trust evaluation.
+        if let path = caCertPath {
+            guard let certData = try? Data(contentsOf: URL(fileURLWithPath: path)),
+                  let certificate = SecCertificateCreateWithData(nil, certData as CFData) else {
+                completionHandler(.cancelAuthenticationChallenge, nil)
+                return
+            }
+
+            SecTrustSetAnchorCertificates(serverTrust, [certificate] as CFArray)
+            SecTrustSetAnchorCertificatesOnly(serverTrust, true)
+
+            var error: CFError?
+            if SecTrustEvaluateWithError(serverTrust, &error) {
+                completionHandler(.useCredential, URLCredential(trust: serverTrust))
+            } else {
+                completionHandler(.cancelAuthenticationChallenge, nil)
+            }
+            return
+        }
+
+        completionHandler(.performDefaultHandling, nil)
     }
-
-    // When a custom CA certificate path is configured, load the certificate
-    // and set it as the sole anchor for trust evaluation.
-    if let path = caCertPath {
-      guard let certData = try? Data(contentsOf: URL(fileURLWithPath: path)),
-        let certificate = SecCertificateCreateWithData(nil, certData as CFData)
-      else {
-        completionHandler(.cancelAuthenticationChallenge, nil)
-        return
-      }
-
-      SecTrustSetAnchorCertificates(serverTrust, [certificate] as CFArray)
-      SecTrustSetAnchorCertificatesOnly(serverTrust, true)
-
-      var error: CFError?
-      if SecTrustEvaluateWithError(serverTrust, &error) {
-        completionHandler(.useCredential, URLCredential(trust: serverTrust))
-      } else {
-        completionHandler(.cancelAuthenticationChallenge, nil)
-      }
-      return
-    }
-
-    completionHandler(.performDefaultHandling, nil)
-  }
 }

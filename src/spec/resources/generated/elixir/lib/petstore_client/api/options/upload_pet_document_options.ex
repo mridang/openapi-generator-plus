@@ -16,7 +16,9 @@ defmodule PetstoreClient.Api.Options.UploadPetDocumentOptions do
           notes: term()
         }
 
-  defstruct file: nil,
-            document_type: nil,
-            notes: nil
+  defstruct [
+    file: nil,
+    document_type: nil,
+    notes: nil
+  ]
 end

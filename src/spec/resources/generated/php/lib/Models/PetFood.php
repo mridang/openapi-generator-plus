@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -12,8 +11,6 @@
 declare(strict_types=1);
 
 namespace PetstoreClient\Models;
-
-use PetstoreClient\ObjectSerializer;
 
 /**
  * Food for pets, discriminated by foodType
@@ -50,7 +47,7 @@ class PetFood
             $discValue = $data[self::DISCRIMINATOR_PROPERTY];
             $class = self::DISCRIMINATOR_MAPPING[$discValue] ?? null;
             if ($class !== null) {
-                return new self(ObjectSerializer::deserialize($data, $class));
+                return new self(\PetstoreClient\ObjectSerializer::deserialize($data, $class));
             }
         }
 

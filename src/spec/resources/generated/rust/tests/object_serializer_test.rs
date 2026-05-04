@@ -10,10 +10,7 @@ use petstore::object_serializer;
 #[test]
 fn test_serialize_map_to_json() {
     let mut input = serde_json::Map::new();
-    input.insert(
-        "name".to_string(),
-        serde_json::Value::String("Fido".to_string()),
-    );
+    input.insert("name".to_string(), serde_json::Value::String("Fido".to_string()));
     input.insert("age".to_string(), serde_json::json!(3));
 
     let data = object_serializer::serialize(&serde_json::Value::Object(input))

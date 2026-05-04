@@ -55,4 +55,5 @@ defmodule PetstoreClient.Models.PhotoMetadata do
       location: "PhotoMetadataLocation"
     }
   end
+
 end

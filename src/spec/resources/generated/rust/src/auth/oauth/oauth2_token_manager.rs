@@ -75,15 +75,11 @@ impl OAuth2TokenManager {
             }
         }
 
-        let client = inner
-            .api_client
-            .as_ref()
-            .ok_or(
-                "ApiClient has not been injected. \
+        let client = inner.api_client.as_ref().ok_or(
+            "ApiClient has not been injected. \
              Ensure the Client constructor calls set_api_client \
-             on HttpAwareAuthenticator before making API requests",
-            )?
-            .clone();
+             on HttpAwareAuthenticator before making API requests"
+        )?.clone();
 
         let mut headers = HashMap::new();
         headers.insert(
@@ -98,18 +94,17 @@ impl OAuth2TokenManager {
             .join("&");
 
         let response = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(client.send_request(
-                "POST",
-                token_url,
-                &headers,
-                Some(body.as_bytes()),
-            ))
+            tokio::runtime::Handle::current().block_on(
+                client.send_request("POST", token_url, &headers, Some(body.as_bytes()))
+            )
         })?;
 
         if response.status_code < 200 || response.status_code >= 300 {
-            return Err(
-                format!("token request failed with status {}", response.status_code).into(),
-            );
+            return Err(format!(
+                "token request failed with status {}",
+                response.status_code
+            )
+            .into());
         }
 
         let parsed: serde_json::Value = serde_json::from_str(&response.body)?;

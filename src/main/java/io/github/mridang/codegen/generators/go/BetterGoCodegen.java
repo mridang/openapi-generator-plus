@@ -18,10 +18,15 @@ import java.util.Objects;
 import java.util.Set;
 import javax.annotation.Nullable;
 import com.samskivert.mustache.Mustache;
+import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
+import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -183,7 +188,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     /** {@inheritDoc} */
     @Override
     protected String getFormatterDockerImage() {
-        return "golang:1.25";
+        return "golang:1.26";
     }
 
     /** {@inheritDoc} */
@@ -500,6 +505,97 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     }
 
     /**
+     * Fixes enum default values that the base class sets to
+     * Java-style enum references (e.g. "StatusEnum.Placed").
+     * For Go, enum fields are typed as string, so the default
+     * must be a Go string literal (e.g. "\"placed\"").
+     */
+    @Override
+    public ModelsMap postProcessModels(ModelsMap objs) {
+        final ModelsMap result = super.postProcessModels(objs);
+        for (final ModelMap modelMap : result.getModels()) {
+            final CodegenModel model = modelMap.getModel();
+            for (final CodegenProperty prop : model.vars) {
+                fixEnumDefaultValue(prop);
+            }
+            for (final CodegenProperty prop : model.allVars) {
+                fixEnumDefaultValue(prop);
+            }
+            for (final CodegenProperty prop : model.optionalVars) {
+                fixEnumDefaultValue(prop);
+            }
+            for (final CodegenProperty prop : model.requiredVars) {
+                fixEnumDefaultValue(prop);
+            }
+
+            // Check if any property uses time.Time and set a flag for the template
+            boolean needsTimeImport = false;
+            for (final CodegenProperty prop : model.vars) {
+                if (prop.dataType != null && prop.dataType.contains("time.Time")) {
+                    needsTimeImport = true;
+                    break;
+                }
+            }
+            if (needsTimeImport) {
+                modelMap.put("hasTimeImport", true);
+                result.put("hasTimeImport", true);
+            }
+
+            // oneOf/anyOf models use fmt.Errorf
+            if (!model.oneOf.isEmpty() || !model.anyOf.isEmpty()) {
+                result.put("hasFmtImport", true);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Detects whether any operation in the tag uses os.File (file
+     * parameters or file return types) and sets a hasOsImport flag
+     * so the API template can conditionally include the "os" import.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public OperationsMap postProcessOperationsWithModels(
+            OperationsMap objs, List<ModelMap> allModels) {
+        objs = super.postProcessOperationsWithModels(objs, allModels);
+        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
+        if (operations != null) {
+            final List<CodegenOperation> ops =
+                    (List<CodegenOperation>) operations.get("operation");
+            if (ops != null) {
+                boolean hasOsImport = false;
+                for (final CodegenOperation op : ops) {
+                    if (op.returnType != null && op.returnType.contains("os.File")) {
+                        hasOsImport = true;
+                        break;
+                    }
+                    for (final CodegenParameter p : op.allParams) {
+                        if (p.isFile || (p.dataType != null && p.dataType.contains("os.File"))) {
+                            hasOsImport = true;
+                            break;
+                        }
+                    }
+                    if (hasOsImport) break;
+                }
+                if (hasOsImport) {
+                    objs.put("hasOsImport", true);
+                }
+            }
+        }
+        return objs;
+    }
+
+    private void fixEnumDefaultValue(CodegenProperty prop) {
+        if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
+            // Extract the enum value name and convert to a Go string literal
+            final String enumValue = prop.defaultValue.substring(
+                    prop.defaultValue.lastIndexOf('.') + 1);
+            prop.defaultValue = "\"" + enumValue.toLowerCase(java.util.Locale.ROOT) + "\"";
+        }
+    }
+
+    /**
      * Registers supporting files for each authentication scheme
      * present in the OpenAPI spec. Concrete auth implementations
      * go to {@code auth/} and {@code auth/oauth/} sub-packages.
@@ -651,6 +747,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                         "string", "bool", "int32", "int64", "float32", "float64",
                         "interface{}", "byte", "[]byte");
         boolean hasModelImport = false;
+        boolean hasOsImport = false;
         final List<Map<String, Object>> params = new ArrayList<>();
         for (final CodegenParameter p : optionsParams) {
             final Map<String, Object> param = new HashMap<>();
@@ -661,7 +758,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 param.put("description", p.description);
             }
             params.add(param);
-            if (!p.isPrimitiveType && !p.isFile) {
+            if (p.isFile || (p.dataType != null && p.dataType.contains("os.File"))) {
+                hasOsImport = true;
+            } else if (!p.isPrimitiveType) {
                 String baseType = p.dataType.replace("[]", "").replace("*", "");
                 if (!goPrimitives.contains(baseType)
                         && !baseType.startsWith("map[")
@@ -679,6 +778,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         context.put("moduleName", packageName);
         if (hasModelImport) {
             context.put("hasModelImport", true);
+        }
+        if (hasOsImport) {
+            context.put("hasOsImport", true);
         }
         return renderOptionsTemplate("api/options.mustache", context);
     }

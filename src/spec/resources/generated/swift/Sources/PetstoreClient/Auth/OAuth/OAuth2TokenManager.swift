@@ -12,108 +12,103 @@ import Foundation
 /// Uses the shared ``ApiClient`` instance so that token exchange requests honour
 /// the same transport configuration (proxy, TLS, timeouts) as regular API calls.
 public final class OAuth2TokenManager: @unchecked Sendable {
-  private let lock = NSLock()
-  private var apiClient: ApiClient?
-  private var accessToken: String = ""
-  private var _refreshToken: String = ""
-  private var tokenExpiry: Date = .distantPast
+    private let lock = NSLock()
+    private var apiClient: ApiClient?
+    private var accessToken: String = ""
+    private var _refreshToken: String = ""
+    private var tokenExpiry: Date = .distantPast
 
-  /// Creates a new token manager.
-  ///
-  /// The ``ApiClient`` must be injected via ``setApiClient(_:)`` before any token requests
-  /// are made.
-  public init() {}
+    /// Creates a new token manager.
+    ///
+    /// The ``ApiClient`` must be injected via ``setApiClient(_:)`` before any token requests
+    /// are made.
+    public init() {}
 
-  /// Injects the shared ``ApiClient`` for making token requests.
-  public func setApiClient(_ client: ApiClient) {
-    lock.lock()
-    defer { lock.unlock() }
-    self.apiClient = client
-  }
-
-  /// Returns the current refresh token, if any.
-  public var refreshToken: String {
-    lock.lock()
-    defer { lock.unlock() }
-    return _refreshToken
-  }
-
-  /// Returns a valid access token, fetching or refreshing as necessary.
-  ///
-  /// This method is synchronized to prevent concurrent token requests.
-  public func getAccessToken(tokenURL: String, params: [String: String]) async throws -> String {
-    lock.lock()
-    if !accessToken.isEmpty && Date() < tokenExpiry {
-      let token = accessToken
-      lock.unlock()
-      return token
-    }
-    lock.unlock()
-
-    try await fetchToken(tokenURL: tokenURL, params: params)
-
-    lock.lock()
-    defer { lock.unlock() }
-    return accessToken
-  }
-
-  /// Manually sets an access token, bypassing the token endpoint.
-  public func setAccessToken(_ token: String) {
-    lock.lock()
-    defer { lock.unlock() }
-    self.accessToken = token
-    self.tokenExpiry = .distantPast
-  }
-
-  private func fetchToken(tokenURL: String, params: [String: String]) async throws {
-    lock.lock()
-    guard let client = apiClient else {
-      lock.unlock()
-      throw NSError(
-        domain: "OAuth2TokenManager", code: -1,
-        userInfo: [
-          NSLocalizedDescriptionKey: "ApiClient has not been injected. "
-            + "Ensure the Client constructor calls setApiClient "
-            + "on HttpAwareAuthenticator before making API requests"
-        ])
-    }
-    lock.unlock()
-
-    let body = params.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
-    let bodyData = body.data(using: .utf8)
-
-    let headers = ["Content-Type": "application/x-www-form-urlencoded"]
-    let response = try await client.sendRequest(
-      method: "POST", url: tokenURL, headers: headers, body: bodyData)
-
-    guard response.statusCode >= 200 && response.statusCode < 300 else {
-      throw NSError(
-        domain: "OAuth2TokenManager", code: response.statusCode,
-        userInfo: [
-          NSLocalizedDescriptionKey: "Token request failed with status \(response.statusCode)"
-        ])
+    /// Injects the shared ``ApiClient`` for making token requests.
+    public func setApiClient(_ client: ApiClient) {
+        lock.lock()
+        defer { lock.unlock() }
+        self.apiClient = client
     }
 
-    guard let data = response.body.data(using: .utf8) else {
-      throw URLError(.badServerResponse)
+    /// Returns the current refresh token, if any.
+    public var refreshToken: String {
+        lock.lock()
+        defer { lock.unlock() }
+        return _refreshToken
     }
 
-    struct TokenResponse: Decodable {
-      let access_token: String
-      let refresh_token: String?
-      let expires_in: Int?
+    /// Returns a valid access token, fetching or refreshing as necessary.
+    ///
+    /// This method is synchronized to prevent concurrent token requests.
+    public func getAccessToken(tokenURL: String, params: [String: String]) async throws -> String {
+        lock.lock()
+        if !accessToken.isEmpty && Date() < tokenExpiry {
+            let token = accessToken
+            lock.unlock()
+            return token
+        }
+        lock.unlock()
+
+        try await fetchToken(tokenURL: tokenURL, params: params)
+
+        lock.lock()
+        defer { lock.unlock() }
+        return accessToken
     }
 
-    let parsed = try JSONDecoder().decode(TokenResponse.self, from: data)
+    /// Manually sets an access token, bypassing the token endpoint.
+    public func setAccessToken(_ token: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        self.accessToken = token
+        self.tokenExpiry = .distantPast
+    }
 
-    lock.lock()
-    defer { lock.unlock() }
-    self.accessToken = parsed.access_token
-    if let refreshToken = parsed.refresh_token, !refreshToken.isEmpty {
-      self._refreshToken = refreshToken
+    private func fetchToken(tokenURL: String, params: [String: String]) async throws {
+        lock.lock()
+        guard let client = apiClient else {
+            lock.unlock()
+            throw NSError(domain: "OAuth2TokenManager", code: -1, userInfo: [
+                NSLocalizedDescriptionKey: "ApiClient has not been injected. " +
+                    "Ensure the Client constructor calls setApiClient " +
+                    "on HttpAwareAuthenticator before making API requests"
+            ])
+        }
+        lock.unlock()
+
+        let body = params.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
+        let bodyData = body.data(using: .utf8)
+
+        let headers = ["Content-Type": "application/x-www-form-urlencoded"]
+        let response = try await client.sendRequest(method: "POST", url: tokenURL, headers: headers, body: bodyData)
+
+        guard response.statusCode >= 200 && response.statusCode < 300 else {
+            throw NSError(domain: "OAuth2TokenManager", code: response.statusCode, userInfo: [
+                NSLocalizedDescriptionKey: "Token request failed with status \(response.statusCode)"
+            ])
+        }
+
+        guard let data = response.body.data(using: .utf8) else {
+            throw URLError(.badServerResponse)
+        }
+
+        struct TokenResponse: Decodable {
+            let access_token: String
+            let refresh_token: String?
+            let expires_in: Int?
+        }
+
+        let parsed = try JSONDecoder().decode(TokenResponse.self, from: data)
+
+        lock.lock()
+        defer { lock.unlock() }
+        self.accessToken = parsed.access_token
+        if let refreshToken = parsed.refresh_token, !refreshToken.isEmpty {
+            self._refreshToken = refreshToken
+        }
+        if let expiresIn = parsed.expires_in, expiresIn > 0 {
+            self.tokenExpiry = Date().addingTimeInterval(TimeInterval(expiresIn - 30))
+        }
     }
-    if let expiresIn = parsed.expires_in, expiresIn > 0 {
-      self.tokenExpiry = Date().addingTimeInterval(TimeInterval(expiresIn - 30))
-    }
-  }
 }

@@ -65,4 +65,5 @@ defmodule PetstoreClient.Models.Pet do
       status: "String.t()"
     }
   end
+
 end

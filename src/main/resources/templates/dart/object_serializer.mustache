@@ -128,6 +128,12 @@ String toHeaderValue(Object? value) {
   return stringify(value);
 }
 
+/// Converts a value to a string suitable for use as an HTTP cookie value.
+/// Cookie values follow the same encoding rules as header values.
+String toCookieValue(Object? value) {
+  return toHeaderValue(value);
+}
+
 /// Converts a value to a representation suitable for use as a form parameter.
 String toFormValue(Object? value) {
   return stringify(value);

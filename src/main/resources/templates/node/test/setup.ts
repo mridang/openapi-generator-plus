@@ -1,4 +1,4 @@
-import * as fs from 'fs';
+import * as fs from 'node:fs';
 
 const config = JSON.parse(fs.readFileSync('/tmp/prism-config.json', 'utf8'));
 process.env.API_BASE_URL = config.baseUrl;

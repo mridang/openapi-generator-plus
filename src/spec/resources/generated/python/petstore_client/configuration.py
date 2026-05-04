@@ -111,9 +111,7 @@ class ConfigurationBuilder:
         self._default_headers[name] = value
         return self
 
-    def server(
-        self, server_config: ServerConfiguration, variables: Optional[Dict[str, str]] = None
-    ) -> 'ConfigurationBuilder':
+    def server(self, server_config: ServerConfiguration, variables: Optional[Dict[str, str]] = None) -> 'ConfigurationBuilder':
         """Set the base URL by resolving a server configuration with optional variable overrides.
 
         Calls :meth:`ServerConfiguration.get_url` to resolve the URL template

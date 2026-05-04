@@ -326,6 +326,19 @@ class ObjectSerializer
     }
 
     /**
+     * Convert a value to a string suitable for use as an HTTP cookie value.
+     * Cookie values follow the same encoding rules as header values.
+     *
+     * @param mixed $value the value to convert
+     *
+     * @return string string representation
+     */
+    public static function toCookieValue(mixed $value): string
+    {
+        return self::toHeaderValue($value);
+    }
+
+    /**
      * Resolve a oneOf schema by attempting deserialization against each candidate.
      *
      * @param mixed         $data    the data to match

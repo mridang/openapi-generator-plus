@@ -22,9 +22,9 @@
 pub mod api;
 pub mod api_client;
 pub mod api_error;
+pub mod auth;
 pub mod api_response;
 pub mod api_result;
-pub mod auth;
 pub mod configuration;
 pub mod default_api_client;
 pub mod errors;

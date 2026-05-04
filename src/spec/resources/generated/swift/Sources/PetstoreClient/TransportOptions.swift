@@ -25,165 +25,165 @@ import Foundation
 ///     .build()
 /// ```
 public final class TransportOptions: Sendable {
-  /// Controls whether TLS certificate verification is enabled.
-  public let verifySSL: Bool
+    /// Controls whether TLS certificate verification is enabled.
+    public let verifySSL: Bool
 
-  /// Path to a custom CA certificate bundle for TLS verification.
-  public let caCertPath: String?
+    /// Path to a custom CA certificate bundle for TLS verification.
+    public let caCertPath: String?
 
-  /// HTTP or HTTPS proxy URL for all outbound requests.
-  public let proxy: URL?
+    /// HTTP or HTTPS proxy URL for all outbound requests.
+    public let proxy: URL?
 
-  /// End-to-end request timeout in milliseconds. Covers the entire request
-  /// lifecycle: connection, TLS handshake, sending the request body, and
-  /// reading the response. A `nil` value means no timeout.
-  public let timeout: Int?
+    /// End-to-end request timeout in milliseconds. Covers the entire request
+    /// lifecycle: connection, TLS handshake, sending the request body, and
+    /// reading the response. A `nil` value means no timeout.
+    public let timeout: Int?
 
-  /// Controls whether the client follows HTTP 3xx redirects.
-  public let followRedirects: Bool
+    /// Controls whether the client follows HTTP 3xx redirects.
+    public let followRedirects: Bool
 
-  /// Maximum number of consecutive redirects to follow.
-  /// Only meaningful when ``followRedirects`` is true.
-  public let maxRedirects: Int
+    /// Maximum number of consecutive redirects to follow.
+    /// Only meaningful when ``followRedirects`` is true.
+    public let maxRedirects: Int
 
-  /// Custom User-Agent header value.
-  public let userAgent: String
+    /// Custom User-Agent header value.
+    public let userAgent: String
 
-  /// Transport-level default headers included in every request.
-  /// These have the lowest priority: API-level headers, operation-specific headers,
-  /// and authentication headers all take precedence.
-  public let defaultHeaders: [String: String]
+    /// Transport-level default headers included in every request.
+    /// These have the lowest priority: API-level headers, operation-specific headers,
+    /// and authentication headers all take precedence.
+    public let defaultHeaders: [String: String]
 
-  /// Controls whether to auto-inject an X-Request-ID header
-  /// with a unique UUID on every request.
-  public let injectRequestID: Bool
+    /// Controls whether to auto-inject an X-Request-ID header
+    /// with a unique UUID on every request.
+    public let injectRequestID: Bool
 
-  fileprivate init(
-    verifySSL: Bool,
-    caCertPath: String?,
-    proxy: URL?,
-    timeout: Int?,
-    followRedirects: Bool,
-    maxRedirects: Int,
-    userAgent: String,
-    defaultHeaders: [String: String],
-    injectRequestID: Bool
-  ) {
-    self.verifySSL = verifySSL
-    self.caCertPath = caCertPath
-    self.proxy = proxy
-    self.timeout = timeout
-    self.followRedirects = followRedirects
-    self.maxRedirects = maxRedirects
-    self.userAgent = userAgent
-    self.defaultHeaders = defaultHeaders
-    self.injectRequestID = injectRequestID
-  }
+    fileprivate init(
+        verifySSL: Bool,
+        caCertPath: String?,
+        proxy: URL?,
+        timeout: Int?,
+        followRedirects: Bool,
+        maxRedirects: Int,
+        userAgent: String,
+        defaultHeaders: [String: String],
+        injectRequestID: Bool
+    ) {
+        self.verifySSL = verifySSL
+        self.caCertPath = caCertPath
+        self.proxy = proxy
+        self.timeout = timeout
+        self.followRedirects = followRedirects
+        self.maxRedirects = maxRedirects
+        self.userAgent = userAgent
+        self.defaultHeaders = defaultHeaders
+        self.injectRequestID = injectRequestID
+    }
 }
 
 /// TransportOptionsBuilder builds immutable ``TransportOptions`` instances.
 public final class TransportOptionsBuilder {
-  private var verifySSL: Bool = true
-  private var caCertPath: String? = nil
-  private var proxy: URL? = nil
-  private var timeout: Int? = nil
-  private var followRedirects: Bool = true
-  private var maxRedirects: Int = 0
-  private var userAgent: String = "PetstoreClient/1.0.0 (swift)"
-  private var defaultHeaders: [String: String] = [:]
-  private var injectRequestID: Bool = false
+    private var verifySSL: Bool = true
+    private var caCertPath: String? = nil
+    private var proxy: URL? = nil
+    private var timeout: Int? = nil
+    private var followRedirects: Bool = true
+    private var maxRedirects: Int = 0
+    private var userAgent: String = "PetstoreClient/1.0.0 (swift)"
+    private var defaultHeaders: [String: String] = [:]
+    private var injectRequestID: Bool = false
 
-  /// Creates a new builder with sensible defaults.
-  public init() {}
+    /// Creates a new builder with sensible defaults.
+    public init() {}
 
-  /// Enables or disables TLS certificate verification.
-  @discardableResult
-  public func verifySSL(_ val: Bool) -> TransportOptionsBuilder {
-    self.verifySSL = val
-    return self
-  }
-
-  /// Sets the path to a custom CA certificate bundle.
-  @discardableResult
-  public func caCertPath(_ val: String?) -> TransportOptionsBuilder {
-    self.caCertPath = val
-    return self
-  }
-
-  /// Sets the HTTP/HTTPS proxy URL.
-  @discardableResult
-  public func proxy(_ val: String?) -> TransportOptionsBuilder {
-    if let val = val, !val.isEmpty {
-      self.proxy = URL(string: val)
-    } else {
-      self.proxy = nil
+    /// Enables or disables TLS certificate verification.
+    @discardableResult
+    public func verifySSL(_ val: Bool) -> TransportOptionsBuilder {
+        self.verifySSL = val
+        return self
     }
-    return self
-  }
 
-  /// Sets the end-to-end request timeout in milliseconds.
-  @discardableResult
-  public func timeout(_ val: Int?) -> TransportOptionsBuilder {
-    self.timeout = val
-    return self
-  }
-
-  /// Enables or disables automatic redirect following.
-  @discardableResult
-  public func followRedirects(_ val: Bool) -> TransportOptionsBuilder {
-    self.followRedirects = val
-    return self
-  }
-
-  /// Sets the maximum number of redirects to follow.
-  @discardableResult
-  public func maxRedirects(_ val: Int) -> TransportOptionsBuilder {
-    self.maxRedirects = val
-    return self
-  }
-
-  /// Sets a custom User-Agent header value.
-  @discardableResult
-  public func userAgent(_ val: String) -> TransportOptionsBuilder {
-    self.userAgent = val
-    return self
-  }
-
-  /// Adds a single transport-level default header.
-  @discardableResult
-  public func defaultHeader(name: String, value: String) -> TransportOptionsBuilder {
-    self.defaultHeaders[name] = value
-    return self
-  }
-
-  /// Adds multiple transport-level default headers.
-  @discardableResult
-  public func defaultHeaders(_ headers: [String: String]) -> TransportOptionsBuilder {
-    for (k, v) in headers {
-      self.defaultHeaders[k] = v
+    /// Sets the path to a custom CA certificate bundle.
+    @discardableResult
+    public func caCertPath(_ val: String?) -> TransportOptionsBuilder {
+        self.caCertPath = val
+        return self
     }
-    return self
-  }
 
-  /// Enables or disables automatic X-Request-ID header injection.
-  @discardableResult
-  public func injectRequestID(_ val: Bool) -> TransportOptionsBuilder {
-    self.injectRequestID = val
-    return self
-  }
+    /// Sets the HTTP/HTTPS proxy URL.
+    @discardableResult
+    public func proxy(_ val: String?) -> TransportOptionsBuilder {
+        if let val = val, !val.isEmpty {
+            self.proxy = URL(string: val)
+        } else {
+            self.proxy = nil
+        }
+        return self
+    }
 
-  /// Creates and returns an immutable TransportOptions instance.
-  public func build() -> TransportOptions {
-    return TransportOptions(
-      verifySSL: verifySSL,
-      caCertPath: caCertPath,
-      proxy: proxy,
-      timeout: timeout,
-      followRedirects: followRedirects,
-      maxRedirects: maxRedirects,
-      userAgent: userAgent,
-      defaultHeaders: defaultHeaders,
-      injectRequestID: injectRequestID
-    )
-  }
+    /// Sets the end-to-end request timeout in milliseconds.
+    @discardableResult
+    public func timeout(_ val: Int?) -> TransportOptionsBuilder {
+        self.timeout = val
+        return self
+    }
+
+    /// Enables or disables automatic redirect following.
+    @discardableResult
+    public func followRedirects(_ val: Bool) -> TransportOptionsBuilder {
+        self.followRedirects = val
+        return self
+    }
+
+    /// Sets the maximum number of redirects to follow.
+    @discardableResult
+    public func maxRedirects(_ val: Int) -> TransportOptionsBuilder {
+        self.maxRedirects = val
+        return self
+    }
+
+    /// Sets a custom User-Agent header value.
+    @discardableResult
+    public func userAgent(_ val: String) -> TransportOptionsBuilder {
+        self.userAgent = val
+        return self
+    }
+
+    /// Adds a single transport-level default header.
+    @discardableResult
+    public func defaultHeader(name: String, value: String) -> TransportOptionsBuilder {
+        self.defaultHeaders[name] = value
+        return self
+    }
+
+    /// Adds multiple transport-level default headers.
+    @discardableResult
+    public func defaultHeaders(_ headers: [String: String]) -> TransportOptionsBuilder {
+        for (k, v) in headers {
+            self.defaultHeaders[k] = v
+        }
+        return self
+    }
+
+    /// Enables or disables automatic X-Request-ID header injection.
+    @discardableResult
+    public func injectRequestID(_ val: Bool) -> TransportOptionsBuilder {
+        self.injectRequestID = val
+        return self
+    }
+
+    /// Creates and returns an immutable TransportOptions instance.
+    public func build() -> TransportOptions {
+        return TransportOptions(
+            verifySSL: verifySSL,
+            caCertPath: caCertPath,
+            proxy: proxy,
+            timeout: timeout,
+            followRedirects: followRedirects,
+            maxRedirects: maxRedirects,
+            userAgent: userAgent,
+            defaultHeaders: defaultHeaders,
+            injectRequestID: injectRequestID
+        )
+    }
 }

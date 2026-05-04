@@ -11,21 +11,21 @@ import Foundation
 /// Authenticator methods. Concrete authenticators must override host()
 /// and authHeaders() — no silent defaults are provided for these.
 open class BaseAuthenticator: Authenticator {
-  public init() {}
+    public init() {}
 
-  /// Returns the base URL of the API. Concrete authenticators must override.
-  open func host() -> String {
-    fatalError("Subclasses must override host()")
-  }
+    /// Returns the base URL of the API. Concrete authenticators must override.
+    open func host() -> String {
+        fatalError("Subclasses must override host()")
+    }
 
-  /// Returns authentication headers. Concrete authenticators must override.
-  open func authHeaders() -> [String: String] {
-    fatalError("Subclasses must override authHeaders()")
-  }
+    /// Returns authentication headers. Concrete authenticators must override.
+    open func authHeaders() -> [String: String] {
+        fatalError("Subclasses must override authHeaders()")
+    }
 
-  /// Returns an empty dictionary. Override in concrete authenticators if needed.
-  open func queryParams() -> [String: String] { return [:] }
+    /// Returns an empty dictionary. Override in concrete authenticators if needed.
+    open func queryParams() -> [String: String] { return [:] }
 
-  /// Returns an empty dictionary. Override in concrete authenticators if needed.
-  open func cookieParams() -> [String: String] { return [:] }
+    /// Returns an empty dictionary. Override in concrete authenticators if needed.
+    open func cookieParams() -> [String: String] { return [:] }
 }

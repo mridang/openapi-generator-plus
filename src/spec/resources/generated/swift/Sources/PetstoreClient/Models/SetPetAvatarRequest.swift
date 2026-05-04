@@ -9,18 +9,19 @@ import Foundation
 
 /// SetPetAvatarRequest is a model class generated from the OpenAPI schema.
 public struct SetPetAvatarRequest: Codable, Sendable {
-  /// Base64-encoded image data
-  public var data: Data
-  public var mimeType: String
+    /// Base64-encoded image data
+    public var data: Data
+    public var mimeType: String
 
-  enum CodingKeys: String, CodingKey {
-    case data = "data"
-    case mimeType = "mimeType"
-  }
+    enum CodingKeys: String, CodingKey {
+        case data = "data"
+        case mimeType = "mimeType"
+    }
 
-  /// Creates a new SetPetAvatarRequest instance.
-  public init(data: Data, mimeType: String) {
-    self.data = data
-    self.mimeType = mimeType
-  }
+    /// Creates a new SetPetAvatarRequest instance.
+    public init(data: Data, mimeType: String) {
+        self.data = data
+        self.mimeType = mimeType
+    }
 }
+

@@ -26,9 +26,7 @@ struct TestContainers {
 static CONTAINERS: OnceLock<TestContainers> = OnceLock::new();
 
 fn fixtures_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join("fixtures")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join("fixtures")
 }
 
 fn init_containers() -> &'static TestContainers {
@@ -48,112 +46,97 @@ fn init_containers() -> &'static TestContainers {
 fn resolve_host(container: &testcontainers::Container<GenericImage>) -> String {
     std::env::var("TESTCONTAINERS_HOST_OVERRIDE")
         .or_else(|_| std::env::var("TC_HOST"))
-        .unwrap_or_else(|_| {
-            container
-                .get_host()
-                .expect("failed to get host")
-                .to_string()
-        })
+        .unwrap_or_else(|_| container.get_host().expect("failed to get host").to_string())
 }
 
 fn init_containers_inner() -> TestContainers {
-    let fixtures = fixtures_dir();
-    let keystore_path = fixtures.join("certs").join("server-keystore.p12");
-    let mappings_path = fixtures.join("wiremock").join("mappings");
-    let squid_conf_path = fixtures.join("proxy").join("squid.conf");
-    let spec_path = fixtures.join("openapi.yaml");
-    let ca_cert = fixtures.join("certs").join("ca.pem");
+        let fixtures = fixtures_dir();
+        let keystore_path = fixtures.join("certs").join("server-keystore.p12");
+        let mappings_path = fixtures.join("wiremock").join("mappings");
+        let squid_conf_path = fixtures.join("proxy").join("squid.conf");
+        let spec_path = fixtures.join("openapi.yaml");
+        let ca_cert = fixtures.join("certs").join("ca.pem");
 
-    // Start WireMock — use with_copy_to (file copy) instead of bind mounts
-    // to avoid DinD path translation issues.
-    let wiremock = GenericImage::new("wiremock/wiremock", "3.13.0")
-        .with_wait_for(WaitFor::message_on_stdout("port:"))
-        .with_exposed_port(ContainerPort::Tcp(8080))
-        .with_exposed_port(ContainerPort::Tcp(8443))
-        .with_copy_to("/tmp/keystore.p12", keystore_path)
-        .with_copy_to("/home/wiremock/mappings", mappings_path)
-        .with_cmd(vec![
-            "--port".to_string(),
-            "8080".to_string(),
-            "--https-port".to_string(),
-            "8443".to_string(),
-            "--https-keystore".to_string(),
-            "/tmp/keystore.p12".to_string(),
-            "--keystore-type".to_string(),
-            "PKCS12".to_string(),
-            "--keystore-password".to_string(),
-            "changeit".to_string(),
-            "--key-manager-password".to_string(),
-            "changeit".to_string(),
-            "--verbose".to_string(),
-        ])
-        .with_startup_timeout(std::time::Duration::from_secs(120))
-        .start()
-        .expect("Failed to start WireMock container");
+        // Start WireMock — use with_copy_to (file copy) instead of bind mounts
+        // to avoid DinD path translation issues.
+        let wiremock = GenericImage::new("wiremock/wiremock", "3.13.0")
+            .with_wait_for(WaitFor::message_on_stdout("port:"))
+            .with_exposed_port(ContainerPort::Tcp(8080))
+            .with_exposed_port(ContainerPort::Tcp(8443))
+            .with_copy_to("/tmp/keystore.p12", keystore_path)
+            .with_copy_to("/home/wiremock/mappings", mappings_path)
+            .with_cmd(vec![
+                "--port".to_string(), "8080".to_string(),
+                "--https-port".to_string(), "8443".to_string(),
+                "--https-keystore".to_string(), "/tmp/keystore.p12".to_string(),
+                "--keystore-type".to_string(), "PKCS12".to_string(),
+                "--keystore-password".to_string(), "changeit".to_string(),
+                "--key-manager-password".to_string(), "changeit".to_string(),
+                "--verbose".to_string(),
+            ])
+            .with_startup_timeout(std::time::Duration::from_secs(120))
+            .start()
+            .expect("Failed to start WireMock container");
 
-    let wiremock_host = resolve_host(&wiremock);
-    let wiremock_bridge_ip = wiremock
-        .get_bridge_ip_address()
-        .expect("failed to get WireMock bridge IP");
-    let wiremock_http_port = wiremock
-        .get_host_port_ipv4(8080)
-        .expect("failed to get WireMock HTTP port");
-    let wiremock_https_port = wiremock
-        .get_host_port_ipv4(8443)
-        .expect("failed to get WireMock HTTPS port");
+        let wiremock_host = resolve_host(&wiremock);
+        let wiremock_bridge_ip = wiremock.get_bridge_ip_address().expect("failed to get WireMock bridge IP");
+        let wiremock_http_port = wiremock
+            .get_host_port_ipv4(8080)
+            .expect("failed to get WireMock HTTP port");
+        let wiremock_https_port = wiremock
+            .get_host_port_ipv4(8443)
+            .expect("failed to get WireMock HTTPS port");
 
-    // Start Squid
-    let squid = GenericImage::new("ubuntu/squid", "5.2-22.04_beta")
-        .with_exposed_port(ContainerPort::Tcp(3128))
-        .with_copy_to("/etc/squid/squid.conf", squid_conf_path)
-        .with_startup_timeout(std::time::Duration::from_secs(120))
-        .start()
-        .expect("Failed to start Squid container");
+        // Start Squid
+        let squid = GenericImage::new("ubuntu/squid", "5.2-22.04_beta")
+            .with_exposed_port(ContainerPort::Tcp(3128))
+            .with_copy_to("/etc/squid/squid.conf", squid_conf_path)
+            .with_startup_timeout(std::time::Duration::from_secs(120))
+            .start()
+            .expect("Failed to start Squid container");
 
-    std::thread::sleep(std::time::Duration::from_secs(3));
+        std::thread::sleep(std::time::Duration::from_secs(3));
 
-    let squid_host = resolve_host(&squid);
-    let squid_port = squid
-        .get_host_port_ipv4(3128)
-        .expect("failed to get Squid port");
+        let squid_host = resolve_host(&squid);
+        let squid_port = squid
+            .get_host_port_ipv4(3128)
+            .expect("failed to get Squid port");
 
-    // Start Prism
-    let prism = GenericImage::new("stoplight/prism", "5")
-        .with_wait_for(WaitFor::message_on_stdout("Prism is listening"))
-        .with_exposed_port(ContainerPort::Tcp(4010))
-        .with_copy_to("/tmp/openapi.yaml", spec_path)
-        .with_cmd(vec![
-            "mock".to_string(),
-            "-m".to_string(),
-            "false".to_string(),
-            "-h".to_string(),
-            "0.0.0.0".to_string(),
-            "/tmp/openapi.yaml".to_string(),
-        ])
-        .with_startup_timeout(std::time::Duration::from_secs(120))
-        .start()
-        .expect("Failed to start Prism container");
+        // Start Prism
+        let prism = GenericImage::new("stoplight/prism", "5")
+            .with_wait_for(WaitFor::message_on_stdout("Prism is listening"))
+            .with_exposed_port(ContainerPort::Tcp(4010))
+            .with_copy_to("/tmp/openapi.yaml", spec_path)
+            .with_cmd(vec![
+                "mock".to_string(),
+                "-m".to_string(), "false".to_string(),
+                "-h".to_string(), "0.0.0.0".to_string(),
+                "/tmp/openapi.yaml".to_string(),
+            ])
+            .with_startup_timeout(std::time::Duration::from_secs(120))
+            .start()
+            .expect("Failed to start Prism container");
 
-    let prism_host = resolve_host(&prism);
-    let prism_port = prism
-        .get_host_port_ipv4(4010)
-        .expect("failed to get Prism port");
+        let prism_host = resolve_host(&prism);
+        let prism_port = prism
+            .get_host_port_ipv4(4010)
+            .expect("failed to get Prism port");
 
-    // Leak container handles to keep them alive for the test suite lifetime.
-    // They will be cleaned up when the process exits (Ryuk).
-    std::mem::forget(wiremock);
-    std::mem::forget(squid);
-    std::mem::forget(prism);
+        // Leak container handles to keep them alive for the test suite lifetime.
+        // They will be cleaned up when the process exits (Ryuk).
+        std::mem::forget(wiremock);
+        std::mem::forget(squid);
+        std::mem::forget(prism);
 
-    TestContainers {
-        wiremock_http_url: format!("http://{}:{}", wiremock_host, wiremock_http_port),
-        wiremock_https_url: format!("https://{}:{}", wiremock_host, wiremock_https_port),
-        wiremock_internal_http_url: format!("http://{}:8080", wiremock_bridge_ip),
-        wiremock_internal_https_url: format!("https://{}:8443", wiremock_bridge_ip),
-        proxy_url: format!("http://{}:{}", squid_host, squid_port),
-        prism_url: format!("http://{}:{}", prism_host, prism_port),
-        ca_cert_path: ca_cert.to_str().unwrap().to_string(),
-    }
+        TestContainers {
+            wiremock_http_url: format!("http://{}:{}", wiremock_host, wiremock_http_port),
+            wiremock_https_url: format!("https://{}:{}", wiremock_host, wiremock_https_port),
+            wiremock_internal_http_url: format!("http://{}:8080", wiremock_bridge_ip),
+            wiremock_internal_https_url: format!("https://{}:8443", wiremock_bridge_ip),
+            proxy_url: format!("http://{}:{}", squid_host, squid_port),
+            prism_url: format!("http://{}:{}", prism_host, prism_port),
+            ca_cert_path: ca_cert.to_str().unwrap().to_string(),
+        }
 }
 
 pub fn wiremock_http_url() -> &'static str {

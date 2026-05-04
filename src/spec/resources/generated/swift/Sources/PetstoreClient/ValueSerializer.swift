@@ -11,186 +11,178 @@ import Foundation
 /// their location and style.
 public enum ValueSerializer {
 
-  /// Serializes a parameter value for HTTP requests based on its location.
-  ///
-  /// - Parameters:
-  ///   - value: The value to serialize.
-  ///   - location: "path", "query", "header", or "cookie".
-  ///   - schemaType: The schema type (e.g. "string", "array").
-  ///   - collectionFormat: Legacy collection format (e.g. "csv", "ssv", "tsv", "pipes", "multi").
-  /// - Returns: The serialized value.
-  public static func serializeValue(
-    _ value: Any?, location: String, schemaType: String, collectionFormat: String
-  ) -> Any? {
-    guard let value = value else {
-      return serializeNil(location: location)
-    }
-
-    if let items = toStringArray(value) {
-      return serializeArray(items, location: location, collectionFormat: collectionFormat)
-    }
-
-    let strVal = ObjectSerializer.stringify(value)
-    if location == "path" {
-      // Use a strict character set matching Java's URLEncoder behavior:
-      // only unreserved characters (letters, digits, -, _, ., ~) pass through unencoded.
-      var allowed = CharacterSet.alphanumerics
-      allowed.insert(charactersIn: "-._~")
-      return strVal.addingPercentEncoding(withAllowedCharacters: allowed) ?? strVal
-    }
-    return strVal
-  }
-
-  /// Serializes a deepObject-style query parameter.
-  ///
-  /// Produces a dictionary of flattened keys in the form paramName[key] to stringified values.
-  public static func serializeDeepObject(_ paramName: String, value: [String: Any]?) -> [String:
-    String]
-  {
-    guard let value = value else { return [:] }
-
-    var result: [String: String] = [:]
-    for (key, val) in value {
-      result["\(paramName)[\(key)]"] = ObjectSerializer.stringify(val)
-    }
-    return result
-  }
-
-  /// Serializes a parameter value according to OAS 3.0 style and explode rules.
-  ///
-  /// - Parameters:
-  ///   - paramName: The parameter name.
-  ///   - value: The value to serialize.
-  ///   - location: "path", "query", "header", "cookie".
-  ///   - schemaType: The schema type.
-  ///   - collectionFormat: Legacy collection format.
-  ///   - style: OAS 3.0 style (e.g. "matrix", "label", "form", "simple", "spaceDelimited", "pipeDelimited").
-  ///   - explode: Whether to explode array values.
-  /// - Returns: The serialized value.
-  public static func serializeStyled(
-    _ paramName: String,
-    value: Any?,
-    location: String,
-    schemaType: String,
-    collectionFormat: String,
-    style: String,
-    explode: Bool
-  ) -> Any? {
-    if style.isEmpty {
-      return serializeValue(
-        value, location: location, schemaType: schemaType, collectionFormat: collectionFormat)
-    }
-
-    let items = toStringArray(value)
-    let isArray = items != nil
-
-    switch style {
-    case "matrix":
-      guard let value = value else {
-        return location == "query" ? nil : "" as Any
-      }
-      if let items = items {
-        if explode {
-          return items.map { ";\(paramName)=\($0)" }.joined()
+    /// Serializes a parameter value for HTTP requests based on its location.
+    ///
+    /// - Parameters:
+    ///   - value: The value to serialize.
+    ///   - location: "path", "query", "header", or "cookie".
+    ///   - schemaType: The schema type (e.g. "string", "array").
+    ///   - collectionFormat: Legacy collection format (e.g. "csv", "ssv", "tsv", "pipes", "multi").
+    /// - Returns: The serialized value.
+    public static func serializeValue(_ value: Any?, location: String, schemaType: String, collectionFormat: String) -> Any? {
+        guard let value = value else {
+            return serializeNil(location: location)
         }
-        return ";\(paramName)=\(items.joined(separator: ","))"
-      }
-      return ";\(paramName)=\(ObjectSerializer.stringify(value))"
 
-    case "label":
-      guard let value = value else {
-        return location == "query" ? nil : "" as Any
-      }
-      if let items = items {
-        if explode {
-          return "." + items.joined(separator: ".")
+        if let items = toStringArray(value) {
+            return serializeArray(items, location: location, collectionFormat: collectionFormat)
         }
-        return "." + items.joined(separator: ",")
-      }
-      return "." + ObjectSerializer.stringify(value)
 
-    case "spaceDelimited":
-      guard let value = value else {
-        return location == "query" ? nil : "" as Any
-      }
-      if let items = items {
-        return items.joined(separator: " ")
-      }
-      return ObjectSerializer.stringify(value)
+        let strVal = ObjectSerializer.stringify(value)
+        if location == "path" {
+            // Use a strict character set matching Java's URLEncoder behavior:
+            // only unreserved characters (letters, digits, -, _, ., ~) pass through unencoded.
+            var allowed = CharacterSet.alphanumerics
+            allowed.insert(charactersIn: "-._~")
+            return strVal.addingPercentEncoding(withAllowedCharacters: allowed) ?? strVal
+        }
+        return strVal
+    }
 
-    case "pipeDelimited":
-      guard let value = value else {
-        return location == "query" ? nil : "" as Any
-      }
-      if let items = items {
-        return items.joined(separator: "|")
-      }
-      return ObjectSerializer.stringify(value)
+    /// Serializes a deepObject-style query parameter.
+    ///
+    /// Produces a dictionary of flattened keys in the form paramName[key] to stringified values.
+    public static func serializeDeepObject(_ paramName: String, value: [String: Any]?) -> [String: String] {
+        guard let value = value else { return [:] }
 
-    case "form":
-      guard let value = value else {
-        return location == "query" ? nil : "" as Any
-      }
-      if let items = items {
-        if explode {
-          return items
+        var result: [String: String] = [:]
+        for (key, val) in value {
+            result["\(paramName)[\(key)]"] = ObjectSerializer.stringify(val)
+        }
+        return result
+    }
+
+    /// Serializes a parameter value according to OAS 3.0 style and explode rules.
+    ///
+    /// - Parameters:
+    ///   - paramName: The parameter name.
+    ///   - value: The value to serialize.
+    ///   - location: "path", "query", "header", "cookie".
+    ///   - schemaType: The schema type.
+    ///   - collectionFormat: Legacy collection format.
+    ///   - style: OAS 3.0 style (e.g. "matrix", "label", "form", "simple", "spaceDelimited", "pipeDelimited").
+    ///   - explode: Whether to explode array values.
+    /// - Returns: The serialized value.
+    public static func serializeStyled(
+        _ paramName: String,
+        value: Any?,
+        location: String,
+        schemaType: String,
+        collectionFormat: String,
+        style: String,
+        explode: Bool
+    ) -> Any? {
+        if style.isEmpty {
+            return serializeValue(value, location: location, schemaType: schemaType, collectionFormat: collectionFormat)
+        }
+
+        let items = toStringArray(value)
+        let isArray = items != nil
+
+        switch style {
+        case "matrix":
+            guard let value = value else {
+                return location == "query" ? nil : "" as Any
+            }
+            if let items = items {
+                if explode {
+                    return items.map { ";\(paramName)=\($0)" }.joined()
+                }
+                return ";\(paramName)=\(items.joined(separator: ","))"
+            }
+            return ";\(paramName)=\(ObjectSerializer.stringify(value))"
+
+        case "label":
+            guard let value = value else {
+                return location == "query" ? nil : "" as Any
+            }
+            if let items = items {
+                if explode {
+                    return "." + items.joined(separator: ".")
+                }
+                return "." + items.joined(separator: ",")
+            }
+            return "." + ObjectSerializer.stringify(value)
+
+        case "spaceDelimited":
+            guard let value = value else {
+                return location == "query" ? nil : "" as Any
+            }
+            if let items = items {
+                return items.joined(separator: " ")
+            }
+            return ObjectSerializer.stringify(value)
+
+        case "pipeDelimited":
+            guard let value = value else {
+                return location == "query" ? nil : "" as Any
+            }
+            if let items = items {
+                return items.joined(separator: "|")
+            }
+            return ObjectSerializer.stringify(value)
+
+        case "form":
+            guard let value = value else {
+                return location == "query" ? nil : "" as Any
+            }
+            if let items = items {
+                if explode {
+                    return items
+                }
+                return items.joined(separator: ",")
+            }
+            return ObjectSerializer.stringify(value)
+
+        case "simple":
+            guard let value = value else {
+                return location == "query" ? nil : "" as Any
+            }
+            if let items = items {
+                return items.joined(separator: ",")
+            }
+            return ObjectSerializer.stringify(value)
+
+        default:
+            return serializeValue(value, location: location, schemaType: schemaType, collectionFormat: collectionFormat)
+        }
+    }
+
+    private static func serializeNil(location: String) -> Any? {
+        if location == "query" { return nil }
+        return "" as Any
+    }
+
+    private static func serializeArray(_ items: [String], location: String, collectionFormat: String) -> Any? {
+        if location == "query" {
+            return serializeQueryArray(items, collectionFormat: collectionFormat)
         }
         return items.joined(separator: ",")
-      }
-      return ObjectSerializer.stringify(value)
-
-    case "simple":
-      guard let value = value else {
-        return location == "query" ? nil : "" as Any
-      }
-      if let items = items {
-        return items.joined(separator: ",")
-      }
-      return ObjectSerializer.stringify(value)
-
-    default:
-      return serializeValue(
-        value, location: location, schemaType: schemaType, collectionFormat: collectionFormat)
     }
-  }
 
-  private static func serializeNil(location: String) -> Any? {
-    if location == "query" { return nil }
-    return "" as Any
-  }
+    private static func serializeQueryArray(_ items: [String], collectionFormat: String) -> Any {
+        switch collectionFormat {
+        case "multi":
+            return items
+        case "ssv":
+            return items.joined(separator: " ")
+        case "tsv":
+            return items.joined(separator: "\t")
+        case "pipes":
+            return items.joined(separator: "|")
+        default:
+            return items.joined(separator: ",")
+        }
+    }
 
-  private static func serializeArray(_ items: [String], location: String, collectionFormat: String)
-    -> Any?
-  {
-    if location == "query" {
-      return serializeQueryArray(items, collectionFormat: collectionFormat)
+    /// Attempts to convert a value to a [String] array.
+    private static func toStringArray(_ value: Any?) -> [String]? {
+        if let items = value as? [String] {
+            return items
+        }
+        if let items = value as? [Any] {
+            return items.map { ObjectSerializer.stringify($0) }
+        }
+        return nil
     }
-    return items.joined(separator: ",")
-  }
-
-  private static func serializeQueryArray(_ items: [String], collectionFormat: String) -> Any {
-    switch collectionFormat {
-    case "multi":
-      return items
-    case "ssv":
-      return items.joined(separator: " ")
-    case "tsv":
-      return items.joined(separator: "\t")
-    case "pipes":
-      return items.joined(separator: "|")
-    default:
-      return items.joined(separator: ",")
-    }
-  }
-
-  /// Attempts to convert a value to a [String] array.
-  private static func toStringArray(_ value: Any?) -> [String]? {
-    if let items = value as? [String] {
-      return items
-    }
-    if let items = value as? [Any] {
-      return items.map { ObjectSerializer.stringify($0) }
-    }
-    return nil
-  }
 }

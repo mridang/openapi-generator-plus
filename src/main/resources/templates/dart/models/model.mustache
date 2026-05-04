@@ -65,10 +65,20 @@ class {{classname}} {
   const {{classname}}({
 {{#vars}}
 {{#required}}
+{{#defaultValue}}
+    this.{{name}} = {{{defaultValue}}},
+{{/defaultValue}}
+{{^defaultValue}}
     required this.{{name}},
+{{/defaultValue}}
 {{/required}}
 {{^required}}
+{{#defaultValue}}
+    this.{{name}} = {{{defaultValue}}},
+{{/defaultValue}}
+{{^defaultValue}}
     this.{{name}},
+{{/defaultValue}}
 {{/required}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
@@ -97,7 +107,12 @@ class {{classname}} {
       {{name}}: json['{{baseName}}']{{#isEnum}} != null ? {{dataType}}.fromJson(json['{{baseName}}'] as String) : throw ArgumentError('Missing required enum field {{baseName}}'){{/isEnum}}{{^isEnum}} as {{{dataType}}}{{/isEnum}},
 {{/required}}
 {{^required}}
+{{#defaultValue}}
+      {{name}}: json['{{baseName}}']{{#isEnum}} != null ? {{dataType}}.fromJson(json['{{baseName}}'] as String) : {{{defaultValue}}}{{/isEnum}}{{^isEnum}} != null ? json['{{baseName}}'] as {{{dataType}}} : {{{defaultValue}}}{{/isEnum}},
+{{/defaultValue}}
+{{^defaultValue}}
       {{name}}: json['{{baseName}}']{{#isEnum}} != null ? {{dataType}}.fromJson(json['{{baseName}}'] as String) : null{{/isEnum}}{{^isEnum}} as {{{dataType}}}?{{/isEnum}},
+{{/defaultValue}}
 {{/required}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}

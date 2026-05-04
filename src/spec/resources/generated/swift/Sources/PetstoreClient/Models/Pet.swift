@@ -10,27 +10,32 @@ import Foundation
 /// Pet is a model class generated from the OpenAPI schema.
 /// See https://example.com/docs/pet Learn more about the Pet model
 public struct Pet: Codable, Sendable {
-  public var id: Int64?
-  public var name: String
-  public var category: Category?
-  public var photoUrls: [String]
-  public var tags: [Tag]?
-  /// pet status in the store
-  @available(*, deprecated, message: "This property is deprecated.")
-  public var status: String?
+    public var id: Int64?
+    public var name: String
+    public var category: Category?
+    public var photoUrls: [String]
+    public var tags: [Tag]?
+    /// pet status in the store
+    @available(*, deprecated, message: "This property is deprecated.")
+    public var status: String?
 
-  enum CodingKeys: String, CodingKey {
-    case id = "id"
-    case name = "name"
-    case category = "category"
-    case photoUrls = "photoUrls"
-    case tags = "tags"
-    case status = "status"
-  }
+    enum CodingKeys: String, CodingKey {
+        case id = "id"
+        case name = "name"
+        case category = "category"
+        case photoUrls = "photoUrls"
+        case tags = "tags"
+        case status = "status"
+    }
 
-  /// Creates a new Pet instance.
-  public init(name: String, photoUrls: [String]) {
-    self.name = name
-    self.photoUrls = photoUrls
-  }
+    /// Creates a new Pet instance.
+    public init(name: String, photoUrls: [String], id: Int64? = nil, category: Category? = nil, tags: [Tag]? = nil, status: String? = nil) {
+        self.name = name
+        self.photoUrls = photoUrls
+        self.id = id
+        self.category = category
+        self.tags = tags
+        self.status = status
+    }
 }
+

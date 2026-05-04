@@ -43,7 +43,6 @@ import 'api/store_api.dart';
 class Client {
   /// Provides methods for the Pet API group.
   final PetApi petApi;
-
   /// Provides methods for the Store API group.
   final StoreApi storeApi;
 
@@ -57,31 +56,28 @@ class Client {
   Client._({
     required Authenticator authenticator,
     required DefaultApiClient apiClient,
-  })  : petApi = _createPetApi(authenticator, apiClient),
-        storeApi = _createStoreApi(authenticator, apiClient);
+  }) : petApi = _createPetApi(authenticator, apiClient),
+       storeApi = _createStoreApi(authenticator, apiClient);
 
   factory Client({
     required Authenticator authenticator,
     TransportOptions? transportOptions,
   }) {
-    final apiClient = DefaultApiClient(transportOptions);
+    final apiClient = DefaultApiClient(transportOptions: transportOptions);
     if (authenticator is HttpAwareAuthenticator) {
       authenticator.setApiClient(apiClient);
     }
     return Client._(authenticator: authenticator, apiClient: apiClient);
   }
 
-  static PetApi _createPetApi(
-      Authenticator authenticator, DefaultApiClient apiClient) {
+  static PetApi _createPetApi(Authenticator authenticator, DefaultApiClient apiClient) {
     final config = ConfigurationBuilder()
         .baseUrl(authenticator.host())
         .defaultHeaders(authenticator.authHeaders())
         .build();
     return PetApi(apiClient: apiClient, config: config);
   }
-
-  static StoreApi _createStoreApi(
-      Authenticator authenticator, DefaultApiClient apiClient) {
+  static StoreApi _createStoreApi(Authenticator authenticator, DefaultApiClient apiClient) {
     final config = ConfigurationBuilder()
         .baseUrl(authenticator.host())
         .defaultHeaders(authenticator.authHeaders())

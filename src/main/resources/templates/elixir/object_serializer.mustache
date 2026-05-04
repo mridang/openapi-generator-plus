@@ -116,6 +116,13 @@ defmodule {{moduleName}}.ObjectSerializer do
   def to_header_value(value), do: stringify(value)
 
   @doc """
+  Convert a value to a string suitable for use as an HTTP cookie value.
+  Cookie values follow the same encoding rules as header values.
+  """
+  @spec to_cookie_value(term()) :: String.t()
+  def to_cookie_value(value), do: to_header_value(value)
+
+  @doc """
   Convert a value to a representation suitable for use as a form parameter.
   """
   @spec to_form_value(term()) :: String.t()

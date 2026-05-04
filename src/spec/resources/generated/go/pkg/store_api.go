@@ -81,7 +81,7 @@ func (a *StoreApi) GetInventory() (*map[string]int32, error) {
 }
 
 // GetInventoryWithHTTPInfo performs the GetInventory operation and returns the full API result.
-func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[*map[string]int32], error) {
+func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], error) {
 
 	path := "/store/inventory"
 
@@ -113,7 +113,7 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[*map[string]int32], er
 		}
 	}
 
-	return &ApiResult[*map[string]int32]{
+	return &ApiResult[map[string]int32]{
 		StatusCode: response.StatusCode,
 		Data:       &data,
 		RawBody:    response.Body,
@@ -131,7 +131,7 @@ func (a *StoreApi) GetOrderById(orderId int64) (*Order, error) {
 }
 
 // GetOrderByIdWithHTTPInfo performs the GetOrderById operation and returns the full API result.
-func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[*Order], error) {
+func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], error) {
 
 	path := "/store/order/{orderId}"
 	path = replacePathParam(path, "orderId", fmt.Sprintf("%v", orderId))
@@ -164,7 +164,7 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[*Order], 
 		}
 	}
 
-	return &ApiResult[*Order]{
+	return &ApiResult[Order]{
 		StatusCode: response.StatusCode,
 		Data:       &data,
 		RawBody:    response.Body,
@@ -182,7 +182,7 @@ func (a *StoreApi) PlaceOrder(order *Order) (*Order, error) {
 }
 
 // PlaceOrderWithHTTPInfo performs the PlaceOrder operation and returns the full API result.
-func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[*Order], error) {
+func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], error) {
 
 	path := "/store/order"
 
@@ -214,7 +214,7 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[*Order], err
 		}
 	}
 
-	return &ApiResult[*Order]{
+	return &ApiResult[Order]{
 		StatusCode: response.StatusCode,
 		Data:       &data,
 		RawBody:    response.Body,

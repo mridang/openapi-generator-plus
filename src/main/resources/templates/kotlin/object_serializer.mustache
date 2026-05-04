@@ -103,6 +103,12 @@ class ObjectSerializer(
         return stringify(value)
     }
 
+    /**
+     * Convert a value to a string suitable for use as an HTTP cookie value.
+     * Cookie values follow the same encoding rules as header values.
+     */
+    fun toCookieValue(value: Any?): String = toHeaderValue(value)
+
     fun toFormValue(value: Any?): String = stringify(value)
 
     /**

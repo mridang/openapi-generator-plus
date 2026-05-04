@@ -22,6 +22,20 @@ use {{invokerPackage}}\Exceptions\NotFoundException;
 use {{invokerPackage}}\Exceptions\ConflictException;
 use {{invokerPackage}}\Exceptions\UnprocessableEntityException;
 use {{invokerPackage}}\Exceptions\InternalServerErrorException;
+use {{invokerPackage}}\ApiClient;
+use {{invokerPackage}}\ApiResponse;
+
+class CapturingApiClient implements ApiClient
+{
+    public string $capturedUrl = '';
+
+    /** @param array<string, string> $headers */
+    public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
+    {
+        $this->capturedUrl = $url;
+        return new ApiResponse(200, '{}', ['Content-Type' => 'application/json']);
+    }
+}
 
 class TestableApi extends BaseApi
 {
@@ -321,6 +335,79 @@ class BaseApiTest extends TestCase
             null
         );
         $this->assertNull($result);
+    }
+
+    public function testExpandsArrayQueryParams(): void
+    {
+        $client = new CapturingApiClient();
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $testApi->call(
+            'GET',
+            '/api/test',
+            ['tags' => ['a', 'b']],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null
+        );
+        $this->assertStringContainsString('tags=a&tags=b', $client->capturedUrl);
+    }
+
+    public function testSerializesBooleanQueryParams(): void
+    {
+        $client = new CapturingApiClient();
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $testApi->call(
+            'GET',
+            '/api/test',
+            ['active' => true],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null
+        );
+        $this->assertStringContainsString('active=true', $client->capturedUrl);
+    }
+
+    public function testSerializesNumberQueryParams(): void
+    {
+        $client = new CapturingApiClient();
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $testApi->call(
+            'GET',
+            '/api/test',
+            ['limit' => 10],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null
+        );
+        $this->assertStringContainsString('limit=10', $client->capturedUrl);
+        $this->assertStringNotContainsString('limit=10.0', $client->capturedUrl);
+    }
+
+    public function testHandlesEmptyQueryParams(): void
+    {
+        $client = new CapturingApiClient();
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $testApi->call(
+            'GET',
+            '/api/test',
+            [],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null
+        );
+        $this->assertStringNotContainsString('?', $client->capturedUrl);
     }
 
     // -- server variable overrides via Configuration --

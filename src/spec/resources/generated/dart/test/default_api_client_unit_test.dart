@@ -24,9 +24,10 @@ void main() {
       });
 
       try {
-        final transport =
-            TransportOptionsBuilder().userAgent('TestAgent/1.0').build();
-        final client = DefaultApiClient(transport);
+        final transport = TransportOptionsBuilder()
+            .userAgent('TestAgent/1.0')
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
 
         await client.sendRequest(
           'GET',
@@ -76,9 +77,10 @@ void main() {
       });
 
       try {
-        final transport =
-            TransportOptionsBuilder().injectRequestId(true).build();
-        final client = DefaultApiClient(transport);
+        final transport = TransportOptionsBuilder()
+            .injectRequestId(true)
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
 
         await client.sendRequest(
           'GET',
@@ -104,9 +106,10 @@ void main() {
       });
 
       try {
-        final transport =
-            TransportOptionsBuilder().injectRequestId(false).build();
-        final client = DefaultApiClient(transport);
+        final transport = TransportOptionsBuilder()
+            .injectRequestId(false)
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
 
         await client.sendRequest(
           'GET',
@@ -131,9 +134,10 @@ void main() {
       });
 
       try {
-        final transport =
-            TransportOptionsBuilder().injectRequestId(true).build();
-        final client = DefaultApiClient(transport);
+        final transport = TransportOptionsBuilder()
+            .injectRequestId(true)
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
 
         await client.sendRequest(
           'GET',
@@ -161,7 +165,7 @@ void main() {
         final transport = TransportOptionsBuilder()
             .defaultHeader('X-Default', 'default-value')
             .build();
-        final client = DefaultApiClient(transport);
+        final client = DefaultApiClient(transportOptions: transport);
 
         await client.sendRequest(
           'GET',
@@ -189,7 +193,7 @@ void main() {
         final transport = TransportOptionsBuilder()
             .defaultHeader('X-Default', 'transport-value')
             .build();
-        final client = DefaultApiClient(transport);
+        final client = DefaultApiClient(transportOptions: transport);
 
         await client.sendRequest(
           'GET',

@@ -16,18 +16,17 @@ defmodule PetstoreClient.TransportOptionsTest do
   end
 
   test "new sets all fields" do
-    opts =
-      PetstoreClient.TransportOptions.new(
-        verify_ssl: false,
-        ca_cert_path: "/path/to/ca.pem",
-        proxy: "http://proxy:8080",
-        timeout: 5000,
-        follow_redirects: false,
-        max_redirects: 3,
-        user_agent: "TestAgent/1.0",
-        default_headers: %{"X-Custom" => "value"},
-        inject_request_id: true
-      )
+    opts = PetstoreClient.TransportOptions.new(
+      verify_ssl: false,
+      ca_cert_path: "/path/to/ca.pem",
+      proxy: "http://proxy:8080",
+      timeout: 5000,
+      follow_redirects: false,
+      max_redirects: 3,
+      user_agent: "TestAgent/1.0",
+      default_headers: %{"X-Custom" => "value"},
+      inject_request_id: true
+    )
 
     assert opts.verify_ssl == false
     assert opts.ca_cert_path == "/path/to/ca.pem"

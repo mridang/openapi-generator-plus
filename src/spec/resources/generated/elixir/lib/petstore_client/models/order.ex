@@ -28,7 +28,7 @@ defmodule PetstoreClient.Models.Order do
     :pet_id,
     :quantity,
     :ship_date,
-    :status,
+    status: "placed",
     :complete
   ]
 
@@ -63,4 +63,5 @@ defmodule PetstoreClient.Models.Order do
       complete: "boolean()"
     }
   end
+
 end

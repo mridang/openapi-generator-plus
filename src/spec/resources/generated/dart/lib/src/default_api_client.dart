@@ -8,8 +8,6 @@
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
-import 'package:http/io_client.dart';
-import 'dart:io';
 import 'dart:math';
 
 import 'api_client.dart';
@@ -19,9 +17,14 @@ import 'transport_options.dart';
 /// DefaultApiClient is the default HTTP client implementation backed by
 /// the `http` package.
 ///
-/// Applies transport-level settings from [TransportOptions]: TLS verification,
-/// proxy routing, timeouts, redirect handling, User-Agent injection,
-/// X-Request-ID injection, and transport-level default headers.
+/// This implementation is platform-agnostic and works on mobile, desktop,
+/// and web platforms. For native-only features (custom CA certificates,
+/// proxy routing, TLS verification bypass), pass a pre-configured
+/// [http.Client] to the constructor.
+///
+/// Applies transport-level settings from [TransportOptions]: timeouts,
+/// redirect handling, User-Agent injection, X-Request-ID injection,
+/// and transport-level default headers.
 ///
 /// Header merge order (lowest to highest priority):
 ///  1. [TransportOptions.defaultHeaders] -- transport-level defaults
@@ -34,12 +37,15 @@ class DefaultApiClient implements ApiClient {
   final http.Client _httpClient;
 
   /// Creates a client with the given transport settings.
+  ///
   /// If [transportOptions] is null, default transport settings are used.
-  DefaultApiClient([TransportOptions? transportOptions])
-      : _transportOptions =
-            transportOptions ?? TransportOptionsBuilder().build(),
-        _httpClient = _buildHttpClient(
-            transportOptions ?? TransportOptionsBuilder().build());
+  /// If [httpClient] is null, a default [http.Client] is created. Pass a
+  /// custom [http.Client] (e.g., an `IOClient` wrapping a configured
+  /// `dart:io` `HttpClient`) for native-only features like custom CA
+  /// certificates, proxy routing, or TLS verification bypass.
+  DefaultApiClient({TransportOptions? transportOptions, http.Client? httpClient})
+      : _transportOptions = transportOptions ?? TransportOptionsBuilder().build(),
+        _httpClient = httpClient ?? http.Client();
 
   /// Returns the underlying HTTP client for use by HTTP-aware authenticators.
   http.Client get httpClient => _httpClient;
@@ -60,14 +66,12 @@ class DefaultApiClient implements ApiClient {
     merged.addAll(headers);
 
     // 3. User-Agent injection
-    if (!merged.containsKey('User-Agent') &&
-        _transportOptions.userAgent.isNotEmpty) {
+    if (!merged.containsKey('User-Agent') && _transportOptions.userAgent.isNotEmpty) {
       merged['User-Agent'] = _transportOptions.userAgent;
     }
 
     // 4. X-Request-ID injection
-    if (!merged.containsKey('X-Request-ID') &&
-        _transportOptions.injectRequestId) {
+    if (!merged.containsKey('X-Request-ID') && _transportOptions.injectRequestId) {
       merged['X-Request-ID'] = _generateUuid();
     }
 
@@ -101,33 +105,6 @@ class DefaultApiClient implements ApiClient {
   /// Closes the underlying HTTP client.
   void close() {
     _httpClient.close();
-  }
-
-  static http.Client _buildHttpClient(TransportOptions opts) {
-    final httpClient = HttpClient();
-
-    if (!opts.verifySSL) {
-      httpClient.badCertificateCallback = (cert, host, port) => true;
-    }
-
-    if (opts.proxy != null) {
-      httpClient.findProxy =
-          (uri) => 'PROXY ${opts.proxy!.host}:${opts.proxy!.port}';
-    }
-
-    if (opts.timeout != null) {
-      httpClient.connectionTimeout = Duration(milliseconds: opts.timeout!);
-    }
-
-    if (!opts.followRedirects) {
-      httpClient.autoUncompress = false;
-    }
-
-    if (opts.maxRedirects > 0) {
-      httpClient.maxConnectionsPerHost = opts.maxRedirects;
-    }
-
-    return IOClient(httpClient);
   }
 
   static String _generateUuid() {

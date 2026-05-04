@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -16,9 +15,11 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Api;
 
+use PetstoreClient\ApiClient;
 use PetstoreClient\ApiException;
 use PetstoreClient\ApiResult;
-use PetstoreClient\Models\Order;
+use PetstoreClient\Configuration;
+use PetstoreClient\DefaultApiClient;
 use PetstoreClient\ValueSerializer;
 
 /**
@@ -112,12 +113,12 @@ class StoreApi extends BaseApi
      * Find purchase order by ID
      * @param int $orderId ID of order to return
 
-     * @return Order
+     * @return \PetstoreClient\Models\Order
      * @throws ApiException
      */
     public function getOrderById(int $orderId)
     {
-        /** @var Order $result */
+        /** @var \PetstoreClient\Models\Order $result */
         $result = $this->getOrderByIdWithHttpInfo($orderId)->data;
         return $result;
     }
@@ -125,7 +126,7 @@ class StoreApi extends BaseApi
     /**
      * @param int $orderId ID of order to return
 
-     * @return ApiResult<Order>
+     * @return ApiResult<\PetstoreClient\Models\Order>
      * @throws ApiException
      */
     public function getOrderByIdWithHttpInfo(int $orderId): ApiResult
@@ -138,7 +139,7 @@ class StoreApi extends BaseApi
         $headerParams = [];
         $requestBody = null;
 
-        /** @var ApiResult<Order> $result */
+        /** @var ApiResult<\PetstoreClient\Models\Order> $result */
         $result = $this->invokeApiForResult(
             'GET',
             $path,
@@ -155,29 +156,29 @@ class StoreApi extends BaseApi
     /**
      * Place an order for a pet
 
-     * @return Order
+     * @return \PetstoreClient\Models\Order
      * @throws ApiException
      */
-    public function placeOrder(Order|null $order = null)
+    public function placeOrder(\PetstoreClient\Models\Order|null $order = null)
     {
-        /** @var Order $result */
+        /** @var \PetstoreClient\Models\Order $result */
         $result = $this->placeOrderWithHttpInfo($order)->data;
         return $result;
     }
 
     /**
 
-     * @return ApiResult<Order>
+     * @return ApiResult<\PetstoreClient\Models\Order>
      * @throws ApiException
      */
-    public function placeOrderWithHttpInfo(Order|null $order = null): ApiResult
+    public function placeOrderWithHttpInfo(\PetstoreClient\Models\Order|null $order = null): ApiResult
     {
         $path = '/store/order';
         $queryParams = [];
         $headerParams = [];
         $requestBody = $order;
 
-        /** @var ApiResult<Order> $result */
+        /** @var ApiResult<\PetstoreClient\Models\Order> $result */
         $result = $this->invokeApiForResult(
             'POST',
             $path,

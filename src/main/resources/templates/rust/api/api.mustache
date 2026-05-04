@@ -200,7 +200,18 @@ impl {{classname}} {
         let mut path = "{{{path}}}".to_string();
 {{#pathParams}}
 {{=<% %>=}}
-        path = path.replace("{<%baseName%>}", &urlencoding::encode(&format!("{}", <%paramName%>)));
+        if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+            "<%baseName%>",
+            Some(&object_serializer::stringify(&<%paramName%>)),
+            None,
+            "path",
+            "<%dataType%>",
+            "",
+            "<%style%>",
+            <%isExplode%>,
+        ) {
+            path = path.replace("{<%baseName%>}", &v);
+        }
 <%={{ }}=%>
 {{/pathParams}}
 {{#servers}}

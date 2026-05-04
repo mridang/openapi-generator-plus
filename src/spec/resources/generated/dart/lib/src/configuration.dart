@@ -36,8 +36,7 @@ class Configuration {
   }) : _defaultHeaders = Map.unmodifiable(defaultHeaders);
 
   /// Returns a copy of the default headers included in every API request.
-  Map<String, String> get defaultHeaders =>
-      Map<String, String>.from(_defaultHeaders);
+  Map<String, String> get defaultHeaders => Map<String, String>.from(_defaultHeaders);
 
   /// Returns a [Configuration] with default values.
   factory Configuration.defaultConfiguration() {
@@ -70,8 +69,7 @@ class ConfigurationBuilder {
 
   /// Sets the base URL from a server configuration with optional variable
   /// overrides.
-  ConfigurationBuilder server(ServerConfiguration server,
-      [Map<String, String>? variables]) {
+  ConfigurationBuilder server(ServerConfiguration server, [Map<String, String>? variables]) {
     _baseUrl = server.url(variables);
     return this;
   }

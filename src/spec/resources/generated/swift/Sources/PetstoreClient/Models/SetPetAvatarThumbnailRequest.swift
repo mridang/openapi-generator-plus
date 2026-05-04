@@ -9,46 +9,46 @@ import Foundation
 
 /// SetPetAvatarThumbnailRequest is a union type (oneOf).
 public struct SetPetAvatarThumbnailRequest: Codable, Sendable {
-  private let _value: Any
+    private let _value: Any
 
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.singleValueContainer()
-    let data = try container.decode(AnyCodable.self)
-    let rawData = try JSONEncoder().encode(data)
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let data = try container.decode(AnyCodable.self)
+        let rawData = try JSONEncoder().encode(data)
 
-    // Try each oneOf type
-    if let v = try? JSONDecoder().decode(Data.self, from: rawData) {
-      self._value = v
-      return
+        // Try each oneOf type
+        if let v = try? JSONDecoder().decode(Data.self, from: rawData) {
+            self._value = v
+            return
+        }
+        if let v = try? JSONDecoder().decode([Data].self, from: rawData) {
+            self._value = v
+            return
+        }
+        throw DecodingError.dataCorrupted(
+            DecodingError.Context(
+                codingPath: decoder.codingPath,
+                debugDescription: "Data does not match any oneOf schemas for SetPetAvatarThumbnailRequest"
+            )
+        )
     }
-    if let v = try? JSONDecoder().decode([Data].self, from: rawData) {
-      self._value = v
-      return
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        if let encodable = _value as? Encodable {
+            try encodable.encode(to: encoder)
+        } else {
+            try container.encodeNil()
+        }
     }
-    throw DecodingError.dataCorrupted(
-      DecodingError.Context(
-        codingPath: decoder.codingPath,
-        debugDescription: "Data does not match any oneOf schemas for SetPetAvatarThumbnailRequest"
-      )
-    )
-  }
 
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.singleValueContainer()
-    if let encodable = _value as? Encodable {
-      try encodable.encode(to: encoder)
-    } else {
-      try container.encodeNil()
+    /// Returns the underlying value of the union type.
+    public func value() -> Any {
+        return _value
     }
-  }
 
-  /// Returns the underlying value of the union type.
-  public func value() -> Any {
-    return _value
-  }
-
-  /// Returns the underlying value cast to the specified type.
-  public func value<T>(as type: T.Type) -> T? {
-    return _value as? T
-  }
+    /// Returns the underlying value cast to the specified type.
+    public func value<T>(as type: T.Type) -> T? {
+        return _value as? T
+    }
 }

@@ -23,6 +23,7 @@ abstract class GetExternalPetInfoServer {
 
 /// Server variant for GetExternalPetInfoServer.
 class GetExternalPetInfoServerServer0 extends GetExternalPetInfoServer {
+
   GetExternalPetInfoServerServer0();
 
   @override
@@ -51,6 +52,7 @@ enum GetMultiServerPetInfoServerRegion {
 
 /// Primary
 class GetMultiServerPetInfoServerPrimary extends GetMultiServerPetInfoServer {
+
   GetMultiServerPetInfoServerPrimary();
 
   @override
@@ -64,8 +66,7 @@ class GetMultiServerPetInfoServerPrimary extends GetMultiServerPetInfoServer {
 class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer {
   final GetMultiServerPetInfoServerRegion _region;
 
-  GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegion region)
-      : _region = region;
+  GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegion region) : _region = region;
 
   @override
   String getUrl() {
@@ -82,8 +83,8 @@ abstract class GetPetByIdServer {
 }
 
 /// CDN-backed read endpoint for pet details
-class GetPetByIdServerCDNBackedReadEndpointForPetDetails
-    extends GetPetByIdServer {
+class GetPetByIdServerCDNBackedReadEndpointForPetDetails extends GetPetByIdServer {
+
   GetPetByIdServerCDNBackedReadEndpointForPetDetails();
 
   @override
@@ -124,10 +125,7 @@ class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServer {
   final GetStagingPetInfoServerEnvironment _environment;
   final GetStagingPetInfoServerVersion _version;
 
-  GetStagingPetInfoServerStagingServer(
-      GetStagingPetInfoServerEnvironment environment,
-      GetStagingPetInfoServerVersion version)
-      : _environment = environment,
+  GetStagingPetInfoServerStagingServer(GetStagingPetInfoServerEnvironment environment, GetStagingPetInfoServerVersion version) : _environment = environment,
         _version = version;
 
   @override
@@ -148,22 +146,14 @@ class PetApi extends BaseApi {
   }) : super(apiClient: apiClient, config: config);
 
   /// Add a new pet to the store
-  Future<Pet> addPet(
-    Authenticator auth,
-    Pet pet,
-  ) async {
-    final result = await addPetWithHTTPInfo(
-      auth,
-      pet,
-    );
+  Future<Pet> addPet(Authenticator auth, Pet pet, ) async {
+    final result = await addPetWithHTTPInfo(auth, pet, );
     return result.data;
   }
 
   /// Performs the addPet operation and returns the full API result.
-  Future<ApiResult<Pet>> addPetWithHTTPInfo(
-    Authenticator auth,
-    Pet pet,
-  ) async {
+  Future<ApiResult<Pet>> addPetWithHTTPInfo(Authenticator auth, Pet pet, ) async {
+
     var path = '/pet';
 
     final queryParams = <String, Object?>{};
@@ -188,29 +178,19 @@ class PetApi extends BaseApi {
 
   /// Add photos to the pet's gallery
   /// Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
-  Future<List<Photo>> addPetPhotos(
-    int petId,
-    addPetPhotosOptions? options,
-  ) async {
-    final result = await addPetPhotosWithHTTPInfo(
-      petId,
-      options,
-    );
+  Future<List<Photo>> addPetPhotos(int petId, addPetPhotosOptions? options, ) async {
+    final result = await addPetPhotosWithHTTPInfo(petId, options, );
     return result.data;
   }
 
   /// Performs the addPetPhotos operation and returns the full API result.
-  Future<ApiResult<List<Photo>>> addPetPhotosWithHTTPInfo(
-    int petId,
-    addPetPhotosOptions? options,
-  ) async {
+  Future<ApiResult<List<Photo>>> addPetPhotosWithHTTPInfo(int petId, addPetPhotosOptions? options, ) async {
     if (petId == null) {
-      throw ArgumentError(
-          "Missing required parameter 'petId' when calling PetApi.addPetPhotos");
+      throw ArgumentError("Missing required parameter 'petId' when calling PetApi.addPetPhotos");
     }
 
     var path = '/pet/{petId}/photos';
-    path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
+    path = path.replaceAll('petId', '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
 
     final queryParams = <String, Object?>{};
 
@@ -240,32 +220,19 @@ class PetApi extends BaseApi {
   }
 
   /// Record a treatment for a pet
-  Future<PetTreatment> addPetTreatment(
-    Authenticator auth,
-    int petId,
-    PetTreatment petTreatment,
-  ) async {
-    final result = await addPetTreatmentWithHTTPInfo(
-      auth,
-      petId,
-      petTreatment,
-    );
+  Future<PetTreatment> addPetTreatment(Authenticator auth, int petId, PetTreatment petTreatment, ) async {
+    final result = await addPetTreatmentWithHTTPInfo(auth, petId, petTreatment, );
     return result.data;
   }
 
   /// Performs the addPetTreatment operation and returns the full API result.
-  Future<ApiResult<PetTreatment>> addPetTreatmentWithHTTPInfo(
-    Authenticator auth,
-    int petId,
-    PetTreatment petTreatment,
-  ) async {
+  Future<ApiResult<PetTreatment>> addPetTreatmentWithHTTPInfo(Authenticator auth, int petId, PetTreatment petTreatment, ) async {
     if (petId == null) {
-      throw ArgumentError(
-          "Missing required parameter 'petId' when calling PetApi.addPetTreatment");
+      throw ArgumentError("Missing required parameter 'petId' when calling PetApi.addPetTreatment");
     }
 
     var path = '/pet/{petId}/treatment';
-    path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
+    path = path.replaceAll('petId', '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
 
     final queryParams = <String, Object?>{};
 
@@ -288,39 +255,25 @@ class PetApi extends BaseApi {
   }
 
   /// Deletes a pet
-  Future<void> deletePet(
-    Authenticator auth,
-    int petId,
-    deletePetOptions? options,
-  ) async {
-    final result = await deletePetWithHTTPInfo(
-      auth,
-      petId,
-      options,
-    );
+  Future<void> deletePet(Authenticator auth, int petId, deletePetOptions? options, ) async {
+    final result = await deletePetWithHTTPInfo(auth, petId, options, );
   }
 
   /// Performs the deletePet operation and returns the full API result.
-  Future<ApiResult<void>> deletePetWithHTTPInfo(
-    Authenticator auth,
-    int petId,
-    deletePetOptions? options,
-  ) async {
+  Future<ApiResult<void>> deletePetWithHTTPInfo(Authenticator auth, int petId, deletePetOptions? options, ) async {
     if (petId == null) {
-      throw ArgumentError(
-          "Missing required parameter 'petId' when calling PetApi.deletePet");
+      throw ArgumentError("Missing required parameter 'petId' when calling PetApi.deletePet");
     }
 
     var path = '/pet/{petId}';
-    path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
+    path = path.replaceAll('petId', '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
 
     final queryParams = <String, Object?>{};
 
     final headerParams = <String, String>{};
     final cookieParts = <String>[];
     if (options != null && options.apiKey != null) {
-      cookieParts.add(
-          'api_key=${serializeStyled('api_key', options.apiKey, 'cookie', 'String', '', 'form', true)}');
+      cookieParts.add('api_key=${serializeStyled('api_key', options.apiKey, 'cookie', 'String', '', 'form', true)}');
     }
     if (cookieParts.isNotEmpty) {
       headerParams['Cookie'] = cookieParts.join('; ');
@@ -343,34 +296,23 @@ class PetApi extends BaseApi {
 
   /// Download a vet document
   /// Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
-  Future<List<int>> downloadPetDocument(
-    int petId,
-    int documentId,
-  ) async {
-    final result = await downloadPetDocumentWithHTTPInfo(
-      petId,
-      documentId,
-    );
+  Future<List<int>> downloadPetDocument(int petId, int documentId, ) async {
+    final result = await downloadPetDocumentWithHTTPInfo(petId, documentId, );
     return result.data;
   }
 
   /// Performs the downloadPetDocument operation and returns the full API result.
-  Future<ApiResult<List<int>>> downloadPetDocumentWithHTTPInfo(
-    int petId,
-    int documentId,
-  ) async {
+  Future<ApiResult<List<int>>> downloadPetDocumentWithHTTPInfo(int petId, int documentId, ) async {
     if (petId == null) {
-      throw ArgumentError(
-          "Missing required parameter 'petId' when calling PetApi.downloadPetDocument");
+      throw ArgumentError("Missing required parameter 'petId' when calling PetApi.downloadPetDocument");
     }
     if (documentId == null) {
-      throw ArgumentError(
-          "Missing required parameter 'documentId' when calling PetApi.downloadPetDocument");
+      throw ArgumentError("Missing required parameter 'documentId' when calling PetApi.downloadPetDocument");
     }
 
     var path = '/pet/{petId}/documents/{documentId}';
-    path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
-    path = path.replaceAll('documentId', Uri.encodeComponent('$documentId'));
+    path = path.replaceAll('petId', '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll('documentId', '${serializeStyled('documentId', documentId, 'path', 'int', '', 'simple', false)}');
 
     final queryParams = <String, Object?>{};
 
@@ -394,33 +336,26 @@ class PetApi extends BaseApi {
 
   /// Finds Pets by status
   @Deprecated('This operation is deprecated.')
-  Future<List<Pet>> findPetsByStatus(
-    findPetsByStatusOptions? options,
-  ) async {
-    final result = await findPetsByStatusWithHTTPInfo(
-      options,
-    );
+  Future<List<Pet>> findPetsByStatus(findPetsByStatusOptions? options, ) async {
+    final result = await findPetsByStatusWithHTTPInfo(options, );
     return result.data;
   }
 
   /// Performs the findPetsByStatus operation and returns the full API result.
-  Future<ApiResult<List<Pet>>> findPetsByStatusWithHTTPInfo(
-    findPetsByStatusOptions? options,
-  ) async {
+  Future<ApiResult<List<Pet>>> findPetsByStatusWithHTTPInfo(findPetsByStatusOptions? options, ) async {
+
     var path = '/pet/findByStatus';
 
     final queryParams = <String, Object?>{};
     if (options != null && options.status != null) {
-      if (options != null && options.status != null) {
-        queryParams['status'] = serializeStyled(
-            'status', options.status, 'query', 'String', '', 'form', true);
-      } else {
-        queryParams['status'] = '';
-      }
+    if (options != null && options.status != null) {
+      queryParams['status'] = serializeStyled('status', options.status, 'query', 'String', '', 'form', true);
+    } else {
+      queryParams['status'] = '';
+    }
     }
     if (options != null && options.filter != null) {
-      serializeDeepObject('filter', options.filter as Map<String, Object?>?)
-          .forEach((k, v) {
+      serializeDeepObject('filter', options.filter as Map<String, Object?>?).forEach((k, v) {
         queryParams[k] = v;
       });
     }
@@ -444,29 +379,19 @@ class PetApi extends BaseApi {
   }
 
   /// Get external pet info
-  Future<Pet> getExternalPetInfo(
-    int petId,
-    GetExternalPetInfoServer? server,
-  ) async {
-    final result = await getExternalPetInfoWithHTTPInfo(
-      petId,
-      server,
-    );
+  Future<Pet> getExternalPetInfo(int petId, GetExternalPetInfoServer? server, ) async {
+    final result = await getExternalPetInfoWithHTTPInfo(petId, server, );
     return result.data;
   }
 
   /// Performs the getExternalPetInfo operation and returns the full API result.
-  Future<ApiResult<Pet>> getExternalPetInfoWithHTTPInfo(
-    int petId,
-    GetExternalPetInfoServer? server,
-  ) async {
+  Future<ApiResult<Pet>> getExternalPetInfoWithHTTPInfo(int petId, GetExternalPetInfoServer? server, ) async {
     if (petId == null) {
-      throw ArgumentError(
-          "Missing required parameter 'petId' when calling PetApi.getExternalPetInfo");
+      throw ArgumentError("Missing required parameter 'petId' when calling PetApi.getExternalPetInfo");
     }
 
     var path = '/pet/{petId}/external';
-    path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
+    path = path.replaceAll('petId', '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
     if (server != null) {
       final serverUrl = server.getUrl();
       if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
@@ -495,29 +420,19 @@ class PetApi extends BaseApi {
   }
 
   /// Get multi-server pet info
-  Future<Pet> getMultiServerPetInfo(
-    int petId,
-    GetMultiServerPetInfoServer? server,
-  ) async {
-    final result = await getMultiServerPetInfoWithHTTPInfo(
-      petId,
-      server,
-    );
+  Future<Pet> getMultiServerPetInfo(int petId, GetMultiServerPetInfoServer? server, ) async {
+    final result = await getMultiServerPetInfoWithHTTPInfo(petId, server, );
     return result.data;
   }
 
   /// Performs the getMultiServerPetInfo operation and returns the full API result.
-  Future<ApiResult<Pet>> getMultiServerPetInfoWithHTTPInfo(
-    int petId,
-    GetMultiServerPetInfoServer? server,
-  ) async {
+  Future<ApiResult<Pet>> getMultiServerPetInfoWithHTTPInfo(int petId, GetMultiServerPetInfoServer? server, ) async {
     if (petId == null) {
-      throw ArgumentError(
-          "Missing required parameter 'petId' when calling PetApi.getMultiServerPetInfo");
+      throw ArgumentError("Missing required parameter 'petId' when calling PetApi.getMultiServerPetInfo");
     }
 
     var path = '/pet/{petId}/multi';
-    path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
+    path = path.replaceAll('petId', '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
     if (server != null) {
       final serverUrl = server.getUrl();
       if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
@@ -547,26 +462,19 @@ class PetApi extends BaseApi {
 
   /// Get the pet's profile photo
   /// Returns the raw image bytes of the pet's current avatar.
-  Future<List<int>> getPetAvatar(
-    int petId,
-  ) async {
-    final result = await getPetAvatarWithHTTPInfo(
-      petId,
-    );
+  Future<List<int>> getPetAvatar(int petId, ) async {
+    final result = await getPetAvatarWithHTTPInfo(petId, );
     return result.data;
   }
 
   /// Performs the getPetAvatar operation and returns the full API result.
-  Future<ApiResult<List<int>>> getPetAvatarWithHTTPInfo(
-    int petId,
-  ) async {
+  Future<ApiResult<List<int>>> getPetAvatarWithHTTPInfo(int petId, ) async {
     if (petId == null) {
-      throw ArgumentError(
-          "Missing required parameter 'petId' when calling PetApi.getPetAvatar");
+      throw ArgumentError("Missing required parameter 'petId' when calling PetApi.getPetAvatar");
     }
 
     var path = '/pet/{petId}/avatar';
-    path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
+    path = path.replaceAll('petId', '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
 
     final queryParams = <String, Object?>{};
 
@@ -590,26 +498,19 @@ class PetApi extends BaseApi {
 
   /// Get the pet's avatar thumbnail as base64
   /// Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
-  Future<List<int>> getPetAvatarThumbnail(
-    int petId,
-  ) async {
-    final result = await getPetAvatarThumbnailWithHTTPInfo(
-      petId,
-    );
+  Future<List<int>> getPetAvatarThumbnail(int petId, ) async {
+    final result = await getPetAvatarThumbnailWithHTTPInfo(petId, );
     return result.data;
   }
 
   /// Performs the getPetAvatarThumbnail operation and returns the full API result.
-  Future<ApiResult<List<int>>> getPetAvatarThumbnailWithHTTPInfo(
-    int petId,
-  ) async {
+  Future<ApiResult<List<int>>> getPetAvatarThumbnailWithHTTPInfo(int petId, ) async {
     if (petId == null) {
-      throw ArgumentError(
-          "Missing required parameter 'petId' when calling PetApi.getPetAvatarThumbnail");
+      throw ArgumentError("Missing required parameter 'petId' when calling PetApi.getPetAvatarThumbnail");
     }
 
     var path = '/pet/{petId}/avatar/thumbnail';
-    path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
+    path = path.replaceAll('petId', '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
 
     final queryParams = <String, Object?>{};
 
@@ -634,29 +535,19 @@ class PetApi extends BaseApi {
   /// Find pet by ID
   /// Returns a single pet
   @Deprecated('This operation is deprecated.')
-  Future<Pet> getPetById(
-    int petId,
-    GetPetByIdServer? server,
-  ) async {
-    final result = await getPetByIdWithHTTPInfo(
-      petId,
-      server,
-    );
+  Future<Pet> getPetById(int petId, GetPetByIdServer? server, ) async {
+    final result = await getPetByIdWithHTTPInfo(petId, server, );
     return result.data;
   }
 
   /// Performs the getPetById operation and returns the full API result.
-  Future<ApiResult<Pet>> getPetByIdWithHTTPInfo(
-    int petId,
-    GetPetByIdServer? server,
-  ) async {
+  Future<ApiResult<Pet>> getPetByIdWithHTTPInfo(int petId, GetPetByIdServer? server, ) async {
     if (petId == null) {
-      throw ArgumentError(
-          "Missing required parameter 'petId' when calling PetApi.getPetById");
+      throw ArgumentError("Missing required parameter 'petId' when calling PetApi.getPetById");
     }
 
     var path = '/pet/{petId}';
-    path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
+    path = path.replaceAll('petId', '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
     if (server != null) {
       final serverUrl = server.getUrl();
       if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
@@ -686,26 +577,19 @@ class PetApi extends BaseApi {
 
   /// Get the pet's passport
   /// Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
-  Future<PetPassport> getPetPassport(
-    int petId,
-  ) async {
-    final result = await getPetPassportWithHTTPInfo(
-      petId,
-    );
+  Future<PetPassport> getPetPassport(int petId, ) async {
+    final result = await getPetPassportWithHTTPInfo(petId, );
     return result.data;
   }
 
   /// Performs the getPetPassport operation and returns the full API result.
-  Future<ApiResult<PetPassport>> getPetPassportWithHTTPInfo(
-    int petId,
-  ) async {
+  Future<ApiResult<PetPassport>> getPetPassportWithHTTPInfo(int petId, ) async {
     if (petId == null) {
-      throw ArgumentError(
-          "Missing required parameter 'petId' when calling PetApi.getPetPassport");
+      throw ArgumentError("Missing required parameter 'petId' when calling PetApi.getPetPassport");
     }
 
     var path = '/pet/{petId}/passport';
-    path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
+    path = path.replaceAll('petId', '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
 
     final queryParams = <String, Object?>{};
 
@@ -729,34 +613,23 @@ class PetApi extends BaseApi {
 
   /// Get a photo or its metadata
   /// Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
-  Future<List<int>> getPetPhoto(
-    int petId,
-    int photoId,
-  ) async {
-    final result = await getPetPhotoWithHTTPInfo(
-      petId,
-      photoId,
-    );
+  Future<List<int>> getPetPhoto(int petId, int photoId, ) async {
+    final result = await getPetPhotoWithHTTPInfo(petId, photoId, );
     return result.data;
   }
 
   /// Performs the getPetPhoto operation and returns the full API result.
-  Future<ApiResult<List<int>>> getPetPhotoWithHTTPInfo(
-    int petId,
-    int photoId,
-  ) async {
+  Future<ApiResult<List<int>>> getPetPhotoWithHTTPInfo(int petId, int photoId, ) async {
     if (petId == null) {
-      throw ArgumentError(
-          "Missing required parameter 'petId' when calling PetApi.getPetPhoto");
+      throw ArgumentError("Missing required parameter 'petId' when calling PetApi.getPetPhoto");
     }
     if (photoId == null) {
-      throw ArgumentError(
-          "Missing required parameter 'photoId' when calling PetApi.getPetPhoto");
+      throw ArgumentError("Missing required parameter 'photoId' when calling PetApi.getPetPhoto");
     }
 
     var path = '/pet/{petId}/photos/{photoId}';
-    path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
-    path = path.replaceAll('photoId', Uri.encodeComponent('$photoId'));
+    path = path.replaceAll('petId', '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll('photoId', '${serializeStyled('photoId', photoId, 'path', 'int', '', 'simple', false)}');
 
     final queryParams = <String, Object?>{};
 
@@ -779,54 +652,37 @@ class PetApi extends BaseApi {
   }
 
   /// Get a tag for a pet
-  Future<Pet> getPetTag(
-    int petId,
-    String tagName,
-    getPetTagOptions? options,
-  ) async {
-    final result = await getPetTagWithHTTPInfo(
-      petId,
-      tagName,
-      options,
-    );
+  Future<Pet> getPetTag(int petId, String tagName, getPetTagOptions? options, ) async {
+    final result = await getPetTagWithHTTPInfo(petId, tagName, options, );
     return result.data;
   }
 
   /// Performs the getPetTag operation and returns the full API result.
-  Future<ApiResult<Pet>> getPetTagWithHTTPInfo(
-    int petId,
-    String tagName,
-    getPetTagOptions? options,
-  ) async {
+  Future<ApiResult<Pet>> getPetTagWithHTTPInfo(int petId, String tagName, getPetTagOptions? options, ) async {
     if (petId == null) {
-      throw ArgumentError(
-          "Missing required parameter 'petId' when calling PetApi.getPetTag");
+      throw ArgumentError("Missing required parameter 'petId' when calling PetApi.getPetTag");
     }
     if (tagName == '') {
-      throw ArgumentError(
-          "Missing required parameter 'tagName' when calling PetApi.getPetTag");
+      throw ArgumentError("Missing required parameter 'tagName' when calling PetApi.getPetTag");
     }
 
     var path = '/pet/{petId}/tag/{tagName}';
-    path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
-    path = path.replaceAll('tagName', Uri.encodeComponent('$tagName'));
+    path = path.replaceAll('petId', '${serializeStyled('petId', petId, 'path', 'int', '', 'matrix', false)}');
+    path = path.replaceAll('tagName', '${serializeStyled('tagName', tagName, 'path', 'String', '', 'label', false)}');
 
     final queryParams = <String, Object?>{};
     if (options != null && options.colors != null) {
-      queryParams['colors'] = serializeStyled('colors', options.colors, 'query',
-          'List<String>', 'pipes', 'pipeDelimited', false);
+      queryParams['colors'] = serializeStyled('colors', options.colors, 'query', 'List<String>', 'pipes', 'pipeDelimited', false);
     }
     if (options != null && options.sizes != null) {
-      queryParams['sizes'] = serializeStyled('sizes', options.sizes, 'query',
-          'List<String>', 'ssv', 'spaceDelimited', false);
+      queryParams['sizes'] = serializeStyled('sizes', options.sizes, 'query', 'List<String>', 'ssv', 'spaceDelimited', false);
     }
     if (options != null && options.filter != null) {
-      if (options != null && options.filter != null) {
-        queryParams['filter'] = serializeStyled(
-            'filter', options.filter, 'query', 'String', '', 'form', true);
-      } else {
-        queryParams['filter'] = '';
-      }
+    if (options != null && options.filter != null) {
+      queryParams['filter'] = serializeStyled('filter', options.filter, 'query', 'String', '', 'form', true);
+    } else {
+      queryParams['filter'] = '';
+    }
     }
 
     final headerParams = <String, String>{};
@@ -848,29 +704,19 @@ class PetApi extends BaseApi {
   }
 
   /// Get staging pet info
-  Future<Pet> getStagingPetInfo(
-    int petId,
-    GetStagingPetInfoServer? server,
-  ) async {
-    final result = await getStagingPetInfoWithHTTPInfo(
-      petId,
-      server,
-    );
+  Future<Pet> getStagingPetInfo(int petId, GetStagingPetInfoServer? server, ) async {
+    final result = await getStagingPetInfoWithHTTPInfo(petId, server, );
     return result.data;
   }
 
   /// Performs the getStagingPetInfo operation and returns the full API result.
-  Future<ApiResult<Pet>> getStagingPetInfoWithHTTPInfo(
-    int petId,
-    GetStagingPetInfoServer? server,
-  ) async {
+  Future<ApiResult<Pet>> getStagingPetInfoWithHTTPInfo(int petId, GetStagingPetInfoServer? server, ) async {
     if (petId == null) {
-      throw ArgumentError(
-          "Missing required parameter 'petId' when calling PetApi.getStagingPetInfo");
+      throw ArgumentError("Missing required parameter 'petId' when calling PetApi.getStagingPetInfo");
     }
 
     var path = '/pet/{petId}/staging';
-    path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
+    path = path.replaceAll('petId', '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
     if (server != null) {
       final serverUrl = server.getUrl();
       if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
@@ -900,28 +746,18 @@ class PetApi extends BaseApi {
 
   /// Set the pet's profile photo
   /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
-  Future<void> setPetAvatar(
-    int petId,
-    List<int> body,
-  ) async {
-    final result = await setPetAvatarWithHTTPInfo(
-      petId,
-      body,
-    );
+  Future<void> setPetAvatar(int petId, List<int> body, ) async {
+    final result = await setPetAvatarWithHTTPInfo(petId, body, );
   }
 
   /// Performs the setPetAvatar operation and returns the full API result.
-  Future<ApiResult<void>> setPetAvatarWithHTTPInfo(
-    int petId,
-    List<int> body,
-  ) async {
+  Future<ApiResult<void>> setPetAvatarWithHTTPInfo(int petId, List<int> body, ) async {
     if (petId == null) {
-      throw ArgumentError(
-          "Missing required parameter 'petId' when calling PetApi.setPetAvatar");
+      throw ArgumentError("Missing required parameter 'petId' when calling PetApi.setPetAvatar");
     }
 
     var path = '/pet/{petId}/avatar';
-    path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
+    path = path.replaceAll('petId', '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
 
     final queryParams = <String, Object?>{};
 
@@ -944,28 +780,18 @@ class PetApi extends BaseApi {
 
   /// Set the pet's avatar thumbnail as base64
   /// Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
-  Future<void> setPetAvatarThumbnail(
-    int petId,
-    SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
-  ) async {
-    final result = await setPetAvatarThumbnailWithHTTPInfo(
-      petId,
-      setPetAvatarThumbnailRequest,
-    );
+  Future<void> setPetAvatarThumbnail(int petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest, ) async {
+    final result = await setPetAvatarThumbnailWithHTTPInfo(petId, setPetAvatarThumbnailRequest, );
   }
 
   /// Performs the setPetAvatarThumbnail operation and returns the full API result.
-  Future<ApiResult<void>> setPetAvatarThumbnailWithHTTPInfo(
-    int petId,
-    SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
-  ) async {
+  Future<ApiResult<void>> setPetAvatarThumbnailWithHTTPInfo(int petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest, ) async {
     if (petId == null) {
-      throw ArgumentError(
-          "Missing required parameter 'petId' when calling PetApi.setPetAvatarThumbnail");
+      throw ArgumentError("Missing required parameter 'petId' when calling PetApi.setPetAvatarThumbnail");
     }
 
     var path = '/pet/{petId}/avatar/thumbnail';
-    path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
+    path = path.replaceAll('petId', '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
 
     final queryParams = <String, Object?>{};
 
@@ -987,29 +813,19 @@ class PetApi extends BaseApi {
   }
 
   /// Update an existing pet
-  Future<Pet> updatePet(
-    int petId,
-    Pet pet,
-  ) async {
-    final result = await updatePetWithHTTPInfo(
-      petId,
-      pet,
-    );
+  Future<Pet> updatePet(int petId, Pet pet, ) async {
+    final result = await updatePetWithHTTPInfo(petId, pet, );
     return result.data;
   }
 
   /// Performs the updatePet operation and returns the full API result.
-  Future<ApiResult<Pet>> updatePetWithHTTPInfo(
-    int petId,
-    Pet pet,
-  ) async {
+  Future<ApiResult<Pet>> updatePetWithHTTPInfo(int petId, Pet pet, ) async {
     if (petId == null) {
-      throw ArgumentError(
-          "Missing required parameter 'petId' when calling PetApi.updatePet");
+      throw ArgumentError("Missing required parameter 'petId' when calling PetApi.updatePet");
     }
 
     var path = '/pet/{petId}';
-    path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
+    path = path.replaceAll('petId', '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
 
     final queryParams = <String, Object?>{};
 
@@ -1033,29 +849,19 @@ class PetApi extends BaseApi {
 
   /// Upload the pet's adoption certificate
   /// Attaches a single adoption certificate document. No metadata fields are required alongside the file.
-  Future<ApiResponse> uploadPetCertificate(
-    int petId,
-    uploadPetCertificateOptions? options,
-  ) async {
-    final result = await uploadPetCertificateWithHTTPInfo(
-      petId,
-      options,
-    );
+  Future<ApiResponse> uploadPetCertificate(int petId, uploadPetCertificateOptions? options, ) async {
+    final result = await uploadPetCertificateWithHTTPInfo(petId, options, );
     return result.data;
   }
 
   /// Performs the uploadPetCertificate operation and returns the full API result.
-  Future<ApiResult<ApiResponse>> uploadPetCertificateWithHTTPInfo(
-    int petId,
-    uploadPetCertificateOptions? options,
-  ) async {
+  Future<ApiResult<ApiResponse>> uploadPetCertificateWithHTTPInfo(int petId, uploadPetCertificateOptions? options, ) async {
     if (petId == null) {
-      throw ArgumentError(
-          "Missing required parameter 'petId' when calling PetApi.uploadPetCertificate");
+      throw ArgumentError("Missing required parameter 'petId' when calling PetApi.uploadPetCertificate");
     }
 
     var path = '/pet/{petId}/certificate';
-    path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
+    path = path.replaceAll('petId', '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
 
     final queryParams = <String, Object?>{};
 
@@ -1083,29 +889,19 @@ class PetApi extends BaseApi {
 
   /// Attach a vet document or health record
   /// Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
-  Future<ApiResponse> uploadPetDocument(
-    int petId,
-    uploadPetDocumentOptions? options,
-  ) async {
-    final result = await uploadPetDocumentWithHTTPInfo(
-      petId,
-      options,
-    );
+  Future<ApiResponse> uploadPetDocument(int petId, uploadPetDocumentOptions? options, ) async {
+    final result = await uploadPetDocumentWithHTTPInfo(petId, options, );
     return result.data;
   }
 
   /// Performs the uploadPetDocument operation and returns the full API result.
-  Future<ApiResult<ApiResponse>> uploadPetDocumentWithHTTPInfo(
-    int petId,
-    uploadPetDocumentOptions? options,
-  ) async {
+  Future<ApiResult<ApiResponse>> uploadPetDocumentWithHTTPInfo(int petId, uploadPetDocumentOptions? options, ) async {
     if (petId == null) {
-      throw ArgumentError(
-          "Missing required parameter 'petId' when calling PetApi.uploadPetDocument");
+      throw ArgumentError("Missing required parameter 'petId' when calling PetApi.uploadPetDocument");
     }
 
     var path = '/pet/{petId}/documents';
-    path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
+    path = path.replaceAll('petId', '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
 
     final queryParams = <String, Object?>{};
 

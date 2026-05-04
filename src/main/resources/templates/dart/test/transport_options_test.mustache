@@ -9,7 +9,7 @@ void main() {
       final opts = TransportOptionsBuilder().build();
 
       expect(opts.verifySSL, isTrue);
-      expect(opts.caCertPath, isEmpty);
+      expect(opts.caCertPath, isNull);
       expect(opts.proxy, isNull);
       expect(opts.timeout, isNull);
       expect(opts.followRedirects, isTrue);

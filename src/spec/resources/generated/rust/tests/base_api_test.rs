@@ -10,19 +10,16 @@ mod testcontainers_helper;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use petstore::*;
 use petstore::api::*;
 use petstore::errors::*;
 use petstore::models::*;
-use petstore::*;
 
 // -- Error dispatch via WireMock --
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_400() {
-    let base_url = format!(
-        "{}/api/error/400",
-        testcontainers_helper::wiremock_http_url()
-    );
+    let base_url = format!("{}/api/error/400", testcontainers_helper::wiremock_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config);
@@ -33,10 +30,7 @@ async fn test_base_api_error_dispatch_400() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_401() {
-    let base_url = format!(
-        "{}/api/error/401",
-        testcontainers_helper::wiremock_http_url()
-    );
+    let base_url = format!("{}/api/error/401", testcontainers_helper::wiremock_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config);
@@ -47,10 +41,7 @@ async fn test_base_api_error_dispatch_401() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_403() {
-    let base_url = format!(
-        "{}/api/error/403",
-        testcontainers_helper::wiremock_http_url()
-    );
+    let base_url = format!("{}/api/error/403", testcontainers_helper::wiremock_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config);
@@ -61,10 +52,7 @@ async fn test_base_api_error_dispatch_403() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_404() {
-    let base_url = format!(
-        "{}/api/error/404",
-        testcontainers_helper::wiremock_http_url()
-    );
+    let base_url = format!("{}/api/error/404", testcontainers_helper::wiremock_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config);
@@ -75,10 +63,7 @@ async fn test_base_api_error_dispatch_404() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_409() {
-    let base_url = format!(
-        "{}/api/error/409",
-        testcontainers_helper::wiremock_http_url()
-    );
+    let base_url = format!("{}/api/error/409", testcontainers_helper::wiremock_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config);
@@ -89,10 +74,7 @@ async fn test_base_api_error_dispatch_409() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_422() {
-    let base_url = format!(
-        "{}/api/error/422",
-        testcontainers_helper::wiremock_http_url()
-    );
+    let base_url = format!("{}/api/error/422", testcontainers_helper::wiremock_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config);
@@ -103,10 +85,7 @@ async fn test_base_api_error_dispatch_422() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_500() {
-    let base_url = format!(
-        "{}/api/error/500",
-        testcontainers_helper::wiremock_http_url()
-    );
+    let base_url = format!("{}/api/error/500", testcontainers_helper::wiremock_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config);
@@ -117,10 +96,7 @@ async fn test_base_api_error_dispatch_500() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_502() {
-    let base_url = format!(
-        "{}/api/error/502",
-        testcontainers_helper::wiremock_http_url()
-    );
+    let base_url = format!("{}/api/error/502", testcontainers_helper::wiremock_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config);
@@ -136,12 +112,7 @@ async fn test_base_api_handles_empty_200_response() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
-        .send_request(
-            "GET",
-            &format!("{}/api/empty", testcontainers_helper::wiremock_http_url()),
-            &headers,
-            None,
-        )
+        .send_request("GET", &format!("{}/api/empty", testcontainers_helper::wiremock_http_url()), &headers, None)
         .await
         .expect("unexpected error");
 
@@ -156,12 +127,7 @@ async fn test_base_api_deserializes_json_response() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
-        .send_request(
-            "GET",
-            &format!("{}/api/test", testcontainers_helper::wiremock_http_url()),
-            &headers,
-            None,
-        )
+        .send_request("GET", &format!("{}/api/test", testcontainers_helper::wiremock_http_url()), &headers, None)
         .await
         .expect("unexpected error");
 
@@ -176,12 +142,7 @@ async fn test_base_api_returns_raw_body_for_non_json() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
-        .send_request(
-            "GET",
-            &format!("{}/api/text", testcontainers_helper::wiremock_http_url()),
-            &headers,
-            None,
-        )
+        .send_request("GET", &format!("{}/api/text", testcontainers_helper::wiremock_http_url()), &headers, None)
         .await
         .expect("unexpected error");
 
@@ -196,15 +157,7 @@ async fn test_base_api_forwards_auth_headers() {
     let mut headers = HashMap::new();
     headers.insert("Authorization".to_string(), "Bearer test-token".to_string());
     let resp = client
-        .send_request(
-            "GET",
-            &format!(
-                "{}/api/echo-headers",
-                testcontainers_helper::wiremock_http_url()
-            ),
-            &headers,
-            None,
-        )
+        .send_request("GET", &format!("{}/api/echo-headers", testcontainers_helper::wiremock_http_url()), &headers, None)
         .await
         .expect("unexpected error");
 
@@ -219,12 +172,7 @@ async fn test_base_api_handles_nil_body() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
-        .send_request(
-            "GET",
-            &format!("{}/api/test", testcontainers_helper::wiremock_http_url()),
-            &headers,
-            None,
-        )
+        .send_request("GET", &format!("{}/api/test", testcontainers_helper::wiremock_http_url()), &headers, None)
         .await
         .expect("unexpected error");
 

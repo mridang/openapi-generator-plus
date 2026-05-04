@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+{{#hasOsImport}}
+	"os"
+{{/hasOsImport}}
 	"strings"
 
 	. "{{packageName}}/pkg/models"
@@ -105,7 +108,7 @@ func (a *{{classname}}) {{operationId}}({{#hasAuthMethods}}auth Authenticator, {
 }
 
 // {{operationId}}WithHTTPInfo performs the {{operationId}} operation and returns the full API result.
-func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Authenticator, {{/hasAuthMethods}}{{#pathParams}}{{paramName}} {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}} {{^required}}*{{/required}}{{{dataType}}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server, {{/-first}}{{/servers}}) (*ApiResult[{{#returnType}}*{{{.}}}{{/returnType}}{{^returnType}}interface{}{{/returnType}}], error) {
+func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Authenticator, {{/hasAuthMethods}}{{#pathParams}}{{paramName}} {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}} {{^required}}*{{/required}}{{{dataType}}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server, {{/-first}}{{/servers}}) (*ApiResult[{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}interface{}{{/returnType}}], error) {
 {{#pathParams}}
 {{#required}}
 {{#isString}}
@@ -229,7 +232,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 		}
 	}
 
-	return &ApiResult[*{{{returnType}}}]{
+	return &ApiResult[{{{returnType}}}]{
 		StatusCode: response.StatusCode,
 		Data:       &data,
 		RawBody:    response.Body,

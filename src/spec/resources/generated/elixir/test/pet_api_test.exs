@@ -5,11 +5,10 @@ defmodule PetstoreClient.Api.PetApiTest do
     base_url = System.get_env("API_BASE_URL", "http://localhost:4010")
     auth = PetstoreClient.Auth.BearerAuthenticator.new(base_url, "test-token")
 
-    config =
-      PetstoreClient.Configuration.new(
-        base_url: base_url,
-        default_headers: %{"Authorization" => "Bearer test-token"}
-      )
+    config = PetstoreClient.Configuration.new(
+      base_url: base_url,
+      default_headers: %{"Authorization" => "Bearer test-token"}
+    )
 
     api = PetstoreClient.Api.PetApi.new(nil, config)
 
@@ -55,8 +54,7 @@ defmodule PetstoreClient.Api.PetApiTest do
   end
 
   test "delete_pet deletes a pet", %{api: api, auth: auth} do
-    assert {:ok, _result} =
-             PetstoreClient.Api.PetApi.delete_pet(api, auth, 1, %PetstoreClient.Api.Options.DeletePetOptions{})
+    assert {:ok, _result} = PetstoreClient.Api.PetApi.delete_pet(api, auth, 1, %PetstoreClient.Api.Options.DeletePetOptions{})
   end
 
   test "set_pet_avatar uploads binary image data", %{api: api} do

@@ -22,7 +22,19 @@ from petstore_client.exceptions.not_found_exception import NotFoundException
 from petstore_client.exceptions.conflict_exception import ConflictException
 from petstore_client.exceptions.unprocessable_entity_exception import UnprocessableEntityException
 from petstore_client.exceptions.internal_server_error_exception import InternalServerErrorException
+from petstore_client.api_response import ApiResponse
 from petstore_client import servers as Servers
+
+
+class CapturingApiClient:
+    """Mock API client that captures the URL for query string verification."""
+
+    def __init__(self) -> None:
+        self.captured_url: str = ''
+
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None) -> ApiResponse:
+        self.captured_url = url
+        return ApiResponse(status_code=200, body='{}', headers={'content-type': 'application/json'})
 
 
 class StubApi(BaseApi):
@@ -142,6 +154,39 @@ class TestQueryParameters:
             'GET', '/api/test', {'filter': ''}, {}, None, ['application/json'], 'application/json', None
         )
         assert result is None
+
+
+class TestQuerySerialization:
+    async def test_expands_array_query_params(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call(
+            'GET', '/api/test', {'tags': ['a', 'b']}, {}, None, ['application/json'], 'application/json', None
+        )
+        assert 'tags=a&tags=b' in client.captured_url
+
+    async def test_serializes_boolean_query_params(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('GET', '/api/test', {'active': True}, {}, None, ['application/json'], 'application/json', None)
+        assert 'active=true' in client.captured_url
+
+    async def test_serializes_number_query_params(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('GET', '/api/test', {'limit': 10}, {}, None, ['application/json'], 'application/json', None)
+        assert 'limit=10' in client.captured_url
+        assert 'limit=10.0' not in client.captured_url
+
+    async def test_handles_empty_query_params(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', None)
+        assert '?' not in client.captured_url
 
 
 class TestAuthInjection:

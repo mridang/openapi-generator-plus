@@ -19,7 +19,7 @@ class SetPetAvatarRequest(BaseModel):
     SetPetAvatarRequest
     """
 
-    data: bytes = Field(alias='data', description='Base64-encoded image data')
+    data: bytes = Field(alias='data', description="Base64-encoded image data")
     mime_type: str = Field(alias='mimeType', examples=['image/jpeg'])
     additional_properties: Dict[str, Any] = {}
 
@@ -28,6 +28,7 @@ class SetPetAvatarRequest(BaseModel):
         validate_assignment=True,
         protected_namespaces=(),
     )
+
 
 
 SetPetAvatarRequest.model_rebuild(raise_errors=False)

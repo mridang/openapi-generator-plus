@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -335,6 +334,19 @@ class ObjectSerializer
         }
 
         return self::stringify($value);
+    }
+
+    /**
+     * Convert a value to a string suitable for use as an HTTP cookie value.
+     * Cookie values follow the same encoding rules as header values.
+     *
+     * @param mixed $value the value to convert
+     *
+     * @return string string representation
+     */
+    public static function toCookieValue(mixed $value): string
+    {
+        return self::toHeaderValue($value);
     }
 
     /**

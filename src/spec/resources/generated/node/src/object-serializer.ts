@@ -191,6 +191,17 @@ export class ObjectSerializer {
   }
 
   /**
+   * Convert a value to a string suitable for use as an HTTP cookie value.
+   * Cookie values follow the same encoding rules as header values.
+   *
+   * @param value the value to convert (may be null or undefined)
+   * @returns string representation, or empty string if null
+   */
+  static toCookieValue(value: unknown): string {
+    return ObjectSerializer.toHeaderValue(value);
+  }
+
+  /**
    * Convert a value to a representation suitable for use as a form parameter.
    *
    * @param value the value to convert (may be null or undefined)

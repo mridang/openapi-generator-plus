@@ -15,7 +15,7 @@ type ApiResult[T any] struct {
 
 	// Data is the deserialized response body. May be nil if the operation
 	// returned no content or if the response could not be deserialized.
-	Data T
+	Data *T
 
 	// RawBody is the raw response body as a string.
 	RawBody string
@@ -25,7 +25,7 @@ type ApiResult[T any] struct {
 }
 
 // NewApiResult creates a new ApiResult with the given values.
-func NewApiResult[T any](statusCode int, data T, rawBody string, headers map[string]string) *ApiResult[T] {
+func NewApiResult[T any](statusCode int, data *T, rawBody string, headers map[string]string) *ApiResult[T] {
 	return &ApiResult[T]{
 		StatusCode: statusCode,
 		Data:       data,

@@ -25,7 +25,10 @@ type Order struct {
 
 // NewOrder creates a new Order instance.
 func NewOrder() *Order {
-	return &Order{}
+	var defaultStatus string = "placed"
+	return &Order{
+		Status: &defaultStatus,
+	}
 }
 
 // MarshalJSON implements the json.Marshaler interface.

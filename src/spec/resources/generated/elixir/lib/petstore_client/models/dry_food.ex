@@ -49,4 +49,5 @@ defmodule PetstoreClient.Models.DryFood do
       weight_kg: "float()"
     }
   end
+
 end

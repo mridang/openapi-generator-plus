@@ -24,6 +24,7 @@ import org.openapitools.codegen.CodegenDiscriminator;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
@@ -448,7 +449,53 @@ public class BetterRustCodegen extends AbstractBetterCodegen {
     @SuppressWarnings("rawtypes")
     @Override
     public String toDefaultValue(Schema schema) {
+        final Schema resolved = ModelUtils.getReferencedSchema(this.openAPI, schema);
+        if (resolved.getDefault() != null) {
+            if (ModelUtils.isStringSchema(resolved)) {
+                return "String::from(\"" + escapeText(String.valueOf(resolved.getDefault())) + "\")";
+            } else if (ModelUtils.isBooleanSchema(resolved)) {
+                return resolved.getDefault().toString();
+            } else if (ModelUtils.isIntegerSchema(resolved)
+                    || ModelUtils.isNumberSchema(resolved)) {
+                return resolved.getDefault().toString();
+            }
+        }
         return null;
+    }
+
+    /**
+     * Fixes enum default values that the base class sets to
+     * Java-style enum references (e.g. "StatusEnum.Placed").
+     * For Rust, enum fields typed as String should use a
+     * String literal default.
+     */
+    @Override
+    public ModelsMap postProcessModels(ModelsMap objs) {
+        final ModelsMap result = super.postProcessModels(objs);
+        for (final ModelMap modelMap : result.getModels()) {
+            final CodegenModel model = modelMap.getModel();
+            for (final CodegenProperty prop : model.vars) {
+                fixEnumDefaultValue(prop);
+            }
+            for (final CodegenProperty prop : model.allVars) {
+                fixEnumDefaultValue(prop);
+            }
+            for (final CodegenProperty prop : model.optionalVars) {
+                fixEnumDefaultValue(prop);
+            }
+            for (final CodegenProperty prop : model.requiredVars) {
+                fixEnumDefaultValue(prop);
+            }
+        }
+        return result;
+    }
+
+    private void fixEnumDefaultValue(CodegenProperty prop) {
+        if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
+            final String enumValue = prop.defaultValue.substring(
+                    prop.defaultValue.lastIndexOf('.') + 1);
+            prop.defaultValue = "String::from(\"" + enumValue.toLowerCase(java.util.Locale.ROOT) + "\")";
+        }
     }
 
     /**

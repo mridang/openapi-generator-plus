@@ -322,10 +322,13 @@ public abstract class BaseApi
                 }
                 else
                 {
+                    string value = entry.Value is bool b
+                        ? (b ? "true" : "false")
+                        : entry.Value.ToString()!;
                     parts.Add(
                         Uri.EscapeDataString(entry.Key)
                             + "="
-                            + Uri.EscapeDataString(entry.Value.ToString()!)
+                            + Uri.EscapeDataString(value)
                     );
                 }
             }

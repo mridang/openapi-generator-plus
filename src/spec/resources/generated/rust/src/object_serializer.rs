@@ -27,9 +27,7 @@ impl fmt::Display for SerializationError {
 
 impl std::error::Error for SerializationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.cause
-            .as_ref()
-            .map(|e| e.as_ref() as &(dyn std::error::Error + 'static))
+        self.cause.as_ref().map(|e| e.as_ref() as &(dyn std::error::Error + 'static))
     }
 }
 
@@ -130,6 +128,12 @@ pub fn to_header_value<T: Serialize>(value: &T) -> String {
         serde_json::Value::String(s) => s,
         other => other.to_string(),
     }
+}
+
+/// Converts a value to a string suitable for use as an HTTP cookie value.
+/// Cookie values follow the same encoding rules as header values.
+pub fn to_cookie_value<T: Serialize>(value: &T) -> String {
+    to_header_value(value)
 }
 
 /// Converts a value to a representation suitable for use as a form parameter.

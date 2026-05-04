@@ -20,8 +20,7 @@ class BasicAuthenticator extends BaseAuthenticator {
     required String username,
     required String password,
   })  : _host = host,
-        _authHeader =
-            'Basic ${base64Encode(utf8.encode('$username:$password'))}';
+        _authHeader = 'Basic ${base64Encode(utf8.encode('$username:$password'))}';
 
   @override
   String host() => _host;

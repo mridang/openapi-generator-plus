@@ -63,13 +63,13 @@ impl Authenticator for OAuth2ClientCredentialsAuthenticator {
             params.insert("scope".to_string(), self.scopes.join(" "));
         }
 
-        match self
-            .token_manager
-            .get_access_token(&self.token_url, &params)
-        {
+        match self.token_manager.get_access_token(&self.token_url, &params) {
             Ok(token) => {
                 let mut headers = HashMap::new();
-                headers.insert("Authorization".to_string(), format!("Bearer {}", token));
+                headers.insert(
+                    "Authorization".to_string(),
+                    format!("Bearer {}", token),
+                );
                 headers
             }
             Err(_) => HashMap::new(),

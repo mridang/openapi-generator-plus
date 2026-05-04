@@ -14,20 +14,21 @@ defmodule PetstoreClient.ConfigurationTest do
   end
 
   test "new sets default headers" do
-    config = PetstoreClient.Configuration.new(default_headers: %{"Authorization" => "Bearer token123"})
+    config = PetstoreClient.Configuration.new(
+      default_headers: %{"Authorization" => "Bearer token123"}
+    )
 
     assert config.default_headers == %{"Authorization" => "Bearer token123"}
   end
 
   test "new sets all fields" do
-    config =
-      PetstoreClient.Configuration.new(
-        base_url: "https://api.example.com",
-        default_headers: %{
-          "Authorization" => "Bearer token",
-          "X-Custom" => "value"
-        }
-      )
+    config = PetstoreClient.Configuration.new(
+      base_url: "https://api.example.com",
+      default_headers: %{
+        "Authorization" => "Bearer token",
+        "X-Custom" => "value"
+      }
+    )
 
     assert config.base_url == "https://api.example.com"
     assert config.default_headers["Authorization"] == "Bearer token"

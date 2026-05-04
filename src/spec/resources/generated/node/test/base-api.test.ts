@@ -20,6 +20,23 @@ import { NotFoundError } from '../src/exceptions/not-found-error.js';
 import { ConflictError } from '../src/exceptions/conflict-error.js';
 import { UnprocessableEntityError } from '../src/exceptions/unprocessable-entity-error.js';
 import { InternalServerError } from '../src/exceptions/internal-server-error.js';
+import type { ApiClient } from '../src/api-client.js';
+import type { ApiResponse } from '../src/api-response.js';
+
+class CapturingApiClient implements ApiClient {
+  capturedUrl = '';
+  /* eslint-disable @typescript-eslint/no-unused-vars */
+  async sendRequest(
+    method: string,
+    url: string,
+    headers: Record<string, string>,
+    body: string | Buffer | null
+  ): Promise<ApiResponse> {
+    /* eslint-enable @typescript-eslint/no-unused-vars */
+    this.capturedUrl = url;
+    return { statusCode: 200, body: '{}', headers: { 'content-type': 'application/json' } };
+  }
+}
 
 class TestableApi extends BaseApi {
   async call<T>(
@@ -180,6 +197,50 @@ describe('BaseApi allowEmptyValue', () => {
       null
     );
     expect(result).toBeUndefined();
+  });
+});
+
+describe('BaseApi query serialization', () => {
+  test('expands array query params', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    await testApi.call(
+      'GET',
+      '/api/test',
+      { tags: ['a', 'b'] },
+      {},
+      null,
+      ['application/json'],
+      'application/json',
+      null
+    );
+    expect(client.capturedUrl).toContain('tags=a&tags=b');
+  });
+
+  test('serializes boolean query params', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    await testApi.call('GET', '/api/test', { active: true }, {}, null, ['application/json'], 'application/json', null);
+    expect(client.capturedUrl).toContain('active=true');
+  });
+
+  test('serializes number query params', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    await testApi.call('GET', '/api/test', { limit: 10 }, {}, null, ['application/json'], 'application/json', null);
+    expect(client.capturedUrl).toContain('limit=10');
+    expect(client.capturedUrl).not.toContain('limit=10.0');
+  });
+
+  test('handles empty query params', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    await testApi.call('GET', '/api/test', {}, {}, null, ['application/json'], 'application/json', null);
+    expect(client.capturedUrl).not.toContain('?');
   });
 });
 

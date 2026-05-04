@@ -58,10 +58,13 @@ public struct {{classname}}: Codable, Sendable {
 
 {{#hasVars}}
     /// Creates a new {{classname}} instance.
-    public init({{#requiredVars}}{{nameInCamelCase}}: {{{dataType}}}{{^-last}}, {{/-last}}{{/requiredVars}}) {
+    public init({{#requiredVars}}{{nameInCamelCase}}: {{{dataType}}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^-last}}, {{/-last}}{{/requiredVars}}{{#requiredVars}}{{#-last}}{{#optionalVars}}{{#-first}}, {{/-first}}{{/optionalVars}}{{/-last}}{{/requiredVars}}{{#optionalVars}}{{nameInCamelCase}}: {{{dataType}}}?{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}} = nil{{/defaultValue}}{{^-last}}, {{/-last}}{{/optionalVars}}) {
 {{#requiredVars}}
         self.{{name}} = {{nameInCamelCase}}
 {{/requiredVars}}
+{{#optionalVars}}
+        self.{{name}} = {{nameInCamelCase}}
+{{/optionalVars}}
     }
 {{/hasVars}}
 {{/isAdditionalPropertiesTrue}}

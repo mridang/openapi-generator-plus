@@ -69,14 +69,8 @@ public class ObjectSerializer
         {
             null => "",
             bool b => b ? "true" : "false",
-            DateOnly d => d.ToString(
-                "yyyy-MM-dd",
-                System.Globalization.CultureInfo.InvariantCulture
-            ),
-            DateTimeOffset dto => dto.ToString(
-                "o",
-                System.Globalization.CultureInfo.InvariantCulture
-            ),
+            DateOnly d => d.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+            DateTimeOffset dto => dto.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
             DateTime dt => dt.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
             _ => value.ToString() ?? "",
         };
@@ -144,6 +138,15 @@ public class ObjectSerializer
     }
 
     /// <summary>
+    /// Convert a value to a string suitable for use as an HTTP cookie value.
+    /// Cookie values follow the same encoding rules as header values.
+    /// </summary>
+    public static string ToCookieValue(object? value)
+    {
+        return ToHeaderValue(value);
+    }
+
+    /// <summary>
     /// Convert a value to a representation suitable for use as a form parameter.
     /// </summary>
     public static string ToFormValue(object? value)
@@ -174,7 +177,9 @@ public class ObjectSerializer
                     return result;
                 }
             }
-            catch (JsonException) { }
+            catch (JsonException)
+            {
+            }
         }
 
         return null;
