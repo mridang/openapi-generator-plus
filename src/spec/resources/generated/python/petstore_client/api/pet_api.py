@@ -25,6 +25,7 @@ from .base_api import BaseApi
 from ..value_serializer import ValueSerializer
 from ..auth.authenticator import Authenticator
 from .options.add_pet_photos_options import AddPetPhotosOptions
+from .options.delete_pet_options import DeletePetOptions
 from .options.find_pets_by_status_options import FindPetsByStatusOptions
 from .options.get_pet_tag_options import GetPetTagOptions
 from .options.upload_pet_certificate_options import UploadPetCertificateOptions
@@ -84,6 +85,26 @@ class GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServer):
     def get_url(self) -> str:
         url = 'https://{region}.example.com/v1'
         url = url.replace('{' + 'region' + '}', self._region.value)
+        return url
+
+
+class GetPetByIdServer(ABC):
+    """Server type for the get_pet_by_id operation."""
+
+    @abstractmethod
+    def get_url(self) -> str:
+        """Returns the server URL."""
+        ...
+
+
+class GetPetByIdServerCDNBackedReadEndpointForPetDetails(GetPetByIdServer):
+    """CDN-backed read endpoint for pet details"""
+
+    def __init__(self) -> None:
+        pass
+
+    def get_url(self) -> str:
+        url = 'https://cdn.petstore.io/v3'
         return url
 
 
@@ -191,7 +212,7 @@ class PetApi(BaseApi):
     async def add_pet_photos(
         self,
         pet_id: int,
-        options: AddPetPhotosOptions,
+        options: Optional[AddPetPhotosOptions] = None,
     ) -> List[Photo]:
         """Add photos to the pet&#39;s gallery
         Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
@@ -205,10 +226,10 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        if options.files is None:
+        if options is None or options.files is None:
             raise ValueError("Missing the required parameter 'files'")
 
-        if options.metadata is None:
+        if options is None or options.metadata is None:
             raise ValueError("Missing the required parameter 'metadata'")
 
         result = await self.add_pet_photos_with_http_info(pet_id, options)
@@ -218,7 +239,7 @@ class PetApi(BaseApi):
     async def add_pet_photos_with_http_info(
         self,
         pet_id: int,
-        options: AddPetPhotosOptions,
+        options: Optional[AddPetPhotosOptions] = None,
     ) -> 'ApiResult[List[Photo]]':
         """Add photos to the pet&#39;s gallery (with HTTP info)
         Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
@@ -232,10 +253,10 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        if options.files is None:
+        if options is None or options.files is None:
             raise ValueError("Missing the required parameter 'files'")
 
-        if options.metadata is None:
+        if options is None or options.metadata is None:
             raise ValueError("Missing the required parameter 'metadata'")
 
         path = '/pet/{petId}/photos'
@@ -246,8 +267,10 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body: Dict[str, Any] = {}
-        body['files'] = options.files
-        body['metadata'] = options.metadata
+        if options is not None:
+            body['files'] = options.files
+        if options is not None:
+            body['metadata'] = options.metadata
 
         return await self._invoke_api_for_result(
             'POST',
@@ -330,27 +353,33 @@ class PetApi(BaseApi):
         self,
         auth: Authenticator,
         pet_id: int,
+        options: Optional[DeletePetOptions] = None,
     ) -> None:
         """Deletes a pet
         :param auth: authenticator for this operation
         :param pet_id: Pet id to delete (required)
+
+        :param options: options for query, header, form, and cookie parameters
 
         :raises ApiException: if fails to make API call
         """
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        result = await self.delete_pet_with_http_info(auth, pet_id)
+        result = await self.delete_pet_with_http_info(auth, pet_id, options)
         return result.data
 
     async def delete_pet_with_http_info(
         self,
         auth: Authenticator,
         pet_id: int,
+        options: Optional[DeletePetOptions] = None,
     ) -> 'ApiResult[None]':
         """Deletes a pet (with HTTP info)
         :param auth: authenticator for this operation
         :param pet_id: Pet id to delete (required)
+
+        :param options: options for query, header, form, and cookie parameters
 
         :return: ApiResult containing the response data, status code, raw body, and headers
         :raises ApiException: if fails to make API call
@@ -365,6 +394,13 @@ class PetApi(BaseApi):
         )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
+        cookie_parts = []
+        if options is not None and options.api_key is not None:
+            cookie_parts.append(
+                f'api_key={ValueSerializer.serialize_styled("api_key", options.api_key, "cookie", "str", None, "form", True)}'
+            )
+        if cookie_parts:
+            header_params['Cookie'] = '; '.join(cookie_parts)
         body = None
 
         return await self._invoke_api_for_result(
@@ -448,7 +484,7 @@ class PetApi(BaseApi):
 
     async def find_pets_by_status(
         self,
-        options: FindPetsByStatusOptions,
+        options: Optional[FindPetsByStatusOptions] = None,
     ) -> List[Pet]:
         """Finds Pets by status
 
@@ -467,7 +503,7 @@ class PetApi(BaseApi):
 
     async def find_pets_by_status_with_http_info(
         self,
-        options: FindPetsByStatusOptions,
+        options: Optional[FindPetsByStatusOptions] = None,
     ) -> 'ApiResult[List[Pet]]':
         """Finds Pets by status (with HTTP info)
 
@@ -478,11 +514,13 @@ class PetApi(BaseApi):
         """
         path = '/pet/findByStatus'
         query_params: Dict[str, Any] = {}
-        if options.status is not None:
+        if options is not None and options.status is not None:
             query_params['status'] = ValueSerializer.serialize_styled(
                 'status', options.status, 'query', 'str', None, 'form', True
             )
-        if options.filter is not None:
+        else:
+            query_params['status'] = ''
+        if options is not None and options.filter is not None:
             query_params.update(ValueSerializer.serialize_deep_object('filter', options.filter))
         header_params: Dict[str, str] = {}
         body = None
@@ -536,9 +574,10 @@ class PetApi(BaseApi):
             '{' + 'petId' + '}',
             str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
         )
-        _server_url = server.get_url() if server is not None else 'https://external-api.example.com/v1'
-        if _server_url.startswith('http://') or _server_url.startswith('https://'):
-            path = _server_url + path
+        if server is not None:
+            _server_url = server.get_url()
+            if _server_url.startswith('http://') or _server_url.startswith('https://'):
+                path = _server_url + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -592,9 +631,10 @@ class PetApi(BaseApi):
             '{' + 'petId' + '}',
             str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
         )
-        _server_url = server.get_url() if server is not None else 'https://primary.example.com/v1'
-        if _server_url.startswith('http://') or _server_url.startswith('https://'):
-            path = _server_url + path
+        if server is not None:
+            _server_url = server.get_url()
+            if _server_url.startswith('http://') or _server_url.startswith('https://'):
+                path = _server_url + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -720,6 +760,7 @@ class PetApi(BaseApi):
     async def get_pet_by_id(
         self,
         pet_id: int,
+        server: Optional['GetPetByIdServer'] = None,
     ) -> Pet:
         """Find pet by ID
         Returns a single pet
@@ -733,13 +774,14 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        result = await self.get_pet_by_id_with_http_info(pet_id)
+        result = await self.get_pet_by_id_with_http_info(pet_id, server=server)
         assert result.data is not None
         return result.data
 
     async def get_pet_by_id_with_http_info(
         self,
         pet_id: int,
+        server: Optional['GetPetByIdServer'] = None,
     ) -> 'ApiResult[Pet]':
         """Find pet by ID (with HTTP info)
         Returns a single pet
@@ -756,6 +798,10 @@ class PetApi(BaseApi):
             '{' + 'petId' + '}',
             str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
         )
+        if server is not None:
+            _server_url = server.get_url()
+            if _server_url.startswith('http://') or _server_url.startswith('https://'):
+                path = _server_url + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -896,7 +942,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         tag_name: str,
-        options: GetPetTagOptions,
+        options: Optional[GetPetTagOptions] = None,
     ) -> Pet:
         """Get a tag for a pet
         :param pet_id:  (required)
@@ -921,7 +967,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         tag_name: str,
-        options: GetPetTagOptions,
+        options: Optional[GetPetTagOptions] = None,
     ) -> 'ApiResult[Pet]':
         """Get a tag for a pet (with HTTP info)
         :param pet_id:  (required)
@@ -948,15 +994,15 @@ class PetApi(BaseApi):
             str(ValueSerializer.serialize_styled('tagName', tag_name, 'path', 'str', None, 'label', False)),
         )
         query_params: Dict[str, Any] = {}
-        if options.colors is not None:
+        if options is not None and options.colors is not None:
             query_params['colors'] = ValueSerializer.serialize_styled(
                 'colors', options.colors, 'query', 'List[str]', 'pipes', 'pipeDelimited', False
             )
-        if options.sizes is not None:
+        if options is not None and options.sizes is not None:
             query_params['sizes'] = ValueSerializer.serialize_styled(
                 'sizes', options.sizes, 'query', 'List[str]', 'ssv', 'spaceDelimited', False
             )
-        if options.filter is not None:
+        if options is not None and options.filter is not None:
             query_params['filter'] = ValueSerializer.serialize_styled(
                 'filter', options.filter, 'query', 'str', None, 'form', True
             )
@@ -1014,9 +1060,10 @@ class PetApi(BaseApi):
             '{' + 'petId' + '}',
             str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
         )
-        _server_url = server.get_url() if server is not None else 'https://{environment}.example.com/api/{version}'
-        if _server_url.startswith('http://') or _server_url.startswith('https://'):
-            path = _server_url + path
+        if server is not None:
+            _server_url = server.get_url()
+            if _server_url.startswith('http://') or _server_url.startswith('https://'):
+                path = _server_url + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -1219,7 +1266,7 @@ class PetApi(BaseApi):
     async def upload_pet_certificate(
         self,
         pet_id: int,
-        options: UploadPetCertificateOptions,
+        options: Optional[UploadPetCertificateOptions] = None,
     ) -> ApiResponse:
         """Upload the pet&#39;s adoption certificate
         Attaches a single adoption certificate document. No metadata fields are required alongside the file.
@@ -1233,7 +1280,7 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        if options.file is None:
+        if options is None or options.file is None:
             raise ValueError("Missing the required parameter 'file'")
 
         result = await self.upload_pet_certificate_with_http_info(pet_id, options)
@@ -1243,7 +1290,7 @@ class PetApi(BaseApi):
     async def upload_pet_certificate_with_http_info(
         self,
         pet_id: int,
-        options: UploadPetCertificateOptions,
+        options: Optional[UploadPetCertificateOptions] = None,
     ) -> 'ApiResult[ApiResponse]':
         """Upload the pet&#39;s adoption certificate (with HTTP info)
         Attaches a single adoption certificate document. No metadata fields are required alongside the file.
@@ -1257,7 +1304,7 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        if options.file is None:
+        if options is None or options.file is None:
             raise ValueError("Missing the required parameter 'file'")
 
         path = '/pet/{petId}/certificate'
@@ -1268,7 +1315,8 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body: Dict[str, Any] = {}
-        body['file'] = options.file
+        if options is not None:
+            body['file'] = options.file
 
         return await self._invoke_api_for_result(
             'POST',
@@ -1285,7 +1333,7 @@ class PetApi(BaseApi):
     async def upload_pet_document(
         self,
         pet_id: int,
-        options: UploadPetDocumentOptions,
+        options: Optional[UploadPetDocumentOptions] = None,
     ) -> ApiResponse:
         """Attach a vet document or health record
         Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
@@ -1299,7 +1347,7 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        if options.file is None:
+        if options is None or options.file is None:
             raise ValueError("Missing the required parameter 'file'")
 
         result = await self.upload_pet_document_with_http_info(pet_id, options)
@@ -1309,7 +1357,7 @@ class PetApi(BaseApi):
     async def upload_pet_document_with_http_info(
         self,
         pet_id: int,
-        options: UploadPetDocumentOptions,
+        options: Optional[UploadPetDocumentOptions] = None,
     ) -> 'ApiResult[ApiResponse]':
         """Attach a vet document or health record (with HTTP info)
         Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
@@ -1323,7 +1371,7 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        if options.file is None:
+        if options is None or options.file is None:
             raise ValueError("Missing the required parameter 'file'")
 
         path = '/pet/{petId}/documents'
@@ -1334,10 +1382,11 @@ class PetApi(BaseApi):
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body: Dict[str, Any] = {}
-        body['file'] = options.file
-        if options.document_type is not None:
+        if options is not None:
+            body['file'] = options.file
+        if options is not None and options.document_type is not None:
             body['documentType'] = options.document_type
-        if options.notes is not None:
+        if options is not None and options.notes is not None:
             body['notes'] = options.notes
 
         return await self._invoke_api_for_result(

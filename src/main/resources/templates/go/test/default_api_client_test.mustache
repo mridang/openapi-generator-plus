@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
-	"time"
 
 	"{{packageName}}/pkg"
 )
@@ -80,7 +79,7 @@ func TestDefaultApiClient_HttpProxyWithTls(t *testing.T) {
 
 func TestDefaultApiClient_RequestTimeout(t *testing.T) {
 	transport := {{packageName}}.NewTransportOptionsBuilder().
-		Timeout(1 * time.Second).
+		Timeout(1000).
 		Build()
 	client := {{packageName}}.NewDefaultApiClient(transport)
 	_, err := client.SendRequest("GET", wiremockHTTPURL+"/api/slow", map[string]string{}, nil)

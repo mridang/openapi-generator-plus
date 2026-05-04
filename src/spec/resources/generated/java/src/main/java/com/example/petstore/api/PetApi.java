@@ -13,6 +13,7 @@ import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
 import com.example.petstore.ValueSerializer;
 import com.example.petstore.api.options.AddPetPhotosOptions;
+import com.example.petstore.api.options.DeletePetOptions;
 import com.example.petstore.api.options.FindPetsByStatusOptions;
 import com.example.petstore.api.options.GetPetTagOptions;
 import com.example.petstore.api.options.UploadPetCertificateOptions;
@@ -134,6 +135,21 @@ public class PetApi extends BaseApi {
       public String getUrl() {
         String url = "https://{region}.example.com/v1";
         url = url.replace("{" + "region" + "}", region.getValue());
+        return url;
+      }
+    }
+  }
+
+  /** Server type for the getPetById operation. */
+  public sealed interface GetPetByIdServer {
+    String getUrl();
+
+    /** CDN-backed read endpoint for pet details */
+    record CDNBackedReadEndpointForPetDetails() implements GetPetByIdServer {
+
+      @Override
+      public String getUrl() {
+        String url = "https://cdn.petstore.io/v3";
         return url;
       }
     }
@@ -352,28 +368,39 @@ public class PetApi extends BaseApi {
    * Deletes a pet
    *
    * @param petId Pet id to delete (required)
+   * @param options options for query, header, form, and cookie parameters
    * @throws ApiException if fails to make API call
    */
-  public void deletePet(MachineAuthClientCredentialsAuthenticator auth, Long petId)
+  public void deletePet(
+      MachineAuthClientCredentialsAuthenticator auth,
+      Long petId,
+      @Nullable DeletePetOptions options)
       throws ApiException {
-    deletePetWithHttpInfo(auth, petId);
+    deletePetWithHttpInfo(auth, petId, options);
   }
 
   public ApiResult<Void> deletePetWithHttpInfo(
-      MachineAuthClientCredentialsAuthenticator auth, Long petId) throws ApiException {
-    return deletePetInternal(auth, petId);
-  }
-
-  public void deletePet(AdminBasicAuthenticator auth, Long petId) throws ApiException {
-    deletePetWithHttpInfo(auth, petId);
-  }
-
-  public ApiResult<Void> deletePetWithHttpInfo(AdminBasicAuthenticator auth, Long petId)
+      MachineAuthClientCredentialsAuthenticator auth,
+      Long petId,
+      @Nullable DeletePetOptions options)
       throws ApiException {
-    return deletePetInternal(auth, petId);
+    return deletePetInternal(auth, petId, options);
   }
 
-  private ApiResult<Void> deletePetInternal(Authenticator auth, Long petId) throws ApiException {
+  public void deletePet(
+      AdminBasicAuthenticator auth, Long petId, @Nullable DeletePetOptions options)
+      throws ApiException {
+    deletePetWithHttpInfo(auth, petId, options);
+  }
+
+  public ApiResult<Void> deletePetWithHttpInfo(
+      AdminBasicAuthenticator auth, Long petId, @Nullable DeletePetOptions options)
+      throws ApiException {
+    return deletePetInternal(auth, petId, options);
+  }
+
+  private ApiResult<Void> deletePetInternal(
+      Authenticator auth, Long petId, @Nullable DeletePetOptions options) throws ApiException {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling deletePet");
@@ -387,6 +414,16 @@ public class PetApi extends BaseApi {
                         "petId", petId, "path", "Long", null, "simple", false));
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
+    java.util.StringJoiner cookieJoiner = new java.util.StringJoiner("; ");
+    if (options != null && options.apiKey() != null) {
+      cookieJoiner.add(
+          "api_key="
+              + ValueSerializer.serializeStyled(
+                  "api_key", options.apiKey(), "cookie", "String", null, "form", true));
+    }
+    if (cookieJoiner.length() > 0) {
+      headerParams.put("Cookie", cookieJoiner.toString());
+    }
     return invokeApiForResult(
         "DELETE",
         path,
@@ -469,11 +506,15 @@ public class PetApi extends BaseApi {
       throws ApiException {
     String path = "/pet/findByStatus";
     Map<String, Object> queryParams = new HashMap<>();
-    if (options.status() != null) {
-      queryParams.put(
-          "status",
+    {
+      Object _statusVal =
           ValueSerializer.serializeStyled(
-              "status", options.status(), "query", "String", null, "form", true));
+              "status", options.status(), "query", "String", null, "form", true);
+      if (_statusVal != null) {
+        queryParams.put("status", _statusVal);
+      } else {
+        queryParams.put("status", "");
+      }
     }
     if (options.filter() != null) {
       queryParams.putAll(ValueSerializer.serializeDeepObject("filter", options.filter()));
@@ -531,9 +572,6 @@ public class PetApi extends BaseApi {
       if (serverUrl.startsWith("http://") || serverUrl.startsWith("https://")) {
         path = serverUrl + path;
       }
-    } else if ("https://external-api.example.com/v1".startsWith("http://")
-        || "https://external-api.example.com/v1".startsWith("https://")) {
-      path = "https://external-api.example.com/v1" + path;
     }
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
@@ -589,9 +627,6 @@ public class PetApi extends BaseApi {
       if (serverUrl.startsWith("http://") || serverUrl.startsWith("https://")) {
         path = serverUrl + path;
       }
-    } else if ("https://primary.example.com/v1".startsWith("http://")
-        || "https://primary.example.com/v1".startsWith("https://")) {
-      path = "https://primary.example.com/v1" + path;
     }
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
@@ -696,10 +731,20 @@ public class PetApi extends BaseApi {
   @SuppressWarnings("InlineMeSuggester")
   @Nullable
   public Pet getPetById(Long petId) throws ApiException {
-    return getPetByIdWithHttpInfo(petId).data();
+    return getPetById(petId, null);
   }
 
   public ApiResult<Pet> getPetByIdWithHttpInfo(Long petId) throws ApiException {
+    return getPetByIdWithHttpInfo(petId, null);
+  }
+
+  @Nullable
+  public Pet getPetById(Long petId, @Nullable GetPetByIdServer server) throws ApiException {
+    return getPetByIdWithHttpInfo(petId, server).data();
+  }
+
+  public ApiResult<Pet> getPetByIdWithHttpInfo(Long petId, @Nullable GetPetByIdServer server)
+      throws ApiException {
     if (petId == null) {
       throw new IllegalArgumentException(
           "Missing the required parameter 'petId' when calling getPetById");
@@ -711,6 +756,12 @@ public class PetApi extends BaseApi {
                 (String)
                     ValueSerializer.serializeStyled(
                         "petId", petId, "path", "Long", null, "simple", false));
+    if (server != null) {
+      String serverUrl = server.getUrl();
+      if (serverUrl.startsWith("http://") || serverUrl.startsWith("https://")) {
+        path = serverUrl + path;
+      }
+    }
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();
     return invokeApiForResult(
@@ -933,9 +984,6 @@ public class PetApi extends BaseApi {
       if (serverUrl.startsWith("http://") || serverUrl.startsWith("https://")) {
         path = serverUrl + path;
       }
-    } else if ("https://{environment}.example.com/api/{version}".startsWith("http://")
-        || "https://{environment}.example.com/api/{version}".startsWith("https://")) {
-      path = "https://{environment}.example.com/api/{version}" + path;
     }
     Map<String, Object> queryParams = new HashMap<>();
     Map<String, String> headerParams = new HashMap<>();

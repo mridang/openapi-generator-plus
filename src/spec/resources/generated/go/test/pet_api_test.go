@@ -85,7 +85,7 @@ func TestPetApi_AddPetWithHTTPInfo(t *testing.T) {
 func TestPetApi_GetPetById(t *testing.T) {
 	api := newPetApiForIntegration(t)
 
-	result, err := api.GetPetById(int64(1))
+	result, err := api.GetPetById(int64(1), nil)
 	if err != nil {
 		t.Fatalf("GetPetById failed: %v", err)
 	}
@@ -97,7 +97,7 @@ func TestPetApi_GetPetById(t *testing.T) {
 func TestPetApi_GetPetByIdWithHTTPInfo(t *testing.T) {
 	api := newPetApiForIntegration(t)
 
-	result, err := api.GetPetByIdWithHTTPInfo(int64(1))
+	result, err := api.GetPetByIdWithHTTPInfo(int64(1), nil)
 	if err != nil {
 		t.Fatalf("GetPetByIdWithHTTPInfo failed: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestPetApi_DeletePet(t *testing.T) {
 	api := newPetApiForIntegration(t)
 	auth := &petAuth{}
 
-	err := api.DeletePet(auth, int64(1))
+	err := api.DeletePet(auth, int64(1), nil)
 	if err != nil {
 		t.Fatalf("DeletePet failed: %v", err)
 	}
@@ -200,7 +200,7 @@ func TestPetApi_ErrorHandling_NotFound(t *testing.T) {
 
 	api := newPetApiForMock(t, server)
 
-	_, err := api.GetPetById(int64(99999))
+	_, err := api.GetPetById(int64(99999), nil)
 	if err == nil {
 		t.Fatal("expected error for non-existent pet")
 	}
@@ -216,7 +216,7 @@ func TestPetApi_ErrorHandling_ServerError(t *testing.T) {
 
 	api := newPetApiForMock(t, server)
 
-	_, err := api.GetPetById(int64(1))
+	_, err := api.GetPetById(int64(1), nil)
 	if err == nil {
 		t.Fatal("expected error for server error response")
 	}

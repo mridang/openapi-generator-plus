@@ -22,7 +22,7 @@ class ConflictException(ClientException):
         error_body: Optional[Any] = None,
     ) -> None:
         super().__init__(
-            code=409,
+            status_code=409,
             message=message,
             response_headers=response_headers,
             response_body=response_body,

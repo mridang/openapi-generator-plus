@@ -24,6 +24,19 @@ public struct ServerVariable: Sendable {
     }
 }
 
+/// An error thrown when a server variable override is not in the allowed enum values.
+public enum ServerConfigurationError: Error, LocalizedError {
+    /// The provided value is not allowed for the given variable.
+    case invalidVariableValue(variable: String, value: String, allowed: [String])
+
+    public var errorDescription: String? {
+        switch self {
+        case .invalidVariableValue(let variable, let value, let allowed):
+            return "Invalid value '\(value)' for variable '\(variable)'; allowed: \(allowed)"
+        }
+    }
+}
+
 /// ServerConfiguration represents a single server entry from the OpenAPI specification.
 ///
 /// A server URL may contain template variables (e.g.
@@ -53,7 +66,9 @@ public struct ServerConfiguration: Sendable {
     ///
     /// - Parameter variables: Optional dictionary of variable overrides.
     /// - Returns: The resolved URL string.
-    public func url(variables overrides: [String: String]? = nil) -> String {
+    /// - Throws: ``ServerConfigurationError/invalidVariableValue(variable:value:allowed:)``
+    ///   if a variable override is not in the allowed enum values.
+    public func url(variables overrides: [String: String]? = nil) throws -> String {
         var result = urlTemplate
         for (varName, variable) in variables {
             var value = variable.defaultValue
@@ -63,7 +78,9 @@ public struct ServerConfiguration: Sendable {
 
             if !variable.enumValues.isEmpty {
                 guard variable.enumValues.contains(value) else {
-                    fatalError("Invalid value '\(value)' for variable '\(varName)'; allowed: \(variable.enumValues)")
+                    throw ServerConfigurationError.invalidVariableValue(
+                        variable: varName, value: value, allowed: variable.enumValues
+                    )
                 }
             }
 

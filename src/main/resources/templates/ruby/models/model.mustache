@@ -235,10 +235,10 @@ module {{moduleName}}
       # @return [Object] Write-only property.
       {{/isWriteOnly}}
       {{#required}}
-      attribute :{{name}}, Types::Required{{#defaultValue}}.default({{{.}}}.freeze){{/defaultValue}}
+      attribute :{{name}}, Types::Required{{#defaultValue}}.default({{{.}}}){{/defaultValue}}
       {{/required}}
       {{^required}}
-      attribute :{{name}}, Types::Any.optional.meta(omittable: true){{#defaultValue}}.default({{{.}}}.freeze){{/defaultValue}}
+      attribute :{{name}}, Types::Any.optional.meta(omittable: true){{#defaultValue}}.default({{{.}}}){{/defaultValue}}
       {{/required}}
       {{/vars}}
     end

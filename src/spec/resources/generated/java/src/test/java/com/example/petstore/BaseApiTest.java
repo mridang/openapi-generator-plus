@@ -125,7 +125,7 @@ class BaseApiTest {
                           "application/json",
                           null,
                           null));
-      assertEquals(status, ex.getCode());
+      assertEquals(status, ex.getStatusCode());
       assertNotNull(ex.getResponseBody());
       assertFalse(ex.getResponseBody().isEmpty());
     }

@@ -22,7 +22,7 @@ class InternalServerErrorException(ServerException):
         error_body: Optional[Any] = None,
     ) -> None:
         super().__init__(
-            code=500,
+            status_code=500,
             message=message,
             response_headers=response_headers,
             response_body=response_body,

@@ -13,8 +13,9 @@ public struct ApiResult<T: Sendable>: Sendable {
   /// The HTTP status code of the response.
   public let statusCode: Int
 
-  /// The deserialized response body.
-  public let data: T
+  /// The deserialized response body. May be nil if the operation
+  /// returned no content or if the response could not be deserialized.
+  public let data: T?
 
   /// The raw response body as a string.
   public let rawBody: String
@@ -23,7 +24,7 @@ public struct ApiResult<T: Sendable>: Sendable {
   public let headers: [String: String]
 
   /// Creates a new ApiResult with the given values.
-  public init(statusCode: Int, data: T, rawBody: String, headers: [String: String]) {
+  public init(statusCode: Int, data: T?, rawBody: String, headers: [String: String]) {
     self.statusCode = statusCode
     self.data = data
     self.rawBody = rawBody

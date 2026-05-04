@@ -22,7 +22,7 @@ class NotFoundException(ClientException):
         error_body: Optional[Any] = None,
     ) -> None:
         super().__init__(
-            code=404,
+            status_code=404,
             message=message,
             response_headers=response_headers,
             response_body=response_body,

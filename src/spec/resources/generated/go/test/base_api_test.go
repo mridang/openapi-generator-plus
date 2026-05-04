@@ -100,7 +100,7 @@ func TestBaseApi_ErrorDispatchViaApi(t *testing.T) {
 		t.Run(tc.errType, func(t *testing.T) {
 			config := petstore.NewConfigurationBuilder().BaseURL(wiremockHTTPURL + tc.path).Build()
 			api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config)
-			_, err := api.GetPetById(int64(1))
+			_, err := api.GetPetById(int64(1), nil)
 			if err == nil {
 				t.Fatalf("expected error for status %d, got nil", tc.status)
 			}
@@ -114,7 +114,7 @@ func TestBaseApi_NotFoundIsClientError(t *testing.T) {
 	config := petstore.NewConfigurationBuilder().BaseURL(wiremockHTTPURL + "/api/error/404").Build()
 	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config)
 
-	_, err := api.GetPetById(int64(1))
+	_, err := api.GetPetById(int64(1), nil)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -130,7 +130,7 @@ func TestBaseApi_InternalServerErrorIsServerError(t *testing.T) {
 	config := petstore.NewConfigurationBuilder().BaseURL(wiremockHTTPURL + "/api/error/500").Build()
 	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config)
 
-	_, err := api.GetPetById(int64(1))
+	_, err := api.GetPetById(int64(1), nil)
 	if err == nil {
 		t.Fatal("expected error")
 	}

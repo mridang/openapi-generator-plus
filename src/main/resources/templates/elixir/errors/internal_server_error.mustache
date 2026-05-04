@@ -5,11 +5,11 @@ defmodule {{moduleName}}.Errors.InternalServerError do
   Exception for HTTP 500 Internal Server Error.
   """
 
-  defexception [:message, :code, :response_headers, :response_body, :error_body]
+  defexception [:message, :status_code, :response_headers, :response_body, :error_body]
 
   @type t :: %__MODULE__{
           message: String.t(),
-          code: integer(),
+          status_code: integer(),
           response_headers: map() | nil,
           response_body: String.t() | nil,
           error_body: term() | nil
@@ -19,14 +19,14 @@ defmodule {{moduleName}}.Errors.InternalServerError do
   def exception(opts) when is_map(opts) do
     %__MODULE__{
       message: Map.get(opts, :message, "Internal Server Error"),
-      code: 500,
+      status_code: 500,
       response_headers: Map.get(opts, :response_headers),
       response_body: Map.get(opts, :response_body),
       error_body: Map.get(opts, :error_body)
     }
   end
 
-  def exception(msg) when is_binary(msg), do: %__MODULE__{message: msg, code: 500}
+  def exception(msg) when is_binary(msg), do: %__MODULE__{message: msg, status_code: 500}
 
   @impl true
   def message(%__MODULE__{} = error), do: {{moduleName}}.ApiError.message(struct({{moduleName}}.ApiError, Map.from_struct(error)))

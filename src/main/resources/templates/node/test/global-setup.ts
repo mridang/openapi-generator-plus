@@ -57,6 +57,16 @@ export default async function globalSetup() {
   await new Promise(resolve => setTimeout(resolve, 3000));
 
   const baseUrl = `http://${prism.getHost()}:${prism.getMappedPort(4010)}`;
+
+  // Verify Prism is reachable before proceeding (Docker for Mac port forwarding can be slow)
+  for (let i = 0; i < 10; i++) {
+    try {
+      await fetch(baseUrl);
+      break;
+    } catch {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
   const wiremockHost = wiremock.getHost();
   const wiremockHttpsUrl = `https://${wiremockHost}:${wiremock.getMappedPort(8443)}`;
   const wiremockHttpUrl = `http://${wiremockHost}:${wiremock.getMappedPort(8080)}`;

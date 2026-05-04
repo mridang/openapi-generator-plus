@@ -24,6 +24,13 @@ module PetstoreClient
       def initialize: (region: String) -> void
       def url: () -> String
     end
+    class GetPetByIdServer
+      def url: () -> String
+    end
+
+    class GetPetByIdServerCDNBackedReadEndpointForPetDetails < GetPetByIdServer
+      def url: () -> String
+    end
     class GetStagingPetInfoServer
       def url: () -> String
     end
@@ -50,8 +57,8 @@ module PetstoreClient
       def add_pet_photos_with_http_info: (Integer pet_id, Options::AddPetPhotosOptions options) -> ::PetstoreClient::ApiResult
       def add_pet_treatment: (::PetstoreClient::Auth::Authenticator auth, Integer pet_id, Models::PetTreatment pet_treatment) -> untyped
       def add_pet_treatment_with_http_info: (::PetstoreClient::Auth::Authenticator auth, Integer pet_id, Models::PetTreatment pet_treatment) -> ::PetstoreClient::ApiResult
-      def delete_pet: (::PetstoreClient::Auth::Authenticator auth, Integer pet_id) -> untyped
-      def delete_pet_with_http_info: (::PetstoreClient::Auth::Authenticator auth, Integer pet_id) -> ::PetstoreClient::ApiResult
+      def delete_pet: (::PetstoreClient::Auth::Authenticator auth, Integer pet_id, Options::DeletePetOptions options) -> untyped
+      def delete_pet_with_http_info: (::PetstoreClient::Auth::Authenticator auth, Integer pet_id, Options::DeletePetOptions options) -> ::PetstoreClient::ApiResult
       def download_pet_document: (Integer pet_id, Integer document_id) -> untyped
       def download_pet_document_with_http_info: (Integer pet_id, Integer document_id) -> ::PetstoreClient::ApiResult
       def find_pets_by_status: (Options::FindPetsByStatusOptions options) -> untyped
@@ -64,8 +71,8 @@ module PetstoreClient
       def get_pet_avatar_with_http_info: (Integer pet_id) -> ::PetstoreClient::ApiResult
       def get_pet_avatar_thumbnail: (Integer pet_id) -> untyped
       def get_pet_avatar_thumbnail_with_http_info: (Integer pet_id) -> ::PetstoreClient::ApiResult
-      def get_pet_by_id: (Integer pet_id) -> untyped
-      def get_pet_by_id_with_http_info: (Integer pet_id) -> ::PetstoreClient::ApiResult
+      def get_pet_by_id: (Integer pet_id, ?server: GetPetByIdServer?) -> untyped
+      def get_pet_by_id_with_http_info: (Integer pet_id, ?server: GetPetByIdServer?) -> ::PetstoreClient::ApiResult
       def get_pet_passport: (Integer pet_id) -> untyped
       def get_pet_passport_with_http_info: (Integer pet_id) -> ::PetstoreClient::ApiResult
       def get_pet_photo: (Integer pet_id, Integer photo_id) -> untyped

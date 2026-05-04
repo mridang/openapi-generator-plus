@@ -72,6 +72,13 @@ defmodule PetstoreClient.DefaultApiClient do
         merged
       end
 
+    merged =
+      if !Map.has_key?(merged, "Accept-Encoding") do
+        Map.put(merged, "Accept-Encoding", "gzip, deflate")
+      else
+        merged
+      end
+
     {serialized_body, merged} = prepare_body(body, merged)
 
     req_opts = build_req_options(opts, method, url, merged, serialized_body)

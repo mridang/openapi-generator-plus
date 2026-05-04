@@ -53,7 +53,9 @@ impl Client {
         let transport = transport_options.unwrap_or_else(|| TransportOptionsBuilder::new().build());
         let api_client: Arc<dyn ApiClient> = Arc::new(DefaultApiClient::new(Some(transport)));
 
-        authenticator.set_api_client(api_client.clone());
+        if let Some(http_aware) = authenticator.as_http_aware_mut() {
+            http_aware.set_api_client(api_client.clone());
+        }
 
         let config = ConfigurationBuilder::new()
             .base_url(authenticator.host())

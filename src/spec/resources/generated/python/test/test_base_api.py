@@ -95,7 +95,7 @@ class TestExceptionDispatch:
     async def test_throws_correct_exception(self, api: Any, status: Any, expected_class: Any) -> None:
         with pytest.raises(expected_class) as exc_info:
             await api.call('GET', f'/api/error/{status}', {}, {}, None, ['application/json'], 'application/json', None)
-        assert exc_info.value.code == status
+        assert exc_info.value.status_code == status
         assert exc_info.value.response_body is not None
         assert len(exc_info.value.response_body) > 0
 

@@ -11,13 +11,13 @@ module PetstoreClient
   # Represents an error returned by the API, including the HTTP status code,
   # response headers, and response body.
   class ApiError < StandardError
-    attr_reader :code, :response_headers, :response_body, :error_body
+    attr_reader :status_code, :response_headers, :response_body, :error_body
 
     # Usage examples:
     #   ApiError.new
     #   ApiError.new('message')
-    #   ApiError.new(code: 500, response_headers: {}, response_body: '')
-    #   ApiError.new(code: 404, message: 'Not Found')
+    #   ApiError.new(status_code: 500, response_headers: {}, response_body: '')
+    #   ApiError.new(status_code: 404, message: 'Not Found')
     def initialize(arg = nil) # rubocop:disable Metrics/MethodLength
       if arg.is_a? Hash
         if arg.key?(:message) || arg.key?('message')
@@ -52,7 +52,7 @@ module PetstoreClient
     def message
       msg = @message.nil? ? 'Error message: the server returns an error' : @message
 
-      msg += "\nHTTP status code: #{code}" if code
+      msg += "\nHTTP status code: #{status_code}" if status_code
       msg += "\nResponse headers: #{response_headers}" if response_headers
       msg += "\nResponse body: #{response_body}" if response_body
 

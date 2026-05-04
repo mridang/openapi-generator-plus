@@ -14,7 +14,7 @@ public class RustClientSpec extends AbstractClientSpec implements RustSpec {
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {"cargo test"};
+        return new String[] {"CARGO_BUILD_JOBS=1 cargo test"};
     }
 
     @Override

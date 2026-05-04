@@ -16,35 +16,35 @@ import javax.annotation.Nullable;
 public class ApiException extends Exception {
   private static final long serialVersionUID = 1L;
 
-  private final int code;
+  private final int statusCode;
   @Nullable private final transient Map<String, String> responseHeaders;
   @Nullable private final String responseBody;
   @Nullable private final transient Object errorBody;
 
   public ApiException(String message) {
     super(message);
-    this.code = 0;
+    this.statusCode = 0;
     this.responseHeaders = null;
     this.responseBody = null;
     this.errorBody = null;
   }
 
   public ApiException(
-      int code,
+      int statusCode,
       String message,
       @Nullable Map<String, String> responseHeaders,
       @Nullable String responseBody) {
-    this(code, message, responseHeaders, responseBody, null);
+    this(statusCode, message, responseHeaders, responseBody, null);
   }
 
   public ApiException(
-      int code,
+      int statusCode,
       String message,
       @Nullable Map<String, String> responseHeaders,
       @Nullable String responseBody,
       @Nullable Object errorBody) {
     super(message);
-    this.code = code;
+    this.statusCode = statusCode;
     this.responseHeaders = responseHeaders;
     this.responseBody = responseBody;
     this.errorBody = errorBody;
@@ -55,8 +55,8 @@ public class ApiException extends Exception {
    *
    * @return HTTP status code
    */
-  public int getCode() {
-    return code;
+  public int getStatusCode() {
+    return statusCode;
   }
 
   /**
@@ -105,8 +105,8 @@ public class ApiException extends Exception {
   @Override
   public String getMessage() {
     return "ApiException{"
-        + "code="
-        + code
+        + "statusCode="
+        + statusCode
         + ", message='"
         + super.getMessage()
         + "', responseHeaders="

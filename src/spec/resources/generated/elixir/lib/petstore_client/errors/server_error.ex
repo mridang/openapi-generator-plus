@@ -10,11 +10,11 @@ defmodule PetstoreClient.Errors.ServerError do
   Exception for HTTP 5xx server errors.
   """
 
-  defexception [:message, :code, :response_headers, :response_body, :error_body]
+  defexception [:message, :status_code, :response_headers, :response_body, :error_body]
 
   @type t :: %__MODULE__{
           message: String.t(),
-          code: integer() | nil,
+          status_code: integer() | nil,
           response_headers: map() | nil,
           response_body: String.t() | nil,
           error_body: term() | nil
@@ -24,7 +24,7 @@ defmodule PetstoreClient.Errors.ServerError do
   def exception(opts) when is_map(opts) do
     %__MODULE__{
       message: Map.get(opts, :message, "Server error"),
-      code: Map.get(opts, :code),
+      status_code: Map.get(opts, :status_code),
       response_headers: Map.get(opts, :response_headers),
       response_body: Map.get(opts, :response_body),
       error_body: Map.get(opts, :error_body)

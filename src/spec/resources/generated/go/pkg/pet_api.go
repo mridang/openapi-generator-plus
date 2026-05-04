@@ -10,10 +10,120 @@ package petstore
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	. "petstore/pkg/models"
 	. "petstore/pkg/options"
 )
+
+// GetExternalPetInfoServer is the interface for per-operation server URLs for GetExternalPetInfo.
+type GetExternalPetInfoServer interface {
+	// GetUrl returns the server URL.
+	GetUrl() string
+}
+
+// GetExternalPetInfoServerServer0 is a server variant for GetExternalPetInfoServer.
+type GetExternalPetInfoServerServer0 struct {
+}
+
+// GetUrl returns the server URL.
+func (s GetExternalPetInfoServerServer0) GetUrl() string {
+	url := "https://external-api.example.com/v1"
+	return url
+}
+
+// GetMultiServerPetInfoServer is the interface for per-operation server URLs for GetMultiServerPetInfo.
+type GetMultiServerPetInfoServer interface {
+	// GetUrl returns the server URL.
+	GetUrl() string
+}
+
+// GetMultiServerPetInfoServerRegion represents valid values for the region server variable.
+type GetMultiServerPetInfoServerRegion string
+
+const (
+	GetMultiServerPetInfoServerRegionUS GetMultiServerPetInfoServerRegion = "us"
+	GetMultiServerPetInfoServerRegionEU GetMultiServerPetInfoServerRegion = "eu"
+	GetMultiServerPetInfoServerRegionAP GetMultiServerPetInfoServerRegion = "ap"
+)
+
+// GetMultiServerPetInfoServerPrimary is a server variant for GetMultiServerPetInfoServer.
+// Primary
+type GetMultiServerPetInfoServerPrimary struct {
+}
+
+// GetUrl returns the server URL.
+func (s GetMultiServerPetInfoServerPrimary) GetUrl() string {
+	url := "https://primary.example.com/v1"
+	return url
+}
+
+// GetMultiServerPetInfoServerRegional is a server variant for GetMultiServerPetInfoServer.
+// Regional
+type GetMultiServerPetInfoServerRegional struct {
+	Region GetMultiServerPetInfoServerRegion
+}
+
+// GetUrl returns the server URL.
+func (s GetMultiServerPetInfoServerRegional) GetUrl() string {
+	url := "https://{region}.example.com/v1"
+	url = strings.ReplaceAll(url, "{"+"region"+"}", string(s.Region))
+	return url
+}
+
+// GetPetByIdServer is the interface for per-operation server URLs for GetPetById.
+type GetPetByIdServer interface {
+	// GetUrl returns the server URL.
+	GetUrl() string
+}
+
+// GetPetByIdServerCDNBackedReadEndpointForPetDetails is a server variant for GetPetByIdServer.
+// CDN-backed read endpoint for pet details
+type GetPetByIdServerCDNBackedReadEndpointForPetDetails struct {
+}
+
+// GetUrl returns the server URL.
+func (s GetPetByIdServerCDNBackedReadEndpointForPetDetails) GetUrl() string {
+	url := "https://cdn.petstore.io/v3"
+	return url
+}
+
+// GetStagingPetInfoServer is the interface for per-operation server URLs for GetStagingPetInfo.
+type GetStagingPetInfoServer interface {
+	// GetUrl returns the server URL.
+	GetUrl() string
+}
+
+// GetStagingPetInfoServerEnvironment represents valid values for the environment server variable.
+type GetStagingPetInfoServerEnvironment string
+
+const (
+	GetStagingPetInfoServerEnvironmentSTAGING GetStagingPetInfoServerEnvironment = "staging"
+	GetStagingPetInfoServerEnvironmentSANDBOX GetStagingPetInfoServerEnvironment = "sandbox"
+)
+
+// GetStagingPetInfoServerVersion represents valid values for the version server variable.
+type GetStagingPetInfoServerVersion string
+
+const (
+	GetStagingPetInfoServerVersionV2 GetStagingPetInfoServerVersion = "v2"
+	GetStagingPetInfoServerVersionV3 GetStagingPetInfoServerVersion = "v3"
+)
+
+// GetStagingPetInfoServerStagingServer is a server variant for GetStagingPetInfoServer.
+// Staging server
+type GetStagingPetInfoServerStagingServer struct {
+	Environment GetStagingPetInfoServerEnvironment
+	Version     GetStagingPetInfoServerVersion
+}
+
+// GetUrl returns the server URL.
+func (s GetStagingPetInfoServerStagingServer) GetUrl() string {
+	url := "https://{environment}.example.com/api/{version}"
+	url = strings.ReplaceAll(url, "{"+"environment"+"}", string(s.Environment))
+	url = strings.ReplaceAll(url, "{"+"version"+"}", string(s.Version))
+	return url
+}
 
 // PetApi provides methods for the Pet API group.
 // Everything about your Pets
@@ -190,8 +300,8 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(auth Authenticator, petId int64, pe
 }
 
 // DeletePet Deletes a pet
-func (a *PetApi) DeletePet(auth Authenticator, petId int64) error {
-	result, err := a.DeletePetWithHTTPInfo(auth, petId)
+func (a *PetApi) DeletePet(auth Authenticator, petId int64, options *DeletePetOptions) error {
+	result, err := a.DeletePetWithHTTPInfo(auth, petId, options)
 	if err != nil {
 		return err
 	}
@@ -200,7 +310,7 @@ func (a *PetApi) DeletePet(auth Authenticator, petId int64) error {
 }
 
 // DeletePetWithHTTPInfo performs the DeletePet operation and returns the full API result.
-func (a *PetApi) DeletePetWithHTTPInfo(auth Authenticator, petId int64) (*ApiResult[interface{}], error) {
+func (a *PetApi) DeletePetWithHTTPInfo(auth Authenticator, petId int64, options *DeletePetOptions) (*ApiResult[interface{}], error) {
 
 	path := "/pet/{petId}"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
@@ -208,6 +318,13 @@ func (a *PetApi) DeletePetWithHTTPInfo(auth Authenticator, petId int64) (*ApiRes
 	queryParams := make(map[string]interface{})
 
 	headerParams := make(map[string]string)
+	var cookieParts []string
+	if options != nil && options.ApiKey != nil {
+		cookieParts = append(cookieParts, fmt.Sprintf("api_key=%v", SerializeStyled("api_key", options.ApiKey, "cookie", "string", "", "form", true)))
+	}
+	if len(cookieParts) > 0 {
+		headerParams["Cookie"] = strings.Join(cookieParts, "; ")
+	}
 
 	var requestBody interface{}
 
@@ -305,7 +422,11 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *FindPetsByStatusOptions) 
 
 	queryParams := make(map[string]interface{})
 	if options != nil && options.Status != nil {
-		queryParams["status"] = SerializeStyled("status", options.Status, "query", "string", "", "form", true)
+		if options != nil && options.Status != nil {
+			queryParams["status"] = SerializeStyled("status", options.Status, "query", "string", "", "form", true)
+		} else {
+			queryParams["status"] = ""
+		}
 	}
 	if options != nil && options.Filter != nil {
 		for k, v := range SerializeDeepObject("filter", options.Filter) {
@@ -348,8 +469,8 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(options *FindPetsByStatusOptions) 
 }
 
 // GetExternalPetInfo Get external pet info
-func (a *PetApi) GetExternalPetInfo(petId int64) (*Pet, error) {
-	result, err := a.GetExternalPetInfoWithHTTPInfo(petId)
+func (a *PetApi) GetExternalPetInfo(petId int64, server GetExternalPetInfoServer) (*Pet, error) {
+	result, err := a.GetExternalPetInfoWithHTTPInfo(petId, server)
 	if err != nil {
 		return nil, err
 	}
@@ -357,10 +478,16 @@ func (a *PetApi) GetExternalPetInfo(petId int64) (*Pet, error) {
 }
 
 // GetExternalPetInfoWithHTTPInfo performs the GetExternalPetInfo operation and returns the full API result.
-func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64) (*ApiResult[*Pet], error) {
+func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64, server GetExternalPetInfoServer) (*ApiResult[*Pet], error) {
 
 	path := "/pet/{petId}/external"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
+	if server != nil {
+		serverUrl := server.GetUrl()
+		if strings.HasPrefix(serverUrl, "http://") || strings.HasPrefix(serverUrl, "https://") {
+			path = serverUrl + path
+		}
+	}
 
 	queryParams := make(map[string]interface{})
 
@@ -399,8 +526,8 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(petId int64) (*ApiResult[*Pet], 
 }
 
 // GetMultiServerPetInfo Get multi-server pet info
-func (a *PetApi) GetMultiServerPetInfo(petId int64) (*Pet, error) {
-	result, err := a.GetMultiServerPetInfoWithHTTPInfo(petId)
+func (a *PetApi) GetMultiServerPetInfo(petId int64, server GetMultiServerPetInfoServer) (*Pet, error) {
+	result, err := a.GetMultiServerPetInfoWithHTTPInfo(petId, server)
 	if err != nil {
 		return nil, err
 	}
@@ -408,10 +535,16 @@ func (a *PetApi) GetMultiServerPetInfo(petId int64) (*Pet, error) {
 }
 
 // GetMultiServerPetInfoWithHTTPInfo performs the GetMultiServerPetInfo operation and returns the full API result.
-func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64) (*ApiResult[*Pet], error) {
+func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(petId int64, server GetMultiServerPetInfoServer) (*ApiResult[*Pet], error) {
 
 	path := "/pet/{petId}/multi"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
+	if server != nil {
+		serverUrl := server.GetUrl()
+		if strings.HasPrefix(serverUrl, "http://") || strings.HasPrefix(serverUrl, "https://") {
+			path = serverUrl + path
+		}
+	}
 
 	queryParams := make(map[string]interface{})
 
@@ -556,8 +689,8 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(petId int64) (*ApiResult[*[]b
 // GetPetById Find pet by ID
 // Returns a single pet
 // Deprecated: This operation is deprecated.
-func (a *PetApi) GetPetById(petId int64) (*Pet, error) {
-	result, err := a.GetPetByIdWithHTTPInfo(petId)
+func (a *PetApi) GetPetById(petId int64, server GetPetByIdServer) (*Pet, error) {
+	result, err := a.GetPetByIdWithHTTPInfo(petId, server)
 	if err != nil {
 		return nil, err
 	}
@@ -565,10 +698,16 @@ func (a *PetApi) GetPetById(petId int64) (*Pet, error) {
 }
 
 // GetPetByIdWithHTTPInfo performs the GetPetById operation and returns the full API result.
-func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64) (*ApiResult[*Pet], error) {
+func (a *PetApi) GetPetByIdWithHTTPInfo(petId int64, server GetPetByIdServer) (*ApiResult[*Pet], error) {
 
 	path := "/pet/{petId}"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
+	if server != nil {
+		serverUrl := server.GetUrl()
+		if strings.HasPrefix(serverUrl, "http://") || strings.HasPrefix(serverUrl, "https://") {
+			path = serverUrl + path
+		}
+	}
 
 	queryParams := make(map[string]interface{})
 
@@ -738,7 +877,11 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *Get
 		queryParams["sizes"] = SerializeStyled("sizes", options.Sizes, "query", "[]string", "ssv", "spaceDelimited", false)
 	}
 	if options != nil && options.Filter != nil {
-		queryParams["filter"] = SerializeStyled("filter", options.Filter, "query", "string", "", "form", true)
+		if options != nil && options.Filter != nil {
+			queryParams["filter"] = SerializeStyled("filter", options.Filter, "query", "string", "", "form", true)
+		} else {
+			queryParams["filter"] = ""
+		}
 	}
 
 	headerParams := make(map[string]string)
@@ -776,8 +919,8 @@ func (a *PetApi) GetPetTagWithHTTPInfo(petId int64, tagName string, options *Get
 }
 
 // GetStagingPetInfo Get staging pet info
-func (a *PetApi) GetStagingPetInfo(petId int64) (*Pet, error) {
-	result, err := a.GetStagingPetInfoWithHTTPInfo(petId)
+func (a *PetApi) GetStagingPetInfo(petId int64, server GetStagingPetInfoServer) (*Pet, error) {
+	result, err := a.GetStagingPetInfoWithHTTPInfo(petId, server)
 	if err != nil {
 		return nil, err
 	}
@@ -785,10 +928,16 @@ func (a *PetApi) GetStagingPetInfo(petId int64) (*Pet, error) {
 }
 
 // GetStagingPetInfoWithHTTPInfo performs the GetStagingPetInfo operation and returns the full API result.
-func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64) (*ApiResult[*Pet], error) {
+func (a *PetApi) GetStagingPetInfoWithHTTPInfo(petId int64, server GetStagingPetInfoServer) (*ApiResult[*Pet], error) {
 
 	path := "/pet/{petId}/staging"
 	path = replacePathParam(path, "petId", fmt.Sprintf("%v", petId))
+	if server != nil {
+		serverUrl := server.GetUrl()
+		if strings.HasPrefix(serverUrl, "http://") || strings.HasPrefix(serverUrl, "https://") {
+			path = serverUrl + path
+		}
+	}
 
 	queryParams := make(map[string]interface{})
 

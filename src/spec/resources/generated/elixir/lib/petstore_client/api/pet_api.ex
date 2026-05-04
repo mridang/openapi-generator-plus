@@ -70,6 +70,23 @@ defmodule PetstoreClient.Api.GetMultiServerPetInfoServer.Regional do
   end
 end
 
+defmodule PetstoreClient.Api.GetPetByIdServer do
+  @moduledoc "Server type for the get_pet_by_id operation."
+
+  @callback url() :: String.t()
+end
+
+defmodule PetstoreClient.Api.GetPetByIdServer.CDNBackedReadEndpointForPetDetails do
+  @moduledoc "CDN-backed read endpoint for pet details"
+
+  @behaviour PetstoreClient.Api.GetPetByIdServer
+
+  @impl true
+  def url() do
+    "https://cdn.petstore.io/v3"
+  end
+end
+
 defmodule PetstoreClient.Api.GetStagingPetInfoServer do
   @moduledoc "Server type for the get_staging_pet_info operation."
 
@@ -382,21 +399,23 @@ defmodule PetstoreClient.Api.PetApi do
     * `auth` - Authenticator for this operation.
     * `pet_id` - integer() - Pet id to delete
 
+    * `options` - Optional parameters (query, header, form, cookie).
+
   ## Returns
 
     * `{:ok, nil}` on success.
     * `{:error, exception}` on failure.
 
   """
-  @spec delete_pet(t(), term(), integer()) ::
+  @spec delete_pet(t(), term(), integer(), Options.t()) ::
           {:ok, nil} | {:error, term()}
-  def delete_pet(%__MODULE__{} = api, auth, pet_id) do
+  def delete_pet(%__MODULE__{} = api, auth, pet_id, options) do
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
     end
 
-    case delete_pet_with_http_info(api, auth, pet_id) do
+    case delete_pet_with_http_info(api, auth, pet_id, options) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -405,8 +424,8 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `delete_pet`. Raises on error.
   """
-  def delete_pet!(%__MODULE__{} = api, auth, pet_id) do
-    case delete_pet(api, auth, pet_id) do
+  def delete_pet!(%__MODULE__{} = api, auth, pet_id, options) do
+    case delete_pet(api, auth, pet_id, options) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -415,9 +434,9 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `delete_pet` but returns the full `ApiResult`.
   """
-  @spec delete_pet_with_http_info(t(), term(), integer()) ::
+  @spec delete_pet_with_http_info(t(), term(), integer(), Options.t()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def delete_pet_with_http_info(%__MODULE__{} = api, auth, pet_id) do
+  def delete_pet_with_http_info(%__MODULE__{} = api, auth, pet_id, options) do
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
@@ -435,6 +454,21 @@ defmodule PetstoreClient.Api.PetApi do
 
     query_params = %{}
     header_params = %{}
+    cookie_parts = []
+
+    cookie_parts =
+      if not is_nil(options) and not is_nil(options.api_key) do
+        cookie_parts ++
+          [
+            "api_key=#{PetstoreClient.ValueSerializer.serialize_styled("api_key", options.api_key, :cookie, "String.t()", nil, "form", true)}"
+          ]
+      else
+        cookie_parts
+      end
+
+    header_params =
+      if cookie_parts != [], do: Map.put(header_params, "Cookie", Enum.join(cookie_parts, "; ")), else: header_params
+
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
@@ -600,26 +634,22 @@ defmodule PetstoreClient.Api.PetApi do
     query_params = %{}
 
     query_params =
-      if not is_nil(options.status) do
-        Map.put(
-          query_params,
+      Map.put(
+        query_params,
+        "status",
+        PetstoreClient.ValueSerializer.serialize_styled(
           "status",
-          PetstoreClient.ValueSerializer.serialize_styled(
-            "status",
-            options.status,
-            :query,
-            "String.t()",
-            nil,
-            "form",
-            true
-          )
-        )
-      else
-        query_params
-      end
+          options.status,
+          :query,
+          "String.t()",
+          nil,
+          "form",
+          true
+        ) || ""
+      )
 
     query_params =
-      if options.filter do
+      if not is_nil(options) and options.filter do
         Map.merge(query_params, PetstoreClient.ValueSerializer.serialize_deep_object("filter", options.filter))
       else
         query_params
@@ -700,12 +730,17 @@ defmodule PetstoreClient.Api.PetApi do
       )
 
     server = Keyword.get(opts, :server)
-    server_url = if server, do: server.url(server), else: "https://external-api.example.com/v1"
 
     path =
-      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-        do: server_url <> path,
-        else: path
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
 
     query_params = %{}
     header_params = %{}
@@ -783,12 +818,17 @@ defmodule PetstoreClient.Api.PetApi do
       )
 
     server = Keyword.get(opts, :server)
-    server_url = if server, do: server.url(server), else: "https://primary.example.com/v1"
 
     path =
-      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-        do: server_url <> path,
-        else: path
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
 
     query_params = %{}
     header_params = %{}
@@ -979,15 +1019,15 @@ defmodule PetstoreClient.Api.PetApi do
 
   """
   @deprecated "This operation is deprecated."
-  @spec get_pet_by_id(t(), integer()) ::
+  @spec get_pet_by_id(t(), integer(), keyword()) ::
           {:ok, Pet} | {:error, term()}
-  def get_pet_by_id(%__MODULE__{} = api, pet_id) do
+  def get_pet_by_id(%__MODULE__{} = api, pet_id, opts \\ []) do
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
     end
 
-    case get_pet_by_id_with_http_info(api, pet_id) do
+    case get_pet_by_id_with_http_info(api, pet_id, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -996,8 +1036,8 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `get_pet_by_id`. Raises on error.
   """
-  def get_pet_by_id!(%__MODULE__{} = api, pet_id) do
-    case get_pet_by_id(api, pet_id) do
+  def get_pet_by_id!(%__MODULE__{} = api, pet_id, opts \\ []) do
+    case get_pet_by_id(api, pet_id, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -1006,9 +1046,9 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `get_pet_by_id` but returns the full `ApiResult`.
   """
-  @spec get_pet_by_id_with_http_info(t(), integer()) ::
+  @spec get_pet_by_id_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def get_pet_by_id_with_http_info(%__MODULE__{} = api, pet_id) do
+  def get_pet_by_id_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
@@ -1023,6 +1063,19 @@ defmodule PetstoreClient.Api.PetApi do
         PetstoreClient.ValueSerializer.serialize_styled("petId", pet_id, :path, "integer()", nil, "simple", false)
         |> to_string()
       )
+
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
 
     query_params = %{}
     header_params = %{}
@@ -1296,7 +1349,7 @@ defmodule PetstoreClient.Api.PetApi do
     query_params = %{}
 
     query_params =
-      if not is_nil(options.colors) do
+      if not is_nil(options) and not is_nil(options.colors) do
         Map.put(
           query_params,
           "colors",
@@ -1315,7 +1368,7 @@ defmodule PetstoreClient.Api.PetApi do
       end
 
     query_params =
-      if not is_nil(options.sizes) do
+      if not is_nil(options) and not is_nil(options.sizes) do
         Map.put(
           query_params,
           "sizes",
@@ -1423,12 +1476,17 @@ defmodule PetstoreClient.Api.PetApi do
       )
 
     server = Keyword.get(opts, :server)
-    server_url = if server, do: server.url(server), else: "https://{environment}.example.com/api/{version}"
 
     path =
-      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
-        do: server_url <> path,
-        else: path
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
 
     query_params = %{}
     header_params = %{}
@@ -1857,11 +1915,14 @@ defmodule PetstoreClient.Api.PetApi do
     request_body = Map.put(request_body, "file", options.file)
 
     request_body =
-      if not is_nil(options.document_type),
+      if not is_nil(options) and not is_nil(options.document_type),
         do: Map.put(request_body, "documentType", options.document_type),
         else: request_body
 
-    request_body = if not is_nil(options.notes), do: Map.put(request_body, "notes", options.notes), else: request_body
+    request_body =
+      if not is_nil(options) and not is_nil(options.notes),
+        do: Map.put(request_body, "notes", options.notes),
+        else: request_body
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
       api,

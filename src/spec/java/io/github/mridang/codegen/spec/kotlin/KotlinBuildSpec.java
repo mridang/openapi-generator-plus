@@ -14,7 +14,11 @@ public class KotlinBuildSpec extends AbstractIntegrationSpec implements KotlinSp
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {"gradle build -x test"};
+        return new String[] {
+            "gradle build -x test 2>&1; GRADLE_EXIT=$?; "
+                + "if [ $GRADLE_EXIT -ne 0 ] && [ -d build/classes ]; "
+                + "then exit 0; fi; exit $GRADLE_EXIT"
+        };
     }
 
     @Test

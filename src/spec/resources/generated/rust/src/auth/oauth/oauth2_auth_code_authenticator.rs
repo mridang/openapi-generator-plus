@@ -115,10 +115,6 @@ impl Authenticator for OAuth2AuthorizationCodeAuthenticator {
         &self.host
     }
 
-    fn set_api_client(&mut self, client: Arc<dyn ApiClient>) {
-        self.token_manager.set_api_client(client);
-    }
-
     fn auth_headers(&self) -> HashMap<String, String> {
         if !self.token_exchanged {
             panic!("must call exchange_code before making API requests");
@@ -143,6 +139,14 @@ impl Authenticator for OAuth2AuthorizationCodeAuthenticator {
             Err(_) => HashMap::new(),
         }
     }
+
+    fn as_http_aware_mut(&mut self) -> Option<&mut dyn HttpAwareAuthenticator> {
+        Some(self)
+    }
 }
 
-impl HttpAwareAuthenticator for OAuth2AuthorizationCodeAuthenticator {}
+impl HttpAwareAuthenticator for OAuth2AuthorizationCodeAuthenticator {
+    fn set_api_client(&mut self, client: Arc<dyn ApiClient>) {
+        self.token_manager.set_api_client(client);
+    }
+}

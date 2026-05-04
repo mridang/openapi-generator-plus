@@ -59,7 +59,7 @@ describe('PetApi', () => {
   });
 
   test('deletePet', async () => {
-    await api.deletePet(auth, 1);
+    await api.deletePet(auth, 1, undefined);
   });
 
   test('setPetAvatar', async () => {

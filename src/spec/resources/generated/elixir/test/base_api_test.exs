@@ -45,7 +45,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
              )
 
     assert %PetstoreClient.Errors.BadRequestError{} = error
-    assert error.code == 400
+    assert error.status_code == 400
   end
 
   test "raises UnauthorizedError for status 401", %{state: state} do
@@ -63,7 +63,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
              )
 
     assert %PetstoreClient.Errors.UnauthorizedError{} = error
-    assert error.code == 401
+    assert error.status_code == 401
   end
 
   test "raises ForbiddenError for status 403", %{state: state} do
@@ -81,7 +81,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
              )
 
     assert %PetstoreClient.Errors.ForbiddenError{} = error
-    assert error.code == 403
+    assert error.status_code == 403
   end
 
   test "raises NotFoundError for status 404", %{state: state} do
@@ -99,7 +99,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
              )
 
     assert %PetstoreClient.Errors.NotFoundError{} = error
-    assert error.code == 404
+    assert error.status_code == 404
   end
 
   test "raises ConflictError for status 409", %{state: state} do
@@ -117,7 +117,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
              )
 
     assert %PetstoreClient.Errors.ConflictError{} = error
-    assert error.code == 409
+    assert error.status_code == 409
   end
 
   test "raises UnprocessableEntityError for status 422", %{state: state} do
@@ -135,7 +135,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
              )
 
     assert %PetstoreClient.Errors.UnprocessableEntityError{} = error
-    assert error.code == 422
+    assert error.status_code == 422
   end
 
   test "raises InternalServerError for status 500", %{state: state} do
@@ -153,7 +153,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
              )
 
     assert %PetstoreClient.Errors.InternalServerError{} = error
-    assert error.code == 500
+    assert error.status_code == 500
   end
 
   test "raises ServerError for status 502", %{state: state} do
@@ -171,7 +171,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
              )
 
     assert %PetstoreClient.Errors.ServerError{} = error
-    assert error.code == 502
+    assert error.status_code == 502
   end
 
   test "raises ClientError for status 418", %{state: state} do
@@ -189,7 +189,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
              )
 
     assert %PetstoreClient.Errors.ClientError{} = error
-    assert error.code == 418
+    assert error.status_code == 418
   end
 
   # Success deserialization

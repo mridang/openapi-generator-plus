@@ -74,11 +74,13 @@ public final class ConfigurationBuilder {
   }
 
   /// Sets the base URL from a server configuration with optional variable overrides.
+  ///
+  /// - Throws: ``ServerConfigurationError`` if a variable override is not in the allowed enum values.
   @discardableResult
-  public func server(_ server: ServerConfiguration, variables: [String: String]? = nil)
+  public func server(_ server: ServerConfiguration, variables: [String: String]? = nil) throws
     -> ConfigurationBuilder
   {
-    self.baseURL = server.url(variables: variables)
+    self.baseURL = try server.url(variables: variables)
     return self
   }
 

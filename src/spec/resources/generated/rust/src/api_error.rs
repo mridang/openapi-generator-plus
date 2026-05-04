@@ -13,7 +13,7 @@ use std::fmt;
 #[derive(Debug, Clone)]
 pub struct ApiError {
     /// The HTTP status code.
-    pub code: u16,
+    pub status_code: u16,
 
     /// The error message.
     pub message: String,
@@ -28,13 +28,13 @@ pub struct ApiError {
 impl ApiError {
     /// Creates a new ApiError.
     pub fn new(
-        code: u16,
+        status_code: u16,
         message: String,
         response_body: String,
         response_headers: HashMap<String, String>,
     ) -> Self {
         Self {
-            code,
+            status_code,
             message,
             response_body,
             response_headers,
@@ -44,11 +44,6 @@ impl ApiError {
     /// Deserializes the response body into the target type.
     pub fn typed_error_body<T: serde::de::DeserializeOwned>(&self) -> Result<T, serde_json::Error> {
         serde_json::from_str(&self.response_body)
-    }
-
-    /// Returns the HTTP status code of the error.
-    pub fn status_code(&self) -> u16 {
-        self.code
     }
 }
 
@@ -60,8 +55,8 @@ impl fmt::Display for ApiError {
             self.message.clone()
         };
 
-        if self.code != 0 {
-            msg.push_str(&format!("\nHTTP status code: {}", self.code));
+        if self.status_code != 0 {
+            msg.push_str(&format!("\nHTTP status code: {}", self.status_code));
         }
         if !self.response_headers.is_empty() {
             msg.push_str(&format!("\nResponse headers: {:?}", self.response_headers));

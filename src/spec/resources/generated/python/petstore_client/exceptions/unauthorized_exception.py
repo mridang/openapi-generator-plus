@@ -22,7 +22,7 @@ class UnauthorizedException(ClientException):
         error_body: Optional[Any] = None,
     ) -> None:
         super().__init__(
-            code=401,
+            status_code=401,
             message=message,
             response_headers=response_headers,
             response_body=response_body,

@@ -150,11 +150,6 @@ impl Authenticator for OpenIdConnectAuthenticator {
         &self.host
     }
 
-    fn set_api_client(&mut self, client: Arc<dyn ApiClient>) {
-        let mut guard = self.api_client.lock().unwrap();
-        *guard = Some(client);
-    }
-
     fn auth_headers(&self) -> HashMap<String, String> {
         match self.resolve_delegate() {
             Ok(()) => {
@@ -167,9 +162,18 @@ impl Authenticator for OpenIdConnectAuthenticator {
             Err(_) => HashMap::new(),
         }
     }
+
+    fn as_http_aware_mut(&mut self) -> Option<&mut dyn HttpAwareAuthenticator> {
+        Some(self)
+    }
 }
 
-impl HttpAwareAuthenticator for OpenIdConnectAuthenticator {}
+impl HttpAwareAuthenticator for OpenIdConnectAuthenticator {
+    fn set_api_client(&mut self, client: Arc<dyn ApiClient>) {
+        let mut guard = self.api_client.lock().unwrap();
+        *guard = Some(client);
+    }
+}
 
 unsafe impl Send for OpenIdConnectAuthenticator {}
 unsafe impl Sync for OpenIdConnectAuthenticator {}

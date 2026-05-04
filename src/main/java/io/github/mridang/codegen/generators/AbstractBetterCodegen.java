@@ -1381,6 +1381,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             "wiremock/mappings/echo-headers.json",
             "wiremock/mappings/echo-body.json",
             "wiremock/mappings/text-plain.json",
+            "wiremock/mappings/empty.json",
             "wiremock/mappings/error-400.json",
             "wiremock/mappings/error-401.json",
             "wiremock/mappings/error-403.json",

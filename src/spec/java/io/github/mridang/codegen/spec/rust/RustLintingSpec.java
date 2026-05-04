@@ -14,7 +14,7 @@ public class RustLintingSpec extends AbstractIntegrationSpec implements RustSpec
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {"rustup component add clippy", "cargo clippy -- -D warnings"};
+        return new String[] {"rustup component add clippy", "CARGO_BUILD_JOBS=2 cargo clippy -- -D warnings"};
     }
 
     @Test

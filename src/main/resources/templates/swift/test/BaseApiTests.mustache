@@ -62,7 +62,7 @@ final class BaseApiTests: XCTestCase {
             _ = try await api.getPetById(petId: 1)
             XCTFail("Expected error for status 400")
         } catch let error as BadRequestError {
-            XCTAssertEqual(error.code, 400)
+            XCTAssertEqual(error.statusCode, 400)
         }
     }
 

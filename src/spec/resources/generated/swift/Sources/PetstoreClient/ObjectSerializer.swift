@@ -46,10 +46,16 @@ public enum ObjectSerializer {
     return decoder
   }()
 
-  /// Serializes an Encodable object to JSON data.
-  public static func serialize<T: Encodable>(_ object: T) throws -> Data {
+  /// Serializes an Encodable object to a JSON string.
+  public static func serialize<T: Encodable>(_ object: T) throws -> String {
     do {
-      return try encoder.encode(object)
+      let data = try encoder.encode(object)
+      guard let string = String(data: data, encoding: .utf8) else {
+        throw SerializationError(message: "Failed to convert serialized data to UTF-8 string")
+      }
+      return string
+    } catch let error as SerializationError {
+      throw error
     } catch {
       throw SerializationError(
         message: "Failed to serialize object to JSON",
@@ -58,13 +64,19 @@ public enum ObjectSerializer {
     }
   }
 
-  /// Serializes any value to JSON data using JSONSerialization.
-  public static func serialize(_ object: Any) throws -> Data {
+  /// Serializes any value to a JSON string using JSONSerialization.
+  public static func serialize(_ object: Any) throws -> String {
     if let encodable = object as? Encodable {
       return try serialize(encodable)
     }
     do {
-      return try JSONSerialization.data(withJSONObject: object)
+      let data = try JSONSerialization.data(withJSONObject: object)
+      guard let string = String(data: data, encoding: .utf8) else {
+        throw SerializationError(message: "Failed to convert serialized data to UTF-8 string")
+      }
+      return string
+    } catch let error as SerializationError {
+      throw error
     } catch {
       throw SerializationError(
         message: "Failed to serialize object to JSON",

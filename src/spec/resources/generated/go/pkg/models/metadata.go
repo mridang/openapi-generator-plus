@@ -15,6 +15,8 @@ import (
 // Metadata is a model class generated from the OpenAPI schema.
 type Metadata struct {
 	CreatedAt *time.Time `json:"createdAt,omitempty"`
+	// AdditionalProperties holds any extra fields not defined in the schema.
+	AdditionalProperties map[string]interface{} `json:"-"`
 }
 
 // NewMetadata creates a new Metadata instance.
@@ -25,7 +27,20 @@ func NewMetadata() *Metadata {
 // MarshalJSON implements the json.Marshaler interface.
 func (o Metadata) MarshalJSON() ([]byte, error) {
 	type Alias Metadata
-	return json.Marshal((Alias)(o))
+	b, err := json.Marshal((Alias)(o))
+	if err != nil {
+		return nil, err
+	}
+	if len(o.AdditionalProperties) == 0 {
+		return b, nil
+	}
+	extra, err := json.Marshal(o.AdditionalProperties)
+	if err != nil {
+		return nil, err
+	}
+	// Merge the two JSON objects
+	b[len(b)-1] = ','
+	return append(b, extra[1:]...), nil
 }
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
@@ -36,5 +51,26 @@ func (o *Metadata) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	*o = Metadata(*aux)
+
+	// Collect additional properties
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	knownFields := map[string]bool{
+		"createdAt": true,
+	}
+	for key, val := range raw {
+		if !knownFields[key] {
+			if o.AdditionalProperties == nil {
+				o.AdditionalProperties = make(map[string]interface{})
+			}
+			var v interface{}
+			if err := json.Unmarshal(val, &v); err != nil {
+				return err
+			}
+			o.AdditionalProperties[key] = v
+		}
+	}
 	return nil
 }

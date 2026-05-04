@@ -9,6 +9,7 @@ dependencies:
   http: ^1.2.0
 
 dev_dependencies:
+  lints: ^4.0.0
   test: ^1.25.0
   coverage: ^1.11.0
   junitreport: ^2.0.0

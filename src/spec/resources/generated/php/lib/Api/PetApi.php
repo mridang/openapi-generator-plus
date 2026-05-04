@@ -17,6 +17,7 @@ declare(strict_types=1);
 namespace PetstoreClient\Api;
 
 use PetstoreClient\Api\Options\AddPetPhotosOptions;
+use PetstoreClient\Api\Options\DeletePetOptions;
 use PetstoreClient\Api\Options\FindPetsByStatusOptions;
 use PetstoreClient\Api\Options\GetPetTagOptions;
 use PetstoreClient\Api\Options\UploadPetCertificateOptions;
@@ -100,6 +101,26 @@ final class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoSer
     {
         $url = 'https://{region}.example.com/v1';
         return str_replace('{' . 'region' . '}', $this->region->value, $url);
+    }
+}
+
+/**
+ * Server type for the getPetById operation.
+ */
+abstract class GetPetByIdServer
+{
+    abstract public function getUrl(): string;
+}
+
+
+/**
+ * CDN-backed read endpoint for pet details
+ */
+final class GetPetByIdServerCDNBackedReadEndpointForPetDetails extends GetPetByIdServer
+{
+    public function getUrl(): string
+    {
+        return 'https://cdn.petstore.io/v3';
     }
 }
 
@@ -237,7 +258,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'multipart/form-data',
-            '\PetstoreClient\Models\Photo[]',
+            '\PetstoreClient\Models\Photo[]'
         );
         return $result;
     }
@@ -291,20 +312,24 @@ class PetApi extends BaseApi
      * @param Authenticator $auth Authenticator for this operation
      * @param int $petId Pet id to delete
 
+     * @param DeletePetOptions|null $options Options for query, header, form, and cookie parameters
+
      * @throws ApiException
      */
-    public function deletePet(Authenticator $auth, int $petId): void
+    public function deletePet(Authenticator $auth, int $petId, ?DeletePetOptions $options = null): void
     {
-        $this->deletePetWithHttpInfo($auth, $petId);
+        $this->deletePetWithHttpInfo($auth, $petId, $options);
     }
 
     /**
      * @param int $petId Pet id to delete
 
+     * @param DeletePetOptions|null $options Options for query, header, form, and cookie parameters
+
      * @return ApiResult<null>
      * @throws ApiException
      */
-    public function deletePetWithHttpInfo(Authenticator $auth, int $petId): ApiResult
+    public function deletePetWithHttpInfo(Authenticator $auth, int $petId, ?DeletePetOptions $options = null): ApiResult
     {
         $path = '/pet/{petId}';
         /** @var string $pathValue */
@@ -312,6 +337,15 @@ class PetApi extends BaseApi
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
+        $cookieParts = [];
+        if ($options?->apiKey !== null) {
+            /** @var string $cookieValue */
+            $cookieValue = ValueSerializer::serializeStyled('api_key', $options->apiKey, 'cookie', 'string', null, 'form', true);
+            $cookieParts[] = 'api_key=' . $cookieValue;
+        }
+        if ($cookieParts !== []) {
+            $headerParams['Cookie'] = implode('; ', $cookieParts);
+        }
         $requestBody = null;
 
         /** @var ApiResult<null> $result */
@@ -370,7 +404,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/octet-stream'],
             'application/json',
-            '\SplFileObject',
+            '\SplFileObject'
         );
         return $result;
     }
@@ -403,9 +437,8 @@ class PetApi extends BaseApi
     {
         $path = '/pet/findByStatus';
         $queryParams = [];
-        if ($options->status !== null) {
-            $queryParams['status'] = ValueSerializer::serializeStyled('status', $options->status, 'query', 'string', null, 'form', true);
-        }
+        $serialized = ValueSerializer::serializeStyled('status', $options->status, 'query', 'string', null, 'form', true);
+        $queryParams['status'] = $serialized ?? '';
         if ($options->filter !== null) {
             $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('filter', $options->filter));
         }
@@ -421,7 +454,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet[]',
+            '\PetstoreClient\Models\Pet[]'
         );
         return $result;
     }
@@ -450,9 +483,11 @@ class PetApi extends BaseApi
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
-        $serverUrl = $server instanceof GetExternalPetInfoServer ? $server->getUrl() : 'https://external-api.example.com/v1';
-        if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
-            $path = $serverUrl . $path;
+        if ($server instanceof GetExternalPetInfoServer) {
+            $serverUrl = $server->getUrl();
+            if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
+                $path = $serverUrl . $path;
+            }
         }
         $queryParams = [];
         $headerParams = [];
@@ -467,7 +502,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet',
+            '\PetstoreClient\Models\Pet'
         );
         return $result;
     }
@@ -496,9 +531,11 @@ class PetApi extends BaseApi
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
-        $serverUrl = $server instanceof GetMultiServerPetInfoServer ? $server->getUrl() : 'https://primary.example.com/v1';
-        if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
-            $path = $serverUrl . $path;
+        if ($server instanceof GetMultiServerPetInfoServer) {
+            $serverUrl = $server->getUrl();
+            if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
+                $path = $serverUrl . $path;
+            }
         }
         $queryParams = [];
         $headerParams = [];
@@ -513,7 +550,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet',
+            '\PetstoreClient\Models\Pet'
         );
         return $result;
     }
@@ -556,7 +593,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['image/jpeg', 'image/png'],
             'application/json',
-            '\SplFileObject',
+            '\SplFileObject'
         );
         return $result;
     }
@@ -599,7 +636,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            'string',
+            'string'
         );
         return $result;
     }
@@ -613,10 +650,10 @@ class PetApi extends BaseApi
      * @throws ApiException
      * @deprecated This operation is deprecated.
      */
-    public function getPetById(int $petId)
+    public function getPetById(int $petId, ?GetPetByIdServer $server = null)
     {
         /** @var Pet $result */
-        $result = $this->getPetByIdWithHttpInfo($petId)->data;
+        $result = $this->getPetByIdWithHttpInfo($petId, $server)->data;
         return $result;
     }
 
@@ -626,12 +663,18 @@ class PetApi extends BaseApi
      * @return ApiResult<Pet>
      * @throws ApiException
      */
-    public function getPetByIdWithHttpInfo(int $petId): ApiResult
+    public function getPetByIdWithHttpInfo(int $petId, ?GetPetByIdServer $server = null): ApiResult
     {
         $path = '/pet/{petId}';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
+        if ($server instanceof GetPetByIdServer) {
+            $serverUrl = $server->getUrl();
+            if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
+                $path = $serverUrl . $path;
+            }
+        }
         $queryParams = [];
         $headerParams = [];
         $requestBody = null;
@@ -645,7 +688,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet',
+            '\PetstoreClient\Models\Pet'
         );
         return $result;
     }
@@ -688,7 +731,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\PetPassport',
+            '\PetstoreClient\Models\PetPassport'
         );
         return $result;
     }
@@ -734,7 +777,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['image/jpeg', 'image/png', 'application/json'],
             'application/json',
-            '\SplFileObject',
+            '\SplFileObject'
         );
         return $result;
     }
@@ -791,7 +834,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet',
+            '\PetstoreClient\Models\Pet'
         );
         return $result;
     }
@@ -820,9 +863,11 @@ class PetApi extends BaseApi
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
-        $serverUrl = $server instanceof GetStagingPetInfoServer ? $server->getUrl() : 'https://{environment}.example.com/api/{version}';
-        if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
-            $path = $serverUrl . $path;
+        if ($server instanceof GetStagingPetInfoServer) {
+            $serverUrl = $server->getUrl();
+            if (str_starts_with($serverUrl, 'http://') || str_starts_with($serverUrl, 'https://')) {
+                $path = $serverUrl . $path;
+            }
         }
         $queryParams = [];
         $headerParams = [];
@@ -837,7 +882,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet',
+            '\PetstoreClient\Models\Pet'
         );
         return $result;
     }
@@ -877,7 +922,7 @@ class PetApi extends BaseApi
             $requestBody,
             [],
             'image/jpeg',
-            null,
+            null
         );
         return $result;
     }
@@ -917,7 +962,7 @@ class PetApi extends BaseApi
             $requestBody,
             [],
             'application/json',
-            null,
+            null
         );
         return $result;
     }
@@ -963,7 +1008,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'application/json',
-            '\PetstoreClient\Models\Pet',
+            '\PetstoreClient\Models\Pet'
         );
         return $result;
     }
@@ -1011,7 +1056,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'multipart/form-data',
-            '\PetstoreClient\Models\ApiResponse',
+            '\PetstoreClient\Models\ApiResponse'
         );
         return $result;
     }
@@ -1065,7 +1110,7 @@ class PetApi extends BaseApi
             $requestBody,
             ['application/json'],
             'multipart/form-data',
-            '\PetstoreClient\Models\ApiResponse',
+            '\PetstoreClient\Models\ApiResponse'
         );
         return $result;
     }

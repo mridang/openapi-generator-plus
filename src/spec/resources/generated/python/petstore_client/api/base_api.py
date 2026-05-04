@@ -274,7 +274,7 @@ class BaseApi:
                     message=message, response_body=body, response_headers=headers, error_body=error_body
                 )
             raise ClientException(
-                code=code, message=message, response_body=body, response_headers=headers, error_body=error_body
+                status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body
             )
         if code >= 500:
             if code == 500:
@@ -282,8 +282,8 @@ class BaseApi:
                     message=message, response_body=body, response_headers=headers, error_body=error_body
                 )
             raise ServerException(
-                code=code, message=message, response_body=body, response_headers=headers, error_body=error_body
+                status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body
             )
         raise ApiException(
-            code=code, message=message, response_body=body, response_headers=headers, error_body=error_body
+            status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body
         )

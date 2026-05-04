@@ -14,6 +14,7 @@ import { ObjectSerializer } from '../object-serializer.js';
 import { ValueSerializer } from '../value-serializer.js';
 import { ApiResponse, Pet, PetPassport, PetTreatment, Photo, SetPetAvatarThumbnailRequest } from '../models/index.js';
 import type { AddPetPhotosOptions } from './options/add-pet-photos-options.js';
+import type { DeletePetOptions } from './options/delete-pet-options.js';
 import type { FindPetsByStatusOptions } from './options/find-pets-by-status-options.js';
 import type { GetPetTagOptions } from './options/get-pet-tag-options.js';
 import type { UploadPetCertificateOptions } from './options/upload-pet-certificate-options.js';
@@ -59,6 +60,18 @@ export class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoSe
     let url = 'https://{region}.example.com/v1';
     url = url.replace('{' + 'region' + '}', this.region);
     return url;
+  }
+}
+export abstract class GetPetByIdServer {
+  abstract getUrl(): string;
+}
+
+export class GetPetByIdServerCDNBackedReadEndpointForPetDetails extends GetPetByIdServer {
+  constructor() {
+    super();
+  }
+  getUrl(): string {
+    return 'https://cdn.petstore.io/v3';
   }
 }
 export abstract class GetStagingPetInfoServer {
@@ -147,14 +160,14 @@ export class PetApi extends BaseApi {
    * @return Array<Photo>
    * @throws {ApiError} if fails to make API call
    */
-  async addPetPhotos(petId: number, options: AddPetPhotosOptions): Promise<Array<Photo>> {
+  async addPetPhotos(petId: number, options?: AddPetPhotosOptions): Promise<Array<Photo>> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling addPetPhotos');
     }
-    if (options.files == null) {
+    if (options?.files == null) {
       throw new Error('Missing required parameter "files" when calling addPetPhotos');
     }
-    if (options.metadata == null) {
+    if (options?.metadata == null) {
       throw new Error('Missing required parameter "metadata" when calling addPetPhotos');
     }
     return (await this.addPetPhotosWithHttpInfo(petId, options)).data as Array<Photo>;
@@ -164,14 +177,14 @@ export class PetApi extends BaseApi {
    * Add photos to the pet's gallery (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async addPetPhotosWithHttpInfo(petId: number, options: AddPetPhotosOptions): Promise<ApiResult<Array<Photo>>> {
+  async addPetPhotosWithHttpInfo(petId: number, options?: AddPetPhotosOptions): Promise<ApiResult<Array<Photo>>> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling addPetPhotos');
     }
-    if (options.files == null) {
+    if (options?.files == null) {
       throw new Error('Missing required parameter "files" when calling addPetPhotos');
     }
-    if (options.metadata == null) {
+    if (options?.metadata == null) {
       throw new Error('Missing required parameter "metadata" when calling addPetPhotos');
     }
     let path = `/pet/{petId}/photos`;
@@ -182,10 +195,10 @@ export class PetApi extends BaseApi {
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     const formBody: Record<string, unknown> = {};
-    if (options.files != null) {
+    if (options?.files != null) {
       formBody['files'] = options.files;
     }
-    if (options.metadata != null) {
+    if (options?.metadata != null) {
       formBody['metadata'] = options.metadata;
     }
 
@@ -259,20 +272,25 @@ export class PetApi extends BaseApi {
    * Deletes a pet
    * @param auth authenticator for this operation
    * @param petId Pet id to delete (required)
+   * @param options.apiKey Session cookie used for authentication (optional)
    * @throws {ApiError} if fails to make API call
    */
-  async deletePet(auth: Authenticator, petId: number): Promise<void> {
+  async deletePet(auth: Authenticator, petId: number, options?: DeletePetOptions): Promise<void> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling deletePet');
     }
-    await this.deletePetWithHttpInfo(auth, petId);
+    await this.deletePetWithHttpInfo(auth, petId, options);
   }
 
   /**
    * Deletes a pet (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async deletePetWithHttpInfo(auth: Authenticator, petId: number): Promise<ApiResult<void>> {
+  async deletePetWithHttpInfo(
+    auth: Authenticator,
+    petId: number,
+    options?: DeletePetOptions
+  ): Promise<ApiResult<void>> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling deletePet');
     }
@@ -283,6 +301,15 @@ export class PetApi extends BaseApi {
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
+    const cookieParts: string[] = [];
+    if (options?.apiKey != null) {
+      cookieParts.push(
+        `api_key=${ValueSerializer.serializeStyled('api_key', options.apiKey, 'cookie', 'string', null, 'form', true)}`
+      );
+    }
+    if (cookieParts.length > 0) {
+      headerParams['Cookie'] = cookieParts.join('; ');
+    }
     return await this.invokeApiForResult(
       'DELETE',
       path,
@@ -358,7 +385,7 @@ export class PetApi extends BaseApi {
    * @deprecated This operation is deprecated.
    * @see {@link https://example.com/docs/filtering} Find out more about filtering
    */
-  async findPetsByStatus(options: FindPetsByStatusOptions): Promise<Array<Pet>> {
+  async findPetsByStatus(options?: FindPetsByStatusOptions): Promise<Array<Pet>> {
     return (await this.findPetsByStatusWithHttpInfo(options)).data as Array<Pet>;
   }
 
@@ -366,21 +393,22 @@ export class PetApi extends BaseApi {
    * Finds Pets by status (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async findPetsByStatusWithHttpInfo(options: FindPetsByStatusOptions): Promise<ApiResult<Array<Pet>>> {
+  async findPetsByStatusWithHttpInfo(options?: FindPetsByStatusOptions): Promise<ApiResult<Array<Pet>>> {
     const path = `/pet/findByStatus`;
     const queryParams: Record<string, unknown> = {};
-    if (options.status != null) {
-      queryParams['status'] = ValueSerializer.serializeStyled(
+    {
+      const serialized = ValueSerializer.serializeStyled(
         'status',
-        options.status,
+        options?.status,
         'query',
         'string',
         null,
         'form',
         true
       );
+      queryParams['status'] = serialized ?? '';
     }
-    if (options.filter != null) {
+    if (options?.filter != null) {
       const deepObj = ValueSerializer.serializeDeepObject('filter', options.filter as Record<string, unknown>);
       Object.assign(queryParams, deepObj);
     }
@@ -424,12 +452,12 @@ export class PetApi extends BaseApi {
       `{${'petId'}}`,
       ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
     );
-    const serverUrl = server ? server.getUrl() : 'https://external-api.example.com/v1';
+    const serverUrl = server ? server.getUrl() : null;
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     return await this.invokeApiForResult(
       'GET',
-      serverUrl.startsWith('http://') || serverUrl.startsWith('https://') ? serverUrl + path : path,
+      serverUrl && (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) ? serverUrl + path : path,
       queryParams,
       headerParams,
       null,
@@ -469,12 +497,12 @@ export class PetApi extends BaseApi {
       `{${'petId'}}`,
       ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
     );
-    const serverUrl = server ? server.getUrl() : 'https://primary.example.com/v1';
+    const serverUrl = server ? server.getUrl() : null;
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     return await this.invokeApiForResult(
       'GET',
-      serverUrl.startsWith('http://') || serverUrl.startsWith('https://') ? serverUrl + path : path,
+      serverUrl && (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) ? serverUrl + path : path,
       queryParams,
       headerParams,
       null,
@@ -577,18 +605,18 @@ export class PetApi extends BaseApi {
    * @throws {ApiError} if fails to make API call
    * @deprecated This operation is deprecated.
    */
-  async getPetById(petId: number): Promise<Pet> {
+  async getPetById(petId: number, server?: GetPetByIdServer): Promise<Pet> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getPetById');
     }
-    return (await this.getPetByIdWithHttpInfo(petId)).data as Pet;
+    return (await this.getPetByIdWithHttpInfo(petId, server)).data as Pet;
   }
 
   /**
    * Find pet by ID (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async getPetByIdWithHttpInfo(petId: number): Promise<ApiResult<Pet>> {
+  async getPetByIdWithHttpInfo(petId: number, server?: GetPetByIdServer): Promise<ApiResult<Pet>> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getPetById');
     }
@@ -597,11 +625,12 @@ export class PetApi extends BaseApi {
       `{${'petId'}}`,
       ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
     );
+    const serverUrl = server ? server.getUrl() : null;
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     return await this.invokeApiForResult(
       'GET',
-      path,
+      serverUrl && (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) ? serverUrl + path : path,
       queryParams,
       headerParams,
       null,
@@ -717,7 +746,7 @@ export class PetApi extends BaseApi {
    * @return Pet
    * @throws {ApiError} if fails to make API call
    */
-  async getPetTag(petId: number, tagName: string, options: GetPetTagOptions): Promise<Pet> {
+  async getPetTag(petId: number, tagName: string, options?: GetPetTagOptions): Promise<Pet> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getPetTag');
     }
@@ -731,7 +760,7 @@ export class PetApi extends BaseApi {
    * Get a tag for a pet (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async getPetTagWithHttpInfo(petId: number, tagName: string, options: GetPetTagOptions): Promise<ApiResult<Pet>> {
+  async getPetTagWithHttpInfo(petId: number, tagName: string, options?: GetPetTagOptions): Promise<ApiResult<Pet>> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling getPetTag');
     }
@@ -748,7 +777,7 @@ export class PetApi extends BaseApi {
       ValueSerializer.serializeStyled('tagName', tagName, 'path', 'string', null, 'label', false) as string
     );
     const queryParams: Record<string, unknown> = {};
-    if (options.colors != null) {
+    if (options?.colors != null) {
       queryParams['colors'] = ValueSerializer.serializeStyled(
         'colors',
         options.colors,
@@ -759,7 +788,7 @@ export class PetApi extends BaseApi {
         false
       );
     }
-    if (options.sizes != null) {
+    if (options?.sizes != null) {
       queryParams['sizes'] = ValueSerializer.serializeStyled(
         'sizes',
         options.sizes,
@@ -773,7 +802,7 @@ export class PetApi extends BaseApi {
     {
       const serialized = ValueSerializer.serializeStyled(
         'filter',
-        options.filter,
+        options?.filter,
         'query',
         'string',
         null,
@@ -822,12 +851,12 @@ export class PetApi extends BaseApi {
       `{${'petId'}}`,
       ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string
     );
-    const serverUrl = server ? server.getUrl() : 'https://{environment}.example.com/api/{version}';
+    const serverUrl = server ? server.getUrl() : null;
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     return await this.invokeApiForResult(
       'GET',
-      serverUrl.startsWith('http://') || serverUrl.startsWith('https://') ? serverUrl + path : path,
+      serverUrl && (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) ? serverUrl + path : path,
       queryParams,
       headerParams,
       null,
@@ -986,11 +1015,11 @@ export class PetApi extends BaseApi {
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
    */
-  async uploadPetCertificate(petId: number, options: UploadPetCertificateOptions): Promise<ApiResponse> {
+  async uploadPetCertificate(petId: number, options?: UploadPetCertificateOptions): Promise<ApiResponse> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling uploadPetCertificate');
     }
-    if (options.file == null) {
+    if (options?.file == null) {
       throw new Error('Missing required parameter "file" when calling uploadPetCertificate');
     }
     return (await this.uploadPetCertificateWithHttpInfo(petId, options)).data as ApiResponse;
@@ -1002,12 +1031,12 @@ export class PetApi extends BaseApi {
    */
   async uploadPetCertificateWithHttpInfo(
     petId: number,
-    options: UploadPetCertificateOptions
+    options?: UploadPetCertificateOptions
   ): Promise<ApiResult<ApiResponse>> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling uploadPetCertificate');
     }
-    if (options.file == null) {
+    if (options?.file == null) {
       throw new Error('Missing required parameter "file" when calling uploadPetCertificate');
     }
     let path = `/pet/{petId}/certificate`;
@@ -1018,7 +1047,7 @@ export class PetApi extends BaseApi {
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     const formBody: Record<string, unknown> = {};
-    if (options.file != null) {
+    if (options?.file != null) {
       formBody['file'] = options.file;
     }
 
@@ -1045,11 +1074,11 @@ export class PetApi extends BaseApi {
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
    */
-  async uploadPetDocument(petId: number, options: UploadPetDocumentOptions): Promise<ApiResponse> {
+  async uploadPetDocument(petId: number, options?: UploadPetDocumentOptions): Promise<ApiResponse> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling uploadPetDocument');
     }
-    if (options.file == null) {
+    if (options?.file == null) {
       throw new Error('Missing required parameter "file" when calling uploadPetDocument');
     }
     return (await this.uploadPetDocumentWithHttpInfo(petId, options)).data as ApiResponse;
@@ -1061,12 +1090,12 @@ export class PetApi extends BaseApi {
    */
   async uploadPetDocumentWithHttpInfo(
     petId: number,
-    options: UploadPetDocumentOptions
+    options?: UploadPetDocumentOptions
   ): Promise<ApiResult<ApiResponse>> {
     if (petId == null) {
       throw new Error('Missing required parameter "petId" when calling uploadPetDocument');
     }
-    if (options.file == null) {
+    if (options?.file == null) {
       throw new Error('Missing required parameter "file" when calling uploadPetDocument');
     }
     let path = `/pet/{petId}/documents`;
@@ -1077,13 +1106,13 @@ export class PetApi extends BaseApi {
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
     const formBody: Record<string, unknown> = {};
-    if (options.file != null) {
+    if (options?.file != null) {
       formBody['file'] = options.file;
     }
-    if (options.documentType != null) {
+    if (options?.documentType != null) {
       formBody['documentType'] = options.documentType;
     }
-    if (options.notes != null) {
+    if (options?.notes != null) {
       formBody['notes'] = options.notes;
     }
 

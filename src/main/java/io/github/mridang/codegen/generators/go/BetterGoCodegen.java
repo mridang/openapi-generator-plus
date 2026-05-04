@@ -183,7 +183,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     /** {@inheritDoc} */
     @Override
     protected String getFormatterDockerImage() {
-        return "golang:1.26";
+        return "golang:1.25";
     }
 
     /** {@inheritDoc} */

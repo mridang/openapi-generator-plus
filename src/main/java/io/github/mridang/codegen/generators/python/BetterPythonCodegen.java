@@ -519,6 +519,10 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
             if (ModelUtils.isBooleanSchema(unaliased)) {
                 return Boolean.parseBoolean(unaliased.getDefault().toString()) ? "True" : "False";
             }
+            if (ModelUtils.isStringSchema(unaliased)) {
+                String val = unaliased.getDefault().toString();
+                return "'" + val.replace("'", "\\'") + "'";
+            }
             return unaliased.getDefault().toString();
         }
         return null;
@@ -567,6 +571,19 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         for (final ModelsMap modelsMap : result.values()) {
             for (final ModelMap modelMap : modelsMap.getModels()) {
                 final CodegenModel model = modelMap.getModel();
+
+                // Fix enum default values: the base class sets defaultValue to
+                // "StatusEnum.PLACED" but the template generates the enum class
+                // as "OrderStatusEnum" (classname + enumName). Prefix the model
+                // classname to produce the correct reference.
+                for (final CodegenProperty prop : model.vars) {
+                    if (prop.defaultValue != null
+                            && prop.defaultValue.contains(".")
+                            && !prop.defaultValue.startsWith("'")
+                            && !prop.defaultValue.startsWith(model.classname)) {
+                        prop.defaultValue = model.classname + prop.defaultValue;
+                    }
+                }
 
                 final TreeSet<String> fullImports = new TreeSet<>();
 

@@ -100,6 +100,7 @@ fn test_configuration_server_url_resolution() {
 
     let config = ConfigurationBuilder::new()
         .server(&server, &overrides)
+        .unwrap()
         .build();
 
     assert_eq!(config.base_url(), "https://staging.example.com/api/v3");
@@ -133,6 +134,7 @@ fn test_configuration_server_url_resolution_with_defaults() {
 
     let config = ConfigurationBuilder::new()
         .server(&server, &HashMap::new())
+        .unwrap()
         .build();
 
     assert_eq!(config.base_url(), "https://api.example.com/api/v3");

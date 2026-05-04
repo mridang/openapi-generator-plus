@@ -9,14 +9,28 @@
 class Metadata {
   final DateTime? createdAt;
 
+  /// Additional properties not defined in the schema.
+  final Map<String, dynamic> additionalProperties;
+
   const Metadata({
     this.createdAt,
+    this.additionalProperties = const {},
   });
 
   /// Creates a [Metadata] from a JSON map.
   factory Metadata.fromJson(Map<String, dynamic> json) {
+    final knownKeys = <String>{
+      'createdAt',
+    };
+    final additionalProperties = <String, dynamic>{};
+    for (final entry in json.entries) {
+      if (!knownKeys.contains(entry.key)) {
+        additionalProperties[entry.key] = entry.value;
+      }
+    }
     return Metadata(
       createdAt: json['createdAt'] as DateTime?,
+      additionalProperties: additionalProperties,
     );
   }
 
@@ -26,6 +40,7 @@ class Metadata {
     if (createdAt != null) {
       json['createdAt'] = createdAt;
     }
+    json.addAll(additionalProperties);
     return json;
   }
 }

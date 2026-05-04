@@ -1,0 +1,58 @@
+{{>api_info}}
+
+using {{packageName}};
+using {{packageName}}.Auth;
+using Xunit;
+
+namespace Test;
+
+public class ClientTest : IDisposable
+{
+    private readonly BearerAuthenticator _authenticator =
+        new("{{{basePath}}}", "test-token");
+
+    public void Dispose()
+    {
+        GC.SuppressFinalize(this);
+    }
+
+    [Fact]
+    public void ConstructWithAuthenticatorOnly()
+    {
+        using var client = new {{clientClassName}}(_authenticator);
+
+        Assert.NotNull(client);
+    }
+
+    [Fact]
+    public void ConstructWithAuthenticatorAndNullTransportOptions()
+    {
+        using var client = new {{clientClassName}}(_authenticator, null);
+
+        Assert.NotNull(client);
+    }
+
+    [Fact]
+    public void ConstructWithAuthenticatorAndTransportOptions()
+    {
+        var transport = TransportOptions.Builder().Build();
+
+        using var client = new {{clientClassName}}(_authenticator, transport);
+
+        Assert.NotNull(client);
+    }
+
+    [Fact]
+    public void ApiGroupsAreAccessible()
+    {
+        using var client = new {{clientClassName}}(_authenticator);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        Assert.NotNull(client.{{clientPropertyName}});
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+}

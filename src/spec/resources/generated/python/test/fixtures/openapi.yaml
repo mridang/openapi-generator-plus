@@ -76,6 +76,7 @@ paths:
           description: Status values that need to be considered for filter
           required: false
           deprecated: true
+          allowEmptyValue: true
           schema:
             type: string
             default: available
@@ -113,6 +114,9 @@ paths:
       description: Returns a single pet
       operationId: getPetById
       deprecated: true
+      servers:
+        - url: https://cdn.petstore.io/v3
+          description: CDN-backed read endpoint for pet details
       parameters:
         - name: petId
           in: path
@@ -180,6 +184,12 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: api_key
+          in: cookie
+          description: Session cookie used for authentication
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           description: Pet deleted
@@ -963,6 +973,7 @@ components:
           type: string
           description: Order Status
           example: approved
+          default: placed
           enum:
             - placed
             - approved

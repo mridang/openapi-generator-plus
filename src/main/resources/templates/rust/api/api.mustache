@@ -16,6 +16,63 @@ use crate::value_serializer;
 use crate::api::options::*;
 use crate::value_serializer::SerializedValue;
 {{#operations}}
+{{#serverTypeDefs}}
+
+/// Per-operation server URL trait for {{operationId}}.
+pub trait {{serverTypeName}} {
+    /// Returns the server URL.
+    fn get_url(&self) -> String;
+}
+{{#variants}}
+{{#serverVariables}}{{#hasEnumValues}}
+
+/// Valid values for the {{name}} server variable in {{serverTypeName}}.
+#[derive(Debug, Clone)]
+pub enum {{serverTypeName}}{{pascalName}} {
+{{#enumValues}}
+    {{name}},
+{{/enumValues}}
+}
+
+impl {{serverTypeName}}{{pascalName}} {
+    pub fn as_str(&self) -> &str {
+        match self {
+{{#enumValues}}
+            Self::{{name}} => "{{value}}",
+{{/enumValues}}
+        }
+    }
+}
+{{/hasEnumValues}}{{/serverVariables}}
+{{/variants}}
+{{#variants}}
+
+/// {{#hasDescription}}{{{description}}}{{/hasDescription}}{{^hasDescription}}Server variant for {{serverTypeName}}.{{/hasDescription}}
+#[derive(Debug, Clone)]
+pub struct {{serverTypeName}}{{variantName}} {
+{{#serverVariables}}
+    pub {{snakeName}}: {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}},
+{{/serverVariables}}
+}
+
+impl {{serverTypeName}} for {{serverTypeName}}{{variantName}} {
+    fn get_url(&self) -> String {
+{{#serverVariables}}{{#-first}}
+        let mut url = "{{url}}".to_string();
+{{/-first}}{{/serverVariables}}
+{{#serverVariables}}
+        url = url.replace("{{{name}}}", {{#hasEnumValues}}self.{{snakeName}}.as_str(){{/hasEnumValues}}{{^hasEnumValues}}&self.{{snakeName}}{{/hasEnumValues}});
+{{/serverVariables}}
+{{#serverVariables}}{{#-last}}
+        url
+{{/-last}}{{/serverVariables}}
+{{^serverVariables}}
+        "{{url}}".to_string()
+{{/serverVariables}}
+    }
+}
+{{/variants}}
+{{/serverTypeDefs}}
 
 /// {{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
@@ -69,6 +126,9 @@ impl {{classname}} {
 {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
         options: Option<&{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options>,
 {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+{{#servers}}{{#-first}}
+        server: Option<&dyn {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server>,
+{{/-first}}{{/servers}}
     ) -> Result<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.{{operationId}}_with_http_info(
 {{#hasAuthMethods}}
@@ -89,9 +149,12 @@ impl {{classname}} {
 {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
             options,
 {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+{{#servers}}{{#-first}}
+            server,
+{{/-first}}{{/servers}}
         ).await?;
 {{#returnType}}
-        Ok(result.data)
+        Ok(result.data.ok_or("empty response body")?)
 {{/returnType}}
 {{^returnType}}
         let _ = result;
@@ -120,6 +183,9 @@ impl {{classname}} {
 {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
         options: Option<&{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options>,
 {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+{{#servers}}{{#-first}}
+        server: Option<&dyn {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server>,
+{{/-first}}{{/servers}}
     ) -> Result<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}(){{/returnType}}>, Box<dyn std::error::Error + Send + Sync>> {
 {{#pathParams}}
 {{#required}}
@@ -137,6 +203,16 @@ impl {{classname}} {
         path = path.replace("{<%baseName%>}", &urlencoding::encode(&format!("{}", <%paramName%>)));
 <%={{ }}=%>
 {{/pathParams}}
+{{#servers}}
+{{#-first}}
+        if let Some(s) = server {
+            let server_url = s.get_url();
+            if server_url.starts_with("http://") || server_url.starts_with("https://") {
+                path = format!("{}{}", server_url, path);
+            }
+        }
+{{/-first}}
+{{/servers}}
 
         let mut query_params: Vec<(String, String)> = Vec::new();
 {{#queryParams}}
@@ -155,6 +231,34 @@ impl {{classname}} {
             }
 {{/content}}
 {{^content}}
+{{#isAllowEmptyValue}}
+            if let Some(ref val) = opts.{{paramName}} {
+                if let Some(serialized) = value_serializer::serialize_styled(
+                    "{{baseName}}",
+                    Some(&object_serializer::stringify(val)),
+                    None,
+                    "query",
+                    "{{{dataType}}}",
+                    "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}",
+                    "{{style}}",
+                    {{isExplode}},
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("{{baseName}}".to_string(), v));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("{{baseName}}".to_string(), v));
+                            }
+                        }
+                    }
+                }
+            } else {
+                query_params.push(("{{baseName}}".to_string(), String::new()));
+            }
+{{/isAllowEmptyValue}}
+{{^isAllowEmptyValue}}
             if let Some(ref val) = opts.{{paramName}} {
                 if let Some(serialized) = value_serializer::serialize_styled(
                     "{{baseName}}",
@@ -178,6 +282,7 @@ impl {{classname}} {
                     }
                 }
             }
+{{/isAllowEmptyValue}}
 {{/content}}
 {{/isDeepObject}}
         }
@@ -209,7 +314,7 @@ impl {{classname}} {
 {{#cookieParams}}
         if let Some(opts) = options {
             if let Some(ref val) = opts.{{paramName}} {
-                if let Some(serialized) = value_serializer::serialize_styled(
+                if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
                     "{{baseName}}",
                     Some(&object_serializer::stringify(val)),
                     None,
@@ -219,9 +324,7 @@ impl {{classname}} {
                     "{{style}}",
                     {{isExplode}},
                 ) {
-                    if let SerializedValue::Single(v) = serialized {
-                        cookie_parts.push(format!("{{baseName}}={}", v));
-                    }
+                    cookie_parts.push(format!("{{baseName}}={}", v));
                 }
             }
         }
@@ -249,7 +352,7 @@ impl {{classname}} {
 {{/hasFormParams}}
 {{^hasFormParams}}
 {{#bodyParam}}
-        let request_body = Some(object_serializer::serialize(&{{paramName}})?);
+        let request_body = Some(object_serializer::serialize(&{{paramName}})?.into_bytes());
 {{/bodyParam}}
 {{^bodyParam}}
         let request_body: Option<Vec<u8>> = None;

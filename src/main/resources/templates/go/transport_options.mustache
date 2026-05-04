@@ -4,7 +4,6 @@ package {{packageName}}
 import (
 	"crypto/tls"
 	"net/url"
-	"time"
 )
 
 // TransportOptions holds immutable HTTP transport configuration for DefaultApiClient.
@@ -19,7 +18,7 @@ import (
 //	transport := {{packageName}}.NewTransportOptionsBuilder().
 //		VerifySSL(false).
 //		Proxy("http://proxy.example.com:8080").
-//		Timeout(5 * time.Second).
+//		Timeout(5000).
 //		UserAgent("MyApp/1.0").
 //		Build()
 type TransportOptions struct {
@@ -32,10 +31,10 @@ type TransportOptions struct {
 	// proxy is the HTTP or HTTPS proxy URL for all outbound requests.
 	proxy *url.URL
 
-	// timeout is the end-to-end request timeout. Covers the entire request
-	// lifecycle: connection, TLS handshake, sending the request body, and
-	// reading the response. A zero value means no timeout.
-	timeout time.Duration
+	// timeout is the end-to-end request timeout in milliseconds. Covers the
+	// entire request lifecycle: connection, TLS handshake, sending the request
+	// body, and reading the response. A zero value means no timeout.
+	timeout int
 
 	// followRedirects controls whether the client follows HTTP 3xx redirects.
 	followRedirects bool
@@ -70,8 +69,8 @@ func (t *TransportOptions) CACertPath() string { return t.caCertPath }
 // Proxy returns the proxy URL, or nil if no proxy is configured.
 func (t *TransportOptions) Proxy() *url.URL { return t.proxy }
 
-// Timeout returns the end-to-end request timeout.
-func (t *TransportOptions) Timeout() time.Duration { return t.timeout }
+// Timeout returns the end-to-end request timeout in milliseconds.
+func (t *TransportOptions) Timeout() int { return t.timeout }
 
 // FollowRedirects returns whether the client follows HTTP 3xx redirects.
 func (t *TransportOptions) FollowRedirects() bool { return t.followRedirects }
@@ -102,7 +101,7 @@ type TransportOptionsBuilder struct {
 	verifySSL       bool
 	caCertPath      string
 	proxy           *url.URL
-	timeout         time.Duration
+	timeout         int
 	followRedirects bool
 	maxRedirects    int
 	userAgent       string
@@ -146,8 +145,8 @@ func (b *TransportOptionsBuilder) Proxy(val string) *TransportOptionsBuilder {
 	return b
 }
 
-// Timeout sets the end-to-end request timeout.
-func (b *TransportOptionsBuilder) Timeout(val time.Duration) *TransportOptionsBuilder {
+// Timeout sets the end-to-end request timeout in milliseconds.
+func (b *TransportOptionsBuilder) Timeout(val int) *TransportOptionsBuilder {
 	b.timeout = val
 	return b
 }

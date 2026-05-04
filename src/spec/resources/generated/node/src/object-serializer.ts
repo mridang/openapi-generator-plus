@@ -31,16 +31,24 @@ export class SerializationError extends Error {
  */
 export class ObjectSerializer {
   /**
-   * Serialize an object to a plain JS object suitable for JSON.stringify.
+   * Serialize an object to a JSON string.
    *
    * @param obj the object to serialize
-   * @returns the object as-is (JSON.stringify handles the conversion)
+   * @returns JSON string representation, or "null" if object is null/undefined
+   * @throws SerializationError if serialization fails
    */
-  static serialize(obj: unknown): unknown {
+  static serialize(obj: unknown): string {
     if (obj === null || obj === undefined) {
-      return undefined;
+      return 'null';
     }
-    return obj;
+    try {
+      return JSON.stringify(obj);
+    } catch (e) {
+      throw new SerializationError(
+        `Failed to serialize object to JSON: ${e instanceof Error ? e.message : String(e)}`,
+        e instanceof Error ? e : undefined
+      );
+    }
   }
 
   /**

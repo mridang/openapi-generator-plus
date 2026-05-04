@@ -83,9 +83,7 @@ async fn test_default_api_client_http_proxy_with_tls() {
 #[tokio::test]
 async fn test_default_api_client_request_timeout() {
     let wiremock_url = testcontainers_helper::wiremock_http_url();
-    let transport = TransportOptionsBuilder::new()
-        .timeout(std::time::Duration::from_secs(1))
-        .build();
+    let transport = TransportOptionsBuilder::new().timeout(1000).build();
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let result = client

@@ -13,13 +13,13 @@ defmodule PetstoreClient.ApiError do
 
   @type t :: %__MODULE__{
           message: String.t(),
-          code: integer() | nil,
+          status_code: integer() | nil,
           response_headers: %{optional(String.t()) => String.t()} | nil,
           response_body: String.t() | nil,
           error_body: term() | nil
         }
 
-  defexception [:message, :code, :response_headers, :response_body, :error_body]
+  defexception [:message, :status_code, :response_headers, :response_body, :error_body]
 
   @impl true
   def exception(opts) when is_map(opts) do
@@ -27,7 +27,7 @@ defmodule PetstoreClient.ApiError do
 
     %__MODULE__{
       message: msg,
-      code: Map.get(opts, :code),
+      status_code: Map.get(opts, :status_code),
       response_headers: Map.get(opts, :response_headers),
       response_body: Map.get(opts, :response_body),
       error_body: Map.get(opts, :error_body)
@@ -41,7 +41,7 @@ defmodule PetstoreClient.ApiError do
   @impl true
   def message(%__MODULE__{} = error) do
     msg = error.message || "Error message: the server returns an error"
-    msg = if error.code, do: msg <> "\nHTTP status code: #{error.code}", else: msg
+    msg = if error.status_code, do: msg <> "\nHTTP status code: #{error.status_code}", else: msg
     msg = if error.response_headers, do: msg <> "\nResponse headers: #{inspect(error.response_headers)}", else: msg
     msg = if error.response_body, do: msg <> "\nResponse body: #{error.response_body}", else: msg
     msg

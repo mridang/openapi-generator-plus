@@ -677,7 +677,27 @@
       "Bash(git add -A && git commit --amend --no-edit && git push --force)",
       "Bash(if grep -q '{{>api_info}}' \"src/main/resources/templates/csharp/test/tests_csproj.mustache\" 2>/dev/null; then echo \"BAD: tests_csproj has api_info\"; else echo \"OK: tests_csproj excluded\"; fi)",
       "Bash(git stash && devbox run -- mvn test -Dtest=\"GenerateClientsTest#generateRustClient\" -pl . -q 2>&1 | tail -5)",
-      "Bash(git commit -m \"$\\(cat <<'EOF'\nchore: remove redundant codegen smoke tests\n\nThese tests duplicated what GenerateClientsTest already covers by\nrunning the generator into a temp directory and discarding the output.\nGenerateClientsTest exercises the same code path for all 12 languages.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\" && git push)"
+      "Bash(git commit -m \"$\\(cat <<'EOF'\nchore: remove redundant codegen smoke tests\n\nThese tests duplicated what GenerateClientsTest already covers by\nrunning the generator into a temp directory and discarding the output.\nGenerateClientsTest exercises the same code path for all 12 languages.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\" && git push)",
+      "Bash(git branch -f feat/better-generated-clients temp-rebase-fix && git checkout feat/better-generated-clients && git branch -d temp-rebase-fix)",
+      "WebFetch(domain:hexdocs.pm)",
+      "WebFetch(domain:docs.rs)",
+      "Bash(docker network rm proxy-network-go 2>/dev/null; echo \"done\")",
+      "WebFetch(domain:registry.npmjs.org)",
+      "Bash(pkill -f 'mvn.*GenerateClientsTest' 2>/dev/null; sleep 2; devbox run -- mvn test -Dtest=GenerateClientsTest 2>&1 | grep -E 'BUILD|Tests run|ERROR' | tail -10)",
+      "Bash(docker network rm proxy-test-network 2>&1 || true)",
+      "Bash(docker network rm proxy-test-network 2>&1 || echo \"no network to remove\")",
+      "Bash(docker network ls | grep -c \"test\" || true)",
+      "Bash(docker network ls | wc -l && docker network prune -f 2>&1)",
+      "WebFetch(domain:plugins.gradle.org)",
+      "Bash(docker image ls 2>/dev/null | grep gradle || echo \"No gradle images found locally\")",
+      "Bash(devbox run -- mvn verify -B -DforkCount=1 2>&1 | tee /private/tmp/claude-501/mvn-verify-output.log | tail -3)",
+      "Bash(docker container prune -f 2>&1; docker network prune -f 2>&1; docker volume prune -f 2>&1)",
+      "Bash(devbox run -- mvn verify -B 2>&1 | tee /private/tmp/claude-501/mvn-verify-output.log | tail -3)",
+      "Bash(devbox run -- mvn verify -B -Dtest=none -DfailIfNoTests=false -Dit.test=\"io.github.mridang.codegen.spec.ruby.*\" 2>&1 | tee /private/tmp/claude-501/ruby-suite.log | tail -5)",
+      "Bash(devbox run -- mvn failsafe:integration-test failsafe:verify -B -Dit.test=\"io.github.mridang.codegen.spec.ruby.*\" -DskipTests 2>&1 | tee /private/tmp/claude-501/ruby-suite.log | tail -5)",
+      "Bash(devbox run -- mvn verify -B -Dsurefire.failIfNoSpecifiedTests=false -Dtest=none -Dit.test=\"io.github.mridang.codegen.spec.ruby.*\" 2>&1 | tee /private/tmp/claude-501/ruby-suite.log | tail -5)",
+      "Bash(devbox run -- mvn verify -B -Dsurefire.failIfNoSpecifiedTests=false -Dtest=none -Dfailsafe.failIfNoSpecifiedTests=false \"-Dit.test=Rust*Spec\" 2>&1 | tee /private/tmp/claude-501/rust-suite.log | tail -5)",
+      "Bash(docker container prune -f 2>&1 | tail -1; docker network prune -f 2>&1 | tail -1)"
     ]
   },
   "sandbox": {

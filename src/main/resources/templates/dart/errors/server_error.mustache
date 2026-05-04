@@ -4,7 +4,7 @@ import 'api_error.dart';
 /// ServerError represents an HTTP 5xx server error.
 class ServerError extends ApiError {
   const ServerError({
-    required super.code,
+    required super.statusCode,
     required super.message,
     super.responseBody,
     super.responseHeaders,

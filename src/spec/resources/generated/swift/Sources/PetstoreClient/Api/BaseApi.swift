@@ -136,7 +136,7 @@ open class BaseApi {
     let response = try await invokeAPI(params)
     return ApiResult<Void>(
       statusCode: response.statusCode,
-      data: (),
+      data: nil,
       rawBody: response.body,
       headers: response.headers
     )
@@ -188,13 +188,14 @@ open class BaseApi {
     }
 
     if contentType == "application/x-www-form-urlencoded" {
-      if let params = body as? [String: String] {
+      if let params = body as? [String: Any] {
         let encoded = params.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
         return encoded.data(using: .utf8)
       }
     }
 
-    return try ObjectSerializer.serialize(body)
+    let jsonString = try ObjectSerializer.serialize(body)
+    return jsonString.data(using: .utf8)
   }
 
   static func throwAPIError(_ response: ApiResponse) -> ApiError {
@@ -208,7 +209,7 @@ open class BaseApi {
     }
 
     let baseErr = ApiError(
-      code: code,
+      statusCode: code,
       message: msg,
       responseBody: body,
       responseHeaders: response.headers,
@@ -217,7 +218,7 @@ open class BaseApi {
 
     if code >= 400 && code < 500 {
       let clientErr = ClientError(
-        code: code,
+        statusCode: code,
         message: msg,
         responseBody: body,
         responseHeaders: response.headers,
@@ -226,32 +227,32 @@ open class BaseApi {
       switch code {
       case 400:
         return BadRequestError(
-          code: code, message: msg, responseBody: body,
+          statusCode: code, message: msg, responseBody: body,
           responseHeaders: response.headers, errorBody: parsed
         )
       case 401:
         return UnauthorizedError(
-          code: code, message: msg, responseBody: body,
+          statusCode: code, message: msg, responseBody: body,
           responseHeaders: response.headers, errorBody: parsed
         )
       case 403:
         return ForbiddenError(
-          code: code, message: msg, responseBody: body,
+          statusCode: code, message: msg, responseBody: body,
           responseHeaders: response.headers, errorBody: parsed
         )
       case 404:
         return NotFoundError(
-          code: code, message: msg, responseBody: body,
+          statusCode: code, message: msg, responseBody: body,
           responseHeaders: response.headers, errorBody: parsed
         )
       case 409:
         return ConflictError(
-          code: code, message: msg, responseBody: body,
+          statusCode: code, message: msg, responseBody: body,
           responseHeaders: response.headers, errorBody: parsed
         )
       case 422:
         return UnprocessableEntityError(
-          code: code, message: msg, responseBody: body,
+          statusCode: code, message: msg, responseBody: body,
           responseHeaders: response.headers, errorBody: parsed
         )
       default:
@@ -261,7 +262,7 @@ open class BaseApi {
 
     if code >= 500 {
       let serverErr = ServerError(
-        code: code,
+        statusCode: code,
         message: msg,
         responseBody: body,
         responseHeaders: response.headers,
@@ -270,7 +271,7 @@ open class BaseApi {
       switch code {
       case 500:
         return InternalServerError(
-          code: code, message: msg, responseBody: body,
+          statusCode: code, message: msg, responseBody: body,
           responseHeaders: response.headers, errorBody: parsed
         )
       default:

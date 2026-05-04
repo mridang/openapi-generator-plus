@@ -371,6 +371,11 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             "test/ConfigurationTest.mustache",
                             "Test",
                             "ConfigurationTest.cs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ClientTest.mustache",
+                            "Test",
+                            "ClientTest.cs"));
         }
     }
 

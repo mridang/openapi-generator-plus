@@ -96,13 +96,13 @@ class {{classname}}(BaseApi):
         {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
 {{/bodyParam}}
 {{#queryParams}}{{#-first}}
-        options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options,
+        options: Optional[{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options] = None,
 {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-        options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options,
+        options: Optional[{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options] = None,
 {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-        options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options,
+        options: Optional[{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options] = None,
 {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-        options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options,
+        options: Optional[{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options] = None,
 {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{#servers}}{{#-first}}
         server: Optional['{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server'] = None,
@@ -159,28 +159,28 @@ class {{classname}}(BaseApi):
 {{/bodyParam}}
 {{#queryParams}}
 {{#required}}
-        if options.{{paramName}} is None:
+        if options is None or options.{{paramName}} is None:
             raise ValueError("Missing the required parameter '{{paramName}}'")
 
 {{/required}}
 {{/queryParams}}
 {{#headerParams}}
 {{#required}}
-        if options.{{paramName}} is None:
+        if options is None or options.{{paramName}} is None:
             raise ValueError("Missing the required parameter '{{paramName}}'")
 
 {{/required}}
 {{/headerParams}}
 {{#formParams}}
 {{#required}}
-        if options.{{paramName}} is None:
+        if options is None or options.{{paramName}} is None:
             raise ValueError("Missing the required parameter '{{paramName}}'")
 
 {{/required}}
 {{/formParams}}
 {{#cookieParams}}
 {{#required}}
-        if options.{{paramName}} is None:
+        if options is None or options.{{paramName}} is None:
             raise ValueError("Missing the required parameter '{{paramName}}'")
 
 {{/required}}
@@ -203,13 +203,13 @@ class {{classname}}(BaseApi):
         {{paramName}}: {{^required}}Optional[{{/required}}{{{dataType}}}{{^required}}] = None{{/required}},
 {{/bodyParam}}
 {{#queryParams}}{{#-first}}
-        options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options,
+        options: Optional[{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options] = None,
 {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}
-        options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options,
+        options: Optional[{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options] = None,
 {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}
-        options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options,
+        options: Optional[{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options] = None,
 {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
-        options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options,
+        options: Optional[{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options] = None,
 {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
 {{#servers}}{{#-first}}
         server: Optional['{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server'] = None,
@@ -256,28 +256,28 @@ class {{classname}}(BaseApi):
 {{/bodyParam}}
 {{#queryParams}}
 {{#required}}
-        if options.{{paramName}} is None:
+        if options is None or options.{{paramName}} is None:
             raise ValueError("Missing the required parameter '{{paramName}}'")
 
 {{/required}}
 {{/queryParams}}
 {{#headerParams}}
 {{#required}}
-        if options.{{paramName}} is None:
+        if options is None or options.{{paramName}} is None:
             raise ValueError("Missing the required parameter '{{paramName}}'")
 
 {{/required}}
 {{/headerParams}}
 {{#formParams}}
 {{#required}}
-        if options.{{paramName}} is None:
+        if options is None or options.{{paramName}} is None:
             raise ValueError("Missing the required parameter '{{paramName}}'")
 
 {{/required}}
 {{/formParams}}
 {{#cookieParams}}
 {{#required}}
-        if options.{{paramName}} is None:
+        if options is None or options.{{paramName}} is None:
             raise ValueError("Missing the required parameter '{{paramName}}'")
 
 {{/required}}
@@ -286,32 +286,33 @@ class {{classname}}(BaseApi):
         path = path.replace('{' + '{{baseName}}' + '}', str(ValueSerializer.serialize_styled('{{baseName}}', {{paramName}}, 'path', '{{dataType}}', None, '{{style}}', {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}}))){{/pathParams}}
 {{#servers}}
 {{#-first}}
-        _server_url = server.get_url() if server is not None else '{{url}}'
-        if _server_url.startswith('http://') or _server_url.startswith('https://'):
-            path = _server_url + path
+        if server is not None:
+            _server_url = server.get_url()
+            if _server_url.startswith('http://') or _server_url.startswith('https://'):
+                path = _server_url + path
 {{/-first}}
 {{/servers}}
         query_params: Dict[str, Any] = {}
 {{#queryParams}}
 {{#isDeepObject}}
-        if options.{{paramName}} is not None:
+        if options is not None and options.{{paramName}} is not None:
             query_params.update(ValueSerializer.serialize_deep_object('{{baseName}}', options.{{paramName}}))
 {{/isDeepObject}}
 {{^isDeepObject}}
 {{#content}}
-        if options.{{paramName}} is not None:
+        if options is not None and options.{{paramName}} is not None:
             import json
             query_params['{{baseName}}'] = json.dumps(options.{{paramName}})
 {{/content}}
 {{^content}}
 {{#isAllowEmptyValue}}
-        if options.{{paramName}} is not None:
+        if options is not None and options.{{paramName}} is not None:
             query_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})
         else:
             query_params['{{baseName}}'] = ''
 {{/isAllowEmptyValue}}
 {{^isAllowEmptyValue}}
-        if options.{{paramName}} is not None:
+        if options is not None and options.{{paramName}} is not None:
             query_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})
 {{/isAllowEmptyValue}}
 {{/content}}
@@ -319,13 +320,13 @@ class {{classname}}(BaseApi):
 {{/queryParams}}
         header_params: Dict[str, str] = {}
 {{#headerParams}}
-        if options.{{paramName}} is not None:
+        if options is not None and options.{{paramName}} is not None:
             header_params['{{baseName}}'] = ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'header', '{{dataType}}', None, '{{style}}', {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})
 {{/headerParams}}
 {{#hasCookieParams}}
         cookie_parts = []
 {{#cookieParams}}
-        if options.{{paramName}} is not None:
+        if options is not None and options.{{paramName}} is not None:
             cookie_parts.append(f'{{baseName}}={ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, "cookie", "{{dataType}}", None, "{{style}}", {{#isExplode}}True{{/isExplode}}{{^isExplode}}False{{/isExplode}})}')
 {{/cookieParams}}
         if cookie_parts:
@@ -335,10 +336,11 @@ class {{classname}}(BaseApi):
         body: Dict[str, Any] = {}
 {{#formParams}}
 {{#required}}
-        body['{{baseName}}'] = options.{{paramName}}
+        if options is not None:
+            body['{{baseName}}'] = options.{{paramName}}
 {{/required}}
 {{^required}}
-        if options.{{paramName}} is not None:
+        if options is not None and options.{{paramName}} is not None:
             body['{{baseName}}'] = options.{{paramName}}
 {{/required}}
 {{/formParams}}

@@ -59,10 +59,10 @@ public sealed class Client : IDisposable
     /// </summary>
     /// <param name="authenticator">Provides host URL and auth credentials.</param>
     /// <param name="transportOptions">HTTP transport configuration (proxy, TLS, timeouts, etc.).</param>
-    public Client(IAuthenticator authenticator, TransportOptions transportOptions)
+    public Client(IAuthenticator authenticator, TransportOptions? transportOptions)
     {
         ArgumentNullException.ThrowIfNull(authenticator);
-        ArgumentNullException.ThrowIfNull(transportOptions);
+        transportOptions ??= TransportOptions.Builder().Build();
 
         _apiClient = new DefaultApiClient(transportOptions);
 

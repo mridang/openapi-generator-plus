@@ -33,9 +33,9 @@ impl std::error::Error for SerializationError {
     }
 }
 
-/// Serializes an object to a JSON byte vector.
-pub fn serialize<T: Serialize>(value: &T) -> Result<Vec<u8>, SerializationError> {
-    serde_json::to_vec(value).map_err(|e| SerializationError {
+/// Serializes an object to a JSON string.
+pub fn serialize<T: Serialize>(value: &T) -> Result<String, SerializationError> {
+    serde_json::to_string(value).map_err(|e| SerializationError {
         message: format!("failed to serialize object to JSON: {}", e),
         cause: Some(Box::new(e)),
     })

@@ -218,7 +218,7 @@ defmodule PetstoreClient.Api.BaseApi do
 
     err_opts = %{
       message: msg,
-      code: code,
+      status_code: code,
       response_body: body,
       response_headers: response.headers,
       error_body: parsed

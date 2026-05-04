@@ -10,7 +10,6 @@ package petstore_test
 import (
 	petstore "petstore/pkg"
 	"testing"
-	"time"
 )
 
 func TestTransportOptions_Defaults(t *testing.T) {
@@ -26,7 +25,7 @@ func TestTransportOptions_Defaults(t *testing.T) {
 		t.Error("expected nil Proxy by default")
 	}
 	if opts.Timeout() != 0 {
-		t.Errorf("expected zero timeout by default, got %v", opts.Timeout())
+		t.Errorf("expected zero timeout by default, got %d", opts.Timeout())
 	}
 	if !opts.FollowRedirects() {
 		t.Error("expected FollowRedirects to be true by default")
@@ -53,7 +52,7 @@ func TestTransportOptions_SetAllFields(t *testing.T) {
 		VerifySSL(false).
 		CACertPath("/path/to/ca.pem").
 		Proxy("http://proxy.example.com:8080").
-		Timeout(30*time.Second).
+		Timeout(30000).
 		FollowRedirects(false).
 		MaxRedirects(5).
 		UserAgent("CustomAgent/2.0").
@@ -73,8 +72,8 @@ func TestTransportOptions_SetAllFields(t *testing.T) {
 	if opts.Proxy().String() != "http://proxy.example.com:8080" {
 		t.Errorf("expected proxy 'http://proxy.example.com:8080', got %q", opts.Proxy().String())
 	}
-	if opts.Timeout() != 30*time.Second {
-		t.Errorf("expected timeout 30s, got %v", opts.Timeout())
+	if opts.Timeout() != 30000 {
+		t.Errorf("expected timeout 30000ms, got %d", opts.Timeout())
 	}
 	if opts.FollowRedirects() {
 		t.Error("expected FollowRedirects to be false")
@@ -100,7 +99,7 @@ func TestTransportOptions_BuilderChaining(t *testing.T) {
 	result := builder.
 		VerifySSL(true).
 		UserAgent("Test/1.0").
-		Timeout(10 * time.Second)
+		Timeout(10000)
 
 	if result == nil {
 		t.Fatal("expected non-nil builder from chaining")
@@ -110,8 +109,8 @@ func TestTransportOptions_BuilderChaining(t *testing.T) {
 	if opts.UserAgent() != "Test/1.0" {
 		t.Errorf("expected UserAgent 'Test/1.0', got %q", opts.UserAgent())
 	}
-	if opts.Timeout() != 10*time.Second {
-		t.Errorf("expected timeout 10s, got %v", opts.Timeout())
+	if opts.Timeout() != 10000 {
+		t.Errorf("expected timeout 10000ms, got %d", opts.Timeout())
 	}
 }
 

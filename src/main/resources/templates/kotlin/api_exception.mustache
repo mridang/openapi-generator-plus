@@ -6,26 +6,26 @@ package {{invokerPackage}}
  * Exception thrown when an API call fails.
  */
 open class ApiException : Exception {
-    val code: Int
+    val statusCode: Int
     val responseHeaders: Map<String, String>?
     val responseBody: String?
     val errorBody: Any?
 
     constructor(message: String) : super(message) {
-        this.code = 0
+        this.statusCode = 0
         this.responseHeaders = null
         this.responseBody = null
         this.errorBody = null
     }
 
     constructor(
-        code: Int,
+        statusCode: Int,
         message: String,
         responseHeaders: Map<String, String>?,
         responseBody: String?,
         errorBody: Any? = null
     ) : super(message) {
-        this.code = code
+        this.statusCode = statusCode
         this.responseHeaders = responseHeaders
         this.responseBody = responseBody
         this.errorBody = errorBody
@@ -36,5 +36,8 @@ open class ApiException : Exception {
         if (clazz.isInstance(errorBody)) errorBody as T else null
 
     override val message: String
-        get() = "ApiException{code=$code, message='${super.message}', responseHeaders=$responseHeaders, responseBody='$responseBody'}"
+        get() = "ApiException{statusCode=$statusCode, " +
+            "message='${super.message}', " +
+            "responseHeaders=$responseHeaders, " +
+            "responseBody='$responseBody'}"
 }

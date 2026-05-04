@@ -10,11 +10,11 @@ defmodule PetstoreClient.Errors.UnprocessableEntityError do
   Exception for HTTP 422 Unprocessable Entity.
   """
 
-  defexception [:message, :code, :response_headers, :response_body, :error_body]
+  defexception [:message, :status_code, :response_headers, :response_body, :error_body]
 
   @type t :: %__MODULE__{
           message: String.t(),
-          code: integer(),
+          status_code: integer(),
           response_headers: map() | nil,
           response_body: String.t() | nil,
           error_body: term() | nil
@@ -24,14 +24,14 @@ defmodule PetstoreClient.Errors.UnprocessableEntityError do
   def exception(opts) when is_map(opts) do
     %__MODULE__{
       message: Map.get(opts, :message, "Unprocessable Entity"),
-      code: 422,
+      status_code: 422,
       response_headers: Map.get(opts, :response_headers),
       response_body: Map.get(opts, :response_body),
       error_body: Map.get(opts, :error_body)
     }
   end
 
-  def exception(msg) when is_binary(msg), do: %__MODULE__{message: msg, code: 422}
+  def exception(msg) when is_binary(msg), do: %__MODULE__{message: msg, status_code: 422}
 
   @impl true
   def message(%__MODULE__{} = error),

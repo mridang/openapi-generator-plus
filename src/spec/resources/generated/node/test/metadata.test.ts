@@ -25,8 +25,8 @@ describe('Metadata model (typed additionalProperties)', () => {
     });
     (original as Record<string, unknown>)['customField'] = 'test-value';
     const serialized = ObjectSerializer.serialize(original);
-    expect(serialized).toBeDefined();
-    const deserialized = ObjectSerializer.deserialize(serialized, Metadata);
+    expect(typeof serialized).toBe('string');
+    const deserialized = ObjectSerializer.deserialize(JSON.parse(serialized), Metadata);
     expect(deserialized).toBeDefined();
     expect(deserialized.createdAt).toBe('2024-01-15T10:30:00Z');
   });

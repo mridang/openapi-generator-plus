@@ -15,10 +15,10 @@ void main() {
     test('serialize map to JSON', () {
       final input = {'name': 'Fido', 'age': 3};
 
-      final data = serialize(input);
-      expect(data, isNotEmpty);
+      final jsonString = serialize(input);
+      expect(jsonString, isNotEmpty);
 
-      final parsed = jsonDecode(utf8.decode(data)) as Map<String, dynamic>;
+      final parsed = jsonDecode(jsonString) as Map<String, dynamic>;
       expect(parsed['name'], equals('Fido'));
     });
 

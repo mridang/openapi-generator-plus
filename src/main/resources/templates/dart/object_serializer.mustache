@@ -1,6 +1,5 @@
 {{>api_info}}
 import 'dart:convert';
-import 'dart:typed_data';
 
 /// SerializationError is thrown when serialization or deserialization fails.
 class SerializationError implements Exception {
@@ -18,11 +17,10 @@ class SerializationError implements Exception {
   }
 }
 
-/// Converts an object to a JSON byte list.
-Uint8List serialize(Object object) {
+/// Converts an object to a JSON string.
+String serialize(Object object) {
   try {
-    final jsonString = jsonEncode(object);
-    return utf8.encode(jsonString);
+    return jsonEncode(object);
   } catch (e) {
     throw SerializationError('Failed to serialize object to JSON: $e', e);
   }

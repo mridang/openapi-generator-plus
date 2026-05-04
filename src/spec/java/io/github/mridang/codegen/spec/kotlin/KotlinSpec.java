@@ -14,12 +14,12 @@ interface KotlinSpec extends LanguageSpec, DockerImageSpec {
 
     @Override
     default DockerImageName getRuntimeImage() {
-        return DockerImageName.parse("gradle:8-jdk21");
+        return DockerImageName.parse("gradle:9-jdk21");
     }
 
     @Override
     default String getDockerImage() {
-        return "gradle:8-jdk21";
+        return "gradle:9-jdk21";
     }
 
     @Override

@@ -86,7 +86,7 @@ module PetstoreClient
   end
 
   class ApiError < StandardError
-    attr_reader code: Integer?
+    attr_reader status_code: Integer?
     attr_reader response_headers: Hash[String, String]?
     attr_reader response_body: String?
     def initialize: (?untyped) -> void

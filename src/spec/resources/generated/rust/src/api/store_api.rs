@@ -80,7 +80,7 @@ impl StoreApi {
     ) -> Result<std::collections::HashMap<String, i32>, Box<dyn std::error::Error + Send + Sync>>
     {
         let result = self.get_inventory_with_http_info().await?;
-        Ok(result.data)
+        Ok(result.data.ok_or("empty response body")?)
     }
 
     /// Performs the get_inventory operation and returns the full API result.
@@ -121,7 +121,7 @@ impl StoreApi {
         order_id: i64,
     ) -> Result<Order, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.get_order_by_id_with_http_info(order_id).await?;
-        Ok(result.data)
+        Ok(result.data.ok_or("empty response body")?)
     }
 
     /// Performs the get_order_by_id operation and returns the full API result.
@@ -159,7 +159,7 @@ impl StoreApi {
         order: Option<Order>,
     ) -> Result<Order, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.place_order_with_http_info(order).await?;
-        Ok(result.data)
+        Ok(result.data.ok_or("empty response body")?)
     }
 
     /// Performs the place_order operation and returns the full API result.
@@ -173,7 +173,7 @@ impl StoreApi {
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
-        let request_body = Some(object_serializer::serialize(&order)?);
+        let request_body = Some(object_serializer::serialize(&order)?.into_bytes());
 
         let params = InvokeApiParams {
             method: "POST",

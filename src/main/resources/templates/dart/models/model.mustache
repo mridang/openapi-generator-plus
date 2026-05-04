@@ -57,6 +57,11 @@ class {{classname}} {
 {{/required}}
 
 {{/vars}}
+{{#isAdditionalPropertiesTrue}}
+  /// Additional properties not defined in the schema.
+  final Map<String, dynamic> additionalProperties;
+
+{{/isAdditionalPropertiesTrue}}
   const {{classname}}({
 {{#vars}}
 {{#required}}
@@ -66,19 +71,38 @@ class {{classname}} {
     this.{{name}},
 {{/required}}
 {{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    this.additionalProperties = const {},
+{{/isAdditionalPropertiesTrue}}
   });
 
   /// Creates a [{{classname}}] from a JSON map.
   factory {{classname}}.fromJson(Map<String, dynamic> json) {
+{{#isAdditionalPropertiesTrue}}
+    final knownKeys = <String>{
+{{#vars}}
+      '{{baseName}}',
+{{/vars}}
+    };
+    final additionalProperties = <String, dynamic>{};
+    for (final entry in json.entries) {
+      if (!knownKeys.contains(entry.key)) {
+        additionalProperties[entry.key] = entry.value;
+      }
+    }
+{{/isAdditionalPropertiesTrue}}
     return {{classname}}(
 {{#vars}}
 {{#required}}
-      {{name}}: json['{{baseName}}']{{#isEnum}} != null ? {{dataType}}.fromJson(json['{{baseName}}'] as String) : {{dataType}}.values.first{{/isEnum}}{{^isEnum}} as {{{dataType}}}{{/isEnum}},
+      {{name}}: json['{{baseName}}']{{#isEnum}} != null ? {{dataType}}.fromJson(json['{{baseName}}'] as String) : throw ArgumentError('Missing required enum field {{baseName}}'){{/isEnum}}{{^isEnum}} as {{{dataType}}}{{/isEnum}},
 {{/required}}
 {{^required}}
       {{name}}: json['{{baseName}}']{{#isEnum}} != null ? {{dataType}}.fromJson(json['{{baseName}}'] as String) : null{{/isEnum}}{{^isEnum}} as {{{dataType}}}?{{/isEnum}},
 {{/required}}
 {{/vars}}
+{{#isAdditionalPropertiesTrue}}
+      additionalProperties: additionalProperties,
+{{/isAdditionalPropertiesTrue}}
     );
   }
 
@@ -95,6 +119,9 @@ class {{classname}} {
     }
 {{/required}}
 {{/vars}}
+{{#isAdditionalPropertiesTrue}}
+    json.addAll(additionalProperties);
+{{/isAdditionalPropertiesTrue}}
     return json;
   }
 }

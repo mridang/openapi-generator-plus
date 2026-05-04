@@ -87,6 +87,22 @@ public sealed class Regional(RegionValue region) : GetMultiServerPetInfoServer
 }
 
 /// <summary>
+/// Server type for the GetPetById operation.
+/// </summary>
+public abstract class GetPetByIdServer
+{
+    /// <summary>Gets the server URL.</summary>
+    public abstract string Url { get; }
+}
+
+/// <summary>CDN-backed read endpoint for pet details</summary>
+public sealed class CDNBackedReadEndpointForPetDetails : GetPetByIdServer
+{
+    /// <inheritdoc />
+    public override string Url => "https://cdn.petstore.io/v3";
+}
+
+/// <summary>
 /// Server type for the GetStagingPetInfo operation.
 /// </summary>
 public abstract class GetStagingPetInfoServer
@@ -381,10 +397,15 @@ public class PetApi : BaseApi
     /// </summary>
     /// <param name="auth">Authenticator for this operation.</param>
     /// <param name="petId">Pet id to delete</param>
+    /// <param name="options">Options for query, header, and form parameters.</param>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task DeletePetAsync(IAuthenticator auth, long petId)
+    public async Task DeletePetAsync(
+        IAuthenticator auth,
+        long petId,
+        DeletePetOptions? options = null
+    )
     {
-        Task<ApiResult<object?>> task = DeletePetWithHttpInfoAsync(auth, petId);
+        Task<ApiResult<object?>> task = DeletePetWithHttpInfoAsync(auth, petId, options);
         _ = await task.ConfigureAwait(false);
     }
 
@@ -394,7 +415,8 @@ public class PetApi : BaseApi
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<ApiResult<object?>> DeletePetWithHttpInfoAsync(
         IAuthenticator auth,
-        long petId
+        long petId,
+        DeletePetOptions? options = null
     )
     {
         string path = "/pet/{petId}";
@@ -415,6 +437,26 @@ public class PetApi : BaseApi
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
+        List<string> cookieParts = [];
+        if (options != null && options.ApiKey != null)
+        {
+            cookieParts.Add(
+                "api_key="
+                    + ValueSerializer.SerializeStyled(
+                        "api_key",
+                        options.ApiKey,
+                        "cookie",
+                        "string",
+                        null,
+                        "form",
+                        true
+                    )
+            );
+        }
+        if (cookieParts.Count > 0)
+        {
+            headerParams["Cookie"] = string.Join("; ", cookieParts);
+        }
         return await InvokeApiForResultAsync<object?>(
                 "DELETE",
                 path,
@@ -531,19 +573,19 @@ public class PetApi : BaseApi
         string path = "/pet/findByStatus";
 
         Dictionary<string, object?> queryParams = [];
-        if (options.Status != null)
-        {
-            queryParams["status"] = ValueSerializer.SerializeStyled(
-                "status",
-                options.Status,
-                "query",
-                "string",
-                null,
-                "form",
-                true
-            );
-        }
-        if (options.Filter != null)
+        queryParams["status"] =
+            options?.Status != null
+                ? ValueSerializer.SerializeStyled(
+                    "status",
+                    options.Status,
+                    "query",
+                    "string",
+                    null,
+                    "form",
+                    true
+                )
+                : "";
+        if (options != null && options.Filter != null)
         {
             Dictionary<string, string> deepObj = ValueSerializer.SerializeDeepObject(
                 "filter",
@@ -611,13 +653,16 @@ public class PetApi : BaseApi
                 )!,
             StringComparison.Ordinal
         );
-        string serverUrl = server != null ? server.Url : "https://external-api.example.com/v1";
-        if (
-            serverUrl.StartsWith("http://", StringComparison.Ordinal)
-            || serverUrl.StartsWith("https://", StringComparison.Ordinal)
-        )
+        if (server != null)
         {
-            path = serverUrl + path;
+            string serverUrl = server.Url;
+            if (
+                serverUrl.StartsWith("http://", StringComparison.Ordinal)
+                || serverUrl.StartsWith("https://", StringComparison.Ordinal)
+            )
+            {
+                path = serverUrl + path;
+            }
         }
 
         Dictionary<string, object?> queryParams = [];
@@ -678,13 +723,16 @@ public class PetApi : BaseApi
                 )!,
             StringComparison.Ordinal
         );
-        string serverUrl = server != null ? server.Url : "https://primary.example.com/v1";
-        if (
-            serverUrl.StartsWith("http://", StringComparison.Ordinal)
-            || serverUrl.StartsWith("https://", StringComparison.Ordinal)
-        )
+        if (server != null)
         {
-            path = serverUrl + path;
+            string serverUrl = server.Url;
+            if (
+                serverUrl.StartsWith("http://", StringComparison.Ordinal)
+                || serverUrl.StartsWith("https://", StringComparison.Ordinal)
+            )
+            {
+                path = serverUrl + path;
+            }
         }
 
         Dictionary<string, object?> queryParams = [];
@@ -814,12 +862,13 @@ public class PetApi : BaseApi
     /// </summary>
     /// <remarks>Returns a single pet</remarks>
     /// <param name="petId">ID of pet to return</param>
+    /// <param name="server">Optional per-operation server override.</param>
     /// <returns><![CDATA[Pet]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     [Obsolete("This operation is deprecated.")]
-    public async Task<Pet> GetPetByIdAsync(long petId)
+    public async Task<Pet> GetPetByIdAsync(long petId, GetPetByIdServer? server = null)
     {
-        Task<ApiResult<Pet>> task = GetPetByIdWithHttpInfoAsync(petId);
+        Task<ApiResult<Pet>> task = GetPetByIdWithHttpInfoAsync(petId, server);
         ApiResult<Pet> result = await task.ConfigureAwait(false);
         return result.Data
             ?? throw new InvalidOperationException("Expected non-null response body");
@@ -829,7 +878,10 @@ public class PetApi : BaseApi
     /// Find pet by ID (with HTTP info)
     /// </summary>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<Pet>> GetPetByIdWithHttpInfoAsync(long petId)
+    public async Task<ApiResult<Pet>> GetPetByIdWithHttpInfoAsync(
+        long petId,
+        GetPetByIdServer? server = null
+    )
     {
         string path = "/pet/{petId}";
         path = path.Replace(
@@ -846,6 +898,17 @@ public class PetApi : BaseApi
                 )!,
             StringComparison.Ordinal
         );
+        if (server != null)
+        {
+            string serverUrl = server.Url;
+            if (
+                serverUrl.StartsWith("http://", StringComparison.Ordinal)
+                || serverUrl.StartsWith("https://", StringComparison.Ordinal)
+            )
+            {
+                path = serverUrl + path;
+            }
+        }
 
         Dictionary<string, object?> queryParams = [];
         Dictionary<string, string> headerParams = [];
@@ -1045,7 +1108,7 @@ public class PetApi : BaseApi
         );
 
         Dictionary<string, object?> queryParams = [];
-        if (options.Colors != null)
+        if (options != null && options.Colors != null)
         {
             queryParams["colors"] = ValueSerializer.SerializeStyled(
                 "colors",
@@ -1057,7 +1120,7 @@ public class PetApi : BaseApi
                 false
             );
         }
-        if (options.Sizes != null)
+        if (options != null && options.Sizes != null)
         {
             queryParams["sizes"] = ValueSerializer.SerializeStyled(
                 "sizes",
@@ -1070,7 +1133,7 @@ public class PetApi : BaseApi
             );
         }
         queryParams["filter"] =
-            options.Filter != null
+            options?.Filter != null
                 ? ValueSerializer.SerializeStyled(
                     "filter",
                     options.Filter,
@@ -1138,14 +1201,16 @@ public class PetApi : BaseApi
                 )!,
             StringComparison.Ordinal
         );
-        string serverUrl =
-            server != null ? server.Url : "https://{environment}.example.com/api/{version}";
-        if (
-            serverUrl.StartsWith("http://", StringComparison.Ordinal)
-            || serverUrl.StartsWith("https://", StringComparison.Ordinal)
-        )
+        if (server != null)
         {
-            path = serverUrl + path;
+            string serverUrl = server.Url;
+            if (
+                serverUrl.StartsWith("http://", StringComparison.Ordinal)
+                || serverUrl.StartsWith("https://", StringComparison.Ordinal)
+            )
+            {
+                path = serverUrl + path;
+            }
         }
 
         Dictionary<string, object?> queryParams = [];
@@ -1443,11 +1508,11 @@ public class PetApi : BaseApi
         Dictionary<string, string> headerParams = [];
         Dictionary<string, object> formBody = [];
         formBody["file"] = options.File;
-        if (options.DocumentType != null)
+        if (options != null && options.DocumentType != null)
         {
             formBody["documentType"] = options.DocumentType;
         }
-        if (options.Notes != null)
+        if (options != null && options.Notes != null)
         {
             formBody["notes"] = options.Notes;
         }

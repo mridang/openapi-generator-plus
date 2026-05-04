@@ -15,6 +15,130 @@ import '../configuration.dart';
 import '../object_serializer.dart';
 import '../value_serializer.dart';
 
+/// Abstract base class for per-operation server URLs for getExternalPetInfo.
+abstract class GetExternalPetInfoServer {
+  /// Returns the server URL.
+  String getUrl();
+}
+
+/// Server variant for GetExternalPetInfoServer.
+class GetExternalPetInfoServerServer0 extends GetExternalPetInfoServer {
+  GetExternalPetInfoServerServer0();
+
+  @override
+  String getUrl() {
+    var url = 'https://external-api.example.com/v1';
+    return url;
+  }
+}
+
+/// Abstract base class for per-operation server URLs for getMultiServerPetInfo.
+abstract class GetMultiServerPetInfoServer {
+  /// Returns the server URL.
+  String getUrl();
+}
+
+/// Valid values for the region server variable in GetMultiServerPetInfoServer.
+enum GetMultiServerPetInfoServerRegion {
+  US('us'),
+  EU('eu'),
+  AP('ap'),
+  ;
+
+  final String value;
+  const GetMultiServerPetInfoServerRegion(this.value);
+}
+
+/// Primary
+class GetMultiServerPetInfoServerPrimary extends GetMultiServerPetInfoServer {
+  GetMultiServerPetInfoServerPrimary();
+
+  @override
+  String getUrl() {
+    var url = 'https://primary.example.com/v1';
+    return url;
+  }
+}
+
+/// Regional
+class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer {
+  final GetMultiServerPetInfoServerRegion _region;
+
+  GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServerRegion region)
+      : _region = region;
+
+  @override
+  String getUrl() {
+    var url = 'https://{region}.example.com/v1';
+    url = url.replaceAll('region', _region.value);
+    return url;
+  }
+}
+
+/// Abstract base class for per-operation server URLs for getPetById.
+abstract class GetPetByIdServer {
+  /// Returns the server URL.
+  String getUrl();
+}
+
+/// CDN-backed read endpoint for pet details
+class GetPetByIdServerCDNBackedReadEndpointForPetDetails
+    extends GetPetByIdServer {
+  GetPetByIdServerCDNBackedReadEndpointForPetDetails();
+
+  @override
+  String getUrl() {
+    var url = 'https://cdn.petstore.io/v3';
+    return url;
+  }
+}
+
+/// Abstract base class for per-operation server URLs for getStagingPetInfo.
+abstract class GetStagingPetInfoServer {
+  /// Returns the server URL.
+  String getUrl();
+}
+
+/// Valid values for the environment server variable in GetStagingPetInfoServer.
+enum GetStagingPetInfoServerEnvironment {
+  STAGING('staging'),
+  SANDBOX('sandbox'),
+  ;
+
+  final String value;
+  const GetStagingPetInfoServerEnvironment(this.value);
+}
+
+/// Valid values for the version server variable in GetStagingPetInfoServer.
+enum GetStagingPetInfoServerVersion {
+  V2('v2'),
+  V3('v3'),
+  ;
+
+  final String value;
+  const GetStagingPetInfoServerVersion(this.value);
+}
+
+/// Staging server
+class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServer {
+  final GetStagingPetInfoServerEnvironment _environment;
+  final GetStagingPetInfoServerVersion _version;
+
+  GetStagingPetInfoServerStagingServer(
+      GetStagingPetInfoServerEnvironment environment,
+      GetStagingPetInfoServerVersion version)
+      : _environment = environment,
+        _version = version;
+
+  @override
+  String getUrl() {
+    var url = 'https://{environment}.example.com/api/{version}';
+    url = url.replaceAll('environment', _environment.value);
+    url = url.replaceAll('version', _version.value);
+    return url;
+  }
+}
+
 /// PetApi provides methods for the Pet API group.
 /// Everything about your Pets
 class PetApi extends BaseApi {
@@ -167,10 +291,12 @@ class PetApi extends BaseApi {
   Future<void> deletePet(
     Authenticator auth,
     int petId,
+    deletePetOptions? options,
   ) async {
     final result = await deletePetWithHTTPInfo(
       auth,
       petId,
+      options,
     );
   }
 
@@ -178,6 +304,7 @@ class PetApi extends BaseApi {
   Future<ApiResult<void>> deletePetWithHTTPInfo(
     Authenticator auth,
     int petId,
+    deletePetOptions? options,
   ) async {
     if (petId == null) {
       throw ArgumentError(
@@ -190,6 +317,14 @@ class PetApi extends BaseApi {
     final queryParams = <String, Object?>{};
 
     final headerParams = <String, String>{};
+    final cookieParts = <String>[];
+    if (options != null && options.apiKey != null) {
+      cookieParts.add(
+          'api_key=${serializeStyled('api_key', options.apiKey, 'cookie', 'String', '', 'form', true)}');
+    }
+    if (cookieParts.isNotEmpty) {
+      headerParams['Cookie'] = cookieParts.join('; ');
+    }
 
     final Object? requestBody = null;
 
@@ -276,8 +411,12 @@ class PetApi extends BaseApi {
 
     final queryParams = <String, Object?>{};
     if (options != null && options.status != null) {
-      queryParams['status'] = serializeStyled(
-          'status', options.status, 'query', 'String', '', 'form', true);
+      if (options != null && options.status != null) {
+        queryParams['status'] = serializeStyled(
+            'status', options.status, 'query', 'String', '', 'form', true);
+      } else {
+        queryParams['status'] = '';
+      }
     }
     if (options != null && options.filter != null) {
       serializeDeepObject('filter', options.filter as Map<String, Object?>?)
@@ -307,9 +446,11 @@ class PetApi extends BaseApi {
   /// Get external pet info
   Future<Pet> getExternalPetInfo(
     int petId,
+    GetExternalPetInfoServer? server,
   ) async {
     final result = await getExternalPetInfoWithHTTPInfo(
       petId,
+      server,
     );
     return result.data;
   }
@@ -317,6 +458,7 @@ class PetApi extends BaseApi {
   /// Performs the getExternalPetInfo operation and returns the full API result.
   Future<ApiResult<Pet>> getExternalPetInfoWithHTTPInfo(
     int petId,
+    GetExternalPetInfoServer? server,
   ) async {
     if (petId == null) {
       throw ArgumentError(
@@ -325,6 +467,12 @@ class PetApi extends BaseApi {
 
     var path = '/pet/{petId}/external';
     path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
+    if (server != null) {
+      final serverUrl = server.getUrl();
+      if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
+        path = serverUrl + path;
+      }
+    }
 
     final queryParams = <String, Object?>{};
 
@@ -349,9 +497,11 @@ class PetApi extends BaseApi {
   /// Get multi-server pet info
   Future<Pet> getMultiServerPetInfo(
     int petId,
+    GetMultiServerPetInfoServer? server,
   ) async {
     final result = await getMultiServerPetInfoWithHTTPInfo(
       petId,
+      server,
     );
     return result.data;
   }
@@ -359,6 +509,7 @@ class PetApi extends BaseApi {
   /// Performs the getMultiServerPetInfo operation and returns the full API result.
   Future<ApiResult<Pet>> getMultiServerPetInfoWithHTTPInfo(
     int petId,
+    GetMultiServerPetInfoServer? server,
   ) async {
     if (petId == null) {
       throw ArgumentError(
@@ -367,6 +518,12 @@ class PetApi extends BaseApi {
 
     var path = '/pet/{petId}/multi';
     path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
+    if (server != null) {
+      final serverUrl = server.getUrl();
+      if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
+        path = serverUrl + path;
+      }
+    }
 
     final queryParams = <String, Object?>{};
 
@@ -479,9 +636,11 @@ class PetApi extends BaseApi {
   @Deprecated('This operation is deprecated.')
   Future<Pet> getPetById(
     int petId,
+    GetPetByIdServer? server,
   ) async {
     final result = await getPetByIdWithHTTPInfo(
       petId,
+      server,
     );
     return result.data;
   }
@@ -489,6 +648,7 @@ class PetApi extends BaseApi {
   /// Performs the getPetById operation and returns the full API result.
   Future<ApiResult<Pet>> getPetByIdWithHTTPInfo(
     int petId,
+    GetPetByIdServer? server,
   ) async {
     if (petId == null) {
       throw ArgumentError(
@@ -497,6 +657,12 @@ class PetApi extends BaseApi {
 
     var path = '/pet/{petId}';
     path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
+    if (server != null) {
+      final serverUrl = server.getUrl();
+      if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
+        path = serverUrl + path;
+      }
+    }
 
     final queryParams = <String, Object?>{};
 
@@ -655,8 +821,12 @@ class PetApi extends BaseApi {
           'List<String>', 'ssv', 'spaceDelimited', false);
     }
     if (options != null && options.filter != null) {
-      queryParams['filter'] = serializeStyled(
-          'filter', options.filter, 'query', 'String', '', 'form', true);
+      if (options != null && options.filter != null) {
+        queryParams['filter'] = serializeStyled(
+            'filter', options.filter, 'query', 'String', '', 'form', true);
+      } else {
+        queryParams['filter'] = '';
+      }
     }
 
     final headerParams = <String, String>{};
@@ -680,9 +850,11 @@ class PetApi extends BaseApi {
   /// Get staging pet info
   Future<Pet> getStagingPetInfo(
     int petId,
+    GetStagingPetInfoServer? server,
   ) async {
     final result = await getStagingPetInfoWithHTTPInfo(
       petId,
+      server,
     );
     return result.data;
   }
@@ -690,6 +862,7 @@ class PetApi extends BaseApi {
   /// Performs the getStagingPetInfo operation and returns the full API result.
   Future<ApiResult<Pet>> getStagingPetInfoWithHTTPInfo(
     int petId,
+    GetStagingPetInfoServer? server,
   ) async {
     if (petId == null) {
       throw ArgumentError(
@@ -698,6 +871,12 @@ class PetApi extends BaseApi {
 
     var path = '/pet/{petId}/staging';
     path = path.replaceAll('petId', Uri.encodeComponent('$petId'));
+    if (server != null) {
+      final serverUrl = server.getUrl();
+      if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
+        path = serverUrl + path;
+      }
+    }
 
     final queryParams = <String, Object?>{};
 

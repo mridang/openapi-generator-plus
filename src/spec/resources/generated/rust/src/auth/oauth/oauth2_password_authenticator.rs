@@ -71,10 +71,6 @@ impl Authenticator for OAuth2PasswordAuthenticator {
         &self.host
     }
 
-    fn set_api_client(&mut self, client: Arc<dyn ApiClient>) {
-        self.token_manager.set_api_client(client);
-    }
-
     fn auth_headers(&self) -> HashMap<String, String> {
         let refresh_token = self.token_manager.refresh_token();
 
@@ -105,6 +101,14 @@ impl Authenticator for OAuth2PasswordAuthenticator {
             Err(_) => HashMap::new(),
         }
     }
+
+    fn as_http_aware_mut(&mut self) -> Option<&mut dyn HttpAwareAuthenticator> {
+        Some(self)
+    }
 }
 
-impl HttpAwareAuthenticator for OAuth2PasswordAuthenticator {}
+impl HttpAwareAuthenticator for OAuth2PasswordAuthenticator {
+    fn set_api_client(&mut self, client: Arc<dyn ApiClient>) {
+        self.token_manager.set_api_client(client);
+    }
+}

@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
-	"time"
 
 	petstore "petstore/pkg"
 )
@@ -86,7 +85,7 @@ func TestDefaultApiClient_HttpProxyWithTls(t *testing.T) {
 
 func TestDefaultApiClient_RequestTimeout(t *testing.T) {
 	transport := petstore.NewTransportOptionsBuilder().
-		Timeout(1 * time.Second).
+		Timeout(1000).
 		Build()
 	client := petstore.NewDefaultApiClient(transport)
 	_, err := client.SendRequest("GET", wiremockHTTPURL+"/api/slow", map[string]string{}, nil)

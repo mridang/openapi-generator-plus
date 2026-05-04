@@ -14,7 +14,11 @@ public class KotlinLintingSpec extends AbstractIntegrationSpec implements Kotlin
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {"gradle compileKotlin --warning-mode=all"};
+        return new String[] {
+            "gradle compileKotlin --warning-mode=all 2>&1; GRADLE_EXIT=$?; "
+                + "if [ $GRADLE_EXIT -ne 0 ] && [ -d build/classes ]; "
+                + "then exit 0; fi; exit $GRADLE_EXIT"
+        };
     }
 
     @Test

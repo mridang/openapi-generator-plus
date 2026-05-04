@@ -5,7 +5,7 @@ import Foundation
 /// code, response headers, and response body.
 public class ApiError: Error, LocalizedError, @unchecked Sendable {
     /// The HTTP status code.
-    public let code: Int
+    public let statusCode: Int
 
     /// The error message.
     public let message: String
@@ -20,13 +20,13 @@ public class ApiError: Error, LocalizedError, @unchecked Sendable {
     public let errorBody: Any?
 
     public init(
-        code: Int = 0,
+        statusCode: Int = 0,
         message: String = "",
         responseBody: String = "",
         responseHeaders: [String: String] = [:],
         errorBody: Any? = nil
     ) {
-        self.code = code
+        self.statusCode = statusCode
         self.message = message
         self.responseBody = responseBody
         self.responseHeaders = responseHeaders
@@ -35,8 +35,8 @@ public class ApiError: Error, LocalizedError, @unchecked Sendable {
 
     public var errorDescription: String? {
         var msg = message.isEmpty ? "Error message: the server returns an error" : message
-        if code != 0 {
-            msg += "\nHTTP status code: \(code)"
+        if statusCode != 0 {
+            msg += "\nHTTP status code: \(statusCode)"
         }
         if !responseHeaders.isEmpty {
             msg += "\nResponse headers: \(responseHeaders)"
@@ -53,10 +53,5 @@ public class ApiError: Error, LocalizedError, @unchecked Sendable {
             return nil
         }
         return try JSONDecoder().decode(type, from: data)
-    }
-
-    /// Returns the HTTP status code of the error.
-    public var statusCode: Int {
-        return code
     }
 }

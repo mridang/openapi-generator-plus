@@ -49,10 +49,13 @@ impl ServerConfiguration {
     /// Variables not present in overrides use their default values. If a variable
     /// has an enum constraint, the override value is validated against the allowed values.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if an override value is not in the variable's enum constraint.
-    pub fn url(&self, overrides: &HashMap<String, String>) -> String {
+    /// Returns an error if an override value is not in the variable's enum constraint.
+    pub fn url(
+        &self,
+        overrides: &HashMap<String, String>,
+    ) -> Result<String, Box<dyn std::error::Error>> {
         let mut result = self.url_template.clone();
         for (var_name, variable) in &self.variables {
             let value = overrides
@@ -61,14 +64,15 @@ impl ServerConfiguration {
                 .clone();
 
             if !variable.enum_values.is_empty() && !variable.enum_values.contains(&value) {
-                panic!(
+                return Err(format!(
                     "invalid value '{}' for variable '{}'; allowed: {:?}",
                     value, var_name, variable.enum_values
-                );
+                )
+                .into());
             }
 
             result = result.replace(&format!("{{{}}}", var_name), &value);
         }
-        result
+        Ok(result)
     }
 }

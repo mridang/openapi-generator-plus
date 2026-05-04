@@ -4,9 +4,21 @@ package {{invokerPackage}}.auth.oauth
 
 import {{invokerPackage}}.ApiClient
 import {{invokerPackage}}.auth.HttpAwareAuthenticator
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 /**
- * OAuth2 Implicit flow authenticator.
+ * Authenticator for the OAuth2 Implicit flow.
+ *
+ * Implements [HttpAwareAuthenticator] for interface consistency with other
+ * OAuth2 authenticators. The implicit flow does not make token exchange
+ * requests.
+ *
+ * Usage:
+ * 1. Call [buildAuthorizationUrl] to get the authorization URL
+ * 2. Redirect the user to that URL
+ * 3. Extract the access token from the fragment and call [setAccessToken]
+ * 4. Use the authenticator normally
  */
 open class OAuth2ImplicitAuthenticator(
     private val host: String,
@@ -19,16 +31,46 @@ open class OAuth2ImplicitAuthenticator(
     private var accessToken: String? = null
 
     override fun setApiClient(apiClient: ApiClient) {
+        // Implicit flow does not make token exchange requests,
+        // but implements the interface for consistency.
+    }
+
+    /**
+     * Build the authorization URL to redirect the user to.
+     *
+     * @param state optional CSRF state parameter
+     * @return the authorization URL
+     */
+    fun buildAuthorizationUrl(state: String? = null): String {
+        val url = StringBuilder(authorizationUrl)
+        url.append("?response_type=token")
+        url.append("&client_id=").append(encode(clientId))
+        if (scopes.isNotEmpty()) {
+            url.append("&scope=").append(encode(scopes.joinToString(" ")))
+        }
+        if (state != null) {
+            url.append("&state=").append(encode(state))
+        }
+        return url.toString()
+    }
+
+    /**
+     * Set the access token obtained from the authorization redirect fragment.
+     *
+     * @param token the access token
+     */
+    fun setAccessToken(token: String) {
+        this.accessToken = token
     }
 
     override fun getHost(): String = host
 
     override fun getAuthHeaders(): Map<String, String> {
-        val token = accessToken ?: throw IllegalStateException("No access token. Complete the implicit flow first.")
+        val token = accessToken
+            ?: throw IllegalStateException("Must call setAccessToken() before making API requests")
         return mapOf("Authorization" to "Bearer $token")
     }
 
-    fun setAccessToken(token: String) {
-        this.accessToken = token
-    }
+    private fun encode(value: String): String =
+        URLEncoder.encode(value, StandardCharsets.UTF_8)
 }

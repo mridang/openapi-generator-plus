@@ -142,6 +142,11 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             mergedHeaders["X-Request-ID"] = Guid.NewGuid().ToString();
         }
 
+        if (!mergedHeaders.ContainsKey("Accept-Encoding"))
+        {
+            mergedHeaders["Accept-Encoding"] = "gzip, deflate, br";
+        }
+
         using HttpRequestMessage request = new(new HttpMethod(method), url);
 
         string? contentType = null;

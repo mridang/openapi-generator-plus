@@ -55,7 +55,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
   end
 
   test "delete_pet deletes a pet", %{api: api, auth: auth} do
-    assert {:ok, _result} = {{moduleName}}.Api.PetApi.delete_pet(api, auth, 1)
+    assert {:ok, _result} = {{moduleName}}.Api.PetApi.delete_pet(api, auth, 1, %{{moduleName}}.Api.Options.DeletePetOptions{})
   end
 
   test "set_pet_avatar uploads binary image data", %{api: api} do

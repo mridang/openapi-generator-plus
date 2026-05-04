@@ -5,7 +5,7 @@ import 'dart:convert';
 /// code, response headers, and response body.
 class ApiError implements Exception {
   /// The HTTP status code.
-  final int code;
+  final int statusCode;
 
   /// The error message.
   final String message;
@@ -20,7 +20,7 @@ class ApiError implements Exception {
   final Object? errorBody;
 
   const ApiError({
-    required this.code,
+    required this.statusCode,
     required this.message,
     this.responseBody = '',
     this.responseHeaders = const {},
@@ -32,8 +32,8 @@ class ApiError implements Exception {
     final buf = StringBuffer(message.isEmpty
         ? 'Error message: the server returns an error'
         : message);
-    if (code != 0) {
-      buf.write('\nHTTP status code: $code');
+    if (statusCode != 0) {
+      buf.write('\nHTTP status code: $statusCode');
     }
     if (responseHeaders.isNotEmpty) {
       buf.write('\nResponse headers: $responseHeaders');
@@ -52,7 +52,4 @@ class ApiError implements Exception {
     final decoded = jsonDecode(responseBody);
     return fromJson(decoded as Map<String, dynamic>);
   }
-
-  /// Returns the HTTP status code of the error.
-  int get statusCode => code;
 }

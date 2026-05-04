@@ -10,7 +10,7 @@ import 'client_error.dart';
 /// BadRequestError represents an HTTP 400 Bad Request error.
 class BadRequestError extends ClientError {
   const BadRequestError({
-    required super.code,
+    required super.statusCode,
     required super.message,
     super.responseBody,
     super.responseHeaders,

@@ -2,6 +2,49 @@
 import Foundation
 
 {{#operations}}
+{{#serverTypeDefs}}
+
+/// Protocol for per-operation server URLs for {{operationId}}.
+public protocol {{serverTypeName}} {
+    /// Returns the server URL.
+    func getUrl() -> String
+}
+{{#variants}}
+{{#serverVariables}}{{#hasEnumValues}}
+
+/// Valid values for the {{name}} server variable in {{serverTypeName}}.
+public enum {{serverTypeName}}{{pascalName}}: String {
+{{#enumValues}}
+    case {{name}} = "{{value}}"
+{{/enumValues}}
+}
+{{/hasEnumValues}}{{/serverVariables}}
+{{/variants}}
+{{#variants}}
+
+/// {{#hasDescription}}{{{description}}}{{/hasDescription}}{{^hasDescription}}Server variant for {{serverTypeName}}.{{/hasDescription}}
+public struct {{serverTypeName}}{{variantName}}: {{serverTypeName}} {
+{{#serverVariables}}
+    public let {{camelName}}: {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}}
+{{/serverVariables}}
+
+    public init({{#serverVariables}}{{camelName}}: {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}String{{/hasEnumValues}}{{^-last}}, {{/-last}}{{/serverVariables}}) {
+{{#serverVariables}}
+        self.{{camelName}} = {{camelName}}
+{{/serverVariables}}
+    }
+
+    public func getUrl() -> String {
+        var url = "{{url}}"
+{{#serverVariables}}
+        url = url.replacingOccurrences(of: "{{{name}}}", with: {{#hasEnumValues}}{{camelName}}.rawValue{{/hasEnumValues}}{{^hasEnumValues}}{{camelName}}{{/hasEnumValues}})
+{{/serverVariables}}
+        return url
+    }
+}
+{{/variants}}
+{{/serverTypeDefs}}
+
 /// {{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
 /// {{.}}
@@ -24,8 +67,8 @@ public final class {{classname}}: BaseApi {
 {{#externalDocs}}
     /// See {{url}} {{description}}
 {{/externalDocs}}
-    public func {{operationId}}({{#hasAuthMethods}}auth: Authenticator, {{/hasAuthMethods}}{{#pathParams}}{{paramName}}: {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{^required}}{{{dataType}}}?{{/required}}{{#required}}{{{dataType}}}{{/required}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}) async throws{{#returnType}} -> {{{.}}}{{/returnType}} {
-        let result = try await {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth: auth, {{/hasAuthMethods}}{{#pathParams}}{{paramName}}: {{paramName}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}})
+    public func {{operationId}}({{#hasAuthMethods}}auth: Authenticator, {{/hasAuthMethods}}{{#pathParams}}{{paramName}}: {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{^required}}{{{dataType}}}?{{/required}}{{#required}}{{{dataType}}}{{/required}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server: (any {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server)? = nil, {{/-first}}{{/servers}}) async throws{{#returnType}} -> {{{.}}}{{/returnType}} {
+        let result = try await {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth: auth, {{/hasAuthMethods}}{{#pathParams}}{{paramName}}: {{paramName}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server: server, {{/-first}}{{/servers}})
 {{#returnType}}
         return result.data
 {{/returnType}}
@@ -35,7 +78,7 @@ public final class {{classname}}: BaseApi {
     }
 
     /// Performs the {{operationId}} operation and returns the full API result.
-    public func {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth: Authenticator, {{/hasAuthMethods}}{{#pathParams}}{{paramName}}: {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{^required}}{{{dataType}}}?{{/required}}{{#required}}{{{dataType}}}{{/required}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}> {
+    public func {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth: Authenticator, {{/hasAuthMethods}}{{#pathParams}}{{paramName}}: {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{^required}}{{{dataType}}}?{{/required}}{{#required}}{{{dataType}}}{{/required}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: {{operationId}}Options? = nil, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server: (any {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server)? = nil, {{/-first}}{{/servers}}) async throws -> ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}Void{{/returnType}}> {
 {{#pathParams}}
 {{#required}}
 {{#isString}}
@@ -52,6 +95,16 @@ public final class {{classname}}: BaseApi {
         path = replacePathParam(path, name: "<%baseName%>", value: "\(<%paramName%>)")
 <%={{ }}=%>
 {{/pathParams}}
+{{#servers}}
+{{#-first}}
+        if let server = server {
+            let serverUrl = server.getUrl()
+            if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
+                path = serverUrl + path
+            }
+        }
+{{/-first}}
+{{/servers}}
 
         var queryParams: [String: Any?] = [:]
 {{#queryParams}}
@@ -70,7 +123,16 @@ public final class {{classname}}: BaseApi {
             }
 {{/content}}
 {{^content}}
+{{#isAllowEmptyValue}}
+        if let options = options, let val = options.{{name}} {
             queryParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}})
+        } else {
+            queryParams["{{baseName}}"] = ""
+        }
+{{/isAllowEmptyValue}}
+{{^isAllowEmptyValue}}
+            queryParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}})
+{{/isAllowEmptyValue}}
 {{/content}}
 {{/isDeepObject}}
         }

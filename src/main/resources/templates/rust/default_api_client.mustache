@@ -4,6 +4,8 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 
+use std::time::Duration;
+
 use reqwest::{Client, ClientBuilder};
 use reqwest::Proxy;
 use uuid::Uuid;
@@ -71,6 +73,12 @@ impl ApiClient for DefaultApiClient {
                     self.transport_options.user_agent().to_string(),
                 );
             }
+            if !merged.contains_key("Accept-Encoding") {
+                merged.insert(
+                    "Accept-Encoding".to_string(),
+                    "gzip, deflate".to_string(),
+                );
+            }
             if !merged.contains_key("X-Request-ID") && self.transport_options.inject_request_id() {
                 merged.insert("X-Request-ID".to_string(), Uuid::new_v4().to_string());
             }
@@ -79,6 +87,11 @@ impl ApiClient for DefaultApiClient {
             })?;
 
             let mut request_builder = self.http_client.request(http_method, &url);
+
+            // Do not send Content-Type when there is no request body
+            if body.is_none() {
+                merged.remove("Content-Type");
+            }
 
             for (k, v) in &merged {
                 request_builder = request_builder.header(k.as_str(), v.as_str());
@@ -132,8 +145,8 @@ fn build_http_client(opts: &TransportOptions) -> Client {
         }
     }
 
-    if let Some(timeout) = opts.timeout() {
-        builder = builder.timeout(timeout);
+    if let Some(timeout_ms) = opts.timeout() {
+        builder = builder.timeout(Duration::from_millis(timeout_ms as u64));
     }
 
     if !opts.follow_redirects() {

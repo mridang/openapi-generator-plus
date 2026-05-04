@@ -743,4 +743,30 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         }
         return p.dataType;
     }
+
+    @Override
+    public Map<String, org.openapitools.codegen.model.ModelsMap> postProcessAllModels(
+            Map<String, org.openapitools.codegen.model.ModelsMap> objs) {
+        final Map<String, org.openapitools.codegen.model.ModelsMap> result =
+                super.postProcessAllModels(objs);
+        for (final org.openapitools.codegen.model.ModelsMap modelsMap : result.values()) {
+            for (final org.openapitools.codegen.model.ModelMap modelMap : modelsMap.getModels()) {
+                final org.openapitools.codegen.CodegenModel model = modelMap.getModel();
+                final List<List<org.openapitools.codegen.CodegenProperty>> allPropLists =
+                        List.of(model.vars, model.optionalVars, model.requiredVars);
+                for (final List<org.openapitools.codegen.CodegenProperty> propList : allPropLists) {
+                    for (final org.openapitools.codegen.CodegenProperty prop : propList) {
+                        if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
+                            // Fix enum defaults: "StatusEnum . PLACED" → "OrderStatusEnum::PLACED"
+                            final String[] parts = prop.defaultValue.split("\\s*\\.\\s*", 2);
+                            if (parts.length == 2) {
+                                prop.defaultValue = model.classname + parts[0] + "::" + parts[1];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return result;
+    }
 }

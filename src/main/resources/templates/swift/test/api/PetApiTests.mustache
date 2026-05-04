@@ -82,7 +82,7 @@ final class PetApiTests: XCTestCase {
         let api = try petApiForIntegration()
         let auth = TestAuthenticator()
 
-        try await api.deletePet(auth: auth, petId: 1)
+        try await api.deletePet(auth: auth, petId: 1, options: nil)
     }
 
     func testFindPetsByStatus() async throws {

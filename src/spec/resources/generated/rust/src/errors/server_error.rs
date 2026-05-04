@@ -20,7 +20,7 @@ impl fmt::Display for ServerError {
         write!(
             f,
             "Server error ({}): {}",
-            self.api_error.code, self.api_error.message
+            self.api_error.status_code, self.api_error.message
         )
     }
 }

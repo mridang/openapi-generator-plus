@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -189,7 +190,7 @@ func buildHTTPClient(opts *TransportOptions) *http.Client {
 	}
 
 	if opts.Timeout() > 0 {
-		client.Timeout = opts.Timeout()
+		client.Timeout = time.Duration(opts.Timeout()) * time.Millisecond
 	}
 
 	if !opts.FollowRedirects() {

@@ -21,7 +21,7 @@ fn test_serialize_map_to_json() {
     assert!(!data.is_empty(), "expected non-empty serialized data");
 
     let parsed: serde_json::Value =
-        serde_json::from_slice(&data).expect("failed to parse serialized JSON");
+        serde_json::from_str(&data).expect("failed to parse serialized JSON");
     assert_eq!(parsed["name"], "Fido");
 }
 

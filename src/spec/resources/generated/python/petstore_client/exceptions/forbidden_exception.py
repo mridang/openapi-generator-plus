@@ -22,7 +22,7 @@ class ForbiddenException(ClientException):
         error_body: Optional[Any] = None,
     ) -> None:
         super().__init__(
-            code=403,
+            status_code=403,
             message=message,
             response_headers=response_headers,
             response_body=response_body,

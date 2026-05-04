@@ -13,9 +13,10 @@ final class ObjectSerializerTests: XCTestCase {
 
   func testSerializeMapToJSON() throws {
     let input: [String: Any] = ["name": "Fido", "age": 3]
-    let data = try ObjectSerializer.serialize(input)
-    XCTAssertFalse(data.isEmpty)
+    let jsonString = try ObjectSerializer.serialize(input)
+    XCTAssertFalse(jsonString.isEmpty)
 
+    let data = jsonString.data(using: .utf8)!
     let parsed = try JSONSerialization.jsonObject(with: data) as? [String: Any]
     XCTAssertEqual(parsed?["name"] as? String, "Fido")
   }

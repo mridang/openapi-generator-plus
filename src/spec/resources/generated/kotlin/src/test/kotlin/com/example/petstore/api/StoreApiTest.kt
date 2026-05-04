@@ -162,7 +162,7 @@ class StoreApiTest {
                 assertThrows(ApiException::class.java) {
                     runBlocking { api.getOrderById(99999L) }
                 }
-            assertEquals(404, exception.code)
+            assertEquals(404, exception.statusCode)
         }
 
         @Test
@@ -188,7 +188,7 @@ class StoreApiTest {
                 assertThrows(ApiException::class.java) {
                     runBlocking { api.placeOrder(order) }
                 }
-            assertEquals(500, exception.code)
+            assertEquals(500, exception.statusCode)
         }
 
         @Test
@@ -205,7 +205,7 @@ class StoreApiTest {
                 assertThrows(ApiException::class.java) {
                     runBlocking { api.deleteOrder(99999L) }
                 }
-            assertEquals(404, exception.code)
+            assertEquals(404, exception.statusCode)
         }
     }
 }

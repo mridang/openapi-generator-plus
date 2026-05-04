@@ -99,9 +99,12 @@ func TestConfiguration_ServerURLResolution(t *testing.T) {
 		},
 	}
 
-	config := petstore.NewConfigurationBuilder().
-		Server(server, map[string]string{"env": "staging"}).
-		Build()
+	builder, err := petstore.NewConfigurationBuilder().
+		Server(server, map[string]string{"env": "staging"})
+	if err != nil {
+		t.Fatalf("Server() returned error: %v", err)
+	}
+	config := builder.Build()
 
 	expected := "https://staging.example.com/api/v3"
 	if config.BaseURL() != expected {
@@ -125,9 +128,12 @@ func TestConfiguration_ServerURLResolutionWithDefaults(t *testing.T) {
 		},
 	}
 
-	config := petstore.NewConfigurationBuilder().
-		Server(server, nil).
-		Build()
+	builder, err := petstore.NewConfigurationBuilder().
+		Server(server, nil)
+	if err != nil {
+		t.Fatalf("Server() returned error: %v", err)
+	}
+	config := builder.Build()
 
 	expected := "https://api.example.com/api/v3"
 	if config.BaseURL() != expected {

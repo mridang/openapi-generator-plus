@@ -7,6 +7,118 @@
 
 import Foundation
 
+/// Protocol for per-operation server URLs for getExternalPetInfo.
+public protocol GetExternalPetInfoServer {
+    /// Returns the server URL.
+    func getUrl() -> String
+}
+
+/// Server variant for GetExternalPetInfoServer.
+public struct GetExternalPetInfoServerServer0: GetExternalPetInfoServer {
+
+    public init() {
+    }
+
+    public func getUrl() -> String {
+        var url = "https://external-api.example.com/v1"
+        return url
+    }
+}
+
+/// Protocol for per-operation server URLs for getMultiServerPetInfo.
+public protocol GetMultiServerPetInfoServer {
+    /// Returns the server URL.
+    func getUrl() -> String
+}
+
+/// Valid values for the region server variable in GetMultiServerPetInfoServer.
+public enum GetMultiServerPetInfoServerRegion: String {
+    case US = "us"
+    case EU = "eu"
+    case AP = "ap"
+}
+
+/// Primary
+public struct GetMultiServerPetInfoServerPrimary: GetMultiServerPetInfoServer {
+
+    public init() {
+    }
+
+    public func getUrl() -> String {
+        var url = "https://primary.example.com/v1"
+        return url
+    }
+}
+
+/// Regional
+public struct GetMultiServerPetInfoServerRegional: GetMultiServerPetInfoServer {
+    public let region: GetMultiServerPetInfoServerRegion
+
+    public init(region: GetMultiServerPetInfoServerRegion) {
+        self.region = region
+    }
+
+    public func getUrl() -> String {
+        var url = "https://{region}.example.com/v1"
+        url = url.replacingOccurrences(of: "region", with: region.rawValue)
+        return url
+    }
+}
+
+/// Protocol for per-operation server URLs for getPetById.
+public protocol GetPetByIdServer {
+    /// Returns the server URL.
+    func getUrl() -> String
+}
+
+/// CDN-backed read endpoint for pet details
+public struct GetPetByIdServerCDNBackedReadEndpointForPetDetails: GetPetByIdServer {
+
+    public init() {
+    }
+
+    public func getUrl() -> String {
+        var url = "https://cdn.petstore.io/v3"
+        return url
+    }
+}
+
+/// Protocol for per-operation server URLs for getStagingPetInfo.
+public protocol GetStagingPetInfoServer {
+    /// Returns the server URL.
+    func getUrl() -> String
+}
+
+/// Valid values for the environment server variable in GetStagingPetInfoServer.
+public enum GetStagingPetInfoServerEnvironment: String {
+    case STAGING = "staging"
+    case SANDBOX = "sandbox"
+}
+
+/// Valid values for the version server variable in GetStagingPetInfoServer.
+public enum GetStagingPetInfoServerVersion: String {
+    case V2 = "v2"
+    case V3 = "v3"
+}
+
+/// Staging server
+public struct GetStagingPetInfoServerStagingServer: GetStagingPetInfoServer {
+    public let environment: GetStagingPetInfoServerEnvironment
+    public let version: GetStagingPetInfoServerVersion
+
+    public init(environment: GetStagingPetInfoServerEnvironment, version: GetStagingPetInfoServerVersion) {
+        self.environment = environment
+        self.version = version
+    }
+
+    public func getUrl() -> String {
+        var url = "https://{environment}.example.com/api/{version}"
+        url = url.replacingOccurrences(of: "environment", with: environment.rawValue)
+        url = url.replacingOccurrences(of: "version", with: version.rawValue)
+        return url
+    }
+}
+
 /// PetApi provides methods for the Pet API group.
 /// Everything about your Pets
 /// See https://example.com/docs/pets Find out more about pets
@@ -119,13 +231,13 @@ public final class PetApi: BaseApi {
     }
 
     /// Deletes a pet
-    public func deletePet(auth: Authenticator, petId: Int64, ) async throws {
-        let result = try await deletePetWithHTTPInfo(auth: auth, petId: petId, )
+    public func deletePet(auth: Authenticator, petId: Int64, options: deletePetOptions? = nil, ) async throws {
+        let result = try await deletePetWithHTTPInfo(auth: auth, petId: petId, options: options, )
         _ = result
     }
 
     /// Performs the deletePet operation and returns the full API result.
-    public func deletePetWithHTTPInfo(auth: Authenticator, petId: Int64, ) async throws -> ApiResult<Void> {
+    public func deletePetWithHTTPInfo(auth: Authenticator, petId: Int64, options: deletePetOptions? = nil, ) async throws -> ApiResult<Void> {
 
         var path = "/pet/{petId}"
         path = replacePathParam(path, name: "petId", value: "\(petId)")
@@ -133,6 +245,13 @@ public final class PetApi: BaseApi {
         var queryParams: [String: Any?] = [:]
 
         var headerParams: [String: String] = [:]
+        var cookieParts: [String] = []
+        if let options = options, let val = options. {
+            cookieParts.append("api_key=\(ValueSerializer.serializeStyled("api_key", value: val, location: "cookie", schemaType: "String", collectionFormat: "", style: "form", explode: true) ?? "")")
+        }
+        if !cookieParts.isEmpty {
+            headerParams["Cookie"] = cookieParts.joined(separator: "; ")
+        }
 
         let requestBody: Any? = nil
 
@@ -201,7 +320,11 @@ public final class PetApi: BaseApi {
 
         var queryParams: [String: Any?] = [:]
         if let options = options, let val = options. {
+        if let options = options, let val = options. {
             queryParams["status"] = ValueSerializer.serializeStyled("status", value: val, location: "query", schemaType: "String", collectionFormat: "", style: "form", explode: true)
+        } else {
+            queryParams["status"] = ""
+        }
         }
         if let options = options, let val = options. {
             if let dict = val as? [String: Any] {
@@ -231,16 +354,22 @@ public final class PetApi: BaseApi {
     }
 
     /// Get external pet info
-    public func getExternalPetInfo(petId: Int64, ) async throws -> Pet {
-        let result = try await getExternalPetInfoWithHTTPInfo(petId: petId, )
+    public func getExternalPetInfo(petId: Int64, server: (any GetExternalPetInfoServer)? = nil, ) async throws -> Pet {
+        let result = try await getExternalPetInfoWithHTTPInfo(petId: petId, server: server, )
         return result.data
     }
 
     /// Performs the getExternalPetInfo operation and returns the full API result.
-    public func getExternalPetInfoWithHTTPInfo(petId: Int64, ) async throws -> ApiResult<Pet> {
+    public func getExternalPetInfoWithHTTPInfo(petId: Int64, server: (any GetExternalPetInfoServer)? = nil, ) async throws -> ApiResult<Pet> {
 
         var path = "/pet/{petId}/external"
         path = replacePathParam(path, name: "petId", value: "\(petId)")
+        if let server = server {
+            let serverUrl = server.getUrl()
+            if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
+                path = serverUrl + path
+            }
+        }
 
         var queryParams: [String: Any?] = [:]
 
@@ -264,16 +393,22 @@ public final class PetApi: BaseApi {
     }
 
     /// Get multi-server pet info
-    public func getMultiServerPetInfo(petId: Int64, ) async throws -> Pet {
-        let result = try await getMultiServerPetInfoWithHTTPInfo(petId: petId, )
+    public func getMultiServerPetInfo(petId: Int64, server: (any GetMultiServerPetInfoServer)? = nil, ) async throws -> Pet {
+        let result = try await getMultiServerPetInfoWithHTTPInfo(petId: petId, server: server, )
         return result.data
     }
 
     /// Performs the getMultiServerPetInfo operation and returns the full API result.
-    public func getMultiServerPetInfoWithHTTPInfo(petId: Int64, ) async throws -> ApiResult<Pet> {
+    public func getMultiServerPetInfoWithHTTPInfo(petId: Int64, server: (any GetMultiServerPetInfoServer)? = nil, ) async throws -> ApiResult<Pet> {
 
         var path = "/pet/{petId}/multi"
         path = replacePathParam(path, name: "petId", value: "\(petId)")
+        if let server = server {
+            let serverUrl = server.getUrl()
+            if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
+                path = serverUrl + path
+            }
+        }
 
         var queryParams: [String: Any?] = [:]
 
@@ -367,16 +502,22 @@ public final class PetApi: BaseApi {
     /// Find pet by ID
     /// Returns a single pet
     @available(*, deprecated, message: "This operation is deprecated.")
-    public func getPetById(petId: Int64, ) async throws -> Pet {
-        let result = try await getPetByIdWithHTTPInfo(petId: petId, )
+    public func getPetById(petId: Int64, server: (any GetPetByIdServer)? = nil, ) async throws -> Pet {
+        let result = try await getPetByIdWithHTTPInfo(petId: petId, server: server, )
         return result.data
     }
 
     /// Performs the getPetById operation and returns the full API result.
-    public func getPetByIdWithHTTPInfo(petId: Int64, ) async throws -> ApiResult<Pet> {
+    public func getPetByIdWithHTTPInfo(petId: Int64, server: (any GetPetByIdServer)? = nil, ) async throws -> ApiResult<Pet> {
 
         var path = "/pet/{petId}"
         path = replacePathParam(path, name: "petId", value: "\(petId)")
+        if let server = server {
+            let serverUrl = server.getUrl()
+            if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
+                path = serverUrl + path
+            }
+        }
 
         var queryParams: [String: Any?] = [:]
 
@@ -492,7 +633,11 @@ public final class PetApi: BaseApi {
             queryParams["sizes"] = ValueSerializer.serializeStyled("sizes", value: val, location: "query", schemaType: "[String]", collectionFormat: "ssv", style: "spaceDelimited", explode: false)
         }
         if let options = options, let val = options. {
+        if let options = options, let val = options. {
             queryParams["filter"] = ValueSerializer.serializeStyled("filter", value: val, location: "query", schemaType: "String", collectionFormat: "", style: "form", explode: true)
+        } else {
+            queryParams["filter"] = ""
+        }
         }
 
         var headerParams: [String: String] = [:]
@@ -515,16 +660,22 @@ public final class PetApi: BaseApi {
     }
 
     /// Get staging pet info
-    public func getStagingPetInfo(petId: Int64, ) async throws -> Pet {
-        let result = try await getStagingPetInfoWithHTTPInfo(petId: petId, )
+    public func getStagingPetInfo(petId: Int64, server: (any GetStagingPetInfoServer)? = nil, ) async throws -> Pet {
+        let result = try await getStagingPetInfoWithHTTPInfo(petId: petId, server: server, )
         return result.data
     }
 
     /// Performs the getStagingPetInfo operation and returns the full API result.
-    public func getStagingPetInfoWithHTTPInfo(petId: Int64, ) async throws -> ApiResult<Pet> {
+    public func getStagingPetInfoWithHTTPInfo(petId: Int64, server: (any GetStagingPetInfoServer)? = nil, ) async throws -> ApiResult<Pet> {
 
         var path = "/pet/{petId}/staging"
         path = replacePathParam(path, name: "petId", value: "\(petId)")
+        if let server = server {
+            let serverUrl = server.getUrl()
+            if serverUrl.hasPrefix("http://") || serverUrl.hasPrefix("https://") {
+                path = serverUrl + path
+            }
+        }
 
         var queryParams: [String: Any?] = [:]
 

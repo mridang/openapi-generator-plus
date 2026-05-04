@@ -13,7 +13,7 @@ module PetstoreClient
     class InternalServerError < ServerError
       def initialize(message: nil, response_body: nil, response_headers: nil, error_body: nil)
         super({
-          code: 500,
+          status_code: 500,
           message: message,
           response_body: response_body,
           response_headers: response_headers,

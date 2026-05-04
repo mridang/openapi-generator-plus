@@ -58,7 +58,7 @@ class TestPetApi:
         assert result is not None
 
     async def test_delete_pet(self) -> None:
-        await self.api.delete_pet(self.auth, 1)
+        await self.api.delete_pet(self.auth, 1, None)
 
         assert True
 

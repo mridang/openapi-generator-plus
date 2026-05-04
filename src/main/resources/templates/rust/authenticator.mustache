@@ -1,9 +1,8 @@
 {{>api_info}}
 
 use std::collections::HashMap;
-use std::sync::Arc;
 
-use crate::api_client::ApiClient;
+use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
 
 /// Authenticator provides authentication credentials to the API client.
 /// Implementations supply the API host URL and authorization headers.
@@ -24,11 +23,13 @@ pub trait Authenticator: Send + Sync {
         HashMap::new()
     }
 
-    /// Injects the shared API client for making HTTP requests.
+    /// Returns a mutable reference to this authenticator as an
+    /// HttpAwareAuthenticator, if it implements that trait.
     ///
-    /// Called by the client constructor after the `ApiClient` has been created
-    /// with the user's `TransportOptions`. Only OAuth2 and OpenID Connect
-    /// authenticators override this to store the client for token exchange.
-    /// Simple authenticators (Bearer, API Key) use the default no-op.
-    fn set_api_client(&mut self, _client: Arc<dyn ApiClient>) {}
+    /// The default implementation returns `None`. OAuth2 and OpenID Connect
+    /// authenticators override this to return `Some(self)` so the client
+    /// can inject the shared ApiClient.
+    fn as_http_aware_mut(&mut self) -> Option<&mut dyn HttpAwareAuthenticator> {
+        None
+    }
 }

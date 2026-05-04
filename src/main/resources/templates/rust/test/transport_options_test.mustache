@@ -1,7 +1,6 @@
 {{>api_info}}
 
 use std::collections::HashMap;
-use std::time::Duration;
 
 use {{packageName}}::*;
 
@@ -26,7 +25,7 @@ fn test_transport_options_set_all_fields() {
         .verify_ssl(false)
         .ca_cert_path("/path/to/ca.pem")
         .proxy("http://proxy.example.com:8080")
-        .timeout(Duration::from_secs(30))
+        .timeout(30000)
         .follow_redirects(false)
         .max_redirects(5)
         .user_agent("CustomAgent/2.0")
@@ -37,7 +36,7 @@ fn test_transport_options_set_all_fields() {
     assert!(!opts.verify_ssl());
     assert_eq!(opts.ca_cert_path(), Some("/path/to/ca.pem"));
     assert_eq!(opts.proxy(), Some("http://proxy.example.com:8080"));
-    assert_eq!(opts.timeout(), Some(Duration::from_secs(30)));
+    assert_eq!(opts.timeout(), Some(30000));
     assert!(!opts.follow_redirects());
     assert_eq!(opts.max_redirects(), Some(5));
     assert_eq!(opts.user_agent(), "CustomAgent/2.0");
@@ -50,11 +49,11 @@ fn test_transport_options_builder_chaining() {
     let opts = TransportOptionsBuilder::new()
         .verify_ssl(true)
         .user_agent("Test/1.0")
-        .timeout(Duration::from_secs(10))
+        .timeout(10000)
         .build();
 
     assert_eq!(opts.user_agent(), "Test/1.0");
-    assert_eq!(opts.timeout(), Some(Duration::from_secs(10)));
+    assert_eq!(opts.timeout(), Some(10000));
 }
 
 #[test]

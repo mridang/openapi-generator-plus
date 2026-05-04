@@ -159,7 +159,7 @@ public class {{classname}} : BaseApi
 {{#isDeprecated}}
     [Obsolete("This operation is deprecated.")]
 {{/isDeprecated}}
-    public async {{#returnType}}Task<{{{returnType}}}>{{/returnType}}{{^returnType}}Task{{/returnType}} {{operationId}}Async({{#hasAuthMethods}}IAuthenticator auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{{dataType}}}{{^required}}?{{/required}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server? server = null{{/-first}}{{/servers}})
+    public async {{#returnType}}Task<{{{returnType}}}>{{/returnType}}{{^returnType}}Task{{/returnType}} {{operationId}}Async({{#hasAuthMethods}}IAuthenticator auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{{dataType}}}{{^required}}?{{/required}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options = null{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server? server = null{{/-first}}{{/servers}})
     {
         {{#returnType}}
         Task<ApiResult<{{{returnType}}}>> task = {{operationId}}WithHttpInfoAsync({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server{{/-first}}{{/servers}});
@@ -177,7 +177,7 @@ public class {{classname}} : BaseApi
     /// {{summary}} (with HTTP info)
     /// </summary>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>> {{operationId}}WithHttpInfoAsync({{#hasAuthMethods}}IAuthenticator auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{{dataType}}}{{^required}}?{{/required}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server? server = null{{/-first}}{{/servers}})
+    public async Task<ApiResult<{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}object?{{/returnType}}>> {{operationId}}WithHttpInfoAsync({{#hasAuthMethods}}IAuthenticator auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{{dataType}}} {{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{{dataType}}}{{^required}}?{{/required}} {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/bodyParam}}{{/hasPathParams}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options = null{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server? server = null{{/-first}}{{/servers}})
     {
 {{#queryParams}}
 {{#-first}}
@@ -197,11 +197,6 @@ public class {{classname}} : BaseApi
 {{/-first}}
 {{/formParams}}
 {{^formParams}}
-{{#cookieParams}}
-{{#-first}}
-        ArgumentNullException.ThrowIfNull(options);
-{{/-first}}
-{{/cookieParams}}
 {{/formParams}}
 {{/headerParams}}
 {{/queryParams}}
@@ -218,10 +213,13 @@ public class {{classname}} : BaseApi
         {{/pathParams}}
 {{#servers}}
 {{#-first}}
-        string serverUrl = server != null ? server.Url : "{{url}}";
-        if (serverUrl.StartsWith("http://", StringComparison.Ordinal) || serverUrl.StartsWith("https://", StringComparison.Ordinal))
+        if (server != null)
         {
-            path = serverUrl + path;
+            string serverUrl = server.Url;
+            if (serverUrl.StartsWith("http://", StringComparison.Ordinal) || serverUrl.StartsWith("https://", StringComparison.Ordinal))
+            {
+                path = serverUrl + path;
+            }
         }
 {{/-first}}
 {{/servers}}
@@ -229,7 +227,7 @@ public class {{classname}} : BaseApi
         Dictionary<string, object?> queryParams = [];
 {{#queryParams}}
 {{#content}}
-        if (options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
+        if (options != null && options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
         {
             queryParams["{{baseName}}"] = System.Text.Json.JsonSerializer.Serialize(
                 options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}}
@@ -238,7 +236,7 @@ public class {{classname}} : BaseApi
 {{/content}}
 {{^content}}
 {{#isDeepObject}}
-        if (options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
+        if (options != null && options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
         {
             Dictionary<string, string> deepObj = ValueSerializer.SerializeDeepObject(
                 "{{baseName}}",
@@ -252,7 +250,7 @@ public class {{classname}} : BaseApi
 {{/isDeepObject}}
 {{^isDeepObject}}
 {{#isAllowEmptyValue}}
-        queryParams["{{baseName}}"] = options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null
+        queryParams["{{baseName}}"] = options?.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null
             ? ValueSerializer.SerializeStyled(
                 "{{baseName}}",
                 options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}},
@@ -265,7 +263,7 @@ public class {{classname}} : BaseApi
             : "";
 {{/isAllowEmptyValue}}
 {{^isAllowEmptyValue}}
-        if (options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
+        if (options != null && options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
         {
             queryParams["{{baseName}}"] = ValueSerializer.SerializeStyled(
                 "{{baseName}}",
@@ -283,7 +281,7 @@ public class {{classname}} : BaseApi
 {{/queryParams}}
         Dictionary<string, string> headerParams = [];
 {{#headerParams}}
-        if (options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
+        if (options != null && options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
         {
             headerParams["{{baseName}}"] = (string)
                 ValueSerializer.SerializeStyled(
@@ -300,7 +298,7 @@ public class {{classname}} : BaseApi
 {{#hasCookieParams}}
         List<string> cookieParts = [];
 {{#cookieParams}}
-        if (options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
+        if (options != null && options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
         {
             cookieParts.Add(
                 "{{baseName}}=" + ValueSerializer.SerializeStyled(
@@ -327,7 +325,7 @@ public class {{classname}} : BaseApi
         formBody["{{baseName}}"] = options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}};
 {{/required}}
 {{^required}}
-        if (options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
+        if (options != null && options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null)
         {
             formBody["{{baseName}}"] = options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}};
         }

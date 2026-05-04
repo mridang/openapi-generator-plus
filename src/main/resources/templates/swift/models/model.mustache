@@ -43,7 +43,13 @@ public struct {{classname}}: Codable, Sendable {
     public var {{name}}: {{{dataType}}}?
 {{/required}}
 {{/vars}}
+{{#isAdditionalPropertiesTrue}}
 
+    /// Additional properties not defined in the schema.
+    public var additionalProperties: [String: AnyCodable]
+{{/isAdditionalPropertiesTrue}}
+
+{{^isAdditionalPropertiesTrue}}
     enum CodingKeys: String, CodingKey {
 {{#vars}}
         case {{name}} = "{{baseName}}"
@@ -58,7 +64,102 @@ public struct {{classname}}: Codable, Sendable {
 {{/requiredVars}}
     }
 {{/hasVars}}
+{{/isAdditionalPropertiesTrue}}
+{{#isAdditionalPropertiesTrue}}
+    enum CodingKeys: String, CodingKey {
+{{#vars}}
+        case {{name}} = "{{baseName}}"
+{{/vars}}
+    }
+
+{{#hasVars}}
+    /// Creates a new {{classname}} instance.
+    public init({{#requiredVars}}{{nameInCamelCase}}: {{{dataType}}}, {{/requiredVars}}additionalProperties: [String: AnyCodable] = [:]) {
+{{#requiredVars}}
+        self.{{name}} = {{nameInCamelCase}}
+{{/requiredVars}}
+        self.additionalProperties = additionalProperties
+    }
+{{/hasVars}}
+{{^hasVars}}
+    /// Creates a new {{classname}} instance.
+    public init(additionalProperties: [String: AnyCodable] = [:]) {
+        self.additionalProperties = additionalProperties
+    }
+{{/hasVars}}
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+{{#vars}}
+{{#required}}
+        self.{{name}} = try container.decode({{{dataType}}}.self, forKey: .{{name}})
+{{/required}}
+{{^required}}
+        self.{{name}} = try container.decodeIfPresent({{{dataType}}}.self, forKey: .{{name}})
+{{/required}}
+{{/vars}}
+
+        // Decode additional properties
+        let knownKeys = Set(CodingKeys.allCases.map { $0.rawValue })
+        let dynamicContainer = try decoder.container(keyedBy: DynamicCodingKey.self)
+        var additionalProperties = [String: AnyCodable]()
+        for key in dynamicContainer.allKeys {
+            if !knownKeys.contains(key.stringValue) {
+                let value = try dynamicContainer.decode(AnyCodable.self, forKey: key)
+                additionalProperties[key.stringValue] = value
+            }
+        }
+        self.additionalProperties = additionalProperties
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+{{#vars}}
+{{#required}}
+        try container.encode({{name}}, forKey: .{{name}})
+{{/required}}
+{{^required}}
+        try container.encodeIfPresent({{name}}, forKey: .{{name}})
+{{/required}}
+{{/vars}}
+
+        // Encode additional properties
+        var dynamicContainer = encoder.container(keyedBy: DynamicCodingKey.self)
+        for (key, value) in additionalProperties {
+            let codingKey = DynamicCodingKey(stringValue: key)!
+            try dynamicContainer.encode(value, forKey: codingKey)
+        }
+    }
+{{/isAdditionalPropertiesTrue}}
 }
+
+{{#isAdditionalPropertiesTrue}}
+extension {{classname}}.CodingKeys: CaseIterable {
+    static var allCases: [{{classname}}.CodingKeys] {
+        return [
+{{#vars}}
+            .{{name}},
+{{/vars}}
+        ]
+    }
+}
+
+/// A coding key that can represent any string value.
+private struct DynamicCodingKey: CodingKey {
+    var stringValue: String
+    var intValue: Int?
+
+    init?(stringValue: String) {
+        self.stringValue = stringValue
+        self.intValue = nil
+    }
+
+    init?(intValue: Int) {
+        self.stringValue = String(intValue)
+        self.intValue = intValue
+    }
+}
+{{/isAdditionalPropertiesTrue}}
 {{/anyOf}}
 {{/oneOf}}
 {{#oneOf}}

@@ -21,6 +21,11 @@ use Exception;
 class ApiException extends Exception
 {
     /**
+     * The HTTP status code.
+     */
+    protected int $statusCode;
+
+    /**
      * The HTTP body of the server response.
      */
     protected ?string $responseBody;
@@ -42,15 +47,24 @@ class ApiException extends Exception
      */
     public function __construct(
         string $message = "",
-        int $code = 0,
+        int $statusCode = 0,
         ?array $responseHeaders = [],
         ?string $responseBody = null,
         mixed $errorBody = null
     ) {
-        parent::__construct($message, $code);
+        parent::__construct($message, $statusCode);
+        $this->statusCode = $statusCode;
         $this->responseHeaders = $responseHeaders;
         $this->responseBody = $responseBody;
         $this->errorBody = $errorBody;
+    }
+
+    /**
+     * Gets the HTTP status code.
+     */
+    public function getStatusCode(): int
+    {
+        return $this->statusCode;
     }
 
     /**

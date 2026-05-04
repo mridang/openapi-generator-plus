@@ -127,7 +127,7 @@ class PetApiTest {
         @Test
         @DisplayName("deletePet deletes a pet")
         fun testDeletePet() {
-            assertDoesNotThrow { runBlocking { api.deletePet(basicAuth, 1L) } }
+            assertDoesNotThrow { runBlocking { api.deletePet(basicAuth, 1L, null) } }
         }
 
         @Test
@@ -229,7 +229,7 @@ class PetApiTest {
                 assertThrows(ApiException::class.java) {
                     runBlocking { api.getPetById(99999L) }
                 }
-            assertEquals(404, exception.code)
+            assertEquals(404, exception.statusCode)
         }
 
         @Test
@@ -246,7 +246,7 @@ class PetApiTest {
                 assertThrows(ApiException::class.java) {
                     runBlocking { api.getPetById(1L) }
                 }
-            assertEquals(500, exception.code)
+            assertEquals(500, exception.statusCode)
         }
     }
 }

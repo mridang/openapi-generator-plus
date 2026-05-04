@@ -62,7 +62,7 @@ class BaseApiTest {
                 assertThrows(BadRequestException::class.java) {
                     runBlocking { api().call("GET", "/api/error/400") }
                 }
-            assertEquals(400, ex.code)
+            assertEquals(400, ex.statusCode)
             assertNotNull(ex.responseBody)
             assertFalse(ex.responseBody!!.isEmpty())
         }

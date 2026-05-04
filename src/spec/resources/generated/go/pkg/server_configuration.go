@@ -50,7 +50,7 @@ type ServerConfiguration struct {
 //
 // Variables not present in overrides use their default values. If a variable
 // has an enum constraint, the override value is validated against the allowed values.
-func (s *ServerConfiguration) URL(overrides map[string]string) string {
+func (s *ServerConfiguration) URL(overrides map[string]string) (string, error) {
 	result := s.URLTemplate
 	for varName, variable := range s.Variables {
 		value := variable.DefaultValue
@@ -67,11 +67,11 @@ func (s *ServerConfiguration) URL(overrides map[string]string) string {
 				}
 			}
 			if !valid {
-				panic(fmt.Sprintf("invalid value '%s' for variable '%s'; allowed: %v", value, varName, variable.EnumValues))
+				return "", fmt.Errorf("invalid value '%s' for variable '%s'; allowed: %v", value, varName, variable.EnumValues)
 			}
 		}
 
 		result = strings.ReplaceAll(result, "{"+varName+"}", value)
 	}
-	return result
+	return result, nil
 }

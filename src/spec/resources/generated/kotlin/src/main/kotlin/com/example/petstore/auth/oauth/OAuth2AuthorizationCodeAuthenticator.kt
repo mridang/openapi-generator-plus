@@ -9,6 +9,8 @@ package com.example.petstore.auth.oauth
 
 import com.example.petstore.ApiClient
 import com.example.petstore.auth.HttpAwareAuthenticator
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 /**
  * Authenticator for the OAuth2 Authorization Code flow.
@@ -16,6 +18,12 @@ import com.example.petstore.auth.HttpAwareAuthenticator
  * Implements [HttpAwareAuthenticator] so that token exchange requests
  * use the shared [ApiClient] with the same transport configuration
  * (proxy, TLS, timeouts) as regular API calls.
+ *
+ * Usage:
+ * 1. Call [buildAuthorizationUrl] to get the authorization URL
+ * 2. Redirect the user to that URL
+ * 3. After the callback, call [exchangeCode] with the auth code
+ * 4. Use the authenticator normally - tokens are managed automatically
  */
 open class OAuth2AuthorizationCodeAuthenticator(
     private val host: String,
@@ -23,35 +31,73 @@ open class OAuth2AuthorizationCodeAuthenticator(
     private val clientSecret: String,
     private val authorizationUrl: String,
     private val tokenUrl: String,
-    private val refreshUrl: String?,
     private val redirectUri: String,
     private val scopes: List<String>,
+    private val refreshUrl: String? = null,
 ) : HttpAwareAuthenticator {
-    private val tokenManager = OAuth2TokenManager()
+    internal val tokenManager = OAuth2TokenManager()
+    private val effectiveRefreshUrl: String = refreshUrl ?: tokenUrl
+
+    @Volatile
+    private var tokenExchanged: Boolean = false
 
     override fun setApiClient(apiClient: ApiClient) {
         tokenManager.apiClient = apiClient
     }
 
-    override fun getHost(): String = host
+    /**
+     * Build the authorization URL to redirect the user to.
+     *
+     * @param state optional CSRF state parameter
+     * @return the authorization URL
+     */
+    fun buildAuthorizationUrl(state: String? = null): String {
+        val url = StringBuilder(authorizationUrl)
+        url.append("?response_type=code")
+        url.append("&client_id=").append(encode(clientId))
+        url.append("&redirect_uri=").append(encode(redirectUri))
+        if (scopes.isNotEmpty()) {
+            url.append("&scope=").append(encode(scopes.joinToString(" ")))
+        }
+        if (state != null) {
+            url.append("&state=").append(encode(state))
+        }
+        return url.toString()
+    }
 
-    override fun getAuthHeaders(): Map<String, String> {
+    /**
+     * Exchange an authorization code for an access token.
+     *
+     * @param code the authorization code from the callback
+     */
+    fun exchangeCode(code: String) {
         val params =
             mutableMapOf(
                 "grant_type" to "authorization_code",
+                "code" to code,
                 "client_id" to clientId,
                 "client_secret" to clientSecret,
                 "redirect_uri" to redirectUri,
             )
-        if (scopes.isNotEmpty()) {
-            params["scope"] = scopes.joinToString(" ")
-        }
+        tokenManager.getAccessToken(tokenUrl, params)
+        tokenExchanged = true
+    }
+
+    override fun getHost(): String = host
+
+    override fun getAuthHeaders(): Map<String, String> {
+        check(tokenExchanged) { "Must call exchangeCode() before making API requests" }
+        val params =
+            mutableMapOf(
+                "grant_type" to "refresh_token",
+            )
         val refreshToken = tokenManager.getRefreshToken()
         if (refreshToken != null) {
-            params["grant_type"] = "refresh_token"
             params["refresh_token"] = refreshToken
         }
-        val token = tokenManager.getAccessToken(tokenUrl, params)
+        val token = tokenManager.getAccessToken(effectiveRefreshUrl, params)
         return mapOf("Authorization" to "Bearer $token")
     }
+
+    private fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
 }

@@ -19,7 +19,7 @@ use crate::server_configuration::{ServerConfiguration, ServerVariable};
 /// # use petstore::ConfigurationBuilder;
 /// # use petstore::servers::server_0;
 /// let config = ConfigurationBuilder::new()
-///     .server(&server_0(), &HashMap::new())
+///     .server(&server_0(), &HashMap::new()).unwrap()
 ///     .build();
 /// ```
 ///
@@ -32,7 +32,7 @@ use crate::server_configuration::{ServerConfiguration, ServerVariable};
 /// let mut vars = HashMap::new();
 /// vars.insert("environment".to_string(), "staging".to_string());
 /// let config = ConfigurationBuilder::new()
-///     .server(&server_1(), &vars)
+///     .server(&server_1(), &vars).unwrap()
 ///     .build();
 /// ```
 /// Server configuration for: /api/v3

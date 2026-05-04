@@ -114,7 +114,7 @@ export class {{classname}} extends BaseApi {
    * @see {@link {{url}}} {{description}}
 {{/externalDocs}}
    */
-  async {{nickname}}({{#hasAuthMethods}}auth: Authenticator{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server?: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server{{/-first}}{{/servers}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}> {
+  async {{nickname}}({{#hasAuthMethods}}auth: Authenticator{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options?: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options?: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options?: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options?: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server?: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server{{/-first}}{{/servers}}): Promise<{{{returnType}}}{{^returnType}}void{{/returnType}}> {
 {{#pathParams}}
 {{#required}}
     if ({{paramName}} == null) {
@@ -131,28 +131,28 @@ export class {{classname}} extends BaseApi {
 {{/bodyParam}}
 {{#queryParams}}
 {{#required}}
-    if (options.{{paramName}} == null) {
+    if (options?.{{paramName}} == null) {
       throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
 {{/queryParams}}
 {{#headerParams}}
 {{#required}}
-    if (options.{{paramName}} == null) {
+    if (options?.{{paramName}} == null) {
       throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
 {{/headerParams}}
 {{#formParams}}
 {{#required}}
-    if (options.{{paramName}} == null) {
+    if (options?.{{paramName}} == null) {
       throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
 {{/formParams}}
 {{#cookieParams}}
 {{#required}}
-    if (options.{{paramName}} == null) {
+    if (options?.{{paramName}} == null) {
       throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
@@ -169,7 +169,7 @@ export class {{classname}} extends BaseApi {
    * {{&summary}} (with HTTP info)
    * @throws {ApiError} if fails to make API call
    */
-  async {{nickname}}WithHttpInfo({{#hasAuthMethods}}auth: Authenticator{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server?: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server{{/-first}}{{/servers}}): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
+  async {{nickname}}WithHttpInfo({{#hasAuthMethods}}auth: Authenticator{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{paramName}}{{^required}}?{{/required}}: {{{dataType}}}{{#isNullable}} | null{{/isNullable}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options?: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options?: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options?: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options?: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server?: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server{{/-first}}{{/servers}}): Promise<ApiResult<{{{returnType}}}{{^returnType}}void{{/returnType}}>> {
 {{#pathParams}}
 {{#required}}
     if ({{paramName}} == null) {
@@ -186,28 +186,28 @@ export class {{classname}} extends BaseApi {
 {{/bodyParam}}
 {{#queryParams}}
 {{#required}}
-    if (options.{{paramName}} == null) {
+    if (options?.{{paramName}} == null) {
       throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
 {{/queryParams}}
 {{#headerParams}}
 {{#required}}
-    if (options.{{paramName}} == null) {
+    if (options?.{{paramName}} == null) {
       throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
 {{/headerParams}}
 {{#formParams}}
 {{#required}}
-    if (options.{{paramName}} == null) {
+    if (options?.{{paramName}} == null) {
       throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
 {{/formParams}}
 {{#cookieParams}}
 {{#required}}
-    if (options.{{paramName}} == null) {
+    if (options?.{{paramName}} == null) {
       throw new Error('Missing required parameter "{{paramName}}" when calling {{nickname}}');
     }
 {{/required}}
@@ -223,32 +223,32 @@ export class {{classname}} extends BaseApi {
 {{/pathParams}}
 {{#servers}}
 {{#-first}}
-    const serverUrl = server ? server.getUrl() : '{{url}}';
+    const serverUrl = server ? server.getUrl() : null;
 {{/-first}}
 {{/servers}}
     const queryParams: Record<string, unknown> = {};
 {{#queryParams}}
 {{#isDeepObject}}
-    if (options.{{paramName}} != null) {
+    if (options?.{{paramName}} != null) {
       const deepObj = ValueSerializer.serializeDeepObject('{{baseName}}', options.{{paramName}} as Record<string, unknown>);
       Object.assign(queryParams, deepObj);
     }
 {{/isDeepObject}}
 {{^isDeepObject}}
 {{#content}}
-    if (options.{{paramName}} != null) {
+    if (options?.{{paramName}} != null) {
       queryParams['{{baseName}}'] = JSON.stringify(options.{{paramName}});
     }
 {{/content}}
 {{^content}}
 {{#isAllowEmptyValue}}
     {
-      const serialized = ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}});
+      const serialized = ValueSerializer.serializeStyled('{{baseName}}', options?.{{paramName}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}});
       queryParams['{{baseName}}'] = serialized ?? '';
     }
 {{/isAllowEmptyValue}}
 {{^isAllowEmptyValue}}
-    if (options.{{paramName}} != null) {
+    if (options?.{{paramName}} != null) {
       queryParams['{{baseName}}'] = ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}});
     }
 {{/isAllowEmptyValue}}
@@ -257,14 +257,14 @@ export class {{classname}} extends BaseApi {
 {{/queryParams}}
     const headerParams: Record<string, string> = {};
 {{#headerParams}}
-    if (options.{{paramName}} != null) {
+    if (options?.{{paramName}} != null) {
       headerParams['{{baseName}}'] = ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'header', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) as string;
     }
 {{/headerParams}}
 {{#hasCookieParams}}
     const cookieParts: string[] = [];
 {{#cookieParams}}
-    if (options.{{paramName}} != null) {
+    if (options?.{{paramName}} != null) {
       cookieParts.push(`{{baseName}}=${ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'cookie', '{{{dataType}}}', null, '{{style}}', {{isExplode}})}`);
     }
 {{/cookieParams}}
@@ -275,7 +275,7 @@ export class {{classname}} extends BaseApi {
 {{#hasFormParams}}
     const formBody: Record<string, unknown> = {};
 {{#formParams}}
-    if (options.{{paramName}} != null) {
+    if (options?.{{paramName}} != null) {
       formBody['{{baseName}}'] = options.{{paramName}};
     }
 {{/formParams}}
@@ -283,7 +283,7 @@ export class {{classname}} extends BaseApi {
 {{/hasFormParams}}
     return await this.invokeApiForResult(
       '{{httpMethod}}',
-      {{#servers}}{{#-first}}serverUrl.startsWith('http://') || serverUrl.startsWith('https://') ? serverUrl + path : {{/-first}}{{/servers}}path,
+      {{#servers}}{{#-first}}serverUrl && (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) ? serverUrl + path : {{/-first}}{{/servers}}path,
       queryParams,
       headerParams,
       {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},

@@ -896,4 +896,25 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         final String fileName = NamingConvention.SNAKE_CASE.apply(optionsClassName);
         meta.put("requirePath", modulePath + "/api/options/" + fileName);
     }
+
+    @Override
+    public Map<String, org.openapitools.codegen.model.ModelsMap> postProcessAllModels(
+            Map<String, org.openapitools.codegen.model.ModelsMap> objs) {
+        final Map<String, org.openapitools.codegen.model.ModelsMap> result =
+                super.postProcessAllModels(objs);
+        for (final org.openapitools.codegen.model.ModelsMap modelsMap : result.values()) {
+            for (final org.openapitools.codegen.model.ModelMap modelMap : modelsMap.getModels()) {
+                final org.openapitools.codegen.CodegenModel model = modelMap.getModel();
+                for (final org.openapitools.codegen.CodegenProperty prop : model.vars) {
+                    if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
+                        final String enumValue = prop.defaultValue.substring(
+                                prop.defaultValue.lastIndexOf('.') + 1);
+                        prop.defaultValue =
+                                "'" + enumValue.toLowerCase(java.util.Locale.ROOT) + "'";
+                    }
+                }
+            }
+        }
+        return result;
+    }
 }

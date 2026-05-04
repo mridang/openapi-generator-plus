@@ -12,6 +12,10 @@
       <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/python/.out" />
       <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/ruby/.out" />
       <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/ruby/vendor" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/go/.out" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/kotlin/.out" />
+      <excludeFolder url="file://$MODULE_DIR$/src/spec/resources/generated/python/.ruff" />
     </content>
   </component>
+  <component name="Go" enabled="true" />
 </module>

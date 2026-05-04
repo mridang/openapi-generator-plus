@@ -64,7 +64,7 @@ fn new_pet_api_for_mock(status: u16, content_type: &str, body: &str) -> (PetApi,
 #[tokio::test]
 async fn test_pet_api_get_pet_by_id() {
     let api = new_pet_api_for_integration();
-    let result = api.get_pet_by_id(1).await;
+    let result = api.get_pet_by_id(1, None).await;
     assert!(result.is_ok(), "GetPetById failed: {:?}", result.err());
 }
 
@@ -90,7 +90,7 @@ async fn test_pet_api_get_pet_passport() {
 async fn test_pet_api_error_handling_not_found() {
     let (api, _) = new_pet_api_for_mock(404, "application/json", r#"{"message":"Pet not found"}"#);
 
-    let result = api.get_pet_by_id(99999).await;
+    let result = api.get_pet_by_id(99999, None).await;
     assert!(result.is_err(), "expected error for non-existent pet");
 }
 
@@ -102,7 +102,7 @@ async fn test_pet_api_error_handling_server_error() {
         r#"{"message":"Internal server error"}"#,
     );
 
-    let result = api.get_pet_by_id(1).await;
+    let result = api.get_pet_by_id(1, None).await;
     assert!(result.is_err(), "expected error for server error response");
 }
 

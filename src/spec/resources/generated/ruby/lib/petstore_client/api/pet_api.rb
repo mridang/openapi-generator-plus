@@ -70,6 +70,21 @@ module PetstoreClient
       end
     end
 
+    # Server type for the get_pet_by_id operation.
+    class GetPetByIdServer
+      # @return [String] the server URL
+      def url
+        raise NotImplementedError
+      end
+    end
+
+    # CDN-backed read endpoint for pet details
+    class GetPetByIdServerCDNBackedReadEndpointForPetDetails < GetPetByIdServer
+      def url
+        'https://cdn.petstore.io/v3'
+      end
+    end
+
     # Server type for the get_staging_pet_info operation.
     class GetStagingPetInfoServer
       # @return [String] the server URL
@@ -160,7 +175,7 @@ module PetstoreClient
 
       # @return [Array<Photo>]
       # @raise [ApiError] if fails to make API call
-      def add_pet_photos(pet_id, options)
+      def add_pet_photos(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
@@ -171,7 +186,7 @@ module PetstoreClient
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def add_pet_photos_with_http_info(pet_id, options)
+      def add_pet_photos_with_http_info(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
@@ -252,20 +267,22 @@ module PetstoreClient
       # @param auth [Auth::Authenticator] authenticator for this operation
       # @param pet_id [Integer] Pet id to delete
 
+      # @param options [DeletePetOptions] options for query, header, form, and cookie parameters
+
       # @return [nil]
       # @raise [ApiError] if fails to make API call
-      def delete_pet(auth, pet_id)
+      def delete_pet(auth, pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
         end
 
-        delete_pet_with_http_info(auth, pet_id).data
+        delete_pet_with_http_info(auth, pet_id, options).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def delete_pet_with_http_info(auth, pet_id)
+      def delete_pet_with_http_info(auth, pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
@@ -277,6 +294,9 @@ module PetstoreClient
         query_params = {}
         # @type var header_params: Hash[String, String]
         header_params = {}
+        cookie_parts = [] # : Array[String]
+        cookie_parts << "api_key=#{PetstoreClient::ValueSerializer.serialize_styled('api_key', options.api_key, :cookie, 'String', nil, 'form', true)}" unless options.nil? || options.api_key.nil?
+        header_params['Cookie'] = cookie_parts.join('; ') unless cookie_parts.empty?
         request_body = nil
 
         invoke_api_for_result(
@@ -348,20 +368,18 @@ module PetstoreClient
       # @raise [ApiError] if fails to make API call
       # @deprecated This operation is deprecated.
       # @see https://example.com/docs/filtering Find out more about filtering
-      def find_pets_by_status(options)
+      def find_pets_by_status(options = nil)
         find_pets_by_status_with_http_info(options).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def find_pets_by_status_with_http_info(options)
+      def find_pets_by_status_with_http_info(options = nil)
         path = '/pet/findByStatus'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
-        unless options.status.nil?
-          query_params['status'] =
-            PetstoreClient::ValueSerializer.serialize_styled('status', options.status, :query, 'String', nil, 'form', true)
-        end
+        query_params['status'] =
+          PetstoreClient::ValueSerializer.serialize_styled('status', options.status, :query, 'String', nil, 'form', true) || ''
         query_params.merge!(PetstoreClient::ValueSerializer.serialize_deep_object('filter', options.filter)) unless options.filter.nil?
         # @type var header_params: Hash[String, String]
         header_params = {}
@@ -400,8 +418,10 @@ module PetstoreClient
 
         path = '/pet/{petId}/external'
         path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
-        server_url = server ? server.url : 'https://external-api.example.com/v1'
-        path = server_url + path if server_url.start_with?('http://', 'https://')
+        if server
+          server_url = server.url
+          path = server_url + path if server_url.start_with?('http://', 'https://')
+        end
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -441,8 +461,10 @@ module PetstoreClient
 
         path = '/pet/{petId}/multi'
         path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
-        server_url = server ? server.url : 'https://primary.example.com/v1'
-        path = server_url + path if server_url.start_with?('http://', 'https://')
+        if server
+          server_url = server.url
+          path = server_url + path if server_url.start_with?('http://', 'https://')
+        end
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -545,18 +567,18 @@ module PetstoreClient
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
       # @deprecated This operation is deprecated.
-      def get_pet_by_id(pet_id)
+      def get_pet_by_id(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
         end
 
-        get_pet_by_id_with_http_info(pet_id).data
+        get_pet_by_id_with_http_info(pet_id, server: server).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_pet_by_id_with_http_info(pet_id)
+      def get_pet_by_id_with_http_info(pet_id, server: nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
@@ -564,6 +586,10 @@ module PetstoreClient
 
         path = '/pet/{petId}'
         path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        if server
+          server_url = server.url
+          path = server_url + path if server_url.start_with?('http://', 'https://')
+        end
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -679,7 +705,7 @@ module PetstoreClient
 
       # @return [Pet]
       # @raise [ApiError] if fails to make API call
-      def get_pet_tag(pet_id, tag_name, options)
+      def get_pet_tag(pet_id, tag_name, options = nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.get_pet_tag"
@@ -695,7 +721,7 @@ module PetstoreClient
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def get_pet_tag_with_http_info(pet_id, tag_name, options)
+      def get_pet_tag_with_http_info(pet_id, tag_name, options = nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.get_pet_tag"
@@ -758,8 +784,10 @@ module PetstoreClient
 
         path = '/pet/{petId}/staging'
         path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
-        server_url = server ? server.url : 'https://{environment}.example.com/api/{version}'
-        path = server_url + path if server_url.start_with?('http://', 'https://')
+        if server
+          server_url = server.url
+          path = server_url + path if server_url.start_with?('http://', 'https://')
+        end
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -935,7 +963,7 @@ module PetstoreClient
 
       # @return [ApiResponse]
       # @raise [ApiError] if fails to make API call
-      def upload_pet_certificate(pet_id, options)
+      def upload_pet_certificate(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
@@ -946,7 +974,7 @@ module PetstoreClient
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def upload_pet_certificate_with_http_info(pet_id, options)
+      def upload_pet_certificate_with_http_info(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
@@ -979,7 +1007,7 @@ module PetstoreClient
 
       # @return [ApiResponse]
       # @raise [ApiError] if fails to make API call
-      def upload_pet_document(pet_id, options)
+      def upload_pet_document(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
@@ -990,7 +1018,7 @@ module PetstoreClient
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
-      def upload_pet_document_with_http_info(pet_id, options)
+      def upload_pet_document_with_http_info(pet_id, options = nil)
         if pet_id.nil?
           raise ArgumentError,
                 "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"

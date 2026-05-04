@@ -138,16 +138,16 @@ module {{moduleName}}
                 when 404 then {{moduleName}}::Errors::NotFoundError.new(**err_opts)
                 when 409 then {{moduleName}}::Errors::ConflictError.new(**err_opts)
                 when 422 then {{moduleName}}::Errors::UnprocessableEntityError.new(**err_opts)
-                else {{moduleName}}::Errors::ClientError.new(code: code, **err_opts)
+                else {{moduleName}}::Errors::ClientError.new(status_code: code, **err_opts)
                 end
         end
         if code >= 500
           raise case code
                 when 500 then {{moduleName}}::Errors::InternalServerError.new(**err_opts)
-                else {{moduleName}}::Errors::ServerError.new(code: code, **err_opts)
+                else {{moduleName}}::Errors::ServerError.new(status_code: code, **err_opts)
                 end
         end
-        raise {{moduleName}}::ApiError.new(code: code, **err_opts)
+        raise {{moduleName}}::ApiError.new(status_code: code, **err_opts)
       end
       # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 

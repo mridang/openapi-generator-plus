@@ -1,5 +1,9 @@
 # TODO
 
+### Ensure dark libary works in mobile and web
+
+use https://pub.dev/packages/http for http abstractioon
+
 ## Make Python API async
 
 Convert the generated Python API client to use `async`/`await` with `aiohttp` or `httpx` instead of synchronous `urllib3`. This would align with modern Python best practices and enable non-blocking I/O in async frameworks (FastAPI, etc.).

@@ -30,6 +30,7 @@ kotlin {
 
 tasks.test {
     useJUnitPlatform()
+    maxHeapSize = "512m"
     reports.junitXml.outputLocation.set(file(".out/reports"))
     // Pass Docker env vars to the forked test JVM for DinD support
     listOf(

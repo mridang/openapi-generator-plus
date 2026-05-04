@@ -205,15 +205,19 @@ defmodule {{moduleName}}.Api.{{classname}} do
 {{#servers}}
 {{#-first}}
     server = Keyword.get(opts, :server)
-    server_url = if server, do: server.url(server), else: "{{url}}"
-    path = if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    path = if server do
+      server_url = {{moduleName}}.ServerConfiguration.url(server)
+      if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"), do: server_url <> path, else: path
+    else
+      path
+    end
 {{/-first}}
 {{/servers}}
     query_params = %{}
 {{#queryParams}}
 {{#isDeepObject}}
     query_params =
-      if options.{{paramName}} do
+      if not is_nil(options) and options.{{paramName}} do
         Map.merge(query_params, {{moduleName}}.ValueSerializer.serialize_deep_object("{{baseName}}", options.{{paramName}}))
       else
         query_params
@@ -222,7 +226,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
 {{^isDeepObject}}
 {{#content}}
     query_params =
-      if options.{{paramName}} do
+      if not is_nil(options) and options.{{paramName}} do
         Map.put(query_params, "{{baseName}}", Jason.encode!(options.{{paramName}}))
       else
         query_params
@@ -235,7 +239,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
 {{/isAllowEmptyValue}}
 {{^isAllowEmptyValue}}
     query_params =
-      if not is_nil(options.{{paramName}}) do
+      if not is_nil(options) and not is_nil(options.{{paramName}}) do
         Map.put(query_params, "{{baseName}}",
           {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, :query, "{{{dataType}}}", {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, "{{style}}", {{isExplode}}))
       else
@@ -248,7 +252,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
     header_params = %{}
 {{#headerParams}}
     header_params =
-      if not is_nil(options.{{paramName}}) do
+      if not is_nil(options) and not is_nil(options.{{paramName}}) do
         Map.put(header_params, "{{baseName}}", {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, :header, "{{{dataType}}}", nil, "{{style}}", {{isExplode}}) |> to_string())
       else
         header_params
@@ -259,7 +263,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
 {{#cookieParams}}
 {{=<% %>=}}
     cookie_parts =
-      if not is_nil(options.<%paramName%>) do
+      if not is_nil(options) and not is_nil(options.<%paramName%>) do
         cookie_parts ++ ["<%baseName%>=#{<%moduleName%>.ValueSerializer.serialize_styled("<%baseName%>", options.<%paramName%>, :cookie, "<%& dataType%>", nil, "<%style%>", <%isExplode%>)}"]
       else
         cookie_parts
@@ -275,7 +279,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
     request_body = Map.put(request_body, "{{baseName}}", options.{{paramName}})
 {{/required}}
 {{^required}}
-    request_body = if not is_nil(options.{{paramName}}), do: Map.put(request_body, "{{baseName}}", options.{{paramName}}), else: request_body
+    request_body = if not is_nil(options) and not is_nil(options.{{paramName}}), do: Map.put(request_body, "{{baseName}}", options.{{paramName}}), else: request_body
 {{/required}}
 {{/formParams}}
 {{/hasFormParams}}

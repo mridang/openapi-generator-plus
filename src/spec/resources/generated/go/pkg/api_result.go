@@ -13,7 +13,8 @@ type ApiResult[T any] struct {
 	// StatusCode is the HTTP status code of the response.
 	StatusCode int
 
-	// Data is the deserialized response body.
+	// Data is the deserialized response body. May be nil if the operation
+	// returned no content or if the response could not be deserialized.
 	Data T
 
 	// RawBody is the raw response body as a string.

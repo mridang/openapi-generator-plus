@@ -45,7 +45,7 @@ class Order
      * @example approved
      */
     #[SerializedName('status')]
-    public ?OrderStatusEnum $status = null;
+    public ?OrderStatusEnum $status = OrderStatusEnum::PLACED;
 
     /** @example null */
     #[SerializedName('complete')]
@@ -58,7 +58,7 @@ class Order
         ?int $petId = null,
         ?int $quantity = null,
         ?\DateTime $shipDate = null,
-        ?OrderStatusEnum $status = null,
+        ?OrderStatusEnum $status = OrderStatusEnum::PLACED,
         ?bool $complete = null,
     ) {
         $this->id = $id;

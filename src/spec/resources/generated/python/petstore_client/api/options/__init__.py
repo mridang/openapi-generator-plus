@@ -1,4 +1,5 @@
 from .add_pet_photos_options import AddPetPhotosOptions as AddPetPhotosOptions
+from .delete_pet_options import DeletePetOptions as DeletePetOptions
 from .find_pets_by_status_options import FindPetsByStatusOptions as FindPetsByStatusOptions
 from .get_pet_tag_options import GetPetTagOptions as GetPetTagOptions
 from .upload_pet_certificate_options import UploadPetCertificateOptions as UploadPetCertificateOptions

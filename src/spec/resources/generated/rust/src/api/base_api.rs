@@ -169,7 +169,7 @@ impl BaseApi {
         let data: T = crate::object_serializer::deserialize(response.body.as_bytes())?;
         Ok(ApiResult {
             status_code: response.status_code,
-            data,
+            data: Some(data),
             raw_body: response.body,
             headers: response.headers,
         })
@@ -183,7 +183,7 @@ impl BaseApi {
         let response = self.invoke_api(params).await?;
         Ok(ApiResult {
             status_code: response.status_code,
-            data: (),
+            data: Some(()),
             raw_body: response.body,
             headers: response.headers,
         })

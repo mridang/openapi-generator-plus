@@ -65,7 +65,7 @@ describe {{moduleName}}::Api::BaseApi do
         api.call('GET', "/api/error/#{status}", {}, {}, nil,
                  ['application/json'], 'application/json', nil)
       end
-      _(err.code).must_equal status
+      _(err.status_code).must_equal status
       _(err.response_body).wont_be_nil
       _(err.response_body).wont_be_empty
     end

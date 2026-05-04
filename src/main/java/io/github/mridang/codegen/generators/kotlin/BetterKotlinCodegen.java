@@ -329,6 +329,8 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile("settings_gradle.mustache", "", "settings.gradle.kts"));
         supportingFiles.add(
+                new SupportingFile("gradle_properties.mustache", "", "gradle.properties"));
+        supportingFiles.add(
                 new SupportingFile(
                         "authenticator.mustache",
                         Path.of(invokerFolder, "auth").toString(),
@@ -707,7 +709,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                             p("clientSecret", "String"), p("redirectUri", "String")),
                     List.of("host", "clientId", "clientSecret",
                             "\"" + authUrl + "\"", "\"" + tokenUrl + "\"",
-                            refreshUrlArg, "redirectUri", scopes));
+                            "redirectUri", scopes, refreshUrlArg));
         }
         if (scheme.getFlows().getImplicit() != null) {
             final var flow = scheme.getFlows().getImplicit();

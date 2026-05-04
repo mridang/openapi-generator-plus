@@ -30,7 +30,9 @@ defmodule {{moduleName}}.MixProject do
       {:jason, "~> 1.4"},
       {:excoveralls, "~> 0.18", only: :test},
       {:junit_formatter, "~> 3.4", only: :test},
+{{#generateTests}}
       {:testcontainers, "~> 1.12", only: :test}
+{{/generateTests}}
     ]
   end
 end

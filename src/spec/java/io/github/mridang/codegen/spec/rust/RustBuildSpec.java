@@ -14,7 +14,7 @@ public class RustBuildSpec extends AbstractIntegrationSpec implements RustSpec {
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {"cargo build"};
+        return new String[] {"CARGO_BUILD_JOBS=2 cargo build"};
     }
 
     @Test

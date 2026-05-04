@@ -9,8 +9,9 @@ pub struct ApiResult<T> {
     /// The HTTP status code of the response.
     pub status_code: u16,
 
-    /// The deserialized response body.
-    pub data: T,
+    /// The deserialized response body. May be `None` if the operation
+    /// returned no content or if the response could not be deserialized.
+    pub data: Option<T>,
 
     /// The raw response body as a string.
     pub raw_body: String,
@@ -23,7 +24,7 @@ impl<T> ApiResult<T> {
     /// Creates a new ApiResult with the given values.
     pub fn new(
         status_code: u16,
-        data: T,
+        data: Option<T>,
         raw_body: String,
         headers: HashMap<String, String>,
     ) -> Self {

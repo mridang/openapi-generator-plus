@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import re  # noqa: F401
 from pydantic import BaseModel, ConfigDict, Field, field_validator  # noqa: F401
 from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
 from typing_extensions import Self  # noqa: F401

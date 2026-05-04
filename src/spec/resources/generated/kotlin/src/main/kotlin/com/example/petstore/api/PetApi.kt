@@ -13,6 +13,7 @@ import com.example.petstore.ApiResult
 import com.example.petstore.Configuration
 import com.example.petstore.ValueSerializer
 import com.example.petstore.api.options.AddPetPhotosOptions
+import com.example.petstore.api.options.DeletePetOptions
 import com.example.petstore.api.options.FindPetsByStatusOptions
 import com.example.petstore.api.options.GetPetTagOptions
 import com.example.petstore.api.options.UploadPetCertificateOptions
@@ -76,6 +77,18 @@ class PetApi : BaseApi {
                 url = url.replace("{" + "region" + "}", region.value)
                 return url
             }
+        }
+    }
+
+    /**
+     * Server type for the getPetById operation.
+     */
+    sealed interface GetPetByIdServer {
+        fun getUrl(): String
+
+        /** CDN-backed read endpoint for pet details */
+        object CDNBackedReadEndpointForPetDetails : GetPetByIdServer {
+            override fun getUrl(): String = "https://cdn.petstore.io/v3"
         }
     }
 
@@ -280,35 +293,42 @@ class PetApi : BaseApi {
      * Deletes a pet
      * @param petId Pet id to delete (required)
 
+     * @param options options for query, header, form, and cookie parameters
+
      * @throws ApiException if fails to make API call
      */
     suspend fun deletePet(
         auth: MachineAuthClientCredentialsAuthenticator,
         petId: Long,
+        options: DeletePetOptions? = null,
     ) {
-        deletePetWithHttpInfo(auth, petId)
+        deletePetWithHttpInfo(auth, petId, options)
     }
 
     suspend fun deletePetWithHttpInfo(
         auth: MachineAuthClientCredentialsAuthenticator,
         petId: Long,
-    ): ApiResult<Unit> = deletePetInternal(auth, petId)
+        options: DeletePetOptions? = null,
+    ): ApiResult<Unit> = deletePetInternal(auth, petId, options)
 
     suspend fun deletePet(
         auth: AdminBasicAuthenticator,
         petId: Long,
+        options: DeletePetOptions? = null,
     ) {
-        deletePetWithHttpInfo(auth, petId)
+        deletePetWithHttpInfo(auth, petId, options)
     }
 
     suspend fun deletePetWithHttpInfo(
         auth: AdminBasicAuthenticator,
         petId: Long,
-    ): ApiResult<Unit> = deletePetInternal(auth, petId)
+        options: DeletePetOptions? = null,
+    ): ApiResult<Unit> = deletePetInternal(auth, petId, options)
 
     private suspend fun deletePetInternal(
         auth: Authenticator,
         petId: Long,
+        options: DeletePetOptions? = null,
     ): ApiResult<Unit> {
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling deletePet"
@@ -321,6 +341,13 @@ class PetApi : BaseApi {
                 )
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
+        val cookieParts = mutableListOf<String>()
+        if (options != null && options.apiKey != null) {
+            cookieParts.add("api_key=" + ValueSerializer.serializeStyled("api_key", options.apiKey, "cookie", "String", null, "form", true))
+        }
+        if (cookieParts.isNotEmpty()) {
+            headerParams["Cookie"] = cookieParts.joinToString("; ")
+        }
         return invokeApiForResult<Unit>(
             "DELETE",
             path,
@@ -398,8 +425,13 @@ class PetApi : BaseApi {
     suspend fun findPetsByStatusWithHttpInfo(options: FindPetsByStatusOptions): ApiResult<List<Pet>> {
         var path = "/pet/findByStatus"
         val queryParams = mutableMapOf<String, Any?>()
-        if (options.status != null) {
-            queryParams["status"] = ValueSerializer.serializeStyled("status", options.status, "query", "String", null, "form", true)
+        run {
+            val _statusVal = ValueSerializer.serializeStyled("status", options.status, "query", "String", null, "form", true)
+            if (_statusVal != null) {
+                queryParams["status"] = _statusVal
+            } else {
+                queryParams["status"] = ""
+            }
         }
         if (options.filter != null) {
             queryParams.putAll(ValueSerializer.serializeDeepObject("filter", options.filter))
@@ -452,10 +484,6 @@ class PetApi : BaseApi {
             if (serverUrl.startsWith("http://") || serverUrl.startsWith("https://")) {
                 path = serverUrl + path
             }
-        } else if ("https://external-api.example.com/v1".startsWith("http://") ||
-            "https://external-api.example.com/v1".startsWith("https://")
-        ) {
-            path = "https://external-api.example.com/v1" + path
         }
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
@@ -506,8 +534,6 @@ class PetApi : BaseApi {
             if (serverUrl.startsWith("http://") || serverUrl.startsWith("https://")) {
                 path = serverUrl + path
             }
-        } else if ("https://primary.example.com/v1".startsWith("http://") || "https://primary.example.com/v1".startsWith("https://")) {
-            path = "https://primary.example.com/v1" + path
         }
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
@@ -603,9 +629,19 @@ class PetApi : BaseApi {
      * @deprecated This operation is deprecated.
      */
     @Deprecated("This operation is deprecated.")
-    suspend fun getPetById(petId: Long): Pet? = getPetByIdWithHttpInfo(petId).data
+    suspend fun getPetById(petId: Long): Pet? = getPetById(petId, null)
 
-    suspend fun getPetByIdWithHttpInfo(petId: Long): ApiResult<Pet> {
+    suspend fun getPetByIdWithHttpInfo(petId: Long): ApiResult<Pet> = getPetByIdWithHttpInfo(petId, null)
+
+    suspend fun getPetById(
+        petId: Long,
+        server: GetPetByIdServer? = null,
+    ): Pet? = getPetByIdWithHttpInfo(petId, server).data
+
+    suspend fun getPetByIdWithHttpInfo(
+        petId: Long,
+        server: GetPetByIdServer? = null,
+    ): ApiResult<Pet> {
         requireNotNull(petId) {
             "Missing the required parameter 'petId' when calling getPetById"
         }
@@ -615,6 +651,12 @@ class PetApi : BaseApi {
                     "{" + "petId" + "}",
                     ValueSerializer.serializeStyled("petId", petId, "path", "Long", null, "simple", false) as String,
                 )
+        if (server != null) {
+            val serverUrl = server.getUrl()
+            if (serverUrl.startsWith("http://") || serverUrl.startsWith("https://")) {
+                path = serverUrl + path
+            }
+        }
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()
         return invokeApiForResult<Pet>(
@@ -814,10 +856,6 @@ class PetApi : BaseApi {
             if (serverUrl.startsWith("http://") || serverUrl.startsWith("https://")) {
                 path = serverUrl + path
             }
-        } else if ("https://{environment}.example.com/api/{version}".startsWith("http://") ||
-            "https://{environment}.example.com/api/{version}".startsWith("https://")
-        ) {
-            path = "https://{environment}.example.com/api/{version}" + path
         }
         val queryParams = mutableMapOf<String, Any?>()
         val headerParams = mutableMapOf<String, String>()

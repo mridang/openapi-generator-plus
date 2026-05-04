@@ -78,9 +78,13 @@ func (b *ConfigurationBuilder) DefaultHeaders(headers map[string]string) *Config
 }
 
 // Server sets the base URL from a server configuration with optional variable overrides.
-func (b *ConfigurationBuilder) Server(server *ServerConfiguration, variables map[string]string) *ConfigurationBuilder {
-	b.baseURL = server.URL(variables)
-	return b
+func (b *ConfigurationBuilder) Server(server *ServerConfiguration, variables map[string]string) (*ConfigurationBuilder, error) {
+	url, err := server.URL(variables)
+	if err != nil {
+		return nil, err
+	}
+	b.baseURL = url
+	return b, nil
 }
 
 // Build creates and returns an immutable Configuration instance.

@@ -79,7 +79,7 @@ void main() {
       final api = _newPetApiForIntegration();
       final auth = _TestAuth();
 
-      await api.deletePet(auth, 1);
+      await api.deletePet(auth, 1, null);
     }, skip: _prismBaseUrl() == null ? 'API_BASE_URL not set' : null);
 
     test('errorHandling_notFound', () async {

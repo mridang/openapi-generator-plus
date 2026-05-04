@@ -13,7 +13,7 @@ module PetstoreClient
     class NotFoundError < ClientError
       def initialize(message: nil, response_body: nil, response_headers: nil, error_body: nil)
         super({
-          code: 404,
+          status_code: 404,
           message: message,
           response_body: response_body,
           response_headers: response_headers,

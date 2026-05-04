@@ -13,7 +13,7 @@ module PetstoreClient
     class UnauthorizedError < ClientError
       def initialize(message: nil, response_body: nil, response_headers: nil, error_body: nil)
         super({
-          code: 401,
+          status_code: 401,
           message: message,
           response_body: response_body,
           response_headers: response_headers,

@@ -89,13 +89,17 @@ impl ConfigurationBuilder {
     }
 
     /// Sets the base URL from a server configuration with optional variable overrides.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if a variable override is not in the variable's enum constraint.
     pub fn server(
         mut self,
         server: &ServerConfiguration,
         variables: &HashMap<String, String>,
-    ) -> Self {
-        self.base_url = server.url(variables);
-        self
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        self.base_url = server.url(variables)?;
+        Ok(self)
     }
 
     /// Creates and returns an immutable Configuration instance.

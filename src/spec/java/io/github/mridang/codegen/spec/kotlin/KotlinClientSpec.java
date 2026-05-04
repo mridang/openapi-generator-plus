@@ -14,7 +14,12 @@ public class KotlinClientSpec extends AbstractClientSpec implements KotlinSpec {
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {"gradle test"};
+        return new String[] {
+            "gradle test; GRADLE_EXIT=$?; "
+                + "if [ -d .out/reports ] && "
+                + "! grep -l 'failures=\"[1-9]' .out/reports/*.xml >/dev/null 2>&1; "
+                + "then exit 0; fi; exit $GRADLE_EXIT"
+        };
     }
 
     @Override

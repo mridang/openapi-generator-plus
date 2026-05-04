@@ -1,5 +1,8 @@
 {{>api_info}}
 
+use std::sync::Arc;
+
+use crate::api_client::ApiClient;
 use super::Authenticator;
 
 /// HttpAwareAuthenticator extends Authenticator for authentication schemes
@@ -17,4 +20,11 @@ use super::Authenticator;
 ///
 /// Only OAuth2 and OpenID Connect authenticators implement this trait.
 /// Simple authenticators (Basic, Bearer, API Key) do not need HTTP access.
-pub trait HttpAwareAuthenticator: Authenticator {}
+pub trait HttpAwareAuthenticator: Authenticator {
+    /// Injects the shared API client for making HTTP requests.
+    ///
+    /// Called by the client constructor after the `ApiClient` has been created
+    /// with the user's `TransportOptions`. OAuth2 and OpenID Connect
+    /// authenticators store the client for token exchange or discovery.
+    fn set_api_client(&mut self, client: Arc<dyn ApiClient>);
+}

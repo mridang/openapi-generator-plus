@@ -4,7 +4,7 @@ import 'client_error.dart';
 /// ForbiddenError represents an HTTP 403 Forbidden error.
 class ForbiddenError extends ClientError {
   const ForbiddenError({
-    required super.code,
+    required super.statusCode,
     required super.message,
     super.responseBody,
     super.responseHeaders,

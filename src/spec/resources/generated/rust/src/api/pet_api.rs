@@ -21,6 +21,144 @@ use crate::object_serializer;
 use crate::value_serializer;
 use crate::value_serializer::SerializedValue;
 
+/// Per-operation server URL trait for get_external_pet_info.
+pub trait GetExternalPetInfoServer {
+    /// Returns the server URL.
+    fn get_url(&self) -> String;
+}
+
+/// Server variant for GetExternalPetInfoServer.
+#[derive(Debug, Clone)]
+pub struct GetExternalPetInfoServerServer0 {}
+
+impl GetExternalPetInfoServer for GetExternalPetInfoServerServer0 {
+    fn get_url(&self) -> String {
+        "https://external-api.example.com/v1".to_string()
+    }
+}
+
+/// Per-operation server URL trait for get_multi_server_pet_info.
+pub trait GetMultiServerPetInfoServer {
+    /// Returns the server URL.
+    fn get_url(&self) -> String;
+}
+
+/// Valid values for the region server variable in GetMultiServerPetInfoServer.
+#[derive(Debug, Clone)]
+pub enum GetMultiServerPetInfoServerRegion {
+    US,
+    EU,
+    AP,
+}
+
+impl GetMultiServerPetInfoServerRegion {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::US => "us",
+            Self::EU => "eu",
+            Self::AP => "ap",
+        }
+    }
+}
+
+/// Primary
+#[derive(Debug, Clone)]
+pub struct GetMultiServerPetInfoServerPrimary {}
+
+impl GetMultiServerPetInfoServer for GetMultiServerPetInfoServerPrimary {
+    fn get_url(&self) -> String {
+        "https://primary.example.com/v1".to_string()
+    }
+}
+
+/// Regional
+#[derive(Debug, Clone)]
+pub struct GetMultiServerPetInfoServerRegional {
+    pub region: GetMultiServerPetInfoServerRegion,
+}
+
+impl GetMultiServerPetInfoServer for GetMultiServerPetInfoServerRegional {
+    fn get_url(&self) -> String {
+        let mut url = "https://{region}.example.com/v1".to_string();
+
+        url = url.replace("region", self.region.as_str());
+
+        url
+    }
+}
+
+/// Per-operation server URL trait for get_pet_by_id.
+pub trait GetPetByIdServer {
+    /// Returns the server URL.
+    fn get_url(&self) -> String;
+}
+
+/// CDN-backed read endpoint for pet details
+#[derive(Debug, Clone)]
+pub struct GetPetByIdServerCDNBackedReadEndpointForPetDetails {}
+
+impl GetPetByIdServer for GetPetByIdServerCDNBackedReadEndpointForPetDetails {
+    fn get_url(&self) -> String {
+        "https://cdn.petstore.io/v3".to_string()
+    }
+}
+
+/// Per-operation server URL trait for get_staging_pet_info.
+pub trait GetStagingPetInfoServer {
+    /// Returns the server URL.
+    fn get_url(&self) -> String;
+}
+
+/// Valid values for the environment server variable in GetStagingPetInfoServer.
+#[derive(Debug, Clone)]
+pub enum GetStagingPetInfoServerEnvironment {
+    STAGING,
+    SANDBOX,
+}
+
+impl GetStagingPetInfoServerEnvironment {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::STAGING => "staging",
+            Self::SANDBOX => "sandbox",
+        }
+    }
+}
+
+/// Valid values for the version server variable in GetStagingPetInfoServer.
+#[derive(Debug, Clone)]
+pub enum GetStagingPetInfoServerVersion {
+    V2,
+    V3,
+}
+
+impl GetStagingPetInfoServerVersion {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::V2 => "v2",
+            Self::V3 => "v3",
+        }
+    }
+}
+
+/// Staging server
+#[derive(Debug, Clone)]
+pub struct GetStagingPetInfoServerStagingServer {
+    pub environment: GetStagingPetInfoServerEnvironment,
+    pub version: GetStagingPetInfoServerVersion,
+}
+
+impl GetStagingPetInfoServer for GetStagingPetInfoServerStagingServer {
+    fn get_url(&self) -> String {
+        let mut url = "https://{environment}.example.com/api/{version}".to_string();
+
+        url = url.replace("environment", self.environment.as_str());
+        url = url.replace("version", self.version.as_str());
+
+        url
+    }
+}
+
 /// PetApi provides methods for the Pet API group.
 /// Everything about your Pets
 /// See https://example.com/docs/pets Find out more about pets
@@ -43,7 +181,7 @@ impl PetApi {
         pet: Pet,
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.add_pet_with_http_info(auth, pet).await?;
-        Ok(result.data)
+        Ok(result.data.ok_or("empty response body")?)
     }
 
     /// Performs the add_pet operation and returns the full API result.
@@ -58,7 +196,7 @@ impl PetApi {
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
-        let request_body = Some(object_serializer::serialize(&pet)?);
+        let request_body = Some(object_serializer::serialize(&pet)?.into_bytes());
 
         let params = InvokeApiParams {
             method: "POST",
@@ -84,7 +222,7 @@ impl PetApi {
         options: Option<&AddPetPhotosOptions>,
     ) -> Result<Vec<Photo>, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.add_pet_photos_with_http_info(pet_id, options).await?;
-        Ok(result.data)
+        Ok(result.data.ok_or("empty response body")?)
     }
 
     /// Performs the add_pet_photos operation and returns the full API result.
@@ -141,7 +279,7 @@ impl PetApi {
         let result = self
             .add_pet_treatment_with_http_info(auth, pet_id, pet_treatment)
             .await?;
-        Ok(result.data)
+        Ok(result.data.ok_or("empty response body")?)
     }
 
     /// Performs the add_pet_treatment operation and returns the full API result.
@@ -158,7 +296,7 @@ impl PetApi {
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
-        let request_body = Some(object_serializer::serialize(&pet_treatment)?);
+        let request_body = Some(object_serializer::serialize(&pet_treatment)?.into_bytes());
 
         let params = InvokeApiParams {
             method: "POST",
@@ -182,8 +320,12 @@ impl PetApi {
         &self,
         auth: &dyn Authenticator,
         pet_id: i64,
+
+        options: Option<&DeletePetOptions>,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.delete_pet_with_http_info(auth, pet_id).await?;
+        let result = self
+            .delete_pet_with_http_info(auth, pet_id, options)
+            .await?;
         let _ = result;
         Ok(())
     }
@@ -193,6 +335,8 @@ impl PetApi {
         &self,
         auth: &dyn Authenticator,
         pet_id: i64,
+
+        options: Option<&DeletePetOptions>,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/{petId}".to_string();
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
@@ -200,6 +344,26 @@ impl PetApi {
         let mut query_params: Vec<(String, String)> = Vec::new();
 
         let mut header_params: HashMap<String, String> = HashMap::new();
+        let mut cookie_parts: Vec<String> = Vec::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.api_key {
+                if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+                    "api_key",
+                    Some(&object_serializer::stringify(val)),
+                    None,
+                    "cookie",
+                    "String",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    cookie_parts.push(format!("api_key={}", v));
+                }
+            }
+        }
+        if !cookie_parts.is_empty() {
+            header_params.insert("Cookie".to_string(), cookie_parts.join("; "));
+        }
 
         let request_body: Option<Vec<u8>> = None;
 
@@ -228,7 +392,7 @@ impl PetApi {
         let result = self
             .download_pet_document_with_http_info(pet_id, document_id)
             .await?;
-        Ok(result.data)
+        Ok(result.data.ok_or("empty response body")?)
     }
 
     /// Performs the download_pet_document operation and returns the full API result.
@@ -274,7 +438,7 @@ impl PetApi {
         options: Option<&FindPetsByStatusOptions>,
     ) -> Result<Vec<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.find_pets_by_status_with_http_info(options).await?;
-        Ok(result.data)
+        Ok(result.data.ok_or("empty response body")?)
     }
 
     /// Performs the find_pets_by_status operation and returns the full API result.
@@ -309,6 +473,8 @@ impl PetApi {
                         }
                     }
                 }
+            } else {
+                query_params.push(("status".to_string(), String::new()));
             }
         }
         if let Some(opts) = options {
@@ -342,18 +508,30 @@ impl PetApi {
     pub async fn get_external_pet_info(
         &self,
         pet_id: i64,
+
+        server: Option<&dyn GetExternalPetInfoServer>,
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_external_pet_info_with_http_info(pet_id).await?;
-        Ok(result.data)
+        let result = self
+            .get_external_pet_info_with_http_info(pet_id, server)
+            .await?;
+        Ok(result.data.ok_or("empty response body")?)
     }
 
     /// Performs the get_external_pet_info operation and returns the full API result.
     pub async fn get_external_pet_info_with_http_info(
         &self,
         pet_id: i64,
+
+        server: Option<&dyn GetExternalPetInfoServer>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/{petId}/external".to_string();
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
+        if let Some(s) = server {
+            let server_url = s.get_url();
+            if server_url.starts_with("http://") || server_url.starts_with("https://") {
+                path = format!("{}{}", server_url, path);
+            }
+        }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
 
@@ -380,20 +558,30 @@ impl PetApi {
     pub async fn get_multi_server_pet_info(
         &self,
         pet_id: i64,
+
+        server: Option<&dyn GetMultiServerPetInfoServer>,
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
         let result = self
-            .get_multi_server_pet_info_with_http_info(pet_id)
+            .get_multi_server_pet_info_with_http_info(pet_id, server)
             .await?;
-        Ok(result.data)
+        Ok(result.data.ok_or("empty response body")?)
     }
 
     /// Performs the get_multi_server_pet_info operation and returns the full API result.
     pub async fn get_multi_server_pet_info_with_http_info(
         &self,
         pet_id: i64,
+
+        server: Option<&dyn GetMultiServerPetInfoServer>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/{petId}/multi".to_string();
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
+        if let Some(s) = server {
+            let server_url = s.get_url();
+            if server_url.starts_with("http://") || server_url.starts_with("https://") {
+                path = format!("{}{}", server_url, path);
+            }
+        }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
 
@@ -423,7 +611,7 @@ impl PetApi {
         pet_id: i64,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.get_pet_avatar_with_http_info(pet_id).await?;
-        Ok(result.data)
+        Ok(result.data.ok_or("empty response body")?)
     }
 
     /// Performs the get_pet_avatar operation and returns the full API result.
@@ -462,7 +650,7 @@ impl PetApi {
         pet_id: i64,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.get_pet_avatar_thumbnail_with_http_info(pet_id).await?;
-        Ok(result.data)
+        Ok(result.data.ok_or("empty response body")?)
     }
 
     /// Performs the get_pet_avatar_thumbnail operation and returns the full API result.
@@ -500,18 +688,28 @@ impl PetApi {
     pub async fn get_pet_by_id(
         &self,
         pet_id: i64,
+
+        server: Option<&dyn GetPetByIdServer>,
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_pet_by_id_with_http_info(pet_id).await?;
-        Ok(result.data)
+        let result = self.get_pet_by_id_with_http_info(pet_id, server).await?;
+        Ok(result.data.ok_or("empty response body")?)
     }
 
     /// Performs the get_pet_by_id operation and returns the full API result.
     pub async fn get_pet_by_id_with_http_info(
         &self,
         pet_id: i64,
+
+        server: Option<&dyn GetPetByIdServer>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/{petId}".to_string();
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
+        if let Some(s) = server {
+            let server_url = s.get_url();
+            if server_url.starts_with("http://") || server_url.starts_with("https://") {
+                path = format!("{}{}", server_url, path);
+            }
+        }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
 
@@ -541,7 +739,7 @@ impl PetApi {
         pet_id: i64,
     ) -> Result<PetPassport, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.get_pet_passport_with_http_info(pet_id).await?;
-        Ok(result.data)
+        Ok(result.data.ok_or("empty response body")?)
     }
 
     /// Performs the get_pet_passport operation and returns the full API result.
@@ -581,7 +779,7 @@ impl PetApi {
         photo_id: i64,
     ) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.get_pet_photo_with_http_info(pet_id, photo_id).await?;
-        Ok(result.data)
+        Ok(result.data.ok_or("empty response body")?)
     }
 
     /// Performs the get_pet_photo operation and returns the full API result.
@@ -626,7 +824,7 @@ impl PetApi {
         let result = self
             .get_pet_tag_with_http_info(pet_id, tag_name, options)
             .await?;
-        Ok(result.data)
+        Ok(result.data.ok_or("empty response body")?)
     }
 
     /// Performs the get_pet_tag operation and returns the full API result.
@@ -723,6 +921,8 @@ impl PetApi {
                         }
                     }
                 }
+            } else {
+                query_params.push(("filter".to_string(), String::new()));
             }
         }
 
@@ -749,18 +949,30 @@ impl PetApi {
     pub async fn get_staging_pet_info(
         &self,
         pet_id: i64,
+
+        server: Option<&dyn GetStagingPetInfoServer>,
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_staging_pet_info_with_http_info(pet_id).await?;
-        Ok(result.data)
+        let result = self
+            .get_staging_pet_info_with_http_info(pet_id, server)
+            .await?;
+        Ok(result.data.ok_or("empty response body")?)
     }
 
     /// Performs the get_staging_pet_info operation and returns the full API result.
     pub async fn get_staging_pet_info_with_http_info(
         &self,
         pet_id: i64,
+
+        server: Option<&dyn GetStagingPetInfoServer>,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/{petId}/staging".to_string();
         path = path.replace("{petId}", &urlencoding::encode(&format!("{}", pet_id)));
+        if let Some(s) = server {
+            let server_url = s.get_url();
+            if server_url.starts_with("http://") || server_url.starts_with("https://") {
+                path = format!("{}{}", server_url, path);
+            }
+        }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
 
@@ -808,7 +1020,7 @@ impl PetApi {
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
-        let request_body = Some(object_serializer::serialize(&body)?);
+        let request_body = Some(object_serializer::serialize(&body)?.into_bytes());
 
         let params = InvokeApiParams {
             method: "PUT",
@@ -852,9 +1064,8 @@ impl PetApi {
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
-        let request_body = Some(object_serializer::serialize(
-            &set_pet_avatar_thumbnail_request,
-        )?);
+        let request_body =
+            Some(object_serializer::serialize(&set_pet_avatar_thumbnail_request)?.into_bytes());
 
         let params = InvokeApiParams {
             method: "PUT",
@@ -878,7 +1089,7 @@ impl PetApi {
         pet: Pet,
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.update_pet_with_http_info(pet_id, pet).await?;
-        Ok(result.data)
+        Ok(result.data.ok_or("empty response body")?)
     }
 
     /// Performs the update_pet operation and returns the full API result.
@@ -894,7 +1105,7 @@ impl PetApi {
 
         let mut header_params: HashMap<String, String> = HashMap::new();
 
-        let request_body = Some(object_serializer::serialize(&pet)?);
+        let request_body = Some(object_serializer::serialize(&pet)?.into_bytes());
 
         let params = InvokeApiParams {
             method: "PUT",
@@ -922,7 +1133,7 @@ impl PetApi {
         let result = self
             .upload_pet_certificate_with_http_info(pet_id, options)
             .await?;
-        Ok(result.data)
+        Ok(result.data.ok_or("empty response body")?)
     }
 
     /// Performs the upload_pet_certificate operation and returns the full API result.
@@ -971,7 +1182,7 @@ impl PetApi {
         let result = self
             .upload_pet_document_with_http_info(pet_id, options)
             .await?;
-        Ok(result.data)
+        Ok(result.data.ok_or("empty response body")?)
     }
 
     /// Performs the upload_pet_document operation and returns the full API result.

@@ -16,6 +16,49 @@ import (
 )
 
 {{#operations}}
+{{#serverTypeDefs}}
+
+// {{serverTypeName}} is the interface for per-operation server URLs for {{operationId}}.
+type {{serverTypeName}} interface {
+	// GetUrl returns the server URL.
+	GetUrl() string
+}
+{{#variants}}
+{{#serverVariables}}{{#hasEnumValues}}
+
+// {{serverTypeName}}{{pascalName}} represents valid values for the {{name}} server variable.
+type {{serverTypeName}}{{pascalName}} string
+
+const (
+{{#enumValues}}
+	{{serverTypeName}}{{pascalName}}{{name}} {{serverTypeName}}{{pascalName}} = "{{value}}"
+{{/enumValues}}
+)
+{{/hasEnumValues}}{{/serverVariables}}
+{{/variants}}
+{{#variants}}
+
+// {{serverTypeName}}{{variantName}} is a server variant for {{serverTypeName}}.
+{{#hasDescription}}
+// {{description}}
+{{/hasDescription}}
+type {{serverTypeName}}{{variantName}} struct {
+{{#serverVariables}}
+	{{pascalName}} {{#hasEnumValues}}{{serverTypeName}}{{pascalName}}{{/hasEnumValues}}{{^hasEnumValues}}string{{/hasEnumValues}}
+{{/serverVariables}}
+}
+
+// GetUrl returns the server URL.
+func (s {{serverTypeName}}{{variantName}}) GetUrl() string {
+	url := "{{url}}"
+{{#serverVariables}}
+	url = strings.ReplaceAll(url, "{" + "{{name}}" + "}", {{#hasEnumValues}}string(s.{{pascalName}}){{/hasEnumValues}}{{^hasEnumValues}}s.{{pascalName}}{{/hasEnumValues}})
+{{/serverVariables}}
+	return url
+}
+{{/variants}}
+{{/serverTypeDefs}}
+
 // {{classname}} provides methods for the {{baseName}} API group.
 {{#tagDescription}}
 // {{.}}
@@ -47,8 +90,8 @@ func New{{classname}}(apiClient ApiClient, config *Configuration) *{{classname}}
 {{#externalDocs}}
 // See {{url}} {{description}}
 {{/externalDocs}}
-func (a *{{classname}}) {{operationId}}({{#hasAuthMethods}}auth Authenticator, {{/hasAuthMethods}}{{#pathParams}}{{paramName}} {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}} {{^required}}*{{/required}}{{{dataType}}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}) ({{#returnType}}*{{{.}}}, {{/returnType}}error) {
-	result, err := a.{{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth, {{/hasAuthMethods}}{{#pathParams}}{{paramName}}, {{/pathParams}}{{#bodyParam}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}})
+func (a *{{classname}}) {{operationId}}({{#hasAuthMethods}}auth Authenticator, {{/hasAuthMethods}}{{#pathParams}}{{paramName}} {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}} {{^required}}*{{/required}}{{{dataType}}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server, {{/-first}}{{/servers}}) ({{#returnType}}*{{{.}}}, {{/returnType}}error) {
+	result, err := a.{{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth, {{/hasAuthMethods}}{{#pathParams}}{{paramName}}, {{/pathParams}}{{#bodyParam}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server, {{/-first}}{{/servers}})
 	if err != nil {
 		return {{#returnType}}nil, {{/returnType}}err
 	}
@@ -62,7 +105,7 @@ func (a *{{classname}}) {{operationId}}({{#hasAuthMethods}}auth Authenticator, {
 }
 
 // {{operationId}}WithHTTPInfo performs the {{operationId}} operation and returns the full API result.
-func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Authenticator, {{/hasAuthMethods}}{{#pathParams}}{{paramName}} {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}} {{^required}}*{{/required}}{{{dataType}}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}) (*ApiResult[{{#returnType}}*{{{.}}}{{/returnType}}{{^returnType}}interface{}{{/returnType}}], error) {
+func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Authenticator, {{/hasAuthMethods}}{{#pathParams}}{{paramName}} {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}} {{^required}}*{{/required}}{{{dataType}}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options *{{operationId}}Options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server, {{/-first}}{{/servers}}) (*ApiResult[{{#returnType}}*{{{.}}}{{/returnType}}{{^returnType}}interface{}{{/returnType}}], error) {
 {{#pathParams}}
 {{#required}}
 {{#isString}}
@@ -80,6 +123,16 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 	path = replacePathParam(path, "<%baseName%>", fmt.Sprintf("%v", <%paramName%>))
 <%={{ }}=%>
 {{/pathParams}}
+{{#servers}}
+{{#-first}}
+	if server != nil {
+		serverUrl := server.GetUrl()
+		if strings.HasPrefix(serverUrl, "http://") || strings.HasPrefix(serverUrl, "https://") {
+			path = serverUrl + path
+		}
+	}
+{{/-first}}
+{{/servers}}
 
 	queryParams := make(map[string]interface{})
 {{#queryParams}}
@@ -95,7 +148,16 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 		queryParams["{{baseName}}"] = string(jsonBytes)
 {{/content}}
 {{^content}}
+{{#isAllowEmptyValue}}
+	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
 		queryParams["{{baseName}}"] = SerializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
+	} else {
+		queryParams["{{baseName}}"] = ""
+	}
+{{/isAllowEmptyValue}}
+{{^isAllowEmptyValue}}
+		queryParams["{{baseName}}"] = SerializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
+{{/isAllowEmptyValue}}
 {{/content}}
 {{/isDeepObject}}
 	}

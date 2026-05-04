@@ -16,11 +16,11 @@ public class ClientException extends ApiException {
   private static final long serialVersionUID = 1L;
 
   public ClientException(
-      int code,
+      int statusCode,
       String message,
       @Nullable Map<String, String> responseHeaders,
       @Nullable String responseBody,
       @Nullable Object errorBody) {
-    super(code, message, responseHeaders, responseBody, errorBody);
+    super(statusCode, message, responseHeaders, responseBody, errorBody);
   }
 }

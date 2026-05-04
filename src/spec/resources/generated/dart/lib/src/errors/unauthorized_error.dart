@@ -10,7 +10,7 @@ import 'client_error.dart';
 /// UnauthorizedError represents an HTTP 401 Unauthorized error.
 class UnauthorizedError extends ClientError {
   const UnauthorizedError({
-    required super.code,
+    required super.statusCode,
     required super.message,
     super.responseBody,
     super.responseHeaders,

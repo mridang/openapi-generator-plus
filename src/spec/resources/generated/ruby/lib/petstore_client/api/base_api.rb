@@ -143,16 +143,16 @@ module PetstoreClient
                 when 404 then PetstoreClient::Errors::NotFoundError.new(**err_opts)
                 when 409 then PetstoreClient::Errors::ConflictError.new(**err_opts)
                 when 422 then PetstoreClient::Errors::UnprocessableEntityError.new(**err_opts)
-                else PetstoreClient::Errors::ClientError.new(code: code, **err_opts)
+                else PetstoreClient::Errors::ClientError.new(status_code: code, **err_opts)
                 end
         end
         if code >= 500
           raise case code
                 when 500 then PetstoreClient::Errors::InternalServerError.new(**err_opts)
-                else PetstoreClient::Errors::ServerError.new(code: code, **err_opts)
+                else PetstoreClient::Errors::ServerError.new(status_code: code, **err_opts)
                 end
         end
-        raise PetstoreClient::ApiError.new(code: code, **err_opts)
+        raise PetstoreClient::ApiError.new(status_code: code, **err_opts)
       end
       # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 

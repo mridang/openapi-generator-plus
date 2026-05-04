@@ -15,8 +15,8 @@ import (
 // ApiError represents an error returned by the API, including the HTTP status
 // code, response headers, and response body.
 type ApiError struct {
-	// Code is the HTTP status code.
-	Code int
+	// StatusCode is the HTTP status code.
+	StatusCode int
 
 	// Msg is the error message.
 	Msg string
@@ -37,8 +37,8 @@ func (e *ApiError) Error() string {
 	if msg == "" {
 		msg = "Error message: the server returns an error"
 	}
-	if e.Code != 0 {
-		msg += fmt.Sprintf("\nHTTP status code: %d", e.Code)
+	if e.StatusCode != 0 {
+		msg += fmt.Sprintf("\nHTTP status code: %d", e.StatusCode)
 	}
 	if len(e.ResponseHeaders) > 0 {
 		msg += fmt.Sprintf("\nResponse headers: %v", e.ResponseHeaders)
@@ -55,9 +55,4 @@ func (e *ApiError) TypedErrorBody(target interface{}) error {
 		return nil
 	}
 	return json.Unmarshal([]byte(e.ResponseBody), target)
-}
-
-// StatusCode returns the HTTP status code of the error.
-func (e *ApiError) StatusCode() int {
-	return e.Code
 }

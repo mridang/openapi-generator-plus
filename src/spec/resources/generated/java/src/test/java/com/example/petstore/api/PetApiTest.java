@@ -101,7 +101,7 @@ class PetApiTest {
 
   @Test
   void testDeletePet() throws Exception {
-    api.deletePet(basicAuth, 1L);
+    api.deletePet(basicAuth, 1L, null);
 
     assertThat(true).isTrue();
   }

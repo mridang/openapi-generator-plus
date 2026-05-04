@@ -149,19 +149,25 @@ describe('ObjectSerializer', () => {
   });
 
   describe('serialize', () => {
-    test('serializes a model to plain object', () => {
+    test('serializes a model to JSON string', () => {
       const category = new Category();
       category.id = 1;
       category.name = 'Dogs';
-      const result = ObjectSerializer.serialize(category) as Record<string, unknown>;
-      expect(result).toBeDefined();
-      expect(result.id).toBe(1);
-      expect(result.name).toBe('Dogs');
+      const result = ObjectSerializer.serialize(category);
+      expect(typeof result).toBe('string');
+      const parsed = JSON.parse(result);
+      expect(parsed.id).toBe(1);
+      expect(parsed.name).toBe('Dogs');
     });
 
     test('handles null', () => {
       const result = ObjectSerializer.serialize(null);
-      expect(result).toBeUndefined();
+      expect(result).toBe('null');
+    });
+
+    test('handles undefined', () => {
+      const result = ObjectSerializer.serialize(undefined);
+      expect(result).toBe('null');
     });
   });
 

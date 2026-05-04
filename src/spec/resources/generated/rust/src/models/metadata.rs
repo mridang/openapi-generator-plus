@@ -14,12 +14,18 @@ use serde::{Deserialize, Serialize};
 pub struct Metadata {
     #[serde(rename = "createdAt", skip_serializing_if = "Option::is_none")]
     pub created_at: Option<String>,
+    /// Additional properties not defined in the schema.
+    #[serde(flatten)]
+    pub additional_properties: std::collections::HashMap<String, serde_json::Value>,
 }
 
 #[allow(deprecated)]
 impl Metadata {
     /// Creates a new Metadata instance with required parameters.
     pub fn new() -> Self {
-        Self { created_at: None }
+        Self {
+            created_at: None,
+            additional_properties: std::collections::HashMap::new(),
+        }
     }
 }

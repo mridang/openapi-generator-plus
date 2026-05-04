@@ -4,9 +4,19 @@ package {{invokerPackage}}.auth.oauth
 
 import {{invokerPackage}}.ApiClient
 import {{invokerPackage}}.auth.HttpAwareAuthenticator
+import com.fasterxml.jackson.databind.ObjectMapper
+import kotlinx.coroutines.runBlocking
 
 /**
- * OpenID Connect authenticator.
+ * Authenticator for OpenID Connect.
+ *
+ * Fetches the OIDC discovery document to discover the authorization and
+ * token endpoints, then delegates to an [OAuth2AuthorizationCodeAuthenticator].
+ *
+ * Implements [HttpAwareAuthenticator] so that both the discovery
+ * request and subsequent token exchange requests use the shared
+ * [ApiClient] with the same transport configuration (proxy, TLS,
+ * timeouts) as regular API calls.
  */
 open class OpenIdConnectAuthenticator(
     private val host: String,
@@ -17,20 +27,82 @@ open class OpenIdConnectAuthenticator(
     private val scopes: List<String>
 ) : HttpAwareAuthenticator {
 
+    private val objectMapper = ObjectMapper()
+
     @Volatile
-    private var accessToken: String? = null
+    private var apiClient: ApiClient? = null
+
+    @Volatile
+    private var delegate: OAuth2AuthorizationCodeAuthenticator? = null
 
     override fun setApiClient(apiClient: ApiClient) {
+        this.apiClient = apiClient
+    }
+
+    /**
+     * Lazily resolve the delegate by fetching the OIDC discovery document.
+     *
+     * @return the resolved authorization code authenticator
+     */
+    @Synchronized
+    private fun resolveDelegate(): OAuth2AuthorizationCodeAuthenticator {
+        delegate?.let { return it }
+
+        val client = apiClient ?: throw IllegalStateException(
+            "ApiClient has not been injected. " +
+                "Ensure the {{clientClassName}} constructor calls setApiClient() " +
+                "on HttpAwareAuthenticator before making API requests."
+        )
+
+        val headers = mapOf("Accept" to "application/json")
+        val response = runBlocking { client.sendRequest("GET", discoveryUrl, headers, null) }
+
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+            throw RuntimeException(
+                "OIDC discovery request failed with status ${response.statusCode}: ${response.body}"
+            )
+        }
+
+        val discovery = objectMapper.readTree(response.body)
+        val authorizationEndpoint = discovery.get("authorization_endpoint").asText()
+        val tokenEndpoint = discovery.get("token_endpoint").asText()
+
+        val resolved = OAuth2AuthorizationCodeAuthenticator(
+            host = host,
+            clientId = clientId,
+            clientSecret = clientSecret,
+            authorizationUrl = authorizationEndpoint,
+            tokenUrl = tokenEndpoint,
+            redirectUri = redirectUri,
+            scopes = scopes
+        )
+        resolved.setApiClient(client)
+        this.delegate = resolved
+        return resolved
+    }
+
+    /**
+     * Build the authorization URL using the discovered authorization endpoint.
+     *
+     * @param state CSRF state parameter
+     * @return the authorization URL
+     */
+    fun buildAuthorizationUrl(state: String? = null): String {
+        return resolveDelegate().buildAuthorizationUrl(state)
+    }
+
+    /**
+     * Exchange an authorization code for tokens using the discovered token endpoint.
+     *
+     * @param code the authorization code from the callback
+     */
+    fun exchangeCode(code: String) {
+        resolveDelegate().exchangeCode(code)
     }
 
     override fun getHost(): String = host
 
     override fun getAuthHeaders(): Map<String, String> {
-        val token = accessToken ?: throw IllegalStateException("No access token. Complete the OpenID Connect flow first.")
-        return mapOf("Authorization" to "Bearer $token")
-    }
-
-    fun setAccessToken(token: String) {
-        this.accessToken = token
+        return resolveDelegate().getAuthHeaders()
     }
 }
