@@ -71,7 +71,8 @@ class TransportOptions {
   }) : _defaultHeaders = Map.unmodifiable(defaultHeaders);
 
   /// Returns a copy of the transport-level default headers.
-  Map<String, String> get defaultHeaders => Map<String, String>.from(_defaultHeaders);
+  Map<String, String> get defaultHeaders =>
+      Map<String, String>.from(_defaultHeaders);
 }
 
 /// Builds immutable [TransportOptions] instances.

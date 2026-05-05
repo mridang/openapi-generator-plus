@@ -11,8 +11,8 @@ use std::pin::Pin;
 
 use std::time::Duration;
 
-use reqwest::{Client, ClientBuilder};
 use reqwest::Proxy;
+use reqwest::{Client, ClientBuilder};
 use uuid::Uuid;
 
 use crate::api_client::ApiClient;
@@ -61,7 +61,13 @@ impl ApiClient for DefaultApiClient {
         url: &str,
         headers: &HashMap<String, String>,
         body: Option<&[u8]>,
-    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
+                + Send
+                + '_,
+        >,
+    > {
         let method = method.to_string();
         let url = url.to_string();
         let headers = headers.clone();
@@ -72,24 +78,22 @@ impl ApiClient for DefaultApiClient {
             for (k, v) in &headers {
                 merged.insert(k.clone(), v.clone());
             }
-            if !merged.contains_key("User-Agent") && !self.transport_options.user_agent().is_empty() {
+            if !merged.contains_key("User-Agent") && !self.transport_options.user_agent().is_empty()
+            {
                 merged.insert(
                     "User-Agent".to_string(),
                     self.transport_options.user_agent().to_string(),
                 );
             }
             if !merged.contains_key("Accept-Encoding") {
-                merged.insert(
-                    "Accept-Encoding".to_string(),
-                    "gzip, deflate".to_string(),
-                );
+                merged.insert("Accept-Encoding".to_string(), "gzip, deflate".to_string());
             }
             if !merged.contains_key("X-Request-ID") && self.transport_options.inject_request_id() {
                 merged.insert("X-Request-ID".to_string(), Uuid::new_v4().to_string());
             }
-            let http_method = method.parse::<reqwest::Method>().map_err(|e| {
-                Box::new(e) as Box<dyn std::error::Error + Send + Sync>
-            })?;
+            let http_method = method
+                .parse::<reqwest::Method>()
+                .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
 
             let mut request_builder = self.http_client.request(http_method, &url);
 
@@ -112,12 +116,7 @@ impl ApiClient for DefaultApiClient {
             let resp_headers: HashMap<String, String> = response
                 .headers()
                 .iter()
-                .map(|(k, v)| {
-                    (
-                        k.as_str().to_string(),
-                        v.to_str().unwrap_or("").to_string(),
-                    )
-                })
+                .map(|(k, v)| (k.as_str().to_string(), v.to_str().unwrap_or("").to_string()))
                 .collect();
 
             let resp_body = response.text().await?;

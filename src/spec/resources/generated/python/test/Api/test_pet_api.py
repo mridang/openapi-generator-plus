@@ -22,20 +22,14 @@ class TestPetApi:
 
     @pytest.fixture(autouse=True)
     def setup(self, api_base_url: Any) -> None:
-        config = Configuration.builder() \
-            .base_url(api_base_url) \
-            .default_header('Authorization', 'Bearer test-token') \
-            .build()
+        config = (
+            Configuration.builder().base_url(api_base_url).default_header('Authorization', 'Bearer test-token').build()
+        )
         self.api = PetApi(config=config)
         self.auth = BearerAuthenticator(api_base_url, 'test-token')
 
     async def test_add_pet(self) -> None:
-        pet = Pet(
-            id=12345,
-            name='TestDog',
-            photoUrls={'http://example.com/photo.jpg'},
-            status=PetStatusEnum.AVAILABLE
-        )
+        pet = Pet(id=12345, name='TestDog', photoUrls={'http://example.com/photo.jpg'}, status=PetStatusEnum.AVAILABLE)
 
         result = await self.api.add_pet(self.auth, pet)
 
@@ -57,12 +51,7 @@ class TestPetApi:
         assert result.name is not None
 
     async def test_update_pet(self) -> None:
-        pet = Pet(
-            id=1,
-            name='UpdatedDog',
-            photoUrls={'http://example.com/updated.jpg'},
-            status=PetStatusEnum.PENDING
-        )
+        pet = Pet(id=1, name='UpdatedDog', photoUrls={'http://example.com/updated.jpg'}, status=PetStatusEnum.PENDING)
 
         result = await self.api.update_pet(1, pet)
 
@@ -74,7 +63,7 @@ class TestPetApi:
         assert True
 
     async def test_set_pet_avatar(self) -> None:
-        await self.api.set_pet_avatar(1, b'\xFF\xD8\xFF')
+        await self.api.set_pet_avatar(1, b'\xff\xd8\xff')
 
         assert True
 
@@ -102,7 +91,9 @@ class TestPetApi:
         assert isinstance(result, ApiResponse)
 
     async def test_upload_pet_document(self) -> None:
-        result = await self.api.upload_pet_document(1, UploadPetDocumentOptions(file=b'doc-data', document_type='vaccination_record', notes='Annual checkup'))
+        result = await self.api.upload_pet_document(
+            1, UploadPetDocumentOptions(file=b'doc-data', document_type='vaccination_record', notes='Annual checkup')
+        )
 
         assert result is not None
         assert isinstance(result, ApiResponse)

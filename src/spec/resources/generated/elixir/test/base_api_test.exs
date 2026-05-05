@@ -32,7 +32,17 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   test "raises BadRequestError for status 400", %{state: state} do
     assert {:error, error} =
-             PetstoreClient.Api.BaseApi.invoke_api(state, :get, "/api/error/400", %{}, %{}, nil, ["application/json"], "application/json", nil)
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/api/error/400",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               nil
+             )
 
     assert %PetstoreClient.Errors.BadRequestError{} = error
     assert error.status_code == 400
@@ -40,7 +50,17 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   test "raises UnauthorizedError for status 401", %{state: state} do
     assert {:error, error} =
-             PetstoreClient.Api.BaseApi.invoke_api(state, :get, "/api/error/401", %{}, %{}, nil, ["application/json"], "application/json", nil)
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/api/error/401",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               nil
+             )
 
     assert %PetstoreClient.Errors.UnauthorizedError{} = error
     assert error.status_code == 401
@@ -48,7 +68,17 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   test "raises ForbiddenError for status 403", %{state: state} do
     assert {:error, error} =
-             PetstoreClient.Api.BaseApi.invoke_api(state, :get, "/api/error/403", %{}, %{}, nil, ["application/json"], "application/json", nil)
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/api/error/403",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               nil
+             )
 
     assert %PetstoreClient.Errors.ForbiddenError{} = error
     assert error.status_code == 403
@@ -56,7 +86,17 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   test "raises NotFoundError for status 404", %{state: state} do
     assert {:error, error} =
-             PetstoreClient.Api.BaseApi.invoke_api(state, :get, "/api/error/404", %{}, %{}, nil, ["application/json"], "application/json", nil)
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/api/error/404",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               nil
+             )
 
     assert %PetstoreClient.Errors.NotFoundError{} = error
     assert error.status_code == 404
@@ -64,7 +104,17 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   test "raises ConflictError for status 409", %{state: state} do
     assert {:error, error} =
-             PetstoreClient.Api.BaseApi.invoke_api(state, :get, "/api/error/409", %{}, %{}, nil, ["application/json"], "application/json", nil)
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/api/error/409",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               nil
+             )
 
     assert %PetstoreClient.Errors.ConflictError{} = error
     assert error.status_code == 409
@@ -72,7 +122,17 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   test "raises UnprocessableEntityError for status 422", %{state: state} do
     assert {:error, error} =
-             PetstoreClient.Api.BaseApi.invoke_api(state, :get, "/api/error/422", %{}, %{}, nil, ["application/json"], "application/json", nil)
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/api/error/422",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               nil
+             )
 
     assert %PetstoreClient.Errors.UnprocessableEntityError{} = error
     assert error.status_code == 422
@@ -80,7 +140,17 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   test "raises InternalServerError for status 500", %{state: state} do
     assert {:error, error} =
-             PetstoreClient.Api.BaseApi.invoke_api(state, :get, "/api/error/500", %{}, %{}, nil, ["application/json"], "application/json", nil)
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/api/error/500",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               nil
+             )
 
     assert %PetstoreClient.Errors.InternalServerError{} = error
     assert error.status_code == 500
@@ -88,7 +158,17 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   test "raises ServerError for status 502", %{state: state} do
     assert {:error, error} =
-             PetstoreClient.Api.BaseApi.invoke_api(state, :get, "/api/error/502", %{}, %{}, nil, ["application/json"], "application/json", nil)
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/api/error/502",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               nil
+             )
 
     assert %PetstoreClient.Errors.ServerError{} = error
     assert error.status_code == 502
@@ -96,7 +176,17 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   test "raises ClientError for status 418", %{state: state} do
     assert {:error, error} =
-             PetstoreClient.Api.BaseApi.invoke_api(state, :get, "/api/error/418", %{}, %{}, nil, ["application/json"], "application/json", nil)
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/api/error/418",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               nil
+             )
 
     assert %PetstoreClient.Errors.ClientError{} = error
     assert error.status_code == 418
@@ -106,7 +196,17 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   test "deserializes JSON response", %{state: state} do
     assert {:ok, result} =
-             PetstoreClient.Api.BaseApi.invoke_api(state, :get, "/api/test", %{}, %{}, nil, ["application/json"], "application/json", "Object")
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/api/test",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               "Object"
+             )
 
     assert result != nil
     assert result["message"] == "success"
@@ -114,7 +214,17 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   test "returns raw string for non-JSON response", %{state: state} do
     assert {:ok, result} =
-             PetstoreClient.Api.BaseApi.invoke_api(state, :get, "/api/text", %{}, %{}, nil, ["text/plain"], "application/json", "String")
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/api/text",
+               %{},
+               %{},
+               nil,
+               ["text/plain"],
+               "application/json",
+               "String"
+             )
 
     assert result != nil
     assert String.contains?(result, "hello plain text")
@@ -122,16 +232,27 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   test "returns nil when return_type is nil", %{state: state} do
     assert {:ok, nil} =
-             PetstoreClient.Api.BaseApi.invoke_api(state, :get, "/api/test", %{}, %{}, nil, ["application/json"], "application/json", nil)
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/api/test",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               nil
+             )
   end
 
   # Server variable overrides
 
   test "server variable overrides resolve in base URL" do
-    config = PetstoreClient.Configuration.from_server(
-      PetstoreClient.Servers.server_1(),
-      %{"environment" => "staging"}
-    )
+    config =
+      PetstoreClient.Configuration.from_server(
+        PetstoreClient.Servers.server_1(),
+        %{"environment" => "staging"}
+      )
 
     assert config.base_url == "https://staging.example.com/api/v3"
   end

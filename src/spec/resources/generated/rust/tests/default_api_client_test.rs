@@ -14,9 +14,7 @@ use petstore::*;
 #[tokio::test]
 async fn test_default_api_client_tls_verification_disabled() {
     let wiremock_url = testcontainers_helper::wiremock_https_url();
-    let transport = TransportOptionsBuilder::new()
-        .verify_ssl(false)
-        .build();
+    let transport = TransportOptionsBuilder::new().verify_ssl(false).build();
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
@@ -51,9 +49,7 @@ async fn test_default_api_client_custom_ca_bundle() {
 async fn test_default_api_client_http_proxy() {
     let wiremock_url = testcontainers_helper::wiremock_internal_http_url();
     let proxy = testcontainers_helper::proxy_url();
-    let transport = TransportOptionsBuilder::new()
-        .proxy(proxy)
-        .build();
+    let transport = TransportOptionsBuilder::new().proxy(proxy).build();
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
@@ -87,9 +83,7 @@ async fn test_default_api_client_http_proxy_with_tls() {
 #[tokio::test]
 async fn test_default_api_client_request_timeout() {
     let wiremock_url = testcontainers_helper::wiremock_http_url();
-    let transport = TransportOptionsBuilder::new()
-        .timeout(1000)
-        .build();
+    let transport = TransportOptionsBuilder::new().timeout(1000).build();
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let result = client
@@ -108,7 +102,12 @@ async fn test_default_api_client_user_agent_header() {
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
-        .send_request("GET", &format!("{}/api/echo-headers", wiremock_url), &headers, None)
+        .send_request(
+            "GET",
+            &format!("{}/api/echo-headers", wiremock_url),
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
 
@@ -126,7 +125,12 @@ async fn test_default_api_client_request_id_injection() {
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
-        .send_request("GET", &format!("{}/api/echo-headers", wiremock_url), &headers, None)
+        .send_request(
+            "GET",
+            &format!("{}/api/echo-headers", wiremock_url),
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
 
@@ -145,13 +149,23 @@ async fn test_default_api_client_request_id_unique() {
     let headers = HashMap::new();
 
     let resp1 = client
-        .send_request("GET", &format!("{}/api/echo-headers", wiremock_url), &headers, None)
+        .send_request(
+            "GET",
+            &format!("{}/api/echo-headers", wiremock_url),
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
     let json1: serde_json::Value = serde_json::from_str(&resp1.body).expect("invalid json");
 
     let resp2 = client
-        .send_request("GET", &format!("{}/api/echo-headers", wiremock_url), &headers, None)
+        .send_request(
+            "GET",
+            &format!("{}/api/echo-headers", wiremock_url),
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
     let json2: serde_json::Value = serde_json::from_str(&resp2.body).expect("invalid json");
@@ -168,7 +182,12 @@ async fn test_default_api_client_default_headers() {
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
-        .send_request("GET", &format!("{}/api/echo-headers", wiremock_url), &headers, None)
+        .send_request(
+            "GET",
+            &format!("{}/api/echo-headers", wiremock_url),
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
 
@@ -186,7 +205,12 @@ async fn test_default_api_client_caller_headers_override_defaults() {
     let mut headers = HashMap::new();
     headers.insert("Accept".to_string(), "application/json".to_string());
     let resp = client
-        .send_request("GET", &format!("{}/api/echo-headers", wiremock_url), &headers, None)
+        .send_request(
+            "GET",
+            &format!("{}/api/echo-headers", wiremock_url),
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
 
@@ -203,7 +227,12 @@ async fn test_default_api_client_follow_redirects_enabled() {
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
-        .send_request("GET", &format!("{}/api/redirect", wiremock_url), &headers, None)
+        .send_request(
+            "GET",
+            &format!("{}/api/redirect", wiremock_url),
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
 
@@ -220,7 +249,12 @@ async fn test_default_api_client_follow_redirects_disabled() {
     let client = DefaultApiClient::new(Some(transport));
     let headers = HashMap::new();
     let resp = client
-        .send_request("GET", &format!("{}/api/redirect", wiremock_url), &headers, None)
+        .send_request(
+            "GET",
+            &format!("{}/api/redirect", wiremock_url),
+            &headers,
+            None,
+        )
         .await
         .expect("unexpected error");
 

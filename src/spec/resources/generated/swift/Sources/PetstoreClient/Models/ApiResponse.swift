@@ -9,21 +9,20 @@ import Foundation
 
 /// ApiResponse is a model class generated from the OpenAPI schema.
 public struct ApiResponse: Codable, Sendable {
-    public var code: Int?
-    public var type: String?
-    public var message: String?
+  public var code: Int?
+  public var type: String?
+  public var message: String?
 
-    enum CodingKeys: String, CodingKey {
-        case code = "code"
-        case type = "type"
-        case message = "message"
-    }
+  enum CodingKeys: String, CodingKey {
+    case code = "code"
+    case type = "type"
+    case message = "message"
+  }
 
-    /// Creates a new ApiResponse instance.
-    public init(code: Int? = nil, type: String? = nil, message: String? = nil) {
-        self.code = code
-        self.type = type
-        self.message = message
-    }
+  /// Creates a new ApiResponse instance.
+  public init(code: Int? = nil, type: String? = nil, message: String? = nil) {
+    self.code = code
+    self.type = type
+    self.message = message
+  }
 }
-

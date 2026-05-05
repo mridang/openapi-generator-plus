@@ -21,7 +21,8 @@ public class StoreApiTest
     public StoreApiTest(Test.PrismFixture prism)
     {
         var baseUrl = prism.BaseUrl;
-        var config = Configuration.Builder()
+        var config = Configuration
+            .Builder()
             .BaseUrl(baseUrl)
             .DefaultHeader("Authorization", "Bearer test-token")
             .Build();

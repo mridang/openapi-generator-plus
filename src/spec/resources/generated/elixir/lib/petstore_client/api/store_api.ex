@@ -48,7 +48,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
     * `order_id` - integer() - ID of the order to delete
-  
+
   ## Returns
 
     * `{:ok, nil}` on success.
@@ -91,13 +91,26 @@ defmodule PetstoreClient.Api.StoreApi do
     end
 
     path = "/store/order/{orderId}"
-    path = String.replace(path, "{orderId}", PetstoreClient.ValueSerializer.serialize_styled("orderId", order_id, :path, "integer()", nil, "simple", false) |> to_string())
+
+    path =
+      String.replace(
+        path,
+        "{orderId}",
+        PetstoreClient.ValueSerializer.serialize_styled("orderId", order_id, :path, "integer()", nil, "simple", false)
+        |> to_string()
+      )
+
     query_params = %{}
     header_params = %{}
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api, :DELETE, path, query_params, header_params, request_body,
+      api,
+      :DELETE,
+      path,
+      query_params,
+      header_params,
+      request_body,
       [],
       "application/json",
       nil,
@@ -109,7 +122,7 @@ defmodule PetstoreClient.Api.StoreApi do
   Returns pet inventories by status
 
   ## Parameters
-  
+
   ## Returns
 
     * `{:ok, %{String.t() => integer()}}` on success.
@@ -147,7 +160,12 @@ defmodule PetstoreClient.Api.StoreApi do
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api, :GET, path, query_params, header_params, request_body,
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
       ["application/json"],
       "application/json",
       "%{String.t() => integer()}",
@@ -160,7 +178,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
     * `order_id` - integer() - ID of order to return
-  
+
   ## Returns
 
     * `{:ok, Order}` on success.
@@ -203,13 +221,26 @@ defmodule PetstoreClient.Api.StoreApi do
     end
 
     path = "/store/order/{orderId}"
-    path = String.replace(path, "{orderId}", PetstoreClient.ValueSerializer.serialize_styled("orderId", order_id, :path, "integer()", nil, "simple", false) |> to_string())
+
+    path =
+      String.replace(
+        path,
+        "{orderId}",
+        PetstoreClient.ValueSerializer.serialize_styled("orderId", order_id, :path, "integer()", nil, "simple", false)
+        |> to_string()
+      )
+
     query_params = %{}
     header_params = %{}
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api, :GET, path, query_params, header_params, request_body,
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
       ["application/json"],
       "application/json",
       "Order",
@@ -222,7 +253,7 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
     * `order` - Order
-  
+
   ## Returns
 
     * `{:ok, Order}` on success.
@@ -260,12 +291,16 @@ defmodule PetstoreClient.Api.StoreApi do
     request_body = order
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(
-      api, :POST, path, query_params, header_params, request_body,
+      api,
+      :POST,
+      path,
+      query_params,
+      header_params,
+      request_body,
       ["application/json"],
       "application/json",
       "Order",
       nil
     )
   end
-
 end

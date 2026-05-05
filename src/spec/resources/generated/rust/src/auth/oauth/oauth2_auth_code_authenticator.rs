@@ -133,10 +133,7 @@ impl Authenticator for OAuth2AuthorizationCodeAuthenticator {
         {
             Ok(token) => {
                 let mut headers = HashMap::new();
-                headers.insert(
-                    "Authorization".to_string(),
-                    format!("Bearer {}", token),
-                );
+                headers.insert("Authorization".to_string(), format!("Bearer {}", token));
                 headers
             }
             Err(_) => HashMap::new(),

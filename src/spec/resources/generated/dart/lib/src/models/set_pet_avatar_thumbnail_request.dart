@@ -35,6 +35,7 @@ class SetPetAvatarThumbnailRequest {
     try {
       return SetPetAvatarThumbnailRequest._(List<int>.fromJson(json));
     } catch (_) {}
-    throw ArgumentError('Data does not match any oneOf schemas for SetPetAvatarThumbnailRequest');
+    throw ArgumentError(
+        'Data does not match any oneOf schemas for SetPetAvatarThumbnailRequest');
   }
 }

@@ -9,18 +9,17 @@ import Foundation
 
 /// WetFood is a model class generated from the OpenAPI schema.
 public struct WetFood: Codable, Sendable {
-    public var foodType: String
-    public var volumeMl: Int
+  public var foodType: String
+  public var volumeMl: Int
 
-    enum CodingKeys: String, CodingKey {
-        case foodType = "foodType"
-        case volumeMl = "volumeMl"
-    }
+  enum CodingKeys: String, CodingKey {
+    case foodType = "foodType"
+    case volumeMl = "volumeMl"
+  }
 
-    /// Creates a new WetFood instance.
-    public init(foodType: String, volumeMl: Int) {
-        self.foodType = foodType
-        self.volumeMl = volumeMl
-    }
+  /// Creates a new WetFood instance.
+  public init(foodType: String, volumeMl: Int) {
+    self.foodType = foodType
+    self.volumeMl = volumeMl
+  }
 }
-

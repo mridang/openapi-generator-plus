@@ -72,7 +72,8 @@ void main() {
             fail('Expected error for status $status');
           } on ApiError catch (e) {
             expect(e.runtimeType, equals(errType),
-                reason: 'Status $status should throw $errType, got ${e.runtimeType}');
+                reason:
+                    'Status $status should throw $errType, got ${e.runtimeType}');
           }
         } finally {
           await server.close();
@@ -88,7 +89,8 @@ void main() {
         request.response
           ..statusCode = 200
           ..headers.contentType = ContentType.json
-          ..write('{"id":1,"name":"Fido","photoUrls":["http://example.com/fido.jpg"]}')
+          ..write(
+              '{"id":1,"name":"Fido","photoUrls":["http://example.com/fido.jpg"]}')
           ..close();
       });
 

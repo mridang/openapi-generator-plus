@@ -43,8 +43,10 @@ class DefaultApiClient implements ApiClient {
   /// custom [http.Client] (e.g., an `IOClient` wrapping a configured
   /// `dart:io` `HttpClient`) for native-only features like custom CA
   /// certificates, proxy routing, or TLS verification bypass.
-  DefaultApiClient({TransportOptions? transportOptions, http.Client? httpClient})
-      : _transportOptions = transportOptions ?? TransportOptionsBuilder().build(),
+  DefaultApiClient(
+      {TransportOptions? transportOptions, http.Client? httpClient})
+      : _transportOptions =
+            transportOptions ?? TransportOptionsBuilder().build(),
         _httpClient = httpClient ?? http.Client();
 
   /// Returns the underlying HTTP client for use by HTTP-aware authenticators.
@@ -66,12 +68,14 @@ class DefaultApiClient implements ApiClient {
     merged.addAll(headers);
 
     // 3. User-Agent injection
-    if (!merged.containsKey('User-Agent') && _transportOptions.userAgent.isNotEmpty) {
+    if (!merged.containsKey('User-Agent') &&
+        _transportOptions.userAgent.isNotEmpty) {
       merged['User-Agent'] = _transportOptions.userAgent;
     }
 
     // 4. X-Request-ID injection
-    if (!merged.containsKey('X-Request-ID') && _transportOptions.injectRequestId) {
+    if (!merged.containsKey('X-Request-ID') &&
+        _transportOptions.injectRequestId) {
       merged['X-Request-ID'] = _generateUuid();
     }
 

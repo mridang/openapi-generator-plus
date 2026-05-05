@@ -52,10 +52,8 @@ void main() {
     test('builder chaining', () {
       final builder = TransportOptionsBuilder();
 
-      final result = builder
-          .verifySSL(true)
-          .userAgent('Test/1.0')
-          .timeout(10000);
+      final result =
+          builder.verifySSL(true).userAgent('Test/1.0').timeout(10000);
 
       expect(result, isNotNull);
 
@@ -65,12 +63,10 @@ void main() {
     });
 
     test('multiple default headers', () {
-      final opts = TransportOptionsBuilder()
-          .defaultHeaders({
-            'X-First': 'one',
-            'X-Second': 'two',
-          })
-          .build();
+      final opts = TransportOptionsBuilder().defaultHeaders({
+        'X-First': 'one',
+        'X-Second': 'two',
+      }).build();
 
       final headers = opts.defaultHeaders;
       expect(headers['X-First'], equals('one'));
@@ -78,9 +74,8 @@ void main() {
     });
 
     test('default headers copy isolation', () {
-      final opts = TransportOptionsBuilder()
-          .defaultHeader('X-Test', 'value')
-          .build();
+      final opts =
+          TransportOptionsBuilder().defaultHeader('X-Test', 'value').build();
 
       final headers = opts.defaultHeaders;
       headers['X-Mutated'] = 'should-not-affect-options';

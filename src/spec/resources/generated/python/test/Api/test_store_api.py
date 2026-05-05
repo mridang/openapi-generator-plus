@@ -13,10 +13,9 @@ class TestStoreApi:
 
     @pytest.fixture(autouse=True)
     def setup(self, api_base_url: Any) -> None:
-        config = Configuration.builder() \
-            .base_url(api_base_url) \
-            .default_header('Authorization', 'Bearer test-token') \
-            .build()
+        config = (
+            Configuration.builder().base_url(api_base_url).default_header('Authorization', 'Bearer test-token').build()
+        )
         self.api = StoreApi(config=config)
 
     async def test_get_inventory(self) -> None:
@@ -31,7 +30,7 @@ class TestStoreApi:
             quantity=1,
             shipDate=datetime.now(timezone.utc),
             status=OrderStatusEnum.PLACED,
-            complete=False
+            complete=False,
         )
 
         result = await self.api.place_order(order)

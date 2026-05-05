@@ -1,41 +1,34 @@
 package com.example.petstore.api.options;
 
-import java.io.File;
-import java.io.InputStream;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.Map;
 import javax.annotation.Nullable;
 
-/**
- * Options for the findPetsByStatus operation.
- */
+/** Options for the findPetsByStatus operation. */
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
 public final class FindPetsByStatusOptions {
-    @Nullable private String status;
-    @Nullable private Map<String, String> filter;
+  @Nullable private String status;
+  @Nullable private Map<String, String> filter;
 
-    public FindPetsByStatusOptions() {
-    }
+  public FindPetsByStatusOptions() {}
 
-    public FindPetsByStatusOptions status(String status) {
-        this.status = status;
-        return this;
-    }
+  public FindPetsByStatusOptions status(String status) {
+    this.status = status;
+    return this;
+  }
 
-    @Nullable
-    public String status() {
-        return status;
-    }
+  @Nullable
+  public String status() {
+    return status;
+  }
 
-    public FindPetsByStatusOptions filter(Map<String, String> filter) {
-        this.filter = filter;
-        return this;
-    }
+  public FindPetsByStatusOptions filter(Map<String, String> filter) {
+    this.filter = filter;
+    return this;
+  }
 
-    @Nullable
-    public Map<String, String> filter() {
-        return filter;
-    }
+  @Nullable
+  public Map<String, String> filter() {
+    return filter;
+  }
 }

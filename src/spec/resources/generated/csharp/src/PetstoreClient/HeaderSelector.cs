@@ -127,9 +127,7 @@ public static partial class HeaderSelector
         }
         if (withJson.Count > 0)
         {
-            acceptHeaders.AddRange(
-                AdjustWeight(withJson, ref currentWeight, hasMoreThan28Headers)
-            );
+            acceptHeaders.AddRange(AdjustWeight(withJson, ref currentWeight, hasMoreThan28Headers));
         }
         if (withoutJson.Count > 0)
         {
@@ -188,7 +186,9 @@ public static partial class HeaderSelector
         }
 
         string cleanHeader = TrailingSemicolonPattern().Replace(header, "");
-        string weightStr = (weight / 1000.0).ToString("F3", CultureInfo.InvariantCulture).TrimEnd('0');
+        string weightStr = (weight / 1000.0)
+            .ToString("F3", CultureInfo.InvariantCulture)
+            .TrimEnd('0');
         if (weightStr.EndsWith('.'))
         {
             weightStr = weightStr[..^1];
@@ -220,10 +220,8 @@ public static partial class HeaderSelector
     /// </remarks>
     public static int GetNextWeight(int currentWeight, bool hasMoreThan28Headers)
     {
-        return currentWeight <= 1
-            ? 1
-            : hasMoreThan28Headers
-                ? currentWeight - 1
-                : currentWeight - (int)Math.Pow(10, Math.Floor(Math.Log10(currentWeight - 1)));
+        return currentWeight <= 1 ? 1
+            : hasMoreThan28Headers ? currentWeight - 1
+            : currentWeight - (int)Math.Pow(10, Math.Floor(Math.Log10(currentWeight - 1)));
     }
 }

@@ -167,4 +167,3 @@ class ValueSerializer:
         for key, val in value.items():
             result[f'{param_name}[{key}]'] = ObjectSerializer.stringify(val)
         return result
-

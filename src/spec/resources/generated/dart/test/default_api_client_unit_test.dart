@@ -24,9 +24,8 @@ void main() {
       });
 
       try {
-        final transport = TransportOptionsBuilder()
-            .userAgent('TestAgent/1.0')
-            .build();
+        final transport =
+            TransportOptionsBuilder().userAgent('TestAgent/1.0').build();
         final client = DefaultApiClient(transportOptions: transport);
 
         await client.sendRequest(
@@ -77,9 +76,8 @@ void main() {
       });
 
       try {
-        final transport = TransportOptionsBuilder()
-            .injectRequestId(true)
-            .build();
+        final transport =
+            TransportOptionsBuilder().injectRequestId(true).build();
         final client = DefaultApiClient(transportOptions: transport);
 
         await client.sendRequest(
@@ -106,9 +104,8 @@ void main() {
       });
 
       try {
-        final transport = TransportOptionsBuilder()
-            .injectRequestId(false)
-            .build();
+        final transport =
+            TransportOptionsBuilder().injectRequestId(false).build();
         final client = DefaultApiClient(transportOptions: transport);
 
         await client.sendRequest(
@@ -134,9 +131,8 @@ void main() {
       });
 
       try {
-        final transport = TransportOptionsBuilder()
-            .injectRequestId(true)
-            .build();
+        final transport =
+            TransportOptionsBuilder().injectRequestId(true).build();
         final client = DefaultApiClient(transportOptions: transport);
 
         await client.sendRequest(

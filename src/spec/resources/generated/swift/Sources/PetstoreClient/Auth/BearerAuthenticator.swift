@@ -9,23 +9,23 @@ import Foundation
 
 /// BearerAuthenticator provides HTTP Bearer token authentication.
 public final class BearerAuthenticator: BaseAuthenticator, @unchecked Sendable {
-    private let _host: String
-    private let token: String
+  private let _host: String
+  private let token: String
 
-    /// Creates a new Bearer authenticator.
-    public init(host: String, token: String) {
-        self._host = host
-        self.token = token
-        super.init()
-    }
+  /// Creates a new Bearer authenticator.
+  public init(host: String, token: String) {
+    self._host = host
+    self.token = token
+    super.init()
+  }
 
-    /// Returns the API base URL.
-    override public func host() -> String {
-        return _host
-    }
+  /// Returns the API base URL.
+  override public func host() -> String {
+    return _host
+  }
 
-    /// Returns the Bearer authentication header.
-    override public func authHeaders() -> [String: String] {
-        return ["Authorization": "Bearer \(token)"]
-    }
+  /// Returns the Bearer authentication header.
+  override public func authHeaders() -> [String: String] {
+    return ["Authorization": "Bearer \(token)"]
+  }
 }

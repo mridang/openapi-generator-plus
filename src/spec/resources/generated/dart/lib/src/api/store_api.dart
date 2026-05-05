@@ -24,18 +24,26 @@ class StoreApi extends BaseApi {
   }) : super(apiClient: apiClient, config: config);
 
   /// Delete purchase order by ID
-  Future<void> deleteOrder(int orderId, ) async {
-    final result = await deleteOrderWithHTTPInfo(orderId, );
+  Future<void> deleteOrder(
+    int orderId,
+  ) async {
+    final result = await deleteOrderWithHTTPInfo(
+      orderId,
+    );
   }
 
   /// Performs the deleteOrder operation and returns the full API result.
-  Future<ApiResult<void>> deleteOrderWithHTTPInfo(int orderId, ) async {
+  Future<ApiResult<void>> deleteOrderWithHTTPInfo(
+    int orderId,
+  ) async {
     if (orderId == null) {
-      throw ArgumentError("Missing required parameter 'orderId' when calling StoreApi.deleteOrder");
+      throw ArgumentError(
+          "Missing required parameter 'orderId' when calling StoreApi.deleteOrder");
     }
 
     var path = '/store/order/{orderId}';
-    path = path.replaceAll('orderId', '${serializeStyled('orderId', orderId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll('orderId',
+        '${serializeStyled('orderId', orderId, 'path', 'int', '', 'simple', false)}');
 
     final queryParams = <String, Object?>{};
 
@@ -64,7 +72,6 @@ class StoreApi extends BaseApi {
 
   /// Performs the getInventory operation and returns the full API result.
   Future<ApiResult<Map<String, int>>> getInventoryWithHTTPInfo() async {
-
     var path = '/store/inventory';
 
     final queryParams = <String, Object?>{};
@@ -88,19 +95,27 @@ class StoreApi extends BaseApi {
   }
 
   /// Find purchase order by ID
-  Future<Order> getOrderById(int orderId, ) async {
-    final result = await getOrderByIdWithHTTPInfo(orderId, );
+  Future<Order> getOrderById(
+    int orderId,
+  ) async {
+    final result = await getOrderByIdWithHTTPInfo(
+      orderId,
+    );
     return result.data;
   }
 
   /// Performs the getOrderById operation and returns the full API result.
-  Future<ApiResult<Order>> getOrderByIdWithHTTPInfo(int orderId, ) async {
+  Future<ApiResult<Order>> getOrderByIdWithHTTPInfo(
+    int orderId,
+  ) async {
     if (orderId == null) {
-      throw ArgumentError("Missing required parameter 'orderId' when calling StoreApi.getOrderById");
+      throw ArgumentError(
+          "Missing required parameter 'orderId' when calling StoreApi.getOrderById");
     }
 
     var path = '/store/order/{orderId}';
-    path = path.replaceAll('orderId', '${serializeStyled('orderId', orderId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll('orderId',
+        '${serializeStyled('orderId', orderId, 'path', 'int', '', 'simple', false)}');
 
     final queryParams = <String, Object?>{};
 
@@ -123,14 +138,19 @@ class StoreApi extends BaseApi {
   }
 
   /// Place an order for a pet
-  Future<Order> placeOrder(Order? order, ) async {
-    final result = await placeOrderWithHTTPInfo(order, );
+  Future<Order> placeOrder(
+    Order? order,
+  ) async {
+    final result = await placeOrderWithHTTPInfo(
+      order,
+    );
     return result.data;
   }
 
   /// Performs the placeOrder operation and returns the full API result.
-  Future<ApiResult<Order>> placeOrderWithHTTPInfo(Order? order, ) async {
-
+  Future<ApiResult<Order>> placeOrderWithHTTPInfo(
+    Order? order,
+  ) async {
     var path = '/store/order';
 
     final queryParams = <String, Object?>{};

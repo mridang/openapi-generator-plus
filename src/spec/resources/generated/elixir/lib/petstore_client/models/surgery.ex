@@ -48,5 +48,4 @@ defmodule PetstoreClient.Models.Surgery do
       duration_minutes: "integer()"
     }
   end
-
 end

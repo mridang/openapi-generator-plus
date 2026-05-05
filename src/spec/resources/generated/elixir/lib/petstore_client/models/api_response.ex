@@ -51,5 +51,4 @@ defmodule PetstoreClient.Models.ApiResponse do
       message: "String.t()"
     }
   end
-
 end

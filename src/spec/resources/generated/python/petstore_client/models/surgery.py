@@ -30,5 +30,4 @@ class Surgery(BaseModel):
     )
 
 
-
 Surgery.model_rebuild(raise_errors=False)

@@ -30,5 +30,4 @@ class WetFood(BaseModel):
     )
 
 
-
 WetFood.model_rebuild(raise_errors=False)

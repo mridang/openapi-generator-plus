@@ -41,11 +41,20 @@ public class BaseApiTest
             object? body,
             string[] accepts,
             string contentType,
-            IAuthenticator? auth = null)
+            IAuthenticator? auth = null
+        )
         {
             return await InvokeApiAsync<T>(
-                method, path, queryParams, headerParams, body,
-                accepts, contentType, typeof(T), auth);
+                method,
+                path,
+                queryParams,
+                headerParams,
+                body,
+                accepts,
+                contentType,
+                typeof(T),
+                auth
+            );
         }
     }
 
@@ -54,13 +63,20 @@ public class BaseApiTest
         public Uri? CapturedUrl { get; private set; }
 
         public Task<ApiResponse> SendRequestAsync(
-            string method, Uri url, Dictionary<string, string> headers, object? body)
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
         {
             CapturedUrl = url;
-            return Task.FromResult(new ApiResponse(200, "{}", new Dictionary<string, string>
-            {
-                { "Content-Type", "application/json" }
-            }));
+            return Task.FromResult(
+                new ApiResponse(
+                    200,
+                    "{}",
+                    new Dictionary<string, string> { { "Content-Type", "application/json" } }
+                )
+            );
         }
     }
 
@@ -73,7 +89,8 @@ public class BaseApiTest
         public TestAuthenticator(
             Dictionary<string, string>? headers = null,
             Dictionary<string, string>? queryParams = null,
-            Dictionary<string, string>? cookies = null)
+            Dictionary<string, string>? cookies = null
+        )
         {
             _headers = headers ?? [];
             _queryParams = queryParams ?? [];
@@ -81,25 +98,29 @@ public class BaseApiTest
         }
 
         public string GetHost() => "";
+
         public Dictionary<string, string> GetAuthHeaders() => _headers;
+
         public Dictionary<string, string> GetQueryParams() => _queryParams;
+
         public Dictionary<string, string> GetCookieParams() => _cookies;
     }
 
     private TestableApi Api() => new(_fixture.WireMockHttpUrl);
 
-    public static TheoryData<int, Type> StatusToException => new()
-    {
-        { 400, typeof(BadRequestException) },
-        { 401, typeof(UnauthorizedException) },
-        { 403, typeof(ForbiddenException) },
-        { 404, typeof(NotFoundException) },
-        { 409, typeof(ConflictException) },
-        { 422, typeof(UnprocessableEntityException) },
-        { 418, typeof(ClientException) },
-        { 500, typeof(InternalServerErrorException) },
-        { 502, typeof(ServerException) },
-    };
+    public static TheoryData<int, Type> StatusToException =>
+        new()
+        {
+            { 400, typeof(BadRequestException) },
+            { 401, typeof(UnauthorizedException) },
+            { 403, typeof(ForbiddenException) },
+            { 404, typeof(NotFoundException) },
+            { 409, typeof(ConflictException) },
+            { 422, typeof(UnprocessableEntityException) },
+            { 418, typeof(ClientException) },
+            { 500, typeof(InternalServerErrorException) },
+            { 502, typeof(ServerException) },
+        };
 
     [Theory]
     [MemberData(nameof(StatusToException))]
@@ -107,11 +128,16 @@ public class BaseApiTest
     {
         try
         {
-            await Api().CallAsync<object>(
-                "GET", $"/api/error/{status}",
-                new Dictionary<string, object?>(),
-                new Dictionary<string, string>(),
-                null, ["application/json"], "application/json");
+            await Api()
+                .CallAsync<object>(
+                    "GET",
+                    $"/api/error/{status}",
+                    new Dictionary<string, object?>(),
+                    new Dictionary<string, string>(),
+                    null,
+                    ["application/json"],
+                    "application/json"
+                );
             Assert.Fail("Expected exception not thrown");
         }
         catch (ApiException ex)
@@ -129,11 +155,18 @@ public class BaseApiTest
     public async Task NotFoundHierarchy()
     {
         var ex = await Assert.ThrowsAsync<NotFoundException>(
-            () => Api().CallAsync<object>(
-                "GET", "/api/error/404",
-                new Dictionary<string, object?>(),
-                new Dictionary<string, string>(),
-                null, ["application/json"], "application/json"));
+            () =>
+                Api()
+                    .CallAsync<object>(
+                        "GET",
+                        "/api/error/404",
+                        new Dictionary<string, object?>(),
+                        new Dictionary<string, string>(),
+                        null,
+                        ["application/json"],
+                        "application/json"
+                    )
+        );
         Assert.IsType<ClientException>(ex, exactMatch: false);
         Assert.IsType<ApiException>(ex, exactMatch: false);
     }
@@ -142,11 +175,18 @@ public class BaseApiTest
     public async Task InternalServerErrorHierarchy()
     {
         var ex = await Assert.ThrowsAsync<InternalServerErrorException>(
-            () => Api().CallAsync<object>(
-                "GET", "/api/error/500",
-                new Dictionary<string, object?>(),
-                new Dictionary<string, string>(),
-                null, ["application/json"], "application/json"));
+            () =>
+                Api()
+                    .CallAsync<object>(
+                        "GET",
+                        "/api/error/500",
+                        new Dictionary<string, object?>(),
+                        new Dictionary<string, string>(),
+                        null,
+                        ["application/json"],
+                        "application/json"
+                    )
+        );
         Assert.IsType<ServerException>(ex, exactMatch: false);
         Assert.IsType<ApiException>(ex, exactMatch: false);
     }
@@ -154,11 +194,16 @@ public class BaseApiTest
     [Fact]
     public async Task DeserializesJsonResponse()
     {
-        var result = await Api().CallAsync<JsonNode>(
-            "GET", "/api/test",
-            new Dictionary<string, object?>(),
-            new Dictionary<string, string>(),
-            null, ["application/json"], "application/json");
+        var result = await Api()
+            .CallAsync<JsonNode>(
+                "GET",
+                "/api/test",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json"
+            );
         Assert.NotNull(result);
         Assert.Equal("success", result!["message"]?.GetValue<string>());
     }
@@ -166,11 +211,16 @@ public class BaseApiTest
     [Fact]
     public async Task ReturnsRawStringForNonJson()
     {
-        var result = await Api().CallAsync<string>(
-            "GET", "/api/text",
-            new Dictionary<string, object?>(),
-            new Dictionary<string, string>(),
-            null, ["text/plain"], "application/json");
+        var result = await Api()
+            .CallAsync<string>(
+                "GET",
+                "/api/text",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["text/plain"],
+                "application/json"
+            );
         Assert.NotNull(result);
         Assert.Contains("hello plain text", result);
     }
@@ -178,23 +228,35 @@ public class BaseApiTest
     [Fact]
     public async Task AppendsQueryParams()
     {
-        await Api().CallAsync<object>(
-            "GET", "/api/test",
-            new Dictionary<string, object?> { { "foo", "bar" } },
-            new Dictionary<string, string>(),
-            null, ["application/json"], "application/json");
+        await Api()
+            .CallAsync<object>(
+                "GET",
+                "/api/test",
+                new Dictionary<string, object?> { { "foo", "bar" } },
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json"
+            );
     }
 
     [Fact]
     public async Task ForwardsAuthHeaders()
     {
         var auth = new TestAuthenticator(
-            headers: new Dictionary<string, string> { { "X-Custom", "auth-value" } });
-        var result = await Api().CallAsync<JsonNode>(
-            "GET", "/api/echo-headers",
-            new Dictionary<string, object?>(),
-            new Dictionary<string, string>(),
-            null, ["application/json"], "application/json", auth);
+            headers: new Dictionary<string, string> { { "X-Custom", "auth-value" } }
+        );
+        var result = await Api()
+            .CallAsync<JsonNode>(
+                "GET",
+                "/api/echo-headers",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json",
+                auth
+            );
         Assert.NotNull(result);
         Assert.Equal("auth-value", result!["x-custom"]?.GetValue<string>());
     }
@@ -203,23 +265,34 @@ public class BaseApiTest
     public async Task SetsCookieHeader()
     {
         var auth = new TestAuthenticator(
-            cookies: new Dictionary<string, string> { { "session", "abc123" } });
-        await Api().CallAsync<object>(
-            "GET", "/api/test",
-            new Dictionary<string, object?>(),
-            new Dictionary<string, string>(),
-            null, ["application/json"], "application/json", auth);
+            cookies: new Dictionary<string, string> { { "session", "abc123" } }
+        );
+        await Api()
+            .CallAsync<object>(
+                "GET",
+                "/api/test",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json",
+                auth
+            );
     }
 
     [Fact]
     public async Task SerializesJsonBody()
     {
-        var result = await Api().CallAsync<JsonNode>(
-            "POST", "/api/echo-body",
-            new Dictionary<string, object?>(),
-            new Dictionary<string, string>(),
-            new Dictionary<string, string> { { "key", "value" } },
-            ["application/json"], "application/json");
+        var result = await Api()
+            .CallAsync<JsonNode>(
+                "POST",
+                "/api/echo-body",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                new Dictionary<string, string> { { "key", "value" } },
+                ["application/json"],
+                "application/json"
+            );
         Assert.NotNull(result);
         Assert.Equal("value", result!["key"]?.GetValue<string>());
     }
@@ -227,21 +300,31 @@ public class BaseApiTest
     [Fact]
     public async Task SendsNoBodyWhenNull()
     {
-        await Api().CallAsync<object>(
-            "GET", "/api/test",
-            new Dictionary<string, object?>(),
-            new Dictionary<string, string>(),
-            null, ["application/json"], "application/json");
+        await Api()
+            .CallAsync<object>(
+                "GET",
+                "/api/test",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json"
+            );
     }
 
     [Fact]
     public async Task IncludesEmptyValueParamInQueryString()
     {
-        await Api().CallAsync<object>(
-            "GET", "/api/test",
-            new Dictionary<string, object?> { { "filter", "" } },
-            new Dictionary<string, string>(),
-            null, ["application/json"], "application/json");
+        await Api()
+            .CallAsync<object>(
+                "GET",
+                "/api/test",
+                new Dictionary<string, object?> { { "filter", "" } },
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json"
+            );
     }
 
     [Fact]
@@ -250,10 +333,20 @@ public class BaseApiTest
         var client = new CapturingApiClient();
         var testApi = new TestableApi(client, "http://localhost");
         await testApi.CallAsync<object>(
-            "GET", "/api/test",
-            new Dictionary<string, object?> { { "tags", new List<string> { "a", "b" } } },
+            "GET",
+            "/api/test",
+            new Dictionary<string, object?>
+            {
+                {
+                    "tags",
+                    new List<string> { "a", "b" }
+                },
+            },
             new Dictionary<string, string>(),
-            null, ["application/json"], "application/json");
+            null,
+            ["application/json"],
+            "application/json"
+        );
         Assert.Contains("tags=a&tags=b", client.CapturedUrl!.ToString());
     }
 
@@ -263,10 +356,14 @@ public class BaseApiTest
         var client = new CapturingApiClient();
         var testApi = new TestableApi(client, "http://localhost");
         await testApi.CallAsync<object>(
-            "GET", "/api/test",
+            "GET",
+            "/api/test",
             new Dictionary<string, object?> { { "active", true } },
             new Dictionary<string, string>(),
-            null, ["application/json"], "application/json");
+            null,
+            ["application/json"],
+            "application/json"
+        );
         Assert.Contains("active=true", client.CapturedUrl!.ToString());
     }
 
@@ -276,10 +373,14 @@ public class BaseApiTest
         var client = new CapturingApiClient();
         var testApi = new TestableApi(client, "http://localhost");
         await testApi.CallAsync<object>(
-            "GET", "/api/test",
+            "GET",
+            "/api/test",
             new Dictionary<string, object?> { { "limit", 10 } },
             new Dictionary<string, string>(),
-            null, ["application/json"], "application/json");
+            null,
+            ["application/json"],
+            "application/json"
+        );
         Assert.Contains("limit=10", client.CapturedUrl!.ToString());
         Assert.DoesNotContain("limit=10.0", client.CapturedUrl!.ToString());
     }
@@ -290,18 +391,26 @@ public class BaseApiTest
         var client = new CapturingApiClient();
         var testApi = new TestableApi(client, "http://localhost");
         await testApi.CallAsync<object>(
-            "GET", "/api/test",
+            "GET",
+            "/api/test",
             new Dictionary<string, object?>(),
             new Dictionary<string, string>(),
-            null, ["application/json"], "application/json");
+            null,
+            ["application/json"],
+            "application/json"
+        );
         Assert.DoesNotContain("?", client.CapturedUrl!.ToString());
     }
 
     [Fact]
     public void ServerVariableOverridesResolveInBaseUrl()
     {
-        var config = Configuration.Builder()
-            .Server(Servers.Server1, new Dictionary<string, string> { { "environment", "staging" } })
+        var config = Configuration
+            .Builder()
+            .Server(
+                Servers.Server1,
+                new Dictionary<string, string> { { "environment", "staging" } }
+            )
             .Build();
         Assert.Equal("https://staging.example.com/api/v3", config.BaseUrl);
     }
@@ -309,26 +418,34 @@ public class BaseApiTest
     [Fact]
     public void DefaultServerVariablesProduceCorrectBaseUrl()
     {
-        var config = Configuration.Builder()
-            .Server(Servers.Server1)
-            .Build();
+        var config = Configuration.Builder().Server(Servers.Server1).Build();
         Assert.Equal("https://api.example.com/api/v3", config.BaseUrl);
     }
 
     [Fact]
     public void InvalidEnumValueThrowsError()
     {
-        Assert.Throws<ArgumentException>(() =>
-            Configuration.Builder()
-                .Server(Servers.Server1, new Dictionary<string, string> { { "environment", "invalid" } })
-                .Build());
+        Assert.Throws<ArgumentException>(
+            () =>
+                Configuration
+                    .Builder()
+                    .Server(
+                        Servers.Server1,
+                        new Dictionary<string, string> { { "environment", "invalid" } }
+                    )
+                    .Build()
+        );
     }
 
     [Fact]
     public void ApiRequestUsesResolvedServerUrl()
     {
-        var config = Configuration.Builder()
-            .Server(Servers.Server1, new Dictionary<string, string> { { "environment", "staging" } })
+        var config = Configuration
+            .Builder()
+            .Server(
+                Servers.Server1,
+                new Dictionary<string, string> { { "environment", "staging" } }
+            )
             .Build();
         Assert.Equal("https://staging.example.com/api/v3", config.BaseUrl);
     }

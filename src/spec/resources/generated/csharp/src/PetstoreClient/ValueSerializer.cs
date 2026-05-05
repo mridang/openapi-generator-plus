@@ -51,9 +51,18 @@ public static class ValueSerializer
                 return collectionFormat switch
                 {
                     "multi" => list.Cast<object>().Select(ObjectSerializer.Stringify).ToList(),
-                    "ssv" => string.Join(" ", list.Cast<object>().Select(ObjectSerializer.Stringify)),
-                    "tsv" => string.Join("\t", list.Cast<object>().Select(ObjectSerializer.Stringify)),
-                    "pipes" => string.Join("|", list.Cast<object>().Select(ObjectSerializer.Stringify)),
+                    "ssv" => string.Join(
+                        " ",
+                        list.Cast<object>().Select(ObjectSerializer.Stringify)
+                    ),
+                    "tsv" => string.Join(
+                        "\t",
+                        list.Cast<object>().Select(ObjectSerializer.Stringify)
+                    ),
+                    "pipes" => string.Join(
+                        "|",
+                        list.Cast<object>().Select(ObjectSerializer.Stringify)
+                    ),
                     _ => string.Join(",", list.Cast<object>().Select(ObjectSerializer.Stringify)),
                 };
             }
@@ -121,18 +130,14 @@ public static class ValueSerializer
             case "label":
                 if (items != null)
                 {
-                    return explode
-                        ? "." + string.Join(".", items)
-                        : "." + string.Join(",", items);
+                    return explode ? "." + string.Join(".", items) : "." + string.Join(",", items);
                 }
                 return "." + ObjectSerializer.Stringify(value);
 
             case "form":
                 if (items != null)
                 {
-                    return explode
-                        ? items
-                        : string.Join(",", items);
+                    return explode ? items : string.Join(",", items);
                 }
                 return ObjectSerializer.Stringify(value);
 
@@ -178,5 +183,4 @@ public static class ValueSerializer
 
         return result;
     }
-
 }

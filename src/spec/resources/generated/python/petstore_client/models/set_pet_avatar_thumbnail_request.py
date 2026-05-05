@@ -67,5 +67,4 @@ class SetPetAvatarThumbnailRequest(BaseModel):
             return v
 
 
-
 SetPetAvatarThumbnailRequest.model_rebuild(raise_errors=False)

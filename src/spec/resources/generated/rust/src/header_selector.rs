@@ -147,9 +147,8 @@ impl HeaderSelector {
     }
 
     fn get_header_and_weight(&self, header: &str) -> HeaderData {
-        let weight_pattern = WEIGHT_RE.get_or_init(|| {
-            Regex::new(r"(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$").unwrap()
-        });
+        let weight_pattern =
+            WEIGHT_RE.get_or_init(|| Regex::new(r"(.*)\s*;\s*q=(1(?:\.0+)?|0\.\d+)$").unwrap());
         if let Some(caps) = weight_pattern.captures(header) {
             let weight: f64 = caps[2].parse().unwrap_or(1.0);
             HeaderData {
@@ -176,8 +175,7 @@ impl HeaderSelector {
         let mut accept_headers: Vec<String> = Vec::new();
         for i in 0..headers.len() {
             if i > 0 && headers[i - 1].weight > headers[i].weight {
-                *current_weight =
-                    self.get_next_weight(*current_weight, has_more_than_28_headers);
+                *current_weight = self.get_next_weight(*current_weight, has_more_than_28_headers);
             }
 
             accept_headers.push(self.build_accept_header(&headers[i].header, *current_weight));
@@ -210,9 +208,7 @@ impl HeaderSelector {
             return current_weight - 1;
         }
 
-        let step = 10_f64
-            .powf(((current_weight - 1) as f64).log10().floor())
-            as i32;
+        let step = 10_f64.powf(((current_weight - 1) as f64).log10().floor()) as i32;
         current_weight - step
     }
 }

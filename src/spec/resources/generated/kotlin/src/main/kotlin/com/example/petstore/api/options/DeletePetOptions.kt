@@ -1,15 +1,14 @@
 package com.example.petstore.api.options
 
-
 /**
  * Options for the deletePet operation.
  */
-class DeletePetOptions() {
+class DeletePetOptions {
     var apiKey: String? = null
         private set
 
-    fun apiKey(apiKey: String): DeletePetOptions = apply {
-        this.apiKey = apiKey
-    }
-
+    fun apiKey(apiKey: String): DeletePetOptions =
+        apply {
+            this.apiKey = apiKey
+        }
 }

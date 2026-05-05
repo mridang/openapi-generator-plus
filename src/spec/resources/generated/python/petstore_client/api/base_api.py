@@ -166,7 +166,11 @@ class BaseApi:
                 if k.lower() == 'content-type':
                     resp_content_type = v.split(';')[0].strip()
                     break
-            if resp_content_type and not resp_content_type.startswith('application/json') and '+json' not in resp_content_type:
+            if (
+                resp_content_type
+                and not resp_content_type.startswith('application/json')
+                and '+json' not in resp_content_type
+            ):
                 data = response.body
             else:
                 data = self._object_serializer.deserialize(response.body, return_type)
@@ -246,20 +250,40 @@ class BaseApi:
 
         if 400 <= code < 500:
             if code == 400:
-                raise BadRequestException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise BadRequestException(
+                    message=message, response_body=body, response_headers=headers, error_body=error_body
+                )
             if code == 401:
-                raise UnauthorizedException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise UnauthorizedException(
+                    message=message, response_body=body, response_headers=headers, error_body=error_body
+                )
             if code == 403:
-                raise ForbiddenException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise ForbiddenException(
+                    message=message, response_body=body, response_headers=headers, error_body=error_body
+                )
             if code == 404:
-                raise NotFoundException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise NotFoundException(
+                    message=message, response_body=body, response_headers=headers, error_body=error_body
+                )
             if code == 409:
-                raise ConflictException(message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise ConflictException(
+                    message=message, response_body=body, response_headers=headers, error_body=error_body
+                )
             if code == 422:
-                raise UnprocessableEntityException(message=message, response_body=body, response_headers=headers, error_body=error_body)
-            raise ClientException(status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise UnprocessableEntityException(
+                    message=message, response_body=body, response_headers=headers, error_body=error_body
+                )
+            raise ClientException(
+                status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body
+            )
         if code >= 500:
             if code == 500:
-                raise InternalServerErrorException(message=message, response_body=body, response_headers=headers, error_body=error_body)
-            raise ServerException(status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body)
-        raise ApiException(status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body)
+                raise InternalServerErrorException(
+                    message=message, response_body=body, response_headers=headers, error_body=error_body
+                )
+            raise ServerException(
+                status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body
+            )
+        raise ApiException(
+            status_code=code, message=message, response_body=body, response_headers=headers, error_body=error_body
+        )

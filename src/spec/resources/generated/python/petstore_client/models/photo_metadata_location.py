@@ -30,5 +30,4 @@ class PhotoMetadataLocation(BaseModel):
     )
 
 
-
 PhotoMetadataLocation.model_rebuild(raise_errors=False)
