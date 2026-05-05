@@ -66,14 +66,11 @@ defmodule PetstoreClient.Client do
       end
 
     config =
-      PetstoreClient.Configuration.new(
-        base_url: authenticator.__struct__.host(authenticator),
-        default_headers: authenticator.__struct__.auth_headers(authenticator)
-      )
+      PetstoreClient.Configuration.new(base_url: authenticator.__struct__.host(authenticator))
 
     %__MODULE__{
-      pet: PetstoreClient.Api.PetApi.new(api_client, config),
-      store: PetstoreClient.Api.StoreApi.new(api_client, config)
+      pet: PetstoreClient.Api.PetApi.new(api_client, config, authenticator),
+      store: PetstoreClient.Api.StoreApi.new(api_client, config, authenticator)
     }
   end
 

@@ -52,7 +52,7 @@ func (m *OAuth2TokenManager) GetAccessToken(tokenURL string, params map[string]s
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.accessToken != "" && !m.tokenExpiry.IsZero() && time.Now().Before(m.tokenExpiry) {
+	if m.accessToken != "" && (m.tokenExpiry.IsZero() || time.Now().Before(m.tokenExpiry)) {
 		return m.accessToken, nil
 	}
 

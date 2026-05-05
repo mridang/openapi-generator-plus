@@ -99,8 +99,10 @@ module PetstoreClient
         def auth_headers
           raise 'Must call exchange_code before making API requests' unless @token_exchanged
 
-          params = { 'grant_type' => 'refresh_token' }
-          params['refresh_token'] = @token_manager.refresh_token if @token_manager.refresh_token
+          params = {
+            'grant_type' => 'refresh_token',
+            'refresh_token' => @token_manager.refresh_token.to_s
+          }
           token = @token_manager.get_access_token(@refresh_url, params)
           { 'Authorization' => "Bearer #{token}" }
         end

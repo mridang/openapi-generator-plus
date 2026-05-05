@@ -21,7 +21,9 @@ class StoreApi extends BaseApi {
   StoreApi({
     ApiClient? apiClient,
     Configuration? config,
-  }) : super(apiClient: apiClient, config: config);
+    Authenticator? authenticator,
+  }) : super(
+            apiClient: apiClient, config: config, authenticator: authenticator);
 
   /// Delete purchase order by ID
   Future<void> deleteOrder(

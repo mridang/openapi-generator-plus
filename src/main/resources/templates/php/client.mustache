@@ -68,12 +68,11 @@ class {{clientClassName}}
 
         $config = Configuration::builder()
             ->baseUrl($authenticator->getHost())
-            ->defaultHeaders($authenticator->getAuthHeaders())
             ->build();
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-        $this->{{clientPropertyName}} = new {{classname}}($apiClient, $config);
+        $this->{{clientPropertyName}} = new {{classname}}($apiClient, $config, $authenticator);
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}

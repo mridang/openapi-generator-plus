@@ -52,14 +52,13 @@ func New{{clientClassName}}(authenticator Authenticator, transportOptions *Trans
 
 	config := NewConfigurationBuilder().
 		BaseURL(authenticator.Host()).
-		DefaultHeaders(authenticator.AuthHeaders()).
 		Build()
 
 	return &{{clientClassName}}{
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-		{{classname}}: New{{classname}}(apiClient, config),
+		{{classname}}: New{{classname}}(apiClient, config, authenticator),
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}

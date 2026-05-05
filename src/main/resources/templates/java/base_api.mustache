@@ -52,6 +52,10 @@ public abstract class BaseApi {
     /** Content negotiation logic for Accept and Content-Type headers. */
     protected final HeaderSelector headerSelector;
 
+    /** Default authenticator used when no per-operation auth is provided. */
+    @Nullable
+    protected final Authenticator authenticator;
+
     /**
      * Create an API instance with the default configuration and default transport.
      */
@@ -75,10 +79,22 @@ public abstract class BaseApi {
      * @param config    API-level configuration (base URL and default headers)
      */
     public BaseApi(ApiClient apiClient, Configuration config) {
+        this(apiClient, config, null);
+    }
+
+    /**
+     * Create an API instance with a custom API client, configuration, and authenticator.
+     *
+     * @param apiClient     the HTTP transport client
+     * @param config        API-level configuration (base URL and default headers)
+     * @param authenticator default authenticator for operations without explicit auth
+     */
+    public BaseApi(ApiClient apiClient, Configuration config, @Nullable Authenticator authenticator) {
         this.apiClient        = apiClient;
         this.config           = config;
         this.objectSerializer = new ObjectSerializer();
         this.headerSelector   = new HeaderSelector();
+        this.authenticator    = authenticator;
     }
 
     /**
@@ -126,8 +142,9 @@ public abstract class BaseApi {
             url = config.getBaseUrl() + path;
         }
 
-        if (auth != null) {
-            for (Map.Entry<String, String> entry : auth.getQueryParams().entrySet()) {
+        Authenticator effectiveAuth = (auth != null) ? auth : this.authenticator;
+        if (effectiveAuth != null) {
+            for (Map.Entry<String, String> entry : effectiveAuth.getQueryParams().entrySet()) {
                 queryParams.put(entry.getKey(), entry.getValue());
             }
         }
@@ -144,9 +161,9 @@ public abstract class BaseApi {
         if (headerParams != null) {
             headers.putAll(headerParams);
         }
-        if (auth != null) {
-            headers.putAll(auth.getAuthHeaders());
-            Map<String, String> cookies = auth.getCookieParams();
+        if (effectiveAuth != null) {
+            headers.putAll(effectiveAuth.getAuthHeaders());
+            Map<String, String> cookies = effectiveAuth.getCookieParams();
             if (!cookies.isEmpty()) {
                 StringJoiner cookieJoiner = new StringJoiner("; ");
                 for (Map.Entry<String, String> entry : cookies.entrySet()) {

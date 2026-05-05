@@ -168,9 +168,13 @@ pub struct PetApi {
 
 impl PetApi {
     /// Creates a new PetApi instance.
-    pub fn new(api_client: Arc<dyn ApiClient>, config: Configuration) -> Self {
+    pub fn new(
+        api_client: Arc<dyn ApiClient>,
+        config: Configuration,
+        authenticator: Option<Arc<dyn Authenticator>>,
+    ) -> Self {
         Self {
-            base: BaseApi::new(api_client, config),
+            base: BaseApi::new(api_client, config, authenticator),
         }
     }
 

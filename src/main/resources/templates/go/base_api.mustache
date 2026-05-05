@@ -15,10 +15,11 @@ type BaseApi struct {
 	config         *Configuration
 	apiClient      ApiClient
 	headerSelector *HeaderSelector
+	authenticator  Authenticator
 }
 
 // NewBaseApi creates a new BaseApi instance.
-func NewBaseApi(apiClient ApiClient, config *Configuration) *BaseApi {
+func NewBaseApi(apiClient ApiClient, config *Configuration, authenticator Authenticator) *BaseApi {
 	if apiClient == nil {
 		apiClient = NewDefaultApiClient(nil)
 	}
@@ -29,6 +30,7 @@ func NewBaseApi(apiClient ApiClient, config *Configuration) *BaseApi {
 		config:         config,
 		apiClient:      apiClient,
 		headerSelector: NewHeaderSelector(),
+		authenticator:  authenticator,
 	}
 }
 
@@ -52,9 +54,15 @@ func (b *BaseApi) invokeAPIForResult(params invokeAPIParams) (*HttpResponse, err
 		requestURL = b.config.BaseURL() + params.path
 	}
 
+	// Determine effective authenticator (per-request overrides instance-level)
+	effectiveAuth := params.auth
+	if effectiveAuth == nil {
+		effectiveAuth = b.authenticator
+	}
+
 	// Merge authentication query params
-	if params.auth != nil {
-		authQueryParams := params.auth.QueryParams()
+	if effectiveAuth != nil {
+		authQueryParams := effectiveAuth.QueryParams()
 		if params.queryParams == nil {
 			params.queryParams = make(map[string]interface{})
 		}
@@ -96,12 +104,12 @@ func (b *BaseApi) invokeAPIForResult(params invokeAPIParams) (*HttpResponse, err
 	}
 
 	// Merge auth headers
-	if params.auth != nil {
-		for k, v := range params.auth.AuthHeaders() {
+	if effectiveAuth != nil {
+		for k, v := range effectiveAuth.AuthHeaders() {
 			headers[k] = v
 		}
 		// Handle cookie params
-		cookies := params.auth.CookieParams()
+		cookies := effectiveAuth.CookieParams()
 		if len(cookies) > 0 {
 			var cookieParts []string
 			for k, v := range cookies {

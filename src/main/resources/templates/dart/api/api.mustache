@@ -63,7 +63,8 @@ class {{classname}} extends BaseApi {
   {{classname}}({
     ApiClient? apiClient,
     Configuration? config,
-  }) : super(apiClient: apiClient, config: config);
+    Authenticator? authenticator,
+  }) : super(apiClient: apiClient, config: config, authenticator: authenticator);
 {{#operation}}
 
 {{#summary}}

@@ -38,7 +38,7 @@ export class OAuth2TokenManager {
    * @throws Error if no API client has been injected or token fetch fails
    */
   async getAccessToken(tokenUrl: string, params: Record<string, string>): Promise<string> {
-    if (this.accessToken && this.tokenExpiry && Date.now() < this.tokenExpiry) {
+    if (this.accessToken && (this.tokenExpiry === null || Date.now() < this.tokenExpiry)) {
       return this.accessToken;
     }
     await this.fetchToken(tokenUrl, params);

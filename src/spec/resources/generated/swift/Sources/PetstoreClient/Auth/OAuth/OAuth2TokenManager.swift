@@ -62,7 +62,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     lock.lock()
     defer { lock.unlock() }
     self.accessToken = token
-    self.tokenExpiry = .distantPast
+    self.tokenExpiry = .distantFuture
   }
 
   private func fetchToken(tokenURL: String, params: [String: String]) async throws {

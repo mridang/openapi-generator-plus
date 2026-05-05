@@ -10,6 +10,7 @@
 #pragma warning disable CA1056 // URI properties should not be strings
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
+using PetstoreClient.Auth;
 using PetstoreClient.Models;
 
 namespace PetstoreClient.Api;
@@ -31,6 +32,9 @@ public class StoreApi : BaseApi
 
     public StoreApi(IApiClient apiClient, Configuration config)
         : base(apiClient, config) { }
+
+    public StoreApi(IApiClient apiClient, Configuration config, IAuthenticator? authenticator)
+        : base(apiClient, config, authenticator) { }
 
     /// <summary>
     /// Delete purchase order by ID

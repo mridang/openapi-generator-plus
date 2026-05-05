@@ -59,12 +59,13 @@ impl Client {
 
         let config = ConfigurationBuilder::new()
             .base_url(authenticator.host())
-            .default_headers(authenticator.auth_headers())
             .build();
 
+        let authenticator: Arc<dyn Authenticator> = Arc::from(authenticator);
+
         Self {
-            pet: PetApi::new(api_client.clone(), config.clone()),
-            store: StoreApi::new(api_client.clone(), config.clone()),
+            pet: PetApi::new(api_client.clone(), config.clone(), Some(authenticator.clone())),
+            store: StoreApi::new(api_client.clone(), config.clone(), Some(authenticator.clone())),
         }
     }
 

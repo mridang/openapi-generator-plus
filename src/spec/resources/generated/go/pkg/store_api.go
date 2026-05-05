@@ -20,9 +20,9 @@ type StoreApi struct {
 }
 
 // NewStoreApi creates a new StoreApi instance.
-func NewStoreApi(apiClient ApiClient, config *Configuration) *StoreApi {
+func NewStoreApi(apiClient ApiClient, config *Configuration, authenticator Authenticator) *StoreApi {
 	return &StoreApi{
-		BaseApi: NewBaseApi(apiClient, config),
+		BaseApi: NewBaseApi(apiClient, config, authenticator),
 	}
 }
 

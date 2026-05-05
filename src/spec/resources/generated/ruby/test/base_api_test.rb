@@ -12,6 +12,21 @@ class TestableApi < PetstoreClient::Api::BaseApi
     invoke_api(method, path, query_params, header_params, body,
                accepts, content_type, return_type, auth)
   end
+
+  def call_for_result(method, path, query_params, header_params, body,
+                      accepts, content_type, return_type, auth = nil)
+    invoke_api_for_result(method, path, query_params, header_params, body,
+                          accepts, content_type, return_type, auth)
+  end
+end
+
+class CapturingApiClient
+  attr_reader :captured_url
+
+  def send_request(_method, url, _headers, _body)
+    @captured_url = url
+    PetstoreClient::ApiResponse.new(status_code: 200, body: '{}', headers: { 'content-type' => 'application/json' })
+  end
 end
 
 class TestAuthenticator < PetstoreClient::Auth::Authenticator
@@ -186,5 +201,44 @@ describe PetstoreClient::Api::BaseApi do
                                           .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'staging')
                                           .build
     _(config.base_url).must_equal('https://staging.example.com/api/v3')
+  end
+
+  # ── Query serialization ──
+
+  it 'expands array query params' do
+    client = CapturingApiClient.new
+    config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test', { 'tags' => %w[a b] }, {}, nil,
+                  ['application/json'], 'application/json', nil)
+    _(client.captured_url).must_include 'tags=a&tags=b'
+  end
+
+  it 'serializes boolean query params' do
+    client = CapturingApiClient.new
+    config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test', { 'active' => true }, {}, nil,
+                  ['application/json'], 'application/json', nil)
+    _(client.captured_url).must_include 'active=true'
+  end
+
+  it 'serializes number query params' do
+    client = CapturingApiClient.new
+    config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test', { 'limit' => 10 }, {}, nil,
+                  ['application/json'], 'application/json', nil)
+    _(client.captured_url).must_include 'limit=10'
+    _(client.captured_url).wont_include 'limit=10.0'
+  end
+
+  it 'handles empty query params' do
+    client = CapturingApiClient.new
+    config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test', {}, {}, nil,
+                  ['application/json'], 'application/json', nil)
+    _(client.captured_url).wont_include '?'
   end
 end

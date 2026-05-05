@@ -117,10 +117,7 @@ impl Authenticator for OAuth2AuthorizationCodeAuthenticator {
 
         let mut params = HashMap::new();
         params.insert("grant_type".to_string(), "refresh_token".to_string());
-        let refresh_token = self.token_manager.refresh_token();
-        if !refresh_token.is_empty() {
-            params.insert("refresh_token".to_string(), refresh_token);
-        }
+        params.insert("refresh_token".to_string(), self.token_manager.refresh_token());
 
         match self
             .token_manager

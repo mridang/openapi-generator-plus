@@ -145,7 +145,9 @@ class PetApi extends BaseApi {
   PetApi({
     ApiClient? apiClient,
     Configuration? config,
-  }) : super(apiClient: apiClient, config: config);
+    Authenticator? authenticator,
+  }) : super(
+            apiClient: apiClient, config: config, authenticator: authenticator);
 
   /// Add a new pet to the store
   Future<Pet> addPet(

@@ -36,8 +36,7 @@ class OAuth2TokenManager {
     Map<String, String> params,
   ) async {
     if (_accessToken.isNotEmpty &&
-        _tokenExpiry != null &&
-        DateTime.now().isBefore(_tokenExpiry!)) {
+        (_tokenExpiry == null || DateTime.now().isBefore(_tokenExpiry!))) {
       return _accessToken;
     }
 

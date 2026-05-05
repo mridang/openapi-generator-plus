@@ -7,9 +7,7 @@ import {{invokerPackage}}.ApiException;
 import {{invokerPackage}}.ApiResult;
 import {{invokerPackage}}.Configuration;
 import {{invokerPackage}}.ValueSerializer;
-{{#hasAnyAuthMethods}}
 import {{invokerPackage}}.auth.Authenticator;
-{{/hasAnyAuthMethods}}
 {{#operations}}
 {{#operation}}
 {{#hasAuthMethods}}
@@ -119,6 +117,10 @@ public class {{classname}} extends BaseApi {
 
     public {{classname}}(ApiClient apiClient, Configuration config) {
         super(apiClient, config);
+    }
+
+    public {{classname}}(ApiClient apiClient, Configuration config, @Nullable Authenticator authenticator) {
+        super(apiClient, config, authenticator);
     }
     {{#operation}}
 

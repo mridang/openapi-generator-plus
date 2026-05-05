@@ -49,13 +49,12 @@ public final class {{clientClassName}}: Sendable {
 
         let config = ConfigurationBuilder()
             .baseURL(authenticator.host())
-            .defaultHeaders(authenticator.authHeaders())
             .build()
 
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-        self.{{#lambda.camelcase}}{{classname}}{{/lambda.camelcase}} = {{classname}}(apiClient: apiClient, config: config)
+        self.{{#lambda.camelcase}}{{classname}}{{/lambda.camelcase}} = {{classname}}(apiClient: apiClient, config: config, authenticator: authenticator)
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}

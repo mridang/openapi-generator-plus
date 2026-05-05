@@ -92,9 +92,11 @@ defmodule PetstoreClient.Api.BaseApi do
         state.config.base_url <> path
       end
 
+    effective_auth = auth || Map.get(state, :authenticator)
+
     query_params =
-      if auth && is_map(auth) && Map.has_key?(auth, :query_params) do
-        Map.merge(query_params, auth.query_params)
+      if effective_auth && is_map(effective_auth) && Map.has_key?(effective_auth, :query_params) do
+        Map.merge(query_params, effective_auth.query_params)
       else
         query_params
       end
@@ -112,15 +114,15 @@ defmodule PetstoreClient.Api.BaseApi do
     headers = Map.merge(headers, header_params)
 
     headers =
-      if auth && is_map(auth) && Map.has_key?(auth, :auth_headers) do
-        Map.merge(headers, auth.auth_headers)
+      if effective_auth && is_map(effective_auth) && Map.has_key?(effective_auth, :auth_headers) do
+        Map.merge(headers, effective_auth.auth_headers)
       else
         headers
       end
 
     headers =
-      if auth && is_map(auth) && Map.has_key?(auth, :cookie_params) do
-        cookies = auth.cookie_params
+      if effective_auth && is_map(effective_auth) && Map.has_key?(effective_auth, :cookie_params) do
+        cookies = effective_auth.cookie_params
 
         if map_size(cookies) > 0 do
           cookie_str = Enum.map_join(cookies, "; ", fn {k, v} -> "#{k}=#{v}" end)

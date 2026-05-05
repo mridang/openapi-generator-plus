@@ -72,15 +72,14 @@ defmodule {{moduleName}}.{{clientClassName}} do
 
     config =
       {{moduleName}}.Configuration.new(
-        base_url: authenticator.__struct__.host(authenticator),
-        default_headers: authenticator.__struct__.auth_headers(authenticator)
+        base_url: authenticator.__struct__.host(authenticator)
       )
 
     %__MODULE__{
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-      {{clientPropertyName}}: {{moduleName}}.Api.{{classname}}.new(api_client, config){{^-last}},{{/-last}}
+      {{clientPropertyName}}: {{moduleName}}.Api.{{classname}}.new(api_client, config, authenticator){{^-last}},{{/-last}}
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}

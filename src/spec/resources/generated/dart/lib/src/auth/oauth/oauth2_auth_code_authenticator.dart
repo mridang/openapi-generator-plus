@@ -116,11 +116,8 @@ class OAuth2AuthorizationCodeAuthenticator extends BaseAuthenticator
 
     final params = <String, String>{
       'grant_type': 'refresh_token',
+      'refresh_token': _tokenManager.refreshToken,
     };
-    final currentRefreshToken = _tokenManager.refreshToken;
-    if (currentRefreshToken.isNotEmpty) {
-      params['refresh_token'] = currentRefreshToken;
-    }
 
     final token = await _tokenManager.getAccessToken(_refreshUrl, params);
     return {'Authorization': 'Bearer $token'};

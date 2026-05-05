@@ -25,10 +25,11 @@ module PetstoreClient
       #
       # @param api_client [ApiClient, nil] the HTTP transport client
       # @param config [Configuration] API-level configuration (base URL and default headers)
-      def initialize(api_client = nil, config = PetstoreClient::Configuration.default)
+      def initialize(api_client = nil, config = PetstoreClient::Configuration.default, authenticator = nil)
         @config = config
         @api_client = api_client || PetstoreClient::DefaultApiClient.new
         @header_selector = PetstoreClient::HeaderSelector.new
+        @authenticator = authenticator
       end
 
       protected
@@ -44,7 +45,8 @@ module PetstoreClient
                 "#{@config.base_url}#{path}"
               end
 
-        auth&.query_params&.each { |k, v| query_params[k] = v }
+        effective_auth = auth || @authenticator
+        effective_auth&.query_params&.each { |k, v| query_params[k] = v }
 
         query_string = build_query_string(query_params)
         url = "#{url}?#{query_string}" unless query_string.empty?
@@ -57,8 +59,8 @@ module PetstoreClient
         headers['Content-Type'] = selected['Content-Type'] if selected['Content-Type']
         headers.merge!(@config.default_headers)
         headers.merge!(header_params)
-        headers.merge!(auth.auth_headers) if auth
-        cookies = auth&.cookie_params || {}
+        headers.merge!(effective_auth.auth_headers) if effective_auth
+        cookies = effective_auth&.cookie_params || {}
         unless cookies.empty?
           cookie_str = cookies.map { |k, v| "#{k}=#{v}" }.join('; ')
           existing = headers['Cookie']

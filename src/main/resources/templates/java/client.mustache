@@ -74,17 +74,13 @@ public final class {{clientClassName}} {
             httpAware.setApiClient(apiClient);
         }
 
-        Configuration.Builder configBuilder = Configuration.builder()
+        Configuration config = Configuration.builder()
                 .baseUrl(authenticator.getHost())
-                .defaultHeaders(authenticator.getAuthHeaders());
-        for (java.util.Map.Entry<String, String> entry : authenticator.getQueryParams().entrySet()) {
-            configBuilder.defaultHeader("_query_" + entry.getKey(), entry.getValue());
-        }
-        Configuration config = configBuilder.build();
+                .build();
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-        this.{{clientPropertyName}} = new {{classname}}(apiClient, config);
+        this.{{clientPropertyName}} = new {{classname}}(apiClient, config, authenticator);
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}

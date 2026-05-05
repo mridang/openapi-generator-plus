@@ -211,6 +211,10 @@ public class PetApi extends BaseApi {
     super(apiClient, config);
   }
 
+  public PetApi(ApiClient apiClient, Configuration config, @Nullable Authenticator authenticator) {
+    super(apiClient, config, authenticator);
+  }
+
   /**
    * Add a new pet to the store
    *

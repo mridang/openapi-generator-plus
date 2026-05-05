@@ -66,18 +66,14 @@ class Client {
             authenticator.setApiClient(apiClient)
         }
 
-        val configBuilder =
+        val config =
             Configuration
                 .builder()
                 .baseUrl(authenticator.getHost())
-                .defaultHeaders(authenticator.getAuthHeaders())
-        for ((key, value) in authenticator.getQueryParams()) {
-            configBuilder.defaultHeader("_query_$key", value)
-        }
-        val config = configBuilder.build()
+                .build()
 
-        this.pet = PetApi(apiClient, config)
-        this.store = StoreApi(apiClient, config)
+        this.pet = PetApi(apiClient, config, authenticator)
+        this.store = StoreApi(apiClient, config, authenticator)
     }
 
     companion object {

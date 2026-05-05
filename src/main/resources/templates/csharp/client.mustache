@@ -68,18 +68,14 @@ public sealed class {{clientClassName}} : IDisposable
             httpAware.SetApiClient(_apiClient);
         }
 
-        ConfigurationBuilder configBuilder = Configuration
+        Configuration config = Configuration
             .Builder()
-            .BaseUrl(authenticator.GetHost());
-        foreach (KeyValuePair<string, string> header in authenticator.GetAuthHeaders())
-        {
-            configBuilder = configBuilder.DefaultHeader(header.Key, header.Value);
-        }
-        Configuration config = configBuilder.Build();
+            .BaseUrl(authenticator.GetHost())
+            .Build();
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-        {{clientPropertyName}} = new {{classname}}(_apiClient, config);
+        {{clientPropertyName}} = new {{classname}}(_apiClient, config, authenticator);
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}

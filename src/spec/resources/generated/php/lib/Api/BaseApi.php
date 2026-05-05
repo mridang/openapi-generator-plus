@@ -51,17 +51,22 @@ class BaseApi
 
     protected readonly HeaderSelector $headerSelector;
 
+    protected readonly ?Authenticator $authenticator;
+
     /**
-     * @param ApiClient|null     $apiClient API client instance
-     * @param Configuration|null $config    Configuration instance
+     * @param ApiClient|null     $apiClient     API client instance
+     * @param Configuration|null $config        Configuration instance
+     * @param Authenticator|null $authenticator Default authenticator for all operations
      */
     public function __construct(
         ?ApiClient $apiClient = null,
-        ?Configuration $config = null
+        ?Configuration $config = null,
+        ?Authenticator $authenticator = null
     ) {
         $this->config = $config ?: Configuration::getDefault();
         $this->apiClient = $apiClient ?: new DefaultApiClient();
         $this->headerSelector = new HeaderSelector();
+        $this->authenticator = $authenticator;
     }
 
     public function getConfig(): Configuration
@@ -98,8 +103,9 @@ class BaseApi
     ): ApiResult {
         $url = str_starts_with($path, 'http://') || str_starts_with($path, 'https://') ? $path : $this->config->baseUrl . $path;
 
-        if ($auth instanceof Authenticator) {
-            foreach ($auth->getQueryParams() as $k => $v) {
+        $effectiveAuth = $auth ?? $this->authenticator;
+        if ($effectiveAuth instanceof Authenticator) {
+            foreach ($effectiveAuth->getQueryParams() as $k => $v) {
                 $queryParams[$k] = $v;
             }
         }
@@ -113,9 +119,9 @@ class BaseApi
         $headers = $this->headerSelector->selectHeaders($accepts, $contentType ?? '', $isMultipart);
         $headers = array_merge($headers, $this->config->defaultHeaders);
         $headers = array_merge($headers, $headerParams);
-        if ($auth instanceof Authenticator) {
-            $headers = array_merge($headers, $auth->getAuthHeaders());
-            $cookies = $auth->getCookieParams();
+        if ($effectiveAuth instanceof Authenticator) {
+            $headers = array_merge($headers, $effectiveAuth->getAuthHeaders());
+            $cookies = $effectiveAuth->getCookieParams();
             if ($cookies !== []) {
                 $cookieParts = [];
                 foreach ($cookies as $k => $v) {

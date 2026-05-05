@@ -419,6 +419,36 @@ public class BetterRustCodegen extends AbstractBetterCodegen {
                             "test/configuration_test.mustache",
                             "tests",
                             "configuration_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_token_manager_test.mustache",
+                            "tests",
+                            "oauth2_token_manager_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_auth_code_authenticator_test.mustache",
+                            "tests",
+                            "oauth2_auth_code_authenticator_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_implicit_authenticator_test.mustache",
+                            "tests",
+                            "oauth2_implicit_authenticator_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_client_credentials_authenticator_test.mustache",
+                            "tests",
+                            "oauth2_client_credentials_authenticator_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_password_authenticator_test.mustache",
+                            "tests",
+                            "oauth2_password_authenticator_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/openid_connect_authenticator_test.mustache",
+                            "tests",
+                            "openid_connect_authenticator_test.rs"));
         }
     }
 

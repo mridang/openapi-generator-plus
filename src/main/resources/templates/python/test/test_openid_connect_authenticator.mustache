@@ -1,0 +1,126 @@
+{{>api_info}}
+import json
+from unittest.mock import MagicMock
+from urllib.parse import urlparse, parse_qs
+
+from {{packageName}}.auth.oauth.openid_connect_authenticator import OpenIdConnectAuthenticator
+from {{packageName}}.api_response import ApiResponse
+
+
+def _create_authenticator() -> OpenIdConnectAuthenticator:
+    return OpenIdConnectAuthenticator(
+        host='https://api.example.com',
+        openid_connect_url='https://auth.example.com/.well-known/openid-configuration',
+        client_id='oidc_client',
+        client_secret='oidc_secret',
+        redirect_uri='https://app.example.com/callback',
+        scopes=['openid', 'profile'],
+    )
+
+
+def _create_authenticator_with_discovery():
+    """Helper that creates an authenticator and mocks the discovery endpoint."""
+    auth = _create_authenticator()
+    mock_client = MagicMock()
+    discovery_response = ApiResponse(
+        status_code=200,
+        body=json.dumps({
+            'authorization_endpoint': 'https://auth.example.com/authorize',
+            'token_endpoint': 'https://auth.example.com/token',
+            'issuer': 'https://auth.example.com',
+        }),
+        headers={'content-type': 'application/json'},
+    )
+    mock_client.send_request.return_value = discovery_response
+    auth.set_api_client(mock_client)
+    return auth, mock_client
+
+
+class TestOpenIdConnectAuthenticator:
+
+    def test_builds_correct_authorization_url(self) -> None:
+        auth, mock_client = _create_authenticator_with_discovery()
+
+        url = auth.build_authorization_url()
+        parsed = urlparse(url)
+        params = parse_qs(parsed.query)
+
+        assert parsed.netloc == 'auth.example.com'
+        assert parsed.path == '/authorize'
+        assert params['client_id'] == ['oidc_client']
+        assert params['response_type'] == ['code']
+        assert params['scope'] == ['openid profile']
+
+    def test_builds_authorization_url_with_state(self) -> None:
+        auth, mock_client = _create_authenticator_with_discovery()
+
+        url = auth.build_authorization_url(state='my-state')
+        parsed = urlparse(url)
+        params = parse_qs(parsed.query)
+
+        assert params['state'] == ['my-state']
+
+    def test_fetches_discovery_document(self) -> None:
+        auth, mock_client = _create_authenticator_with_discovery()
+
+        auth.build_authorization_url()
+
+        call_args = mock_client.send_request.call_args
+        assert call_args[0][0] == 'GET'
+        assert call_args[0][1] == 'https://auth.example.com/.well-known/openid-configuration'
+
+    def test_obtains_token_from_token_endpoint(self) -> None:
+        auth, mock_client = _create_authenticator_with_discovery()
+
+        # Reset mock to track new calls for exchange_code
+        mock_client.reset_mock()
+        mock_client.send_request.return_value = ApiResponse(
+            status_code=200,
+            body=json.dumps({
+                'access_token': 'oidc_access_token',
+                'expires_in': 3600,
+            }),
+            headers={'content-type': 'application/json'},
+        )
+
+        auth.exchange_code('oidc_code')
+
+        token_call = mock_client.send_request.call_args
+        assert token_call[0][0] == 'POST'
+        assert token_call[0][1] == 'https://auth.example.com/token'
+        body = token_call[0][3]
+        assert 'grant_type=authorization_code' in body
+        assert 'code=oidc_code' in body
+
+    def test_get_auth_headers_returns_bearer_after_exchange(self) -> None:
+        auth, mock_client = _create_authenticator_with_discovery()
+
+        # Exchange code - returns token
+        mock_client.reset_mock()
+        mock_client.send_request.return_value = ApiResponse(
+            status_code=200,
+            body=json.dumps({
+                'access_token': 'oidc-tok',
+                'expires_in': 3600,
+            }),
+            headers={'content-type': 'application/json'},
+        )
+
+        auth.exchange_code('oidc-code')
+        headers = auth.get_auth_headers()
+
+        assert headers['Authorization'] == 'Bearer oidc-tok'
+
+    def test_throws_when_no_api_client_injected(self) -> None:
+        auth = _create_authenticator()
+
+        try:
+            auth.build_authorization_url()
+            assert False, 'Expected RuntimeError'
+        except RuntimeError:
+            pass
+
+    def test_get_host_returns_configured_host(self) -> None:
+        auth = _create_authenticator()
+
+        assert auth.get_host() == 'https://api.example.com'

@@ -130,6 +130,8 @@ class PetApi : BaseApi {
 
     constructor(apiClient: ApiClient, config: Configuration) : super(apiClient, config)
 
+    constructor(apiClient: ApiClient, config: Configuration, authenticator: Authenticator?) : super(apiClient, config, authenticator)
+
     /**
      * Add a new pet to the store
      * @param pet Create a new pet in the store (required)

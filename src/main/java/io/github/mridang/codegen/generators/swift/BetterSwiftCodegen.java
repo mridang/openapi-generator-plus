@@ -162,13 +162,20 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         return "swift:6.0";
     }
 
-    /** {@inheritDoc} */
+    /**
+     * {@inheritDoc}
+     *
+     * <p>swift-format requires a git repository in the working directory to function,
+     * so we initialize one before formatting and remove it afterwards to avoid polluting
+     * the generated output.
+     */
     @Override
     protected String[] getFormatterCommands() {
         return new String[] {
             "apt-get update -qq && apt-get install -qq -y git > /dev/null 2>&1",
             "git init -q .",
-            "swift format --in-place --recursive Sources/ Tests/ || true"
+            "swift format --in-place --recursive Sources/ Tests/ || true",
+            "rm -rf .git"
         };
     }
 
@@ -388,6 +395,36 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                             "test/ComposedSchemaTests.mustache",
                             testDir,
                             "ComposedSchemaTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/OAuth2TokenManagerTests.mustache",
+                            testDir,
+                            "OAuth2TokenManagerTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/OAuth2AuthCodeAuthenticatorTests.mustache",
+                            testDir,
+                            "OAuth2AuthCodeAuthenticatorTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/OAuth2ImplicitAuthenticatorTests.mustache",
+                            testDir,
+                            "OAuth2ImplicitAuthenticatorTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/OAuth2ClientCredentialsAuthenticatorTests.mustache",
+                            testDir,
+                            "OAuth2ClientCredentialsAuthenticatorTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/OAuth2PasswordAuthenticatorTests.mustache",
+                            testDir,
+                            "OAuth2PasswordAuthenticatorTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/OpenIdConnectAuthenticatorTests.mustache",
+                            testDir,
+                            "OpenIdConnectAuthenticatorTests.swift"));
         }
     }
 

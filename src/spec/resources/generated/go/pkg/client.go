@@ -54,12 +54,11 @@ func NewClient(authenticator Authenticator, transportOptions *TransportOptions) 
 
 	config := NewConfigurationBuilder().
 		BaseURL(authenticator.Host()).
-		DefaultHeaders(authenticator.AuthHeaders()).
 		Build()
 
 	return &Client{
-		PetApi:   NewPetApi(apiClient, config),
-		StoreApi: NewStoreApi(apiClient, config),
+		PetApi:   NewPetApi(apiClient, config, authenticator),
+		StoreApi: NewStoreApi(apiClient, config, authenticator),
 	}
 }
 

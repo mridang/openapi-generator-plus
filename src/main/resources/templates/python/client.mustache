@@ -67,13 +67,12 @@ class {{clientClassName}}:
         config = (
             Configuration.builder()
             .base_url(authenticator.get_host())
-            .default_headers(authenticator.get_auth_headers())
             .build()
         )
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-        self.{{clientPropertyName}}: {{classname}} = {{classname}}(api_client, config)
+        self.{{clientPropertyName}}: {{classname}} = {{classname}}(api_client, config, authenticator)
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}

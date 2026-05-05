@@ -60,7 +60,7 @@ class OAuth2TokenManager:
                 fetch fails.
         """
         with self._lock:
-            if self._access_token and self._token_expiry and time.time() < self._token_expiry:
+            if self._access_token and (self._token_expiry is None or time.time() < self._token_expiry):
                 return self._access_token
             self._fetch_token(token_url, params)
             if self._access_token is None:

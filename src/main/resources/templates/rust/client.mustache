@@ -63,14 +63,15 @@ impl {{clientClassName}} {
 
         let config = ConfigurationBuilder::new()
             .base_url(authenticator.host())
-            .default_headers(authenticator.auth_headers())
             .build();
+
+        let authenticator: Arc<dyn Authenticator> = Arc::from(authenticator);
 
         Self {
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-            {{clientPropertyName}}: {{classname}}::new(api_client.clone(), config.clone()),
+            {{clientPropertyName}}: {{classname}}::new(api_client.clone(), config.clone(), Some(authenticator.clone())),
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}

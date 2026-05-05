@@ -70,18 +70,14 @@ class {{clientClassName}} {
             authenticator.setApiClient(apiClient)
         }
 
-        val configBuilder = Configuration.builder()
+        val config = Configuration.builder()
             .baseUrl(authenticator.getHost())
-            .defaultHeaders(authenticator.getAuthHeaders())
-        for ((key, value) in authenticator.getQueryParams()) {
-            configBuilder.defaultHeader("_query_$key", value)
-        }
-        val config = configBuilder.build()
+            .build()
 
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-        this.{{clientPropertyName}} = {{classname}}(apiClient, config)
+        this.{{clientPropertyName}} = {{classname}}(apiClient, config, authenticator)
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}

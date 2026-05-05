@@ -81,7 +81,7 @@ module {{moduleName}}
     # @see {{url}} {{description}}
 {{/tagExternalDocs}}
     class {{classname}} < BaseApi
-      def initialize(api_client = nil, config = {{moduleName}}::Configuration.default)
+      def initialize(api_client = nil, config = {{moduleName}}::Configuration.default, authenticator = nil)
         super
       end
     {{#operation}}

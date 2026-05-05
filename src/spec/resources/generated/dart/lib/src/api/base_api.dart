@@ -32,13 +32,16 @@ class BaseApi {
   final Configuration config;
   final ApiClient apiClient;
   final HeaderSelector _headerSelector;
+  final Authenticator? _authenticator;
 
   BaseApi({
     ApiClient? apiClient,
     Configuration? config,
+    Authenticator? authenticator,
   })  : apiClient = apiClient ?? DefaultApiClient(),
         config = config ?? Configuration.defaultConfiguration(),
-        _headerSelector = HeaderSelector();
+        _headerSelector = HeaderSelector(),
+        _authenticator = authenticator;
 
   /// Dispatches an API request and returns the full result.
   Future<ApiResponse> invokeApi({
@@ -63,8 +66,9 @@ class BaseApi {
     if (queryParams != null) {
       allQueryParams.addAll(queryParams);
     }
-    if (auth != null) {
-      allQueryParams.addAll(auth.queryParams());
+    final effectiveAuth = auth ?? _authenticator;
+    if (effectiveAuth != null) {
+      allQueryParams.addAll(effectiveAuth.queryParams());
     }
 
     // Build query string
@@ -95,11 +99,11 @@ class BaseApi {
     }
 
     // Merge auth headers
-    if (auth != null) {
-      headers.addAll(auth.authHeaders());
+    if (effectiveAuth != null) {
+      headers.addAll(effectiveAuth.authHeaders());
 
       // Handle cookie params
-      final cookies = auth.cookieParams();
+      final cookies = effectiveAuth.cookieParams();
       if (cookies.isNotEmpty) {
         final cookieParts =
             cookies.entries.map((e) => '${e.key}=${e.value}').toList();

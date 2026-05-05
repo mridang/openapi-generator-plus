@@ -65,7 +65,7 @@ public class OAuth2TokenManager {
    * @throws IllegalStateException if no API client has been injected or token fetch fails
    */
   public synchronized String getAccessToken(String tokenUrl, Map<String, String> params) {
-    if (accessToken != null && tokenExpiry != null && Instant.now().isBefore(tokenExpiry)) {
+    if (accessToken != null && (tokenExpiry == null || Instant.now().isBefore(tokenExpiry))) {
       return accessToken;
     }
     fetchToken(tokenUrl, params);

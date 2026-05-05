@@ -49,7 +49,7 @@ final class OAuth2TokenManager
      */
     public function getAccessToken(string $tokenUrl, array $params): string
     {
-        if ($this->accessToken !== null && $this->tokenExpiry !== null && microtime(true) < $this->tokenExpiry) {
+        if ($this->accessToken !== null && ($this->tokenExpiry === null || microtime(true) < $this->tokenExpiry)) {
             return $this->accessToken;
         }
         $this->fetchToken($tokenUrl, $params);

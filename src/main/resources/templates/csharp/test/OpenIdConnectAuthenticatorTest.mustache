@@ -1,0 +1,143 @@
+{{>api_info}}
+
+using {{packageName}};
+using {{packageName}}.Auth.OAuth;
+using Xunit;
+
+namespace Test;
+
+public class OpenIdConnectAuthenticatorTest
+{
+    private sealed class FakeApiClient : IApiClient
+    {
+        private readonly Queue<ApiResponse> _responses = new();
+
+        public void Enqueue(string body, int statusCode = 200)
+        {
+            _responses.Enqueue(new ApiResponse(statusCode, body, new Dictionary<string, string>()));
+        }
+
+        public string? LastBody { get; private set; }
+        public Uri? LastUrl { get; private set; }
+        public string? LastMethod { get; private set; }
+
+        public Task<ApiResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            LastMethod = method;
+            LastUrl = url;
+            LastBody = body?.ToString();
+            return Task.FromResult(_responses.Dequeue());
+        }
+    }
+
+    private static OpenIdConnectAuthenticator CreateAuthenticator()
+    {
+        return new OpenIdConnectAuthenticator(
+            "https://api.example.com",
+            new Uri("https://auth.example.com/.well-known/openid-configuration"),
+            "my-client-id",
+            "my-client-secret",
+            new Uri("https://app.example.com/callback"),
+            new[] { "openid", "profile" });
+    }
+
+    [Fact]
+    public async Task BuildsAuthorizationUrlFromDiscovery()
+    {
+        var client = new FakeApiClient();
+        // Discovery document response
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"," +
+            "\"token_endpoint\":\"https://auth.example.com/token\"}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        Uri url = await auth.BuildAuthorizationUrlAsync("my-state");
+
+        string urlStr = url.ToString();
+        Assert.StartsWith("https://auth.example.com/authorize?", urlStr);
+        Assert.Contains("response_type=code", urlStr);
+        Assert.Contains("client_id=my-client-id", urlStr);
+        Assert.Contains("state=my-state", urlStr);
+    }
+
+    [Fact]
+    public async Task FetchesDiscoveryDocument()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"," +
+            "\"token_endpoint\":\"https://auth.example.com/token\"}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.BuildAuthorizationUrlAsync();
+
+        Assert.Equal("GET", client.LastMethod);
+        Assert.Equal(
+            new Uri("https://auth.example.com/.well-known/openid-configuration"),
+            client.LastUrl);
+    }
+
+    [Fact]
+    public async Task ObtainsTokenAfterCodeExchange()
+    {
+        var client = new FakeApiClient();
+        // Discovery document
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"," +
+            "\"token_endpoint\":\"https://auth.example.com/token\"}");
+        // Token response
+        client.Enqueue("{\"access_token\":\"oidc-tok\",\"expires_in\":3600}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("oidc-code");
+
+        Assert.Contains("grant_type=authorization_code", client.LastBody!);
+        Assert.Contains("code=oidc-code", client.LastBody!);
+    }
+
+    [Fact]
+    public async Task GetAuthHeadersReturnsBearer()
+    {
+        var client = new FakeApiClient();
+        // Discovery document
+        client.Enqueue(
+            "{\"authorization_endpoint\":\"https://auth.example.com/authorize\"," +
+            "\"token_endpoint\":\"https://auth.example.com/token\"}");
+        // Token response
+        client.Enqueue("{\"access_token\":\"oidc-tok\",\"expires_in\":3600}");
+        // Refresh response (for GetAuthHeaders)
+        client.Enqueue("{\"access_token\":\"oidc-tok\",\"expires_in\":3600}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.ExchangeCodeAsync("oidc-code");
+        Dictionary<string, string> headers = auth.GetAuthHeaders();
+
+        Assert.Equal("Bearer oidc-tok", headers["Authorization"]);
+    }
+
+    [Fact]
+    public void ThrowsWhenNoApiClientInjected()
+    {
+        var auth = CreateAuthenticator();
+
+        Assert.ThrowsAsync<InvalidOperationException>(
+            () => auth.BuildAuthorizationUrlAsync());
+    }
+
+    [Fact]
+    public void GetHostReturnsConfiguredHost()
+    {
+        var auth = CreateAuthenticator();
+
+        Assert.Equal("https://api.example.com", auth.GetHost());
+    }
+}

@@ -133,9 +133,9 @@ type PetApi struct {
 }
 
 // NewPetApi creates a new PetApi instance.
-func NewPetApi(apiClient ApiClient, config *Configuration) *PetApi {
+func NewPetApi(apiClient ApiClient, config *Configuration, authenticator Authenticator) *PetApi {
 	return &PetApi{
-		BaseApi: NewBaseApi(apiClient, config),
+		BaseApi: NewBaseApi(apiClient, config, authenticator),
 	}
 }
 

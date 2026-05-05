@@ -8,9 +8,7 @@ import {{invokerPackage}}.ApiResult
 import {{invokerPackage}}.Configuration
 import {{invokerPackage}}.ObjectSerializer
 import {{invokerPackage}}.ValueSerializer
-{{#hasAnyAuthMethods}}
 import {{invokerPackage}}.auth.Authenticator
-{{/hasAnyAuthMethods}}
 {{#operations}}
 {{#operation}}
 {{#hasAuthMethods}}
@@ -96,6 +94,8 @@ class {{classname}} : BaseApi {
     constructor() : super()
 
     constructor(apiClient: ApiClient, config: Configuration) : super(apiClient, config)
+
+    constructor(apiClient: ApiClient, config: Configuration, authenticator: Authenticator?) : super(apiClient, config, authenticator)
     {{#operation}}
 
     /**

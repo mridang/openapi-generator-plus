@@ -68,10 +68,10 @@ impl OAuth2TokenManager {
         let mut inner = self.inner.lock().unwrap();
 
         if !inner.access_token.is_empty() {
-            if let Some(expiry) = inner.token_expiry {
-                if Instant::now() < expiry {
-                    return Ok(inner.access_token.clone());
-                }
+            match inner.token_expiry {
+                None => return Ok(inner.access_token.clone()),
+                Some(expiry) if Instant::now() < expiry => return Ok(inner.access_token.clone()),
+                _ => {}
             }
         }
 
@@ -125,6 +125,8 @@ impl OAuth2TokenManager {
             if expires_in > buffer_secs {
                 inner.token_expiry =
                     Some(Instant::now() + Duration::from_secs(expires_in - buffer_secs));
+            } else {
+                inner.token_expiry = Some(Instant::now());
             }
         }
 

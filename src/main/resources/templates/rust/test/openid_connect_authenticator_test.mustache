@@ -1,0 +1,193 @@
+{{>api_info}}
+
+use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::{Arc, Mutex};
+
+use {{packageName}}::api_client::ApiClient;
+use {{packageName}}::api_response::ApiResponse;
+use {{packageName}}::auth::oauth::OpenIdConnectAuthenticator;
+use {{packageName}}::auth::Authenticator;
+use {{packageName}}::auth::HttpAwareAuthenticator;
+
+struct FakeApiClient {
+    responses: Mutex<Vec<ApiResponse>>,
+    last_url: Mutex<Option<String>>,
+    last_body: Mutex<Option<String>>,
+    last_method: Mutex<Option<String>>,
+}
+
+impl FakeApiClient {
+    fn new() -> Self {
+        Self {
+            responses: Mutex::new(Vec::new()),
+            last_url: Mutex::new(None),
+            last_body: Mutex::new(None),
+            last_method: Mutex::new(None),
+        }
+    }
+
+    fn enqueue(&self, body: &str, status_code: u16) {
+        let mut responses = self.responses.lock().unwrap();
+        responses.push(ApiResponse {
+            status_code,
+            body: body.to_string(),
+            headers: HashMap::new(),
+        });
+    }
+
+    fn last_url(&self) -> Option<String> {
+        self.last_url.lock().unwrap().clone()
+    }
+
+    fn last_body(&self) -> Option<String> {
+        self.last_body.lock().unwrap().clone()
+    }
+
+    fn last_method(&self) -> Option<String> {
+        self.last_method.lock().unwrap().clone()
+    }
+}
+
+impl ApiClient for FakeApiClient {
+    fn send_request(
+        &self,
+        method: &str,
+        url: &str,
+        _headers: &HashMap<String, String>,
+        body: Option<&[u8]>,
+    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        {
+            let mut last_method = self.last_method.lock().unwrap();
+            *last_method = Some(method.to_string());
+        }
+        {
+            let mut last_url = self.last_url.lock().unwrap();
+            *last_url = Some(url.to_string());
+        }
+        if let Some(b) = body {
+            let mut last_body = self.last_body.lock().unwrap();
+            *last_body = Some(String::from_utf8_lossy(b).to_string());
+        }
+        let response = {
+            let mut responses = self.responses.lock().unwrap();
+            responses.remove(0)
+        };
+        Box::pin(async move { Ok(response) })
+    }
+}
+
+fn create_authenticator() -> OpenIdConnectAuthenticator {
+    OpenIdConnectAuthenticator::new(
+        "https://api.example.com",
+        "https://auth.example.com/.well-known/openid-configuration",
+        "my-client-id",
+        "my-client-secret",
+        "https://app.example.com/callback",
+        vec!["openid".to_string(), "profile".to_string()],
+    )
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_builds_authorization_url_from_discovery() {
+    let client = Arc::new(FakeApiClient::new());
+    // Discovery document response
+    client.enqueue(
+        r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#,
+        200,
+    );
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let url = auth
+        .build_authorization_url("my-state")
+        .expect("should succeed");
+
+    assert!(url.starts_with("https://auth.example.com/authorize?"));
+    assert!(url.contains("response_type=code"));
+    assert!(url.contains("client_id=my-client-id"));
+    assert!(url.contains("state=my-state"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_fetches_discovery_document() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#,
+        200,
+    );
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.build_authorization_url("").expect("should succeed");
+
+    assert_eq!("GET", client.last_method().unwrap());
+    assert_eq!(
+        "https://auth.example.com/.well-known/openid-configuration",
+        client.last_url().unwrap()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_obtains_token_after_code_exchange() {
+    let client = Arc::new(FakeApiClient::new());
+    // Discovery document
+    client.enqueue(
+        r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#,
+        200,
+    );
+    // Token response
+    client.enqueue(r#"{"access_token":"oidc-tok","expires_in":3600}"#, 200);
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    // Must call build_authorization_url first to trigger discovery
+    auth.build_authorization_url("").expect("should succeed");
+    auth.exchange_code("oidc-code").expect("should succeed");
+
+    let body = client.last_body().expect("should have body");
+    assert!(body.contains("grant_type=authorization_code"));
+    assert!(body.contains("code=oidc-code"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_get_auth_headers_returns_bearer_after_exchange() {
+    let client = Arc::new(FakeApiClient::new());
+    // Discovery document
+    client.enqueue(
+        r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#,
+        200,
+    );
+    // Token response for exchange_code
+    client.enqueue(r#"{"access_token":"oidc-tok","expires_in":3600}"#, 200);
+    // Token response for auth_headers refresh
+    client.enqueue(r#"{"access_token":"oidc-tok","expires_in":3600}"#, 200);
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.build_authorization_url("").expect("should succeed");
+    auth.exchange_code("oidc-code").expect("should succeed");
+    let headers = auth.auth_headers();
+
+    assert_eq!("Bearer oidc-tok", headers.get("Authorization").unwrap());
+}
+
+#[test]
+fn test_panics_when_no_api_client_injected() {
+    let auth = create_authenticator();
+
+    let result = auth.build_authorization_url("");
+
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_get_host_returns_configured_host() {
+    let auth = create_authenticator();
+    assert_eq!("https://api.example.com", auth.host());
+}

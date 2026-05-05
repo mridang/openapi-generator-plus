@@ -52,7 +52,7 @@ class OAuth2TokenManager {
     ): String {
         val token = accessToken
         val expiry = tokenExpiry
-        if (token != null && expiry != null && Instant.now().isBefore(expiry)) {
+        if (token != null && (expiry == null || Instant.now().isBefore(expiry))) {
             return token
         }
         fetchToken(tokenUrl, params)

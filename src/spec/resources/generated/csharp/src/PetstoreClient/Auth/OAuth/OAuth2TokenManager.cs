@@ -47,8 +47,7 @@ public sealed class OAuth2TokenManager
     {
         if (
             _accessToken is not null
-            && _tokenExpiry is not null
-            && DateTimeOffset.UtcNow < _tokenExpiry
+            && (_tokenExpiry is null || DateTimeOffset.UtcNow < _tokenExpiry)
         )
         {
             return _accessToken;

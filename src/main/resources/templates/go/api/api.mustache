@@ -74,9 +74,9 @@ type {{classname}} struct {
 }
 
 // New{{classname}} creates a new {{classname}} instance.
-func New{{classname}}(apiClient ApiClient, config *Configuration) *{{classname}} {
+func New{{classname}}(apiClient ApiClient, config *Configuration, authenticator Authenticator) *{{classname}} {
 	return &{{classname}}{
-		BaseApi: NewBaseApi(apiClient, config),
+		BaseApi: NewBaseApi(apiClient, config, authenticator),
 	}
 }
 {{#operation}}

@@ -15,6 +15,7 @@ from ..api_result import ApiResult
 from ..configuration import Configuration
 from .base_api import BaseApi
 from ..value_serializer import ValueSerializer
+from ..auth.authenticator import Authenticator
 
 
 class StoreApi(BaseApi):
@@ -26,8 +27,9 @@ class StoreApi(BaseApi):
         self,
         api_client: Optional[ApiClient] = None,
         config: Optional[Configuration] = None,
+        authenticator: Optional[Authenticator] = None,
     ):
-        super().__init__(api_client, config)
+        super().__init__(api_client, config, authenticator)
 
     async def delete_order(
         self,

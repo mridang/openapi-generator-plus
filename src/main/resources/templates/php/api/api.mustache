@@ -10,9 +10,7 @@ use {{invokerPackage}}\ApiResult;
 use {{invokerPackage}}\Configuration;
 use {{invokerPackage}}\DefaultApiClient;
 use {{invokerPackage}}\ValueSerializer;
-{{#hasAnyAuthMethods}}
 use {{invokerPackage}}\Auth\Authenticator;
-{{/hasAnyAuthMethods}}
 {{#optionsImports}}
 use {{invokerPackage}}\Api\Options\{{optionsClassName}};
 {{/optionsImports}}

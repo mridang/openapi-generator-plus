@@ -1,0 +1,162 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"strings"
+	"sync/atomic"
+	"testing"
+
+	"{{packageName}}/pkg/auth"
+	"{{packageName}}/pkg/auth/oauth"
+)
+
+// fakeAuthCodeClient implements auth.ApiClient for auth code tests.
+type fakeAuthCodeClient struct {
+	responses []fakeAuthCodeResponse
+	index     int32
+	LastBody  string
+	LastURL   string
+}
+
+type fakeAuthCodeResponse struct {
+	body       string
+	statusCode int
+}
+
+func (c *fakeAuthCodeClient) SendRequest(method, url string, headers map[string]string, body []byte) (*auth.HttpResponse, error) {
+	c.LastURL = url
+	if body != nil {
+		c.LastBody = string(body)
+	}
+	idx := atomic.AddInt32(&c.index, 1) - 1
+	resp := c.responses[idx]
+	return &auth.HttpResponse{
+		StatusCode: resp.statusCode,
+		Body:       resp.body,
+		Headers:    map[string]string{},
+	}, nil
+}
+
+func createAuthCodeAuthenticator() *oauth.OAuth2AuthorizationCodeAuthenticator {
+	return oauth.NewOAuth2AuthorizationCodeAuthenticator(
+		"https://api.example.com",
+		"my-client-id",
+		"my-client-secret",
+		"https://auth.example.com/authorize",
+		"https://auth.example.com/token",
+		"https://app.example.com/callback",
+		[]string{"read", "write"},
+		"",
+	)
+}
+
+func TestOAuth2AuthCode_BuildsAuthorizationUrlWithRequiredParams(t *testing.T) {
+	auth := createAuthCodeAuthenticator()
+
+	url := auth.BuildAuthorizationURL("")
+
+	if !strings.Contains(url, "response_type=code") {
+		t.Error("expected URL to contain response_type=code")
+	}
+	if !strings.Contains(url, "client_id=my-client-id") {
+		t.Error("expected URL to contain client_id=my-client-id")
+	}
+	if !strings.Contains(url, "redirect_uri=") {
+		t.Error("expected URL to contain redirect_uri")
+	}
+	if !strings.Contains(url, "scope=read") {
+		t.Error("expected URL to contain scope with read")
+	}
+	if !strings.HasPrefix(url, "https://auth.example.com/authorize?") {
+		t.Errorf("expected URL to start with authorization endpoint, got %q", url)
+	}
+}
+
+func TestOAuth2AuthCode_BuildsAuthorizationUrlWithState(t *testing.T) {
+	auth := createAuthCodeAuthenticator()
+
+	url := auth.BuildAuthorizationURL("csrf-state-123")
+
+	if !strings.Contains(url, "state=csrf-state-123") {
+		t.Errorf("expected URL to contain state=csrf-state-123, got %q", url)
+	}
+}
+
+func TestOAuth2AuthCode_ExchangesCodeWithCorrectGrantType(t *testing.T) {
+	client := &fakeAuthCodeClient{
+		responses: []fakeAuthCodeResponse{
+			{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}`, statusCode: 200},
+		},
+	}
+
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	err := authObj.ExchangeCode("auth-code-xyz")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(client.LastBody, "grant_type=authorization_code") {
+		t.Errorf("expected body to contain grant_type=authorization_code, got %q", client.LastBody)
+	}
+	if !strings.Contains(client.LastBody, "code=auth-code-xyz") {
+		t.Errorf("expected body to contain code=auth-code-xyz, got %q", client.LastBody)
+	}
+	if !strings.Contains(client.LastBody, "client_id=my-client-id") {
+		t.Errorf("expected body to contain client_id=my-client-id, got %q", client.LastBody)
+	}
+	if !strings.Contains(client.LastBody, "client_secret=my-client-secret") {
+		t.Errorf("expected body to contain client_secret=my-client-secret, got %q", client.LastBody)
+	}
+}
+
+func TestOAuth2AuthCode_IncludesRefreshTokenOnRefresh(t *testing.T) {
+	client := &fakeAuthCodeClient{
+		responses: []fakeAuthCodeResponse{
+			{body: `{"access_token":"tok1","refresh_token":"ref1","expires_in":1}`, statusCode: 200},
+			{body: `{"access_token":"tok2","expires_in":3600}`, statusCode: 200},
+		},
+	}
+
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(client)
+
+	err := authObj.ExchangeCode("auth-code-xyz")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// AuthHeaders triggers a refresh since token is expired (expires_in=1 minus 30s buffer)
+	headers := authObj.AuthHeaders()
+
+	if !strings.Contains(client.LastBody, "refresh_token=ref1") {
+		t.Errorf("expected body to contain refresh_token=ref1, got %q", client.LastBody)
+	}
+	if !strings.Contains(client.LastBody, "grant_type=refresh_token") {
+		t.Errorf("expected body to contain grant_type=refresh_token, got %q", client.LastBody)
+	}
+	if headers["Authorization"] != "Bearer tok2" {
+		t.Errorf("expected Authorization 'Bearer tok2', got %q", headers["Authorization"])
+	}
+}
+
+func TestOAuth2AuthCode_PanicsBeforeExchangeCodeCalled(t *testing.T) {
+	authObj := createAuthCodeAuthenticator()
+
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatal("expected panic when calling AuthHeaders before ExchangeCode")
+		}
+	}()
+
+	authObj.AuthHeaders()
+}
+
+func TestOAuth2AuthCode_HostReturnsConfiguredHost(t *testing.T) {
+	authObj := createAuthCodeAuthenticator()
+
+	if authObj.Host() != "https://api.example.com" {
+		t.Errorf("expected host 'https://api.example.com', got %q", authObj.Host())
+	}
+}

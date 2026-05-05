@@ -134,11 +134,13 @@ defmodule PetstoreClient.Api.PetApi do
 
   @type t :: %__MODULE__{
           api_client: term(),
-          config: PetstoreClient.Configuration.t()
+          config: PetstoreClient.Configuration.t(),
+          authenticator: term()
         }
 
   defstruct api_client: nil,
-            config: nil
+            config: nil,
+            authenticator: nil
 
   @doc """
   Create a new PetApi instance.
@@ -149,11 +151,12 @@ defmodule PetstoreClient.Api.PetApi do
     * `config` - API-level configuration (optional, defaults to Configuration.default()).
 
   """
-  @spec new(term(), PetstoreClient.Configuration.t()) :: t()
-  def new(api_client \\ nil, config \\ PetstoreClient.Configuration.default()) do
+  @spec new(term(), PetstoreClient.Configuration.t(), term()) :: t()
+  def new(api_client \\ nil, config \\ PetstoreClient.Configuration.default(), authenticator \\ nil) do
     %__MODULE__{
       api_client: api_client || PetstoreClient.DefaultApiClient.new(),
-      config: config
+      config: config,
+      authenticator: authenticator
     }
   end
 

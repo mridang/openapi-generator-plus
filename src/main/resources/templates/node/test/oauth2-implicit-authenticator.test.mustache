@@ -1,0 +1,53 @@
+{{>api_info}}
+
+import { OAuth2ImplicitAuthenticator } from '../src/auth/oauth/oauth2-implicit-authenticator{{importFileExtension}}';
+
+describe('OAuth2ImplicitAuthenticator', () => {
+  let authenticator: OAuth2ImplicitAuthenticator;
+
+  beforeEach(() => {
+    authenticator = new OAuth2ImplicitAuthenticator(
+      'https://api.example.com',
+      'my-client-id',
+      'https://auth.example.com/authorize',
+      ['read', 'write']
+    );
+  });
+
+  test('builds correct authorization URL with response_type=token', () => {
+    const url = authenticator.buildAuthorizationUrl();
+    expect(url).toContain('https://auth.example.com/authorize?');
+    expect(url).toContain('response_type=token');
+  });
+
+  test('includes client_id in URL', () => {
+    const url = authenticator.buildAuthorizationUrl();
+    expect(url).toContain('client_id=my-client-id');
+  });
+
+  test('builds authorization URL with scopes', () => {
+    const url = authenticator.buildAuthorizationUrl();
+    expect(url).toContain('scope=read+write');
+  });
+
+  test('builds authorization URL with state', () => {
+    const url = authenticator.buildAuthorizationUrl('my-state');
+    expect(url).toContain('state=my-state');
+  });
+
+  test('setAccessToken then getAuthHeaders returns Bearer', () => {
+    authenticator.setAccessToken('implicit-tok');
+
+    const headers = authenticator.getAuthHeaders();
+
+    expect(headers['Authorization']).toBe('Bearer implicit-tok');
+  });
+
+  test('throws when access token not set', () => {
+    expect(() => authenticator.getAuthHeaders()).toThrow();
+  });
+
+  test('getHost returns configured host', () => {
+    expect(authenticator.getHost()).toBe('https://api.example.com');
+  });
+});

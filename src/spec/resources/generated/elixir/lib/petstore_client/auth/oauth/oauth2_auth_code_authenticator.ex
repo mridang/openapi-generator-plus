@@ -135,9 +135,11 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
   end
 
   def auth_headers(%__MODULE__{} = self) do
-    params = %{"grant_type" => "refresh_token"}
-    refresh = PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(self.token_manager)
-    params = if refresh, do: Map.put(params, "refresh_token", refresh), else: params
+    params = %{
+      "grant_type" => "refresh_token",
+      "refresh_token" => PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(self.token_manager) || ""
+    }
+
     token = PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(self.token_manager, self.refresh_url, params)
     %{"Authorization" => "Bearer #{token}"}
   end

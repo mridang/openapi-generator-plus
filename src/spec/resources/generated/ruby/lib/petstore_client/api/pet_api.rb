@@ -124,7 +124,7 @@ module PetstoreClient
     # Everything about your Pets
     # @see https://example.com/docs/pets Find out more about pets
     class PetApi < BaseApi
-      def initialize(api_client = nil, config = PetstoreClient::Configuration.default)
+      def initialize(api_client = nil, config = PetstoreClient::Configuration.default, authenticator = nil)
         super
       end
 

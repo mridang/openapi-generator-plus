@@ -385,6 +385,48 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                             "test/test_configuration.mustache",
                             "test",
                             "test_configuration.py"));
+            if (hasAnyOAuth2 || hasOpenIdConnect) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/test_oauth2_token_manager.mustache",
+                                "test",
+                                "test_oauth2_token_manager.py"));
+            }
+            if (hasOAuth2AuthorizationCode) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/test_oauth2_auth_code_authenticator.mustache",
+                                "test",
+                                "test_oauth2_auth_code_authenticator.py"));
+            }
+            if (hasOAuth2Implicit) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/test_oauth2_implicit_authenticator.mustache",
+                                "test",
+                                "test_oauth2_implicit_authenticator.py"));
+            }
+            if (hasOAuth2ClientCredentials) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/test_oauth2_client_credentials_authenticator.mustache",
+                                "test",
+                                "test_oauth2_client_credentials_authenticator.py"));
+            }
+            if (hasOAuth2Password) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/test_oauth2_password_authenticator.mustache",
+                                "test",
+                                "test_oauth2_password_authenticator.py"));
+            }
+            if (hasOpenIdConnect) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/test_openid_connect_authenticator.mustache",
+                                "test",
+                                "test_openid_connect_authenticator.py"));
+            }
         }
     }
 

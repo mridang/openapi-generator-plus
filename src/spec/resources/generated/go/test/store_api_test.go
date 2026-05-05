@@ -23,14 +23,14 @@ func newStoreApiForIntegration(t *testing.T) *petstore.StoreApi {
 		DefaultHeader("Authorization", "Bearer test-token").
 		Build()
 	client := petstore.NewDefaultApiClient(nil)
-	return petstore.NewStoreApi(client, config)
+	return petstore.NewStoreApi(client, config, nil)
 }
 
 func newStoreApiForMock(t *testing.T, server *httptest.Server) *petstore.StoreApi {
 	t.Helper()
 	config := petstore.NewConfigurationBuilder().BaseURL(server.URL).Build()
 	client := petstore.NewDefaultApiClient(nil)
-	return petstore.NewStoreApi(client, config)
+	return petstore.NewStoreApi(client, config, nil)
 }
 
 func TestStoreApi_PlaceOrder(t *testing.T) {

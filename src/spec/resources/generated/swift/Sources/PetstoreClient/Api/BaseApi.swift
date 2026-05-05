@@ -12,12 +12,16 @@ open class BaseApi {
   let config: Configuration
   let apiClient: ApiClient
   let headerSelector: HeaderSelector
+  let authenticator: Authenticator?
 
   /// Creates a new BaseApi instance.
-  public init(apiClient: ApiClient? = nil, config: Configuration? = nil) {
+  public init(
+    apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil
+  ) {
     self.apiClient = apiClient ?? DefaultApiClient()
     self.config = config ?? Configuration.default()
     self.headerSelector = HeaderSelector()
+    self.authenticator = authenticator
   }
 
   /// Parameters for an API invocation.
@@ -42,7 +46,8 @@ open class BaseApi {
 
     // Merge authentication query params
     var queryParams = params.queryParams
-    if let auth = params.auth {
+    let effectiveAuth: Authenticator? = params.auth ?? self.authenticator
+    if let auth = effectiveAuth {
       for (k, v) in auth.queryParams() {
         queryParams[k] = v
       }
@@ -79,7 +84,7 @@ open class BaseApi {
     }
 
     // Merge auth headers
-    if let auth = params.auth {
+    if let auth = effectiveAuth {
       for (k, v) in auth.authHeaders() {
         headers[k] = v
       }

@@ -25,7 +25,7 @@ async fn test_base_api_error_dispatch_400() {
     );
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
-    let api = PetApi::new(Arc::new(client), config);
+    let api = PetApi::new(Arc::new(client), config, None);
 
     let result = api.get_pet_by_id(1, None).await;
     assert!(result.is_err(), "expected error for status 400");
@@ -39,7 +39,7 @@ async fn test_base_api_error_dispatch_401() {
     );
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
-    let api = PetApi::new(Arc::new(client), config);
+    let api = PetApi::new(Arc::new(client), config, None);
 
     let result = api.get_pet_by_id(1, None).await;
     assert!(result.is_err(), "expected error for status 401");
@@ -53,7 +53,7 @@ async fn test_base_api_error_dispatch_403() {
     );
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
-    let api = PetApi::new(Arc::new(client), config);
+    let api = PetApi::new(Arc::new(client), config, None);
 
     let result = api.get_pet_by_id(1, None).await;
     assert!(result.is_err(), "expected error for status 403");
@@ -67,7 +67,7 @@ async fn test_base_api_error_dispatch_404() {
     );
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
-    let api = PetApi::new(Arc::new(client), config);
+    let api = PetApi::new(Arc::new(client), config, None);
 
     let result = api.get_pet_by_id(1, None).await;
     assert!(result.is_err(), "expected error for status 404");
@@ -81,7 +81,7 @@ async fn test_base_api_error_dispatch_409() {
     );
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
-    let api = PetApi::new(Arc::new(client), config);
+    let api = PetApi::new(Arc::new(client), config, None);
 
     let result = api.get_pet_by_id(1, None).await;
     assert!(result.is_err(), "expected error for status 409");
@@ -95,7 +95,7 @@ async fn test_base_api_error_dispatch_422() {
     );
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
-    let api = PetApi::new(Arc::new(client), config);
+    let api = PetApi::new(Arc::new(client), config, None);
 
     let result = api.get_pet_by_id(1, None).await;
     assert!(result.is_err(), "expected error for status 422");
@@ -109,7 +109,7 @@ async fn test_base_api_error_dispatch_500() {
     );
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
-    let api = PetApi::new(Arc::new(client), config);
+    let api = PetApi::new(Arc::new(client), config, None);
 
     let result = api.get_pet_by_id(1, None).await;
     assert!(result.is_err(), "expected error for status 500");
@@ -123,7 +123,7 @@ async fn test_base_api_error_dispatch_502() {
     );
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
-    let api = PetApi::new(Arc::new(client), config);
+    let api = PetApi::new(Arc::new(client), config, None);
 
     let result = api.get_pet_by_id(1, None).await;
     assert!(result.is_err(), "expected error for status 502");

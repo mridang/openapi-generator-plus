@@ -47,6 +47,9 @@ abstract class BaseApi {
     /** Content negotiation logic for Accept and Content-Type headers. */
     protected val headerSelector: HeaderSelector
 
+    /** Optional authenticator for client-level auth (used as fallback when no per-call auth is provided). */
+    protected val authenticator: Authenticator?
+
     /**
      * Create an API instance with the default configuration and default transport.
      */
@@ -65,11 +68,21 @@ abstract class BaseApi {
      * @param apiClient the HTTP transport client
      * @param config    API-level configuration (base URL and default headers)
      */
-    constructor(apiClient: ApiClient, config: Configuration) {
+    constructor(apiClient: ApiClient, config: Configuration) : this(apiClient, config, null)
+
+    /**
+     * Create an API instance with a custom API client, configuration, and authenticator.
+     *
+     * @param apiClient     the HTTP transport client
+     * @param config        API-level configuration (base URL and default headers)
+     * @param authenticator optional authenticator for client-level auth
+     */
+    constructor(apiClient: ApiClient, config: Configuration, authenticator: Authenticator?) {
         this.apiClient = apiClient
         this.config = config
         this.objectSerializer = ObjectSerializer()
         this.headerSelector = HeaderSelector()
+        this.authenticator = authenticator
     }
 
     /**
@@ -109,8 +122,9 @@ abstract class BaseApi {
                 config.baseUrl + path
             }
 
-        if (auth != null) {
-            for ((key, value) in auth.getQueryParams()) {
+        val effectiveAuth = auth ?: this.authenticator
+        if (effectiveAuth != null) {
+            for ((key, value) in effectiveAuth.getQueryParams()) {
                 queryParams[key] = value
             }
         }
@@ -124,9 +138,9 @@ abstract class BaseApi {
         val headers = headerSelector.selectHeaders(accepts, contentType, isMultipart)
         headers.putAll(config.defaultHeaders)
         headers.putAll(headerParams)
-        if (auth != null) {
-            headers.putAll(auth.getAuthHeaders())
-            val cookies = auth.getCookieParams()
+        if (effectiveAuth != null) {
+            headers.putAll(effectiveAuth.getAuthHeaders())
+            val cookies = effectiveAuth.getCookieParams()
             if (cookies.isNotEmpty()) {
                 val cookieStr = cookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
                 val existing = headers["Cookie"]

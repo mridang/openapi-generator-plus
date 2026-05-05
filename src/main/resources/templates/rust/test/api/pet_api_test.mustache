@@ -19,7 +19,7 @@ fn new_pet_api_for_integration() -> PetApi {
         .default_header("Authorization", "Bearer test-token")
         .build();
     let client = DefaultApiClient::new(None);
-    PetApi::new(Arc::new(client), config)
+    PetApi::new(Arc::new(client), config, None)
 }
 
 /// Starts a minimal HTTP mock server and returns a PetApi configured against it.
@@ -53,7 +53,7 @@ fn new_pet_api_for_mock(status: u16, content_type: &str, body: &str) -> (PetApi,
 
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
-    (PetApi::new(Arc::new(client), config), base_url)
+    (PetApi::new(Arc::new(client), config, None), base_url)
 }
 
 #[tokio::test]

@@ -79,9 +79,8 @@ class {{clientClassName}} {
   static {{classname}} _create{{classname}}(Authenticator authenticator, DefaultApiClient apiClient) {
     final config = ConfigurationBuilder()
         .baseUrl(authenticator.host())
-        .defaultHeaders(authenticator.authHeaders())
         .build();
-    return {{classname}}(apiClient: apiClient, config: config);
+    return {{classname}}(apiClient: apiClient, config: config, authenticator: authenticator);
   }
 {{/operations}}
 {{/apis}}

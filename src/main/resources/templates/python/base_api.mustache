@@ -39,6 +39,7 @@ class BaseApi:
         self,
         api_client: Optional[ApiClient] = None,
         config: Optional[Configuration] = None,
+        authenticator: Optional[Authenticator] = None,
     ):
         """Create an API instance.
 
@@ -60,6 +61,7 @@ class BaseApi:
         """
         self._config = config or Configuration.get_default()
         self._api_client = api_client or DefaultApiClient()
+        self._authenticator = authenticator
         self._object_serializer = ObjectSerializer()
         self._header_selector = HeaderSelector()
 
@@ -100,8 +102,10 @@ class BaseApi:
         else:
             url = self._config.base_url + path
 
-        if auth is not None:
-            query_params.update(auth.get_query_params())
+        effective_auth = auth if auth is not None else self._authenticator
+
+        if effective_auth is not None:
+            query_params.update(effective_auth.get_query_params())
 
         if query_params:
             filtered = {k: v for k, v in query_params.items() if v is not None}
@@ -121,9 +125,9 @@ class BaseApi:
         headers.update(self._config.default_headers)
         if header_params:
             headers.update(header_params)
-        if auth is not None:
-            headers.update(auth.get_auth_headers())
-            cookies = auth.get_cookie_params()
+        if effective_auth is not None:
+            headers.update(effective_auth.get_auth_headers())
+            cookies = effective_auth.get_cookie_params()
             if cookies:
                 cookie_str = '; '.join(f'{k}={v}' for k, v in cookies.items())
                 existing = headers.get('Cookie', '')

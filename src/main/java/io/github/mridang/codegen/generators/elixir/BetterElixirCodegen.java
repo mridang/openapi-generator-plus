@@ -408,6 +408,36 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                             "test/composed_schema_test.mustache",
                             "test",
                             "composed_schema_test.exs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_token_manager_test.mustache",
+                            "test",
+                            "oauth2_token_manager_test.exs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_auth_code_authenticator_test.mustache",
+                            "test",
+                            "oauth2_auth_code_authenticator_test.exs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_implicit_authenticator_test.mustache",
+                            "test",
+                            "oauth2_implicit_authenticator_test.exs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_client_credentials_authenticator_test.mustache",
+                            "test",
+                            "oauth2_client_credentials_authenticator_test.exs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_password_authenticator_test.mustache",
+                            "test",
+                            "oauth2_password_authenticator_test.exs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/openid_connect_authenticator_test.mustache",
+                            "test",
+                            "openid_connect_authenticator_test.exs"));
         }
     }
 

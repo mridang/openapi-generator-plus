@@ -72,10 +72,9 @@ class Client
 
         $config = Configuration::builder()
             ->baseUrl($authenticator->getHost())
-            ->defaultHeaders($authenticator->getAuthHeaders())
             ->build();
-        $this->pet = new PetApi($apiClient, $config);
-        $this->store = new StoreApi($apiClient, $config);
+        $this->pet = new PetApi($apiClient, $config, $authenticator);
+        $this->store = new StoreApi($apiClient, $config, $authenticator);
     }
 
     /**

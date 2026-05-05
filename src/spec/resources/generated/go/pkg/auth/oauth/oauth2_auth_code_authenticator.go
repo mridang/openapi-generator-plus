@@ -113,10 +113,8 @@ func (a *OAuth2AuthorizationCodeAuthenticator) AuthHeaders() map[string]string {
 	}
 
 	params := map[string]string{
-		"grant_type": "refresh_token",
-	}
-	if refreshToken := a.tokenManager.RefreshToken(); refreshToken != "" {
-		params["refresh_token"] = refreshToken
+		"grant_type":    "refresh_token",
+		"refresh_token": a.tokenManager.RefreshToken(),
 	}
 
 	token, err := a.tokenManager.GetAccessToken(a.refreshURL, params)

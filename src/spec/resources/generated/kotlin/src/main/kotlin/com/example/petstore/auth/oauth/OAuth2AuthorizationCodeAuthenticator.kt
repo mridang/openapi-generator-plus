@@ -90,11 +90,8 @@ open class OAuth2AuthorizationCodeAuthenticator(
         val params =
             mutableMapOf(
                 "grant_type" to "refresh_token",
+                "refresh_token" to (tokenManager.getRefreshToken() ?: ""),
             )
-        val refreshToken = tokenManager.getRefreshToken()
-        if (refreshToken != null) {
-            params["refresh_token"] = refreshToken
-        }
         val token = tokenManager.getAccessToken(effectiveRefreshUrl, params)
         return mapOf("Authorization" to "Bearer $token")
     }

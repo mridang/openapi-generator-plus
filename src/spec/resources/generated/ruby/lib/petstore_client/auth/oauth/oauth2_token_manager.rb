@@ -48,7 +48,7 @@ module PetstoreClient
         # @raise [RuntimeError] if no API client has been injected or token fetch fails
         def get_access_token(token_url, params)
           @mutex.synchronize do
-            return @access_token if @access_token && @token_expiry && Time.now.to_f < @token_expiry
+            return @access_token if @access_token && (@token_expiry.nil? || Time.now.to_f < @token_expiry)
 
             fetch_token(token_url, params)
             @access_token

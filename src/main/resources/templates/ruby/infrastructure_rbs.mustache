@@ -323,7 +323,7 @@ module {{moduleName}}
   module Api
     class BaseApi
       attr_reader config: Configuration
-      def initialize: (?ApiClient?, ?Configuration) -> void
+      def initialize: (?ApiClient?, ?Configuration, ?Auth::Authenticator?) -> void
       def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, Auth::Authenticator?) -> ApiResult
       def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, Auth::Authenticator?) -> untyped
       def build_collection_param: (Array[untyped], Symbol) -> untyped

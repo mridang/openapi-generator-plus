@@ -39,7 +39,7 @@ func newBaseApiAuth() *baseApiAuth {
 
 func wiremockApi() *petstore.PetApi {
 	config := petstore.NewConfigurationBuilder().BaseURL(wiremockHTTPURL).Build()
-	return petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config)
+	return petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
 }
 
 // ── Exception dispatch ──
@@ -99,7 +99,7 @@ func TestBaseApi_ErrorDispatchViaApi(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.errType, func(t *testing.T) {
 			config := petstore.NewConfigurationBuilder().BaseURL(wiremockHTTPURL + tc.path).Build()
-			api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config)
+			api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
 			_, err := api.GetPetById(int64(1), nil)
 			if err == nil {
 				t.Fatalf("expected error for status %d, got nil", tc.status)
@@ -112,7 +112,7 @@ func TestBaseApi_ErrorDispatchViaApi(t *testing.T) {
 
 func TestBaseApi_NotFoundIsClientError(t *testing.T) {
 	config := petstore.NewConfigurationBuilder().BaseURL(wiremockHTTPURL + "/api/error/404").Build()
-	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config)
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
 
 	_, err := api.GetPetById(int64(1), nil)
 	if err == nil {
@@ -128,7 +128,7 @@ func TestBaseApi_NotFoundIsClientError(t *testing.T) {
 
 func TestBaseApi_InternalServerErrorIsServerError(t *testing.T) {
 	config := petstore.NewConfigurationBuilder().BaseURL(wiremockHTTPURL + "/api/error/500").Build()
-	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config)
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
 
 	_, err := api.GetPetById(int64(1), nil)
 	if err == nil {
@@ -179,7 +179,7 @@ func TestBaseApi_ForwardsAuthHeaders(t *testing.T) {
 		BaseURL(wiremockHTTPURL).
 		DefaultHeader("Authorization", "Bearer test-token").
 		Build()
-	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config)
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
 
 	// Use the client directly to echo headers
 	client := petstore.NewDefaultApiClient(nil)
@@ -201,7 +201,7 @@ func TestBaseApi_ForwardsAuthHeaders(t *testing.T) {
 
 func TestBaseApi_SetsCookieFromAuth(t *testing.T) {
 	config := petstore.NewConfigurationBuilder().BaseURL(wiremockHTTPURL).Build()
-	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config)
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
 
 	auth := &baseApiAuth{
 		headers: map[string]string{},

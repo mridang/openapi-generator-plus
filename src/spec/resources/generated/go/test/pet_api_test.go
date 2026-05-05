@@ -33,14 +33,14 @@ func newPetApiForIntegration(t *testing.T) *petstore.PetApi {
 		DefaultHeader("Authorization", "Bearer test-token").
 		Build()
 	client := petstore.NewDefaultApiClient(nil)
-	return petstore.NewPetApi(client, config)
+	return petstore.NewPetApi(client, config, nil)
 }
 
 func newPetApiForMock(t *testing.T, server *httptest.Server) *petstore.PetApi {
 	t.Helper()
 	config := petstore.NewConfigurationBuilder().BaseURL(server.URL).Build()
 	client := petstore.NewDefaultApiClient(nil)
-	return petstore.NewPetApi(client, config)
+	return petstore.NewPetApi(client, config, nil)
 }
 
 func TestPetApi_AddPet(t *testing.T) {

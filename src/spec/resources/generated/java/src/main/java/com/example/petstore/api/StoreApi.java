@@ -12,6 +12,7 @@ import com.example.petstore.ApiException;
 import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
 import com.example.petstore.ValueSerializer;
+import com.example.petstore.auth.Authenticator;
 import com.example.petstore.models.Order;
 import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.HashMap;
@@ -35,6 +36,11 @@ public class StoreApi extends BaseApi {
 
   public StoreApi(ApiClient apiClient, Configuration config) {
     super(apiClient, config);
+  }
+
+  public StoreApi(
+      ApiClient apiClient, Configuration config, @Nullable Authenticator authenticator) {
+    super(apiClient, config, authenticator);
   }
 
   /**

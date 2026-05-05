@@ -71,12 +71,9 @@ export class Client {
       authenticator.setApiClient(apiClient);
     }
 
-    const config = Configuration.builder()
-      .baseUrl(authenticator.getHost())
-      .defaultHeaders(authenticator.getAuthHeaders())
-      .build();
-    this.Pet = new PetApi(apiClient, config);
-    this.Store = new StoreApi(apiClient, config);
+    const config = Configuration.builder().baseUrl(authenticator.getHost()).build();
+    this.Pet = new PetApi(apiClient, config, authenticator);
+    this.Store = new StoreApi(apiClient, config, authenticator);
   }
 
   /**

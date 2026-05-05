@@ -457,6 +457,36 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             "test/configuration_test.mustache",
                             "test",
                             "configuration_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_token_manager_test.mustache",
+                            "test",
+                            "oauth2_token_manager_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_auth_code_authenticator_test.mustache",
+                            "test",
+                            "oauth2_auth_code_authenticator_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_implicit_authenticator_test.mustache",
+                            "test",
+                            "oauth2_implicit_authenticator_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_client_credentials_authenticator_test.mustache",
+                            "test",
+                            "oauth2_client_credentials_authenticator_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/oauth2_password_authenticator_test.mustache",
+                            "test",
+                            "oauth2_password_authenticator_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/openid_connect_authenticator_test.mustache",
+                            "test",
+                            "openid_connect_authenticator_test.go"));
         }
     }
 

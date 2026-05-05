@@ -17,14 +17,14 @@ func newStoreApiForIntegration(t *testing.T) *{{packageName}}.StoreApi {
 		DefaultHeader("Authorization", "Bearer test-token").
 		Build()
 	client := {{packageName}}.NewDefaultApiClient(nil)
-	return {{packageName}}.NewStoreApi(client, config)
+	return {{packageName}}.NewStoreApi(client, config, nil)
 }
 
 func newStoreApiForMock(t *testing.T, server *httptest.Server) *{{packageName}}.StoreApi {
 	t.Helper()
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL(server.URL).Build()
 	client := {{packageName}}.NewDefaultApiClient(nil)
-	return {{packageName}}.NewStoreApi(client, config)
+	return {{packageName}}.NewStoreApi(client, config, nil)
 }
 
 func TestStoreApi_PlaceOrder(t *testing.T) {

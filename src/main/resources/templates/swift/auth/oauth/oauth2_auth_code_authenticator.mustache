@@ -99,11 +99,10 @@ public final class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, Http
             fatalError("Must call exchangeCode before making API requests")
         }
 
-        var params: [String: String] = ["grant_type": "refresh_token"]
-        let refreshToken = tokenManager.refreshToken
-        if !refreshToken.isEmpty {
-            params["refresh_token"] = refreshToken
-        }
+        let params: [String: String] = [
+            "grant_type": "refresh_token",
+            "refresh_token": tokenManager.refreshToken,
+        ]
 
         var token: String?
         let semaphore = DispatchSemaphore(value: 0)

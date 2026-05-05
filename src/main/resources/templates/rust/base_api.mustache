@@ -41,15 +41,17 @@ pub struct BaseApi {
     config: Configuration,
     api_client: Arc<dyn ApiClient>,
     header_selector: HeaderSelector,
+    authenticator: Option<Arc<dyn Authenticator>>,
 }
 
 impl BaseApi {
     /// Creates a new BaseApi instance.
-    pub fn new(api_client: Arc<dyn ApiClient>, config: Configuration) -> Self {
+    pub fn new(api_client: Arc<dyn ApiClient>, config: Configuration, authenticator: Option<Arc<dyn Authenticator>>) -> Self {
         Self {
             config,
             api_client,
             header_selector: HeaderSelector::new(),
+            authenticator,
         }
     }
 
@@ -65,7 +67,8 @@ impl BaseApi {
 
         // Merge authentication query params
         let mut query_params = params.query_params;
-        if let Some(auth) = params.auth {
+        let effective_auth: Option<&dyn Authenticator> = params.auth.or_else(|| self.authenticator.as_ref().map(|a| a.as_ref()));
+        if let Some(auth) = effective_auth {
             for (k, v) in auth.query_params() {
                 query_params.push((k, v));
             }
@@ -105,7 +108,7 @@ impl BaseApi {
         }
 
         // Merge auth headers
-        if let Some(auth) = params.auth {
+        if let Some(auth) = effective_auth {
             for (k, v) in auth.auth_headers() {
                 headers.insert(k, v);
             }

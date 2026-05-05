@@ -1,0 +1,134 @@
+{{>api_info}}
+{{#generateTests}}
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+class _FakeApiClient implements ApiClient {
+  final List<ApiResponse> _responses = [];
+  String? lastBody;
+  String? lastUrl;
+  String? lastMethod;
+
+  void enqueue(String body, {int statusCode = 200}) {
+    _responses.add(ApiResponse(statusCode, body, {}));
+  }
+
+  @override
+  Future<ApiResponse> sendRequest(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Uint8List? body,
+  ) async {
+    lastMethod = method;
+    lastUrl = url;
+    if (body != null) {
+      lastBody = utf8.decode(body);
+    }
+    return _responses.removeAt(0);
+  }
+}
+
+OpenIdConnectAuthenticator _createAuthenticator() {
+  return OpenIdConnectAuthenticator(
+    host: 'https://api.example.com',
+    openIdConnectUrl:
+        'https://auth.example.com/.well-known/openid-configuration',
+    clientId: 'my-client-id',
+    clientSecret: 'my-client-secret',
+    redirectUri: 'https://app.example.com/callback',
+    scopes: ['openid', 'profile'],
+  );
+}
+
+void main() {
+  group('OpenIdConnectAuthenticator', () {
+    test('builds authorization URL from discovery', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}');
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      final url = await auth.buildAuthorizationUrl('my-state');
+
+      expect(url, startsWith('https://auth.example.com/authorize?'));
+      expect(url, contains('response_type=code'));
+      expect(url, contains('client_id=my-client-id'));
+      expect(url, contains('state=my-state'));
+    });
+
+    test('fetches discovery document', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}');
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await auth.buildAuthorizationUrl();
+
+      expect(client.lastMethod, equals('GET'));
+      expect(
+        client.lastUrl,
+        equals(
+            'https://auth.example.com/.well-known/openid-configuration'),
+      );
+    });
+
+    test('obtains token after code exchange', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}');
+      client.enqueue('{"access_token":"oidc-tok","expires_in":3600}');
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await auth.exchangeCode('oidc-code');
+
+      expect(client.lastBody!, contains('grant_type=authorization_code'));
+      expect(client.lastBody!, contains('code=oidc-code'));
+    });
+
+    test('getAuthHeaders returns Bearer after exchange', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}');
+      client.enqueue('{"access_token":"oidc-tok","expires_in":3600}');
+      client.enqueue('{"access_token":"oidc-tok","expires_in":3600}');
+
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      await auth.exchangeCode('oidc-code');
+      final headers = await auth.authHeadersAsync();
+
+      expect(headers['Authorization'], equals('Bearer oidc-tok'));
+    });
+
+    test('throws when no ApiClient injected', () {
+      final auth = _createAuthenticator();
+
+      expect(
+        () => auth.buildAuthorizationUrl(),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('getHost returns configured host', () {
+      final auth = _createAuthenticator();
+
+      expect(auth.host(), equals('https://api.example.com'));
+    });
+  });
+}
+{{/generateTests}}

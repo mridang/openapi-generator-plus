@@ -32,6 +32,9 @@ public abstract class BaseApi
     /// <summary>Serializer for request/response body conversion.</summary>
     protected ObjectSerializer Serializer { get; }
 
+    /// <summary>Optional authenticator used as fallback when no per-call auth is provided.</summary>
+    protected IAuthenticator? Authenticator { get; }
+
     /// <summary>
     /// Create an API instance with the default configuration and default transport.
     /// </summary>
@@ -51,12 +54,22 @@ public abstract class BaseApi
     /// <param name="apiClient">The HTTP transport client.</param>
     /// <param name="config">API-level configuration (base URL and default headers).</param>
     protected BaseApi(IApiClient apiClient, Configuration config)
+        : this(apiClient, config, null) { }
+
+    /// <summary>
+    /// Create an API instance with a custom API client, configuration, and authenticator.
+    /// </summary>
+    /// <param name="apiClient">The HTTP transport client.</param>
+    /// <param name="config">API-level configuration (base URL and default headers).</param>
+    /// <param name="authenticator">Optional authenticator for per-request auth.</param>
+    protected BaseApi(IApiClient apiClient, Configuration config, IAuthenticator? authenticator)
     {
         ArgumentNullException.ThrowIfNull(apiClient);
         ArgumentNullException.ThrowIfNull(config);
         ApiClient = apiClient;
         Config = config;
         Serializer = new ObjectSerializer();
+        Authenticator = authenticator;
     }
 
     /// <summary>
@@ -77,6 +90,7 @@ public abstract class BaseApi
     {
         ArgumentNullException.ThrowIfNull(queryParams);
         ArgumentNullException.ThrowIfNull(headerParams);
+        IAuthenticator? effectiveAuth = auth ?? Authenticator;
         string url;
         if (
             path.StartsWith("http://", StringComparison.Ordinal)
@@ -90,9 +104,9 @@ public abstract class BaseApi
             url = Config.BaseUrl + path;
         }
 
-        if (auth is not null)
+        if (effectiveAuth is not null)
         {
-            foreach (KeyValuePair<string, string> param in auth.GetQueryParams())
+            foreach (KeyValuePair<string, string> param in effectiveAuth.GetQueryParams())
             {
                 queryParams[param.Key] = param.Value;
             }
@@ -121,14 +135,14 @@ public abstract class BaseApi
             headers[header.Key] = header.Value;
         }
 
-        if (auth is not null)
+        if (effectiveAuth is not null)
         {
-            foreach (KeyValuePair<string, string> header in auth.GetAuthHeaders())
+            foreach (KeyValuePair<string, string> header in effectiveAuth.GetAuthHeaders())
             {
                 headers[header.Key] = header.Value;
             }
 
-            Dictionary<string, string> cookies = auth.GetCookieParams();
+            Dictionary<string, string> cookies = effectiveAuth.GetCookieParams();
             if (cookies.Count > 0)
             {
                 string cookieStr = string.Join("; ", cookies.Select(c => c.Key + "=" + c.Value));

@@ -73,20 +73,16 @@ class Client {
 
   static PetApi _createPetApi(
       Authenticator authenticator, DefaultApiClient apiClient) {
-    final config = ConfigurationBuilder()
-        .baseUrl(authenticator.host())
-        .defaultHeaders(authenticator.authHeaders())
-        .build();
-    return PetApi(apiClient: apiClient, config: config);
+    final config = ConfigurationBuilder().baseUrl(authenticator.host()).build();
+    return PetApi(
+        apiClient: apiClient, config: config, authenticator: authenticator);
   }
 
   static StoreApi _createStoreApi(
       Authenticator authenticator, DefaultApiClient apiClient) {
-    final config = ConfigurationBuilder()
-        .baseUrl(authenticator.host())
-        .defaultHeaders(authenticator.authHeaders())
-        .build();
-    return StoreApi(apiClient: apiClient, config: config);
+    final config = ConfigurationBuilder().baseUrl(authenticator.host()).build();
+    return StoreApi(
+        apiClient: apiClient, config: config, authenticator: authenticator);
   }
 
   /// Creates a client authenticated with a static Bearer token.

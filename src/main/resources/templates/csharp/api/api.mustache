@@ -4,9 +4,7 @@
 #pragma warning disable CA1056 // URI properties should not be strings
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
-{{#hasAnyAuthMethods}}
 using {{packageName}}.Auth;
-{{/hasAnyAuthMethods}}
 using {{packageName}}.Models;
 {{#optionsImports}}{{#-first}}
 using {{packageName}}.Api.Options;
@@ -101,6 +99,9 @@ public class {{classname}} : BaseApi
 
     public {{classname}}(IApiClient apiClient, Configuration config)
         : base(apiClient, config) { }
+
+    public {{classname}}(IApiClient apiClient, Configuration config, IAuthenticator? authenticator)
+        : base(apiClient, config, authenticator) { }
     {{#operation}}
 
     /// <summary>

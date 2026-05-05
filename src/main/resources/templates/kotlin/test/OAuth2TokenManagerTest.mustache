@@ -1,0 +1,129 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+import {{invokerPackage}}.auth.oauth.OAuth2TokenManager
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
+import java.util.LinkedList
+
+class OAuth2TokenManagerTest {
+
+    private class FakeApiClient : ApiClient {
+        private val responses = LinkedList<ApiResponse>()
+        var lastBody: String? = null
+            private set
+        var lastUrl: String? = null
+            private set
+
+        fun enqueue(body: String, statusCode: Int = 200) {
+            responses.add(ApiResponse(statusCode, body, emptyMap()))
+        }
+
+        override suspend fun sendRequest(
+            method: String,
+            url: String,
+            headers: Map<String, String>,
+            body: Any?
+        ): ApiResponse {
+            lastUrl = url
+            lastBody = body?.toString()
+            return responses.poll() ?: throw IllegalStateException("No responses queued")
+        }
+    }
+
+    @Test
+    fun extractsAccessTokenFromResponse() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok123","expires_in":3600}""")
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val token = manager.getAccessToken(
+            "https://auth.example.com/token",
+            mapOf("grant_type" to "client_credentials")
+        )
+
+        assertEquals("tok123", token)
+    }
+
+    @Test
+    fun storesRefreshToken() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}""")
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        manager.getAccessToken(
+            "https://auth.example.com/token",
+            mapOf("grant_type" to "authorization_code")
+        )
+
+        assertEquals("ref1", manager.getRefreshToken())
+    }
+
+    @Test
+    fun returnsCachedTokenWhenNotExpired() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        val first = manager.getAccessToken(tokenUrl, params)
+        val second = manager.getAccessToken(tokenUrl, params)
+
+        assertEquals("tok1", first)
+        assertEquals("tok1", second)
+    }
+
+    @Test
+    fun refetchesTokenWhenExpired() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"tok1","expires_in":1}""")
+        client.enqueue("""{"access_token":"tok2","expires_in":3600}""")
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        val first = manager.getAccessToken(tokenUrl, params)
+        val second = manager.getAccessToken(tokenUrl, params)
+
+        assertEquals("tok1", first)
+        assertEquals("tok2", second)
+    }
+
+    @Test
+    fun setAccessTokenBypassesEndpoint() {
+        val manager = OAuth2TokenManager()
+        manager.setAccessToken("manual-token")
+
+        val token = manager.getAccessToken(
+            "https://auth.example.com/token",
+            emptyMap()
+        )
+
+        assertEquals("manual-token", token)
+    }
+
+    @Test
+    fun throwsWhenNoApiClientInjected() {
+        val manager = OAuth2TokenManager()
+
+        assertThrows(IllegalStateException::class.java) {
+            manager.getAccessToken(
+                "https://auth.example.com/token",
+                mapOf("grant_type" to "client_credentials")
+            )
+        }
+    }
+}

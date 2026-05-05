@@ -50,7 +50,7 @@ module PetstoreClient
       def url: () -> String
     end
     class PetApi < BaseApi
-      def initialize: (?::PetstoreClient::ApiClient? api_client, ?::PetstoreClient::Configuration config) -> void
+      def initialize: (?::PetstoreClient::ApiClient? api_client, ?::PetstoreClient::Configuration config, ?::PetstoreClient::Auth::Authenticator? authenticator) -> void
       def add_pet: (::PetstoreClient::Auth::Authenticator auth, Models::Pet pet) -> untyped
       def add_pet_with_http_info: (::PetstoreClient::Auth::Authenticator auth, Models::Pet pet) -> ::PetstoreClient::ApiResult
       def add_pet_photos: (Integer pet_id, Options::AddPetPhotosOptions options) -> untyped

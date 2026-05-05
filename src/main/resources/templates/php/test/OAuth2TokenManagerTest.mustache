@@ -1,0 +1,128 @@
+{{>api_info}}
+namespace {{invokerPackage}}\Test;
+
+use PHPUnit\Framework\TestCase;
+use {{invokerPackage}}\ApiClient;
+use {{invokerPackage}}\ApiResponse;
+use {{invokerPackage}}\Auth\OAuth\OAuth2TokenManager;
+
+class MockTokenApiClient implements ApiClient
+{
+    /** @var ApiResponse[] */
+    private array $responses = [];
+    private int $callIndex = 0;
+
+    /** @var array<int, array{method: string, url: string, headers: array<string, string>, body: mixed}> */
+    public array $capturedRequests = [];
+
+    public function enqueueResponse(ApiResponse $response): void
+    {
+        $this->responses[] = $response;
+    }
+
+    /** @param array<string, string> $headers */
+    public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
+    {
+        $this->capturedRequests[] = [
+            'method' => $method,
+            'url' => $url,
+            'headers' => $headers,
+            'body' => $body,
+        ];
+        return $this->responses[$this->callIndex++] ?? new ApiResponse(500, '{}', []);
+    }
+}
+
+class OAuth2TokenManagerTest extends TestCase
+{
+    private function makeTokenResponse(string $accessToken, int $expiresIn = 3600, ?string $refreshToken = null): ApiResponse
+    {
+        $body = ['access_token' => $accessToken, 'expires_in' => $expiresIn];
+        if ($refreshToken !== null) {
+            $body['refresh_token'] = $refreshToken;
+        }
+        return new ApiResponse(200, json_encode($body), ['Content-Type' => 'application/json']);
+    }
+
+    public function testStoresRefreshToken(): void
+    {
+        $client = new MockTokenApiClient();
+        $client->enqueueResponse($this->makeTokenResponse('access1', 3600, 'refresh1'));
+
+        $manager = new OAuth2TokenManager();
+        $manager->setApiClient($client);
+
+        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'authorization_code']);
+
+        $this->assertSame('refresh1', $manager->getRefreshToken());
+    }
+
+    public function testExtractsAccessToken(): void
+    {
+        $client = new MockTokenApiClient();
+        $client->enqueueResponse($this->makeTokenResponse('my-access-token', 3600));
+
+        $manager = new OAuth2TokenManager();
+        $manager->setApiClient($client);
+
+        $token = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+        $this->assertSame('my-access-token', $token);
+    }
+
+    public function testReturnsCachedTokenWhenNotExpired(): void
+    {
+        $client = new MockTokenApiClient();
+        $client->enqueueResponse($this->makeTokenResponse('cached-token', 3600));
+
+        $manager = new OAuth2TokenManager();
+        $manager->setApiClient($client);
+
+        $token1 = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+        $token2 = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+        $this->assertSame('cached-token', $token1);
+        $this->assertSame('cached-token', $token2);
+        $this->assertCount(1, $client->capturedRequests);
+    }
+
+    public function testRefetchesTokenWhenExpired(): void
+    {
+        $client = new MockTokenApiClient();
+        // First token expires immediately (expires_in = 0 means it will be in the past after the 30s buffer)
+        $client->enqueueResponse($this->makeTokenResponse('expired-token', 0));
+        $client->enqueueResponse($this->makeTokenResponse('new-token', 3600));
+
+        $manager = new OAuth2TokenManager();
+        $manager->setApiClient($client);
+
+        $token1 = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+        $token2 = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+        $this->assertSame('expired-token', $token1);
+        $this->assertSame('new-token', $token2);
+        $this->assertCount(2, $client->capturedRequests);
+    }
+
+    public function testManuallySetAccessTokenIsReturned(): void
+    {
+        $client = new MockTokenApiClient();
+
+        $manager = new OAuth2TokenManager();
+        $manager->setApiClient($client);
+        $manager->setAccessToken('manual-token');
+
+        $token = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+        $this->assertSame('manual-token', $token);
+        $this->assertCount(0, $client->capturedRequests);
+    }
+
+    public function testThrowsWhenApiClientNotInjected(): void
+    {
+        $manager = new OAuth2TokenManager();
+
+        $this->expectException(\RuntimeException::class);
+        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    }
+}

@@ -71,16 +71,9 @@ public final class Client {
       httpAware.setApiClient(apiClient);
     }
 
-    Configuration.Builder configBuilder =
-        Configuration.builder()
-            .baseUrl(authenticator.getHost())
-            .defaultHeaders(authenticator.getAuthHeaders());
-    for (java.util.Map.Entry<String, String> entry : authenticator.getQueryParams().entrySet()) {
-      configBuilder.defaultHeader("_query_" + entry.getKey(), entry.getValue());
-    }
-    Configuration config = configBuilder.build();
-    this.pet = new PetApi(apiClient, config);
-    this.store = new StoreApi(apiClient, config);
+    Configuration config = Configuration.builder().baseUrl(authenticator.getHost()).build();
+    this.pet = new PetApi(apiClient, config, authenticator);
+    this.store = new StoreApi(apiClient, config, authenticator);
   }
 
   /**

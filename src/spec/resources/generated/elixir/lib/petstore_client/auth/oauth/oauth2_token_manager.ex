@@ -67,7 +67,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
     Agent.get_and_update(manager, fn state ->
       now = System.system_time(:second)
 
-      if state.access_token && state.token_expiry && now < state.token_expiry do
+      if state.access_token && (is_nil(state.token_expiry) || now < state.token_expiry) do
         {state.access_token, state}
       else
         new_state = fetch_token(state, token_url, params)

@@ -71,16 +71,9 @@ public sealed class Client : IDisposable
             httpAware.SetApiClient(_apiClient);
         }
 
-        ConfigurationBuilder configBuilder = Configuration
-            .Builder()
-            .BaseUrl(authenticator.GetHost());
-        foreach (KeyValuePair<string, string> header in authenticator.GetAuthHeaders())
-        {
-            configBuilder = configBuilder.DefaultHeader(header.Key, header.Value);
-        }
-        Configuration config = configBuilder.Build();
-        Pet = new PetApi(_apiClient, config);
-        Store = new StoreApi(_apiClient, config);
+        Configuration config = Configuration.Builder().BaseUrl(authenticator.GetHost()).Build();
+        Pet = new PetApi(_apiClient, config, authenticator);
+        Store = new StoreApi(_apiClient, config, authenticator);
     }
 
     /// <summary>

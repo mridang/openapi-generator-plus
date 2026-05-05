@@ -144,11 +144,11 @@ public sealed class OAuth2AuthorizationCodeAuthenticator
             );
         }
 
-        Dictionary<string, string> parameters = new() { ["grant_type"] = "refresh_token" };
-        if (_tokenManager.RefreshToken is not null)
+        Dictionary<string, string> parameters = new()
         {
-            parameters["refresh_token"] = _tokenManager.RefreshToken;
-        }
+            ["grant_type"] = "refresh_token",
+            ["refresh_token"] = _tokenManager.RefreshToken ?? "",
+        };
         string token = _tokenManager
             .GetAccessTokenAsync(_refreshUrl, parameters)
             .GetAwaiter()

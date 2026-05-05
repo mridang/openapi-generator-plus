@@ -2,9 +2,7 @@
 
 import type { ApiClient } from '../api-client{{importFileExtension}}';
 import type { ApiResult } from '../api-result{{importFileExtension}}';
-{{#hasAnyAuthMethods}}
 import type { Authenticator } from '../auth/authenticator{{importFileExtension}}';
-{{/hasAnyAuthMethods}}
 import { BaseApi } from './base-api{{importFileExtension}}';
 import { Configuration } from '../configuration{{importFileExtension}}';
 import { ObjectSerializer } from '../object-serializer{{importFileExtension}}';
@@ -70,8 +68,8 @@ export class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
 {{/tagExternalDocs}}
  */
 export class {{classname}} extends BaseApi {
-  constructor(apiClient?: ApiClient, config?: Configuration) {
-    super(apiClient, config);
+  constructor(apiClient?: ApiClient, config?: Configuration, authenticator?: Authenticator | null) {
+    super(apiClient, config, authenticator);
   }
   {{#operation}}
 

@@ -7,6 +7,7 @@
 
 import type { ApiClient } from '../api-client.js';
 import type { ApiResult } from '../api-result.js';
+import type { Authenticator } from '../auth/authenticator.js';
 import { BaseApi } from './base-api.js';
 import { Configuration } from '../configuration.js';
 import { ObjectSerializer } from '../object-serializer.js';
@@ -18,8 +19,8 @@ import { Order } from '../models/index.js';
  * Access to Petstore orders
  */
 export class StoreApi extends BaseApi {
-  constructor(apiClient?: ApiClient, config?: Configuration) {
-    super(apiClient, config);
+  constructor(apiClient?: ApiClient, config?: Configuration, authenticator?: Authenticator | null) {
+    super(apiClient, config, authenticator);
   }
 
   /**

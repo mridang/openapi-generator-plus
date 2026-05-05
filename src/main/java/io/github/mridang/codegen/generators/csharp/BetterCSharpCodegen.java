@@ -376,6 +376,48 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             "test/ClientTest.mustache",
                             "Test",
                             "ClientTest.cs"));
+            if (hasAnyOAuth2 || hasOpenIdConnect) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/OAuth2TokenManagerTest.mustache",
+                                "Test",
+                                "OAuth2TokenManagerTest.cs"));
+            }
+            if (hasOAuth2AuthorizationCode) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/OAuth2AuthCodeAuthenticatorTest.mustache",
+                                "Test",
+                                "OAuth2AuthCodeAuthenticatorTest.cs"));
+            }
+            if (hasOAuth2Implicit) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/OAuth2ImplicitAuthenticatorTest.mustache",
+                                "Test",
+                                "OAuth2ImplicitAuthenticatorTest.cs"));
+            }
+            if (hasOAuth2ClientCredentials) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/OAuth2ClientCredentialsAuthenticatorTest.mustache",
+                                "Test",
+                                "OAuth2ClientCredentialsAuthenticatorTest.cs"));
+            }
+            if (hasOAuth2Password) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/OAuth2PasswordAuthenticatorTest.mustache",
+                                "Test",
+                                "OAuth2PasswordAuthenticatorTest.cs"));
+            }
+            if (hasOpenIdConnect) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/OpenIdConnectAuthenticatorTest.mustache",
+                                "Test",
+                                "OpenIdConnectAuthenticatorTest.cs"));
+            }
         }
     }
 

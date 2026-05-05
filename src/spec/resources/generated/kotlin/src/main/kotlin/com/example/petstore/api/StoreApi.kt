@@ -12,6 +12,7 @@ import com.example.petstore.ApiException
 import com.example.petstore.ApiResult
 import com.example.petstore.Configuration
 import com.example.petstore.ValueSerializer
+import com.example.petstore.auth.Authenticator
 import com.example.petstore.models.Order
 import kotlin.collections.Map
 
@@ -23,6 +24,8 @@ class StoreApi : BaseApi {
     constructor() : super()
 
     constructor(apiClient: ApiClient, config: Configuration) : super(apiClient, config)
+
+    constructor(apiClient: ApiClient, config: Configuration, authenticator: Authenticator?) : super(apiClient, config, authenticator)
 
     /**
      * Delete purchase order by ID

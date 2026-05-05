@@ -45,12 +45,11 @@ module {{moduleName}}
 
       config = Configuration.builder
         .base_url(authenticator.host)
-        .default_headers(authenticator.auth_headers)
         .build
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-      @{{clientPropertyName}} = Api::{{classname}}.new(api_client, config)
+      @{{clientPropertyName}} = Api::{{classname}}.new(api_client, config, authenticator)
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}

@@ -1,0 +1,94 @@
+{{>api_info}}
+namespace {{invokerPackage}}\Test;
+
+use PHPUnit\Framework\TestCase;
+use {{invokerPackage}}\Auth\OAuth\OAuth2ImplicitAuthenticator;
+
+class OAuth2ImplicitAuthenticatorTest extends TestCase
+{
+    public function testBuildsAuthorizationUrl(): void
+    {
+        $authenticator = new OAuth2ImplicitAuthenticator(
+            'https://api.example.com',
+            'my-client-id',
+            'https://auth.example.com/authorize',
+            ['read', 'write']
+        );
+
+        $url = $authenticator->buildAuthorizationUrl('csrf-state');
+
+        $this->assertStringContainsString('https://auth.example.com/authorize?', $url);
+        $this->assertStringContainsString('response_type=token', $url);
+        $this->assertStringContainsString('scope=read+write', $url);
+        $this->assertStringContainsString('state=csrf-state', $url);
+    }
+
+    public function testIncludesClientId(): void
+    {
+        $authenticator = new OAuth2ImplicitAuthenticator(
+            'https://api.example.com',
+            'my-client-id',
+            'https://auth.example.com/authorize',
+            []
+        );
+
+        $url = $authenticator->buildAuthorizationUrl();
+
+        $this->assertStringContainsString('client_id=my-client-id', $url);
+    }
+
+    public function testReturnsHostCorrectly(): void
+    {
+        $authenticator = new OAuth2ImplicitAuthenticator(
+            'https://api.example.com',
+            'my-client-id',
+            'https://auth.example.com/authorize',
+            []
+        );
+
+        $this->assertSame('https://api.example.com', $authenticator->getHost());
+    }
+
+    public function testSetAccessTokenAllowsGetAuthHeaders(): void
+    {
+        $authenticator = new OAuth2ImplicitAuthenticator(
+            'https://api.example.com',
+            'my-client-id',
+            'https://auth.example.com/authorize',
+            []
+        );
+
+        $authenticator->setAccessToken('my-access-token');
+        $headers = $authenticator->getAuthHeaders();
+
+        $this->assertSame('Bearer my-access-token', $headers['Authorization']);
+    }
+
+    public function testThrowsIfAccessTokenNotSet(): void
+    {
+        $authenticator = new OAuth2ImplicitAuthenticator(
+            'https://api.example.com',
+            'my-client-id',
+            'https://auth.example.com/authorize',
+            []
+        );
+
+        $this->expectException(\RuntimeException::class);
+        $authenticator->getAuthHeaders();
+    }
+
+    public function testBuildAuthorizationUrlWithoutState(): void
+    {
+        $authenticator = new OAuth2ImplicitAuthenticator(
+            'https://api.example.com',
+            'my-client-id',
+            'https://auth.example.com/authorize',
+            ['openid']
+        );
+
+        $url = $authenticator->buildAuthorizationUrl();
+
+        $this->assertStringNotContainsString('state=', $url);
+        $this->assertStringContainsString('scope=openid', $url);
+    }
+}

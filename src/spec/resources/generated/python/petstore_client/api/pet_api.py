@@ -155,8 +155,9 @@ class PetApi(BaseApi):
         self,
         api_client: Optional[ApiClient] = None,
         config: Optional[Configuration] = None,
+        authenticator: Optional[Authenticator] = None,
     ):
-        super().__init__(api_client, config)
+        super().__init__(api_client, config, authenticator)
 
     async def add_pet(
         self,

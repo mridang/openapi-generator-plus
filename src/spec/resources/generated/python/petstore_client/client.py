@@ -65,14 +65,9 @@ class Client:
         if isinstance(authenticator, HttpAwareAuthenticator):
             authenticator.set_api_client(api_client)
 
-        config = (
-            Configuration.builder()
-            .base_url(authenticator.get_host())
-            .default_headers(authenticator.get_auth_headers())
-            .build()
-        )
-        self.pet: PetApi = PetApi(api_client, config)
-        self.store: StoreApi = StoreApi(api_client, config)
+        config = Configuration.builder().base_url(authenticator.get_host()).build()
+        self.pet: PetApi = PetApi(api_client, config, authenticator)
+        self.store: StoreApi = StoreApi(api_client, config, authenticator)
 
     @classmethod
     def with_token(

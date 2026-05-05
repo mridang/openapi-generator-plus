@@ -417,6 +417,37 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                             "test/ComposedSchemaTest.mustache",
                             testModelsFolder,
                             "ComposedSchemaTest.kt"));
+            final String testAuthFolder = Path.of(testFolder, "auth", "oauth").toString();
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/OAuth2TokenManagerTest.mustache",
+                            testAuthFolder,
+                            "OAuth2TokenManagerTest.kt"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/OAuth2AuthCodeAuthenticatorTest.mustache",
+                            testAuthFolder,
+                            "OAuth2AuthCodeAuthenticatorTest.kt"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/OAuth2ImplicitAuthenticatorTest.mustache",
+                            testAuthFolder,
+                            "OAuth2ImplicitAuthenticatorTest.kt"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/OAuth2ClientCredentialsAuthenticatorTest.mustache",
+                            testAuthFolder,
+                            "OAuth2ClientCredentialsAuthenticatorTest.kt"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/OAuth2PasswordAuthenticatorTest.mustache",
+                            testAuthFolder,
+                            "OAuth2PasswordAuthenticatorTest.kt"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/OpenIdConnectAuthenticatorTest.mustache",
+                            testAuthFolder,
+                            "OpenIdConnectAuthenticatorTest.kt"));
             supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
         }
     }

@@ -38,6 +38,9 @@ export abstract class BaseApi {
   /** Content negotiation logic for Accept and Content-Type headers. */
   protected readonly headerSelector: HeaderSelector;
 
+  /** Optional authenticator for request-level auth when not passed per-call. */
+  protected readonly authenticator: Authenticator | null;
+
   /**
    * Create an API instance.
    *
@@ -45,11 +48,13 @@ export abstract class BaseApi {
    *   When omitted a {@link DefaultApiClient} with default transport options is used.
    * @param config API-level configuration (base URL and default headers).
    *   When omitted the {@link Configuration.getDefault default configuration} is used.
+   * @param authenticator optional authenticator applied to all requests unless overridden per-call.
    */
-  constructor(apiClient?: ApiClient, config?: Configuration) {
+  constructor(apiClient?: ApiClient, config?: Configuration, authenticator?: Authenticator | null) {
     this.apiClient = apiClient ?? new DefaultApiClient();
     this.config = config ?? Configuration.getDefault();
     this.headerSelector = new HeaderSelector();
+    this.authenticator = authenticator ?? null;
   }
 
   /**
@@ -85,8 +90,9 @@ export abstract class BaseApi {
       url = this.config.baseUrl + path;
     }
 
-    if (auth) {
-      const authQueryParams = auth.getQueryParams();
+    const effectiveAuth = auth ?? this.authenticator;
+    if (effectiveAuth) {
+      const authQueryParams = effectiveAuth.getQueryParams();
       for (const [k, v] of Object.entries(authQueryParams)) {
         queryParams[k] = v;
       }
@@ -108,9 +114,9 @@ export abstract class BaseApi {
     const headers = this.headerSelector.selectHeaders(accepts, contentType, isMultipart);
     Object.assign(headers, this.config.defaultHeaders);
     Object.assign(headers, headerParams);
-    if (auth) {
-      Object.assign(headers, auth.getAuthHeaders());
-      const cookies = auth.getCookieParams();
+    if (effectiveAuth) {
+      Object.assign(headers, effectiveAuth.getAuthHeaders());
+      const cookies = effectiveAuth.getCookieParams();
       const cookieEntries = Object.entries(cookies);
       if (cookieEntries.length > 0) {
         const cookieStr = cookieEntries.map(([k, v]) => `${k}=${v}`).join('; ');

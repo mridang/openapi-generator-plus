@@ -47,10 +47,9 @@ module PetstoreClient
 
       config = Configuration.builder
                             .base_url(authenticator.host)
-                            .default_headers(authenticator.auth_headers)
                             .build
-      @pet = Api::PetApi.new(api_client, config)
-      @store = Api::StoreApi.new(api_client, config)
+      @pet = Api::PetApi.new(api_client, config, authenticator)
+      @store = Api::StoreApi.new(api_client, config, authenticator)
     end
 
     # Creates a client authenticated with a static Bearer token.

@@ -51,11 +51,10 @@ public final class Client: Sendable {
 
     let config = ConfigurationBuilder()
       .baseURL(authenticator.host())
-      .defaultHeaders(authenticator.authHeaders())
       .build()
 
-    self.petApi = PetApi(apiClient: apiClient, config: config)
-    self.storeApi = StoreApi(apiClient: apiClient, config: config)
+    self.petApi = PetApi(apiClient: apiClient, config: config, authenticator: authenticator)
+    self.storeApi = StoreApi(apiClient: apiClient, config: config, authenticator: authenticator)
   }
 
   /// Creates a client authenticated with a static Bearer token.

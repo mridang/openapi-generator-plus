@@ -1,7 +1,7 @@
 module PetstoreClient
   module Api
     class StoreApi < BaseApi
-      def initialize: (?::PetstoreClient::ApiClient? api_client, ?::PetstoreClient::Configuration config) -> void
+      def initialize: (?::PetstoreClient::ApiClient? api_client, ?::PetstoreClient::Configuration config, ?::PetstoreClient::Auth::Authenticator? authenticator) -> void
       def delete_order: (Integer order_id) -> untyped
       def delete_order_with_http_info: (Integer order_id) -> ::PetstoreClient::ApiResult
       def get_inventory: () -> untyped

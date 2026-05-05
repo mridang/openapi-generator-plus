@@ -226,6 +226,9 @@ public class PetApi : BaseApi
     public PetApi(IApiClient apiClient, Configuration config)
         : base(apiClient, config) { }
 
+    public PetApi(IApiClient apiClient, Configuration config, IAuthenticator? authenticator)
+        : base(apiClient, config, authenticator) { }
+
     /// <summary>
     /// Add a new pet to the store
     /// </summary>

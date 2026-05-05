@@ -1,0 +1,126 @@
+{{>api_info}}
+{{#generateTests}}
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+class _FakeApiClient implements ApiClient {
+  final List<ApiResponse> _responses = [];
+  String? lastBody;
+  String? lastUrl;
+
+  void enqueue(String body, {int statusCode = 200}) {
+    _responses.add(ApiResponse(statusCode, body, {}));
+  }
+
+  @override
+  Future<ApiResponse> sendRequest(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Uint8List? body,
+  ) async {
+    lastUrl = url;
+    if (body != null) {
+      lastBody = utf8.decode(body);
+    }
+    return _responses.removeAt(0);
+  }
+}
+
+void main() {
+  group('OAuth2TokenManager', () {
+    test('extracts access token from response', () async {
+      final client = _FakeApiClient();
+      client.enqueue('{"access_token":"tok123","expires_in":3600}');
+
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      final token = await manager.getAccessToken(
+        'https://auth.example.com/token',
+        {'grant_type': 'client_credentials'},
+      );
+
+      expect(token, equals('tok123'));
+    });
+
+    test('stores refresh token', () async {
+      final client = _FakeApiClient();
+      client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}');
+
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      await manager.getAccessToken(
+        'https://auth.example.com/token',
+        {'grant_type': 'authorization_code'},
+      );
+
+      expect(manager.refreshToken, equals('ref1'));
+    });
+
+    test('returns cached token when not expired', () async {
+      final client = _FakeApiClient();
+      client.enqueue('{"access_token":"tok1","expires_in":3600}');
+
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      final params = {'grant_type': 'client_credentials'};
+      const tokenUrl = 'https://auth.example.com/token';
+
+      final first = await manager.getAccessToken(tokenUrl, params);
+      final second = await manager.getAccessToken(tokenUrl, params);
+
+      expect(first, equals('tok1'));
+      expect(second, equals('tok1'));
+    });
+
+    test('refetches token when expired', () async {
+      final client = _FakeApiClient();
+      client.enqueue('{"access_token":"tok1","expires_in":1}');
+      client.enqueue('{"access_token":"tok2","expires_in":3600}');
+
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      final params = {'grant_type': 'client_credentials'};
+      const tokenUrl = 'https://auth.example.com/token';
+
+      final first = await manager.getAccessToken(tokenUrl, params);
+      final second = await manager.getAccessToken(tokenUrl, params);
+
+      expect(first, equals('tok1'));
+      expect(second, equals('tok2'));
+    });
+
+    test('setAccessToken bypasses endpoint', () async {
+      final manager = OAuth2TokenManager();
+      manager.setAccessToken('manual-token');
+
+      final token = await manager.getAccessToken(
+        'https://auth.example.com/token',
+        {},
+      );
+
+      expect(token, equals('manual-token'));
+    });
+
+    test('throws when no ApiClient injected', () {
+      final manager = OAuth2TokenManager();
+
+      expect(
+        () => manager.getAccessToken(
+          'https://auth.example.com/token',
+          {'grant_type': 'client_credentials'},
+        ),
+        throwsA(isA<StateError>()),
+      );
+    });
+  });
+}
+{{/generateTests}}
