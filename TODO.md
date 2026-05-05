@@ -12,7 +12,8 @@ Convert the generated Python API client to use `async`/`await` with `aiohttp` or
 
 ## Add eslint-plugin-unicorn to Node client
 
-Add the `unicorn/prefer-node-protocol` rule to the generated Node/TypeScript client's ESLint config to enforce the `node:` prefix on Node.js built-in imports.
+Add the `unicorn/prefer-node-protocol` rule commit and push
+to the generated Node/TypeScript client's ESLint config to enforce the `node:` prefix on Node.js built-in imports.
 
 Update `eslint.config.mjs` (or the template that generates it) to include:
 

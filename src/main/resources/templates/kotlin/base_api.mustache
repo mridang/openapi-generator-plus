@@ -209,8 +209,23 @@ abstract class BaseApi {
         auth: Authenticator?
     ): ApiResult<T> {
         val response = invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, auth)
+        val responseContentType = response.headers["content-type"]
+            ?: response.headers["Content-Type"]
+            ?: ""
+        @Suppress("UNCHECKED_CAST")
         val data: T? = if (response.body.isNotEmpty()) {
-            objectSerializer.deserialize<T>(response.body)
+            if (responseContentType.isNotEmpty()
+                && !responseContentType.contains("application/json")
+                && !responseContentType.contains("+json")
+            ) {
+                if (T::class == ByteArray::class) {
+                    response.body.toByteArray(Charsets.ISO_8859_1) as T
+                } else {
+                    response.body as T
+                }
+            } else {
+                objectSerializer.deserialize<T>(response.body)
+            }
         } else {
             null
         }

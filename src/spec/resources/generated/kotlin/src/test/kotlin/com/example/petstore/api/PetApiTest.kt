@@ -248,5 +248,19 @@ class PetApiTest {
                 }
             assertEquals(500, exception.statusCode)
         }
+
+        @Test
+        @DisplayName("binary download returns data from mock")
+        fun testDownloadBinaryMock() {
+            mockServer.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .setHeader("Content-Type", "application/octet-stream")
+                    .setBody("FAKE_BINARY_DATA"),
+            )
+
+            val result = runBlocking { api.getPetAvatar(1L) }
+            assertNotNull(result)
+        }
     }
 }

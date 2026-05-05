@@ -96,7 +96,8 @@ export class OAuth2TokenManager {
       this.refreshToken = json.refresh_token as string;
     }
     if (json.expires_in) {
-      this.tokenExpiry = Date.now() + ((json.expires_in as number) - 30) * 1000;
+      const expiresIn = json.expires_in as number;
+      this.tokenExpiry = expiresIn > 30 ? Date.now() + (expiresIn - 30) * 1000 : Date.now();
     }
   }
 }

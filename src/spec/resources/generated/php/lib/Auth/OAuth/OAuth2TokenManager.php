@@ -130,7 +130,8 @@ final class OAuth2TokenManager
                 $this->refreshToken = $responseBody['refresh_token'];
             }
             if (isset($responseBody['expires_in'])) {
-                $this->tokenExpiry = microtime(true) + (float) $responseBody['expires_in'] - 30;
+                $expiresIn = $responseBody['expires_in'];
+                $this->tokenExpiry = $expiresIn > 30 ? microtime(true) + $expiresIn - 30 : microtime(true);
             }
         } catch (ApiException $e) {
             throw new \RuntimeException('Failed to fetch OAuth2 token', 0, $e);

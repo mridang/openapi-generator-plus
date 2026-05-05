@@ -106,7 +106,10 @@ public sealed class OAuth2TokenManager
         }
         if (root.TryGetProperty("expires_in", out JsonElement expiresIn))
         {
-            _tokenExpiry = DateTimeOffset.UtcNow.AddSeconds(expiresIn.GetInt32() - 30);
+            int seconds = expiresIn.GetInt32();
+            _tokenExpiry = seconds > 30
+                ? DateTimeOffset.UtcNow.AddSeconds(seconds - 30)
+                : DateTimeOffset.UtcNow;
         }
     }
 

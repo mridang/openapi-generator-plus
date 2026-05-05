@@ -125,4 +125,16 @@ class OAuth2TokenManagerTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
     }
+
+    public function testThrowsWhenTokenRequestFails(): void
+    {
+        $client = new MockTokenApiClient();
+        $client->enqueueResponse(new ApiResponse(401, json_encode(['error' => 'invalid_client']), ['Content-Type' => 'application/json']));
+
+        $manager = new OAuth2TokenManager();
+        $manager->setApiClient($client);
+
+        $this->expectException(\RuntimeException::class);
+        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    }
 }

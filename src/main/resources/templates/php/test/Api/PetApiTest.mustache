@@ -11,11 +11,12 @@ use {{invokerPackage}}\Api\Options\UploadPetDocumentOptions;
 use {{invokerPackage}}\Api\PetApi;
 use {{invokerPackage}}\Auth\BearerAuthenticator;
 use {{invokerPackage}}\Configuration;
-use {{invokerPackage}}\Models\ApiResponse;
+use {{invokerPackage}}\Exceptions\NotFoundException;
+use {{invokerPackage}}\Exceptions\ServerException;
+use {{invokerPackage}}\Models\ApiResponse as ApiResponseModel;
 use {{invokerPackage}}\Models\Pet;
 use {{invokerPackage}}\Models\PetStatusEnum;
 use {{invokerPackage}}\Models\PetPassport;
-use {{invokerPackage}}\Models\PhotoMetadata;
 use {{invokerPackage}}\Models\SetPetAvatarThumbnailRequest;
 
 /**
@@ -37,6 +38,17 @@ class PetApiTest extends TestCase
         $this->auth = new BearerAuthenticator($baseUrl, 'test-token');
     }
 
+    private function newPetApiForMock(int $statusCode, string $contentType, string $body): PetApi
+    {
+        $client = new PetMockApiClient($statusCode, $body, $contentType);
+        $config = Configuration::builder()
+            ->baseUrl('http://localhost:9999')
+            ->build();
+        return new PetApi(apiClient: $client, config: $config);
+    }
+
+    // -- Integration tests via Prism --
+
     public function testAddPet(): void
     {
         $pet = new Pet(name: 'TestDog', photoUrls: ['http://example.com/photo.jpg']);
@@ -44,6 +56,13 @@ class PetApiTest extends TestCase
         $pet->status = PetStatusEnum::AVAILABLE;
 
         $result = $this->api->addPet($this->auth, $pet);
+
+        $this->assertInstanceOf(Pet::class, $result);
+    }
+
+    public function testGetPetById(): void
+    {
+        $result = $this->api->getPetById(1);
 
         $this->assertInstanceOf(Pet::class, $result);
     }
@@ -57,11 +76,11 @@ class PetApiTest extends TestCase
         $this->assertInstanceOf(Pet::class, $result[0]);
     }
 
-    public function testGetPetById(): void
+    public function testGetPetPassport(): void
     {
-        $result = $this->api->getPetById(1);
+        $result = $this->api->getPetPassport(1);
 
-        $this->assertInstanceOf(Pet::class, $result);
+        $this->assertInstanceOf(PetPassport::class, $result);
     }
 
     public function testUpdatePet(): void
@@ -126,7 +145,7 @@ class PetApiTest extends TestCase
 
         $result = $this->api->uploadPetCertificate(1, new UploadPetCertificateOptions($file));
 
-        $this->assertInstanceOf(ApiResponse::class, $result);
+        $this->assertInstanceOf(ApiResponseModel::class, $result);
         unlink($tmpFile);
     }
 
@@ -139,7 +158,7 @@ class PetApiTest extends TestCase
         $options = new UploadPetDocumentOptions($file, 'vaccination_record', 'Annual checkup');
         $result = $this->api->uploadPetDocument(1, $options);
 
-        $this->assertInstanceOf(ApiResponse::class, $result);
+        $this->assertInstanceOf(ApiResponseModel::class, $result);
         unlink($tmpFile);
     }
 
@@ -169,13 +188,6 @@ class PetApiTest extends TestCase
         $this->markTestSkipped('Prism returns JSON for image content type');
     }
 
-    public function testGetPetPassport(): void
-    {
-        $result = $this->api->getPetPassport(1);
-
-        $this->assertInstanceOf(PetPassport::class, $result);
-    }
-
     public function testGetExternalPetInfoUsesPerOperationServerUrl(): void
     {
         $this->markTestSkipped('Per-operation server URL cannot be validated against a local mock server');
@@ -184,5 +196,36 @@ class PetApiTest extends TestCase
     public function testGetPetTagSendsStyledParameters(): void
     {
         $this->markTestSkipped('Styled parameter integration requires a mock server that captures raw request URLs');
+    }
+
+    // -- Mock-based error handling tests --
+
+    public function testErrorHandlingNotFound(): void
+    {
+        $api = $this->newPetApiForMock(404, 'application/json', '{"message":"Pet not found"}');
+
+        $this->expectException(NotFoundException::class);
+        $api->getPetById(99999);
+    }
+
+    public function testErrorHandlingServerError(): void
+    {
+        $api = $this->newPetApiForMock(500, 'application/json', '{"message":"Internal server error"}');
+
+        $this->expectException(ServerException::class);
+        $api->getPetById(1);
+    }
+
+    // -- Mock-based binary download test --
+
+    public function testDownloadBinaryMock(): void
+    {
+        $binaryData = "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A";
+        $api = $this->newPetApiForMock(200, 'application/octet-stream', $binaryData);
+
+        $result = $api->getPetAvatar(1);
+
+        $this->assertNotNull($result);
+        $this->assertSame($binaryData, $result);
     }
 }

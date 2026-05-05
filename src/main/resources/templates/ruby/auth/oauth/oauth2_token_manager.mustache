@@ -88,7 +88,10 @@ module {{moduleName}}
           parsed = JSON.parse(response.body)
           @access_token = parsed['access_token']
           @refresh_token = parsed['refresh_token'] if parsed.key?('refresh_token')
-          @token_expiry = Time.now.to_f + parsed['expires_in'].to_i - 30 if parsed.key?('expires_in')
+          return unless parsed.key?('expires_in')
+
+          expires_in = parsed['expires_in'].to_i
+          @token_expiry = expires_in > 30 ? Time.now.to_f + expires_in - 30 : Time.now.to_f
         end
       end
     end

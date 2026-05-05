@@ -127,5 +127,42 @@ defmodule {{moduleName}}.Api.PetApiTest do
   test "get_external_pet_info uses per-operation server URL" do
     # Per-operation server URL cannot be verified against mock server
   end
+
+  defp new_pet_api_for_mock(status, content_type, body) do
+    {:ok, socket} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
+    {:ok, port} = :inet.port(socket)
+
+    spawn(fn ->
+      {:ok, client} = :gen_tcp.accept(socket)
+      {:ok, _data} = :gen_tcp.recv(client, 0)
+      response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{content_type}\r\nContent-Length: #{byte_size(body)}\r\n\r\n#{body}"
+      :gen_tcp.send(client, response)
+      :gen_tcp.close(client)
+      :gen_tcp.close(socket)
+    end)
+
+    config = {{moduleName}}.Configuration.new(
+      base_url: "http://127.0.0.1:#{port}",
+      default_headers: %{}
+    )
+
+    {{moduleName}}.Api.PetApi.new(nil, config)
+  end
+
+  test "error handling 404 not found" do
+    api = new_pet_api_for_mock(404, "application/json", ~s({"message":"Pet not found"}))
+    assert {:error, _reason} = {{moduleName}}.Api.PetApi.get_pet_by_id(api, 99_999)
+  end
+
+  test "error handling 500 server error" do
+    api = new_pet_api_for_mock(500, "application/json", ~s({"message":"Internal server error"}))
+    assert {:error, _reason} = {{moduleName}}.Api.PetApi.get_pet_by_id(api, 1)
+  end
+
+  test "download binary from mock" do
+    api = new_pet_api_for_mock(200, "application/octet-stream", "FAKE_BINARY_DATA")
+    assert {:ok, result} = {{moduleName}}.Api.PetApi.get_pet_avatar(api, 1)
+    assert result != nil
+  end
 end
 {{/generateTests}}

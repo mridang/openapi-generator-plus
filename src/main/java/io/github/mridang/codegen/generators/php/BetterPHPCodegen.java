@@ -331,6 +331,16 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
             supportingFiles.add(
                     new SupportingFile(
+                            "test/Api/PetMockApiClient.mustache",
+                            Path.of("test", "Api").toString(),
+                            "PetMockApiClient.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/Api/StoreMockApiClient.mustache",
+                            Path.of("test", "Api").toString(),
+                            "StoreMockApiClient.php"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/Api/PetApiTest.mustache",
                             Path.of("test", "Api").toString(),
                             "PetApiTest.php"));

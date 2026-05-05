@@ -126,5 +126,21 @@ void main() {
         throwsA(isA<StateError>()),
       );
     });
+
+    test('throws when token request fails', () async {
+      final client = _FakeApiClient();
+      client.enqueue('{"error":"invalid_client"}', statusCode: 401);
+
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      expect(
+        () => manager.getAccessToken(
+          'https://auth.example.com/token',
+          {'grant_type': 'client_credentials'},
+        ),
+        throwsA(isA<Exception>()),
+      );
+    });
   });
 }

@@ -9,11 +9,16 @@ import {{modelPackage}}.Order;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
 
+import com.sun.net.httpserver.HttpServer;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
@@ -68,5 +73,51 @@ class StoreApiTest {
         api.deleteOrder(1L);
 
         assertThat(true).isTrue();
+    }
+
+    private StoreApi newStoreApiForMock(int status, String contentType, String body) throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/", exchange -> {
+            byte[] responseBytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", contentType);
+            exchange.sendResponseHeaders(status, responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
+            exchange.getResponseBody().close();
+        });
+        server.start();
+        String baseUrl = "http://localhost:" + server.getAddress().getPort();
+        Configuration config = Configuration.builder().baseUrl(baseUrl).build();
+        return new StoreApi(new DefaultApiClient(), config);
+    }
+
+    @Test
+    void testGetOrderNotFound() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(404, "application/json", "{\"message\":\"Order not found\"}");
+
+        assertThatThrownBy(() -> mockApi.getOrderById(99999L))
+                .isInstanceOf(Exception.class);
+    }
+
+    @Test
+    void testPlaceOrderServerError() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(500, "application/json", "{\"message\":\"Internal server error\"}");
+
+        Order order = new Order();
+        order.id = 1L;
+        order.petId = 12345L;
+        order.quantity = 1;
+        order.status = Order.StatusEnum.PLACED;
+        order.complete = false;
+
+        assertThatThrownBy(() -> mockApi.placeOrder(order))
+                .isInstanceOf(Exception.class);
+    }
+
+    @Test
+    void testDeleteOrderNotFound() throws Exception {
+        StoreApi mockApi = newStoreApiForMock(404, "application/json", "{\"message\":\"Order not found\"}");
+
+        assertThatThrownBy(() -> mockApi.deleteOrder(99999L))
+                .isInstanceOf(Exception.class);
     }
 }

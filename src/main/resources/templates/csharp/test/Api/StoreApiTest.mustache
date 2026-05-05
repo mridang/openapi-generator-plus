@@ -64,4 +64,68 @@ public class StoreApiTest
         await _api.DeleteOrderAsync(1L);
         Assert.True(true);
     }
+
+    private sealed class FakeApiClient : IApiClient
+    {
+        private readonly int _statusCode;
+        private readonly string _contentType;
+        private readonly string _body;
+
+        public FakeApiClient(int statusCode, string contentType, string body)
+        {
+            _statusCode = statusCode;
+            _contentType = contentType;
+            _body = body;
+        }
+
+        public Task<{{packageName}}.ApiResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            return Task.FromResult(new {{packageName}}.ApiResponse(_statusCode, _body, new Dictionary<string, string>
+            {
+                { "Content-Type", _contentType }
+            }));
+        }
+    }
+
+    private static StoreApi NewStoreApiForMock(int status, string contentType, string body)
+    {
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .Build();
+        return new StoreApi(new FakeApiClient(status, contentType, body), config);
+    }
+
+    [Fact]
+    public async Task TestGetOrderNotFound()
+    {
+        var mockApi = NewStoreApiForMock(404, "application/json", "{\"message\":\"Order not found\"}");
+
+        await Assert.ThrowsAsync<{{packageName}}.Exceptions.NotFoundException>(async () => await mockApi.GetOrderByIdAsync(99999L));
+    }
+
+    [Fact]
+    public async Task TestPlaceOrderServerError()
+    {
+        var mockApi = NewStoreApiForMock(500, "application/json", "{\"message\":\"Internal server error\"}");
+
+        var order = new Order
+        {
+            Id = 1L,
+            PetId = 12345L,
+            Quantity = 1,
+            Status = Order.StatusEnum.Placed,
+            Complete = false,
+        };
+
+        await Assert.ThrowsAsync<{{packageName}}.Exceptions.InternalServerErrorException>(async () => await mockApi.PlaceOrderAsync(order));
+    }
+
+    [Fact]
+    public async Task TestDeleteOrderNotFound()
+    {
+        var mockApi = NewStoreApiForMock(404, "application/json", "{\"message\":\"Order not found\"}");
+
+        await Assert.ThrowsAsync<{{packageName}}.Exceptions.NotFoundException>(async () => await mockApi.DeleteOrderAsync(99999L));
+    }
 }

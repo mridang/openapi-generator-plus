@@ -134,4 +134,20 @@ class OAuth2TokenManagerTest {
             )
         }
     }
+
+    @Test
+    fun throwsWhenTokenRequestFails() {
+        val client = FakeApiClient()
+        client.enqueue("""{"error":"invalid_client"}""", statusCode = 401)
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        assertThrows(RuntimeException::class.java) {
+            manager.getAccessToken(
+                "https://auth.example.com/token",
+                mapOf("grant_type" to "client_credentials"),
+            )
+        }
+    }
 }

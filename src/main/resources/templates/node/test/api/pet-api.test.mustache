@@ -1,5 +1,6 @@
 {{>api_info}}
 
+import * as http from 'node:http';
 import { PetApi, UploadPetDocumentDocumentTypeEnum } from '../../src/api/pet-api{{importFileExtension}}';
 import { BearerAuthenticator } from '../../src/auth/bearer-authenticator{{importFileExtension}}';
 import { Configuration } from '../../src/configuration{{importFileExtension}}';
@@ -154,5 +155,52 @@ describe('PetApi', () => {
     expect(result.pet).toBeDefined();
     expect(result.thumbnail).toBeDefined();
     expect(result.scans).toBeDefined();
+  });
+});
+
+function createMockServer(status: number, contentType: string, body: string): Promise<{ api: PetApi; server: http.Server; close: () => void }> {
+  return new Promise((resolve) => {
+    const server = http.createServer((_req, res) => {
+      res.writeHead(status, { 'Content-Type': contentType });
+      res.end(body);
+    });
+    server.listen(0, '127.0.0.1', () => {
+      const addr = server.address() as { port: number };
+      const mockConfig = Configuration.builder()
+        .baseUrl(`http://127.0.0.1:${addr.port}`)
+        .build();
+      const mockApi = new PetApi(undefined, mockConfig);
+      resolve({ api: mockApi, server, close: () => server.close() });
+    });
+  });
+}
+
+describe('PetApi error handling', () => {
+  test('404 response throws error', async () => {
+    const { api: mockApi, close } = await createMockServer(404, 'application/json', '{"message":"Pet not found"}');
+    try {
+      await expect(mockApi.getPetById(99999)).rejects.toThrow();
+    } finally {
+      close();
+    }
+  });
+
+  test('500 response throws error', async () => {
+    const { api: mockApi, close } = await createMockServer(500, 'application/json', '{"message":"Internal server error"}');
+    try {
+      await expect(mockApi.getPetById(1)).rejects.toThrow();
+    } finally {
+      close();
+    }
+  });
+
+  test('binary download from mock', async () => {
+    const { api: mockApi, close } = await createMockServer(200, 'application/octet-stream', 'FAKE_BINARY_DATA');
+    try {
+      const result = await mockApi.getPetAvatar(1);
+      expect(result).toBeDefined();
+    } finally {
+      close();
+    }
   });
 });

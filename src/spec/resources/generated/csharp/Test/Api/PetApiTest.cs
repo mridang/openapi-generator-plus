@@ -230,4 +230,73 @@ public class PetApiTest
 
         Assert.NotNull(result);
     }
+
+    private sealed class FakeApiClient : IApiClient
+    {
+        private readonly int _statusCode;
+        private readonly string _contentType;
+        private readonly string _body;
+
+        public FakeApiClient(int statusCode, string contentType, string body)
+        {
+            _statusCode = statusCode;
+            _contentType = contentType;
+            _body = body;
+        }
+
+        public Task<PetstoreClient.ApiResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            return Task.FromResult(
+                new PetstoreClient.ApiResponse(
+                    _statusCode,
+                    _body,
+                    new Dictionary<string, string> { { "Content-Type", _contentType } }
+                )
+            );
+        }
+    }
+
+    private static PetApi NewPetApiForMock(int status, string contentType, string body)
+    {
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        return new PetApi(new FakeApiClient(status, contentType, body), config);
+    }
+
+    [Fact]
+    public async Task TestErrorHandlingNotFound()
+    {
+        var mockApi = NewPetApiForMock(404, "application/json", "{\"message\":\"Pet not found\"}");
+
+        await Assert.ThrowsAsync<PetstoreClient.Exceptions.NotFoundException>(
+            async () => await mockApi.GetPetByIdAsync(99999L)
+        );
+    }
+
+    [Fact]
+    public async Task TestErrorHandlingServerError()
+    {
+        var mockApi = NewPetApiForMock(
+            500,
+            "application/json",
+            "{\"message\":\"Internal server error\"}"
+        );
+
+        await Assert.ThrowsAsync<PetstoreClient.Exceptions.InternalServerErrorException>(
+            async () => await mockApi.GetPetByIdAsync(1L)
+        );
+    }
+
+    [Fact]
+    public async Task TestDownloadBinaryMock()
+    {
+        var mockApi = NewPetApiForMock(200, "application/octet-stream", "FAKE_BINARY_DATA");
+
+        var result = await mockApi.GetPetAvatarAsync(1L);
+        Assert.NotNull(result);
+    }
 }

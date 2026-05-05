@@ -127,3 +127,22 @@ class TestOAuth2TokenManager:
             assert False, 'Expected RuntimeError'
         except RuntimeError:
             pass
+
+    def test_raises_error_when_token_request_fails(self) -> None:
+        manager = OAuth2TokenManager()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiResponse(
+            status_code=401,
+            body=json.dumps({'error': 'invalid_client'}),
+            headers={'content-type': 'application/json'},
+        )
+        manager.set_api_client(mock_client)
+
+        try:
+            manager.get_access_token(
+                'https://auth.example.com/token',
+                {'grant_type': 'client_credentials'},
+            )
+            assert False, 'Expected RuntimeError'
+        except RuntimeError:
+            pass

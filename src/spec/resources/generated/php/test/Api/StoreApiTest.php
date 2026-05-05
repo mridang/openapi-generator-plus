@@ -7,6 +7,8 @@ namespace PetstoreClient\Test\Api;
 use PHPUnit\Framework\TestCase;
 use PetstoreClient\Api\StoreApi;
 use PetstoreClient\Configuration;
+use PetstoreClient\Exceptions\NotFoundException;
+use PetstoreClient\Exceptions\ServerException;
 use PetstoreClient\Models\Order;
 use PetstoreClient\Models\OrderStatusEnum;
 
@@ -26,11 +28,30 @@ class StoreApiTest extends TestCase
         $this->api = new StoreApi(config: $config);
     }
 
+    private function newStoreApiForMock(int $statusCode, string $contentType, string $body): StoreApi
+    {
+        $client = new StoreMockApiClient($statusCode, $body, $contentType);
+        $config = Configuration::builder()
+            ->baseUrl('http://localhost:9999')
+            ->build();
+        return new StoreApi(apiClient: $client, config: $config);
+    }
+
+    // -- Integration tests via Prism --
+
     public function testGetInventory(): void
     {
         $result = $this->api->getInventory();
 
         $this->assertIsArray($result);
+    }
+
+    public function testGetOrderById(): void
+    {
+        $result = $this->api->getOrderById(1);
+
+        $this->assertInstanceOf(Order::class, $result);
+        $this->assertNotNull($result->id);
     }
 
     public function testPlaceOrder(): void
@@ -49,18 +70,44 @@ class StoreApiTest extends TestCase
         $this->assertNotNull($result->id);
     }
 
-    public function testGetOrderById(): void
-    {
-        $result = $this->api->getOrderById(1);
-
-        $this->assertInstanceOf(Order::class, $result);
-        $this->assertNotNull($result->id);
-    }
-
     public function testDeleteOrder(): void
     {
         $this->api->deleteOrder(1);
 
         $this->addToAssertionCount(1);
+    }
+
+    // -- Mock-based error handling tests --
+
+    public function testGetOrderNotFound(): void
+    {
+        $api = $this->newStoreApiForMock(404, 'application/json', '{"message":"Order not found"}');
+
+        $this->expectException(NotFoundException::class);
+        $api->getOrderById(99999);
+    }
+
+    public function testPlaceOrderServerError(): void
+    {
+        $order = new Order();
+        $order->id = 1;
+        $order->petId = 12345;
+        $order->quantity = 1;
+        $order->shipDate = new \DateTime();
+        $order->status = OrderStatusEnum::PLACED;
+        $order->complete = false;
+
+        $api = $this->newStoreApiForMock(500, 'application/json', '{"message":"Internal server error"}');
+
+        $this->expectException(ServerException::class);
+        $api->placeOrder($order);
+    }
+
+    public function testDeleteOrderNotFound(): void
+    {
+        $api = $this->newStoreApiForMock(404, 'application/json', '{"message":"Order not found"}');
+
+        $this->expectException(NotFoundException::class);
+        $api->deleteOrder(99999);
     }
 }

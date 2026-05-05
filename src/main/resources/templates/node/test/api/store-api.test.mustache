@@ -1,5 +1,6 @@
 {{>api_info}}
 
+import * as http from 'node:http';
 import { StoreApi } from '../../src/api/store-api{{importFileExtension}}';
 import { Configuration } from '../../src/configuration{{importFileExtension}}';
 import { Order } from '../../src/models/index{{importFileExtension}}';
@@ -43,5 +44,59 @@ describe('StoreApi', () => {
 
   test('deleteOrder', async () => {
     await api.deleteOrder(1);
+  });
+});
+
+function createMockServer(status: number, contentType: string, body: string): Promise<{ api: StoreApi; server: http.Server; close: () => void }> {
+  return new Promise((resolve) => {
+    const server = http.createServer((_req, res) => {
+      res.writeHead(status, { 'Content-Type': contentType });
+      res.end(body);
+    });
+    server.listen(0, '127.0.0.1', () => {
+      const addr = server.address() as { port: number };
+      const mockConfig = Configuration.builder()
+        .baseUrl(`http://127.0.0.1:${addr.port}`)
+        .build();
+      const mockApi = new StoreApi(undefined, mockConfig);
+      resolve({ api: mockApi, server, close: () => server.close() });
+    });
+  });
+}
+
+describe('StoreApi error handling', () => {
+  test('getOrderById 404 throws error', async () => {
+    const { api: mockApi, close } = await createMockServer(404, 'application/json', '{"message":"Order not found"}');
+    try {
+      await expect(mockApi.getOrderById(99999)).rejects.toThrow();
+    } finally {
+      close();
+    }
+  });
+
+  test('placeOrder 500 throws error', async () => {
+    const { api: mockApi, close } = await createMockServer(500, 'application/json', '{"message":"Internal server error"}');
+    try {
+      const order: Order = {
+        id: 1,
+        petId: 12345,
+        quantity: 1,
+        shipDate: new Date().toISOString(),
+        status: 'placed',
+        complete: false,
+      };
+      await expect(mockApi.placeOrder(order)).rejects.toThrow();
+    } finally {
+      close();
+    }
+  });
+
+  test('deleteOrder 404 throws error', async () => {
+    const { api: mockApi, close } = await createMockServer(404, 'application/json', '{"message":"Order not found"}');
+    try {
+      await expect(mockApi.deleteOrder(99999)).rejects.toThrow();
+    } finally {
+      close();
+    }
   });
 });

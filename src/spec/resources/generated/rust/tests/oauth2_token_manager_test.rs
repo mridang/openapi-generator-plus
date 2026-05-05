@@ -180,3 +180,18 @@ async fn test_panics_when_no_api_client_injected() {
         .get_access_token("https://auth.example.com/token", &params)
         .unwrap();
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_errors_when_token_request_fails() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"error":"invalid_client"}"#, 401);
+
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let result = manager.get_access_token("https://auth.example.com/token", &params);
+    assert!(result.is_err(), "expected error when token request fails");
+}

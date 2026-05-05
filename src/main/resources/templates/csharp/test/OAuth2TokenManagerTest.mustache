@@ -129,4 +129,19 @@ public class OAuth2TokenManagerTest
 
         Assert.NotNull(ex);
     }
+
+    [Fact]
+    public async Task ThrowsWhenTokenRequestFails()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"error\":\"invalid_client\"}", statusCode: 401);
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        await Assert.ThrowsAsync<HttpRequestException>(
+            () => manager.GetAccessTokenAsync(
+                new Uri("https://auth.example.com/token"),
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" }));
+    }
 }

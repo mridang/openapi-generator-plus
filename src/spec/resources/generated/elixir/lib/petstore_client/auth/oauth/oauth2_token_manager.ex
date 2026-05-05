@@ -118,7 +118,11 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
     new_state =
       if Map.has_key?(parsed, "expires_in") do
         expires_in = parsed["expires_in"]
-        %{new_state | token_expiry: System.system_time(:second) + expires_in - 30}
+
+        expiry =
+          if expires_in > 30, do: System.system_time(:second) + expires_in - 30, else: System.system_time(:second)
+
+        %{new_state | token_expiry: expiry}
       else
         new_state
       end

@@ -184,3 +184,20 @@ func TestOAuth2TokenManager_ErrorsWhenNoApiClientInjected(t *testing.T) {
 		t.Fatal("expected error when no API client injected, got nil")
 	}
 }
+
+func TestOAuth2TokenManager_ErrorsWhenTokenRequestFails(t *testing.T) {
+	client := newFakeTokenClient(fakeResponse{
+		body:       `{"error":"invalid_client"}`,
+		statusCode: 401,
+	})
+
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	_, err := manager.GetAccessToken("https://auth.example.com/token", map[string]string{
+		"grant_type": "client_credentials",
+	})
+	if err == nil {
+		t.Fatal("expected error when token request fails, got nil")
+	}
+}

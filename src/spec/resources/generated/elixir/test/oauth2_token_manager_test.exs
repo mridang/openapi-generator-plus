@@ -138,5 +138,26 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
         )
       end
     end
+
+    test "raises when token request fails" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 401,
+            body: Jason.encode!(%{"error" => "invalid_client"})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      assert_raise RuntimeError, fn ->
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+          manager,
+          "https://auth.example.com/token",
+          %{"grant_type" => "client_credentials"}
+        )
+      end
+    end
   end
 end

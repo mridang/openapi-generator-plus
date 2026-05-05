@@ -7,6 +7,7 @@
 require 'test_helper'
 require 'set'
 require 'stringio'
+require 'socket'
 
 describe PetstoreClient::Api::PetApi do
   before do
@@ -168,6 +169,61 @@ describe PetstoreClient::Api::PetApi do
   describe '#get_external_pet_info' do
     it 'uses per-operation server URL' do
       skip 'Per-operation server URL cannot be verified against mock server'
+    end
+  end
+
+  describe 'error handling' do
+    def new_pet_api_for_mock(status, content_type, body) # rubocop:disable Metrics/AbcSize, Metrics/MethodLength
+      server = TCPServer.new('127.0.0.1', 0)
+      port = server.addr[1]
+      thread = Thread.new do
+        loop do
+          client = server.accept rescue break # rubocop:disable Style/RescueModifier
+          client.gets # read request line
+          while (line = client.gets)
+            break if line.strip.empty?
+          end
+          response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{content_type}\r\n" \
+                     "Content-Length: #{body.bytesize}\r\nConnection: close\r\n\r\n#{body}"
+          client.print(response)
+          client.close
+        end
+      end
+
+      config = PetstoreClient::Configuration.new(base_url: "http://127.0.0.1:#{port}", default_headers: {})
+      api = PetstoreClient::Api::PetApi.new(nil, config)
+      [api, server, thread]
+    end
+
+    it 'raises error on 404 response' do
+      api, server, thread = new_pet_api_for_mock(404, 'application/json', '{"message":"Pet not found"}')
+      begin
+        _(-> { api.get_pet_by_id(99_999) }).must_raise StandardError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'raises error on 500 response' do
+      api, server, thread = new_pet_api_for_mock(500, 'application/json', '{"message":"Internal server error"}')
+      begin
+        _(-> { api.get_pet_by_id(1) }).must_raise StandardError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'handles binary download from mock' do
+      api, server, thread = new_pet_api_for_mock(200, 'application/octet-stream', 'FAKE_BINARY_DATA')
+      begin
+        result = api.get_pet_avatar(1)
+        _(result).wont_be_nil
+      ensure
+        server.close
+        thread.join(2)
+      end
     end
   end
 end

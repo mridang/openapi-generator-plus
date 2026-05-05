@@ -119,4 +119,16 @@ class OAuth2TokenManagerTest {
         assertThrows(IllegalStateException.class, () ->
                 manager.getAccessToken("https://auth.example.com/token", params));
     }
+
+    @Test
+    void throwsWhenTokenRequestFails() {
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(fakeClient(401, "{\"error\":\"invalid_client\"}"));
+
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "client_credentials");
+
+        assertThrows(RuntimeException.class, () ->
+                manager.getAccessToken("https://auth.example.com/token", params));
+    }
 }

@@ -129,4 +129,22 @@ final class OAuth2TokenManagerTests: XCTestCase {
       XCTAssertNotNil(error)
     }
   }
+
+  func testThrowsWhenTokenRequestFails() async {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"error\":\"invalid_client\"}", statusCode: 401))
+
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
+
+    do {
+      _ = try await manager.getAccessToken(
+        tokenURL: "https://auth.example.com/token",
+        params: ["grant_type": "client_credentials"]
+      )
+      XCTFail("Expected error when token request fails")
+    } catch {
+      XCTAssertNotNil(error)
+    }
+  }
 }

@@ -135,4 +135,15 @@ describe('OAuth2TokenManager', () => {
       })
     ).rejects.toThrow();
   });
+
+  test('throws when token request fails', async () => {
+    mockClient.responseStatus = 401;
+    mockClient.responseBody = JSON.stringify({ error: 'invalid_client' });
+
+    await expect(
+      tokenManager.getAccessToken('https://auth.example.com/token', {
+        grant_type: 'client_credentials'
+      })
+    ).rejects.toThrow();
+  });
 });
