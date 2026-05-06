@@ -40,6 +40,12 @@ defmodule {{moduleName}}.TransportOptionsTest do
     assert opts.inject_request_id == true
   end
 
+  test "raises on invalid proxy URL" do
+    assert_raise ArgumentError, fn ->
+      {{moduleName}}.TransportOptions.new(proxy: "not-a-valid-url")
+    end
+  end
+
   test "default_headers is an independent copy" do
     headers = %{"X-Original" => "original"}
 

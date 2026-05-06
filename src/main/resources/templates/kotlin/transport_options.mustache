@@ -33,7 +33,16 @@ class TransportOptions private constructor(
 
         fun verifySsl(verifySsl: Boolean): Builder = apply { this.verifySsl = verifySsl }
         fun caCertPath(caCertPath: String?): Builder = apply { this.caCertPath = caCertPath }
-        fun proxy(proxy: String?): Builder = apply { this.proxy = proxy }
+        fun proxy(proxy: String?): Builder = apply {
+            if (proxy != null) {
+                try {
+                    java.net.URI.create(proxy)
+                } catch (e: IllegalArgumentException) {
+                    throw IllegalArgumentException("Invalid proxy URL: $proxy", e)
+                }
+            }
+            this.proxy = proxy
+        }
         fun timeout(timeout: Int?): Builder = apply { this.timeout = timeout }
         fun followRedirects(followRedirects: Boolean): Builder = apply { this.followRedirects = followRedirects }
         fun maxRedirects(maxRedirects: Int?): Builder = apply { this.maxRedirects = maxRedirects }

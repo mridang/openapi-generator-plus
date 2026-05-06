@@ -37,8 +37,9 @@ public final class TransportOptions: Sendable {
     public let followRedirects: Bool
 
     /// Maximum number of consecutive redirects to follow.
-    /// Only meaningful when ``followRedirects`` is true.
-    public let maxRedirects: Int
+    /// Only meaningful when ``followRedirects`` is true. A nil value uses the
+    /// HTTP client's built-in default. A value of 0 means zero redirects.
+    public let maxRedirects: Int?
 
     /// Custom User-Agent header value.
     public let userAgent: String
@@ -58,7 +59,7 @@ public final class TransportOptions: Sendable {
         proxy: URL?,
         timeout: Int?,
         followRedirects: Bool,
-        maxRedirects: Int,
+        maxRedirects: Int?,
         userAgent: String,
         defaultHeaders: [String: String],
         injectRequestID: Bool
@@ -82,7 +83,7 @@ public final class TransportOptionsBuilder {
     private var proxy: URL? = nil
     private var timeout: Int? = nil
     private var followRedirects: Bool = true
-    private var maxRedirects: Int = 0
+    private var maxRedirects: Int? = nil
     private var userAgent: String = "{{userAgentDefault}}"
     private var defaultHeaders: [String: String] = [:]
     private var injectRequestID: Bool = false
@@ -105,10 +106,15 @@ public final class TransportOptionsBuilder {
     }
 
     /// Sets the HTTP/HTTPS proxy URL.
+    ///
+    /// - Throws: ``TransportOptionsError/invalidProxyURL`` if the URL is not valid.
     @discardableResult
-    public func proxy(_ val: String?) -> TransportOptionsBuilder {
+    public func proxy(_ val: String?) throws -> TransportOptionsBuilder {
         if let val = val, !val.isEmpty {
-            self.proxy = URL(string: val)
+            guard let parsed = URL(string: val) else {
+                throw TransportOptionsError.invalidProxyURL(val)
+            }
+            self.proxy = parsed
         } else {
             self.proxy = nil
         }
@@ -131,7 +137,7 @@ public final class TransportOptionsBuilder {
 
     /// Sets the maximum number of redirects to follow.
     @discardableResult
-    public func maxRedirects(_ val: Int) -> TransportOptionsBuilder {
+    public func maxRedirects(_ val: Int?) -> TransportOptionsBuilder {
         self.maxRedirects = val
         return self
     }
@@ -179,5 +185,17 @@ public final class TransportOptionsBuilder {
             defaultHeaders: defaultHeaders,
             injectRequestID: injectRequestID
         )
+    }
+}
+
+/// Errors that can occur when building ``TransportOptions``.
+public enum TransportOptionsError: Error, CustomStringConvertible {
+    case invalidProxyURL(String)
+
+    public var description: String {
+        switch self {
+        case .invalidProxyURL(let url):
+            return "Invalid proxy URL: \(url)"
+        }
     }
 }

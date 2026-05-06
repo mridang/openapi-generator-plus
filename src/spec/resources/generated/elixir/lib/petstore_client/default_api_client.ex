@@ -49,6 +49,7 @@ defmodule PetstoreClient.DefaultApiClient do
   """
   @impl PetstoreClient.ApiClient
   @spec send_request(
+          t(),
           method :: atom(),
           url :: String.t(),
           headers :: %{optional(String.t()) => String.t()},

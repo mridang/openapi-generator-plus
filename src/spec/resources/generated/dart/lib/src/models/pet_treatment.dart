@@ -34,7 +34,6 @@ class PetTreatment {
     try {
       return PetTreatment._(Surgery.fromJson(json));
     } catch (_) {}
-    throw ArgumentError(
-        'Data does not match any anyOf schemas for PetTreatment');
+    throw ArgumentError('Data does not match any anyOf schemas for PetTreatment');
   }
 }

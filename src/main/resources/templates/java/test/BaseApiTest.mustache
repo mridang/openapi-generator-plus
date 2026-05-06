@@ -550,6 +550,37 @@ class BaseApiTest {
     }
 
     @Nested
+    @DisplayName("content-type handling")
+    class ContentTypeHandling {
+
+        @Test
+        @DisplayName("skips JSON deserialization for text/plain response")
+        void skipsDeserializationForTextPlain() throws ApiException {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    this.capturedUrl = url;
+                    this.capturedHeaders = headers;
+                    this.capturedBody = body;
+                    return new ApiResponse(200, "hello", Map.of("Content-Type", "text/plain"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            String result = testApi.call(
+                    "GET", "/api/test",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"text/plain"},
+                    "application/json",
+                    STRING_TYPE,
+                    null);
+            assertNotNull(result);
+            assertEquals("hello", result);
+        }
+    }
+
+    @Nested
     @DisplayName("header flow-through")
     class HeaderFlowThrough {
 

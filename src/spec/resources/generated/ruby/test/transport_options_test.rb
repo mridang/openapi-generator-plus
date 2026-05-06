@@ -22,16 +22,16 @@ describe PetstoreClient::TransportOptions do
 
   it 'builder sets all fields' do
     opts = PetstoreClient::TransportOptions.builder
-                                           .verify_ssl(false)
-                                           .ca_cert_path('/path/to/ca.pem')
-                                           .proxy('http://proxy:8080')
-                                           .timeout(5000)
-                                           .follow_redirects(false)
-                                           .max_redirects(3)
-                                           .user_agent('TestAgent/1.0')
-                                           .default_header('X-Custom', 'value')
-                                           .inject_request_id(true)
-                                           .build
+      .verify_ssl(false)
+      .ca_cert_path('/path/to/ca.pem')
+      .proxy('http://proxy:8080')
+      .timeout(5000)
+      .follow_redirects(false)
+      .max_redirects(3)
+      .user_agent('TestAgent/1.0')
+      .default_header('X-Custom', 'value')
+      .inject_request_id(true)
+      .build
 
     _(opts.verify_ssl).must_equal false
     _(opts.ca_cert_path).must_equal '/path/to/ca.pem'
@@ -44,12 +44,28 @@ describe PetstoreClient::TransportOptions do
     _(opts.inject_request_id).must_equal true
   end
 
+  it 'raises ArgumentError for invalid proxy URL' do
+    assert_raises(ArgumentError) do
+      PetstoreClient::TransportOptions.builder.proxy('not-a-url').build
+    end
+  end
+
+  it 'accepts a valid proxy URL' do
+    opts = PetstoreClient::TransportOptions.builder.proxy('http://proxy:3128').build
+    _(opts.proxy).must_equal 'http://proxy:3128'
+  end
+
+  it 'accepts nil proxy' do
+    opts = PetstoreClient::TransportOptions.builder.proxy(nil).build
+    _(opts.proxy).must_be_nil
+  end
+
   it 'default_headers is a defensive copy' do
     headers = { 'X-Original' => 'original' }
 
     opts = PetstoreClient::TransportOptions.builder
-                                           .default_headers(headers)
-                                           .build
+      .default_headers(headers)
+      .build
 
     headers['X-Added'] = 'added'
 

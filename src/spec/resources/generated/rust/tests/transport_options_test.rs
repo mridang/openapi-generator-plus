@@ -13,36 +13,15 @@ use petstore::*;
 fn test_transport_options_defaults() {
     let opts = TransportOptionsBuilder::new().build();
 
-    assert!(
-        opts.verify_ssl(),
-        "expected verify_ssl to be true by default"
-    );
-    assert!(
-        opts.ca_cert_path().is_none(),
-        "expected no CA cert path by default"
-    );
+    assert!(opts.verify_ssl(), "expected verify_ssl to be true by default");
+    assert!(opts.ca_cert_path().is_none(), "expected no CA cert path by default");
     assert!(opts.proxy().is_none(), "expected no proxy by default");
     assert!(opts.timeout().is_none(), "expected no timeout by default");
-    assert!(
-        opts.follow_redirects(),
-        "expected follow_redirects to be true by default"
-    );
-    assert!(
-        opts.max_redirects().is_none(),
-        "expected no max_redirects by default"
-    );
-    assert!(
-        !opts.user_agent().is_empty(),
-        "expected non-empty default user agent"
-    );
-    assert!(
-        opts.default_headers().is_empty(),
-        "expected empty default headers"
-    );
-    assert!(
-        !opts.inject_request_id(),
-        "expected inject_request_id to be false by default"
-    );
+    assert!(opts.follow_redirects(), "expected follow_redirects to be true by default");
+    assert!(opts.max_redirects().is_none(), "expected no max_redirects by default");
+    assert!(!opts.user_agent().is_empty(), "expected non-empty default user agent");
+    assert!(opts.default_headers().is_empty(), "expected empty default headers");
+    assert!(!opts.inject_request_id(), "expected inject_request_id to be false by default");
 }
 
 #[test]
@@ -98,16 +77,21 @@ fn test_transport_options_multiple_default_headers() {
 }
 
 #[test]
+#[should_panic(expected = "invalid proxy URL")]
+fn test_transport_options_invalid_proxy_panics() {
+    TransportOptionsBuilder::new()
+        .proxy("not-a-valid-url")
+        .build();
+}
+
+#[test]
 fn test_transport_options_default_headers_copy_isolation() {
     let opts = TransportOptionsBuilder::new()
         .default_header("X-Test", "value")
         .build();
 
     let mut headers = opts.default_headers();
-    headers.insert(
-        "X-Mutated".to_string(),
-        "should-not-affect-options".to_string(),
-    );
+    headers.insert("X-Mutated".to_string(), "should-not-affect-options".to_string());
 
     let original = opts.default_headers();
     assert!(

@@ -142,12 +142,12 @@ module {{moduleName}}::Api
     query_params = opts[:query_params] || {}
     {{#queryParams}}
       {{#required}}
-        query_params[:'{{{baseName}}}'] = {{#collectionFormat}}@api_client.build_collection_param({{{paramName}}}, :{{{collectionFormat}}}){{/collectionFormat}}{{^collectionFormat}}{{{paramName}}}{{/collectionFormat}}
+        query_params[:'{{{baseName}}}'] = {{#collectionFormat}}{{moduleName}}::ValueSerializer.serialize({{{paramName}}}, :query, nil, collection_format: :{{{collectionFormat}}}){{/collectionFormat}}{{^collectionFormat}}{{{paramName}}}{{/collectionFormat}}
       {{/required}}
     {{/queryParams}}
     {{#queryParams}}
       {{^required}}
-        query_params[:'{{{baseName}}}'] = {{#collectionFormat}}@api_client.build_collection_param(opts[:'{{{paramName}}}'], :{{{collectionFormat}}}){{/collectionFormat}}{{^collectionFormat}}opts[:'{{{paramName}}}']{{/collectionFormat}} if !opts[:'{{{paramName}}}'].nil?
+        query_params[:'{{{baseName}}}'] = {{#collectionFormat}}{{moduleName}}::ValueSerializer.serialize(opts[:'{{{paramName}}}'], :query, nil, collection_format: :{{{collectionFormat}}}){{/collectionFormat}}{{^collectionFormat}}opts[:'{{{paramName}}}']{{/collectionFormat}} if !opts[:'{{{paramName}}}'].nil?
       {{/required}}
     {{/queryParams}}
 
@@ -166,12 +166,12 @@ module {{moduleName}}::Api
     {{/hasConsumes}}
     {{#headerParams}}
       {{#required}}
-        header_params[{{#lambdaFixHeaderKey}}:'{{{baseName}}}'{{/lambdaFixHeaderKey}}] = {{#collectionFormat}}@api_client.build_collection_param({{{paramName}}}, :{{{collectionFormat}}}){{/collectionFormat}}{{^collectionFormat}}{{{paramName}}}{{/collectionFormat}}
+        header_params[{{#lambdaFixHeaderKey}}:'{{{baseName}}}'{{/lambdaFixHeaderKey}}] = {{#collectionFormat}}{{moduleName}}::ValueSerializer.serialize({{{paramName}}}, :header, nil, collection_format: :{{{collectionFormat}}}){{/collectionFormat}}{{^collectionFormat}}{{{paramName}}}{{/collectionFormat}}
       {{/required}}
     {{/headerParams}}
     {{#headerParams}}
       {{^required}}
-        header_params[{{#lambdaFixHeaderKey}}:'{{{baseName}}}'{{/lambdaFixHeaderKey}}] = {{#collectionFormat}}@api_client.build_collection_param(opts[:'{{{paramName}}}'], :{{{collectionFormat}}}){{/collectionFormat}}{{^collectionFormat}}opts[:'{{{paramName}}}']{{/collectionFormat}} if !opts[:'{{{paramName}}}'].nil?
+        header_params[{{#lambdaFixHeaderKey}}:'{{{baseName}}}'{{/lambdaFixHeaderKey}}] = {{#collectionFormat}}{{moduleName}}::ValueSerializer.serialize(opts[:'{{{paramName}}}'], :header, nil, collection_format: :{{{collectionFormat}}}){{/collectionFormat}}{{^collectionFormat}}opts[:'{{{paramName}}}']{{/collectionFormat}} if !opts[:'{{{paramName}}}'].nil?
       {{/required}}
     {{/headerParams}}
 
@@ -179,12 +179,12 @@ module {{moduleName}}::Api
     form_params = opts[:form_params] || {}
     {{#formParams}}
       {{#required}}
-        form_params['{{baseName}}'] = {{#collectionFormat}}@api_client.build_collection_param({{{paramName}}}, :{{{collectionFormat}}}){{/collectionFormat}}{{^collectionFormat}}{{{paramName}}}{{/collectionFormat}}
+        form_params['{{baseName}}'] = {{#collectionFormat}}{{moduleName}}::ValueSerializer.serialize({{{paramName}}}, :form, nil, collection_format: :{{{collectionFormat}}}){{/collectionFormat}}{{^collectionFormat}}{{{paramName}}}{{/collectionFormat}}
       {{/required}}
     {{/formParams}}
     {{#formParams}}
       {{^required}}
-        form_params['{{baseName}}'] = {{#collectionFormat}}@api_client.build_collection_param(opts[:'{{{paramName}}}'], :{{{collectionFormat}}}){{/collectionFormat}}{{^collectionFormat}}opts[:'{{{paramName}}}']{{/collectionFormat}} if !opts[:'{{paramName}}'].nil?
+        form_params['{{baseName}}'] = {{#collectionFormat}}{{moduleName}}::ValueSerializer.serialize(opts[:'{{{paramName}}}'], :form, nil, collection_format: :{{{collectionFormat}}}){{/collectionFormat}}{{^collectionFormat}}opts[:'{{{paramName}}}']{{/collectionFormat}} if !opts[:'{{paramName}}'].nil?
       {{/required}}
     {{/formParams}}
 

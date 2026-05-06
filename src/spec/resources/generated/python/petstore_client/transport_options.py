@@ -176,7 +176,15 @@ class TransportOptionsBuilder:
 
         Returns:
             This builder.
+
+        Raises:
+            ValueError: If the proxy URL is not a valid URL with a scheme.
         """
+        if proxy is not None:
+            from urllib.parse import urlparse
+            parsed = urlparse(proxy)
+            if not parsed.scheme:
+                raise ValueError(f"Invalid proxy URL (missing scheme): {proxy}")
         self._proxy = proxy
         return self
 

@@ -56,13 +56,7 @@ impl ApiClient for FakeApiClient {
         url: &str,
         _headers: &HashMap<String, String>,
         body: Option<&[u8]>,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
-                + Send
-                + '_,
-        >,
-    > {
+    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         {
             let mut last_url = self.last_url.lock().unwrap();
             *last_url = Some(url.to_string());

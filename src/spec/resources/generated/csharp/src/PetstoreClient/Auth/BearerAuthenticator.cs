@@ -11,7 +11,7 @@ namespace PetstoreClient.Auth;
 /// <summary>
 /// Authenticator for HTTP Bearer token authentication.
 /// </summary>
-public sealed class BearerAuthenticator(string host, string token) : BaseAuthenticator
+public class BearerAuthenticator(string host, string token) : BaseAuthenticator
 {
     /// <inheritdoc/>
     public override string GetHost()

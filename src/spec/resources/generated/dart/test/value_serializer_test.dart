@@ -43,7 +43,8 @@ void main() {
     });
 
     test('serializeValue query array', () {
-      final result = serializeValue(['a', 'b', 'c'], 'query', 'array', 'csv');
+      final result =
+          serializeValue(['a', 'b', 'c'], 'query', 'array', 'csv');
       expect(result, equals('a,b,c'));
     });
 
@@ -62,34 +63,34 @@ void main() {
     // SerializeStyled: matrix
 
     test('serializeStyled matrix scalar', () {
-      final result =
-          serializeStyled('id', '5', 'path', 'string', '', 'matrix', false);
+      final result = serializeStyled(
+          'id', '5', 'path', 'string', '', 'matrix', false);
       expect(result, equals(';id=5'));
     });
 
     test('serializeStyled matrix array no explode', () {
-      final result = serializeStyled('color', ['red', 'green', 'blue'], 'path',
-          'array', '', 'matrix', false);
+      final result = serializeStyled(
+          'color', ['red', 'green', 'blue'], 'path', 'array', '', 'matrix', false);
       expect(result, equals(';color=red,green,blue'));
     });
 
     test('serializeStyled matrix array explode', () {
-      final result = serializeStyled('color', ['red', 'green', 'blue'], 'path',
-          'array', '', 'matrix', true);
+      final result = serializeStyled(
+          'color', ['red', 'green', 'blue'], 'path', 'array', '', 'matrix', true);
       expect(result, equals(';color=red;color=green;color=blue'));
     });
 
     test('serializeStyled matrix nil', () {
-      final result =
-          serializeStyled('id', null, 'path', 'string', '', 'matrix', false);
+      final result = serializeStyled(
+          'id', null, 'path', 'string', '', 'matrix', false);
       expect(result, equals(''));
     });
 
     // SerializeStyled: label
 
     test('serializeStyled label scalar', () {
-      final result =
-          serializeStyled('id', '5', 'path', 'string', '', 'label', false);
+      final result = serializeStyled(
+          'id', '5', 'path', 'string', '', 'label', false);
       expect(result, equals('.5'));
     });
 
@@ -108,8 +109,8 @@ void main() {
     // SerializeStyled: simple
 
     test('serializeStyled simple scalar', () {
-      final result =
-          serializeStyled('id', '5', 'path', 'string', '', 'simple', false);
+      final result = serializeStyled(
+          'id', '5', 'path', 'string', '', 'simple', false);
       expect(result, equals('5'));
     });
 
@@ -120,16 +121,16 @@ void main() {
     });
 
     test('serializeStyled simple nil', () {
-      final result =
-          serializeStyled('id', null, 'path', 'string', '', 'simple', false);
+      final result = serializeStyled(
+          'id', null, 'path', 'string', '', 'simple', false);
       expect(result, equals(''));
     });
 
     // SerializeStyled: form
 
     test('serializeStyled form scalar', () {
-      final result =
-          serializeStyled('color', 'blue', 'query', 'string', '', 'form', true);
+      final result = serializeStyled(
+          'color', 'blue', 'query', 'string', '', 'form', true);
       expect(result, equals('blue'));
     });
 
@@ -148,16 +149,16 @@ void main() {
     });
 
     test('serializeStyled form nil query', () {
-      final result =
-          serializeStyled('color', null, 'query', 'string', '', 'form', true);
+      final result = serializeStyled(
+          'color', null, 'query', 'string', '', 'form', true);
       expect(result, isNull);
     });
 
     // SerializeStyled: spaceDelimited
 
     test('serializeStyled spaceDelimited array', () {
-      final result = serializeStyled('color', ['red', 'green', 'blue'], 'query',
-          'array', '', 'spaceDelimited', false);
+      final result = serializeStyled(
+          'color', ['red', 'green', 'blue'], 'query', 'array', '', 'spaceDelimited', false);
       expect(result, equals('red green blue'));
     });
 
@@ -170,8 +171,8 @@ void main() {
     // SerializeStyled: pipeDelimited
 
     test('serializeStyled pipeDelimited array', () {
-      final result = serializeStyled('color', ['red', 'green', 'blue'], 'query',
-          'array', '', 'pipeDelimited', false);
+      final result = serializeStyled(
+          'color', ['red', 'green', 'blue'], 'query', 'array', '', 'pipeDelimited', false);
       expect(result, equals('red|green|blue'));
     });
 
@@ -207,16 +208,16 @@ void main() {
     });
 
     test('serializeStyled empty style', () {
-      final result =
-          serializeStyled('id', '5', 'query', 'string', '', '', false);
+      final result = serializeStyled(
+          'id', '5', 'query', 'string', '', '', false);
       expect(result, equals('5'));
     });
 
     // Regression tests
 
     test('serializeStyled form explode scalar returns single string', () {
-      final result =
-          serializeStyled('color', 'blue', 'query', 'string', '', 'form', true);
+      final result = serializeStyled(
+          'color', 'blue', 'query', 'string', '', 'form', true);
       expect(result, isA<String>());
       expect(result, equals('blue'));
     });
@@ -228,8 +229,8 @@ void main() {
     });
 
     test('serializeStyled form explode single-element array', () {
-      final result =
-          serializeStyled('color', ['red'], 'query', 'array', '', 'form', true);
+      final result = serializeStyled(
+          'color', ['red'], 'query', 'array', '', 'form', true);
       expect(result, isA<List<String>>());
       final items = result as List<String>;
       expect(items, equals(['red']));

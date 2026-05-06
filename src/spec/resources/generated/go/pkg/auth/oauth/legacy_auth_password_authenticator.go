@@ -1,0 +1,12 @@
+package oauth
+
+type LegacyAuthPasswordAuthenticator struct {
+	*OAuth2PasswordAuthenticator
+}
+
+func NewLegacyAuthPasswordAuthenticator(host string, clientId string, clientSecret string, username string, password string) *LegacyAuthPasswordAuthenticator {
+	inner := NewOAuth2PasswordAuthenticator(host, clientId, clientSecret, "https://auth.example.com/oauth/token", username, password, nil, "https://auth.example.com/oauth/refresh")
+	return &LegacyAuthPasswordAuthenticator{
+		OAuth2PasswordAuthenticator: inner,
+	}
+}

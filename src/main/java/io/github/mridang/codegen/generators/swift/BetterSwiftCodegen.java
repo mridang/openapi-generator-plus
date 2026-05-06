@@ -3,6 +3,7 @@ package io.github.mridang.codegen.generators.swift;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.NamingConvention;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -15,6 +16,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenModel;
@@ -601,6 +603,167 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                             oauthDir,
                             "OpenIdConnectAuthenticator.swift"));
         }
+
+        if (openAPI.getComponents() == null
+                || openAPI.getComponents().getSecuritySchemes() == null) {
+            return;
+        }
+
+        for (final Map.Entry<String, SecurityScheme> entry :
+                openAPI.getComponents().getSecuritySchemes().entrySet()) {
+            final String schemeName = entry.getKey();
+            final SecurityScheme scheme = entry.getValue();
+            final String className = NamingConvention.PASCAL_CASE.apply(schemeName);
+            final String code = generateSwiftAuthClass(schemeName, className, scheme);
+            if (!code.isEmpty()) {
+                final boolean isOAuth =
+                        scheme.getType() == SecurityScheme.Type.OAUTH2
+                                || scheme.getType() == SecurityScheme.Type.OPENIDCONNECT;
+                final String folder = isOAuth ? oauthDir : authDir;
+                final String suffix = getSwiftOAuthSuffix(scheme);
+                final String fileName = className + suffix + "Authenticator.swift";
+                final String filePath =
+                        Path.of(outputFolder, folder, fileName).toString();
+                writeFile(filePath, code);
+                postProcessFile(Path.of(filePath).toFile(), "source");
+            }
+        }
+    }
+
+    private String getSwiftOAuthSuffix(SecurityScheme scheme) {
+        if (scheme.getType() != SecurityScheme.Type.OAUTH2 || scheme.getFlows() == null) {
+            return "";
+        }
+        return Optional.ofNullable(scheme.getFlows().getClientCredentials())
+                .map(f -> "ClientCredentials")
+                .or(() -> Optional.ofNullable(scheme.getFlows().getPassword()).map(f -> "Password"))
+                .or(() ->
+                        Optional.ofNullable(scheme.getFlows().getAuthorizationCode())
+                                .map(f -> "AuthorizationCode"))
+                .or(() -> Optional.ofNullable(scheme.getFlows().getImplicit()).map(f -> "Implicit"))
+                .orElse("");
+    }
+
+    @SuppressWarnings("StringConcatenationMissingWhitespace")
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification = "Comparing with ASCII-only constants")
+    private String generateSwiftAuthClass(
+            String schemeName, String className, SecurityScheme scheme) {
+        if (scheme.getType() == SecurityScheme.Type.HTTP) {
+            if ("basic".equalsIgnoreCase(scheme.getScheme())) {
+                return renderSwiftSchemeAuth(schemeName, className + "Authenticator",
+                        "BasicAuthenticator", List.of(),
+                        "host: String, username: String, password: String",
+                        "host: host, username: username, password: password");
+            }
+            if ("bearer".equalsIgnoreCase(scheme.getScheme())) {
+                return renderSwiftSchemeAuth(schemeName, className + "Authenticator",
+                        "BearerAuthenticator", List.of(),
+                        "host: String, token: String",
+                        "host: host, token: token");
+            }
+        } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
+            final String location =
+                    "." + NamingConvention.CAMEL_CASE.apply(scheme.getIn().toString());
+            final String paramName = scheme.getName();
+            return renderSwiftSchemeAuth(schemeName, className + "Authenticator",
+                    "ApiKeyAuthenticator", List.of(),
+                    "host: String, apiKey: String",
+                    "host: host, keyParamName: \"" + paramName + "\", apiKey: apiKey, "
+                            + "location: " + location);
+        } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
+                && scheme.getFlows() != null) {
+            return generateSwiftOAuthClass(schemeName, className, scheme);
+        } else if (scheme.getType() == SecurityScheme.Type.OPENIDCONNECT) {
+            final String url = scheme.getOpenIdConnectUrl();
+            return renderSwiftSchemeAuth(schemeName, className + "Authenticator",
+                    "OpenIdConnectAuthenticator", List.of(),
+                    "host: String, clientId: String, clientSecret: String, redirectUri: String",
+                    "host: host, discoveryUrl: \"" + url + "\", clientId: clientId, "
+                            + "clientSecret: clientSecret, redirectUri: redirectUri, scopes: []");
+        }
+        LOGGER.warn("Unsupported security scheme type: {}", scheme.getType());
+        return "";
+    }
+
+    private String generateSwiftOAuthClass(
+            String schemeName, String className, SecurityScheme scheme) {
+        if (scheme.getFlows().getClientCredentials() != null) {
+            final var flow = scheme.getFlows().getClientCredentials();
+            final String tokenUrl = flow.getTokenUrl();
+            final String scopes = formatSwiftScopes(flow.getScopes());
+            return renderSwiftSchemeAuth(schemeName,
+                    className + "ClientCredentialsAuthenticator",
+                    "OAuth2ClientCredentialsAuthenticator", List.of(),
+                    "host: String, clientId: String, clientSecret: String",
+                    "host: host, clientId: clientId, clientSecret: clientSecret, "
+                            + "tokenUrl: \"" + tokenUrl + "\", scopes: " + scopes);
+        }
+        if (scheme.getFlows().getPassword() != null) {
+            final var flow = scheme.getFlows().getPassword();
+            final String tokenUrl = flow.getTokenUrl();
+            final String refreshUrl = flow.getRefreshUrl();
+            final String refreshUrlArg = refreshUrl != null ? "\"" + refreshUrl + "\"" : "nil";
+            final String scopes = formatSwiftScopes(flow.getScopes());
+            return renderSwiftSchemeAuth(schemeName,
+                    className + "PasswordAuthenticator",
+                    "OAuth2PasswordAuthenticator", List.of(),
+                    "host: String, clientId: String, clientSecret: String, "
+                            + "username: String, password: String",
+                    "host: host, clientId: clientId, clientSecret: clientSecret, "
+                            + "tokenUrl: \"" + tokenUrl + "\", refreshUrl: " + refreshUrlArg + ", "
+                            + "username: username, password: password, scopes: " + scopes);
+        }
+        if (scheme.getFlows().getAuthorizationCode() != null) {
+            final var flow = scheme.getFlows().getAuthorizationCode();
+            final String authUrl = flow.getAuthorizationUrl();
+            final String tokenUrl = flow.getTokenUrl();
+            final String refreshUrl = flow.getRefreshUrl();
+            final String refreshUrlArg = refreshUrl != null ? "\"" + refreshUrl + "\"" : "nil";
+            final String scopes = formatSwiftScopes(flow.getScopes());
+            return renderSwiftSchemeAuth(schemeName,
+                    className + "AuthorizationCodeAuthenticator",
+                    "OAuth2AuthorizationCodeAuthenticator", List.of(),
+                    "host: String, clientId: String, clientSecret: String, redirectUri: String",
+                    "host: host, clientId: clientId, clientSecret: clientSecret, "
+                            + "authorizationUrl: \"" + authUrl + "\", tokenUrl: \"" + tokenUrl + "\", "
+                            + "redirectUri: redirectUri, scopes: " + scopes + ", "
+                            + "refreshUrl: " + refreshUrlArg);
+        }
+        if (scheme.getFlows().getImplicit() != null) {
+            final var flow = scheme.getFlows().getImplicit();
+            final String authUrl = flow.getAuthorizationUrl();
+            final String scopes = formatSwiftScopes(flow.getScopes());
+            return renderSwiftSchemeAuth(schemeName,
+                    className + "ImplicitAuthenticator",
+                    "OAuth2ImplicitAuthenticator", List.of(),
+                    "host: String, clientId: String",
+                    "host: host, clientId: clientId, authorizationUrl: \""
+                            + authUrl + "\", scopes: " + scopes);
+        }
+        LOGGER.warn("Unsupported OAuth2 flow for scheme: {}", className);
+        return "";
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private static String formatSwiftScopes(@Nullable Map<String, String> scopes) {
+        if (scopes == null || scopes.isEmpty()) {
+            return "[]";
+        }
+        return "[\"" + String.join("\", \"", scopes.keySet()) + "\"]";
+    }
+
+    private String renderSwiftSchemeAuth(String schemeName, String className, String baseClass,
+            List<String> imports, String constructorSignature, String superCall) {
+        final Map<String, Object> context = new HashMap<>();
+        context.put("schemeName", schemeName);
+        context.put("className", className);
+        context.put("baseClass", baseClass);
+        context.put("imports", imports);
+        context.put("constructorSignature", constructorSignature);
+        context.put("superCall", superCall);
+        return renderOptionsTemplate("auth/scheme_authenticator.mustache", context);
     }
 
     /**

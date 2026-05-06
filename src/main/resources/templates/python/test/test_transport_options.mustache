@@ -1,3 +1,4 @@
+import pytest
 from types import MappingProxyType
 
 from {{packageName}}.transport_options import TransportOptions
@@ -49,6 +50,18 @@ class TestTransportOptions:
 
         assert opts.follow_redirects is True
         assert opts.max_redirects is None
+
+    def test_invalid_proxy_url_raises_error(self) -> None:
+        with pytest.raises(ValueError):
+            TransportOptions.builder().proxy('not-a-url').build()
+
+    def test_valid_proxy_url_is_accepted(self) -> None:
+        opts = TransportOptions.builder().proxy('http://proxy:3128').build()
+        assert opts.proxy == 'http://proxy:3128'
+
+    def test_none_proxy_is_accepted(self) -> None:
+        opts = TransportOptions.builder().proxy(None).build()
+        assert opts.proxy is None
 
     def test_default_headers_is_immutable(self) -> None:
         headers = {"X-Original": "original"}

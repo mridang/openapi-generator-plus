@@ -9,9 +9,10 @@ package petstore_test
 
 import (
 	"encoding/json"
-	petstore "petstore/pkg"
 	"strings"
 	"testing"
+
+	"petstore/pkg"
 )
 
 func TestDefaultApiClient_TlsVerificationDisabled(t *testing.T) {
@@ -231,15 +232,20 @@ func TestDefaultApiClient_MaxRedirects(t *testing.T) {
 	if client == nil {
 		t.Fatal("expected non-nil client")
 	}
-	if transport.MaxRedirects() != 5 {
-		t.Errorf("expected MaxRedirects 5, got %d", transport.MaxRedirects())
+	if transport.MaxRedirects() == nil || *transport.MaxRedirects() != 5 {
+		t.Error("expected MaxRedirects to be 5")
 	}
 }
 
 func TestDefaultApiClient_MultipartBody(t *testing.T) {
+	/* Multipart body construction is now handled by base_api.buildMultipartBody,
+	 * so we test via SendRequest with pre-built multipart bytes. */
 	client := petstore.NewDefaultApiClient(nil)
-	formFields := map[string]string{"description": "A test file"}
-	resp, err := client.SendMultipartRequest("POST", wiremockHTTPURL+"/api/test", map[string]string{}, formFields, nil)
+	headers := map[string]string{
+		"Content-Type": "multipart/form-data; boundary=test-boundary",
+	}
+	body := []byte("--test-boundary\r\nContent-Disposition: form-data; name=\"description\"\r\n\r\nA test file\r\n--test-boundary--\r\n")
+	resp, err := client.SendRequest("POST", wiremockHTTPURL+"/api/test", headers, body)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

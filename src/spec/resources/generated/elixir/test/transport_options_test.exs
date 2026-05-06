@@ -16,18 +16,17 @@ defmodule PetstoreClient.TransportOptionsTest do
   end
 
   test "new sets all fields" do
-    opts =
-      PetstoreClient.TransportOptions.new(
-        verify_ssl: false,
-        ca_cert_path: "/path/to/ca.pem",
-        proxy: "http://proxy:8080",
-        timeout: 5000,
-        follow_redirects: false,
-        max_redirects: 3,
-        user_agent: "TestAgent/1.0",
-        default_headers: %{"X-Custom" => "value"},
-        inject_request_id: true
-      )
+    opts = PetstoreClient.TransportOptions.new(
+      verify_ssl: false,
+      ca_cert_path: "/path/to/ca.pem",
+      proxy: "http://proxy:8080",
+      timeout: 5000,
+      follow_redirects: false,
+      max_redirects: 3,
+      user_agent: "TestAgent/1.0",
+      default_headers: %{"X-Custom" => "value"},
+      inject_request_id: true
+    )
 
     assert opts.verify_ssl == false
     assert opts.ca_cert_path == "/path/to/ca.pem"
@@ -38,6 +37,12 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert opts.user_agent == "TestAgent/1.0"
     assert opts.default_headers == %{"X-Custom" => "value"}
     assert opts.inject_request_id == true
+  end
+
+  test "raises on invalid proxy URL" do
+    assert_raise ArgumentError, fn ->
+      PetstoreClient.TransportOptions.new(proxy: "not-a-valid-url")
+    end
   end
 
   test "default_headers is an independent copy" do

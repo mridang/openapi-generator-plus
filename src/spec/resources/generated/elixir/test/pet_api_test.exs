@@ -5,11 +5,10 @@ defmodule PetstoreClient.Api.PetApiTest do
     base_url = System.get_env("API_BASE_URL", "http://localhost:4010")
     auth = PetstoreClient.Auth.BearerAuthenticator.new(base_url, "test-token")
 
-    config =
-      PetstoreClient.Configuration.new(
-        base_url: base_url,
-        default_headers: %{"Authorization" => "Bearer test-token"}
-      )
+    config = PetstoreClient.Configuration.new(
+      base_url: base_url,
+      default_headers: %{"Authorization" => "Bearer test-token"}
+    )
 
     api = PetstoreClient.Api.PetApi.new(nil, config)
 
@@ -55,8 +54,7 @@ defmodule PetstoreClient.Api.PetApiTest do
   end
 
   test "delete_pet deletes a pet", %{api: api, auth: auth} do
-    assert {:ok, _result} =
-             PetstoreClient.Api.PetApi.delete_pet(api, auth, 1, %PetstoreClient.Api.Options.DeletePetOptions{})
+    assert {:ok, _result} = PetstoreClient.Api.PetApi.delete_pet(api, auth, 1, %PetstoreClient.Api.Options.DeletePetOptions{})
   end
 
   test "set_pet_avatar uploads binary image data", %{api: api} do
@@ -136,20 +134,16 @@ defmodule PetstoreClient.Api.PetApiTest do
     spawn(fn ->
       {:ok, client} = :gen_tcp.accept(socket)
       {:ok, _data} = :gen_tcp.recv(client, 0)
-
-      response =
-        "HTTP/1.1 #{status} OK\r\nContent-Type: #{content_type}\r\nContent-Length: #{byte_size(body)}\r\n\r\n#{body}"
-
+      response = "HTTP/1.1 #{status} OK\r\nContent-Type: #{content_type}\r\nContent-Length: #{byte_size(body)}\r\n\r\n#{body}"
       :gen_tcp.send(client, response)
       :gen_tcp.close(client)
       :gen_tcp.close(socket)
     end)
 
-    config =
-      PetstoreClient.Configuration.new(
-        base_url: "http://127.0.0.1:#{port}",
-        default_headers: %{}
-      )
+    config = PetstoreClient.Configuration.new(
+      base_url: "http://127.0.0.1:#{port}",
+      default_headers: %{}
+    )
 
     PetstoreClient.Api.PetApi.new(nil, config)
   end

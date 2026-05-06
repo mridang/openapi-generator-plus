@@ -6,9 +6,6 @@ import io.github.mridang.codegen.generators.NamingConvention;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.security.SecurityScheme;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -820,56 +817,39 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         final String pkg = invokerPackage;
         if (scheme.getType() == SecurityScheme.Type.HTTP) {
             if ("basic".equalsIgnoreCase(scheme.getScheme())) {
-                return "package " + pkg + ".auth;\n\n"
-                        + "public final class " + className
-                        + "Authenticator extends BasicAuthenticator {\n"
-                        + "    public " + className
-                        + "Authenticator(String host, String username, String password) {\n"
-                        + "        super(host, username, password);\n"
-                        + "    }\n"
-                        + "}\n";
+                return renderSchemeAuth(pkg + ".auth", className + "Authenticator",
+                        "BasicAuthenticator", List.of(),
+                        List.of(p("String", "host"), p("String", "username"),
+                                p("String", "password")),
+                        List.of("host", "username", "password"));
             }
             if ("bearer".equalsIgnoreCase(scheme.getScheme())) {
-                return "package " + pkg + ".auth;\n\n"
-                        + "public final class " + className
-                        + "Authenticator extends BearerAuthenticator {\n"
-                        + "    public " + className
-                        + "Authenticator(String host, String token) {\n"
-                        + "        super(host, token);\n"
-                        + "    }\n"
-                        + "}\n";
+                return renderSchemeAuth(pkg + ".auth", className + "Authenticator",
+                        "BearerAuthenticator", List.of(),
+                        List.of(p("String", "host"), p("String", "token")),
+                        List.of("host", "token"));
             }
         } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
             final String location =
                     NamingConvention.UPPER_SNAKE_CASE.apply(scheme.getIn().toString());
             final String paramName = scheme.getName();
-            return "package " + pkg + ".auth;\n\n"
-                    + "public final class " + className
-                    + "Authenticator extends ApiKeyAuthenticator {\n"
-                    + "    public " + className
-                    + "Authenticator(String host, String apiKey) {\n"
-                    + "        super(host, \"" + paramName + "\", apiKey, ApiKeyLocation."
-                    + location + ");\n"
-                    + "    }\n"
-                    + "}\n";
+            return renderSchemeAuth(pkg + ".auth", className + "Authenticator",
+                    "ApiKeyAuthenticator", List.of(),
+                    List.of(p("String", "host"), p("String", "apiKey")),
+                    List.of("host", "\"" + paramName + "\"", "apiKey",
+                            "ApiKeyLocation." + location));
         } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
                 && scheme.getFlows() != null) {
             return generateJavaOAuthClass(className, scheme, pkg);
         } else if (scheme.getType() == SecurityScheme.Type.OPENIDCONNECT) {
             final String url = scheme.getOpenIdConnectUrl();
-            return "package " + pkg + ".auth.oauth;\n\n"
-                    + "import " + pkg + ".auth.Authenticator;\n"
-                    + "import java.util.List;\n\n"
-                    + "public final class " + className
-                    + "Authenticator extends OpenIdConnectAuthenticator {\n"
-                    + "    public " + className
-                    + "Authenticator(String host, String clientId,\n"
-                    + "            String clientSecret, String redirectUri) {\n"
-                    + "        super(host, \"" + url
-                    + "\", clientId, clientSecret, redirectUri,\n"
-                    + "              List.of());\n"
-                    + "    }\n"
-                    + "}\n";
+            return renderSchemeAuth(pkg + ".auth.oauth", className + "Authenticator",
+                    "OpenIdConnectAuthenticator",
+                    List.of(pkg + ".auth.Authenticator", "java.util.List"),
+                    List.of(p("String", "host"), p("String", "clientId"),
+                            p("String", "clientSecret"), p("String", "redirectUri")),
+                    List.of("host", "\"" + url + "\"", "clientId", "clientSecret",
+                            "redirectUri", "List.of()"));
         }
         LOGGER.warn("Unsupported security scheme type: {}", scheme.getType());
         return "";
@@ -886,107 +866,91 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         if (scheme.getFlows().getClientCredentials() != null) {
             final var flow = scheme.getFlows().getClientCredentials();
             final String tokenUrl = flow.getTokenUrl();
-            final String scopes =
-                    flow.getScopes() != null
-                            ? "\"" + String.join("\", \"", flow.getScopes().keySet()) + "\""
-                            : "";
-            return "package " + pkg + ".auth.oauth;\n\n"
-                    + "import " + pkg + ".auth.Authenticator;\n"
-                    + "import java.util.List;\n\n"
-                    + "public final class " + className
-                    + "ClientCredentialsAuthenticator"
-                    + " extends OAuth2ClientCredentialsAuthenticator {\n"
-                    + "    public " + className
-                    + "ClientCredentialsAuthenticator(String host,"
-                    + " String clientId, String clientSecret) {\n"
-                    + "        super(host, clientId, clientSecret, \""
-                    + tokenUrl + "\",\n"
-                    + "              List.of(" + scopes + "));\n"
-                    + "    }\n"
-                    + "}\n";
+            final String scopes = formatScopes(flow.getScopes());
+            return renderSchemeAuth(pkg + ".auth.oauth",
+                    className + "ClientCredentialsAuthenticator",
+                    "OAuth2ClientCredentialsAuthenticator",
+                    List.of(pkg + ".auth.Authenticator", "java.util.List"),
+                    List.of(p("String", "host"), p("String", "clientId"),
+                            p("String", "clientSecret")),
+                    List.of("host", "clientId", "clientSecret",
+                            "\"" + tokenUrl + "\"", scopes));
         }
         if (scheme.getFlows().getPassword() != null) {
             final var flow = scheme.getFlows().getPassword();
             final String tokenUrl = flow.getTokenUrl();
             final String refreshUrl = flow.getRefreshUrl();
-            final String scopes =
-                    flow.getScopes() != null
-                            ? "\"" + String.join("\", \"", flow.getScopes().keySet()) + "\""
-                            : "";
-            final String refreshUrlArg =
-                    refreshUrl != null ? "\"" + refreshUrl + "\"" : "null";
-            return "package " + pkg + ".auth.oauth;\n\n"
-                    + "import " + pkg + ".auth.Authenticator;\n"
-                    + "import java.util.List;\n\n"
-                    + "public final class " + className
-                    + "PasswordAuthenticator"
-                    + " extends OAuth2PasswordAuthenticator {\n"
-                    + "    public " + className
-                    + "PasswordAuthenticator(String host, String clientId,\n"
-                    + "            String clientSecret, String username,"
-                    + " String password) {\n"
-                    + "        super(host, clientId, clientSecret, \""
-                    + tokenUrl + "\", " + refreshUrlArg + ",\n"
-                    + "              username, password, List.of("
-                    + scopes + "));\n"
-                    + "    }\n"
-                    + "}\n";
+            final String refreshUrlArg = refreshUrl != null ? "\"" + refreshUrl + "\"" : "null";
+            final String scopes = formatScopes(flow.getScopes());
+            return renderSchemeAuth(pkg + ".auth.oauth",
+                    className + "PasswordAuthenticator",
+                    "OAuth2PasswordAuthenticator",
+                    List.of(pkg + ".auth.Authenticator", "java.util.List"),
+                    List.of(p("String", "host"), p("String", "clientId"),
+                            p("String", "clientSecret"), p("String", "username"),
+                            p("String", "password")),
+                    List.of("host", "clientId", "clientSecret",
+                            "\"" + tokenUrl + "\"", refreshUrlArg,
+                            "username", "password", scopes));
         }
         if (scheme.getFlows().getAuthorizationCode() != null) {
             final var flow = scheme.getFlows().getAuthorizationCode();
             final String authUrl = flow.getAuthorizationUrl();
             final String tokenUrl = flow.getTokenUrl();
             final String refreshUrl = flow.getRefreshUrl();
-            final String scopes =
-                    flow.getScopes() != null
-                            ? "\"" + String.join("\", \"", flow.getScopes().keySet()) + "\""
-                            : "";
-            final String refreshUrlArg =
-                    refreshUrl != null ? "\"" + refreshUrl + "\"" : "null";
-            return "package " + pkg + ".auth.oauth;\n\n"
-                    + "import " + pkg + ".auth.Authenticator;\n"
-                    + "import java.util.List;\n\n"
-                    + "public final class " + className
-                    + "AuthorizationCodeAuthenticator"
-                    + " extends OAuth2AuthorizationCodeAuthenticator {\n"
-                    + "    public " + className
-                    + "AuthorizationCodeAuthenticator(String host,"
-                    + " String clientId,\n"
-                    + "            String clientSecret, String redirectUri)"
-                    + " {\n"
-                    + "        super(host, clientId, clientSecret,\n"
-                    + "              \"" + authUrl + "\",\n"
-                    + "              \"" + tokenUrl + "\",\n"
-                    + "              " + refreshUrlArg + ",\n"
-                    + "              redirectUri, List.of(" + scopes
-                    + "));\n"
-                    + "    }\n"
-                    + "}\n";
+            final String refreshUrlArg = refreshUrl != null ? "\"" + refreshUrl + "\"" : "null";
+            final String scopes = formatScopes(flow.getScopes());
+            return renderSchemeAuth(pkg + ".auth.oauth",
+                    className + "AuthorizationCodeAuthenticator",
+                    "OAuth2AuthorizationCodeAuthenticator",
+                    List.of(pkg + ".auth.Authenticator", "java.util.List"),
+                    List.of(p("String", "host"), p("String", "clientId"),
+                            p("String", "clientSecret"), p("String", "redirectUri")),
+                    List.of("host", "clientId", "clientSecret",
+                            "\"" + authUrl + "\"", "\"" + tokenUrl + "\"",
+                            refreshUrlArg, "redirectUri", scopes));
         }
         if (scheme.getFlows().getImplicit() != null) {
             final var flow = scheme.getFlows().getImplicit();
             final String authUrl = flow.getAuthorizationUrl();
-            final String scopes =
-                    flow.getScopes() != null
-                            ? "\"" + String.join("\", \"", flow.getScopes().keySet()) + "\""
-                            : "";
-            return "package " + pkg + ".auth.oauth;\n\n"
-                    + "import " + pkg + ".auth.Authenticator;\n"
-                    + "import java.util.List;\n\n"
-                    + "public final class " + className
-                    + "ImplicitAuthenticator"
-                    + " extends OAuth2ImplicitAuthenticator {\n"
-                    + "    public " + className
-                    + "ImplicitAuthenticator(String host,"
-                    + " String clientId) {\n"
-                    + "        super(host, clientId, \"" + authUrl
-                    + "\",\n"
-                    + "              List.of(" + scopes + "));\n"
-                    + "    }\n"
-                    + "}\n";
+            final String scopes = formatScopes(flow.getScopes());
+            return renderSchemeAuth(pkg + ".auth.oauth",
+                    className + "ImplicitAuthenticator",
+                    "OAuth2ImplicitAuthenticator",
+                    List.of(pkg + ".auth.Authenticator", "java.util.List"),
+                    List.of(p("String", "host"), p("String", "clientId")),
+                    List.of("host", "clientId", "\"" + authUrl + "\"", scopes));
         }
         LOGGER.warn("Unsupported OAuth2 flow for scheme: {}", className);
         return "";
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private static String formatScopes(@Nullable Map<String, String> scopes) {
+        if (scopes == null || scopes.isEmpty()) {
+            return "List.of()";
+        }
+        return "List.of(\"" + String.join("\", \"", scopes.keySet()) + "\")";
+    }
+
+    private static Map<String, String> p(String type, String name) {
+        final Map<String, String> param = new HashMap<>();
+        param.put("type", type);
+        param.put("name", name);
+        return param;
+    }
+
+    private String renderSchemeAuth(String pkg, String className, String baseClass,
+            List<String> imports, List<Map<String, String>> constructorParams,
+            List<String> superArgs) {
+        final Map<String, Object> context = new HashMap<>();
+        context.put("package", pkg);
+        context.put("className", className);
+        context.put("baseClass", baseClass);
+        context.put("imports", imports);
+        context.put("constructorParams", constructorParams);
+        context.put("superArgs", superArgs);
+        return renderOptionsTemplate("auth/scheme_authenticator.mustache", context);
     }
 
     /** {@inheritDoc} */

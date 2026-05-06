@@ -17,7 +17,7 @@ namespace PetstoreClient.Auth.OAuth;
 /// use the shared <see cref="IApiClient"/> with the same transport configuration
 /// (proxy, TLS, timeouts) as regular API calls.
 /// </summary>
-public sealed class OAuth2PasswordAuthenticator : BaseAuthenticator, IHttpAwareAuthenticator
+public class OAuth2PasswordAuthenticator : BaseAuthenticator, IHttpAwareAuthenticator
 {
     private readonly string _host;
     private readonly string _clientId;
@@ -106,7 +106,10 @@ public sealed class OAuth2PasswordAuthenticator : BaseAuthenticator, IHttpAwareA
             parameters["scope"] = string.Join(" ", _scopes);
         }
 
-        string token = _tokenManager.GetAccessTokenAsync(url, parameters).GetAwaiter().GetResult();
+        string token = _tokenManager
+            .GetAccessTokenAsync(url, parameters)
+            .GetAwaiter()
+            .GetResult();
         return new() { ["Authorization"] = "Bearer " + token };
     }
 }

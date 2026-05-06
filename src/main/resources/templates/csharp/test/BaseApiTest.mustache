@@ -186,6 +186,32 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task SkipsDeserializationForNonJsonContentType()
+    {
+        var textClient = new TextPlainApiClient();
+        var textApi = new TestableApi(textClient, "http://localhost");
+        var result = await textApi.CallAsync<string>(
+            "GET", "/api/test",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["text/plain"], "application/json");
+        Assert.NotNull(result);
+        Assert.Equal("hello", result);
+    }
+
+    private sealed class TextPlainApiClient : IApiClient
+    {
+        public Task<ApiResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            return Task.FromResult(new ApiResponse(200, "hello", new Dictionary<string, string>
+            {
+                { "Content-Type", "text/plain" }
+            }));
+        }
+    }
+
+    [Fact]
     public async Task AppendsQueryParams()
     {
         await Api().CallAsync<object>(

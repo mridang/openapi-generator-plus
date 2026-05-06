@@ -51,11 +51,7 @@ pub struct BaseApi {
 
 impl BaseApi {
     /// Creates a new BaseApi instance.
-    pub fn new(
-        api_client: Arc<dyn ApiClient>,
-        config: Configuration,
-        authenticator: Option<Arc<dyn Authenticator>>,
-    ) -> Self {
+    pub fn new(api_client: Arc<dyn ApiClient>, config: Configuration, authenticator: Option<Arc<dyn Authenticator>>) -> Self {
         Self {
             config,
             api_client,
@@ -76,9 +72,7 @@ impl BaseApi {
 
         /* Merge authentication query params */
         let mut query_params = params.query_params;
-        let effective_auth: Option<&dyn Authenticator> = params
-            .auth
-            .or_else(|| self.authenticator.as_ref().map(|a| a.as_ref()));
+        let effective_auth: Option<&dyn Authenticator> = params.auth.or_else(|| self.authenticator.as_ref().map(|a| a.as_ref()));
         if let Some(auth) = effective_auth {
             for (k, v) in auth.query_params() {
                 query_params.push((k, v));
@@ -93,9 +87,7 @@ impl BaseApi {
 
         /* Select headers */
         let is_multipart = params.content_type == "multipart/form-data";
-        let mut headers =
-            self.header_selector
-                .select_headers(&params.accepts, params.content_type, is_multipart);
+        let mut headers = self.header_selector.select_headers(&params.accepts, params.content_type, is_multipart);
 
         /* Merge config default headers */
         for (k, v) in self.config.default_headers() {
@@ -156,12 +148,7 @@ impl BaseApi {
         /* Send request */
         let response = self
             .api_client
-            .send_request(
-                params.method,
-                &request_url,
-                &headers,
-                serialized_body.as_deref(),
-            )
+            .send_request(params.method, &request_url, &headers, serialized_body.as_deref())
             .await?;
 
         /* Check for errors */
@@ -178,7 +165,29 @@ impl BaseApi {
         params: InvokeApiParams<'_>,
     ) -> Result<ApiResult<T>, Box<dyn std::error::Error + Send + Sync>> {
         let response = self.invoke_api(params).await?;
-        let data: T = crate::object_serializer::deserialize(response.body.as_bytes())?;
+
+        /* Check Content-Type before deserializing -- only deserialize JSON responses */
+        let resp_content_type = response.headers.get("Content-Type")
+            .or_else(|| response.headers.get("content-type"))
+            .map(|v| v.split(';').next().unwrap_or("").trim().to_string());
+
+        let is_json = match &resp_content_type {
+            None => true,
+            Some(ct) => {
+                let selector = HeaderSelector::new();
+                selector.is_json_mime(ct)
+            }
+        };
+
+        let data = if is_json && !response.body.is_empty() {
+            crate::object_serializer::deserialize(response.body.as_bytes())?
+        } else if !response.body.is_empty() {
+            /* Non-JSON response -- attempt deserialization as a fallback */
+            crate::object_serializer::deserialize(response.body.as_bytes())?
+        } else {
+            serde_json::from_str("null")?
+        };
+
         Ok(ApiResult {
             status_code: response.status_code,
             data: Some(data),
@@ -209,7 +218,13 @@ fn build_query_string(query_params: &[(String, String)]) -> String {
 
     let parts: Vec<String> = query_params
         .iter()
-        .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
+        .map(|(k, v)| {
+            format!(
+                "{}={}",
+                urlencoding::encode(k),
+                urlencoding::encode(v)
+            )
+        })
         .collect();
 
     parts.join("&")
@@ -326,7 +341,13 @@ pub fn serialize_body(
         let params: std::collections::HashMap<String, String> = serde_json::from_slice(&body)?;
         let encoded: Vec<String> = params
             .iter()
-            .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
+            .map(|(k, v)| {
+                format!(
+                    "{}={}",
+                    urlencoding::encode(k),
+                    urlencoding::encode(v)
+                )
+            })
             .collect();
         return Ok(Some(encoded.join("&").into_bytes()));
     }
@@ -346,7 +367,13 @@ fn throw_api_error(response: &ApiResponse) -> Box<dyn std::error::Error + Send +
         None
     };
 
-    let base_err = ApiError::new(code, msg, body, response.headers.clone(), error_body);
+    let base_err = ApiError::new(
+        code,
+        msg,
+        body,
+        response.headers.clone(),
+        error_body,
+    );
 
     if code >= 400 && code < 500 {
         let client_err = ClientError::from(base_err);

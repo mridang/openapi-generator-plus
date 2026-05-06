@@ -1,0 +1,13 @@
+defmodule {{package}}.{{className}} do
+  @moduledoc """
+  Scheme-specific authenticator generated from the OpenAPI security scheme.
+  Delegates to `#{inspect({{package}}.{{baseClass}})}`.
+  """
+
+  @doc """
+  Creates a new `{{className}}` authenticator.
+  """
+  def new({{#constructorParams}}{{name}}{{^-last}}, {{/-last}}{{/constructorParams}}) do
+    {{package}}.{{baseClass}}.new({{#superArgs}}{{.}}{{^-last}}, {{/-last}}{{/superArgs}})
+  end
+end

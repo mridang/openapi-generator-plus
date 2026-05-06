@@ -10,19 +10,16 @@ mod testcontainers_helper;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use petstore::*;
 use petstore::api::*;
 use petstore::errors::*;
 use petstore::models::*;
-use petstore::*;
 
 // -- Error dispatch via WireMock --
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_400() {
-    let base_url = format!(
-        "{}/api/error/400",
-        testcontainers_helper::wiremock_http_url()
-    );
+    let base_url = format!("{}/api/error/400", testcontainers_helper::wiremock_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
@@ -33,10 +30,7 @@ async fn test_base_api_error_dispatch_400() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_401() {
-    let base_url = format!(
-        "{}/api/error/401",
-        testcontainers_helper::wiremock_http_url()
-    );
+    let base_url = format!("{}/api/error/401", testcontainers_helper::wiremock_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
@@ -47,10 +41,7 @@ async fn test_base_api_error_dispatch_401() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_403() {
-    let base_url = format!(
-        "{}/api/error/403",
-        testcontainers_helper::wiremock_http_url()
-    );
+    let base_url = format!("{}/api/error/403", testcontainers_helper::wiremock_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
@@ -61,10 +52,7 @@ async fn test_base_api_error_dispatch_403() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_404() {
-    let base_url = format!(
-        "{}/api/error/404",
-        testcontainers_helper::wiremock_http_url()
-    );
+    let base_url = format!("{}/api/error/404", testcontainers_helper::wiremock_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
@@ -75,10 +63,7 @@ async fn test_base_api_error_dispatch_404() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_409() {
-    let base_url = format!(
-        "{}/api/error/409",
-        testcontainers_helper::wiremock_http_url()
-    );
+    let base_url = format!("{}/api/error/409", testcontainers_helper::wiremock_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
@@ -89,10 +74,7 @@ async fn test_base_api_error_dispatch_409() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_422() {
-    let base_url = format!(
-        "{}/api/error/422",
-        testcontainers_helper::wiremock_http_url()
-    );
+    let base_url = format!("{}/api/error/422", testcontainers_helper::wiremock_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
@@ -103,10 +85,7 @@ async fn test_base_api_error_dispatch_422() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_500() {
-    let base_url = format!(
-        "{}/api/error/500",
-        testcontainers_helper::wiremock_http_url()
-    );
+    let base_url = format!("{}/api/error/500", testcontainers_helper::wiremock_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
@@ -117,10 +96,7 @@ async fn test_base_api_error_dispatch_500() {
 
 #[tokio::test]
 async fn test_base_api_error_dispatch_502() {
-    let base_url = format!(
-        "{}/api/error/502",
-        testcontainers_helper::wiremock_http_url()
-    );
+    let base_url = format!("{}/api/error/502", testcontainers_helper::wiremock_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
@@ -133,10 +109,7 @@ async fn test_base_api_error_dispatch_502() {
 
 #[tokio::test]
 async fn test_base_api_parses_json_error_body() {
-    let base_url = format!(
-        "{}/api/error/400",
-        testcontainers_helper::wiremock_http_url()
-    );
+    let base_url = format!("{}/api/error/400", testcontainers_helper::wiremock_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
     let api = PetApi::new(Arc::new(client), config, None);
@@ -144,8 +117,7 @@ async fn test_base_api_parses_json_error_body() {
     let result = api.get_pet_by_id(1, None).await;
     assert!(result.is_err(), "expected error for status 400");
     let err = result.unwrap_err();
-    let bad_request = err
-        .downcast_ref::<BadRequestError>()
+    let bad_request = err.downcast_ref::<BadRequestError>()
         .expect("expected BadRequestError");
     assert!(
         bad_request.client_error.api_error.error_body.is_some(),
@@ -160,12 +132,7 @@ async fn test_base_api_handles_empty_200_response() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
-        .send_request(
-            "GET",
-            &format!("{}/api/empty", testcontainers_helper::wiremock_http_url()),
-            &headers,
-            None,
-        )
+        .send_request("GET", &format!("{}/api/empty", testcontainers_helper::wiremock_http_url()), &headers, None)
         .await
         .expect("unexpected error");
 
@@ -180,12 +147,7 @@ async fn test_base_api_deserializes_json_response() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
-        .send_request(
-            "GET",
-            &format!("{}/api/test", testcontainers_helper::wiremock_http_url()),
-            &headers,
-            None,
-        )
+        .send_request("GET", &format!("{}/api/test", testcontainers_helper::wiremock_http_url()), &headers, None)
         .await
         .expect("unexpected error");
 
@@ -200,12 +162,7 @@ async fn test_base_api_returns_raw_body_for_non_json() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
-        .send_request(
-            "GET",
-            &format!("{}/api/text", testcontainers_helper::wiremock_http_url()),
-            &headers,
-            None,
-        )
+        .send_request("GET", &format!("{}/api/text", testcontainers_helper::wiremock_http_url()), &headers, None)
         .await
         .expect("unexpected error");
 
@@ -220,15 +177,7 @@ async fn test_base_api_forwards_auth_headers() {
     let mut headers = HashMap::new();
     headers.insert("Authorization".to_string(), "Bearer test-token".to_string());
     let resp = client
-        .send_request(
-            "GET",
-            &format!(
-                "{}/api/echo-headers",
-                testcontainers_helper::wiremock_http_url()
-            ),
-            &headers,
-            None,
-        )
+        .send_request("GET", &format!("{}/api/echo-headers", testcontainers_helper::wiremock_http_url()), &headers, None)
         .await
         .expect("unexpected error");
 
@@ -243,16 +192,47 @@ async fn test_base_api_handles_nil_body() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
-        .send_request(
-            "GET",
-            &format!("{}/api/test", testcontainers_helper::wiremock_http_url()),
-            &headers,
-            None,
-        )
+        .send_request("GET", &format!("{}/api/test", testcontainers_helper::wiremock_http_url()), &headers, None)
         .await
         .expect("unexpected error");
 
     assert_eq!(resp.status_code, 200);
+}
+
+// -- Content-Type check: non-JSON response skips deserialization --
+
+struct PlainTextApiClient;
+
+impl petstore::api_client::ApiClient for PlainTextApiClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        _url: &str,
+        _headers: &HashMap<String, String>,
+        _body: Option<&[u8]>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<petstore::api_response::ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        Box::pin(async {
+            Ok(petstore::api_response::ApiResponse {
+                status_code: 200,
+                body: "hello plain text".to_string(),
+                headers: {
+                    let mut h = HashMap::new();
+                    h.insert("Content-Type".to_string(), "text/plain".to_string());
+                    h
+                },
+            })
+        })
+    }
+}
+
+#[tokio::test]
+async fn test_base_api_skips_deserialization_for_non_json() {
+    let client = Arc::new(PlainTextApiClient);
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client, config, None);
+    /* The call may fail on deserialization, but should not panic.
+     * The important thing is that it does not try to JSON-parse plain text. */
+    let _ = api.get_pet_by_id(1, None).await;
 }
 
 // -- No-op authenticator for unit tests --
@@ -294,17 +274,7 @@ impl petstore::api_client::ApiClient for CapturingApiClient {
         _url: &str,
         headers: &HashMap<String, String>,
         body: Option<&[u8]>,
-    ) -> std::pin::Pin<
-        Box<
-            dyn std::future::Future<
-                    Output = Result<
-                        petstore::api_response::ApiResponse,
-                        Box<dyn std::error::Error + Send + Sync>,
-                    >,
-                > + Send
-                + '_,
-        >,
-    > {
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<petstore::api_response::ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
         *self.captured_headers.lock().unwrap() = headers.clone();
         *self.captured_body.lock().unwrap() = body.map(|b| b.to_vec());
         Box::pin(async {
@@ -326,20 +296,12 @@ impl petstore::api_client::ApiClient for CapturingApiClient {
 #[tokio::test]
 async fn test_base_api_all_headers_flow_through() {
     let client = Arc::new(CapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let _ = api.get_pet_by_id(1, None).await;
     let headers = client.captured_headers.lock().unwrap();
-    assert!(
-        headers.contains_key("Accept"),
-        "Expected Accept header from selector"
-    );
-    assert!(
-        headers.contains_key("Content-Type"),
-        "Expected Content-Type header from selector"
-    );
+    assert!(headers.contains_key("Accept"), "Expected Accept header from selector");
+    assert!(headers.contains_key("Content-Type"), "Expected Content-Type header from selector");
 }
 
 // -- Body serialization tests --
@@ -347,9 +309,7 @@ async fn test_base_api_all_headers_flow_through() {
 #[tokio::test]
 async fn test_base_api_serializes_json_body() {
     let client = Arc::new(CapturingApiClient::new());
-    let config = ConfigurationBuilder::new()
-        .base_url("http://localhost")
-        .build();
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
     let pet = Pet::new("TestPet".to_string(), vec![]);
     let auth = NoopAuthenticator;
@@ -357,10 +317,7 @@ async fn test_base_api_serializes_json_body() {
     let body = client.captured_body.lock().unwrap();
     assert!(body.is_some(), "expected body to be captured");
     let body_str = String::from_utf8(body.as_ref().unwrap().clone()).unwrap();
-    assert!(
-        body_str.contains("TestPet"),
-        "expected body to contain 'TestPet'"
-    );
+    assert!(body_str.contains("TestPet"), "expected body to contain 'TestPet'");
 }
 
 // -- serialize_body unit tests --
@@ -370,22 +327,22 @@ fn test_serialize_body_form_urlencoded() {
     let mut params = HashMap::new();
     params.insert("name".to_string(), "alice".to_string());
     let json_bytes = serde_json::to_vec(&params).unwrap();
-    let result =
-        petstore::api::serialize_body(Some(json_bytes), "application/x-www-form-urlencoded")
-            .unwrap();
+    let result = petstore::api::serialize_body(
+        Some(json_bytes),
+        "application/x-www-form-urlencoded",
+    ).unwrap();
     assert!(result.is_some());
     let body_str = String::from_utf8(result.unwrap()).unwrap();
-    assert!(
-        body_str.contains("name=alice"),
-        "expected URL-encoded form data, got: {}",
-        body_str
-    );
+    assert!(body_str.contains("name=alice"), "expected URL-encoded form data, got: {}", body_str);
 }
 
 #[test]
 fn test_serialize_body_text_plain() {
     let body = b"hello world".to_vec();
-    let result = petstore::api::serialize_body(Some(body), "text/plain").unwrap();
+    let result = petstore::api::serialize_body(
+        Some(body),
+        "text/plain",
+    ).unwrap();
     assert!(result.is_some());
     let body_str = String::from_utf8(result.unwrap()).unwrap();
     assert_eq!(body_str, "hello world");
@@ -394,8 +351,10 @@ fn test_serialize_body_text_plain() {
 #[test]
 fn test_serialize_body_binary() {
     let body = vec![0x01, 0x02, 0x03];
-    let result =
-        petstore::api::serialize_body(Some(body.clone()), "application/octet-stream").unwrap();
+    let result = petstore::api::serialize_body(
+        Some(body.clone()),
+        "application/octet-stream",
+    ).unwrap();
     assert!(result.is_some());
     assert_eq!(result.unwrap(), body);
 }
@@ -403,13 +362,19 @@ fn test_serialize_body_binary() {
 #[test]
 fn test_serialize_body_json_passthrough() {
     let body = b"{\"key\":\"value\"}".to_vec();
-    let result = petstore::api::serialize_body(Some(body.clone()), "application/json").unwrap();
+    let result = petstore::api::serialize_body(
+        Some(body.clone()),
+        "application/json",
+    ).unwrap();
     assert!(result.is_some());
     assert_eq!(result.unwrap(), body);
 }
 
 #[test]
 fn test_serialize_body_none() {
-    let result = petstore::api::serialize_body(None, "application/json").unwrap();
+    let result = petstore::api::serialize_body(
+        None,
+        "application/json",
+    ).unwrap();
     assert!(result.is_none());
 }

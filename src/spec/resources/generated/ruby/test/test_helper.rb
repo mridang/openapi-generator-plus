@@ -79,9 +79,9 @@ WIREMOCK = Testcontainers::DockerContainer.new('wiremock/wiremock:3.13.0')
 WIREMOCK.with_exposed_port(8080)
 WIREMOCK.with_exposed_port(8443)
 WIREMOCK.with_filesystem_binds([
-                                 "#{keystore_path}:/tmp/keystore.p12:ro",
-                                 "#{mappings_path}:/home/wiremock/mappings:ro"
-                               ])
+  "#{keystore_path}:/tmp/keystore.p12:ro",
+  "#{mappings_path}:/home/wiremock/mappings:ro"
+])
 WIREMOCK.with_command(
   '--port', '8080',
   '--https-port', '8443',

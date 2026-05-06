@@ -48,9 +48,22 @@ class BaseApiTest {
         ): ApiResponse {
             return invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, auth)
         }
+
+        suspend inline fun <reified T> callForResult(
+            method: String,
+            path: String,
+            queryParams: MutableMap<String, Any?> = mutableMapOf(),
+            headerParams: MutableMap<String, String> = mutableMapOf(),
+            body: Any? = null,
+            accepts: Array<String> = arrayOf("application/json"),
+            contentType: String = "application/json",
+            auth: Authenticator? = null
+        ): ApiResult<T> {
+            return invokeApiForResult<T>(method, path, queryParams, headerParams, body, accepts, contentType, auth)
+        }
     }
 
-    class CapturingApiClient : ApiClient {
+    open class CapturingApiClient : ApiClient {
         var capturedHeaders: Map<String, String> = emptyMap()
         var capturedBody: Any? = null
 
@@ -263,6 +276,37 @@ class BaseApiTest {
                     auth = auth
                 )
             }
+        }
+    }
+
+    @Nested
+    @DisplayName("content-type handling")
+    inner class ContentTypeHandling {
+
+        @Test
+        @DisplayName("skips JSON deserialization for text/plain response")
+        fun skipsDeserializationForTextPlain() {
+            val client = object : CapturingApiClient() {
+                override fun sendRequest(
+                    method: String,
+                    url: String,
+                    headers: Map<String, String>,
+                    body: Any?
+                ): ApiResponse {
+                    capturedHeaders = headers
+                    capturedBody = body
+                    return ApiResponse(200, "hello", mapOf("Content-Type" to "text/plain"))
+                }
+            }
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            val result = runBlocking {
+                testApi.callForResult<String>(
+                    "GET", "/api/test",
+                    accepts = arrayOf("text/plain")
+                )
+            }
+            assertNotNull(result.data)
+            assertEquals("hello", result.data)
         }
     }
 

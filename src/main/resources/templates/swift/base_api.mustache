@@ -115,7 +115,11 @@ open class BaseApi {
     /// Dispatches an API request, deserializes the response, and returns an ApiResult.
     func invokeAPIForResult<T: Decodable>(_ params: InvokeAPIParams, as type: T.Type) async throws -> ApiResult<T> {
         let response = try await invokeAPI(params)
-        let data = try ObjectSerializer.deserialize(response.body, as: type)
+        let responseContentType = response.headers["Content-Type"] ?? response.headers["content-type"] ?? ""
+        var data: T? = nil
+        if !response.body.isEmpty && responseContentType.contains("application/json") {
+            data = try ObjectSerializer.deserialize(response.body, as: type)
+        }
         return ApiResult<T>(
             statusCode: response.statusCode,
             data: data,
@@ -180,7 +184,12 @@ open class BaseApi {
 
         if contentType == "application/x-www-form-urlencoded" {
             if let params = body as? [String: Any] {
-                let encoded = params.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
+                let formSafe = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+                let encoded = params.map {
+                    let key = "\($0.key)".addingPercentEncoding(withAllowedCharacters: formSafe) ?? "\($0.key)"
+                    let val = "\($0.value)".addingPercentEncoding(withAllowedCharacters: formSafe) ?? "\($0.value)"
+                    return "\(key)=\(val)"
+                }.joined(separator: "&")
                 return encoded.data(using: .utf8)
             }
         }

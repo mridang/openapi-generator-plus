@@ -9,17 +9,18 @@ import Foundation
 
 /// PhotoMetadataLocation is a model class generated from the OpenAPI schema.
 public struct PhotoMetadataLocation: Codable, Sendable {
-  public var lat: Double?
-  public var lng: Double?
+    public var lat: Double?
+    public var lng: Double?
 
-  enum CodingKeys: String, CodingKey {
-    case lat = "lat"
-    case lng = "lng"
-  }
+    enum CodingKeys: String, CodingKey {
+        case lat = "lat"
+        case lng = "lng"
+    }
 
-  /// Creates a new PhotoMetadataLocation instance.
-  public init(lat: Double? = nil, lng: Double? = nil) {
-    self.lat = lat
-    self.lng = lng
-  }
+    /// Creates a new PhotoMetadataLocation instance.
+    public init(lat: Double? = nil, lng: Double? = nil) {
+        self.lat = lat
+        self.lng = lng
+    }
 }
+

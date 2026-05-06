@@ -139,7 +139,6 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator do
       "grant_type" => "refresh_token",
       "refresh_token" => PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(self.token_manager) || ""
     }
-
     token = PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(self.token_manager, self.refresh_url, params)
     %{"Authorization" => "Bearer #{token}"}
   end

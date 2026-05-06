@@ -285,6 +285,20 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.captured_body).wont_be_nil
   end
 
+  # ── Content-type deserialization ──
+
+  it 'skips deserialization for non-JSON content type' do
+    client = CapturingApiClient.new
+    def client.send_request(_method, _url, _headers, _body)
+      {{moduleName}}::ApiResponse.new(status_code: 200, body: 'hello', headers: { 'Content-Type' => 'text/plain' })
+    end
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call('GET', '/test', {}, {}, nil,
+                           ['text/plain'], 'application/json', 'String')
+    _(result).must_equal 'hello'
+  end
+
   # ── Header flow-through ──
 
   it 'empty content-type defaults to application/json' do

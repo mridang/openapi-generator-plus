@@ -34,6 +34,5 @@ defmodule PetstoreClient.Errors.NotFoundError do
   def exception(msg) when is_binary(msg), do: %__MODULE__{message: msg, status_code: 404}
 
   @impl true
-  def message(%__MODULE__{} = error),
-    do: PetstoreClient.ApiError.message(struct(PetstoreClient.ApiError, Map.from_struct(error)))
+  def message(%__MODULE__{} = error), do: PetstoreClient.ApiError.message(struct(PetstoreClient.ApiError, Map.from_struct(error)))
 end

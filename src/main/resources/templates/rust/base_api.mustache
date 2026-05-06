@@ -160,7 +160,29 @@ impl BaseApi {
         params: InvokeApiParams<'_>,
     ) -> Result<ApiResult<T>, Box<dyn std::error::Error + Send + Sync>> {
         let response = self.invoke_api(params).await?;
-        let data: T = crate::object_serializer::deserialize(response.body.as_bytes())?;
+
+        /* Check Content-Type before deserializing -- only deserialize JSON responses */
+        let resp_content_type = response.headers.get("Content-Type")
+            .or_else(|| response.headers.get("content-type"))
+            .map(|v| v.split(';').next().unwrap_or("").trim().to_string());
+
+        let is_json = match &resp_content_type {
+            None => true,
+            Some(ct) => {
+                let selector = HeaderSelector::new();
+                selector.is_json_mime(ct)
+            }
+        };
+
+        let data = if is_json && !response.body.is_empty() {
+            crate::object_serializer::deserialize(response.body.as_bytes())?
+        } else if !response.body.is_empty() {
+            /* Non-JSON response -- attempt deserialization as a fallback */
+            crate::object_serializer::deserialize(response.body.as_bytes())?
+        } else {
+            serde_json::from_str("null")?
+        };
+
         Ok(ApiResult {
             status_code: response.status_code,
             data: Some(data),

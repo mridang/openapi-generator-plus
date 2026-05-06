@@ -8,7 +8,10 @@
 package petstore
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/url"
+	"strings"
 
 	. "petstore/pkg/models"
 )
@@ -27,7 +30,7 @@ func NewStoreApi(apiClient ApiClient, config *Configuration, authenticator Authe
 }
 
 // DeleteOrder Delete purchase order by ID
-func (a *StoreApi) DeleteOrder(orderId int64) error {
+func (a *StoreApi) DeleteOrder(orderId int64) (error) {
 	result, err := a.DeleteOrderWithHTTPInfo(orderId)
 	if err != nil {
 		return err
@@ -54,7 +57,7 @@ func (a *StoreApi) DeleteOrderWithHTTPInfo(orderId int64) (*ApiResult[interface{
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{},
+		accepts:      []string{  },
 		contentType:  "application/json",
 		returnType:   "",
 		auth:         nil,
@@ -97,7 +100,7 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{"application/json"},
+		accepts:      []string{ "application/json" },
 		contentType:  "application/json",
 		returnType:   "map[string]int32",
 		auth:         nil,
@@ -108,8 +111,15 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 
 	var data map[string]int32
 	if response.Body != "" {
-		if err := Deserialize([]byte(response.Body), &data); err != nil {
-			return nil, err
+		respContentType := ""
+		if ct, ok := response.Headers["Content-Type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		if isJSON {
+			if err := Deserialize([]byte(response.Body), &data); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -148,7 +158,7 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{"application/json"},
+		accepts:      []string{ "application/json" },
 		contentType:  "application/json",
 		returnType:   "Order",
 		auth:         nil,
@@ -159,8 +169,15 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 
 	var data Order
 	if response.Body != "" {
-		if err := Deserialize([]byte(response.Body), &data); err != nil {
-			return nil, err
+		respContentType := ""
+		if ct, ok := response.Headers["Content-Type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		if isJSON {
+			if err := Deserialize([]byte(response.Body), &data); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -198,7 +215,7 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], erro
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{"application/json"},
+		accepts:      []string{ "application/json" },
 		contentType:  "application/json",
 		returnType:   "Order",
 		auth:         nil,
@@ -209,8 +226,15 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], erro
 
 	var data Order
 	if response.Body != "" {
-		if err := Deserialize([]byte(response.Body), &data); err != nil {
-			return nil, err
+		respContentType := ""
+		if ct, ok := response.Headers["Content-Type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		if isJSON {
+			if err := Deserialize([]byte(response.Body), &data); err != nil {
+				return nil, err
+			}
 		}
 	}
 

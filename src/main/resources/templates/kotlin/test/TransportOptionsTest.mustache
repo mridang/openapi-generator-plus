@@ -110,6 +110,26 @@ class TransportOptionsTest {
     }
 
     @Nested
+    @DisplayName("proxy validation")
+    inner class ProxyValidation {
+
+        @Test
+        @DisplayName("invalid proxy URL throws IllegalArgumentException")
+        fun invalidProxyUrlThrowsException() {
+            assertThrows(IllegalArgumentException::class.java) {
+                TransportOptions.builder().proxy("not a valid url ^%$")
+            }
+        }
+
+        @Test
+        @DisplayName("null proxy URL is accepted")
+        fun nullProxyUrlIsAccepted() {
+            val opts = TransportOptions.builder().proxy(null).build()
+            assertNull(opts.proxy)
+        }
+    }
+
+    @Nested
     @DisplayName("builder chaining")
     inner class BuilderChaining {
 

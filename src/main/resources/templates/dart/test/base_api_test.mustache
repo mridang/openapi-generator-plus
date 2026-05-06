@@ -299,6 +299,33 @@ void main() {
       }
     });
 
+    // Non-JSON content-type skips deserialization
+
+    test('skips deserialization for non-JSON content type', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.text
+          ..write('hello')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getPetByIdWithHTTPInfo(1);
+        expect(result.statusCode, equals(200));
+        expect(result.data, isNull);
+        expect(result.rawBody, equals('hello'));
+      } finally {
+        await server.close();
+      }
+    });
+
     // Body serialization
 
     test('serializes JSON body for POST', () async {

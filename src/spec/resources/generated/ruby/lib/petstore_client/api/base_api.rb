@@ -104,16 +104,6 @@ module PetstoreClient
       end
       # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 
-      def build_collection_param(param, format)
-        case format
-        when :ssv then param.join(' ')
-        when :tsv then param.join("\t")
-        when :pipes then param.join('|')
-        when :multi then param
-        else param.join(',')
-        end
-      end
-
       private
 
       # Attempts to parse the response body as JSON so that structured error

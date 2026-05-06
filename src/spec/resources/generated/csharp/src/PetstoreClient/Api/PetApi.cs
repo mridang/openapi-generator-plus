@@ -10,11 +10,14 @@
 #pragma warning disable CA1056 // URI properties should not be strings
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
-using PetstoreClient.Api.Options;
 using PetstoreClient.Auth;
 using PetstoreClient.Models;
 
+using PetstoreClient.Api.Options;
+
+
 namespace PetstoreClient.Api;
+
 
 /// <summary>
 /// Server type for the GetExternalPetInfo operation.
@@ -43,10 +46,7 @@ public abstract class GetMultiServerPetInfoServer
 /// <summary>Enum for the region server variable.</summary>
 public sealed class RegionValue
 {
-    private RegionValue(string value)
-    {
-        Value = value;
-    }
+    private RegionValue(string value) { Value = value; }
 
     /// <summary>Gets the string value.</summary>
     public string Value { get; }
@@ -114,10 +114,7 @@ public abstract class GetStagingPetInfoServer
 /// <summary>Enum for the environment server variable.</summary>
 public sealed class EnvironmentValue
 {
-    private EnvironmentValue(string value)
-    {
-        Value = value;
-    }
+    private EnvironmentValue(string value) { Value = value; }
 
     /// <summary>Gets the string value.</summary>
     public string Value { get; }
@@ -132,10 +129,7 @@ public sealed class EnvironmentValue
 /// <summary>Enum for the version server variable.</summary>
 public sealed class VersionValue
 {
-    private VersionValue(string value)
-    {
-        Value = value;
-    }
+    private VersionValue(string value) { Value = value; }
 
     /// <summary>Gets the string value.</summary>
     public string Value { get; }
@@ -148,8 +142,7 @@ public sealed class VersionValue
 }
 
 /// <summary>Staging server</summary>
-public sealed class StagingServer(EnvironmentValue environment, VersionValue version)
-    : GetStagingPetInfoServer
+public sealed class StagingServer(EnvironmentValue environment, VersionValue version) : GetStagingPetInfoServer
 {
     /// <summary>Gets the environment value.</summary>
     public EnvironmentValue Environment { get; } = environment;
@@ -163,11 +156,7 @@ public sealed class StagingServer(EnvironmentValue environment, VersionValue ver
         get
         {
             string url = "https://{environment}.example.com/api/{version}";
-            url = url.Replace(
-                "{" + "environment" + "}",
-                Environment.Value,
-                StringComparison.Ordinal
-            );
+            url = url.Replace("{" + "environment" + "}", Environment.Value, StringComparison.Ordinal);
             url = url.Replace("{" + "version" + "}", Version.Value, StringComparison.Ordinal);
             return url;
         }
@@ -181,6 +170,7 @@ public sealed class StagingServer(EnvironmentValue environment, VersionValue ver
 /// <seealso href="https://example.com/docs/pets">Find out more about pets</seealso>
 public class PetApi : BaseApi
 {
+
     private static readonly string[] AddPetAccepts = ["application/json"];
 
     private static readonly string[] AddPetPhotosAccepts = ["application/json"];
@@ -203,12 +193,7 @@ public class PetApi : BaseApi
 
     private static readonly string[] GetPetPassportAccepts = ["application/json"];
 
-    private static readonly string[] GetPetPhotoAccepts =
-    [
-        "image/jpeg",
-        "image/png",
-        "application/json",
-    ];
+    private static readonly string[] GetPetPhotoAccepts = ["image/jpeg", "image/png", "application/json"];
 
     private static readonly string[] GetPetTagAccepts = ["application/json"];
 
@@ -288,25 +273,13 @@ public class PetApi : BaseApi
     /// Add photos to the pet&#39;s gallery (with HTTP info)
     /// </summary>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<List<Photo>>> AddPetPhotosWithHttpInfoAsync(
-        long petId,
-        AddPetPhotosOptions options
-    )
+    public async Task<ApiResult<List<Photo>>> AddPetPhotosWithHttpInfoAsync(long petId, AddPetPhotosOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
         string path = "/pet/{petId}/photos";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(petId),
-                    petId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(petId), petId, "path", "long", null, "simple", false)!,
             StringComparison.Ordinal
         );
 
@@ -337,17 +310,9 @@ public class PetApi : BaseApi
     /// <param name="petTreatment"></param>
     /// <returns><![CDATA[PetTreatment]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<PetTreatment> AddPetTreatmentAsync(
-        IAuthenticator auth,
-        long petId,
-        PetTreatment petTreatment
-    )
+    public async Task<PetTreatment> AddPetTreatmentAsync(IAuthenticator auth, long petId, PetTreatment petTreatment)
     {
-        Task<ApiResult<PetTreatment>> task = AddPetTreatmentWithHttpInfoAsync(
-            auth,
-            petId,
-            petTreatment
-        );
+        Task<ApiResult<PetTreatment>> task = AddPetTreatmentWithHttpInfoAsync(auth, petId, petTreatment);
         ApiResult<PetTreatment> result = await task.ConfigureAwait(false);
         return result.Data
             ?? throw new InvalidOperationException("Expected non-null response body");
@@ -357,25 +322,12 @@ public class PetApi : BaseApi
     /// Record a treatment for a pet (with HTTP info)
     /// </summary>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<PetTreatment>> AddPetTreatmentWithHttpInfoAsync(
-        IAuthenticator auth,
-        long petId,
-        PetTreatment petTreatment
-    )
+    public async Task<ApiResult<PetTreatment>> AddPetTreatmentWithHttpInfoAsync(IAuthenticator auth, long petId, PetTreatment petTreatment)
     {
         string path = "/pet/{petId}/treatment";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(petId),
-                    petId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(petId), petId, "path", "long", null, "simple", false)!,
             StringComparison.Ordinal
         );
 
@@ -402,11 +354,7 @@ public class PetApi : BaseApi
     /// <param name="petId">Pet id to delete</param>
     /// <param name="options">Options for query, header, and form parameters.</param>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task DeletePetAsync(
-        IAuthenticator auth,
-        long petId,
-        DeletePetOptions? options = null
-    )
+    public async Task DeletePetAsync(IAuthenticator auth, long petId, DeletePetOptions? options = null)
     {
         Task<ApiResult<object?>> task = DeletePetWithHttpInfoAsync(auth, petId, options);
         _ = await task.ConfigureAwait(false);
@@ -416,25 +364,12 @@ public class PetApi : BaseApi
     /// Deletes a pet (with HTTP info)
     /// </summary>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<object?>> DeletePetWithHttpInfoAsync(
-        IAuthenticator auth,
-        long petId,
-        DeletePetOptions? options = null
-    )
+    public async Task<ApiResult<object?>> DeletePetWithHttpInfoAsync(IAuthenticator auth, long petId, DeletePetOptions? options = null)
     {
         string path = "/pet/{petId}";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(petId),
-                    petId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(petId), petId, "path", "long", null, "simple", false)!,
             StringComparison.Ordinal
         );
 
@@ -444,16 +379,15 @@ public class PetApi : BaseApi
         if (options != null && options.ApiKey != null)
         {
             cookieParts.Add(
-                "api_key="
-                    + ValueSerializer.SerializeStyled(
-                        "api_key",
-                        options.ApiKey,
-                        "cookie",
-                        "string",
-                        null,
-                        "form",
-                        true
-                    )
+                "api_key=" + ValueSerializer.SerializeStyled(
+                    "api_key",
+                    options.ApiKey,
+                    "cookie",
+                    "string",
+                    null,
+                    "form",
+                    true
+                )
             );
         }
         if (cookieParts.Count > 0)
@@ -484,10 +418,7 @@ public class PetApi : BaseApi
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
     public async Task<System.IO.Stream> DownloadPetDocumentAsync(long petId, long documentId)
     {
-        Task<ApiResult<System.IO.Stream>> task = DownloadPetDocumentWithHttpInfoAsync(
-            petId,
-            documentId
-        );
+        Task<ApiResult<System.IO.Stream>> task = DownloadPetDocumentWithHttpInfoAsync(petId, documentId);
         ApiResult<System.IO.Stream> result = await task.ConfigureAwait(false);
         return result.Data
             ?? throw new InvalidOperationException("Expected non-null response body");
@@ -497,38 +428,17 @@ public class PetApi : BaseApi
     /// Download a vet document (with HTTP info)
     /// </summary>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<System.IO.Stream>> DownloadPetDocumentWithHttpInfoAsync(
-        long petId,
-        long documentId
-    )
+    public async Task<ApiResult<System.IO.Stream>> DownloadPetDocumentWithHttpInfoAsync(long petId, long documentId)
     {
         string path = "/pet/{petId}/documents/{documentId}";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(petId),
-                    petId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(petId), petId, "path", "long", null, "simple", false)!,
             StringComparison.Ordinal
         );
         path = path.Replace(
             "{" + nameof(documentId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(documentId),
-                    documentId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(documentId), documentId, "path", "long", null, "simple", false)!,
             StringComparison.Ordinal
         );
 
@@ -568,26 +478,23 @@ public class PetApi : BaseApi
     /// Finds Pets by status (with HTTP info)
     /// </summary>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<List<Pet>>> FindPetsByStatusWithHttpInfoAsync(
-        FindPetsByStatusOptions options
-    )
+    public async Task<ApiResult<List<Pet>>> FindPetsByStatusWithHttpInfoAsync(FindPetsByStatusOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
         string path = "/pet/findByStatus";
 
         Dictionary<string, object?> queryParams = [];
-        queryParams["status"] =
-            options?.Status != null
-                ? ValueSerializer.SerializeStyled(
-                    "status",
-                    options.Status,
-                    "query",
-                    "string",
-                    null,
-                    "form",
-                    true
-                )
-                : "";
+        queryParams["status"] = options?.Status != null
+            ? ValueSerializer.SerializeStyled(
+                "status",
+                options.Status,
+                "query",
+                "string",
+                null,
+                "form",
+                true
+            )
+            : "";
         if (options != null && options.Filter != null)
         {
             Dictionary<string, string> deepObj = ValueSerializer.SerializeDeepObject(
@@ -621,10 +528,7 @@ public class PetApi : BaseApi
     /// <param name="server">Optional per-operation server override.</param>
     /// <returns><![CDATA[Pet]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<Pet> GetExternalPetInfoAsync(
-        long petId,
-        GetExternalPetInfoServer? server = null
-    )
+    public async Task<Pet> GetExternalPetInfoAsync(long petId, GetExternalPetInfoServer? server = null)
     {
         Task<ApiResult<Pet>> task = GetExternalPetInfoWithHttpInfoAsync(petId, server);
         ApiResult<Pet> result = await task.ConfigureAwait(false);
@@ -636,33 +540,18 @@ public class PetApi : BaseApi
     /// Get external pet info (with HTTP info)
     /// </summary>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<Pet>> GetExternalPetInfoWithHttpInfoAsync(
-        long petId,
-        GetExternalPetInfoServer? server = null
-    )
+    public async Task<ApiResult<Pet>> GetExternalPetInfoWithHttpInfoAsync(long petId, GetExternalPetInfoServer? server = null)
     {
         string path = "/pet/{petId}/external";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(petId),
-                    petId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(petId), petId, "path", "long", null, "simple", false)!,
             StringComparison.Ordinal
         );
         if (server != null)
         {
             string serverUrl = server.Url;
-            if (
-                serverUrl.StartsWith("http://", StringComparison.Ordinal)
-                || serverUrl.StartsWith("https://", StringComparison.Ordinal)
-            )
+            if (serverUrl.StartsWith("http://", StringComparison.Ordinal) || serverUrl.StartsWith("https://", StringComparison.Ordinal))
             {
                 path = serverUrl + path;
             }
@@ -691,10 +580,7 @@ public class PetApi : BaseApi
     /// <param name="server">Optional per-operation server override.</param>
     /// <returns><![CDATA[Pet]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<Pet> GetMultiServerPetInfoAsync(
-        long petId,
-        GetMultiServerPetInfoServer? server = null
-    )
+    public async Task<Pet> GetMultiServerPetInfoAsync(long petId, GetMultiServerPetInfoServer? server = null)
     {
         Task<ApiResult<Pet>> task = GetMultiServerPetInfoWithHttpInfoAsync(petId, server);
         ApiResult<Pet> result = await task.ConfigureAwait(false);
@@ -706,33 +592,18 @@ public class PetApi : BaseApi
     /// Get multi-server pet info (with HTTP info)
     /// </summary>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<Pet>> GetMultiServerPetInfoWithHttpInfoAsync(
-        long petId,
-        GetMultiServerPetInfoServer? server = null
-    )
+    public async Task<ApiResult<Pet>> GetMultiServerPetInfoWithHttpInfoAsync(long petId, GetMultiServerPetInfoServer? server = null)
     {
         string path = "/pet/{petId}/multi";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(petId),
-                    petId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(petId), petId, "path", "long", null, "simple", false)!,
             StringComparison.Ordinal
         );
         if (server != null)
         {
             string serverUrl = server.Url;
-            if (
-                serverUrl.StartsWith("http://", StringComparison.Ordinal)
-                || serverUrl.StartsWith("https://", StringComparison.Ordinal)
-            )
+            if (serverUrl.StartsWith("http://", StringComparison.Ordinal) || serverUrl.StartsWith("https://", StringComparison.Ordinal))
             {
                 path = serverUrl + path;
             }
@@ -778,16 +649,7 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}/avatar";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(petId),
-                    petId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(petId), petId, "path", "long", null, "simple", false)!,
             StringComparison.Ordinal
         );
 
@@ -831,16 +693,7 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}/avatar/thumbnail";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(petId),
-                    petId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(petId), petId, "path", "long", null, "simple", false)!,
             StringComparison.Ordinal
         );
 
@@ -881,33 +734,18 @@ public class PetApi : BaseApi
     /// Find pet by ID (with HTTP info)
     /// </summary>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<Pet>> GetPetByIdWithHttpInfoAsync(
-        long petId,
-        GetPetByIdServer? server = null
-    )
+    public async Task<ApiResult<Pet>> GetPetByIdWithHttpInfoAsync(long petId, GetPetByIdServer? server = null)
     {
         string path = "/pet/{petId}";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(petId),
-                    petId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(petId), petId, "path", "long", null, "simple", false)!,
             StringComparison.Ordinal
         );
         if (server != null)
         {
             string serverUrl = server.Url;
-            if (
-                serverUrl.StartsWith("http://", StringComparison.Ordinal)
-                || serverUrl.StartsWith("https://", StringComparison.Ordinal)
-            )
+            if (serverUrl.StartsWith("http://", StringComparison.Ordinal) || serverUrl.StartsWith("https://", StringComparison.Ordinal))
             {
                 path = serverUrl + path;
             }
@@ -953,16 +791,7 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}/passport";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(petId),
-                    petId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(petId), petId, "path", "long", null, "simple", false)!,
             StringComparison.Ordinal
         );
 
@@ -1002,38 +831,17 @@ public class PetApi : BaseApi
     /// Get a photo or its metadata (with HTTP info)
     /// </summary>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<System.IO.Stream>> GetPetPhotoWithHttpInfoAsync(
-        long petId,
-        long photoId
-    )
+    public async Task<ApiResult<System.IO.Stream>> GetPetPhotoWithHttpInfoAsync(long petId, long photoId)
     {
         string path = "/pet/{petId}/photos/{photoId}";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(petId),
-                    petId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(petId), petId, "path", "long", null, "simple", false)!,
             StringComparison.Ordinal
         );
         path = path.Replace(
             "{" + nameof(photoId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(photoId),
-                    photoId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(photoId), photoId, "path", "long", null, "simple", false)!,
             StringComparison.Ordinal
         );
 
@@ -1073,40 +881,18 @@ public class PetApi : BaseApi
     /// Get a tag for a pet (with HTTP info)
     /// </summary>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<Pet>> GetPetTagWithHttpInfoAsync(
-        long petId,
-        string tagName,
-        GetPetTagOptions options
-    )
+    public async Task<ApiResult<Pet>> GetPetTagWithHttpInfoAsync(long petId, string tagName, GetPetTagOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
         string path = "/pet/{petId}/tag/{tagName}";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(petId),
-                    petId,
-                    "path",
-                    "long",
-                    null,
-                    "matrix",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(petId), petId, "path", "long", null, "matrix", false)!,
             StringComparison.Ordinal
         );
         path = path.Replace(
             "{" + nameof(tagName) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(tagName),
-                    tagName,
-                    "path",
-                    "string",
-                    null,
-                    "label",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(tagName), tagName, "path", "string", null, "label", false)!,
             StringComparison.Ordinal
         );
 
@@ -1135,18 +921,17 @@ public class PetApi : BaseApi
                 false
             );
         }
-        queryParams["filter"] =
-            options?.Filter != null
-                ? ValueSerializer.SerializeStyled(
-                    "filter",
-                    options.Filter,
-                    "query",
-                    "string",
-                    null,
-                    "form",
-                    true
-                )
-                : "";
+        queryParams["filter"] = options?.Filter != null
+            ? ValueSerializer.SerializeStyled(
+                "filter",
+                options.Filter,
+                "query",
+                "string",
+                null,
+                "form",
+                true
+            )
+            : "";
         Dictionary<string, string> headerParams = [];
         return await InvokeApiForResultAsync<Pet>(
                 "GET",
@@ -1169,10 +954,7 @@ public class PetApi : BaseApi
     /// <param name="server">Optional per-operation server override.</param>
     /// <returns><![CDATA[Pet]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<Pet> GetStagingPetInfoAsync(
-        long petId,
-        GetStagingPetInfoServer? server = null
-    )
+    public async Task<Pet> GetStagingPetInfoAsync(long petId, GetStagingPetInfoServer? server = null)
     {
         Task<ApiResult<Pet>> task = GetStagingPetInfoWithHttpInfoAsync(petId, server);
         ApiResult<Pet> result = await task.ConfigureAwait(false);
@@ -1184,33 +966,18 @@ public class PetApi : BaseApi
     /// Get staging pet info (with HTTP info)
     /// </summary>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<Pet>> GetStagingPetInfoWithHttpInfoAsync(
-        long petId,
-        GetStagingPetInfoServer? server = null
-    )
+    public async Task<ApiResult<Pet>> GetStagingPetInfoWithHttpInfoAsync(long petId, GetStagingPetInfoServer? server = null)
     {
         string path = "/pet/{petId}/staging";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(petId),
-                    petId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(petId), petId, "path", "long", null, "simple", false)!,
             StringComparison.Ordinal
         );
         if (server != null)
         {
             string serverUrl = server.Url;
-            if (
-                serverUrl.StartsWith("http://", StringComparison.Ordinal)
-                || serverUrl.StartsWith("https://", StringComparison.Ordinal)
-            )
+            if (serverUrl.StartsWith("http://", StringComparison.Ordinal) || serverUrl.StartsWith("https://", StringComparison.Ordinal))
             {
                 path = serverUrl + path;
             }
@@ -1249,24 +1016,12 @@ public class PetApi : BaseApi
     /// Set the pet&#39;s profile photo (with HTTP info)
     /// </summary>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<object?>> SetPetAvatarWithHttpInfoAsync(
-        long petId,
-        System.IO.Stream body
-    )
+    public async Task<ApiResult<object?>> SetPetAvatarWithHttpInfoAsync(long petId, System.IO.Stream body)
     {
         string path = "/pet/{petId}/avatar";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(petId),
-                    petId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(petId), petId, "path", "long", null, "simple", false)!,
             StringComparison.Ordinal
         );
 
@@ -1293,15 +1048,9 @@ public class PetApi : BaseApi
     /// <param name="petId"></param>
     /// <param name="setPetAvatarThumbnailRequest"></param>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task SetPetAvatarThumbnailAsync(
-        long petId,
-        SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest
-    )
+    public async Task SetPetAvatarThumbnailAsync(long petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest)
     {
-        Task<ApiResult<object?>> task = SetPetAvatarThumbnailWithHttpInfoAsync(
-            petId,
-            setPetAvatarThumbnailRequest
-        );
+        Task<ApiResult<object?>> task = SetPetAvatarThumbnailWithHttpInfoAsync(petId, setPetAvatarThumbnailRequest);
         _ = await task.ConfigureAwait(false);
     }
 
@@ -1309,24 +1058,12 @@ public class PetApi : BaseApi
     /// Set the pet&#39;s avatar thumbnail as base64 (with HTTP info)
     /// </summary>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<object?>> SetPetAvatarThumbnailWithHttpInfoAsync(
-        long petId,
-        SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest
-    )
+    public async Task<ApiResult<object?>> SetPetAvatarThumbnailWithHttpInfoAsync(long petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest)
     {
         string path = "/pet/{petId}/avatar/thumbnail";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(petId),
-                    petId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(petId), petId, "path", "long", null, "simple", false)!,
             StringComparison.Ordinal
         );
 
@@ -1370,16 +1107,7 @@ public class PetApi : BaseApi
         string path = "/pet/{petId}";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(petId),
-                    petId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(petId), petId, "path", "long", null, "simple", false)!,
             StringComparison.Ordinal
         );
 
@@ -1407,10 +1135,7 @@ public class PetApi : BaseApi
     /// <param name="options">Options for query, header, and form parameters.</param>
     /// <returns><![CDATA[ApiResponse]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResponse> UploadPetCertificateAsync(
-        long petId,
-        UploadPetCertificateOptions options
-    )
+    public async Task<ApiResponse> UploadPetCertificateAsync(long petId, UploadPetCertificateOptions options)
     {
         Task<ApiResult<ApiResponse>> task = UploadPetCertificateWithHttpInfoAsync(petId, options);
         ApiResult<ApiResponse> result = await task.ConfigureAwait(false);
@@ -1422,25 +1147,13 @@ public class PetApi : BaseApi
     /// Upload the pet&#39;s adoption certificate (with HTTP info)
     /// </summary>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<ApiResponse>> UploadPetCertificateWithHttpInfoAsync(
-        long petId,
-        UploadPetCertificateOptions options
-    )
+    public async Task<ApiResult<ApiResponse>> UploadPetCertificateWithHttpInfoAsync(long petId, UploadPetCertificateOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
         string path = "/pet/{petId}/certificate";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(petId),
-                    petId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(petId), petId, "path", "long", null, "simple", false)!,
             StringComparison.Ordinal
         );
 
@@ -1470,10 +1183,7 @@ public class PetApi : BaseApi
     /// <param name="options">Options for query, header, and form parameters.</param>
     /// <returns><![CDATA[ApiResponse]]></returns>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResponse> UploadPetDocumentAsync(
-        long petId,
-        UploadPetDocumentOptions options
-    )
+    public async Task<ApiResponse> UploadPetDocumentAsync(long petId, UploadPetDocumentOptions options)
     {
         Task<ApiResult<ApiResponse>> task = UploadPetDocumentWithHttpInfoAsync(petId, options);
         ApiResult<ApiResponse> result = await task.ConfigureAwait(false);
@@ -1485,25 +1195,13 @@ public class PetApi : BaseApi
     /// Attach a vet document or health record (with HTTP info)
     /// </summary>
     /// <exception cref="ApiException">Thrown when the API call fails.</exception>
-    public async Task<ApiResult<ApiResponse>> UploadPetDocumentWithHttpInfoAsync(
-        long petId,
-        UploadPetDocumentOptions options
-    )
+    public async Task<ApiResult<ApiResponse>> UploadPetDocumentWithHttpInfoAsync(long petId, UploadPetDocumentOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
         string path = "/pet/{petId}/documents";
         path = path.Replace(
             "{" + nameof(petId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(petId),
-                    petId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            (string)ValueSerializer.SerializeStyled(nameof(petId), petId, "path", "long", null, "simple", false)!,
             StringComparison.Ordinal
         );
 

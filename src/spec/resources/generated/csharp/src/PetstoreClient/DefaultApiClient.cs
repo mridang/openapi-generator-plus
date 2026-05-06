@@ -150,7 +150,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
 
         if (!mergedHeaders.ContainsKey("Accept-Encoding"))
         {
-            mergedHeaders["Accept-Encoding"] = "gzip, deflate, br";
+            mergedHeaders["Accept-Encoding"] = "gzip, deflate";
         }
 
         using HttpRequestMessage request = new(new HttpMethod(method), url);

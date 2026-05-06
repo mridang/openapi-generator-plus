@@ -1,0 +1,13 @@
+{{>api_info}}
+{{#imports}}
+using {{{.}}};
+{{/imports}}
+
+namespace {{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}};
+
+/// <summary>
+/// Scheme-specific authenticator for the <c>{{schemeName}}</c> security scheme.
+/// </summary>
+public sealed class {{className}}({{{constructorSignature}}})
+    : {{baseClass}}({{{superCall}}})
+{ }

@@ -79,9 +79,7 @@ defmodule PetstoreClient.HeaderSelectorTest do
     end
 
     test "prioritizes application/json with quality weight" do
-      headers =
-        PetstoreClient.HeaderSelector.select_headers(["text/html", "application/json"], "application/json", false)
-
+      headers = PetstoreClient.HeaderSelector.select_headers(["text/html", "application/json"], "application/json", false)
       accept = headers["Accept"]
       assert String.starts_with?(accept, "application/json")
       assert String.contains?(accept, "text/html")

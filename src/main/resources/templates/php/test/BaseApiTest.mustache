@@ -468,6 +468,24 @@ class BaseApiTest extends TestCase
         $this->assertStringStartsWith('https://staging.example.com/api/v3', $config->baseUrl);
     }
 
+    // -- content-type deserialization --
+
+    public function testSkipsDeserializationForNonJsonContentType(): void
+    {
+        $client = new class implements ApiClient {
+            /** @param array<string, string> $headers */
+            public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
+            {
+                return new ApiResponse(200, 'hello', ['Content-Type' => 'text/plain']);
+            }
+        };
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $result = $testApi->call('GET', '/api/test', [], [], null,
+            ['text/plain'], 'application/json', 'string');
+        $this->assertSame('hello', $result);
+    }
+
     // -- body serialization by content type --
 
     public function testSerializesTextPlainBody(): void

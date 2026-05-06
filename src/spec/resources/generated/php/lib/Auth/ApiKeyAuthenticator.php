@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -17,7 +16,7 @@ namespace PetstoreClient\Auth;
  * Authenticator for API key authentication. Supports sending the key
  * as a header, query parameter, or cookie.
  */
-final class ApiKeyAuthenticator extends BaseAuthenticator
+class ApiKeyAuthenticator extends BaseAuthenticator
 {
     private readonly string $host;
     private readonly string $keyParamName;

@@ -1,0 +1,12 @@
+package auth
+
+type InternalApiKeyAuthenticator struct {
+	*ApiKeyAuthenticator
+}
+
+func NewInternalApiKeyAuthenticator(host string, apiKey string) *InternalApiKeyAuthenticator {
+	inner := NewApiKeyAuthenticator(host, "X-Internal-Key", apiKey, ApiKeyLocationHeader)
+	return &InternalApiKeyAuthenticator{
+		ApiKeyAuthenticator: inner,
+	}
+}

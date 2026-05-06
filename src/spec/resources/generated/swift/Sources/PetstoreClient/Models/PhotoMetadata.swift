@@ -9,26 +9,24 @@ import Foundation
 
 /// PhotoMetadata is a model class generated from the OpenAPI schema.
 public struct PhotoMetadata: Codable, Sendable {
-  public var caption: String?
-  public var isPrimary: Bool?
-  public var takenAt: Date?
-  public var location: PhotoMetadataLocation?
+    public var caption: String?
+    public var isPrimary: Bool?
+    public var takenAt: Date?
+    public var location: PhotoMetadataLocation?
 
-  enum CodingKeys: String, CodingKey {
-    case caption = "caption"
-    case isPrimary = "isPrimary"
-    case takenAt = "takenAt"
-    case location = "location"
-  }
+    enum CodingKeys: String, CodingKey {
+        case caption = "caption"
+        case isPrimary = "isPrimary"
+        case takenAt = "takenAt"
+        case location = "location"
+    }
 
-  /// Creates a new PhotoMetadata instance.
-  public init(
-    caption: String? = nil, isPrimary: Bool? = nil, takenAt: Date? = nil,
-    location: PhotoMetadataLocation? = nil
-  ) {
-    self.caption = caption
-    self.isPrimary = isPrimary
-    self.takenAt = takenAt
-    self.location = location
-  }
+    /// Creates a new PhotoMetadata instance.
+    public init(caption: String? = nil, isPrimary: Bool? = nil, takenAt: Date? = nil, location: PhotoMetadataLocation? = nil) {
+        self.caption = caption
+        self.isPrimary = isPrimary
+        self.takenAt = takenAt
+        self.location = location
+    }
 }
+

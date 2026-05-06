@@ -15,7 +15,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"os"
 	"strings"
@@ -115,56 +114,10 @@ func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]st
 	}, nil
 }
 
-// SendMultipartRequest sends a multipart/form-data request.
-func (c *DefaultApiClient) SendMultipartRequest(method, url string, headers map[string]string, formFields map[string]string, fileFields map[string]io.Reader) (*HttpResponse, error) {
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
-
-	for name, value := range formFields {
-		if err := writer.WriteField(name, value); err != nil {
-			return nil, fmt.Errorf("failed to write form field %s: %w", name, err)
-		}
-	}
-
-	for name, reader := range fileFields {
-		part, err := writer.CreateFormFile(name, name)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create form file %s: %w", name, err)
-		}
-		if _, err := io.Copy(part, reader); err != nil {
-			return nil, fmt.Errorf("failed to write form file %s: %w", name, err)
-		}
-	}
-
-	if err := writer.Close(); err != nil {
-		return nil, fmt.Errorf("failed to close multipart writer: %w", err)
-	}
-
-	merged := make(map[string]string)
-	for k, v := range c.transportOptions.DefaultHeaders() {
-		merged[k] = v
-	}
-	for k, v := range headers {
-		merged[k] = v
-	}
-	merged["Content-Type"] = writer.FormDataContentType()
-	if _, ok := merged["User-Agent"]; !ok && c.transportOptions.UserAgent() != "" {
-		merged["User-Agent"] = c.transportOptions.UserAgent()
-	}
-	if _, ok := merged["X-Request-ID"]; !ok && c.transportOptions.InjectRequestID() {
-		merged["X-Request-ID"] = uuid.New().String()
-	}
-
-	return c.SendRequest(method, url, merged, buf.Bytes())
-}
-
 func buildHTTPClient(opts *TransportOptions) *http.Client {
 	transport := &http.Transport{}
 
-	tlsConfig := opts.TLSConfig()
-	if tlsConfig == nil {
-		tlsConfig = &tls.Config{}
-	}
+	tlsConfig := &tls.Config{}
 
 	if !opts.VerifySSL() {
 		tlsConfig.InsecureSkipVerify = true
@@ -197,8 +150,8 @@ func buildHTTPClient(opts *TransportOptions) *http.Client {
 		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		}
-	} else if opts.MaxRedirects() > 0 {
-		maxRedirects := opts.MaxRedirects()
+	} else if opts.MaxRedirects() != nil {
+		maxRedirects := *opts.MaxRedirects()
 		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 			if len(via) >= maxRedirects {
 				return fmt.Errorf("stopped after %d redirects", maxRedirects)

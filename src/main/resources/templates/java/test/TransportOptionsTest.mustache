@@ -54,6 +54,20 @@ class TransportOptionsTest {
     }
 
     @Test
+    @DisplayName("invalid proxy URL throws IllegalArgumentException")
+    void invalidProxyUrlThrowsException() {
+        assertThrows(IllegalArgumentException.class, () ->
+                TransportOptions.builder().proxy("not a valid url ^%$"));
+    }
+
+    @Test
+    @DisplayName("null proxy URL is accepted")
+    void nullProxyUrlIsAccepted() {
+        TransportOptions opts = TransportOptions.builder().proxy(null).build();
+        assertNull(opts.getProxy());
+    }
+
+    @Test
     @DisplayName("defaultHeaders is a defensive copy")
     void defaultHeadersIsDefensiveCopy() {
         Map<String, String> headers = new HashMap<>();

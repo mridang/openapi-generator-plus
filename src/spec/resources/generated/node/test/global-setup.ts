@@ -25,22 +25,16 @@ export default async function globalSetup() {
     .withExposedPorts(8080, 8443)
     .withBindMounts([
       { source: keystorePath, target: '/tmp/keystore.p12', mode: 'ro' },
-      { source: mappingsPath, target: '/home/wiremock/mappings', mode: 'ro' }
+      { source: mappingsPath, target: '/home/wiremock/mappings', mode: 'ro' },
     ])
     .withCommand([
-      '--port',
-      '8080',
-      '--https-port',
-      '8443',
-      '--https-keystore',
-      '/tmp/keystore.p12',
-      '--keystore-type',
-      'PKCS12',
-      '--keystore-password',
-      'changeit',
-      '--key-manager-password',
-      'changeit',
-      '--verbose'
+      '--port', '8080',
+      '--https-port', '8443',
+      '--https-keystore', '/tmp/keystore.p12',
+      '--keystore-type', 'PKCS12',
+      '--keystore-password', 'changeit',
+      '--key-manager-password', 'changeit',
+      '--verbose',
     ])
     .withNetwork(proxyNetwork)
     .withNetworkAliases('wiremock')
@@ -52,13 +46,15 @@ export default async function globalSetup() {
 
   const squid = await new GenericContainer('ubuntu/squid:5.2-22.04_beta')
     .withExposedPorts(3128)
-    .withBindMounts([{ source: squidConfPath, target: '/etc/squid/squid.conf', mode: 'ro' }])
+    .withBindMounts([
+      { source: squidConfPath, target: '/etc/squid/squid.conf', mode: 'ro' },
+    ])
     .withNetwork(proxyNetwork)
     .withStartupTimeout(120000)
     .start();
 
   // Give Squid a moment to initialize
-  await new Promise((resolve) => setTimeout(resolve, 3000));
+  await new Promise(resolve => setTimeout(resolve, 3000));
 
   const baseUrl = `http://${prism.getHost()}:${prism.getMappedPort(4010)}`;
 
@@ -68,7 +64,7 @@ export default async function globalSetup() {
       await fetch(baseUrl);
       break;
     } catch {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 1000));
     }
   }
   const wiremockHost = wiremock.getHost();
@@ -79,18 +75,15 @@ export default async function globalSetup() {
   const proxyUrl = `http://${squid.getHost()}:${squid.getMappedPort(3128)}`;
   const caCertPath = path.join(process.cwd(), 'test', 'fixtures', 'certs', 'ca.pem');
 
-  fs.writeFileSync(
-    '/tmp/prism-config.json',
-    JSON.stringify({
-      baseUrl,
-      wiremockHttpsUrl,
-      wiremockHttpUrl,
-      wiremockInternalHttpUrl,
-      wiremockInternalHttpsUrl,
-      proxyUrl,
-      caCertPath
-    })
-  );
+  fs.writeFileSync('/tmp/prism-config.json', JSON.stringify({
+    baseUrl,
+    wiremockHttpsUrl,
+    wiremockHttpUrl,
+    wiremockInternalHttpUrl,
+    wiremockInternalHttpsUrl,
+    proxyUrl,
+    caCertPath,
+  }));
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (globalThis as any).__PRISM_CONTAINER__ = prism;

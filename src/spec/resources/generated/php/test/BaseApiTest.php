@@ -468,6 +468,24 @@ class BaseApiTest extends TestCase
         $this->assertStringStartsWith('https://staging.example.com/api/v3', $config->baseUrl);
     }
 
+    // -- content-type deserialization --
+
+    public function testSkipsDeserializationForNonJsonContentType(): void
+    {
+        $client = new class implements ApiClient {
+            /** @param array<string, string> $headers */
+            public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
+            {
+                return new ApiResponse(200, 'hello', ['Content-Type' => 'text/plain']);
+            }
+        };
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $result = $testApi->call('GET', '/api/test', [], [], null,
+            ['text/plain'], 'application/json', 'string');
+        $this->assertSame('hello', $result);
+    }
+
     // -- body serialization by content type --
 
     public function testSerializesTextPlainBody(): void
@@ -475,16 +493,8 @@ class BaseApiTest extends TestCase
         $client = new CapturingApiClient();
         $config = new Configuration('http://localhost');
         $testApi = new TestableApi($client, $config);
-        $testApi->call(
-            'POST',
-            '/api/test',
-            [],
-            [],
-            'hello world',
-            ['application/json'],
-            'text/plain',
-            null
-        );
+        $testApi->call('POST', '/api/test', [], [], 'hello world',
+            ['application/json'], 'text/plain', null);
         $this->assertNotNull($client->capturedBody);
         $this->assertIsString($client->capturedBody);
         $this->assertStringContainsString('hello world', $client->capturedBody);
@@ -495,16 +505,8 @@ class BaseApiTest extends TestCase
         $client = new CapturingApiClient();
         $config = new Configuration('http://localhost');
         $testApi = new TestableApi($client, $config);
-        $testApi->call(
-            'POST',
-            '/api/test',
-            [],
-            [],
-            ['name' => 'alice'],
-            ['application/json'],
-            'application/x-www-form-urlencoded',
-            null
-        );
+        $testApi->call('POST', '/api/test', [], [], ['name' => 'alice'],
+            ['application/json'], 'application/x-www-form-urlencoded', null);
         $this->assertNotNull($client->capturedBody);
         $this->assertIsString($client->capturedBody);
         $this->assertStringContainsString('name=alice', $client->capturedBody);
@@ -515,16 +517,8 @@ class BaseApiTest extends TestCase
         $client = new CapturingApiClient();
         $config = new Configuration('http://localhost');
         $testApi = new TestableApi($client, $config);
-        $testApi->call(
-            'POST',
-            '/api/test',
-            [],
-            [],
-            "\x01\x02\x03",
-            ['application/json'],
-            'application/octet-stream',
-            null
-        );
+        $testApi->call('POST', '/api/test', [], [], "\x01\x02\x03",
+            ['application/json'], 'application/octet-stream', null);
         $this->assertNotNull($client->capturedBody);
     }
 
@@ -535,16 +529,8 @@ class BaseApiTest extends TestCase
         $client = new CapturingApiClient();
         $config = new Configuration('http://localhost');
         $testApi = new TestableApi($client, $config);
-        $testApi->call(
-            'GET',
-            '/api/test',
-            [],
-            [],
-            null,
-            ['application/json'],
-            '',
-            null
-        );
+        $testApi->call('GET', '/api/test', [], [], null,
+            ['application/json'], '', null);
         $this->assertSame('application/json', $client->capturedHeaders['Content-Type'] ?? '');
     }
 
@@ -553,16 +539,8 @@ class BaseApiTest extends TestCase
         $client = new CapturingApiClient();
         $config = new Configuration('http://localhost');
         $testApi = new TestableApi($client, $config);
-        $testApi->call(
-            'GET',
-            '/api/test',
-            [],
-            [],
-            null,
-            ['application/json'],
-            'application/json',
-            null
-        );
+        $testApi->call('GET', '/api/test', [], [], null,
+            ['application/json'], 'application/json', null);
         $this->assertArrayHasKey('Accept', $client->capturedHeaders);
         $this->assertArrayHasKey('Content-Type', $client->capturedHeaders);
     }

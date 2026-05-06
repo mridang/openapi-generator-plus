@@ -14,5 +14,7 @@ defmodule PetstoreClient.Api.Options.UploadPetCertificateOptions do
           file: term()
         }
 
-  defstruct file: nil
+  defstruct [
+    file: nil
+  ]
 end

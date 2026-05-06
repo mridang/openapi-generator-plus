@@ -1,0 +1,11 @@
+{{>api_info}}
+
+{{#imports}}
+import { {{{className}}} } from '{{{path}}}{{importFileExtension}}';
+{{/imports}}
+
+export class {{className}} extends {{baseClass}} {
+  constructor({{#constructorParams}}{{name}}: {{type}}{{^-last}}, {{/-last}}{{/constructorParams}}) {
+    super({{#superArgs}}{{.}}{{^-last}}, {{/-last}}{{/superArgs}});
+  }
+}

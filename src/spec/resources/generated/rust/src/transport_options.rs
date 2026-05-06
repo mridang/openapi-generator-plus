@@ -149,12 +149,14 @@ impl TransportOptionsBuilder {
         self
     }
 
-    /// Sets the HTTP/HTTPS proxy URL.
+    /// Sets the HTTP/HTTPS proxy URL. Panics if the URL is invalid.
     pub fn proxy(mut self, val: &str) -> Self {
         if val.is_empty() {
             self.proxy = None;
-        } else {
+        } else if val.starts_with("http://") || val.starts_with("https://") || val.starts_with("socks5://") {
             self.proxy = Some(val.to_string());
+        } else {
+            panic!("invalid proxy URL {:?}: must start with http://, https://, or socks5://", val);
         }
         self
     }
@@ -185,8 +187,7 @@ impl TransportOptionsBuilder {
 
     /// Adds a single transport-level default header.
     pub fn default_header(mut self, name: &str, value: &str) -> Self {
-        self.default_headers
-            .insert(name.to_string(), value.to_string());
+        self.default_headers.insert(name.to_string(), value.to_string());
         self
     }
 

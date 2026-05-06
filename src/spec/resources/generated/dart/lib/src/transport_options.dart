@@ -42,9 +42,9 @@ class TransportOptions {
   final bool followRedirects;
 
   /// Maximum number of consecutive redirects to follow.
-  /// Only meaningful when [followRedirects] is true. A value of 0 uses the
-  /// HTTP client's built-in default.
-  final int maxRedirects;
+  /// Only meaningful when [followRedirects] is true. A null value uses the
+  /// HTTP client's built-in default. A value of 0 means zero redirects.
+  final int? maxRedirects;
 
   /// Custom User-Agent header value.
   final String userAgent;
@@ -71,8 +71,7 @@ class TransportOptions {
   }) : _defaultHeaders = Map.unmodifiable(defaultHeaders);
 
   /// Returns a copy of the transport-level default headers.
-  Map<String, String> get defaultHeaders =>
-      Map<String, String>.from(_defaultHeaders);
+  Map<String, String> get defaultHeaders => Map<String, String>.from(_defaultHeaders);
 }
 
 /// Builds immutable [TransportOptions] instances.
@@ -82,7 +81,7 @@ class TransportOptionsBuilder {
   Uri? _proxy;
   int? _timeout;
   bool _followRedirects = true;
-  int _maxRedirects = 0;
+  int? _maxRedirects;
   String _userAgent = 'petstore_client/1.0.0 (dart)';
   final Map<String, String> _defaultHeaders = {};
   bool _injectRequestId = false;
@@ -100,11 +99,17 @@ class TransportOptionsBuilder {
   }
 
   /// Sets the HTTP/HTTPS proxy URL.
+  ///
+  /// Throws [ArgumentError] if the URL is not a valid HTTP or HTTPS URL.
   TransportOptionsBuilder proxy(String val) {
     if (val.isEmpty) {
       _proxy = null;
     } else {
-      _proxy = Uri.tryParse(val);
+      final parsed = Uri.tryParse(val);
+      if (parsed == null || parsed.scheme.isEmpty) {
+        throw ArgumentError('Invalid proxy URL: $val');
+      }
+      _proxy = parsed;
     }
     return this;
   }
@@ -122,7 +127,7 @@ class TransportOptionsBuilder {
   }
 
   /// Sets the maximum number of redirects to follow.
-  TransportOptionsBuilder maxRedirects(int val) {
+  TransportOptionsBuilder maxRedirects(int? val) {
     _maxRedirects = val;
     return this;
   }

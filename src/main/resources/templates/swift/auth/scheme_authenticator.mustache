@@ -1,0 +1,11 @@
+{{>api_info}}
+import Foundation
+{{#imports}}
+import {{{.}}}
+{{/imports}}
+
+public final class {{className}}: {{baseClass}}, @unchecked Sendable {
+    public init({{{constructorSignature}}}) {
+        super.init({{{superCall}}})
+    }
+}

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	petstore "petstore/pkg"
+	"petstore/pkg"
 	apierrors "petstore/pkg/errors"
 	"petstore/pkg/models"
 )
@@ -64,9 +64,7 @@ func TestBaseApi_ErrorDispatch(t *testing.T) {
 			// Use the DefaultApiClient directly to call WireMock error endpoints
 			client := petstore.NewDefaultApiClient(nil)
 			resp, err := client.SendRequest("GET", wiremockHTTPURL+"/api/error/"+strings.TrimSpace(
-				func() string {
-					return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(tc.errType, "BadRequestError", "400"), "UnauthorizedError", "401"), "ForbiddenError", "403"), "NotFoundError", "404"), "ConflictError", "409"), "UnprocessableEntityError", "422"), "InternalServerError", "500"), "ServerError", "502")
-				}()),
+				func() string { return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(tc.errType, "BadRequestError", "400"), "UnauthorizedError", "401"), "ForbiddenError", "403"), "NotFoundError", "404"), "ConflictError", "409"), "UnprocessableEntityError", "422"), "InternalServerError", "500"), "ServerError", "502") }()),
 				map[string]string{}, nil)
 
 			// The raw client returns the response; BaseApi would dispatch the error
@@ -296,6 +294,33 @@ func TestBaseApi_AllHeadersFlowThrough(t *testing.T) {
 }
 
 // ── Body serialization by content type ──
+
+/* contentTypeApiClient returns a mock client that responds with the given Content-Type. */
+type contentTypeApiClient struct {
+	responseContentType string
+	responseBody        string
+}
+
+func (c *contentTypeApiClient) SendRequest(method, url string, headers map[string]string, body []byte) (*petstore.HttpResponse, error) {
+	return &petstore.HttpResponse{
+		StatusCode: 200,
+		Body:       c.responseBody,
+		Headers:    map[string]string{"Content-Type": c.responseContentType},
+	}, nil
+}
+
+func TestBaseApi_SkipsDeserializationForNonJSON(t *testing.T) {
+	client := &contentTypeApiClient{
+		responseContentType: "text/plain",
+		responseBody:        "hello plain text",
+	}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+	_, err := api.GetPetById(int64(1), nil)
+	/* The call may fail on deserialization, but should not panic.
+	 * The important thing is that it does not try to JSON-parse plain text. */
+	_ = err
+}
 
 func TestBaseApi_SerializesJsonBody(t *testing.T) {
 	client := &capturingApiClient{}

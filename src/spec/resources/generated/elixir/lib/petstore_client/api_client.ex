@@ -7,7 +7,7 @@
 
 defmodule PetstoreClient.ApiClient do
   @moduledoc """
-  Behaviour for HTTP clients. Implementations must define `send_request/4`
+  Behaviour for HTTP clients. Implementations must define `send_request/5`
   to perform the actual HTTP call.
   """
 
@@ -26,6 +26,7 @@ defmodule PetstoreClient.ApiClient do
     An `#{inspect(PetstoreClient.ApiResponse)}` struct.
   """
   @callback send_request(
+              client :: struct(),
               method :: atom(),
               url :: String.t(),
               headers :: %{optional(String.t()) => String.t()},

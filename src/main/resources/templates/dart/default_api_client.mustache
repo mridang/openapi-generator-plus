@@ -1,4 +1,5 @@
 {{>api_info}}
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -65,6 +66,10 @@ class DefaultApiClient implements ApiClient {
       ioClient.findProxy = (_) => 'PROXY ${options.proxy!.host}:${options.proxy!.port}';
     }
 
+    if (options.timeout != null) {
+      ioClient.connectionTimeout = Duration(milliseconds: options.timeout!);
+    }
+
     return IOClient(ioClient);
   }
 
@@ -105,14 +110,17 @@ class DefaultApiClient implements ApiClient {
     final request = http.Request(method, uri);
     request.headers.addAll(merged);
     request.followRedirects = _transportOptions.followRedirects;
-    if (_transportOptions.followRedirects && _transportOptions.maxRedirects > 0) {
-      request.maxRedirects = _transportOptions.maxRedirects;
+    if (_transportOptions.followRedirects && _transportOptions.maxRedirects != null) {
+      request.maxRedirects = _transportOptions.maxRedirects!;
     }
     if (body != null) {
       request.bodyBytes = body;
     }
 
-    final streamedResponse = await _httpClient.send(request);
+    final Future<http.StreamedResponse> pendingResponse = _httpClient.send(request);
+    final streamedResponse = _transportOptions.timeout != null
+        ? await pendingResponse.timeout(Duration(milliseconds: _transportOptions.timeout!))
+        : await pendingResponse;
     final responseBody = await streamedResponse.stream.bytesToString();
 
     final responseHeaders = <String, String>{};

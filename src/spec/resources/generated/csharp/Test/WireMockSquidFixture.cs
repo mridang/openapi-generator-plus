@@ -28,15 +28,8 @@ public class WireMockSquidFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        var hostAppPath =
-            Environment.GetEnvironmentVariable("HOST_APP_PATH") ?? Directory.GetCurrentDirectory();
-        var keystorePath = Path.Combine(
-            hostAppPath,
-            "Test",
-            "Resources",
-            "certs",
-            "server-keystore.p12"
-        );
+        var hostAppPath = Environment.GetEnvironmentVariable("HOST_APP_PATH") ?? Directory.GetCurrentDirectory();
+        var keystorePath = Path.Combine(hostAppPath, "Test", "Resources", "certs", "server-keystore.p12");
         var mappingsPath = Path.Combine(hostAppPath, "Test", "Resources", "wiremock", "mappings");
         var squidConfPath = Path.Combine(hostAppPath, "Test", "Resources", "proxy", "squid.conf");
 
@@ -52,20 +45,13 @@ public class WireMockSquidFixture : IAsyncLifetime
             .WithBindMount(keystorePath, "/tmp/keystore.p12", AccessMode.ReadOnly)
             .WithBindMount(mappingsPath, "/home/wiremock/mappings", AccessMode.ReadOnly)
             .WithCommand(
-                "--port",
-                "8080",
-                "--https-port",
-                "8443",
-                "--https-keystore",
-                "/tmp/keystore.p12",
-                "--keystore-type",
-                "PKCS12",
-                "--keystore-password",
-                "changeit",
-                "--key-manager-password",
-                "changeit",
-                "--verbose"
-            )
+                "--port", "8080",
+                "--https-port", "8443",
+                "--https-keystore", "/tmp/keystore.p12",
+                "--keystore-type", "PKCS12",
+                "--keystore-password", "changeit",
+                "--key-manager-password", "changeit",
+                "--verbose")
             .WithNetwork(_network)
             .WithNetworkAliases("wiremock")
             .WithWaitStrategy(Wait.ForUnixContainer().UntilMessageIsLogged("port:"))
@@ -99,4 +85,6 @@ public class WireMockSquidFixture : IAsyncLifetime
 }
 
 [CollectionDefinition("WireMockSquid")]
-public class WireMockSquidTestGroup : ICollectionFixture<WireMockSquidFixture> { }
+public class WireMockSquidTestGroup : ICollectionFixture<WireMockSquidFixture>
+{
+}

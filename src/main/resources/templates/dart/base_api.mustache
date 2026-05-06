@@ -164,7 +164,10 @@ class BaseApi {
 
     T? data;
     if (returnType.isNotEmpty && response.body.isNotEmpty && deserialize != null) {
-      data = deserialize(response.body);
+      final responseContentType = response.headers['content-type'] ?? response.headers['Content-Type'] ?? '';
+      if (responseContentType.contains('application/json')) {
+        data = deserialize(response.body);
+      }
     }
 
     return ApiResult<T>(
@@ -199,7 +202,7 @@ class BaseApi {
     return parts.join('&');
   }
 
-  static dynamic _serializeBody(Object? body, String contentType) {
+  static Uint8List? _serializeBody(Object? body, String contentType) {
     if (body == null) return null;
 
     if (contentType == 'multipart/form-data') {
@@ -207,12 +210,13 @@ class BaseApi {
     }
 
     if (contentType.startsWith('image/') || contentType == 'application/octet-stream') {
-      if (body is List<int>) return body;
-      if (body is String) return utf8.encode(body);
+      if (body is Uint8List) return body;
+      if (body is List<int>) return Uint8List.fromList(body);
+      if (body is String) return Uint8List.fromList(utf8.encode(body));
     }
 
     if (contentType == 'text/plain') {
-      return utf8.encode('$body');
+      return Uint8List.fromList(utf8.encode('$body'));
     }
 
     if (contentType == 'application/x-www-form-urlencoded') {
@@ -220,11 +224,11 @@ class BaseApi {
         final values = body.entries
             .map((e) => '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
             .join('&');
-        return utf8.encode(values);
+        return Uint8List.fromList(utf8.encode(values));
       }
     }
 
-    return serialize(body);
+    return Uint8List.fromList(utf8.encode(serialize(body)));
   }
 
   /// Build a multipart/form-data request body from a map of form fields.

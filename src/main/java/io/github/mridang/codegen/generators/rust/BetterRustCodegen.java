@@ -4,6 +4,7 @@ import com.samskivert.mustache.Mustache;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.NamingConvention;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -16,6 +17,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -621,6 +623,171 @@ public class BetterRustCodegen extends AbstractBetterCodegen {
                             "src/auth/oauth",
                             "openid_connect_authenticator.rs"));
         }
+
+        if (openAPI.getComponents() == null
+                || openAPI.getComponents().getSecuritySchemes() == null) {
+            return;
+        }
+
+        for (final Map.Entry<String, SecurityScheme> entry :
+                openAPI.getComponents().getSecuritySchemes().entrySet()) {
+            final String schemeName = entry.getKey();
+            final SecurityScheme scheme = entry.getValue();
+            final String className = NamingConvention.PASCAL_CASE.apply(schemeName);
+            final String code = generateRustAuthClass(schemeName, className, scheme);
+            if (!code.isEmpty()) {
+                final boolean isOAuth =
+                        scheme.getType() == SecurityScheme.Type.OAUTH2
+                                || scheme.getType() == SecurityScheme.Type.OPENIDCONNECT;
+                final String folder = isOAuth ? "src/auth/oauth" : "src/auth";
+                final String suffix = getOAuthSuffix(scheme);
+                final String fileName =
+                        NamingConvention.SNAKE_CASE.apply(className + suffix + "Authenticator")
+                                + ".rs";
+                final String filePath =
+                        Path.of(outputFolder, folder, fileName).toString();
+                writeFile(filePath, code);
+                postProcessFile(Path.of(filePath).toFile(), "source");
+            }
+        }
+    }
+
+    private String getOAuthSuffix(SecurityScheme scheme) {
+        if (scheme.getType() != SecurityScheme.Type.OAUTH2 || scheme.getFlows() == null) {
+            return "";
+        }
+        return Optional.ofNullable(scheme.getFlows().getClientCredentials())
+                .map(f -> "ClientCredentials")
+                .or(() -> Optional.ofNullable(scheme.getFlows().getPassword()).map(f -> "Password"))
+                .or(() ->
+                        Optional.ofNullable(scheme.getFlows().getAuthorizationCode())
+                                .map(f -> "AuthorizationCode"))
+                .or(() -> Optional.ofNullable(scheme.getFlows().getImplicit()).map(f -> "Implicit"))
+                .orElse("");
+    }
+
+    @SuppressWarnings("StringConcatenationMissingWhitespace")
+    private String generateRustAuthClass(
+            String schemeName, String className, SecurityScheme scheme) {
+        if (scheme.getType() == SecurityScheme.Type.HTTP) {
+            if ("basic".equalsIgnoreCase(scheme.getScheme())) {
+                return renderSchemeAuth("auth", className + "Authenticator",
+                        "BasicAuthenticator", List.of(),
+                        List.of(p("host", "&str"), p("username", "&str"),
+                                p("password", "&str")),
+                        List.of("host", "username", "password"));
+            }
+            if ("bearer".equalsIgnoreCase(scheme.getScheme())) {
+                return renderSchemeAuth("auth", className + "Authenticator",
+                        "BearerAuthenticator", List.of(),
+                        List.of(p("host", "&str"), p("token", "&str")),
+                        List.of("host", "token"));
+            }
+        } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
+            final String location =
+                    "ApiKeyLocation::"
+                            + NamingConvention.PASCAL_CASE.apply(scheme.getIn().toString());
+            final String paramName = scheme.getName();
+            return renderSchemeAuth("auth", className + "Authenticator",
+                    "ApiKeyAuthenticator", List.of(),
+                    List.of(p("host", "&str"), p("api_key", "&str")),
+                    List.of("host", "\"" + paramName + "\"", "api_key",
+                            location));
+        } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
+                && scheme.getFlows() != null) {
+            return generateRustOAuthClass(className, scheme);
+        } else if (scheme.getType() == SecurityScheme.Type.OPENIDCONNECT) {
+            final String url = scheme.getOpenIdConnectUrl();
+            return renderSchemeAuth("auth::oauth", className + "Authenticator",
+                    "OpenIdConnectAuthenticator",
+                    List.of(),
+                    List.of(p("host", "&str"), p("client_id", "&str"),
+                            p("client_secret", "&str"), p("redirect_uri", "&str")),
+                    List.of("host", "\"" + url + "\"", "client_id", "client_secret",
+                            "redirect_uri", "&[]"));
+        }
+        LOGGER.warn("Unsupported security scheme type: {}", scheme.getType());
+        return "";
+    }
+
+    private String generateRustOAuthClass(
+            String className, SecurityScheme scheme) {
+        if (scheme.getFlows().getClientCredentials() != null) {
+            final var flow = scheme.getFlows().getClientCredentials();
+            final String tokenUrl = flow.getTokenUrl();
+            return renderSchemeAuth("auth::oauth",
+                    className + "ClientCredentialsAuthenticator",
+                    "OAuth2ClientCredentialsAuthenticator",
+                    List.of(),
+                    List.of(p("host", "&str"), p("client_id", "&str"),
+                            p("client_secret", "&str")),
+                    List.of("host", "client_id", "client_secret",
+                            "\"" + tokenUrl + "\"", "&[]"));
+        }
+        if (scheme.getFlows().getPassword() != null) {
+            final var flow = scheme.getFlows().getPassword();
+            final String tokenUrl = flow.getTokenUrl();
+            final String refreshUrl = flow.getRefreshUrl();
+            final String refreshUrlArg = refreshUrl != null ? "Some(\"" + refreshUrl + "\")" : "None";
+            return renderSchemeAuth("auth::oauth",
+                    className + "PasswordAuthenticator",
+                    "OAuth2PasswordAuthenticator",
+                    List.of(),
+                    List.of(p("host", "&str"), p("client_id", "&str"),
+                            p("client_secret", "&str"), p("username", "&str"),
+                            p("password", "&str")),
+                    List.of("host", "client_id", "client_secret",
+                            "\"" + tokenUrl + "\"", refreshUrlArg,
+                            "username", "password", "&[]"));
+        }
+        if (scheme.getFlows().getAuthorizationCode() != null) {
+            final var flow = scheme.getFlows().getAuthorizationCode();
+            final String authUrl = flow.getAuthorizationUrl();
+            final String tokenUrl = flow.getTokenUrl();
+            final String refreshUrl = flow.getRefreshUrl();
+            final String refreshUrlArg = refreshUrl != null ? "Some(\"" + refreshUrl + "\")" : "None";
+            return renderSchemeAuth("auth::oauth",
+                    className + "AuthorizationCodeAuthenticator",
+                    "OAuth2AuthorizationCodeAuthenticator",
+                    List.of(),
+                    List.of(p("host", "&str"), p("client_id", "&str"),
+                            p("client_secret", "&str"), p("redirect_uri", "&str")),
+                    List.of("host", "client_id", "client_secret",
+                            "\"" + authUrl + "\"", "\"" + tokenUrl + "\"",
+                            "redirect_uri", "&[]", refreshUrlArg));
+        }
+        if (scheme.getFlows().getImplicit() != null) {
+            final var flow = scheme.getFlows().getImplicit();
+            final String authUrl = flow.getAuthorizationUrl();
+            return renderSchemeAuth("auth::oauth",
+                    className + "ImplicitAuthenticator",
+                    "OAuth2ImplicitAuthenticator",
+                    List.of(),
+                    List.of(p("host", "&str"), p("client_id", "&str")),
+                    List.of("host", "client_id", "\"" + authUrl + "\"", "&[]"));
+        }
+        LOGGER.warn("Unsupported OAuth2 flow for scheme: {}", className);
+        return "";
+    }
+
+    private static Map<String, String> p(String name, String type) {
+        final Map<String, String> param = new HashMap<>();
+        param.put("name", name);
+        param.put("type", type);
+        return param;
+    }
+
+    private String renderSchemeAuth(String pkg, String className, String baseClass,
+            List<String> imports, List<Map<String, String>> constructorParams,
+            List<String> superArgs) {
+        final Map<String, Object> context = new HashMap<>();
+        context.put("package", pkg);
+        context.put("className", className);
+        context.put("baseClass", baseClass);
+        context.put("imports", imports);
+        context.put("constructorParams", constructorParams);
+        context.put("superArgs", superArgs);
+        return renderOptionsTemplate("auth/scheme_authenticator.mustache", context);
     }
 
     /**

@@ -1,0 +1,12 @@
+{{>api_info}}
+package {{package}};
+
+{{#imports}}
+import {{.}};
+{{/imports}}
+
+public final class {{className}} extends {{baseClass}} {
+    public {{className}}({{#constructorParams}}{{type}} {{name}}{{^-last}}, {{/-last}}{{/constructorParams}}) {
+        super({{#superArgs}}{{.}}{{^-last}}, {{/-last}}{{/superArgs}});
+    }
+}

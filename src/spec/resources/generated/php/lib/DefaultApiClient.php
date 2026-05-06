@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -15,7 +14,6 @@ namespace PetstoreClient;
 
 use RuntimeException;
 use Symfony\Component\HttpClient\HttpClient;
-use Symfony\Component\Mime\Header\HeaderInterface;
 use Symfony\Component\Mime\Part\DataPart;
 use Symfony\Component\Mime\Part\Multipart\FormDataPart;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
@@ -150,7 +148,7 @@ class DefaultApiClient implements ApiClient
             }
             $formData = new FormDataPart($formFields);
             $contentType = $formData->getPreparedHeaders()->get('Content-Type');
-            if ($contentType instanceof HeaderInterface) {
+            if ($contentType instanceof \Symfony\Component\Mime\Header\HeaderInterface) {
                 $mergedHeaders['Content-Type'] = $contentType->getBodyAsString();
             }
             $options = [

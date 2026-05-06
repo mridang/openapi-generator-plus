@@ -18,7 +18,7 @@ void main() {
       expect(opts.proxy, isNull);
       expect(opts.timeout, isNull);
       expect(opts.followRedirects, isTrue);
-      expect(opts.maxRedirects, equals(0));
+      expect(opts.maxRedirects, isNull);
       expect(opts.userAgent, isNotEmpty);
       expect(opts.defaultHeaders, isEmpty);
       expect(opts.injectRequestId, isFalse);
@@ -52,8 +52,10 @@ void main() {
     test('builder chaining', () {
       final builder = TransportOptionsBuilder();
 
-      final result =
-          builder.verifySSL(true).userAgent('Test/1.0').timeout(10000);
+      final result = builder
+          .verifySSL(true)
+          .userAgent('Test/1.0')
+          .timeout(10000);
 
       expect(result, isNotNull);
 
@@ -63,19 +65,29 @@ void main() {
     });
 
     test('multiple default headers', () {
-      final opts = TransportOptionsBuilder().defaultHeaders({
-        'X-First': 'one',
-        'X-Second': 'two',
-      }).build();
+      final opts = TransportOptionsBuilder()
+          .defaultHeaders({
+            'X-First': 'one',
+            'X-Second': 'two',
+          })
+          .build();
 
       final headers = opts.defaultHeaders;
       expect(headers['X-First'], equals('one'));
       expect(headers['X-Second'], equals('two'));
     });
 
+    test('invalid proxy URL throws', () {
+      expect(
+        () => TransportOptionsBuilder().proxy('not a valid url'),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
     test('default headers copy isolation', () {
-      final opts =
-          TransportOptionsBuilder().defaultHeader('X-Test', 'value').build();
+      final opts = TransportOptionsBuilder()
+          .defaultHeader('X-Test', 'value')
+          .build();
 
       final headers = opts.defaultHeaders;
       headers['X-Mutated'] = 'should-not-affect-options';

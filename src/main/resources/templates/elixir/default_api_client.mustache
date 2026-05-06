@@ -44,6 +44,7 @@ defmodule {{moduleName}}.DefaultApiClient do
   """
   @impl {{moduleName}}.ApiClient
   @spec send_request(
+          t(),
           method :: atom(),
           url :: String.t(),
           headers :: %{optional(String.t()) => String.t()},

@@ -13,7 +13,7 @@ void main() {
       expect(opts.proxy, isNull);
       expect(opts.timeout, isNull);
       expect(opts.followRedirects, isTrue);
-      expect(opts.maxRedirects, equals(0));
+      expect(opts.maxRedirects, isNull);
       expect(opts.userAgent, isNotEmpty);
       expect(opts.defaultHeaders, isEmpty);
       expect(opts.injectRequestId, isFalse);
@@ -70,6 +70,13 @@ void main() {
       final headers = opts.defaultHeaders;
       expect(headers['X-First'], equals('one'));
       expect(headers['X-Second'], equals('two'));
+    });
+
+    test('invalid proxy URL throws', () {
+      expect(
+        () => TransportOptionsBuilder().proxy('not a valid url'),
+        throwsA(isA<ArgumentError>()),
+      );
     });
 
     test('default headers copy isolation', () {

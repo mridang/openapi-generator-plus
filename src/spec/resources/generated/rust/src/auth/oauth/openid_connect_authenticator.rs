@@ -72,16 +72,18 @@ impl OpenIdConnectAuthenticator {
         code: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut delegate_guard = self.delegate.lock().unwrap();
-        let delegate = delegate_guard
-            .as_mut()
-            .ok_or("delegate not initialized; call build_authorization_url first")?;
+        let delegate = delegate_guard.as_mut().ok_or(
+            "delegate not initialized; call build_authorization_url first",
+        )?;
         delegate.exchange_code(code)
     }
 
     /// Lazily resolves the delegate by fetching the OIDC discovery document
     /// using the injected API client. Stores the injected delegate in the
     /// mutex for reuse.
-    fn resolve_delegate(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    fn resolve_delegate(
+        &self,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut delegate_guard = self.delegate.lock().unwrap();
 
         if delegate_guard.is_some() {
@@ -90,26 +92,20 @@ impl OpenIdConnectAuthenticator {
 
         let client = {
             let client_guard = self.api_client.lock().unwrap();
-            client_guard
-                .as_ref()
-                .ok_or(
-                    "ApiClient has not been injected. \
+            client_guard.as_ref().ok_or(
+                "ApiClient has not been injected. \
                  Ensure the Client constructor calls set_api_client \
                  on HttpAwareAuthenticator before making API requests",
-                )?
-                .clone()
+            )?.clone()
         };
 
         let mut headers = HashMap::new();
         headers.insert("Accept".to_string(), "application/json".to_string());
 
         let response = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(client.send_request(
-                "GET",
-                &self.openid_connect_url,
-                &headers,
-                None,
-            ))
+            tokio::runtime::Handle::current().block_on(
+                client.send_request("GET", &self.openid_connect_url, &headers, None)
+            )
         })?;
 
         let parsed: serde_json::Value = serde_json::from_str(&response.body)?;

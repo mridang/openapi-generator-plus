@@ -141,11 +141,9 @@ void main() {
       final category = Category(id: 0, name: '');
       final json = serialize(category);
       final parsed = jsonDecode(json) as Map<String, dynamic>;
-      expect(parsed.containsKey('id'), isTrue,
-          reason: 'serialized JSON should include id field');
+      expect(parsed.containsKey('id'), isTrue, reason: 'serialized JSON should include id field');
       expect(parsed['id'], equals(0));
-      expect(parsed.containsKey('name'), isTrue,
-          reason: 'serialized JSON should include name field');
+      expect(parsed.containsKey('name'), isTrue, reason: 'serialized JSON should include name field');
       expect(parsed['name'], equals(''));
     });
   });

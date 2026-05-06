@@ -177,8 +177,13 @@ public sealed class TransportOptionsBuilder
     /// <summary>Set the HTTP/HTTPS proxy URL.</summary>
     /// <param name="proxy">Proxy URL (e.g. <c>"http://proxy:3128"</c>), or <c>null</c>.</param>
     /// <returns>This builder.</returns>
+    /// <exception cref="UriFormatException">Thrown when the proxy URL is not valid.</exception>
     public TransportOptionsBuilder Proxy(string? proxy)
     {
+        if (proxy != null)
+        {
+            _ = new Uri(proxy);
+        }
         _proxy = proxy;
         return this;
     }

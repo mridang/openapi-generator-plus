@@ -30,4 +30,5 @@ class Medication(BaseModel):
     )
 
 
+
 Medication.model_rebuild(raise_errors=False)

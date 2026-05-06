@@ -289,6 +289,33 @@ func TestBaseApi_AllHeadersFlowThrough(t *testing.T) {
 
 // ── Body serialization by content type ──
 
+/* contentTypeApiClient returns a mock client that responds with the given Content-Type. */
+type contentTypeApiClient struct {
+	responseContentType string
+	responseBody        string
+}
+
+func (c *contentTypeApiClient) SendRequest(method, url string, headers map[string]string, body []byte) (*{{packageName}}.HttpResponse, error) {
+	return &{{packageName}}.HttpResponse{
+		StatusCode: 200,
+		Body:       c.responseBody,
+		Headers:    map[string]string{"Content-Type": c.responseContentType},
+	}, nil
+}
+
+func TestBaseApi_SkipsDeserializationForNonJSON(t *testing.T) {
+	client := &contentTypeApiClient{
+		responseContentType: "text/plain",
+		responseBody:        "hello plain text",
+	}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(client, config, nil)
+	_, err := api.GetPetById(int64(1), nil)
+	/* The call may fail on deserialization, but should not panic.
+	 * The important thing is that it does not try to JSON-parse plain text. */
+	_ = err
+}
+
 func TestBaseApi_SerializesJsonBody(t *testing.T) {
 	client := &capturingApiClient{}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()

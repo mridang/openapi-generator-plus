@@ -20,13 +20,13 @@ import (
 )
 
 var (
-	wiremockHTTPURL          string
-	wiremockHTTPSURL         string
+	wiremockHTTPURL  string
+	wiremockHTTPSURL string
 	wiremockInternalHTTPURL  string
 	wiremockInternalHTTPSURL string
-	proxyURL                 string
-	prismURL                 string
-	caCertPath               string
+	proxyURL         string
+	prismURL         string
+	caCertPath       string
 )
 
 func TestMain(m *testing.M) {
@@ -102,7 +102,7 @@ func TestMain(m *testing.M) {
 		Files: []testcontainers.ContainerFile{
 			{HostFilePath: squidConfPath, ContainerFilePath: "/etc/squid/squid.conf"},
 		},
-		Networks:   []string{networkName},
+		Networks: []string{networkName},
 		WaitingFor: wait.ForListeningPort("3128/tcp").WithStartupTimeout(60 * time.Second),
 	}
 

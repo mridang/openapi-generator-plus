@@ -239,6 +239,23 @@ final class BaseApiTests: XCTestCase {
         XCTAssertFalse(result.rawBody.isEmpty)
     }
 
+    // MARK: - Non-JSON content type skips deserialization
+
+    func testSkipsDeserializationForNonJsonContentType() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "hello"
+        mockClient.responseHeaders = ["Content-Type": "text/plain"]
+
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        let result = try await api.getPetByIdWithHTTPInfo(petId: 1)
+        XCTAssertEqual(result.statusCode, 200)
+        XCTAssertNil(result.data, "Data should be nil when Content-Type is not JSON")
+        XCTAssertEqual(result.rawBody, "hello")
+    }
+
     // MARK: - Auth header injection
 
     func testForwardsAuthHeaders() async throws {

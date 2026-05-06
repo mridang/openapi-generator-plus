@@ -8,7 +8,7 @@
 package petstore
 
 import (
-	"crypto/tls"
+	"fmt"
 	"net/url"
 )
 
@@ -46,9 +46,9 @@ type TransportOptions struct {
 	followRedirects bool
 
 	/* maxRedirects is the maximum number of consecutive redirects to follow.
-	 * Only meaningful when followRedirects is true. A value of 0 uses the
-	 * HTTP client's built-in default. */
-	maxRedirects int
+	 * Only meaningful when followRedirects is true. A nil value uses the
+	 * HTTP client's built-in default; a zero value means no redirects. */
+	maxRedirects *int
 
 	/* userAgent is the custom User-Agent header value. */
 	userAgent string
@@ -61,9 +61,6 @@ type TransportOptions struct {
 	/* injectRequestID controls whether to auto-inject an X-Request-ID header
 	 * with a unique UUID on every request. */
 	injectRequestID bool
-
-	/* tlsConfig is an optional custom TLS configuration. */
-	tlsConfig *tls.Config
 }
 
 // VerifySSL returns whether TLS certificate verification is enabled.
@@ -81,8 +78,9 @@ func (t *TransportOptions) Timeout() int { return t.timeout }
 // FollowRedirects returns whether the client follows HTTP 3xx redirects.
 func (t *TransportOptions) FollowRedirects() bool { return t.followRedirects }
 
-// MaxRedirects returns the maximum number of consecutive redirects to follow.
-func (t *TransportOptions) MaxRedirects() int { return t.maxRedirects }
+// MaxRedirects returns the maximum number of consecutive redirects to follow,
+// or nil if the default should be used.
+func (t *TransportOptions) MaxRedirects() *int { return t.maxRedirects }
 
 // UserAgent returns the custom User-Agent header value.
 func (t *TransportOptions) UserAgent() string { return t.userAgent }
@@ -99,9 +97,6 @@ func (t *TransportOptions) DefaultHeaders() map[string]string {
 // InjectRequestID returns whether X-Request-ID injection is enabled.
 func (t *TransportOptions) InjectRequestID() bool { return t.injectRequestID }
 
-// TLSConfig returns the custom TLS configuration, or nil.
-func (t *TransportOptions) TLSConfig() *tls.Config { return t.tlsConfig }
-
 // TransportOptionsBuilder builds immutable TransportOptions instances.
 type TransportOptionsBuilder struct {
 	verifySSL       bool
@@ -109,11 +104,10 @@ type TransportOptionsBuilder struct {
 	proxy           *url.URL
 	timeout         int
 	followRedirects bool
-	maxRedirects    int
+	maxRedirects    *int
 	userAgent       string
 	defaultHeaders  map[string]string
 	injectRequestID bool
-	tlsConfig       *tls.Config
 }
 
 // NewTransportOptionsBuilder creates a new builder with sensible defaults.
@@ -138,15 +132,19 @@ func (b *TransportOptionsBuilder) CACertPath(val string) *TransportOptionsBuilde
 	return b
 }
 
-// Proxy sets the HTTP/HTTPS proxy URL.
+// Proxy sets the HTTP/HTTPS proxy URL. Panics if the URL is invalid.
 func (b *TransportOptionsBuilder) Proxy(val string) *TransportOptionsBuilder {
 	if val == "" {
 		b.proxy = nil
 	} else {
 		parsed, err := url.Parse(val)
-		if err == nil {
-			b.proxy = parsed
+		if err != nil {
+			panic(fmt.Sprintf("invalid proxy URL %q: %v", val, err))
 		}
+		if parsed.Scheme == "" || parsed.Host == "" {
+			panic(fmt.Sprintf("invalid proxy URL %q: must have a scheme and host", val))
+		}
+		b.proxy = parsed
 	}
 	return b
 }
@@ -164,8 +162,10 @@ func (b *TransportOptionsBuilder) FollowRedirects(val bool) *TransportOptionsBui
 }
 
 // MaxRedirects sets the maximum number of redirects to follow.
+// Pass 0 to disallow all redirects; use nil (do not call this method)
+// to use the HTTP client's built-in default.
 func (b *TransportOptionsBuilder) MaxRedirects(val int) *TransportOptionsBuilder {
-	b.maxRedirects = val
+	b.maxRedirects = &val
 	return b
 }
 
@@ -195,12 +195,6 @@ func (b *TransportOptionsBuilder) InjectRequestID(val bool) *TransportOptionsBui
 	return b
 }
 
-// TLSConfig sets a custom TLS configuration.
-func (b *TransportOptionsBuilder) TLSConfig(val *tls.Config) *TransportOptionsBuilder {
-	b.tlsConfig = val
-	return b
-}
-
 // Build creates and returns an immutable TransportOptions instance.
 func (b *TransportOptionsBuilder) Build() *TransportOptions {
 	headers := make(map[string]string, len(b.defaultHeaders))
@@ -217,6 +211,5 @@ func (b *TransportOptionsBuilder) Build() *TransportOptions {
 		userAgent:       b.userAgent,
 		defaultHeaders:  headers,
 		injectRequestID: b.injectRequestID,
-		tlsConfig:       b.tlsConfig,
 	}
 }

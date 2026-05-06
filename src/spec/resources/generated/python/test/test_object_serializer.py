@@ -119,7 +119,6 @@ class TestToFormValue:
 class TestSerialize:
     def test_serializes_model_to_valid_json(self) -> None:
         import json
-
         category = Category(id=1, name='Dogs')
         result = ObjectSerializer().serialize(category)
         data = json.loads(result)
@@ -132,7 +131,6 @@ class TestSerialize:
 
     def test_includes_fields_set_to_default_values(self) -> None:
         import json
-
         category = Category(id=0, name='')
         result = ObjectSerializer().serialize(category)
         data = json.loads(result)

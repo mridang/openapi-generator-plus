@@ -44,32 +44,21 @@ class CapturingApiClient:
 class StubApi(BaseApi):
     """Concrete subclass exposing _invoke_api for direct testing."""
 
-    async def call(
-        self,
-        method: str,
-        path: str,
-        query_params: dict[str, Any],
-        header_params: dict[str, str],
-        body: Any,
-        accepts: list[str],
-        content_type: str,
-        return_type: Optional[str],
-        auth: Optional[Authenticator] = None,
-    ) -> Any:
+    async def call(self, method: str, path: str, query_params: dict[str, Any],
+                   header_params: dict[str, str], body: Any,
+                   accepts: list[str], content_type: str,
+                   return_type: Optional[str], auth: Optional[Authenticator] = None) -> Any:
         return await self._invoke_api(
-            method, path, query_params, header_params, body, accepts, content_type, return_type, auth
-        )
+            method, path, query_params, header_params, body,
+            accepts, content_type, return_type, auth)
 
 
 class StubAuthenticator(Authenticator):
     """Test authenticator that returns known headers, query params, cookies."""
 
-    def __init__(
-        self,
-        headers: Optional[dict[str, str]] = None,
-        query_params: Optional[dict[str, str]] = None,
-        cookies: Optional[dict[str, str]] = None,
-    ) -> None:
+    def __init__(self, headers: Optional[dict[str, str]] = None,
+                 query_params: Optional[dict[str, str]] = None,
+                 cookies: Optional[dict[str, str]] = None) -> None:
         self._headers = headers or {}
         self._query_params = query_params or {}
         self._cookies = cookies or {}
@@ -94,101 +83,110 @@ def api(wiremock_http_url: Any) -> StubApi:
 
 
 class TestExceptionDispatch:
-    @pytest.mark.parametrize(
-        'status,expected_class',
-        [
-            (400, BadRequestException),
-            (401, UnauthorizedException),
-            (403, ForbiddenException),
-            (404, NotFoundException),
-            (409, ConflictException),
-            (422, UnprocessableEntityException),
-            (418, ClientException),
-            (500, InternalServerErrorException),
-            (502, ServerException),
-        ],
-    )
+
+    @pytest.mark.parametrize('status,expected_class', [
+        (400, BadRequestException),
+        (401, UnauthorizedException),
+        (403, ForbiddenException),
+        (404, NotFoundException),
+        (409, ConflictException),
+        (422, UnprocessableEntityException),
+        (418, ClientException),
+        (500, InternalServerErrorException),
+        (502, ServerException),
+    ])
     async def test_throws_correct_exception(self, api: Any, status: Any, expected_class: Any) -> None:
         with pytest.raises(expected_class) as exc_info:
-            await api.call('GET', f'/api/error/{status}', {}, {}, None, ['application/json'], 'application/json', None)
+            await api.call('GET', f'/api/error/{status}', {}, {}, None,
+                           ['application/json'], 'application/json', None)
         assert exc_info.value.status_code == status
         assert exc_info.value.response_body is not None
         assert len(exc_info.value.response_body) > 0
 
 
 class TestErrorBodyParsing:
+
     async def test_parses_json_error_body(self, api: Any) -> None:
         with pytest.raises(BadRequestException) as exc_info:
-            await api.call('GET', '/api/error/400', {}, {}, None, ['application/json'], 'application/json', None)
+            await api.call('GET', '/api/error/400', {}, {}, None,
+                           ['application/json'], 'application/json', None)
         assert exc_info.value.error_body is not None, 'error_body should not be None for JSON responses'
 
 
 class TestExceptionHierarchy:
+
     async def test_not_found_hierarchy(self, api: Any) -> None:
         with pytest.raises(NotFoundException) as exc_info:
-            await api.call('GET', '/api/error/404', {}, {}, None, ['application/json'], 'application/json', None)
+            await api.call('GET', '/api/error/404', {}, {}, None,
+                           ['application/json'], 'application/json', None)
         assert isinstance(exc_info.value, ClientException)
         assert isinstance(exc_info.value, ApiException)
 
     async def test_internal_server_error_hierarchy(self, api: Any) -> None:
         with pytest.raises(InternalServerErrorException) as exc_info:
-            await api.call('GET', '/api/error/500', {}, {}, None, ['application/json'], 'application/json', None)
+            await api.call('GET', '/api/error/500', {}, {}, None,
+                           ['application/json'], 'application/json', None)
         assert isinstance(exc_info.value, ServerException)
         assert isinstance(exc_info.value, ApiException)
 
 
 class TestSuccessDeserialization:
+
     async def test_deserializes_json_response(self, api: Any) -> None:
-        result = await api.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', 'object')
+        result = await api.call('GET', '/api/test', {}, {}, None,
+                                ['application/json'], 'application/json', 'object')
         assert result is not None
         assert result['message'] == 'success'
 
     async def test_returns_raw_string_for_non_json(self, api: Any) -> None:
-        result = await api.call('GET', '/api/text', {}, {}, None, ['text/plain'], 'application/json', 'str')
+        result = await api.call('GET', '/api/text', {}, {}, None,
+                                ['text/plain'], 'application/json', 'str')
         assert result is not None
         assert 'hello plain text' in result
 
     async def test_returns_none_when_return_type_is_none(self, api: Any) -> None:
-        result = await api.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', None)
+        result = await api.call('GET', '/api/test', {}, {}, None,
+                                ['application/json'], 'application/json', None)
         assert result is None
 
 
 class TestQueryParameters:
+
     async def test_appends_query_params(self, api: Any) -> None:
-        result = await api.call(
-            'GET', '/api/test', {'foo': 'bar'}, {}, None, ['application/json'], 'application/json', None
-        )
+        result = await api.call('GET', '/api/test', {'foo': 'bar'}, {}, None,
+                                ['application/json'], 'application/json', None)
         assert result is None
 
     async def test_includes_empty_value_param_in_query_string(self, api: Any) -> None:
-        result = await api.call(
-            'GET', '/api/test', {'filter': ''}, {}, None, ['application/json'], 'application/json', None
-        )
+        result = await api.call('GET', '/api/test', {'filter': ''}, {}, None,
+                                ['application/json'], 'application/json', None)
         assert result is None
 
 
 class TestQuerySerialization:
+
     async def test_expands_array_query_params(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url='http://localhost')
         stub = StubApi(api_client=client, config=config)
-        await stub.call(
-            'GET', '/api/test', {'tags': ['a', 'b']}, {}, None, ['application/json'], 'application/json', None
-        )
+        await stub.call('GET', '/api/test', {'tags': ['a', 'b']}, {}, None,
+                        ['application/json'], 'application/json', None)
         assert 'tags=a&tags=b' in client.captured_url
 
     async def test_serializes_boolean_query_params(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url='http://localhost')
         stub = StubApi(api_client=client, config=config)
-        await stub.call('GET', '/api/test', {'active': True}, {}, None, ['application/json'], 'application/json', None)
+        await stub.call('GET', '/api/test', {'active': True}, {}, None,
+                        ['application/json'], 'application/json', None)
         assert 'active=true' in client.captured_url
 
     async def test_serializes_number_query_params(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url='http://localhost')
         stub = StubApi(api_client=client, config=config)
-        await stub.call('GET', '/api/test', {'limit': 10}, {}, None, ['application/json'], 'application/json', None)
+        await stub.call('GET', '/api/test', {'limit': 10}, {}, None,
+                        ['application/json'], 'application/json', None)
         assert 'limit=10' in client.captured_url
         assert 'limit=10.0' not in client.captured_url
 
@@ -196,40 +194,44 @@ class TestQuerySerialization:
         client = CapturingApiClient()
         config = Configuration(base_url='http://localhost')
         stub = StubApi(api_client=client, config=config)
-        await stub.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', None)
+        await stub.call('GET', '/api/test', {}, {}, None,
+                        ['application/json'], 'application/json', None)
         assert '?' not in client.captured_url
 
 
 class TestAuthInjection:
+
     async def test_forwards_auth_headers(self, api: Any) -> None:
         auth = StubAuthenticator(headers={'X-Custom': 'auth-value'})
-        result = await api.call(
-            'GET', '/api/echo-headers', {}, {}, None, ['application/json'], 'application/json', 'object', auth
-        )
+        result = await api.call('GET', '/api/echo-headers', {}, {}, None,
+                                ['application/json'], 'application/json', 'object', auth)
         assert result is not None
         assert result['x-custom'] == 'auth-value'
 
     async def test_sets_cookie_header(self, api: Any) -> None:
         auth = StubAuthenticator(cookies={'session': 'abc123'})
-        await api.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', None, auth)
+        await api.call('GET', '/api/test', {}, {}, None,
+                       ['application/json'], 'application/json', None, auth)
 
 
 class TestBodySerialization:
+
     async def test_serializes_json_body(self, api: Any) -> None:
-        result = await api.call(
-            'POST', '/api/echo-body', {}, {}, {'key': 'value'}, ['application/json'], 'application/json', 'object'
-        )
+        result = await api.call('POST', '/api/echo-body', {}, {}, {'key': 'value'},
+                                ['application/json'], 'application/json', 'object')
         assert result is not None
         assert result['key'] == 'value'
 
     async def test_sends_no_body_when_none(self, api: Any) -> None:
-        await api.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', None)
+        await api.call('GET', '/api/test', {}, {}, None,
+                       ['application/json'], 'application/json', None)
 
     async def test_serializes_text_plain_body(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url='http://localhost')
         stub = StubApi(api_client=client, config=config)
-        await stub.call('POST', '/api/test', {}, {}, 'hello world', ['application/json'], 'text/plain', None)
+        await stub.call('POST', '/api/test', {}, {}, 'hello world',
+                        ['application/json'], 'text/plain', None)
         assert client.captured_body is not None
         assert 'hello world' in str(client.captured_body)
 
@@ -237,16 +239,8 @@ class TestBodySerialization:
         client = CapturingApiClient()
         config = Configuration(base_url='http://localhost')
         stub = StubApi(api_client=client, config=config)
-        await stub.call(
-            'POST',
-            '/api/test',
-            {},
-            {},
-            {'name': 'alice'},
-            ['application/json'],
-            'application/x-www-form-urlencoded',
-            None,
-        )
+        await stub.call('POST', '/api/test', {}, {}, {'name': 'alice'},
+                        ['application/json'], 'application/x-www-form-urlencoded', None)
         assert client.captured_body is not None
         assert 'name=alice' in str(client.captured_body)
 
@@ -254,42 +248,72 @@ class TestBodySerialization:
         client = CapturingApiClient()
         config = Configuration(base_url='http://localhost')
         stub = StubApi(api_client=client, config=config)
-        await stub.call(
-            'POST', '/api/test', {}, {}, b'\x01\x02\x03', ['application/json'], 'application/octet-stream', None
-        )
+        await stub.call('POST', '/api/test', {}, {}, b'\x01\x02\x03',
+                        ['application/json'], 'application/octet-stream', None)
         assert client.captured_body is not None
 
 
+class PlainTextApiClient(CapturingApiClient):
+    """API client that returns a plain-text response instead of JSON."""
+
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None) -> ApiResponse:
+        super().send_request(method, url, headers, body)
+        return ApiResponse(status_code=200, body='hello', headers={'Content-Type': 'text/plain'})
+
+
+class TestContentTypeDeserialization:
+
+    async def test_skips_deserialization_for_non_json_content_type(self) -> None:
+        client = PlainTextApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        result = await stub.call('GET', '/api/test', {}, {}, None,
+                                 ['text/plain'], 'application/json', 'str')
+        assert result == 'hello'
+
+
 class TestHeaderFlowThrough:
+
     async def test_empty_content_type_defaults_to_json(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url='http://localhost')
         stub = StubApi(api_client=client, config=config)
-        await stub.call('GET', '/api/test', {}, {}, None, ['application/json'], '', None)
+        await stub.call('GET', '/api/test', {}, {}, None,
+                        ['application/json'], '', None)
         assert client.captured_headers.get('Content-Type') == 'application/json'
 
     async def test_all_headers_flow_through(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url='http://localhost')
         stub = StubApi(api_client=client, config=config)
-        await stub.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', None)
+        await stub.call('GET', '/api/test', {}, {}, None,
+                        ['application/json'], 'application/json', None)
         assert 'Accept' in client.captured_headers
         assert 'Content-Type' in client.captured_headers
 
 
 class TestServerVariableOverrides:
+
     def test_server_variable_overrides_resolve_in_base_url(self) -> None:
-        config = Configuration.builder().server(Servers.SERVER_1, {'environment': 'staging'}).build()
+        config = Configuration.builder() \
+            .server(Servers.SERVER_1, {'environment': 'staging'}) \
+            .build()
         assert config.base_url == 'https://staging.example.com/api/v3'
 
     def test_default_server_variables_produce_correct_base_url(self) -> None:
-        config = Configuration.builder().server(Servers.SERVER_1).build()
+        config = Configuration.builder() \
+            .server(Servers.SERVER_1) \
+            .build()
         assert config.base_url == 'https://api.example.com/api/v3'
 
     def test_invalid_enum_value_raises_error(self) -> None:
         with pytest.raises(ValueError):
-            Configuration.builder().server(Servers.SERVER_1, {'environment': 'invalid'}).build()
+            Configuration.builder() \
+                .server(Servers.SERVER_1, {'environment': 'invalid'}) \
+                .build()
 
     def test_api_request_uses_resolved_server_url(self, api: Any, wiremock_http_url: Any) -> None:
-        config = Configuration.builder().server(Servers.SERVER_1, {'environment': 'staging'}).build()
+        config = Configuration.builder() \
+            .server(Servers.SERVER_1, {'environment': 'staging'}) \
+            .build()
         assert config.base_url.startswith('https://staging.example.com')

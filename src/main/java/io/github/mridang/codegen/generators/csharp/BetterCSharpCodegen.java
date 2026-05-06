@@ -4,6 +4,7 @@ import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.NamingConvention;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,6 +13,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
@@ -624,6 +626,176 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                             oauthFolder,
                             "OpenIdConnectAuthenticator.cs"));
         }
+
+        if (openAPI.getComponents() == null
+                || openAPI.getComponents().getSecuritySchemes() == null) {
+            return;
+        }
+
+        for (final Map.Entry<String, SecurityScheme> entry :
+                openAPI.getComponents().getSecuritySchemes().entrySet()) {
+            final String schemeName = entry.getKey();
+            final SecurityScheme scheme = entry.getValue();
+            final String className = NamingConvention.PASCAL_CASE.apply(schemeName);
+            final String code = generateCSharpAuthClass(schemeName, className, scheme);
+            if (!code.isEmpty()) {
+                final boolean isOAuth =
+                        scheme.getType() == SecurityScheme.Type.OAUTH2
+                                || scheme.getType() == SecurityScheme.Type.OPENIDCONNECT;
+                final String folder = isOAuth ? oauthFolder : authFolder;
+                final String suffix = getCSharpOAuthSuffix(scheme);
+                final String fileName = className + suffix + "Authenticator.cs";
+                final String filePath =
+                        Path.of(outputFolder, folder, fileName).toString();
+                writeFile(filePath, code);
+            }
+        }
+    }
+
+    private String getCSharpOAuthSuffix(SecurityScheme scheme) {
+        if (scheme.getType() != SecurityScheme.Type.OAUTH2 || scheme.getFlows() == null) {
+            return "";
+        }
+        return Optional.ofNullable(scheme.getFlows().getClientCredentials())
+                .map(f -> "ClientCredentials")
+                .or(() -> Optional.ofNullable(scheme.getFlows().getPassword()).map(f -> "Password"))
+                .or(() ->
+                        Optional.ofNullable(scheme.getFlows().getAuthorizationCode())
+                                .map(f -> "AuthorizationCode"))
+                .or(() -> Optional.ofNullable(scheme.getFlows().getImplicit()).map(f -> "Implicit"))
+                .orElse("");
+    }
+
+    @SuppressWarnings("StringConcatenationMissingWhitespace")
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification = "Comparing with ASCII-only constants")
+    private String generateCSharpAuthClass(
+            String schemeName, String className, SecurityScheme scheme) {
+        if (scheme.getType() == SecurityScheme.Type.HTTP) {
+            if ("basic".equalsIgnoreCase(scheme.getScheme())) {
+                return renderCSharpSchemeAuth(schemeName, className + "Authenticator",
+                        "BasicAuthenticator", List.of(),
+                        "string host, string username, string password",
+                        "host, username, password");
+            }
+            if ("bearer".equalsIgnoreCase(scheme.getScheme())) {
+                return renderCSharpSchemeAuth(schemeName, className + "Authenticator",
+                        "BearerAuthenticator", List.of(),
+                        "string host, string token",
+                        "host, token");
+            }
+        } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
+            final String location = NamingConvention.PASCAL_CASE.apply(scheme.getIn().toString());
+            final String paramName = scheme.getName();
+            return renderCSharpSchemeAuth(schemeName, className + "Authenticator",
+                    "ApiKeyAuthenticator", List.of(),
+                    "string host, string apiKey",
+                    "host, \"" + paramName + "\", apiKey, ApiKeyLocation." + location);
+        } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
+                && scheme.getFlows() != null) {
+            return generateCSharpOAuthClass(schemeName, className, scheme);
+        } else if (scheme.getType() == SecurityScheme.Type.OPENIDCONNECT) {
+            final String url = scheme.getOpenIdConnectUrl();
+            return renderCSharpSchemeAuth(schemeName, className + "Authenticator",
+                    "OpenIdConnectAuthenticator", List.of(),
+                    "string host, string clientId, string clientSecret, Uri redirectUri",
+                    "host, new Uri(\"" + url + "\"), clientId, clientSecret, redirectUri, "
+                            + "[]",
+                    "OAuth");
+        }
+        LOGGER.warn("Unsupported security scheme type: {}", scheme.getType());
+        return "";
+    }
+
+    private String generateCSharpOAuthClass(
+            String schemeName, String className, SecurityScheme scheme) {
+        if (scheme.getFlows().getClientCredentials() != null) {
+            final var flow = scheme.getFlows().getClientCredentials();
+            final String tokenUrl = flow.getTokenUrl();
+            final String scopes = formatCSharpScopes(flow.getScopes());
+            return renderCSharpSchemeAuth(schemeName,
+                    className + "ClientCredentialsAuthenticator",
+                    "OAuth2ClientCredentialsAuthenticator", List.of(),
+                    "string host, string clientId, string clientSecret",
+                    "host, clientId, clientSecret, new Uri(\"" + tokenUrl + "\"), " + scopes,
+                    "OAuth");
+        }
+        if (scheme.getFlows().getPassword() != null) {
+            final var flow = scheme.getFlows().getPassword();
+            final String tokenUrl = flow.getTokenUrl();
+            final String refreshUrl = flow.getRefreshUrl();
+            final String refreshUrlArg = refreshUrl != null
+                    ? "new Uri(\"" + refreshUrl + "\")" : "null";
+            final String scopes = formatCSharpScopes(flow.getScopes());
+            return renderCSharpSchemeAuth(schemeName,
+                    className + "PasswordAuthenticator",
+                    "OAuth2PasswordAuthenticator", List.of(),
+                    "string host, string clientId, string clientSecret, "
+                            + "string username, string password",
+                    "host, clientId, clientSecret, new Uri(\"" + tokenUrl + "\"), "
+                            + refreshUrlArg + ", username, password, " + scopes,
+                    "OAuth");
+        }
+        if (scheme.getFlows().getAuthorizationCode() != null) {
+            final var flow = scheme.getFlows().getAuthorizationCode();
+            final String authUrl = flow.getAuthorizationUrl();
+            final String tokenUrl = flow.getTokenUrl();
+            final String refreshUrl = flow.getRefreshUrl();
+            final String refreshUrlArg = refreshUrl != null
+                    ? "new Uri(\"" + refreshUrl + "\")" : "null";
+            final String scopes = formatCSharpScopes(flow.getScopes());
+            return renderCSharpSchemeAuth(schemeName,
+                    className + "AuthorizationCodeAuthenticator",
+                    "OAuth2AuthorizationCodeAuthenticator", List.of(),
+                    "string host, string clientId, string clientSecret, Uri redirectUri",
+                    "host, clientId, clientSecret, new Uri(\"" + authUrl + "\"), new Uri(\""
+                            + tokenUrl + "\"), " + refreshUrlArg + ", redirectUri, " + scopes,
+                    "OAuth");
+        }
+        if (scheme.getFlows().getImplicit() != null) {
+            final var flow = scheme.getFlows().getImplicit();
+            final String authUrl = flow.getAuthorizationUrl();
+            final String scopes = formatCSharpScopes(flow.getScopes());
+            return renderCSharpSchemeAuth(schemeName,
+                    className + "ImplicitAuthenticator",
+                    "OAuth2ImplicitAuthenticator", List.of(),
+                    "string host, string clientId",
+                    "host, clientId, new Uri(\"" + authUrl + "\"), " + scopes,
+                    "OAuth");
+        }
+        LOGGER.warn("Unsupported OAuth2 flow for scheme: {}", className);
+        return "";
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private static String formatCSharpScopes(@Nullable Map<String, String> scopes) {
+        if (scopes == null || scopes.isEmpty()) {
+            return "[]";
+        }
+        return "[\"" + String.join("\", \"", scopes.keySet()) + "\"]";
+    }
+
+    private String renderCSharpSchemeAuth(String schemeName, String className, String baseClass,
+            List<String> imports, String constructorSignature, String superCall) {
+        return renderCSharpSchemeAuth(
+                schemeName, className, baseClass, imports, constructorSignature, superCall, null);
+    }
+
+    private String renderCSharpSchemeAuth(String schemeName, String className, String baseClass,
+            List<String> imports, String constructorSignature, String superCall,
+            @Nullable String namespaceSuffix) {
+        final Map<String, Object> context = new HashMap<>();
+        context.put("schemeName", schemeName);
+        context.put("className", className);
+        context.put("baseClass", baseClass);
+        context.put("imports", imports);
+        context.put("constructorSignature", constructorSignature);
+        context.put("superCall", superCall);
+        if (namespaceSuffix != null) {
+            context.put("namespaceSuffix", namespaceSuffix);
+        }
+        return renderOptionsTemplate("auth/scheme_authenticator.mustache", context);
     }
 
     /** {@inheritDoc} */

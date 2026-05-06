@@ -44,6 +44,22 @@ describe {{moduleName}}::TransportOptions do
     _(opts.inject_request_id).must_equal true
   end
 
+  it 'raises ArgumentError for invalid proxy URL' do
+    assert_raises(ArgumentError) do
+      {{moduleName}}::TransportOptions.builder.proxy('not-a-url').build
+    end
+  end
+
+  it 'accepts a valid proxy URL' do
+    opts = {{moduleName}}::TransportOptions.builder.proxy('http://proxy:3128').build
+    _(opts.proxy).must_equal 'http://proxy:3128'
+  end
+
+  it 'accepts nil proxy' do
+    opts = {{moduleName}}::TransportOptions.builder.proxy(nil).build
+    _(opts.proxy).must_be_nil
+  end
+
   it 'default_headers is a defensive copy' do
     headers = { 'X-Original' => 'original' }
 

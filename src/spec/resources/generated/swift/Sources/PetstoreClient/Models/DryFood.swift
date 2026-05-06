@@ -9,17 +9,18 @@ import Foundation
 
 /// DryFood is a model class generated from the OpenAPI schema.
 public struct DryFood: Codable, Sendable {
-  public var foodType: String
-  public var weightKg: Double
+    public var foodType: String
+    public var weightKg: Double
 
-  enum CodingKeys: String, CodingKey {
-    case foodType = "foodType"
-    case weightKg = "weightKg"
-  }
+    enum CodingKeys: String, CodingKey {
+        case foodType = "foodType"
+        case weightKg = "weightKg"
+    }
 
-  /// Creates a new DryFood instance.
-  public init(foodType: String, weightKg: Double) {
-    self.foodType = foodType
-    self.weightKg = weightKg
-  }
+    /// Creates a new DryFood instance.
+    public init(foodType: String, weightKg: Double) {
+        self.foodType = foodType
+        self.weightKg = weightKg
+    }
 }
+

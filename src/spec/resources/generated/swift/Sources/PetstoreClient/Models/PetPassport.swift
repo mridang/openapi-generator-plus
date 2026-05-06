@@ -9,26 +9,26 @@ import Foundation
 
 /// PetPassport is a model class generated from the OpenAPI schema.
 public struct PetPassport: Codable, Sendable {
-  public var pet: Pet?
-  /// Base64-encoded primary thumbnail
-  public var thumbnail: Data?
-  /// Base64-encoded scans of each passport page
-  public var scans: [Data]?
-  public var issuedAt: Date?
+    public var pet: Pet?
+    /// Base64-encoded primary thumbnail
+    public var thumbnail: Data?
+    /// Base64-encoded scans of each passport page
+    public var scans: [Data]?
+    public var issuedAt: Date?
 
-  enum CodingKeys: String, CodingKey {
-    case pet = "pet"
-    case thumbnail = "thumbnail"
-    case scans = "scans"
-    case issuedAt = "issuedAt"
-  }
+    enum CodingKeys: String, CodingKey {
+        case pet = "pet"
+        case thumbnail = "thumbnail"
+        case scans = "scans"
+        case issuedAt = "issuedAt"
+    }
 
-  /// Creates a new PetPassport instance.
-  public init(pet: Pet? = nil, thumbnail: Data? = nil, scans: [Data]? = nil, issuedAt: Date? = nil)
-  {
-    self.pet = pet
-    self.thumbnail = thumbnail
-    self.scans = scans
-    self.issuedAt = issuedAt
-  }
+    /// Creates a new PetPassport instance.
+    public init(pet: Pet? = nil, thumbnail: Data? = nil, scans: [Data]? = nil, issuedAt: Date? = nil) {
+        self.pet = pet
+        self.thumbnail = thumbnail
+        self.scans = scans
+        self.issuedAt = issuedAt
+    }
 }
+

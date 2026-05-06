@@ -64,6 +64,17 @@ defmodule PetstoreClient.TransportOptions do
   """
   @spec new(keyword()) :: t()
   def new(opts \\ []) do
-    struct!(__MODULE__, opts)
+    result = struct!(__MODULE__, opts)
+
+    if result.proxy do
+      parsed = URI.parse(result.proxy)
+
+      if is_nil(parsed.scheme) or parsed.scheme == "" do
+        raise ArgumentError,
+              "invalid proxy URL #{inspect(result.proxy)}: must have a scheme (http or https)"
+      end
+    end
+
+    result
   end
 end

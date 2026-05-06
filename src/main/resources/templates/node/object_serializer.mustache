@@ -37,7 +37,9 @@ export class ObjectSerializer {
       return 'null';
     }
     try {
-      return JSON.stringify(obj);
+      return JSON.stringify(obj, (_key, value) =>
+        value instanceof Set ? [...value] : value
+      );
     } catch (e) {
       throw new SerializationError(
         `Failed to serialize object to JSON: ${e instanceof Error ? e.message : String(e)}`,

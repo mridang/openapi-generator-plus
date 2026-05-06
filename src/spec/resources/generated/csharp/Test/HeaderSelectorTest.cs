@@ -115,7 +115,11 @@ public class HeaderSelectorTest
         [Fact]
         public void ShouldDefaultContentTypeToApplicationJsonWhenEmpty()
         {
-            var headers = HeaderSelector.SelectHeaders(["application/json"], "", false);
+            var headers = HeaderSelector.SelectHeaders(
+                ["application/json"],
+                "",
+                false
+            );
             Assert.Equal("application/json", headers["Content-Type"]);
         }
 
@@ -133,7 +137,11 @@ public class HeaderSelectorTest
         [Fact]
         public void ShouldReturnSingleNonJsonAcceptAsIs()
         {
-            var headers = HeaderSelector.SelectHeaders(["text/html"], "application/json", false);
+            var headers = HeaderSelector.SelectHeaders(
+                ["text/html"],
+                "application/json",
+                false
+            );
             Assert.Equal("text/html", headers["Accept"]);
         }
 
@@ -175,10 +183,7 @@ public class HeaderSelectorTest
             Assert.StartsWith("application/json", accept);
             // application/vnd.api+json should come before text/html
             int jsonIndex = accept.IndexOf("application/json", StringComparison.Ordinal);
-            int vendorJsonIndex = accept.IndexOf(
-                "application/vnd.api+json",
-                StringComparison.Ordinal
-            );
+            int vendorJsonIndex = accept.IndexOf("application/vnd.api+json", StringComparison.Ordinal);
             int htmlIndex = accept.IndexOf("text/html", StringComparison.Ordinal);
             Assert.True(jsonIndex < vendorJsonIndex);
             Assert.True(vendorJsonIndex < htmlIndex);
@@ -275,8 +280,7 @@ public class HeaderSelectorTest
             string accept = headers["Accept"];
             // First header should not have ;q= because it's weight 1000
             Assert.True(
-                accept.StartsWith("application/json,", StringComparison.Ordinal)
-                    || accept == "application/json"
+                accept.StartsWith("application/json,", StringComparison.Ordinal) || accept == "application/json"
             );
         }
 
@@ -290,7 +294,9 @@ public class HeaderSelectorTest
             );
             string accept = headers["Accept"];
             // text/html should have quality weight like ;q=0.9
-            Assert.True(accept.Contains("text/html;q=0.9") || accept.Contains("text/html;q=0."));
+            Assert.True(
+                accept.Contains("text/html;q=0.9") || accept.Contains("text/html;q=0.")
+            );
         }
 
         [Fact]

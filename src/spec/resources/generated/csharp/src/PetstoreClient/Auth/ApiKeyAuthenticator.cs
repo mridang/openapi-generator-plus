@@ -12,7 +12,7 @@ namespace PetstoreClient.Auth;
 /// Authenticator for API key authentication. Supports sending the key
 /// as a header, query parameter, or cookie.
 /// </summary>
-public sealed class ApiKeyAuthenticator(
+public class ApiKeyAuthenticator(
     string host,
     string keyParamName,
     string apiKey,

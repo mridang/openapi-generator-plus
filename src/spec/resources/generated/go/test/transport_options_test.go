@@ -8,8 +8,9 @@
 package petstore_test
 
 import (
-	petstore "petstore/pkg"
 	"testing"
+
+	"petstore/pkg"
 )
 
 func TestTransportOptions_Defaults(t *testing.T) {
@@ -30,8 +31,8 @@ func TestTransportOptions_Defaults(t *testing.T) {
 	if !opts.FollowRedirects() {
 		t.Error("expected FollowRedirects to be true by default")
 	}
-	if opts.MaxRedirects() != 0 {
-		t.Errorf("expected MaxRedirects 0 by default, got %d", opts.MaxRedirects())
+	if opts.MaxRedirects() != nil {
+		t.Error("expected MaxRedirects nil by default")
 	}
 	if opts.UserAgent() == "" {
 		t.Error("expected non-empty default UserAgent")
@@ -41,9 +42,6 @@ func TestTransportOptions_Defaults(t *testing.T) {
 	}
 	if opts.InjectRequestID() {
 		t.Error("expected InjectRequestID to be false by default")
-	}
-	if opts.TLSConfig() != nil {
-		t.Error("expected nil TLSConfig by default")
 	}
 }
 
@@ -78,8 +76,8 @@ func TestTransportOptions_SetAllFields(t *testing.T) {
 	if opts.FollowRedirects() {
 		t.Error("expected FollowRedirects to be false")
 	}
-	if opts.MaxRedirects() != 5 {
-		t.Errorf("expected MaxRedirects 5, got %d", opts.MaxRedirects())
+	if opts.MaxRedirects() == nil || *opts.MaxRedirects() != 5 {
+		t.Error("expected MaxRedirects to be 5")
 	}
 	if opts.UserAgent() != "CustomAgent/2.0" {
 		t.Errorf("expected UserAgent 'CustomAgent/2.0', got %q", opts.UserAgent())
@@ -129,6 +127,17 @@ func TestTransportOptions_MultipleDefaultHeaders(t *testing.T) {
 	if headers["X-Second"] != "two" {
 		t.Errorf("expected X-Second='two', got %q", headers["X-Second"])
 	}
+}
+
+func TestTransportOptions_InvalidProxyPanics(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic for invalid proxy URL, got none")
+		}
+	}()
+	petstore.NewTransportOptionsBuilder().
+		Proxy("not-a-valid-url").
+		Build()
 }
 
 func TestTransportOptions_DefaultHeadersCopyIsolation(t *testing.T) {

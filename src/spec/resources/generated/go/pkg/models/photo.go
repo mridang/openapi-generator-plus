@@ -13,15 +13,16 @@ import (
 
 // Photo is a model class generated from the OpenAPI schema.
 type Photo struct {
-	Id        *int64  `json:"id,omitempty"`
-	Caption   *string `json:"caption,omitempty"`
-	IsPrimary *bool   `json:"isPrimary,omitempty"`
-	Url       *string `json:"url,omitempty"`
+	Id *int64 `json:"id,omitempty"`
+	Caption *string `json:"caption,omitempty"`
+	IsPrimary *bool `json:"isPrimary,omitempty"`
+	Url *string `json:"url,omitempty"`
 }
 
 // NewPhoto creates a new Photo instance.
 func NewPhoto() *Photo {
-	return &Photo{}
+	return &Photo{
+	}
 }
 
 // MarshalJSON implements the json.Marshaler interface.

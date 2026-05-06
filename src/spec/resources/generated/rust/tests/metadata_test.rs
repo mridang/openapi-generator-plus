@@ -14,7 +14,8 @@ fn test_metadata_serialize_deserialize() {
     let data = serde_json::to_string(&original).expect("failed to serialize Metadata");
     assert!(!data.is_empty(), "expected non-empty serialized data");
 
-    let restored: Metadata = serde_json::from_str(&data).expect("failed to deserialize Metadata");
+    let restored: Metadata =
+        serde_json::from_str(&data).expect("failed to deserialize Metadata");
     let _ = restored;
 }
 
@@ -53,11 +54,9 @@ fn test_metadata_deserialize_with_additional_properties() {
 fn test_metadata_round_trip() {
     let json_data = r#"{"createdAt":"2024-01-15T10:30:00+00:00"}"#;
 
-    let metadata: Metadata = serde_json::from_str(json_data).expect("failed to deserialize");
+    let metadata: Metadata =
+        serde_json::from_str(json_data).expect("failed to deserialize");
 
     let data = serde_json::to_string(&metadata).expect("failed to serialize");
-    assert!(
-        !data.is_empty(),
-        "expected non-empty serialized data after round-trip"
-    );
+    assert!(!data.is_empty(), "expected non-empty serialized data after round-trip");
 }

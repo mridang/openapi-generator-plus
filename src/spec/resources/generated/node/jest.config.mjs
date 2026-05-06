@@ -15,5 +15,8 @@ export default {
   coverageDirectory: '.out',
   coverageReporters: ['cobertura'],
   collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
-  reporters: ['default', ['jest-junit', { outputDirectory: '.out/reports', outputName: 'junit.xml' }]]
+  reporters: [
+    'default',
+    ['jest-junit', { outputDirectory: '.out/reports', outputName: 'junit.xml' }]
+  ]
 };

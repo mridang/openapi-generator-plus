@@ -122,10 +122,7 @@ impl Authenticator for OAuth2AuthorizationCodeAuthenticator {
 
         let mut params = HashMap::new();
         params.insert("grant_type".to_string(), "refresh_token".to_string());
-        params.insert(
-            "refresh_token".to_string(),
-            self.token_manager.refresh_token(),
-        );
+        params.insert("refresh_token".to_string(), self.token_manager.refresh_token());
 
         match self
             .token_manager
@@ -133,7 +130,10 @@ impl Authenticator for OAuth2AuthorizationCodeAuthenticator {
         {
             Ok(token) => {
                 let mut headers = HashMap::new();
-                headers.insert("Authorization".to_string(), format!("Bearer {}", token));
+                headers.insert(
+                    "Authorization".to_string(),
+                    format!("Bearer {}", token),
+                );
                 headers
             }
             Err(_) => HashMap::new(),

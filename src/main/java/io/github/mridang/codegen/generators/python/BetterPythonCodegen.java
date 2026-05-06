@@ -5,6 +5,7 @@ import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.NamingConvention;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -17,6 +18,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import javax.annotation.Nullable;
@@ -702,6 +704,195 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
             supportingFiles.add(new SupportingFile("auth/oauth/openid_connect_authenticator.mustache", oauthPath, "openid_connect_authenticator.py"));
         }
     }
+
+    /** {@inheritDoc} */
+    @Override
+    @SuppressWarnings("StringConcatenationMissingWhitespace")
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification = "Comparing with ASCII-only constants")
+    protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
+        if (openAPI.getComponents() == null
+                || openAPI.getComponents().getSecuritySchemes() == null) {
+            return;
+        }
+
+        final String packagePath = packageName.replace('.', File.separatorChar);
+        final String authPath = Path.of(packagePath, "auth").toString();
+        final String oauthPath = Path.of(authPath, "oauth").toString();
+
+        for (final Map.Entry<String, SecurityScheme> entry :
+                openAPI.getComponents().getSecuritySchemes().entrySet()) {
+            final String schemeName = entry.getKey();
+            final SecurityScheme scheme = entry.getValue();
+            final String className = NamingConvention.PASCAL_CASE.apply(schemeName);
+            final String code = generatePythonAuthClass(schemeName, className, scheme);
+            if (!code.isEmpty()) {
+                final boolean isOAuth =
+                        scheme.getType() == SecurityScheme.Type.OAUTH2
+                                || scheme.getType() == SecurityScheme.Type.OPENIDCONNECT;
+                final String folder = isOAuth ? oauthPath : authPath;
+                final String suffix = getPythonOAuthSuffix(scheme);
+                final String fileName = NamingConvention.SNAKE_CASE.apply(
+                        className + suffix + "Authenticator") + ".py";
+                final String filePath =
+                        Path.of(outputFolder, folder, fileName).toString();
+                writeFile(filePath, code);
+                postProcessFile(Path.of(filePath).toFile(), "source");
+            }
+        }
+    }
+
+    private String getPythonOAuthSuffix(SecurityScheme scheme) {
+        if (scheme.getType() != SecurityScheme.Type.OAUTH2 || scheme.getFlows() == null) {
+            return "";
+        }
+        return Optional.ofNullable(scheme.getFlows().getClientCredentials())
+                .map(f -> "ClientCredentials")
+                .or(() -> Optional.ofNullable(scheme.getFlows().getPassword()).map(f -> "Password"))
+                .or(() ->
+                        Optional.ofNullable(scheme.getFlows().getAuthorizationCode())
+                                .map(f -> "AuthorizationCode"))
+                .or(() -> Optional.ofNullable(scheme.getFlows().getImplicit()).map(f -> "Implicit"))
+                .orElse("");
+    }
+
+    private String generatePythonAuthClass(
+            String schemeName, String className, SecurityScheme scheme) {
+        if (scheme.getType() == SecurityScheme.Type.HTTP) {
+            if ("basic".equalsIgnoreCase(scheme.getScheme())) {
+                return renderPythonSchemeAuth(className + "Authenticator",
+                        "BasicAuthenticator",
+                        List.of(Map.of("module", ".basic_authenticator", "classNames", "BasicAuthenticator")),
+                        List.of(p("host", "str"), p("username", "str"), p("password", "str")),
+                        List.of("host", "username", "password"));
+            }
+            if ("bearer".equalsIgnoreCase(scheme.getScheme())) {
+                return renderPythonSchemeAuth(className + "Authenticator",
+                        "BearerAuthenticator",
+                        List.of(Map.of("module", ".bearer_authenticator", "classNames", "BearerAuthenticator")),
+                        List.of(p("host", "str"), p("token", "str")),
+                        List.of("host", "token"));
+            }
+        } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
+            final String location =
+                    NamingConvention.UPPER_SNAKE_CASE.apply(scheme.getIn().toString());
+            final String paramName = scheme.getName();
+            return renderPythonSchemeAuth(className + "Authenticator",
+                    "ApiKeyAuthenticator",
+                    List.of(Map.of("module", ".api_key_authenticator", "classNames", "ApiKeyAuthenticator"),
+                            Map.of("module", ".api_key_location", "classNames", "ApiKeyLocation")),
+                    List.of(p("host", "str"), p("api_key", "str")),
+                    List.of("host", "\"" + paramName + "\"", "api_key",
+                            "ApiKeyLocation." + location));
+        } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
+                && scheme.getFlows() != null) {
+            return generatePythonOAuthClass(className, scheme);
+        } else if (scheme.getType() == SecurityScheme.Type.OPENIDCONNECT) {
+            final String url = scheme.getOpenIdConnectUrl();
+            return renderPythonSchemeAuth(className + "Authenticator",
+                    "OpenIdConnectAuthenticator",
+                    List.of(Map.of("module", ".openid_connect_authenticator", "classNames", "OpenIdConnectAuthenticator")),
+                    List.of(p("host", "str"), p("client_id", "str"),
+                            p("client_secret", "str"), p("redirect_uri", "str")),
+                    List.of("host", "\"" + url + "\"", "client_id", "client_secret",
+                            "redirect_uri", "[]"));
+        }
+        LOGGER.warn("Unsupported security scheme type: {}", scheme.getType());
+        return "";
+    }
+
+    private String generatePythonOAuthClass(String className, SecurityScheme scheme) {
+        if (scheme.getFlows().getClientCredentials() != null) {
+            final var flow = scheme.getFlows().getClientCredentials();
+            final String tokenUrl = flow.getTokenUrl();
+            final String scopes = formatPythonScopes(flow.getScopes());
+            return renderPythonSchemeAuth(
+                    className + "ClientCredentialsAuthenticator",
+                    "OAuth2ClientCredentialsAuthenticator",
+                    List.of(Map.of("module", ".oauth2_client_credentials_authenticator", "classNames", "OAuth2ClientCredentialsAuthenticator")),
+                    List.of(p("host", "str"), p("client_id", "str"),
+                            p("client_secret", "str")),
+                    List.of("host", "client_id", "client_secret",
+                            "\"" + tokenUrl + "\"", scopes));
+        }
+        if (scheme.getFlows().getPassword() != null) {
+            final var flow = scheme.getFlows().getPassword();
+            final String tokenUrl = flow.getTokenUrl();
+            final String refreshUrl = flow.getRefreshUrl();
+            final String refreshUrlArg = refreshUrl != null ? "\"" + refreshUrl + "\"" : "None";
+            final String scopes = formatPythonScopes(flow.getScopes());
+            return renderPythonSchemeAuth(
+                    className + "PasswordAuthenticator",
+                    "OAuth2PasswordAuthenticator",
+                    List.of(Map.of("module", ".oauth2_password_authenticator", "classNames", "OAuth2PasswordAuthenticator")),
+                    List.of(p("host", "str"), p("client_id", "str"),
+                            p("client_secret", "str"), p("username", "str"),
+                            p("password", "str")),
+                    List.of("host", "client_id", "client_secret",
+                            "\"" + tokenUrl + "\"",
+                            "username", "password", scopes, refreshUrlArg));
+        }
+        if (scheme.getFlows().getAuthorizationCode() != null) {
+            final var flow = scheme.getFlows().getAuthorizationCode();
+            final String authUrl = flow.getAuthorizationUrl();
+            final String tokenUrl = flow.getTokenUrl();
+            final String refreshUrl = flow.getRefreshUrl();
+            final String refreshUrlArg = refreshUrl != null ? "\"" + refreshUrl + "\"" : "None";
+            final String scopes = formatPythonScopes(flow.getScopes());
+            return renderPythonSchemeAuth(
+                    className + "AuthorizationCodeAuthenticator",
+                    "OAuth2AuthorizationCodeAuthenticator",
+                    List.of(Map.of("module", ".oauth2_auth_code_authenticator", "classNames", "OAuth2AuthorizationCodeAuthenticator")),
+                    List.of(p("host", "str"), p("client_id", "str"),
+                            p("client_secret", "str"), p("redirect_uri", "str")),
+                    List.of("host", "client_id", "client_secret",
+                            "\"" + authUrl + "\"", "\"" + tokenUrl + "\"",
+                            "redirect_uri", scopes, refreshUrlArg));
+        }
+        if (scheme.getFlows().getImplicit() != null) {
+            final var flow = scheme.getFlows().getImplicit();
+            final String authUrl = flow.getAuthorizationUrl();
+            final String scopes = formatPythonScopes(flow.getScopes());
+            return renderPythonSchemeAuth(
+                    className + "ImplicitAuthenticator",
+                    "OAuth2ImplicitAuthenticator",
+                    List.of(Map.of("module", ".oauth2_implicit_authenticator", "classNames", "OAuth2ImplicitAuthenticator")),
+                    List.of(p("host", "str"), p("client_id", "str")),
+                    List.of("host", "client_id", "\"" + authUrl + "\"", scopes));
+        }
+        LOGGER.warn("Unsupported OAuth2 flow for scheme: {}", className);
+        return "";
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private static String formatPythonScopes(@Nullable Map<String, String> scopes) {
+        if (scopes == null || scopes.isEmpty()) {
+            return "[]";
+        }
+        return "[\"" + String.join("\", \"", scopes.keySet()) + "\"]";
+    }
+
+    private static Map<String, String> p(String name, String type) {
+        final Map<String, String> param = new HashMap<>();
+        param.put("name", name);
+        param.put("type", type);
+        return param;
+    }
+
+    private String renderPythonSchemeAuth(String className, String baseClass,
+            List<Map<String, String>> imports, List<Map<String, String>> constructorParams,
+            List<String> superArgs) {
+        final Map<String, Object> context = new HashMap<>();
+        context.put("className", className);
+        context.put("baseClass", baseClass);
+        context.put("imports", imports);
+        context.put("constructorParams", constructorParams);
+        context.put("superArgs", superArgs);
+        return renderOptionsTemplate("auth/scheme_authenticator.mustache", context);
+    }
+
+
 
     /**
      * Overrides the base class to fix Mustache whitespace

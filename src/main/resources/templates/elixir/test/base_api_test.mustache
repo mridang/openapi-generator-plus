@@ -136,6 +136,16 @@ defmodule {{moduleName}}.Api.BaseApiTest do
              {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/api/test", %{}, %{}, nil, ["application/json"], "application/json", nil)
   end
 
+  # Content-Type check -- non-JSON response skips deserialization
+
+  test "returns raw body when Content-Type is text/plain", %{state: state} do
+    assert {:ok, result} =
+             {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/api/text", %{}, %{}, nil, ["text/plain"], "application/json", "String")
+
+    assert is_binary(result)
+    assert String.contains?(result, "hello plain text")
+  end
+
   # Server variable overrides
 
   test "server variable overrides resolve in base URL" do

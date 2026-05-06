@@ -4,8 +4,11 @@ package {{packageName}}
 import (
 	"encoding/json"
 	"fmt"
+	"mime/multipart"
 	"net/url"
 	"strings"
+
+	"github.com/google/uuid"
 
 	. "{{packageName}}/pkg/errors"
 )
@@ -115,10 +118,23 @@ func (b *BaseApi) invokeAPIForResult(params invokeAPIParams) (*HttpResponse, err
 	/* Inject trace context */
 	InjectTraceContext(headers)
 
-	/* Serialize body */
-	serializedBody, err := serializeBody(params.body, params.contentType)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize request body: %w", err)
+	/* Serialize body -- multipart/form-data is handled here so that
+	 * the boundary can be injected into the Content-Type header. */
+	var serializedBody []byte
+	if params.contentType == "multipart/form-data" && params.body != nil {
+		formFields, ok := params.body.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("multipart body must be map[string]interface{}")
+		}
+		boundary := uuid.New().String()
+		headers["Content-Type"] = "multipart/form-data; boundary=" + boundary
+		serializedBody = buildMultipartBody(formFields, boundary)
+	} else {
+		var err error
+		serializedBody, err = serializeBody(params.body, params.contentType)
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize request body: %w", err)
+		}
 	}
 
 	/* Send request */
@@ -173,7 +189,7 @@ func serializeBody(body interface{}, contentType string) ([]byte, error) {
 	}
 
 	if contentType == "multipart/form-data" {
-		/* Multipart is handled separately by the API client */
+		/* Multipart is handled by invokeAPIForResult before calling serializeBody */
 		return nil, nil
 	}
 
@@ -201,6 +217,51 @@ func serializeBody(body interface{}, contentType string) ([]byte, error) {
 	}
 
 	return Serialize(body)
+}
+
+/* buildMultipartBody constructs a multipart/form-data request body from
+ * a map of form fields. Each value may be a string, number, boolean,
+ * slice (repeated field), map (serialized as JSON part), or nil (skipped). */
+func buildMultipartBody(formFields map[string]interface{}, boundary string) []byte {
+	var buf strings.Builder
+	writer := multipart.NewWriter(&buf)
+	_ = writer.SetBoundary(boundary)
+
+	for name, value := range formFields {
+		if value == nil {
+			continue
+		}
+		switch v := value.(type) {
+		case []interface{}:
+			for _, item := range v {
+				writeMultipartField(writer, name, item)
+			}
+		default:
+			writeMultipartField(writer, name, v)
+		}
+	}
+	writer.Close()
+	return []byte(buf.String())
+}
+
+func writeMultipartField(writer *multipart.Writer, name string, value interface{}) {
+	if value == nil {
+		return
+	}
+	switch v := value.(type) {
+	case string:
+		_ = writer.WriteField(name, v)
+	case map[string]interface{}:
+		jsonBytes, err := json.Marshal(v)
+		if err == nil {
+			part, perr := writer.CreateFormField(name)
+			if perr == nil {
+				_, _ = part.Write(jsonBytes)
+			}
+		}
+	default:
+		_ = writer.WriteField(name, fmt.Sprintf("%v", v))
+	}
 }
 
 func throwAPIError(response *HttpResponse) error {

@@ -1,22 +1,30 @@
 package com.example.petstore.api.options;
 
+import java.io.File;
+import java.io.InputStream;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import javax.annotation.Nullable;
 
-/** Options for the deletePet operation. */
+/**
+ * Options for the deletePet operation.
+ */
 @SuppressFBWarnings({"EI_EXPOSE_REP", "EI_EXPOSE_REP2"})
 public final class DeletePetOptions {
-  @Nullable private String apiKey;
+    @Nullable private String apiKey;
 
-  public DeletePetOptions() {}
+    public DeletePetOptions() {
+    }
 
-  public DeletePetOptions apiKey(String apiKey) {
-    this.apiKey = apiKey;
-    return this;
-  }
+    public DeletePetOptions apiKey(String apiKey) {
+        this.apiKey = apiKey;
+        return this;
+    }
 
-  @Nullable
-  public String apiKey() {
-    return apiKey;
-  }
+    @Nullable
+    public String apiKey() {
+        return apiKey;
+    }
 }

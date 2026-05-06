@@ -32,9 +32,7 @@ class Order(BaseModel):
     pet_id: Optional[int] = Field(default=None, alias='petId', examples=[198772])
     quantity: Optional[int] = Field(default=None, alias='quantity', examples=[7])
     ship_date: Optional[datetime] = Field(default=None, alias='shipDate')
-    status: Optional[OrderStatusEnum] = Field(
-        default=OrderStatusEnum.PLACED, alias='status', description='Order Status', examples=['approved']
-    )
+    status: Optional[OrderStatusEnum] = Field(default=OrderStatusEnum.PLACED, alias='status', description="Order Status", examples=['approved'])
     complete: Optional[bool] = Field(default=None, alias='complete')
     additional_properties: Dict[str, Any] = {}
 

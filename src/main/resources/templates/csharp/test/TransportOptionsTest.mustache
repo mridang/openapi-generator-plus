@@ -50,6 +50,13 @@ public class TransportOptionsTest
     }
 
     [Fact]
+    public void InvalidProxyUrlThrows()
+    {
+        Assert.Throws<UriFormatException>(() =>
+            TransportOptions.Builder().Proxy("not a valid url").Build());
+    }
+
+    [Fact]
     public void DefaultHeadersIsDefensiveCopy()
     {
         var headers = new Dictionary<string, string> { { "X-Original", "original" } };

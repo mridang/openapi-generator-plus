@@ -294,7 +294,7 @@ module PetstoreClient
         query_params = {}
         # @type var header_params: Hash[String, String]
         header_params = {}
-        cookie_parts = [] # : Array[String]
+        cookie_parts = [] #: Array[String]
         cookie_parts << "api_key=#{PetstoreClient::ValueSerializer.serialize_styled('api_key', options.api_key, :cookie, 'String', nil, 'form', true)}" unless options.nil? || options.api_key.nil?
         header_params['Cookie'] = cookie_parts.join('; ') unless cookie_parts.empty?
         request_body = nil

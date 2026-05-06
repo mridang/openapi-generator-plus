@@ -29,30 +29,8 @@ defmodule PetstoreClient.Api.BaseApi do
           String.t() | nil,
           map() | nil
         ) :: {:ok, term()} | {:error, term()}
-  def invoke_api(
-        state,
-        method,
-        path,
-        query_params,
-        header_params,
-        body,
-        accepts,
-        content_type,
-        return_type,
-        auth \\ nil
-      ) do
-    case invoke_api_for_result(
-           state,
-           method,
-           path,
-           query_params,
-           header_params,
-           body,
-           accepts,
-           content_type,
-           return_type,
-           auth
-         ) do
+  def invoke_api(state, method, path, query_params, header_params, body, accepts, content_type, return_type, auth \\ nil) do
+    case invoke_api_for_result(state, method, path, query_params, header_params, body, accepts, content_type, return_type, auth) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -73,18 +51,7 @@ defmodule PetstoreClient.Api.BaseApi do
           String.t() | nil,
           map() | nil
         ) :: {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def invoke_api_for_result(
-        state,
-        method,
-        path,
-        query_params,
-        header_params,
-        body,
-        accepts,
-        content_type,
-        return_type,
-        auth \\ nil
-      ) do
+  def invoke_api_for_result(state, method, path, query_params, header_params, body, accepts, content_type, return_type, auth \\ nil) do
     url =
       if String.starts_with?(path, "http://") or String.starts_with?(path, "https://") do
         path

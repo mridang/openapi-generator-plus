@@ -21,12 +21,14 @@ import type { ApiResponse } from '../src/api-response{{importFileExtension}}';
 class CapturingApiClient implements ApiClient {
   capturedUrl = '';
   capturedHeaders: Record<string, string> = {};
-  capturedBody: string | Buffer | null = null;
-  async sendRequest(method: string, url: string, headers: Record<string, string>, body: string | Buffer | null): Promise<ApiResponse> {
+  capturedBody: string | Buffer | Record<string, unknown> | null = null;
+  responseBody = '{}';
+  responseHeaders: Record<string, string> = { 'content-type': 'application/json' };
+  async sendRequest(method: string, url: string, headers: Record<string, string>, body: string | Buffer | Record<string, unknown> | null): Promise<ApiResponse> {
     this.capturedUrl = url;
     this.capturedHeaders = headers;
     this.capturedBody = body;
-    return { statusCode: 200, body: '{}', headers: { 'content-type': 'application/json' } };
+    return { statusCode: 200, body: this.responseBody, headers: this.responseHeaders };
   }
 }
 
@@ -269,6 +271,20 @@ describe('BaseApi body serialization', () => {
     await testApi.call('POST', '/api/test', {}, {}, buf,
       ['application/json'], 'application/octet-stream', null);
     expect(client.capturedBody).toBeDefined();
+  });
+});
+
+describe('BaseApi content-type deserialization guard', () => {
+  test('skips JSON deserialization when Content-Type is text/plain', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = 'hello';
+    client.responseHeaders = { 'content-type': 'text/plain' };
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    const result = await testApi.call('GET', '/api/test', {}, {}, null,
+      ['text/plain'], 'application/json',
+      (json) => json as string);
+    expect(result).toBe('hello');
   });
 });
 

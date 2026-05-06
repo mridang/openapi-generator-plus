@@ -3,3 +3,5 @@ root = true
 [*.cs]
 dotnet_analyzer_diagnostic.severity = warning
 csharp_style_namespace_declarations = file_scoped:warning
+# CSharpier handles formatting; suppress Roslyn IDE0055 to avoid conflicts
+dotnet_diagnostic.IDE0055.severity = none

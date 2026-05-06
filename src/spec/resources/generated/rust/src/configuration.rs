@@ -77,8 +77,7 @@ impl ConfigurationBuilder {
 
     /// Adds a single default header to include in every API request.
     pub fn default_header(mut self, name: &str, value: &str) -> Self {
-        self.default_headers
-            .insert(name.to_string(), value.to_string());
+        self.default_headers.insert(name.to_string(), value.to_string());
         self
     }
 
@@ -93,11 +92,7 @@ impl ConfigurationBuilder {
     /// # Errors
     ///
     /// Returns an error if a variable override is not in the variable's enum constraint.
-    pub fn server(
-        mut self,
-        server: &ServerConfiguration,
-        variables: &HashMap<String, String>,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn server(mut self, server: &ServerConfiguration, variables: &HashMap<String, String>) -> Result<Self, Box<dyn std::error::Error>> {
         self.base_url = server.url(variables)?;
         Ok(self)
     }

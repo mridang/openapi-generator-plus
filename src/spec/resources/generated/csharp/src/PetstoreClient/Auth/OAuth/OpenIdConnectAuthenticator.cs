@@ -23,7 +23,7 @@ namespace PetstoreClient.Auth.OAuth;
 /// <see cref="IApiClient"/> with the same transport configuration (proxy, TLS,
 /// timeouts) as regular API calls.
 /// </summary>
-public sealed class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareAuthenticator
+public class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareAuthenticator
 {
     private readonly string _host;
     private readonly Uri _openIdConnectUrl;

@@ -69,14 +69,8 @@ public class ObjectSerializer
         {
             null => "",
             bool b => b ? "true" : "false",
-            DateOnly d => d.ToString(
-                "yyyy-MM-dd",
-                System.Globalization.CultureInfo.InvariantCulture
-            ),
-            DateTimeOffset dto => dto.ToString(
-                "o",
-                System.Globalization.CultureInfo.InvariantCulture
-            ),
+            DateOnly d => d.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
+            DateTimeOffset dto => dto.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
             DateTime dt => dt.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
             _ => value.ToString() ?? "",
         };
@@ -185,7 +179,9 @@ public class ObjectSerializer
                     return result;
                 }
             }
-            catch (JsonException) { }
+            catch (JsonException)
+            {
+            }
         }
 
         return null;

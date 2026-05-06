@@ -231,8 +231,16 @@ public final class TransportOptions {
          *
          * @param proxy proxy URL (e.g. {@code "http://proxy:3128"}), or {@code null}
          * @return this builder
+         * @throws IllegalArgumentException if the proxy URL is not a valid URI
          */
         public Builder proxy(@Nullable String proxy) {
+            if (proxy != null) {
+                try {
+                    java.net.URI.create(proxy);
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("Invalid proxy URL: " + proxy, e);
+                }
+            }
             this.proxy = proxy;
             return this;
         }

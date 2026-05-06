@@ -18,6 +18,7 @@ from ..value_serializer import ValueSerializer
 from ..auth.authenticator import Authenticator
 
 
+
 class StoreApi(BaseApi):
     """StoreApi provides methods for the store API group.
     Access to Petstore orders
@@ -34,6 +35,8 @@ class StoreApi(BaseApi):
     async def delete_order(
         self,
         order_id: int,
+
+
     ) -> None:
         """Delete purchase order by ID
         :param order_id: ID of the order to delete (required)
@@ -49,6 +52,8 @@ class StoreApi(BaseApi):
     async def delete_order_with_http_info(
         self,
         order_id: int,
+
+
     ) -> 'ApiResult[None]':
         """Delete purchase order by ID (with HTTP info)
         :param order_id: ID of the order to delete (required)
@@ -60,10 +65,7 @@ class StoreApi(BaseApi):
             raise ValueError("Missing the required parameter 'order_id'")
 
         path = '/store/order/{orderId}'
-        path = path.replace(
-            '{' + 'orderId' + '}',
-            str(ValueSerializer.serialize_styled('orderId', order_id, 'path', 'int', None, 'simple', False)),
-        )
+        path = path.replace('{' + 'orderId' + '}', str(ValueSerializer.serialize_styled('orderId', order_id, 'path', 'int', None, 'simple', False)))
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -82,6 +84,8 @@ class StoreApi(BaseApi):
 
     async def get_inventory(
         self,
+
+
     ) -> Dict[str, int]:
         """Returns pet inventories by status
 
@@ -94,6 +98,8 @@ class StoreApi(BaseApi):
 
     async def get_inventory_with_http_info(
         self,
+
+
     ) -> 'ApiResult[Dict[str, int]]':
         """Returns pet inventories by status (with HTTP info)
 
@@ -120,6 +126,8 @@ class StoreApi(BaseApi):
     async def get_order_by_id(
         self,
         order_id: int,
+
+
     ) -> Order:
         """Find purchase order by ID
         :param order_id: ID of order to return (required)
@@ -137,6 +145,8 @@ class StoreApi(BaseApi):
     async def get_order_by_id_with_http_info(
         self,
         order_id: int,
+
+
     ) -> 'ApiResult[Order]':
         """Find purchase order by ID (with HTTP info)
         :param order_id: ID of order to return (required)
@@ -148,10 +158,7 @@ class StoreApi(BaseApi):
             raise ValueError("Missing the required parameter 'order_id'")
 
         path = '/store/order/{orderId}'
-        path = path.replace(
-            '{' + 'orderId' + '}',
-            str(ValueSerializer.serialize_styled('orderId', order_id, 'path', 'int', None, 'simple', False)),
-        )
+        path = path.replace('{' + 'orderId' + '}', str(ValueSerializer.serialize_styled('orderId', order_id, 'path', 'int', None, 'simple', False)))
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -171,6 +178,8 @@ class StoreApi(BaseApi):
     async def place_order(
         self,
         order: Optional[Order] = None,
+
+
     ) -> Order:
         """Place an order for a pet
         :param order:  (optional)
@@ -185,6 +194,8 @@ class StoreApi(BaseApi):
     async def place_order_with_http_info(
         self,
         order: Optional[Order] = None,
+
+
     ) -> 'ApiResult[Order]':
         """Place an order for a pet (with HTTP info)
         :param order:  (optional)

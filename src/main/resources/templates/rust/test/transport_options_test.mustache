@@ -72,6 +72,14 @@ fn test_transport_options_multiple_default_headers() {
 }
 
 #[test]
+#[should_panic(expected = "invalid proxy URL")]
+fn test_transport_options_invalid_proxy_panics() {
+    TransportOptionsBuilder::new()
+        .proxy("not-a-valid-url")
+        .build();
+}
+
+#[test]
 fn test_transport_options_default_headers_copy_isolation() {
     let opts = TransportOptionsBuilder::new()
         .default_header("X-Test", "value")

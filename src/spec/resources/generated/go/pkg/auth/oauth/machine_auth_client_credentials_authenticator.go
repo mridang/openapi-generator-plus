@@ -1,0 +1,12 @@
+package oauth
+
+type MachineAuthClientCredentialsAuthenticator struct {
+	*OAuth2ClientCredentialsAuthenticator
+}
+
+func NewMachineAuthClientCredentialsAuthenticator(host string, clientId string, clientSecret string) *MachineAuthClientCredentialsAuthenticator {
+	inner := NewOAuth2ClientCredentialsAuthenticator(host, clientId, clientSecret, "https://auth.example.com/oauth/token", nil)
+	return &MachineAuthClientCredentialsAuthenticator{
+		OAuth2ClientCredentialsAuthenticator: inner,
+	}
+}

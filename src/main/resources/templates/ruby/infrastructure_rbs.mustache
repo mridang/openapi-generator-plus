@@ -259,14 +259,14 @@ module {{moduleName}}
 {{#hasOAuth2Password}}
       class OAuth2PasswordAuthenticator < BaseAuthenticator
         include HttpAwareAuthenticator
-        def initialize: (String, String, String, String, String, String, Array[String]) -> void
+        def initialize: (String, String, String, String, String, String, Array[String], ?refresh_url: String?) -> void
         def api_client=: (ApiClient) -> void
       end
 {{/hasOAuth2Password}}
 {{#hasOAuth2AuthorizationCode}}
       class OAuth2AuthorizationCodeAuthenticator < BaseAuthenticator
         include HttpAwareAuthenticator
-        def initialize: (String, String, String, String, String, String, Array[String]) -> void
+        def initialize: (String, String, String, String, String, String, Array[String], ?refresh_url: String?) -> void
         def api_client=: (ApiClient) -> void
         def build_authorization_url: (?String?) -> String
         def exchange_code: (String) -> void
@@ -326,7 +326,6 @@ module {{moduleName}}
       def initialize: (?ApiClient?, ?Configuration, ?Auth::Authenticator?) -> void
       def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, Auth::Authenticator?) -> ApiResult
       def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, Auth::Authenticator?) -> untyped
-      def build_collection_param: (Array[untyped], Symbol) -> untyped
       private
       def throw_api_error: (ApiResponse) -> void
       def build_query_string: (Hash[String, untyped]) -> String

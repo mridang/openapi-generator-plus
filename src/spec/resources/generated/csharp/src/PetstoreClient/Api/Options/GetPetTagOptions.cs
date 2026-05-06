@@ -18,4 +18,5 @@ public sealed class GetPetTagOptions
 
     /// <summary></summary>
     public string? Filter { get; init; }
+
 }

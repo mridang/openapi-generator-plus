@@ -92,10 +92,7 @@ public abstract class BaseApi
         ArgumentNullException.ThrowIfNull(headerParams);
         IAuthenticator? effectiveAuth = auth ?? Authenticator;
         string url;
-        if (
-            path.StartsWith("http://", StringComparison.Ordinal)
-            || path.StartsWith("https://", StringComparison.Ordinal)
-        )
+        if (path.StartsWith("http://", StringComparison.Ordinal) || path.StartsWith("https://", StringComparison.Ordinal))
         {
             url = path;
         }
@@ -348,7 +345,11 @@ public abstract class BaseApi
                     string value = entry.Value is bool b
                         ? (b ? "true" : "false")
                         : entry.Value.ToString()!;
-                    parts.Add(Uri.EscapeDataString(entry.Key) + "=" + Uri.EscapeDataString(value));
+                    parts.Add(
+                        Uri.EscapeDataString(entry.Key)
+                            + "="
+                            + Uri.EscapeDataString(value)
+                    );
                 }
             }
         }

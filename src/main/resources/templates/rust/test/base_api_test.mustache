@@ -194,6 +194,42 @@ async fn test_base_api_handles_nil_body() {
     assert_eq!(resp.status_code, 200);
 }
 
+// -- Content-Type check: non-JSON response skips deserialization --
+
+struct PlainTextApiClient;
+
+impl {{packageName}}::api_client::ApiClient for PlainTextApiClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        _url: &str,
+        _headers: &HashMap<String, String>,
+        _body: Option<&[u8]>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_response::ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        Box::pin(async {
+            Ok({{packageName}}::api_response::ApiResponse {
+                status_code: 200,
+                body: "hello plain text".to_string(),
+                headers: {
+                    let mut h = HashMap::new();
+                    h.insert("Content-Type".to_string(), "text/plain".to_string());
+                    h
+                },
+            })
+        })
+    }
+}
+
+#[tokio::test]
+async fn test_base_api_skips_deserialization_for_non_json() {
+    let client = Arc::new(PlainTextApiClient);
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client, config, None);
+    /* The call may fail on deserialization, but should not panic.
+     * The important thing is that it does not try to JSON-parse plain text. */
+    let _ = api.get_pet_by_id(1, None).await;
+}
+
 // -- No-op authenticator for unit tests --
 
 struct NoopAuthenticator;

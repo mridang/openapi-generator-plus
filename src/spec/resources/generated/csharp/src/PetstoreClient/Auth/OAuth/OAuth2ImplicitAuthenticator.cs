@@ -25,7 +25,7 @@ namespace PetstoreClient.Auth.OAuth;
 ///   <item><description>Use the authenticator normally.</description></item>
 /// </list>
 /// </summary>
-public sealed class OAuth2ImplicitAuthenticator : BaseAuthenticator, IHttpAwareAuthenticator
+public class OAuth2ImplicitAuthenticator : BaseAuthenticator, IHttpAwareAuthenticator
 {
     private readonly string _host;
     private readonly string _clientId;
@@ -40,12 +40,7 @@ public sealed class OAuth2ImplicitAuthenticator : BaseAuthenticator, IHttpAwareA
     /// <param name="clientId">OAuth2 client identifier.</param>
     /// <param name="authorizationUrl">Authorization endpoint URL.</param>
     /// <param name="scopes">Requested scopes.</param>
-    public OAuth2ImplicitAuthenticator(
-        string host,
-        string clientId,
-        Uri authorizationUrl,
-        string[] scopes
-    )
+    public OAuth2ImplicitAuthenticator(string host, string clientId, Uri authorizationUrl, string[] scopes)
     {
         _host = host;
         _clientId = clientId;

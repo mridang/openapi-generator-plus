@@ -72,8 +72,7 @@ void main() {
             fail('Expected error for status $status');
           } on ApiError catch (e) {
             expect(e.runtimeType, equals(errType),
-                reason:
-                    'Status $status should throw $errType, got ${e.runtimeType}');
+                reason: 'Status $status should throw $errType, got ${e.runtimeType}');
           }
         } finally {
           await server.close();
@@ -103,8 +102,7 @@ void main() {
           await api.getPetById(1);
           fail('Expected error for status 400');
         } on BadRequestError catch (e) {
-          expect(e.errorBody, isNotNull,
-              reason: 'errorBody should not be null for JSON responses');
+          expect(e.errorBody, isNotNull, reason: 'errorBody should not be null for JSON responses');
         }
       } finally {
         await server.close();
@@ -119,8 +117,7 @@ void main() {
         request.response
           ..statusCode = 200
           ..headers.contentType = ContentType.json
-          ..write(
-              '{"id":1,"name":"Fido","photoUrls":["http://example.com/fido.jpg"]}')
+          ..write('{"id":1,"name":"Fido","photoUrls":["http://example.com/fido.jpg"]}')
           ..close();
       });
 
@@ -302,6 +299,33 @@ void main() {
             reason: 'Expected Accept header from selector');
         expect(receivedHeaders.containsKey('content-type'), isTrue,
             reason: 'Expected Content-Type header from selector');
+      } finally {
+        await server.close();
+      }
+    });
+
+    // Non-JSON content-type skips deserialization
+
+    test('skips deserialization for non-JSON content type', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.text
+          ..write('hello')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getPetByIdWithHTTPInfo(1);
+        expect(result.statusCode, equals(200));
+        expect(result.data, isNull);
+        expect(result.rawBody, equals('hello'));
       } finally {
         await server.close();
       }

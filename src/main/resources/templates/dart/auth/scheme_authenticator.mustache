@@ -1,0 +1,9 @@
+{{>api_info}}
+{{#imports}}
+import '{{{.}}}';
+{{/imports}}
+
+class {{className}} extends {{baseClass}} {
+  {{className}}({{{constructorSignature}}})
+      : super({{{superCall}}});
+}

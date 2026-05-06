@@ -49,6 +49,24 @@ class TransportOptionsTest extends TestCase
         $this->assertTrue($opts->injectRequestId);
     }
 
+    public function testInvalidProxyUrlThrowsException(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        TransportOptions::builder()->proxy('not-a-url')->build();
+    }
+
+    public function testValidProxyUrlIsAccepted(): void
+    {
+        $opts = TransportOptions::builder()->proxy('http://proxy:3128')->build();
+        $this->assertSame('http://proxy:3128', $opts->proxy);
+    }
+
+    public function testNullProxyIsAccepted(): void
+    {
+        $opts = TransportOptions::builder()->proxy(null)->build();
+        $this->assertNull($opts->proxy);
+    }
+
     public function testDefaultHeadersIsDefensiveCopy(): void
     {
         $headers = ['X-Original' => 'original'];

@@ -19,8 +19,7 @@ public class ComposedSchemaTest
     [Fact]
     public void AllOfDeserializesPetWithOwner()
     {
-        var json =
-            "{\"name\":\"doggie\",\"photoUrls\":[\"http://example.com/photo.jpg\"],\"ownerName\":\"John\",\"ownerEmail\":\"john@example.com\"}";
+        var json = "{\"name\":\"doggie\",\"photoUrls\":[\"http://example.com/photo.jpg\"],\"ownerName\":\"John\",\"ownerEmail\":\"john@example.com\"}";
         var result = _serializer.Deserialize<PetWithOwner>(json);
         Assert.NotNull(result);
         Assert.Equal("doggie", result!.Name);

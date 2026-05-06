@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -33,7 +32,7 @@ use PetstoreClient\Auth\HttpAwareAuthenticator;
  * @category Class
  * @package  PetstoreClient
  */
-final class OAuth2ImplicitAuthenticator extends BaseAuthenticator implements HttpAwareAuthenticator
+class OAuth2ImplicitAuthenticator extends BaseAuthenticator implements HttpAwareAuthenticator
 {
     /** @var string API base URL. */
     private readonly string $host;

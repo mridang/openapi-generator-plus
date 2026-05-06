@@ -188,30 +188,30 @@ describe PetstoreClient::Api::BaseApi do
 
   it 'server variable overrides resolve in base URL' do
     config = PetstoreClient::Configuration.builder
-                                          .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'staging')
-                                          .build
+      .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'staging')
+      .build
     _(config.base_url).must_equal('https://staging.example.com/api/v3')
   end
 
   it 'default server variables produce correct base URL' do
     config = PetstoreClient::Configuration.builder
-                                          .server(PetstoreClient::Servers::SERVER_1)
-                                          .build
+      .server(PetstoreClient::Servers::SERVER_1)
+      .build
     _(config.base_url).must_equal('https://api.example.com/api/v3')
   end
 
   it 'invalid enum value raises ArgumentError' do
     assert_raises(ArgumentError) do
       PetstoreClient::Configuration.builder
-                                   .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'invalid')
-                                   .build
+        .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'invalid')
+        .build
     end
   end
 
   it 'API request uses resolved server URL' do
     config = PetstoreClient::Configuration.builder
-                                          .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'staging')
-                                          .build
+      .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'staging')
+      .build
     _(config.base_url).must_equal('https://staging.example.com/api/v3')
   end
 
@@ -283,6 +283,20 @@ describe PetstoreClient::Api::BaseApi do
     test_api.call('POST', '/test', {}, {}, "\x01\x02\x03".b,
                   ['application/json'], 'application/octet-stream', nil)
     _(client.captured_body).wont_be_nil
+  end
+
+  # ── Content-type deserialization ──
+
+  it 'skips deserialization for non-JSON content type' do
+    client = CapturingApiClient.new
+    def client.send_request(_method, _url, _headers, _body)
+      PetstoreClient::ApiResponse.new(status_code: 200, body: 'hello', headers: { 'Content-Type' => 'text/plain' })
+    end
+    config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call('GET', '/test', {}, {}, nil,
+                           ['text/plain'], 'application/json', 'String')
+    _(result).must_equal 'hello'
   end
 
   # ── Header flow-through ──

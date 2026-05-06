@@ -227,8 +227,15 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 {{#returnType}}
 	var data {{{.}}}
 	if response.Body != "" {
-		if err := Deserialize([]byte(response.Body), &data); err != nil {
-			return nil, err
+		respContentType := ""
+		if ct, ok := response.Headers["Content-Type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || NewHeaderSelector().IsJSONMIME(respContentType)
+		if isJSON {
+			if err := Deserialize([]byte(response.Body), &data); err != nil {
+				return nil, err
+			}
 		}
 	}
 

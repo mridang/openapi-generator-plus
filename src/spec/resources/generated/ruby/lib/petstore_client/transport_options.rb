@@ -131,7 +131,12 @@ module PetstoreClient
       # Set the HTTP/HTTPS proxy URL.
       # @param val [String, nil] proxy URL (e.g. "http://proxy:3128")
       # @return [self]
+      # @raise [ArgumentError] if the URL is invalid
       def proxy(val)
+        if val
+          uri = URI.parse(val)
+          raise ArgumentError, "Invalid proxy URL (missing scheme): #{val}" unless uri.scheme
+        end
         @proxy = val
         self
       end

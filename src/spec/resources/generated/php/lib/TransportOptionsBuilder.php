@@ -1,5 +1,4 @@
 <?php
-
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -83,9 +82,13 @@ final class TransportOptionsBuilder
      *
      * @param string|null $proxy proxy URL (e.g. "http://proxy:3128"), or null
      * @return self this builder
+     * @throws \InvalidArgumentException if the URL is invalid
      */
     public function proxy(?string $proxy): self
     {
+        if ($proxy !== null && filter_var($proxy, FILTER_VALIDATE_URL) === false) {
+            throw new \InvalidArgumentException("Invalid proxy URL: $proxy");
+        }
         $this->proxy = $proxy;
         return $this;
     }

@@ -120,13 +120,13 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         let needsDelegate = !opts.verifySSL
             || opts.caCertPath != nil
             || !opts.followRedirects
-            || opts.maxRedirects > 0
+            || opts.maxRedirects != nil
         if needsDelegate {
             let delegate = SessionDelegate(
                 verifySSL: opts.verifySSL,
                 caCertPath: opts.caCertPath,
                 followRedirects: opts.followRedirects,
-                maxRedirects: opts.maxRedirects
+                maxRedirects: opts.maxRedirects ?? 0
             )
             return (URLSession(configuration: config, delegate: delegate, delegateQueue: nil), delegate)
         }

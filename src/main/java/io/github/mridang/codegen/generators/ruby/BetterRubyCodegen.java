@@ -8,6 +8,7 @@ import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.NamingConvention;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -53,6 +54,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
 
     @Nullable protected String gemName;
     protected String moduleName = "Opigen::Client";
+    @Nullable private String lastRbsContent;
 
     /**
      * Initializes type mappings, template paths, and reserved
@@ -605,6 +607,207 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         if (hasOpenIdConnect) {
             supportingFiles.add(new SupportingFile("auth/oauth/openid_connect_authenticator.mustache", oauthPath, "openid_connect_authenticator.rb"));
         }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    @SuppressWarnings("StringConcatenationMissingWhitespace")
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification = "Comparing with ASCII-only constants")
+    protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
+        if (openAPI.getComponents() == null
+                || openAPI.getComponents().getSecuritySchemes() == null) {
+            return;
+        }
+
+        final String modulePath =
+                NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("::", "/"));
+        final String libPath = Path.of(LIB_FOLDER, modulePath).toString();
+        final String authPath = Path.of(libPath, "auth").toString();
+        final String oauthPath = Path.of(authPath, "oauth").toString();
+
+        for (final Map.Entry<String, SecurityScheme> entry :
+                openAPI.getComponents().getSecuritySchemes().entrySet()) {
+            final String schemeName = entry.getKey();
+            final SecurityScheme scheme = entry.getValue();
+            final String className = NamingConvention.PASCAL_CASE.apply(schemeName);
+            final String code = generateRubyAuthClass(schemeName, className, scheme);
+            if (!code.isEmpty()) {
+                final boolean isOAuth =
+                        scheme.getType() == SecurityScheme.Type.OAUTH2
+                                || scheme.getType() == SecurityScheme.Type.OPENIDCONNECT;
+                final String folder = isOAuth ? oauthPath : authPath;
+                final String suffix = getRubyOAuthSuffix(scheme);
+                final String baseName = NamingConvention.SNAKE_CASE.apply(
+                        className + suffix + "Authenticator");
+                final String filePath =
+                        Path.of(outputFolder, folder, baseName + ".rb").toString();
+                writeFile(filePath, code);
+                postProcessFile(Path.of(filePath).toFile(), "source");
+
+                if (lastRbsContent != null) {
+                    final String rbsPath =
+                            Path.of(outputFolder, folder, baseName + ".rbs").toString();
+                    writeFile(rbsPath, lastRbsContent);
+                    postProcessFile(Path.of(rbsPath).toFile(), "source");
+                    lastRbsContent = null;
+                }
+            }
+        }
+    }
+
+    private String getRubyOAuthSuffix(SecurityScheme scheme) {
+        if (scheme.getType() != SecurityScheme.Type.OAUTH2 || scheme.getFlows() == null) {
+            return "";
+        }
+        return Optional.ofNullable(scheme.getFlows().getClientCredentials())
+                .map(f -> "ClientCredentials")
+                .or(() -> Optional.ofNullable(scheme.getFlows().getPassword()).map(f -> "Password"))
+                .or(() ->
+                        Optional.ofNullable(scheme.getFlows().getAuthorizationCode())
+                                .map(f -> "AuthorizationCode"))
+                .or(() -> Optional.ofNullable(scheme.getFlows().getImplicit()).map(f -> "Implicit"))
+                .orElse("");
+    }
+
+    private String generateRubyAuthClass(
+            String schemeName, String className, SecurityScheme scheme) {
+        if (scheme.getType() == SecurityScheme.Type.HTTP) {
+            if ("basic".equalsIgnoreCase(scheme.getScheme())) {
+                return renderRubySchemeAuth(className + "Authenticator",
+                        "BasicAuthenticator", List.of(),
+                        List.of(p("host", "String"), p("username", "String"),
+                                p("password", "String")),
+                        List.of("host", "username", "password"), false);
+            }
+            if ("bearer".equalsIgnoreCase(scheme.getScheme())) {
+                return renderRubySchemeAuth(className + "Authenticator",
+                        "BearerAuthenticator", List.of(),
+                        List.of(p("host", "String"), p("token", "String")),
+                        List.of("host", "token"), false);
+            }
+        } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
+            final String location =
+                    NamingConvention.UPPER_SNAKE_CASE.apply(scheme.getIn().toString());
+            final String paramName = scheme.getName();
+            return renderRubySchemeAuth(className + "Authenticator",
+                    "ApiKeyAuthenticator", List.of(),
+                    List.of(p("host", "String"), p("api_key", "String")),
+                    List.of("host", "'" + paramName + "'", "api_key",
+                            "ApiKeyLocation::" + location), false);
+        } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
+                && scheme.getFlows() != null) {
+            return generateRubyOAuthClass(className, scheme);
+        } else if (scheme.getType() == SecurityScheme.Type.OPENIDCONNECT) {
+            final String url = scheme.getOpenIdConnectUrl();
+            return renderRubySchemeAuth(className + "Authenticator",
+                    "OpenIdConnectAuthenticator", List.of(),
+                    List.of(p("host", "String"), p("client_id", "String"),
+                            p("client_secret", "String"), p("redirect_uri", "String")),
+                    List.of("host", "'" + url + "'", "client_id", "client_secret",
+                            "redirect_uri", "[]"), true);
+        }
+        LOGGER.warn("Unsupported security scheme type: {}", scheme.getType());
+        return "";
+    }
+
+    private String generateRubyOAuthClass(String className, SecurityScheme scheme) {
+        if (scheme.getFlows().getClientCredentials() != null) {
+            final var flow = scheme.getFlows().getClientCredentials();
+            final String tokenUrl = flow.getTokenUrl();
+            final String scopes = formatRubyScopes(flow.getScopes());
+            return renderRubySchemeAuth(
+                    className + "ClientCredentialsAuthenticator",
+                    "OAuth2ClientCredentialsAuthenticator", List.of(),
+                    List.of(p("host", "String"), p("client_id", "String"),
+                            p("client_secret", "String")),
+                    List.of("host", "client_id", "client_secret",
+                            "'" + tokenUrl + "'", scopes), true);
+        }
+        if (scheme.getFlows().getPassword() != null) {
+            final var flow = scheme.getFlows().getPassword();
+            final String tokenUrl = flow.getTokenUrl();
+            final String refreshUrl = flow.getRefreshUrl();
+            final String refreshUrlArg = refreshUrl != null ? "'" + refreshUrl + "'" : "nil";
+            final String scopes = formatRubyScopes(flow.getScopes());
+            return renderRubySchemeAuth(
+                    className + "PasswordAuthenticator",
+                    "OAuth2PasswordAuthenticator", List.of(),
+                    List.of(p("host", "String"), p("client_id", "String"),
+                            p("client_secret", "String"), p("username", "String"),
+                            p("password", "String")),
+                    List.of("host", "client_id", "client_secret",
+                            "'" + tokenUrl + "'",
+                            "username", "password", scopes,
+                            "refresh_url: " + refreshUrlArg), true);
+        }
+        if (scheme.getFlows().getAuthorizationCode() != null) {
+            final var flow = scheme.getFlows().getAuthorizationCode();
+            final String authUrl = flow.getAuthorizationUrl();
+            final String tokenUrl = flow.getTokenUrl();
+            final String refreshUrl = flow.getRefreshUrl();
+            final String refreshUrlArg = refreshUrl != null ? "'" + refreshUrl + "'" : "nil";
+            final String scopes = formatRubyScopes(flow.getScopes());
+            return renderRubySchemeAuth(
+                    className + "AuthorizationCodeAuthenticator",
+                    "OAuth2AuthorizationCodeAuthenticator", List.of(),
+                    List.of(p("host", "String"), p("client_id", "String"),
+                            p("client_secret", "String"), p("redirect_uri", "String")),
+                    List.of("host", "client_id", "client_secret",
+                            "'" + authUrl + "'", "'" + tokenUrl + "'",
+                            "redirect_uri", scopes,
+                            "refresh_url: " + refreshUrlArg), true);
+        }
+        if (scheme.getFlows().getImplicit() != null) {
+            final var flow = scheme.getFlows().getImplicit();
+            final String authUrl = flow.getAuthorizationUrl();
+            final String scopes = formatRubyScopes(flow.getScopes());
+            return renderRubySchemeAuth(
+                    className + "ImplicitAuthenticator",
+                    "OAuth2ImplicitAuthenticator", List.of(),
+                    List.of(p("host", "String"), p("client_id", "String")),
+                    List.of("host", "client_id", "'" + authUrl + "'", scopes), true);
+        }
+        LOGGER.warn("Unsupported OAuth2 flow for scheme: {}", className);
+        return "";
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private static String formatRubyScopes(@Nullable Map<String, String> scopes) {
+        if (scopes == null || scopes.isEmpty()) {
+            return "[]";
+        }
+        return "['" + String.join("', '", scopes.keySet()) + "']";
+    }
+
+    private static Map<String, String> p(String name, String type) {
+        final Map<String, String> param = new HashMap<>();
+        param.put("name", name);
+        param.put("type", type);
+        return param;
+    }
+
+    private String renderRubySchemeAuth(String className, String baseClass,
+            List<String> imports, List<Map<String, String>> constructorParams,
+            List<String> superArgs, boolean isOAuth) {
+        final Map<String, Object> context = new HashMap<>();
+        context.put("className", className);
+        context.put("baseClass", baseClass);
+        context.put("imports", imports);
+        context.put("constructorParams", constructorParams);
+        context.put("superArgs", superArgs);
+        context.put("isOAuth", isOAuth);
+
+        final Map<String, Object> rbsContext = new HashMap<>();
+        rbsContext.put("moduleName", moduleName);
+        rbsContext.put("className", className);
+        rbsContext.put("baseClass", baseClass);
+        rbsContext.put("constructorParams", constructorParams);
+        rbsContext.put("isOAuth", isOAuth);
+        lastRbsContent = renderOptionsTemplate("auth/scheme_authenticator_rbs.mustache", rbsContext);
+
+        return renderOptionsTemplate("auth/scheme_authenticator.mustache", context);
     }
 
     /**

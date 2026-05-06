@@ -247,6 +247,25 @@ class TestBodySerialization:
         assert client.captured_body is not None
 
 
+class PlainTextApiClient(CapturingApiClient):
+    """API client that returns a plain-text response instead of JSON."""
+
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None) -> ApiResponse:
+        super().send_request(method, url, headers, body)
+        return ApiResponse(status_code=200, body='hello', headers={'Content-Type': 'text/plain'})
+
+
+class TestContentTypeDeserialization:
+
+    async def test_skips_deserialization_for_non_json_content_type(self) -> None:
+        client = PlainTextApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        result = await stub.call('GET', '/api/test', {}, {}, None,
+                                 ['text/plain'], 'application/json', 'str')
+        assert result == 'hello'
+
+
 class TestHeaderFlowThrough:
 
     async def test_empty_content_type_defaults_to_json(self) -> None:
