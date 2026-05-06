@@ -544,11 +544,6 @@ public class BetterRustCodegen extends AbstractBetterCodegen {
     protected void registerAuthSupportingFiles() {
         supportingFiles.add(
                 new SupportingFile(
-                        "auth/base_authenticator.mustache",
-                        "src/auth",
-                        "base_authenticator.rs"));
-        supportingFiles.add(
-                new SupportingFile(
                         "auth/http_aware_authenticator.mustache",
                         "src/auth",
                         "http_aware_authenticator.rs"));

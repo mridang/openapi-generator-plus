@@ -36,7 +36,7 @@ open class BaseApi {
             requestURL = config.baseURL + params.path
         }
 
-        // Merge authentication query params
+        /* Merge authentication query params */
         var queryParams = params.queryParams
         let effectiveAuth: Authenticator? = params.auth ?? self.authenticator
         if let auth = effectiveAuth {
@@ -45,41 +45,32 @@ open class BaseApi {
             }
         }
 
-        // Build query string
+        /* Build query string */
         let queryString = Self.buildQueryString(queryParams)
         if !queryString.isEmpty {
             requestURL = requestURL + "?" + queryString
         }
 
-        // Select headers
+        /* Select headers */
         let isMultipart = params.contentType == "multipart/form-data"
-        let ct = params.contentType.isEmpty ? "application/json" : params.contentType
-        let selected = headerSelector.selectHeaders(accept: params.accepts, contentType: ct, isMultipart: isMultipart)
+        var headers = headerSelector.selectHeaders(accept: params.accepts, contentType: params.contentType, isMultipart: isMultipart)
 
-        var headers: [String: String] = [:]
-        if let accept = selected["Accept"] {
-            headers["Accept"] = accept
-        }
-        if let contentType = selected["Content-Type"] {
-            headers["Content-Type"] = contentType
-        }
-
-        // Merge config default headers
+        /* Merge config default headers */
         for (k, v) in config.defaultHeaders {
             headers[k] = v
         }
 
-        // Merge operation-specific headers
+        /* Merge operation-specific headers */
         for (k, v) in params.headerParams {
             headers[k] = v
         }
 
-        // Merge auth headers
+        /* Merge auth headers */
         if let auth = effectiveAuth {
             for (k, v) in auth.authHeaders() {
                 headers[k] = v
             }
-            // Handle cookie params
+            /* Handle cookie params */
             let cookies = auth.cookieParams()
             if !cookies.isEmpty {
                 let cookieStr = cookies.map { "\($0.key)=\($0.value)" }.joined(separator: "; ")
@@ -91,13 +82,21 @@ open class BaseApi {
             }
         }
 
-        // Inject trace context
+        /* Inject trace context */
         TraceContextUtil.injectTraceContext(headers: &headers)
 
-        // Serialize body
-        let serializedBody = try Self.serializeBody(params.body, contentType: params.contentType)
+        /* Serialize body -- multipart/form-data is handled separately so that
+         * the boundary can be injected into the Content-Type header. */
+        let serializedBody: Data?
+        if params.contentType == "multipart/form-data", let formFields = params.body as? [String: Any] {
+            let boundary = UUID().uuidString
+            headers["Content-Type"] = "multipart/form-data; boundary=\(boundary)"
+            serializedBody = Self.buildMultipartBody(formFields, boundary: boundary)
+        } else {
+            serializedBody = try Self.serializeBody(params.body, contentType: params.contentType)
+        }
 
-        // Send request
+        /* Send request */
         let response = try await apiClient.sendRequest(
             method: params.method,
             url: requestURL,
@@ -105,7 +104,7 @@ open class BaseApi {
             body: serializedBody
         )
 
-        // Check for errors
+        /* Check for errors */
         if response.statusCode < 200 || response.statusCode >= 300 {
             throw Self.throwAPIError(response)
         }
@@ -188,6 +187,55 @@ open class BaseApi {
 
         let jsonString = try ObjectSerializer.serialize(body)
         return jsonString.data(using: .utf8)
+    }
+
+    /// Build a multipart/form-data request body from a dictionary of form fields.
+    ///
+    /// Each entry value may be `Data`, `URL` (file), `[Any]` (repeated field), or
+    /// any other value which is converted to its string representation.
+    ///
+    /// - Parameters:
+    ///   - formFields: dictionary mapping field names to values
+    ///   - boundary: the multipart boundary string
+    /// - Returns: the assembled multipart body as `Data`
+    static func buildMultipartBody(_ formFields: [String: Any], boundary: String) -> Data {
+        var body = Data()
+
+        for (name, value) in formFields {
+            if let list = value as? [Any] {
+                for item in list {
+                    appendMultipartField(&body, boundary: boundary, name: name, value: item)
+                }
+            } else {
+                appendMultipartField(&body, boundary: boundary, name: name, value: value)
+            }
+        }
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        return body
+    }
+
+    private static func appendMultipartField(_ body: inout Data, boundary: String, name: String, value: Any) {
+        if let fileURL = value as? URL {
+            let fileName = fileURL.lastPathComponent
+            let fileData = (try? Data(contentsOf: fileURL)) ?? Data()
+            let mimeType = "application/octet-stream"
+            body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"; filename=\"\(fileName)\"\r\nContent-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+            body.append(fileData)
+            body.append("\r\n".data(using: .utf8)!)
+        } else if let data = value as? Data {
+            body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"; filename=\"\(name)\"\r\nContent-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
+            body.append(data)
+            body.append("\r\n".data(using: .utf8)!)
+        } else if value is String || value is Int || value is Double || value is Bool {
+            body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n\(value)\r\n".data(using: .utf8)!)
+        } else {
+            /* Model objects -- serialize to JSON */
+            if let jsonString = try? ObjectSerializer.serialize(value) {
+                body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\nContent-Type: application/json\r\n\r\n\(jsonString)\r\n".data(using: .utf8)!)
+            } else {
+                body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n\(value)\r\n".data(using: .utf8)!)
+            }
+        }
     }
 
     static func throwAPIError(_ response: ApiResponse) -> ApiError {

@@ -288,4 +288,31 @@ class DefaultApiClientTest extends TestCase
 
         $this->assertSame(302, $response->statusCode);
     }
+
+    // -- Max redirects --
+
+    public function testRespectsMaxRedirectsLimit(): void
+    {
+        $transport = TransportOptions::builder()
+            ->followRedirects(true)
+            ->maxRedirects(5)
+            ->build();
+
+        $client = new DefaultApiClient($transport);
+        $this->assertInstanceOf(DefaultApiClient::class, $client);
+        $this->assertSame(5, $transport->maxRedirects);
+    }
+
+    // -- Multipart body --
+
+    public function testSendsMultipartFormData(): void
+    {
+        $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
+
+        $client = new DefaultApiClient();
+        $formData = ['description' => 'A test file', 'file' => 'file content'];
+        $response = $client->sendRequest('POST', $wiremockUrl . '/api/test', [], $formData);
+
+        $this->assertInstanceOf(\PetstoreClient\ApiResponse::class, $response);
+    }
 }

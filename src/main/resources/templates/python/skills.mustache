@@ -132,3 +132,16 @@ pet = Pet(name="Fido", status="available")
 ## Binary / File Uploads
 
 File upload parameters accept file-like objects or `bytes`. Binary response bodies are returned as `bytes`.
+
+## Comment Style
+
+Use multi-line `"""` docstrings or `#` comments on their own line. Never place inline comments on the same line as code.
+
+```good
+# This explains the logic
+x = 1
+```
+
+```bad
+x = 1  # This explains the logic
+```

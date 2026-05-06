@@ -118,3 +118,17 @@ pet := models.Pet{
 ## Binary / File Uploads
 
 File upload parameters accept `*os.File` or `io.Reader`. Binary response bodies are returned as `[]byte`.
+
+## Comment Style
+
+Never use inline comments (`//`). Always use block comments (`/* ... */`).
+
+```good
+/* This explains the logic */
+x := 1
+```
+
+```bad
+// This explains the logic
+x := 1
+```

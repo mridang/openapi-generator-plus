@@ -29,7 +29,7 @@ public final class {{clientClassName}}: Sendable {
 {{#apis}}
 {{#operations}}
     /// Provides methods for the {{baseName}} API group.
-    public let {{#lambda.camelcase}}{{classname}}{{/lambda.camelcase}}: {{classname}}
+    public let {{clientPropertyName}}: {{classname}}
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
@@ -54,7 +54,7 @@ public final class {{clientClassName}}: Sendable {
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-        self.{{#lambda.camelcase}}{{classname}}{{/lambda.camelcase}} = {{classname}}(apiClient: apiClient, config: config, authenticator: authenticator)
+        self.{{clientPropertyName}} = {{classname}}(apiClient: apiClient, config: config, authenticator: authenticator)
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}

@@ -27,13 +27,17 @@ from petstore_client import servers as Servers
 
 
 class CapturingApiClient:
-    """Mock API client that captures the URL for query string verification."""
+    """Mock API client that captures the URL, headers, and body for verification."""
 
     def __init__(self) -> None:
         self.captured_url: str = ''
+        self.captured_headers: dict[str, str] = {}
+        self.captured_body: Any = None
 
     def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None) -> ApiResponse:
         self.captured_url = url
+        self.captured_headers = headers
+        self.captured_body = body
         return ApiResponse(status_code=200, body='{}', headers={'content-type': 'application/json'})
 
 
@@ -110,6 +114,13 @@ class TestExceptionDispatch:
         assert exc_info.value.status_code == status
         assert exc_info.value.response_body is not None
         assert len(exc_info.value.response_body) > 0
+
+
+class TestErrorBodyParsing:
+    async def test_parses_json_error_body(self, api: Any) -> None:
+        with pytest.raises(BadRequestException) as exc_info:
+            await api.call('GET', '/api/error/400', {}, {}, None, ['application/json'], 'application/json', None)
+        assert exc_info.value.error_body is not None, 'error_body should not be None for JSON responses'
 
 
 class TestExceptionHierarchy:
@@ -213,6 +224,57 @@ class TestBodySerialization:
 
     async def test_sends_no_body_when_none(self, api: Any) -> None:
         await api.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', None)
+
+    async def test_serializes_text_plain_body(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('POST', '/api/test', {}, {}, 'hello world', ['application/json'], 'text/plain', None)
+        assert client.captured_body is not None
+        assert 'hello world' in str(client.captured_body)
+
+    async def test_serializes_form_urlencoded_body(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call(
+            'POST',
+            '/api/test',
+            {},
+            {},
+            {'name': 'alice'},
+            ['application/json'],
+            'application/x-www-form-urlencoded',
+            None,
+        )
+        assert client.captured_body is not None
+        assert 'name=alice' in str(client.captured_body)
+
+    async def test_passes_binary_body_as_is(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call(
+            'POST', '/api/test', {}, {}, b'\x01\x02\x03', ['application/json'], 'application/octet-stream', None
+        )
+        assert client.captured_body is not None
+
+
+class TestHeaderFlowThrough:
+    async def test_empty_content_type_defaults_to_json(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('GET', '/api/test', {}, {}, None, ['application/json'], '', None)
+        assert client.captured_headers.get('Content-Type') == 'application/json'
+
+    async def test_all_headers_flow_through(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', None)
+        assert 'Accept' in client.captured_headers
+        assert 'Content-Type' in client.captured_headers
 
 
 class TestServerVariableOverrides:

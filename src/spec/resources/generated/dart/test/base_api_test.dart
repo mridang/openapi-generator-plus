@@ -81,6 +81,36 @@ void main() {
       }
     });
 
+    // Error body parsing
+
+    test('parses JSON error body', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 400
+          ..headers.contentType = ContentType.json
+          ..write('{"error":"test error"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        try {
+          await api.getPetById(1);
+          fail('Expected error for status 400');
+        } on BadRequestError catch (e) {
+          expect(e.errorBody, isNotNull,
+              reason: 'errorBody should not be null for JSON responses');
+        }
+      } finally {
+        await server.close();
+      }
+    });
+
     // JSON response deserialization
 
     test('deserializes JSON response', () async {
@@ -240,6 +270,65 @@ void main() {
         // GET requests have no body
         final result = await api.getPetById(1);
         expect(result, isNotNull);
+      } finally {
+        await server.close();
+      }
+    });
+
+    // Header flow-through
+
+    test('all headers from selector flow through to request', () async {
+      Map<String, String> receivedHeaders = {};
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.headers.forEach((name, values) {
+          receivedHeaders[name] = values.first;
+        });
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.getPetById(1);
+        expect(receivedHeaders.containsKey('accept'), isTrue,
+            reason: 'Expected Accept header from selector');
+        expect(receivedHeaders.containsKey('content-type'), isTrue,
+            reason: 'Expected Content-Type header from selector');
+      } finally {
+        await server.close();
+      }
+    });
+
+    // Body serialization
+
+    test('serializes JSON body for POST', () async {
+      String receivedBody = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        receivedBody = await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"TestPet","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.addPet(null, {'name': 'TestPet', 'photoUrls': []});
+        expect(receivedBody, contains('TestPet'));
       } finally {
         await server.close();
       }

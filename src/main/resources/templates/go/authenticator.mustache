@@ -4,15 +4,15 @@ package {{packageName}}
 // Authenticator provides authentication credentials to the API client.
 // Implementations supply the API host URL and authorization headers.
 type Authenticator interface {
-	// Host returns the base URL of the API.
+	/* Host returns the base URL of the API. */
 	Host() string
 
-	// AuthHeaders returns the authentication headers to include in every request.
+	/* AuthHeaders returns the authentication headers to include in every request. */
 	AuthHeaders() map[string]string
 
-	// QueryParams returns query parameters to include for authentication.
+	/* QueryParams returns query parameters to include for authentication. */
 	QueryParams() map[string]string
 
-	// CookieParams returns cookie parameters to include for authentication.
+	/* CookieParams returns cookie parameters to include for authentication. */
 	CookieParams() map[string]string
 }

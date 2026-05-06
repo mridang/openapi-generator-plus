@@ -44,7 +44,7 @@ class {{clientClassName}} {
 {{#apis}}
 {{#operations}}
   /// Provides methods for the {{baseName}} API group.
-  final {{classname}} {{#lambda.camelcase}}{{classname}}{{/lambda.camelcase}};
+  final {{classname}} {{clientPropertyName}};
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
@@ -59,7 +59,7 @@ class {{clientClassName}} {
   {{clientClassName}}._({
     required Authenticator authenticator,
     required DefaultApiClient apiClient,
-  }) : {{#apiInfo}}{{#apis}}{{#operations}}{{#lambda.camelcase}}{{classname}}{{/lambda.camelcase}} = _create{{classname}}(authenticator, apiClient){{^-last}},
+  }) : {{#apiInfo}}{{#apis}}{{#operations}}{{clientPropertyName}} = _create{{classname}}(authenticator, apiClient){{^-last}},
        {{/-last}}{{#-last}};{{/-last}}{{/operations}}{{/apis}}{{/apiInfo}}
 
   factory {{clientClassName}}({

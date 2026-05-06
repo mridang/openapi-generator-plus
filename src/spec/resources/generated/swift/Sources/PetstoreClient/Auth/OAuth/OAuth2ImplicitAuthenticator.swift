@@ -44,8 +44,8 @@ public final class OAuth2ImplicitAuthenticator: BaseAuthenticator, HttpAwareAuth
   /// No-op for the implicit flow, but conforms to
   /// ``HttpAwareAuthenticator`` for consistency.
   public func setApiClient(_ client: ApiClient) {
-    // Implicit flow does not make token exchange requests,
-    // but conforms to the protocol for consistency.
+    /* Implicit flow does not make token exchange requests,
+         * but conforms to the protocol for consistency. */
   }
 
   /// Sets the access token obtained from the authorization redirect fragment.

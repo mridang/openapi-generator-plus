@@ -16,7 +16,7 @@ public struct PetTreatment: Codable, Sendable {
     let data = try container.decode(AnyCodable.self)
     let rawData = try JSONEncoder().encode(data)
 
-    // Try each anyOf type
+    /* Try each anyOf type */
     if let v = try? JSONDecoder().decode(Medication.self, from: rawData) {
       self._value = v
       return

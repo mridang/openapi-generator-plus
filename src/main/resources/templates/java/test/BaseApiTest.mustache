@@ -54,11 +54,15 @@ class BaseApiTest {
 
     static class CapturingApiClient implements ApiClient {
         String capturedUrl = "";
+        Map<String, String> capturedHeaders = Map.of();
+        @Nullable Object capturedBody = null;
 
         @Override
         public ApiResponse sendRequest(
                 String method, String url, Map<String, String> headers, @Nullable Object body) {
             this.capturedUrl = url;
+            this.capturedHeaders = headers;
+            this.capturedBody = body;
             return new ApiResponse(200, "{}", Map.of("Content-Type", "application/json"));
         }
     }
@@ -188,6 +192,31 @@ class BaseApiTest {
                                             null));
             assertInstanceOf(ServerException.class, ex);
             assertInstanceOf(ApiException.class, ex);
+        }
+    }
+
+    @Nested
+    @DisplayName("error body parsing")
+    class ErrorBodyParsing {
+
+        @Test
+        @DisplayName("parses JSON error body")
+        void parsesJsonErrorBody() {
+            var ex =
+                    assertThrows(
+                            BadRequestException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/api/error/400",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertNotNull(ex.getErrorBody(), "errorBody should not be null for JSON responses");
         }
     }
 
@@ -467,6 +496,92 @@ class BaseApiTest {
                     "application/json",
                     null,
                     null);
+        }
+
+        @Test
+        @DisplayName("serializes text/plain body")
+        void serializesTextPlainBody() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call(
+                    "POST", "/api/test",
+                    new HashMap<>(), new HashMap<>(),
+                    "hello world",
+                    new String[] {"application/json"},
+                    "text/plain",
+                    null, null);
+            assertNotNull(client.capturedBody);
+            assertEquals("hello world", client.capturedBody.toString());
+        }
+
+        @Test
+        @DisplayName("serializes form-urlencoded body")
+        void serializesFormUrlencodedBody() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, String> formParams = new java.util.LinkedHashMap<>();
+            formParams.put("name", "alice");
+            testApi.call(
+                    "POST", "/api/test",
+                    new HashMap<>(), new HashMap<>(),
+                    formParams,
+                    new String[] {"application/json"},
+                    "application/x-www-form-urlencoded",
+                    null, null);
+            assertNotNull(client.capturedBody);
+            assertTrue(client.capturedBody.toString().contains("name=alice"));
+        }
+
+        @Test
+        @DisplayName("passes binary body as-is")
+        void passesBinaryBody() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            byte[] binaryData = new byte[] {0x01, 0x02, 0x03};
+            testApi.call(
+                    "POST", "/api/test",
+                    new HashMap<>(), new HashMap<>(),
+                    binaryData,
+                    new String[] {"application/json"},
+                    "application/octet-stream",
+                    null, null);
+            assertNotNull(client.capturedBody);
+        }
+    }
+
+    @Nested
+    @DisplayName("header flow-through")
+    class HeaderFlowThrough {
+
+        @Test
+        @DisplayName("empty content-type defaults to application/json")
+        void emptyContentTypeDefaultsToJson() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call(
+                    "GET", "/api/test",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "",
+                    null, null);
+            assertEquals("application/json", client.capturedHeaders.get("Content-Type"));
+        }
+
+        @Test
+        @DisplayName("all headers from selector flow through to request")
+        void allHeadersFlowThrough() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            testApi.call(
+                    "GET", "/api/test",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    null, null);
+            assertTrue(client.capturedHeaders.containsKey("Accept"));
+            assertTrue(client.capturedHeaders.containsKey("Content-Type"));
         }
     }
 }

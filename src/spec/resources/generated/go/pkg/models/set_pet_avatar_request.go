@@ -13,7 +13,7 @@ import (
 
 // SetPetAvatarRequest is a model class generated from the OpenAPI schema.
 type SetPetAvatarRequest struct {
-	// Data Base64-encoded image data
+	/* Data Base64-encoded image data */
 	Data     []byte `json:"data"`
 	MimeType string `json:"mimeType"`
 }

@@ -156,6 +156,12 @@ class ObjectSerializerTest {
     }
 
     @Test
+    @DisplayName("converts false to \"false\"")
+    void convertsFalseToString() {
+      assertEquals("false", ObjectSerializer.toQueryValue(false, null));
+    }
+
+    @Test
     @DisplayName("joins array with comma by default")
     void joinsArrayWithCommaByDefault() {
       List<String> list = Arrays.asList("a", "b", "c");
@@ -283,6 +289,19 @@ class ObjectSerializerTest {
     void handlesNull() {
       String json = serializer.serialize(null);
       assertEquals("null", json);
+    }
+
+    @Test
+    @DisplayName("includes fields explicitly set to default values")
+    void includesFieldsSetToDefaultValues() {
+      com.example.petstore.models.Category category = new com.example.petstore.models.Category();
+      category.id = 0L;
+      category.name = "";
+      String json = serializer.serialize(category);
+      assertTrue(json.contains("\"id\":0"), "serialized JSON should include id=0, got: " + json);
+      assertTrue(
+          json.contains("\"name\":\"\""),
+          "serialized JSON should include empty name, got: " + json);
     }
   }
 

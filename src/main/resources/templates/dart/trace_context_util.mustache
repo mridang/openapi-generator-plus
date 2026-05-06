@@ -2,17 +2,33 @@
 /// TraceContextUtil injects W3C Trace Context headers (traceparent, tracestate)
 /// into outgoing API requests when distributed tracing is available.
 ///
-/// Currently a no-op. To enable trace context propagation, users should
-/// integrate their own tracing solution and override this behavior.
+/// Dart does not support runtime detection of optional packages (unlike Python's
+/// `try import` or Ruby's `require`), so this implementation uses a pluggable
+/// callback. By default it is a safe no-op. To enable trace context propagation,
+/// set the propagator at application startup:
+///
+/// ```dart
+/// import 'package:opentelemetry_dart/opentelemetry_dart.dart';
+///
+/// TraceContextUtil.propagator = (Map<String, String> headers) {
+///   final propagator = globalTextMapPropagator;
+///   propagator.inject(Context.current, headers, MapSetter());
+/// };
+/// ```
+///
+/// This matches the pattern used by other languages in this SDK: try to use
+/// OpenTelemetry if available, otherwise do nothing (no crash).
 class TraceContextUtil {
+  /// The propagator function used to inject trace context headers.
+  /// Set this at application startup to enable trace context propagation.
+  /// When null (the default), [injectTraceContext] is a no-op.
+  static void Function(Map<String, String> headers)? propagator;
+
   /// Injects W3C Trace Context headers into the given [headers] map.
   ///
-  /// Currently a no-op. Users who want distributed tracing support should
-  /// configure their tracing library and inject context into requests at
-  /// the application level.
+  /// If a [propagator] has been configured, it is called to inject
+  /// traceparent and tracestate headers. Otherwise this is a no-op.
   static void injectTraceContext(Map<String, String> headers) {
-    // No-op: Distributed tracing integration requires an external tracing
-    // library. To enable, users should configure their tracing library
-    // and inject context into requests at the application level.
+    propagator?.call(headers);
   }
 }

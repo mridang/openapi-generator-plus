@@ -153,7 +153,7 @@ func (h *HeaderSelector) getHeaderAndWeight(header string) headerData {
 }
 
 func (h *HeaderSelector) adjustWeight(headers []headerData, currentWeight *int, hasMoreThan28Headers bool) []string {
-	// Sort by weight descending (stable sort)
+	/* Sort by weight descending (stable sort) */
 	sort.SliceStable(headers, func(i, j int) bool {
 		return headers[i].weight > headers[j].weight
 	})

@@ -1,6 +1,7 @@
 {{>api_info}}
 
 use {{packageName}}::object_serializer;
+use {{packageName}}::models::Category;
 
 #[test]
 fn test_serialize_map_to_json() {
@@ -66,6 +67,24 @@ fn test_to_query_value_string() {
     let result = object_serializer::to_query_value(&"hello".to_string(), "");
     match result {
         object_serializer::QueryValue::Single(s) => assert_eq!(s, "hello"),
+        _ => panic!("expected QueryValue::Single"),
+    }
+}
+
+#[test]
+fn test_to_query_value_bool_true() {
+    let result = object_serializer::to_query_value(&true.to_string(), "");
+    match result {
+        object_serializer::QueryValue::Single(s) => assert_eq!(s, "true"),
+        _ => panic!("expected QueryValue::Single"),
+    }
+}
+
+#[test]
+fn test_to_query_value_bool_false() {
+    let result = object_serializer::to_query_value(&false.to_string(), "");
+    match result {
+        object_serializer::QueryValue::Single(s) => assert_eq!(s, "false"),
         _ => panic!("expected QueryValue::Single"),
     }
 }
@@ -157,4 +176,23 @@ fn test_stringify_bool() {
 fn test_stringify_empty() {
     let result = object_serializer::stringify(&"".to_string());
     assert_eq!(result, "");
+}
+
+#[test]
+fn test_serialize_includes_fields_set_to_default_values() {
+    let category = Category {
+        id: Some(0),
+        name: Some("".to_string()),
+    };
+    let json = object_serializer::serialize(&category).expect("serialization failed");
+    assert!(
+        json.contains("\"id\":0"),
+        "serialized JSON should include id=0, got: {}",
+        json
+    );
+    assert!(
+        json.contains("\"name\":\"\""),
+        "serialized JSON should include empty name, got: {}",
+        json
+    );
 }

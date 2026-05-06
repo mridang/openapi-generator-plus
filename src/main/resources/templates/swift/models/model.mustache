@@ -102,7 +102,7 @@ public struct {{classname}}: Codable, Sendable {
 {{/required}}
 {{/vars}}
 
-        // Decode additional properties
+        /* Decode additional properties */
         let knownKeys = Set(CodingKeys.allCases.map { $0.rawValue })
         let dynamicContainer = try decoder.container(keyedBy: DynamicCodingKey.self)
         var additionalProperties = [String: AnyCodable]()
@@ -126,7 +126,7 @@ public struct {{classname}}: Codable, Sendable {
 {{/required}}
 {{/vars}}
 
-        // Encode additional properties
+        /* Encode additional properties */
         var dynamicContainer = encoder.container(keyedBy: DynamicCodingKey.self)
         for (key, value) in additionalProperties {
             let codingKey = DynamicCodingKey(stringValue: key)!
@@ -181,7 +181,7 @@ public struct {{classname}}: Codable, Sendable {
 
     public init(from decoder: Decoder) throws {
 {{#discriminator}}
-        // Use discriminator to determine type
+        /* Use discriminator to determine type */
         let container = try decoder.singleValueContainer()
         let data = try container.decode(AnyCodable.self)
 
@@ -212,7 +212,7 @@ public struct {{classname}}: Codable, Sendable {
         let data = try container.decode(AnyCodable.self)
         let rawData = try JSONEncoder().encode(data)
 
-        // Try each oneOf type
+        /* Try each oneOf type */
 {{#oneOf}}
         if let v = try? JSONDecoder().decode({{{.}}}.self, from: rawData) {
             self._value = v
@@ -268,7 +268,7 @@ public struct {{classname}}: Codable, Sendable {
         let data = try container.decode(AnyCodable.self)
         let rawData = try JSONEncoder().encode(data)
 
-        // Try each anyOf type
+        /* Try each anyOf type */
 {{#anyOf}}
         if let v = try? JSONDecoder().decode({{{.}}}.self, from: rawData) {
             self._value = v

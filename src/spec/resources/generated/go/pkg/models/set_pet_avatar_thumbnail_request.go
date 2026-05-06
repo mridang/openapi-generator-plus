@@ -24,7 +24,7 @@ func (o SetPetAvatarThumbnailRequest) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (o *SetPetAvatarThumbnailRequest) UnmarshalJSON(data []byte) error {
-	// Try each oneOf type
+	/* Try each oneOf type */
 	var byteSliceSlice [][]byte
 	if err := json.Unmarshal(data, &byteSliceSlice); err == nil {
 		o.value = byteSliceSlice

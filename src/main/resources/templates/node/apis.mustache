@@ -205,7 +205,7 @@ export class {{classname}} extends runtime.BaseAPI {
         {{/isApiKey}}
         {{#isOAuth}}
         if (this.configuration && this.configuration.accessToken) {
-            // oauth required
+            /* oauth required */
             headerParameters["Authorization"] = await this.configuration.accessToken("{{name}}", [{{#scopes}}"{{{scope}}}"{{^-last}}, {{/-last}}{{/scopes}}]);
         }
 
@@ -217,14 +217,14 @@ export class {{classname}} extends runtime.BaseAPI {
             { contentType: '{{{mediaType}}}' },
             {{/consumes}}
         ];
-        // @ts-ignore: canConsumeForm may be unused
+        /* @ts-ignore: canConsumeForm may be unused */
         const canConsumeForm = runtime.canConsumeForm(consumes);
 
         let formParams: { append(param: string, value: any): any };
         let useForm = false;
         {{#formParams}}
         {{#isFile}}
-        // use FormData to transmit files using content-type "multipart/form-data"
+        /* use FormData to transmit files using content-type "multipart/form-data" */
         useForm = canConsumeForm;
         {{/isFile}}
         {{/formParams}}

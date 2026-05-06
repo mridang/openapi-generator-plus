@@ -137,7 +137,7 @@ impl OpenIdConnectAuthenticator {
             "",
         );
 
-        // Inject the API client into the delegate's token manager.
+        /* Inject the API client into the delegate's token manager. */
         delegate.set_api_client(client);
 
         *delegate_guard = Some(delegate);

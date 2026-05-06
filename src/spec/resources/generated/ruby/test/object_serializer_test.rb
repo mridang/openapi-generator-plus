@@ -81,6 +81,10 @@ describe PetstoreClient::ObjectSerializer do
       _(PetstoreClient::ObjectSerializer.to_query_value(true)).must_equal('true')
     end
 
+    it 'converts false to "false"' do
+      _(PetstoreClient::ObjectSerializer.to_query_value(false)).must_equal('false')
+    end
+
     it 'joins array with comma by default' do
       _(PetstoreClient::ObjectSerializer.to_query_value(%w[a b c])).must_equal('a,b,c')
     end
@@ -158,6 +162,16 @@ describe PetstoreClient::ObjectSerializer do
     it 'handles nil' do
       json = PetstoreClient::ObjectSerializer.serialize(nil)
       _(json).must_equal('null')
+    end
+
+    it 'includes fields explicitly set to default values' do
+      category = PetstoreClient::Models::Category.new(id: 0, name: '')
+      json = PetstoreClient::ObjectSerializer.serialize(category)
+      data = JSON.parse(json)
+      _(data).must_include('id')
+      _(data['id']).must_equal(0)
+      _(data).must_include('name')
+      _(data['name']).must_equal('')
     end
   end
 

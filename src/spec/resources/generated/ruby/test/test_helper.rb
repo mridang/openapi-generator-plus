@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'securerandom'
 require 'simplecov'
 require 'simplecov-cobertura'
 
@@ -67,7 +68,7 @@ end
 
 # Create a shared Docker network for proxy tests so Squid can reach WireMock
 # directly via container alias, avoiding host.docker.internal DNS issues.
-PROXY_NETWORK = Docker::Network.create('proxy-test-network')
+PROXY_NETWORK = Docker::Network.create("proxy-test-network-#{SecureRandom.hex(4)}")
 Minitest.after_run { PROXY_NETWORK.remove }
 
 # Start WireMock server with HTTPS

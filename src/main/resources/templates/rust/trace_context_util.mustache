@@ -5,11 +5,23 @@ use std::collections::HashMap;
 /// Injects W3C Trace Context headers (traceparent, tracestate)
 /// into outgoing API requests when OpenTelemetry is available.
 ///
-/// If the `opentelemetry` crate is not available, this function
-/// silently no-ops.
+/// When the `opentelemetry` feature is enabled, this function uses the
+/// globally configured `TextMapPropagator` to inject the current span's
+/// trace context into the given headers map.
 ///
-/// To enable trace context propagation, add the `opentelemetry` crate
-/// and configure a global propagator:
+/// When the `opentelemetry` feature is not enabled, this function is a
+/// safe no-op.
+///
+/// To enable trace context propagation, add the following to your `Cargo.toml`:
+///
+/// ```toml
+/// [dependencies]
+/// {{packageName}} = { version = "...", features = ["opentelemetry"] }
+/// opentelemetry = "0.22"
+/// opentelemetry_sdk = "0.22"
+/// ```
+///
+/// Then configure a global propagator at application startup:
 ///
 /// ```rust,ignore
 /// use opentelemetry::global;
@@ -21,12 +33,26 @@ pub fn inject_trace_context(headers: &mut HashMap<String, String>) {
     inject_trace_context_impl(headers);
 }
 
-/// The actual implementation. It is a no-op by default.
-///
-/// Users who want OpenTelemetry support should configure the global
-/// TextMapPropagator and inject context into requests at the application level.
+#[cfg(feature = "opentelemetry")]
+fn inject_trace_context_impl(headers: &mut HashMap<String, String>) {
+    use opentelemetry::{global, Context};
+
+    struct HeaderInjector<'a>(&'a mut HashMap<String, String>);
+
+    impl<'a> opentelemetry::propagation::Injector for HeaderInjector<'a> {
+        fn set(&mut self, key: &str, value: String) {
+            self.0.insert(key.to_string(), value);
+        }
+    }
+
+    let cx = Context::current();
+    global::get_text_map_propagator(|propagator| {
+        propagator.inject_context(&cx, &mut HeaderInjector(headers));
+    });
+}
+
+#[cfg(not(feature = "opentelemetry"))]
 fn inject_trace_context_impl(_headers: &mut HashMap<String, String>) {
-    // No-op: OpenTelemetry integration requires the opentelemetry crate.
-    // To enable, users should configure the global TextMapPropagator
-    // and inject context into requests at the application level.
+    /* No-op: OpenTelemetry integration requires the "opentelemetry" feature.
+     * Enable it in Cargo.toml to activate trace context propagation. */
 }

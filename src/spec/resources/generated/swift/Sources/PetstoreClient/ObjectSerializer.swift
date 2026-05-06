@@ -88,7 +88,7 @@ public enum ObjectSerializer {
   /// Deserializes JSON data into a Decodable value.
   public static func deserialize<T: Decodable>(_ data: Data, as type: T.Type) throws -> T {
     if data.isEmpty {
-      // Handle empty data for optional or default-constructible types
+      /* Handle empty data for optional or default-constructible types */
       throw SerializationError(message: "Cannot deserialize empty data")
     }
     do {

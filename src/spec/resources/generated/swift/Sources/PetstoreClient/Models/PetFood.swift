@@ -12,7 +12,7 @@ public struct PetFood: Codable, Sendable {
   private let _value: Any
 
   public init(from decoder: Decoder) throws {
-    // Use discriminator to determine type
+    /* Use discriminator to determine type */
     let container = try decoder.singleValueContainer()
     let data = try container.decode(AnyCodable.self)
 

@@ -25,15 +25,17 @@ import type { ApiResponse } from '../src/api-response.js';
 
 class CapturingApiClient implements ApiClient {
   capturedUrl = '';
-  /* eslint-disable @typescript-eslint/no-unused-vars */
+  capturedHeaders: Record<string, string> = {};
+  capturedBody: string | Buffer | null = null;
   async sendRequest(
     method: string,
     url: string,
     headers: Record<string, string>,
     body: string | Buffer | null
   ): Promise<ApiResponse> {
-    /* eslint-enable @typescript-eslint/no-unused-vars */
     this.capturedUrl = url;
+    this.capturedHeaders = headers;
+    this.capturedBody = body;
     return { statusCode: 200, body: '{}', headers: { 'content-type': 'application/json' } };
   }
 }
@@ -103,6 +105,18 @@ describe('BaseApi exception dispatch', () => {
       expect(e).toBeInstanceOf(ErrorClass);
       expect((e as ApiError).statusCode).toBe(status);
       expect((e as ApiError).responseBody).toBeTruthy();
+    }
+  });
+});
+
+describe('BaseApi error body parsing', () => {
+  test('parses JSON error body', async () => {
+    try {
+      await api().call('GET', '/api/error/400', {}, {}, null, ['application/json'], 'application/json', null);
+      fail('Expected error not thrown');
+    } catch (e) {
+      expect(e).toBeInstanceOf(BadRequestError);
+      expect((e as BadRequestError).errorBody).not.toBeNull();
     }
   });
 });
@@ -286,6 +300,59 @@ describe('BaseApi body serialization', () => {
 
   test('sends no body when null', async () => {
     await api().call('GET', '/api/test', {}, {}, null, ['application/json'], 'application/json', null);
+  });
+
+  test('serializes text/plain body', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    await testApi.call('POST', '/api/test', {}, {}, 'hello world', ['application/json'], 'text/plain', null);
+    expect(client.capturedBody).toBe('hello world');
+  });
+
+  test('serializes form-urlencoded body', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    await testApi.call(
+      'POST',
+      '/api/test',
+      {},
+      {},
+      { name: 'alice' },
+      ['application/json'],
+      'application/x-www-form-urlencoded',
+      null
+    );
+    expect(client.capturedBody).toContain('name=alice');
+  });
+
+  test('passes binary body as-is', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    const buf = Buffer.from([0x01, 0x02, 0x03]);
+    await testApi.call('POST', '/api/test', {}, {}, buf, ['application/json'], 'application/octet-stream', null);
+    expect(client.capturedBody).toBeDefined();
+  });
+});
+
+describe('BaseApi header flow-through', () => {
+  test('empty content-type defaults to application/json', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    await testApi.call('GET', '/api/test', {}, {}, null, ['application/json'], '', null);
+    expect(client.capturedHeaders['Content-Type']).toBe('application/json');
+  });
+
+  test('all headers from selector flow through to request', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    await testApi.call('GET', '/api/test', {}, {}, null, ['application/json'], 'application/json', null);
+    expect(client.capturedHeaders['Accept']).toBeDefined();
+    expect(client.capturedHeaders['Content-Type']).toBeDefined();
   });
 });
 

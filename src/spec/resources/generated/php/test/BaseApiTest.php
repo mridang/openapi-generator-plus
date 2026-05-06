@@ -28,11 +28,16 @@ use PetstoreClient\ApiResponse;
 class CapturingApiClient implements ApiClient
 {
     public string $capturedUrl = '';
+    /** @var array<string, string> */
+    public array $capturedHeaders = [];
+    public mixed $capturedBody = null;
 
     /** @param array<string, string> $headers */
     public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
     {
         $this->capturedUrl = $url;
+        $this->capturedHeaders = $headers;
+        $this->capturedBody = $body;
         return new ApiResponse(200, '{}', ['Content-Type' => 'application/json']);
     }
 }
@@ -151,6 +156,25 @@ class BaseApiTest extends TestCase
             $this->assertInstanceOf($expectedClass, $e);
             $this->assertSame($status, $e->getCode());
             $this->assertNotEmpty($e->getResponseBody());
+        }
+    }
+
+    public function testParsesJsonErrorBody(): void
+    {
+        try {
+            $this->api()->call(
+                'GET',
+                '/api/error/400',
+                [],
+                [],
+                null,
+                ['application/json'],
+                'application/json',
+                null
+            );
+            $this->fail('Expected exception not thrown');
+        } catch (BadRequestException $e) {
+            $this->assertNotNull($e->getErrorBody(), 'errorBody should not be null for JSON responses');
         }
     }
 
@@ -442,5 +466,104 @@ class BaseApiTest extends TestCase
             ->server(Servers::server1(), ['environment' => 'staging'])
             ->build();
         $this->assertStringStartsWith('https://staging.example.com/api/v3', $config->baseUrl);
+    }
+
+    // -- body serialization by content type --
+
+    public function testSerializesTextPlainBody(): void
+    {
+        $client = new CapturingApiClient();
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $testApi->call(
+            'POST',
+            '/api/test',
+            [],
+            [],
+            'hello world',
+            ['application/json'],
+            'text/plain',
+            null
+        );
+        $this->assertNotNull($client->capturedBody);
+        $this->assertIsString($client->capturedBody);
+        $this->assertStringContainsString('hello world', $client->capturedBody);
+    }
+
+    public function testSerializesFormUrlencodedBody(): void
+    {
+        $client = new CapturingApiClient();
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $testApi->call(
+            'POST',
+            '/api/test',
+            [],
+            [],
+            ['name' => 'alice'],
+            ['application/json'],
+            'application/x-www-form-urlencoded',
+            null
+        );
+        $this->assertNotNull($client->capturedBody);
+        $this->assertIsString($client->capturedBody);
+        $this->assertStringContainsString('name=alice', $client->capturedBody);
+    }
+
+    public function testPassesBinaryBodyAsIs(): void
+    {
+        $client = new CapturingApiClient();
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $testApi->call(
+            'POST',
+            '/api/test',
+            [],
+            [],
+            "\x01\x02\x03",
+            ['application/json'],
+            'application/octet-stream',
+            null
+        );
+        $this->assertNotNull($client->capturedBody);
+    }
+
+    // -- header flow-through --
+
+    public function testEmptyContentTypeDefaultsToJson(): void
+    {
+        $client = new CapturingApiClient();
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $testApi->call(
+            'GET',
+            '/api/test',
+            [],
+            [],
+            null,
+            ['application/json'],
+            '',
+            null
+        );
+        $this->assertSame('application/json', $client->capturedHeaders['Content-Type'] ?? '');
+    }
+
+    public function testAllHeadersFromSelectorFlowThrough(): void
+    {
+        $client = new CapturingApiClient();
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $testApi->call(
+            'GET',
+            '/api/test',
+            [],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null
+        );
+        $this->assertArrayHasKey('Accept', $client->capturedHeaders);
+        $this->assertArrayHasKey('Content-Type', $client->capturedHeaders);
     }
 }

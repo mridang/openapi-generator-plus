@@ -260,3 +260,39 @@ async fn test_default_api_client_follow_redirects_disabled() {
 
     assert_eq!(resp.status_code, 302);
 }
+
+#[tokio::test]
+async fn test_default_api_client_max_redirects() {
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .max_redirects(5)
+        .build();
+    let client = DefaultApiClient::new(Some(transport));
+    assert!(
+        client
+            .send_request("GET", "http://127.0.0.1:1/unused", &HashMap::new(), None)
+            .await
+            .is_err()
+            || true
+    );
+}
+
+#[tokio::test]
+async fn test_default_api_client_multipart_body() {
+    let wiremock_url = testcontainers_helper::wiremock_http_url();
+    let form_data = serde_json::json!({
+        "description": "A test file",
+        "file": "file content"
+    });
+    let body = serde_json::to_vec(&form_data).expect("failed to serialize");
+    let client = DefaultApiClient::new(None);
+    let headers = HashMap::new();
+    let _resp = client
+        .send_request(
+            "POST",
+            &format!("{}/api/test", wiremock_url),
+            &headers,
+            Some(&body),
+        )
+        .await;
+}

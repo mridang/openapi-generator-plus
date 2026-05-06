@@ -23,6 +23,9 @@ pub struct ApiError {
 
     /// The response headers.
     pub response_headers: HashMap<String, String>,
+
+    /// The parsed response body, if JSON.
+    pub error_body: Option<serde_json::Value>,
 }
 
 impl ApiError {
@@ -32,12 +35,14 @@ impl ApiError {
         message: String,
         response_body: String,
         response_headers: HashMap<String, String>,
+        error_body: Option<serde_json::Value>,
     ) -> Self {
         Self {
             status_code,
             message,
             response_body,
             response_headers,
+            error_body,
         }
     }
 

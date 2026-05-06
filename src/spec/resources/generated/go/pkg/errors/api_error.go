@@ -15,19 +15,19 @@ import (
 // ApiError represents an error returned by the API, including the HTTP status
 // code, response headers, and response body.
 type ApiError struct {
-	// StatusCode is the HTTP status code.
+	/* StatusCode is the HTTP status code. */
 	StatusCode int
 
-	// Msg is the error message.
+	/* Msg is the error message. */
 	Msg string
 
-	// ResponseBody is the raw response body.
+	/* ResponseBody is the raw response body. */
 	ResponseBody string
 
-	// ResponseHeaders contains the response headers.
+	/* ResponseHeaders contains the response headers. */
 	ResponseHeaders map[string]string
 
-	// ErrorBody is the parsed response body, if JSON.
+	/* ErrorBody is the parsed response body, if JSON. */
 	ErrorBody interface{}
 }
 

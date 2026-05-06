@@ -165,7 +165,7 @@ impl HeaderSelector {
         current_weight: &mut i32,
         has_more_than_28_headers: bool,
     ) -> Vec<String> {
-        // Sort by weight descending (stable sort)
+        /* Sort by weight descending (stable sort) */
         headers.sort_by(|a, b| b.weight.cmp(&a.weight));
 
         let mut accept_headers: Vec<String> = Vec::new();

@@ -143,6 +143,12 @@ public class ObjectSerializerTest
         }
 
         [Fact]
+        public void ConvertsFalseToString()
+        {
+            Assert.Equal("false", ObjectSerializer.ToQueryValue(false, null));
+        }
+
+        [Fact]
         public void JoinsListWithCommaByDefault()
         {
             var list = new List<string> { "a", "b", "c" };
@@ -264,6 +270,15 @@ public class ObjectSerializerTest
         {
             var json = _serializer.Serialize(null);
             Assert.Equal("null", json);
+        }
+
+        [Fact]
+        public void IncludesFieldsSetToDefaultValues()
+        {
+            var category = new Category { Id = 0L, Name = "" };
+            var json = _serializer.Serialize(category);
+            Assert.Contains("\"id\":0", json);
+            Assert.Contains("\"name\":\"\"", json);
         }
     }
 

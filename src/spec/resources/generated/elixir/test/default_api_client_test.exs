@@ -147,4 +147,26 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
 
     assert response.status_code == 302
   end
+
+  test "max redirects respects limit" do
+    transport =
+      PetstoreClient.TransportOptions.new(
+        follow_redirects: true,
+        max_redirects: 5
+      )
+
+    client = PetstoreClient.DefaultApiClient.new(transport)
+    assert client != nil
+    assert transport.max_redirects == 5
+  end
+
+  test "multipart body sends multipart form data" do
+    wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
+
+    client = PetstoreClient.DefaultApiClient.new()
+    form_data = %{"description" => "A test file", "file" => "file content"}
+    response = PetstoreClient.DefaultApiClient.send_request(client, :post, "#{wiremock_url}/api/test", %{}, form_data)
+
+    assert response != nil
+  end
 end

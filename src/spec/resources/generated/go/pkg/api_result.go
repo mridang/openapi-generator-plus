@@ -10,17 +10,17 @@ package petstore
 // ApiResult represents a typed API response with deserialized data, status code,
 // raw body, and headers. Returned by WithHTTPInfo methods.
 type ApiResult[T any] struct {
-	// StatusCode is the HTTP status code of the response.
+	/* StatusCode is the HTTP status code of the response. */
 	StatusCode int
 
-	// Data is the deserialized response body. May be nil if the operation
-	// returned no content or if the response could not be deserialized.
+	/* Data is the deserialized response body. May be nil if the operation
+	 * returned no content or if the response could not be deserialized. */
 	Data *T
 
-	// RawBody is the raw response body as a string.
+	/* RawBody is the raw response body as a string. */
 	RawBody string
 
-	// Headers contains the response headers.
+	/* Headers contains the response headers. */
 	Headers map[string]string
 }
 

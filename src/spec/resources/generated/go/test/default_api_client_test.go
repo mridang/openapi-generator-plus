@@ -221,3 +221,29 @@ func TestDefaultApiClient_FollowRedirectsDisabled(t *testing.T) {
 		t.Errorf("expected status 302, got %d", resp.StatusCode)
 	}
 }
+
+func TestDefaultApiClient_MaxRedirects(t *testing.T) {
+	transport := petstore.NewTransportOptionsBuilder().
+		FollowRedirects(true).
+		MaxRedirects(5).
+		Build()
+	client := petstore.NewDefaultApiClient(transport)
+	if client == nil {
+		t.Fatal("expected non-nil client")
+	}
+	if transport.MaxRedirects() != 5 {
+		t.Errorf("expected MaxRedirects 5, got %d", transport.MaxRedirects())
+	}
+}
+
+func TestDefaultApiClient_MultipartBody(t *testing.T) {
+	client := petstore.NewDefaultApiClient(nil)
+	formFields := map[string]string{"description": "A test file"}
+	resp, err := client.SendMultipartRequest("POST", wiremockHTTPURL+"/api/test", map[string]string{}, formFields, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp == nil {
+		t.Fatal("expected non-nil response")
+	}
+}

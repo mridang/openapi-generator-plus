@@ -172,6 +172,24 @@ final class BaseApiTests: XCTestCase {
         }
     }
 
+    // MARK: - Error body parsing
+
+    func testParsesJsonErrorBody() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 400
+        mockClient.responseBody = "{\"error\":\"bad request\"}"
+
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        do {
+            _ = try await api.getPetById(petId: 1)
+            XCTFail("Expected error for status 400")
+        } catch let error as BadRequestError {
+            XCTAssertNotNil(error.errorBody, "errorBody should not be nil for JSON responses")
+        }
+    }
+
     // MARK: - Error hierarchy
 
     func testNotFoundIsClientError() async throws {
@@ -248,5 +266,74 @@ final class BaseApiTests: XCTestCase {
 
         let result = try await api.getPetById(petId: 1)
         XCTAssertNotNil(result)
+    }
+
+    // MARK: - Header flow-through
+
+    func testAllHeadersFlowThrough() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        _ = try await api.getPetById(petId: 1)
+        XCTAssertNotNil(mockClient.lastHeaders["Accept"], "Expected Accept header from selector")
+        XCTAssertNotNil(mockClient.lastHeaders["Content-Type"], "Expected Content-Type header from selector")
+    }
+
+    func testEmptyContentTypeDefaultsToJson() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        // GET requests typically have no explicit content type set by the operation
+        _ = try await api.getPetById(petId: 1)
+        // The header selector should default empty content-type to application/json
+        let ct = mockClient.lastHeaders["Content-Type"]
+        XCTAssertNotNil(ct, "Expected Content-Type to be set")
+        XCTAssertEqual(ct, "application/json")
+    }
+
+    // MARK: - Body serialization
+
+    func testSerializesJsonBody() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = "{\"id\":1,\"name\":\"TestPet\",\"photoUrls\":[]}"
+
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        let pet = Pet(name: "TestPet", photoUrls: [])
+        _ = try? await api.addPet(pet: pet)
+        XCTAssertNotNil(mockClient.lastBody, "Expected body to be captured")
+        if let body = mockClient.lastBody {
+            let bodyStr = String(data: body, encoding: .utf8) ?? ""
+            XCTAssertTrue(bodyStr.contains("TestPet"), "Expected body to contain 'TestPet'")
+        }
+    }
+
+    func testSerializeBodyTextPlain() {
+        let result = try? BaseApi.serializeBody("hello world", contentType: "text/plain")
+        XCTAssertNotNil(result)
+        if let data = result! {
+            let str = String(data: data, encoding: .utf8)
+            XCTAssertEqual(str, "hello world")
+        }
+    }
+
+    func testSerializeBodyBinary() {
+        let data = Data([0x01, 0x02, 0x03])
+        let result = try? BaseApi.serializeBody(data, contentType: "application/octet-stream")
+        XCTAssertNotNil(result)
+        XCTAssertEqual(result!, data)
+    }
+
+    func testSerializeBodyNil() {
+        let result = try? BaseApi.serializeBody(nil, contentType: "application/json")
+        XCTAssertNotNil(result) // Result is not nil, the inner value is nil
+        XCTAssertNil(result!)
     }
 }

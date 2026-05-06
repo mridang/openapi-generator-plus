@@ -88,7 +88,7 @@ impl ApiClient for DefaultApiClient {
 
             let mut request_builder = self.http_client.request(http_method, &url);
 
-            // Do not send Content-Type when there is no request body
+            /* Do not send Content-Type when there is no request body */
             if body.is_none() {
                 merged.remove("Content-Type");
             }

@@ -32,9 +32,9 @@ import Foundation
 /// ```
 public final class Client: Sendable {
   /// Provides methods for the Pet API group.
-  public let petApi: PetApi
+  public let pet: PetApi
   /// Provides methods for the Store API group.
-  public let storeApi: StoreApi
+  public let store: StoreApi
 
   /// Creates a new client with the given authenticator and optional transport options.
   ///
@@ -53,8 +53,8 @@ public final class Client: Sendable {
       .baseURL(authenticator.host())
       .build()
 
-    self.petApi = PetApi(apiClient: apiClient, config: config, authenticator: authenticator)
-    self.storeApi = StoreApi(apiClient: apiClient, config: config, authenticator: authenticator)
+    self.pet = PetApi(apiClient: apiClient, config: config, authenticator: authenticator)
+    self.store = StoreApi(apiClient: apiClient, config: config, authenticator: authenticator)
   }
 
   /// Creates a client authenticated with a static Bearer token.

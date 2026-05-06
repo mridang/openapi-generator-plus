@@ -131,3 +131,17 @@ $pet = new Pet(name: 'Fido', status: 'available');
 ## Binary / File Uploads
 
 File upload parameters accept `SplFileInfo` or file path strings. Binary response bodies are returned as `string`.
+
+## Comment Style
+
+Never use inline comments (`//`). Always use block comments (`/* ... */`). PHPDoc `/** ... */` is fine.
+
+```good
+/* This explains the logic */
+$x = 1;
+```
+
+```bad
+// This explains the logic
+$x = 1;
+```

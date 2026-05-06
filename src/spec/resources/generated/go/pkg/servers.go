@@ -22,16 +22,16 @@ package petstore
 //		Server(petstore.Server1, map[string]string{"environment": "staging"}).
 //		Build()
 var (
-	// Server0 is the server configuration for: /api/v3
-	// Relative URL (no variables)
+	/* Server0 is the server configuration for: /api/v3
+	 * Relative URL (no variables) */
 	Server0 = &ServerConfiguration{
 		URLTemplate: "/api/v3",
 		Description: "Relative URL (no variables)",
 		Variables:   map[string]ServerVariable{},
 	}
 
-	// Server1 is the server configuration for: https://{environment}.example.com/api/{version}
-	// Main API server with variables
+	/* Server1 is the server configuration for: https://{environment}.example.com/api/{version}
+	 * Main API server with variables */
 	Server1 = &ServerConfiguration{
 		URLTemplate: "https://{environment}.example.com/api/{version}",
 		Description: "Main API server with variables",

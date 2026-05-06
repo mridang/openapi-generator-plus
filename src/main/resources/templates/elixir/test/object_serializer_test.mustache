@@ -71,6 +71,10 @@ defmodule {{moduleName}}.ObjectSerializerTest do
       assert {{moduleName}}.ObjectSerializer.to_query_value(true) == "true"
     end
 
+    test "converts false to 'false'" do
+      assert {{moduleName}}.ObjectSerializer.to_query_value(false) == "false"
+    end
+
     test "joins array with comma by default" do
       assert {{moduleName}}.ObjectSerializer.to_query_value(["a", "b", "c"]) == "a,b,c"
     end
@@ -144,6 +148,16 @@ defmodule {{moduleName}}.ObjectSerializerTest do
     test "handles nil" do
       json = {{moduleName}}.ObjectSerializer.serialize(nil)
       assert json == "null"
+    end
+
+    test "includes fields explicitly set to default values" do
+      category = %{{moduleName}}.Models.Category{id: 0, name: ""}
+      json = {{moduleName}}.ObjectSerializer.serialize(category)
+      data = Jason.decode!(json)
+      assert Map.has_key?(data, "id"), "serialized JSON should include id field"
+      assert data["id"] == 0
+      assert Map.has_key?(data, "name"), "serialized JSON should include name field"
+      assert data["name"] == ""
     end
   end
 

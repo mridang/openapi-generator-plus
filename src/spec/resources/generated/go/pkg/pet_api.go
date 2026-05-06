@@ -18,7 +18,7 @@ import (
 
 // GetExternalPetInfoServer is the interface for per-operation server URLs for GetExternalPetInfo.
 type GetExternalPetInfoServer interface {
-	// GetUrl returns the server URL.
+	/* GetUrl returns the server URL. */
 	GetUrl() string
 }
 
@@ -34,7 +34,7 @@ func (s GetExternalPetInfoServerServer0) GetUrl() string {
 
 // GetMultiServerPetInfoServer is the interface for per-operation server URLs for GetMultiServerPetInfo.
 type GetMultiServerPetInfoServer interface {
-	// GetUrl returns the server URL.
+	/* GetUrl returns the server URL. */
 	GetUrl() string
 }
 
@@ -73,7 +73,7 @@ func (s GetMultiServerPetInfoServerRegional) GetUrl() string {
 
 // GetPetByIdServer is the interface for per-operation server URLs for GetPetById.
 type GetPetByIdServer interface {
-	// GetUrl returns the server URL.
+	/* GetUrl returns the server URL. */
 	GetUrl() string
 }
 
@@ -90,7 +90,7 @@ func (s GetPetByIdServerCDNBackedReadEndpointForPetDetails) GetUrl() string {
 
 // GetStagingPetInfoServer is the interface for per-operation server URLs for GetStagingPetInfo.
 type GetStagingPetInfoServer interface {
-	// GetUrl returns the server URL.
+	/* GetUrl returns the server URL. */
 	GetUrl() string
 }
 

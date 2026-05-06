@@ -18,14 +18,14 @@ import (
 // Each variable has a default value and may optionally restrict values to
 // an enumerated set.
 type ServerVariable struct {
-	// DefaultValue is the default value for this variable.
+	/* DefaultValue is the default value for this variable. */
 	DefaultValue string
 
-	// Description is a human-readable description of this variable.
+	/* Description is a human-readable description of this variable. */
 	Description string
 
-	// EnumValues are the allowed values for this variable. An empty slice
-	// means any value is accepted.
+	/* EnumValues are the allowed values for this variable. An empty slice
+	 * means any value is accepted. */
 	EnumValues []string
 }
 
@@ -36,13 +36,13 @@ type ServerVariable struct {
 // with default variable values, or URL with overrides to substitute specific
 // variables.
 type ServerConfiguration struct {
-	// URLTemplate is the raw URL template before variable substitution.
+	/* URLTemplate is the raw URL template before variable substitution. */
 	URLTemplate string
 
-	// Description is a human-readable description of this server.
+	/* Description is a human-readable description of this server. */
 	Description string
 
-	// Variables contains the server variables and their definitions.
+	/* Variables contains the server variables and their definitions. */
 	Variables map[string]ServerVariable
 }
 

@@ -100,6 +100,26 @@ async fn test_base_api_error_dispatch_502() {
     assert!(result.is_err(), "expected error for status 502");
 }
 
+// -- Error body parsing --
+
+#[tokio::test]
+async fn test_base_api_parses_json_error_body() {
+    let base_url = format!("{}/api/error/400", testcontainers_helper::wiremock_http_url());
+    let config = ConfigurationBuilder::new().base_url(&base_url).build();
+    let client = DefaultApiClient::new(None);
+    let api = PetApi::new(Arc::new(client), config, None);
+
+    let result = api.get_pet_by_id(1, None).await;
+    assert!(result.is_err(), "expected error for status 400");
+    let err = result.unwrap_err();
+    let bad_request = err.downcast_ref::<BadRequestError>()
+        .expect("expected BadRequestError");
+    assert!(
+        bad_request.client_error.api_error.error_body.is_some(),
+        "error_body should be Some for JSON responses"
+    );
+}
+
 // -- Empty 200 response --
 
 #[tokio::test]
@@ -172,4 +192,148 @@ async fn test_base_api_handles_nil_body() {
         .expect("unexpected error");
 
     assert_eq!(resp.status_code, 200);
+}
+
+// -- No-op authenticator for unit tests --
+
+struct NoopAuthenticator;
+
+impl {{packageName}}::auth::Authenticator for NoopAuthenticator {
+    fn host(&self) -> &str {
+        "http://localhost"
+    }
+
+    fn auth_headers(&self) -> HashMap<String, String> {
+        HashMap::new()
+    }
+}
+
+// -- Capturing API client for unit tests --
+
+use std::sync::Mutex;
+
+struct CapturingApiClient {
+    captured_headers: Mutex<HashMap<String, String>>,
+    captured_body: Mutex<Option<Vec<u8>>>,
+}
+
+impl CapturingApiClient {
+    fn new() -> Self {
+        CapturingApiClient {
+            captured_headers: Mutex::new(HashMap::new()),
+            captured_body: Mutex::new(None),
+        }
+    }
+}
+
+impl {{packageName}}::api_client::ApiClient for CapturingApiClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        _url: &str,
+        headers: &HashMap<String, String>,
+        body: Option<&[u8]>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_response::ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        *self.captured_headers.lock().unwrap() = headers.clone();
+        *self.captured_body.lock().unwrap() = body.map(|b| b.to_vec());
+        Box::pin(async {
+            Ok({{packageName}}::api_response::ApiResponse {
+                status_code: 200,
+                body: "{}".to_string(),
+                headers: {
+                    let mut h = HashMap::new();
+                    h.insert("Content-Type".to_string(), "application/json".to_string());
+                    h
+                },
+            })
+        })
+    }
+}
+
+// -- Header flow-through tests --
+
+#[tokio::test]
+async fn test_base_api_all_headers_flow_through() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+    let _ = api.get_pet_by_id(1, None).await;
+    let headers = client.captured_headers.lock().unwrap();
+    assert!(headers.contains_key("Accept"), "Expected Accept header from selector");
+    assert!(headers.contains_key("Content-Type"), "Expected Content-Type header from selector");
+}
+
+// -- Body serialization tests --
+
+#[tokio::test]
+async fn test_base_api_serializes_json_body() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+    let pet = Pet::new("TestPet".to_string(), vec![]);
+    let auth = NoopAuthenticator;
+    let _ = api.add_pet(&auth, pet).await;
+    let body = client.captured_body.lock().unwrap();
+    assert!(body.is_some(), "expected body to be captured");
+    let body_str = String::from_utf8(body.as_ref().unwrap().clone()).unwrap();
+    assert!(body_str.contains("TestPet"), "expected body to contain 'TestPet'");
+}
+
+// -- serialize_body unit tests --
+
+#[test]
+fn test_serialize_body_form_urlencoded() {
+    let mut params = HashMap::new();
+    params.insert("name".to_string(), "alice".to_string());
+    let json_bytes = serde_json::to_vec(&params).unwrap();
+    let result = {{packageName}}::api::serialize_body(
+        Some(json_bytes),
+        "application/x-www-form-urlencoded",
+    ).unwrap();
+    assert!(result.is_some());
+    let body_str = String::from_utf8(result.unwrap()).unwrap();
+    assert!(body_str.contains("name=alice"), "expected URL-encoded form data, got: {}", body_str);
+}
+
+#[test]
+fn test_serialize_body_text_plain() {
+    let body = b"hello world".to_vec();
+    let result = {{packageName}}::api::serialize_body(
+        Some(body),
+        "text/plain",
+    ).unwrap();
+    assert!(result.is_some());
+    let body_str = String::from_utf8(result.unwrap()).unwrap();
+    assert_eq!(body_str, "hello world");
+}
+
+#[test]
+fn test_serialize_body_binary() {
+    let body = vec![0x01, 0x02, 0x03];
+    let result = {{packageName}}::api::serialize_body(
+        Some(body.clone()),
+        "application/octet-stream",
+    ).unwrap();
+    assert!(result.is_some());
+    assert_eq!(result.unwrap(), body);
+}
+
+#[test]
+fn test_serialize_body_json_passthrough() {
+    let body = b"{\"key\":\"value\"}".to_vec();
+    let result = {{packageName}}::api::serialize_body(
+        Some(body.clone()),
+        "application/json",
+    ).unwrap();
+    assert!(result.is_some());
+    assert_eq!(result.unwrap(), body);
+}
+
+#[test]
+fn test_serialize_body_none() {
+    let result = {{packageName}}::api::serialize_body(
+        None,
+        "application/json",
+    ).unwrap();
+    assert!(result.is_none());
 }

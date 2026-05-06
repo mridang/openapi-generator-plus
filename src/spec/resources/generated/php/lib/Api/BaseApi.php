@@ -69,11 +69,6 @@ class BaseApi
         $this->authenticator = $authenticator;
     }
 
-    public function getConfig(): Configuration
-    {
-        return $this->config;
-    }
-
     /**
      * Invoke an API operation and return the full result.
      *
@@ -153,7 +148,7 @@ class BaseApi
                 }
             }
 
-            if ($respContentType !== null && !str_starts_with($respContentType, 'application/json') && !str_contains($respContentType, '+json')) {
+            if ($respContentType !== null && !$this->headerSelector->isJsonMime($respContentType)) {
                 $data = $response->body;
             } else {
                 $data = ObjectSerializer::deserialize($response->body, $returnType, []);

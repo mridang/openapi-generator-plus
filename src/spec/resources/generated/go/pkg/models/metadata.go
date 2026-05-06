@@ -15,7 +15,7 @@ import (
 // Metadata is a model class generated from the OpenAPI schema.
 type Metadata struct {
 	CreatedAt *time.Time `json:"createdAt,omitempty"`
-	// AdditionalProperties holds any extra fields not defined in the schema.
+	/* AdditionalProperties holds any extra fields not defined in the schema. */
 	AdditionalProperties map[string]interface{} `json:"-"`
 }
 
@@ -38,7 +38,7 @@ func (o Metadata) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Merge the two JSON objects
+	/* Merge the two JSON objects */
 	b[len(b)-1] = ','
 	return append(b, extra[1:]...), nil
 }
@@ -52,7 +52,7 @@ func (o *Metadata) UnmarshalJSON(data []byte) error {
 	}
 	*o = Metadata(*aux)
 
-	// Collect additional properties
+	/* Collect additional properties */
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err

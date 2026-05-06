@@ -141,3 +141,17 @@ final pet = Pet(name: 'Fido', status: 'available');
 ## Binary / File Uploads
 
 File upload parameters accept `List<int>` (byte lists). Binary response bodies are returned as `List<int>`.
+
+## Comment Style
+
+Never use inline comments (`//`). Always use block comments (`/* ... */`). Doc comments (`///`) are fine.
+
+```good
+/* This explains the logic */
+final x = 1;
+```
+
+```bad
+// This explains the logic
+final x = 1;
+```

@@ -23,7 +23,7 @@ import . "{{moduleName}}/pkg/models"
 type {{className}} struct {
 {{#params}}
 {{#description}}
-	// {{name}} {{{.}}}
+	/* {{name}} {{{.}}} */
 {{/description}}
 {{#required}}
 	{{name}} {{{dataType}}}

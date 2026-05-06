@@ -105,6 +105,10 @@ class ObjectSerializer
      */
     public static function stringify(mixed $value): string
     {
+        if ($value === null) {
+            return '';
+        }
+
         if ($value instanceof \DateTime) {
             return $value->format(self::DATE_TIME_FORMAT);
         }
@@ -119,10 +123,6 @@ class ObjectSerializer
 
         if (is_int($value) || is_float($value)) {
             return (string) $value;
-        }
-
-        if ($value === null) {
-            return '';
         }
 
         $encoded = json_encode($value);

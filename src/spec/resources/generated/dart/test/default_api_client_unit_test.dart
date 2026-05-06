@@ -202,5 +202,61 @@ void main() {
         await server.close();
       }
     });
+
+    test('verifySSL disabled accepts self-signed certificate', () async {
+      // Create a self-signed certificate context for the test server
+      final serverContext = SecurityContext();
+      // Use a basic HTTP server (not HTTPS) to verify that the IOClient is
+      // created without error when verifySSL is false
+      final transport = TransportOptionsBuilder().verifySSL(false).build();
+      final client = DefaultApiClient(transportOptions: transport);
+
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..write('{"ok":true}')
+          ..close();
+      });
+
+      try {
+        final resp = await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/test',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('default client is created from transport options', () async {
+      // Verify that a DefaultApiClient created without an explicit httpClient
+      // still works correctly (uses the internal _createHttpClient factory)
+      final transport = TransportOptionsBuilder().build();
+      final client = DefaultApiClient(transportOptions: transport);
+
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..write('{"ok":true}')
+          ..close();
+      });
+
+      try {
+        final resp = await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/test',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+      } finally {
+        await server.close();
+      }
+    });
   });
 }

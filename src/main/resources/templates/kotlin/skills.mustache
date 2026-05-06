@@ -139,3 +139,17 @@ val pet = Pet(name = "Fido", status = "available")
 ## Binary / File Uploads
 
 File upload parameters are typed as `java.io.File`. Binary response bodies are returned as `ByteArray`.
+
+## Comment Style
+
+Never use inline comments (`//`). Always use block comments (`/* ... */`).
+
+```good
+/* This explains the logic */
+val x = 1
+```
+
+```bad
+// This explains the logic
+val x = 1
+```

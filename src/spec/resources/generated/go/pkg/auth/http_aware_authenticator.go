@@ -11,13 +11,13 @@ package auth
 //
 // Mirrors the main package's HttpResponse to avoid circular imports.
 type HttpResponse struct {
-	// StatusCode is the HTTP status code of the response.
+	/* StatusCode is the HTTP status code of the response. */
 	StatusCode int
 
-	// Body is the raw response body as a string.
+	/* Body is the raw response body as a string. */
 	Body string
 
-	// Headers contains the response headers.
+	/* Headers contains the response headers. */
 	Headers map[string]string
 }
 
@@ -26,7 +26,7 @@ type HttpResponse struct {
 // Mirrors the main package's ApiClient to avoid circular imports between the
 // auth subpackage and the root module package.
 type ApiClient interface {
-	// SendRequest sends an HTTP request and returns the response.
+	/* SendRequest sends an HTTP request and returns the response. */
 	SendRequest(method, url string, headers map[string]string, body []byte) (*HttpResponse, error)
 }
 
@@ -46,23 +46,23 @@ type ApiClient interface {
 // Only OAuth2 and OpenID Connect authenticators implement this interface.
 // Simple authenticators (Basic, Bearer, API Key) do not need HTTP access.
 type HttpAwareAuthenticator interface {
-	// Host returns the base URL of the API.
+	/* Host returns the base URL of the API. */
 	Host() string
 
-	// AuthHeaders returns the authentication headers to include in every request.
+	/* AuthHeaders returns the authentication headers to include in every request. */
 	AuthHeaders() map[string]string
 
-	// QueryParams returns query parameters to include for authentication.
+	/* QueryParams returns query parameters to include for authentication. */
 	QueryParams() map[string]string
 
-	// CookieParams returns cookie parameters to include for authentication.
+	/* CookieParams returns cookie parameters to include for authentication. */
 	CookieParams() map[string]string
 
-	// SetApiClient injects the shared API client for making HTTP requests.
-	//
-	// Called by the Client constructor after the ApiClient has been
-	// created with the user's TransportOptions. Implementations should store
-	// this reference and use it for all outbound HTTP calls (token exchange,
-	// discovery, etc.).
+	/* SetApiClient injects the shared API client for making HTTP requests.
+	 *
+	 * Called by the Client constructor after the ApiClient has been
+	 * created with the user's TransportOptions. Implementations should store
+	 * this reference and use it for all outbound HTTP calls (token exchange,
+	 * discovery, etc.). */
 	SetApiClient(client ApiClient)
 }

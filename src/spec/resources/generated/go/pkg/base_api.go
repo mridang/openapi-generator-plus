@@ -60,13 +60,13 @@ func (b *BaseApi) invokeAPIForResult(params invokeAPIParams) (*HttpResponse, err
 		requestURL = b.config.BaseURL() + params.path
 	}
 
-	// Determine effective authenticator (per-request overrides instance-level)
+	/* Determine effective authenticator (per-request overrides instance-level) */
 	effectiveAuth := params.auth
 	if effectiveAuth == nil {
 		effectiveAuth = b.authenticator
 	}
 
-	// Merge authentication query params
+	/* Merge authentication query params */
 	if effectiveAuth != nil {
 		authQueryParams := effectiveAuth.QueryParams()
 		if params.queryParams == nil {
@@ -77,44 +77,32 @@ func (b *BaseApi) invokeAPIForResult(params invokeAPIParams) (*HttpResponse, err
 		}
 	}
 
-	// Build query string
+	/* Build query string */
 	queryString := buildQueryString(params.queryParams)
 	if queryString != "" {
 		requestURL = requestURL + "?" + queryString
 	}
 
-	// Select headers
+	/* Select headers */
 	isMultipart := params.contentType == "multipart/form-data"
-	ct := params.contentType
-	if ct == "" {
-		ct = "application/json"
-	}
-	selected := b.headerSelector.SelectHeaders(params.accepts, ct, isMultipart)
+	headers := b.headerSelector.SelectHeaders(params.accepts, params.contentType, isMultipart)
 
-	headers := make(map[string]string)
-	if v, ok := selected["Accept"]; ok {
-		headers["Accept"] = v
-	}
-	if v, ok := selected["Content-Type"]; ok {
-		headers["Content-Type"] = v
-	}
-
-	// Merge config default headers
+	/* Merge config default headers */
 	for k, v := range b.config.DefaultHeaders() {
 		headers[k] = v
 	}
 
-	// Merge operation-specific headers
+	/* Merge operation-specific headers */
 	for k, v := range params.headerParams {
 		headers[k] = v
 	}
 
-	// Merge auth headers
+	/* Merge auth headers */
 	if effectiveAuth != nil {
 		for k, v := range effectiveAuth.AuthHeaders() {
 			headers[k] = v
 		}
-		// Handle cookie params
+		/* Handle cookie params */
 		cookies := effectiveAuth.CookieParams()
 		if len(cookies) > 0 {
 			var cookieParts []string
@@ -130,22 +118,22 @@ func (b *BaseApi) invokeAPIForResult(params invokeAPIParams) (*HttpResponse, err
 		}
 	}
 
-	// Inject trace context
+	/* Inject trace context */
 	InjectTraceContext(headers)
 
-	// Serialize body
+	/* Serialize body */
 	serializedBody, err := serializeBody(params.body, params.contentType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize request body: %w", err)
 	}
 
-	// Send request
+	/* Send request */
 	response, err := b.apiClient.SendRequest(params.method, requestURL, headers, serializedBody)
 	if err != nil {
 		return nil, err
 	}
 
-	// Check for errors
+	/* Check for errors */
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
 		return nil, throwAPIError(response)
 	}
@@ -191,7 +179,7 @@ func serializeBody(body interface{}, contentType string) ([]byte, error) {
 	}
 
 	if contentType == "multipart/form-data" {
-		// Multipart is handled separately by the API client
+		/* Multipart is handled separately by the API client */
 		return nil, nil
 	}
 

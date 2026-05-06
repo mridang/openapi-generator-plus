@@ -100,15 +100,6 @@ public abstract class BaseApi {
   }
 
   /**
-   * Return the API-level configuration.
-   *
-   * @return the configuration
-   */
-  public Configuration getConfig() {
-    return config;
-  }
-
-  /**
    * Invoke an API operation and return the full result including status code, headers, and raw body
    * alongside the deserialized data.
    *
@@ -220,9 +211,7 @@ public abstract class BaseApi {
                   .headers()
                   .getOrDefault("content-type", response.headers().getOrDefault("Content-Type", ""))
               : "";
-      if (!responseContentType.isEmpty()
-          && !responseContentType.contains("application/json")
-          && !responseContentType.contains("+json")) {
+      if (!responseContentType.isEmpty() && !headerSelector.isJsonMime(responseContentType)) {
         if (returnType.getType() == InputStream.class) {
           @SuppressWarnings("unchecked")
           T streamBody =

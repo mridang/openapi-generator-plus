@@ -10,6 +10,7 @@ package com.example.petstore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Headers.Companion.toHeaders
+import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -17,6 +18,7 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import java.io.File
 import java.io.InputStream
 import java.net.InetSocketAddress
@@ -119,7 +121,17 @@ class DefaultApiClient : ApiClient {
             builder.sslSocketFactory(sslContext.socketFactory, trustManager)
         }
 
-        builder.followRedirects(transportOptions.followRedirects)
+        if (!transportOptions.followRedirects) {
+            builder.followRedirects(false)
+        } else if (transportOptions.maxRedirects != null) {
+            /* OkHttp's followRedirects is boolean-only, so we disable automatic
+             * redirects and use a network interceptor to manually follow
+             * Location headers up to the configured limit. */
+            builder.followRedirects(false)
+            builder.addNetworkInterceptor(MaxRedirectsInterceptor(transportOptions.maxRedirects!!))
+        } else {
+            builder.followRedirects(true)
+        }
 
         if (transportOptions.timeout != null) {
             builder.connectTimeout(transportOptions.timeout.toLong(), TimeUnit.MILLISECONDS)
@@ -341,4 +353,34 @@ class DefaultApiClient : ApiClient {
             }
         }
     }
+}
+
+/**
+ * OkHttp interceptor that manually follows HTTP redirects up to a maximum
+ * number of hops. When the limit is exceeded, the last redirect response is
+ * returned as-is.
+ */
+private class MaxRedirectsInterceptor(
+    private val maxRedirects: Int,
+) : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        var request = chain.request()
+        var response = chain.proceed(request)
+        var redirectCount = 0
+
+        while (isRedirect(response.code) && redirectCount < maxRedirects) {
+            val location = response.header("Location") ?: break
+            response.close()
+            request =
+                request
+                    .newBuilder()
+                    .url(request.url.resolve(location) ?: break)
+                    .build()
+            response = chain.proceed(request)
+            redirectCount++
+        }
+        return response
+    }
+
+    private fun isRedirect(code: Int): Boolean = code in listOf(301, 302, 303, 307, 308)
 }

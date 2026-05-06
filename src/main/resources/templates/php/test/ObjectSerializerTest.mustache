@@ -59,6 +59,11 @@ class ObjectSerializerTest extends TestCase
         $this->assertSame('true', ObjectSerializer::toQueryValue(true));
     }
 
+    public function testToQueryValueConvertsFalseToFalse(): void
+    {
+        $this->assertSame('false', ObjectSerializer::toQueryValue(false));
+    }
+
     public function testToQueryValueJoinsArrayWithCommaByDefault(): void
     {
         $this->assertSame('a,b,c', ObjectSerializer::toQueryValue(['a', 'b', 'c']));
@@ -212,6 +217,21 @@ class ObjectSerializerTest extends TestCase
     {
         $json = ObjectSerializer::serialize(null);
         $this->assertSame('null', $json);
+    }
+
+    public function testSerializeIncludesFieldsSetToDefaultValues(): void
+    {
+        $category = new Category();
+        $category->id = 0;
+        $category->name = '';
+        $json = ObjectSerializer::serialize($category);
+        $this->assertJson($json);
+        /** @var array<string, mixed> $data */
+        $data = json_decode($json, true);
+        $this->assertArrayHasKey('id', $data, 'serialized JSON should include id field');
+        $this->assertSame(0, $data['id']);
+        $this->assertArrayHasKey('name', $data, 'serialized JSON should include name field');
+        $this->assertSame('', $data['name']);
     }
 
     // -- deserialize --

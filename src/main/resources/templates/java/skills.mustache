@@ -141,3 +141,17 @@ pet.setStatus("available");
 ## Binary / File Uploads
 
 File upload parameters are typed as `File`. Binary response bodies are returned as `byte[]`.
+
+## Comment Style
+
+Never use inline comments (`//`). Always use block comments (`/* ... */`).
+
+```good
+/* This explains the logic */
+int x = 1;
+```
+
+```bad
+// This explains the logic
+int x = 1;
+```

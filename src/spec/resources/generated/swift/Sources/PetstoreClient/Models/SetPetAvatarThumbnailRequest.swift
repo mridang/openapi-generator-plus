@@ -16,7 +16,7 @@ public struct SetPetAvatarThumbnailRequest: Codable, Sendable {
     let data = try container.decode(AnyCodable.self)
     let rawData = try JSONEncoder().encode(data)
 
-    // Try each oneOf type
+    /* Try each oneOf type */
     if let v = try? JSONDecoder().decode(Data.self, from: rawData) {
       self._value = v
       return

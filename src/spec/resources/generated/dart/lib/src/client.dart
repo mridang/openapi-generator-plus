@@ -42,10 +42,10 @@ import 'api/store_api.dart';
 /// ```
 class Client {
   /// Provides methods for the Pet API group.
-  final PetApi petApi;
+  final PetApi pet;
 
   /// Provides methods for the Store API group.
-  final StoreApi storeApi;
+  final StoreApi store;
 
   /// Creates a new client with the given authenticator and optional transport
   /// options.
@@ -57,8 +57,8 @@ class Client {
   Client._({
     required Authenticator authenticator,
     required DefaultApiClient apiClient,
-  })  : petApi = _createPetApi(authenticator, apiClient),
-        storeApi = _createStoreApi(authenticator, apiClient);
+  })  : pet = _createPetApi(authenticator, apiClient),
+        store = _createStoreApi(authenticator, apiClient);
 
   factory Client({
     required Authenticator authenticator,

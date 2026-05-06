@@ -224,8 +224,7 @@ abstract class BaseApi {
         val data: T? =
             if (response.body.isNotEmpty()) {
                 if (responseContentType.isNotEmpty() &&
-                    !responseContentType.contains("application/json") &&
-                    !responseContentType.contains("+json")
+                    !headerSelector.isJsonMime(responseContentType)
                 ) {
                     if (T::class == ByteArray::class) {
                         response.body.toByteArray(Charsets.ISO_8859_1) as T

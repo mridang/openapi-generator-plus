@@ -24,7 +24,7 @@ func (o PetFood) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (o *PetFood) UnmarshalJSON(data []byte) error {
-	// Use discriminator to determine type
+	/* Use discriminator to determine type */
 	var disc struct {
 		FoodType string `json:"foodType"`
 	}

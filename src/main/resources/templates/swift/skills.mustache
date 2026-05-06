@@ -122,3 +122,17 @@ let pet = Pet(name: "Fido", status: "available")
 ## Binary / File Uploads
 
 File upload parameters are typed as `Data`. Binary response bodies are returned as `Data`.
+
+## Comment Style
+
+Never use inline comments (`//`). Always use block comments (`/* ... */`). Doc comments (`///`) are fine.
+
+```good
+/* This explains the logic */
+let x = 1
+```
+
+```bad
+// This explains the logic
+let x = 1
+```

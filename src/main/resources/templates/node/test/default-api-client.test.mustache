@@ -307,4 +307,34 @@ describe('DefaultApiClient', () => {
       expect(response.statusCode).toBe(302);
     });
   });
+
+  describe('max redirects', () => {
+    test('respects maxRedirects limit', () => {
+      const transport = TransportOptions.builder()
+        .followRedirects(true)
+        .maxRedirects(5)
+        .build();
+
+      const client = new DefaultApiClient(transport);
+      expect(client).toBeDefined();
+      expect(transport.maxRedirects).toBe(5);
+    });
+  });
+
+  describe('multipart body', () => {
+    test('sends multipart form data', async () => {
+      const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
+
+      const client = new DefaultApiClient();
+      const formData: Buffer = Buffer.from(JSON.stringify({ description: 'A test file' }));
+      const response = await client.sendRequest(
+        'POST',
+        `${wiremockUrl}/api/test`,
+        { 'Content-Type': 'multipart/form-data' },
+        formData
+      );
+
+      expect(response).toBeDefined();
+    });
+  });
 });

@@ -35,8 +35,8 @@ open class OAuth2ImplicitAuthenticator(
     private var accessToken: String? = null
 
     override fun setApiClient(apiClient: ApiClient) {
-        // Implicit flow does not make token exchange requests,
-        // but implements the interface for consistency.
+        /* Implicit flow does not make token exchange requests,
+         * but implements the interface for consistency. */
     }
 
     /**

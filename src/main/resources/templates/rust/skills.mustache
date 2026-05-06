@@ -133,3 +133,17 @@ let pet = Pet {
 ## Binary / File Uploads
 
 File upload parameters accept `Vec<u8>`. Binary response bodies are returned as `Vec<u8>`.
+
+## Comment Style
+
+Never use inline comments (`//`). Always use block comments (`/* ... */`). Doc comments (`///`) are fine.
+
+```good
+/* This explains the logic */
+let x = 1;
+```
+
+```bad
+// This explains the logic
+let x = 1;
+```

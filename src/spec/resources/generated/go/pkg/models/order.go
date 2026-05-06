@@ -18,7 +18,7 @@ type Order struct {
 	PetId    *int64     `json:"petId,omitempty"`
 	Quantity *int32     `json:"quantity,omitempty"`
 	ShipDate *time.Time `json:"shipDate,omitempty"`
-	// Status Order Status
+	/* Status Order Status */
 	Status   *string `json:"status,omitempty"`
 	Complete *bool   `json:"complete,omitempty"`
 }

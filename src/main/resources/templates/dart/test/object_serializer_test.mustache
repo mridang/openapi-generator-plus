@@ -69,6 +69,14 @@ void main() {
       expect(toQueryValue(['a', 'b', 'c'], 'pipes'), equals('a|b|c'));
     });
 
+    test('toQueryValue bool true', () {
+      expect(toQueryValue(true, ''), equals('true'));
+    });
+
+    test('toQueryValue bool false', () {
+      expect(toQueryValue(false, ''), equals('false'));
+    });
+
     test('toQueryValue null', () {
       expect(toQueryValue(null, ''), isNull);
     });
@@ -122,6 +130,16 @@ void main() {
 
     test('stringify null', () {
       expect(stringify(null), equals(''));
+    });
+
+    test('serialize includes fields set to default values', () {
+      final category = Category(id: 0, name: '');
+      final json = serialize(category);
+      final parsed = jsonDecode(json) as Map<String, dynamic>;
+      expect(parsed.containsKey('id'), isTrue, reason: 'serialized JSON should include id field');
+      expect(parsed['id'], equals(0));
+      expect(parsed.containsKey('name'), isTrue, reason: 'serialized JSON should include name field');
+      expect(parsed['name'], equals(''));
     });
   });
 }

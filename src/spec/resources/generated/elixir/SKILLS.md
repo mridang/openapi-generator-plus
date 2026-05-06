@@ -118,3 +118,16 @@ pet = %PetstoreClient.Models.Pet{name: "Fido", status: "available"}
 ## Binary / File Uploads
 
 File upload parameters accept `binary()` data. Binary response bodies are returned as `binary()`.
+
+## Comment Style
+
+Use `#` comments and `@moduledoc`/`@doc` attributes for documentation. Place comments on their own line.
+
+```good
+# This explains the logic
+x = 1
+```
+
+```bad
+x = 1  # This explains the logic
+```

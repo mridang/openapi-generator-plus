@@ -32,8 +32,8 @@ public enum ValueSerializer {
 
     let strVal = ObjectSerializer.stringify(value)
     if location == "path" {
-      // Use a strict character set matching Java's URLEncoder behavior:
-      // only unreserved characters (letters, digits, -, _, ., ~) pass through unencoded.
+      /* Use a strict character set matching Java's URLEncoder behavior:
+             * only unreserved characters (letters, digits, -, _, ., ~) pass through unencoded. */
       var allowed = CharacterSet.alphanumerics
       allowed.insert(charactersIn: "-._~")
       return strVal.addingPercentEncoding(withAllowedCharacters: allowed) ?? strVal

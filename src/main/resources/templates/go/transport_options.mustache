@@ -22,41 +22,41 @@ import (
 //		UserAgent("MyApp/1.0").
 //		Build()
 type TransportOptions struct {
-	// verifySSL controls whether TLS certificate verification is enabled.
+	/* verifySSL controls whether TLS certificate verification is enabled. */
 	verifySSL bool
 
-	// caCertPath is the path to a custom CA certificate bundle for TLS verification.
+	/* caCertPath is the path to a custom CA certificate bundle for TLS verification. */
 	caCertPath string
 
-	// proxy is the HTTP or HTTPS proxy URL for all outbound requests.
+	/* proxy is the HTTP or HTTPS proxy URL for all outbound requests. */
 	proxy *url.URL
 
-	// timeout is the end-to-end request timeout in milliseconds. Covers the
-	// entire request lifecycle: connection, TLS handshake, sending the request
-	// body, and reading the response. A zero value means no timeout.
+	/* timeout is the end-to-end request timeout in milliseconds. Covers the
+	 * entire request lifecycle: connection, TLS handshake, sending the request
+	 * body, and reading the response. A zero value means no timeout. */
 	timeout int
 
-	// followRedirects controls whether the client follows HTTP 3xx redirects.
+	/* followRedirects controls whether the client follows HTTP 3xx redirects. */
 	followRedirects bool
 
-	// maxRedirects is the maximum number of consecutive redirects to follow.
-	// Only meaningful when followRedirects is true. A value of 0 uses the
-	// HTTP client's built-in default.
+	/* maxRedirects is the maximum number of consecutive redirects to follow.
+	 * Only meaningful when followRedirects is true. A value of 0 uses the
+	 * HTTP client's built-in default. */
 	maxRedirects int
 
-	// userAgent is the custom User-Agent header value.
+	/* userAgent is the custom User-Agent header value. */
 	userAgent string
 
-	// defaultHeaders are transport-level default headers included in every request.
-	// These have the lowest priority: API-level headers, operation-specific headers,
-	// and authentication headers all take precedence.
+	/* defaultHeaders are transport-level default headers included in every request.
+	 * These have the lowest priority: API-level headers, operation-specific headers,
+	 * and authentication headers all take precedence. */
 	defaultHeaders map[string]string
 
-	// injectRequestID controls whether to auto-inject an X-Request-ID header
-	// with a unique UUID on every request.
+	/* injectRequestID controls whether to auto-inject an X-Request-ID header
+	 * with a unique UUID on every request. */
 	injectRequestID bool
 
-	// tlsConfig is an optional custom TLS configuration.
+	/* tlsConfig is an optional custom TLS configuration. */
 	tlsConfig *tls.Config
 }
 

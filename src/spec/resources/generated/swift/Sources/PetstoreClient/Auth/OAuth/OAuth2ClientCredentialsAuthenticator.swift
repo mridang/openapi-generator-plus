@@ -56,7 +56,7 @@ public final class OAuth2ClientCredentialsAuthenticator: BaseAuthenticator, Http
       params["scope"] = scopes.joined(separator: " ")
     }
 
-    // Use a synchronous wrapper for the async token fetch
+    /* Use a synchronous wrapper for the async token fetch */
     var token: String?
     let semaphore = DispatchSemaphore(value: 0)
     Task {

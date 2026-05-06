@@ -83,6 +83,16 @@ final class ObjectSerializerTests: XCTestCase {
     XCTAssertEqual(result as? String, "a|b|c")
   }
 
+  func testToQueryValueBoolTrue() {
+    let result = ObjectSerializer.toQueryValue(true)
+    XCTAssertEqual(result as? String, "true")
+  }
+
+  func testToQueryValueBoolFalse() {
+    let result = ObjectSerializer.toQueryValue(false)
+    XCTAssertEqual(result as? String, "false")
+  }
+
   func testToQueryValueNil() {
     let result = ObjectSerializer.toQueryValue(nil)
     XCTAssertNil(result)
@@ -143,5 +153,13 @@ final class ObjectSerializerTests: XCTestCase {
 
   func testStringifyNil() {
     XCTAssertEqual(ObjectSerializer.stringify(nil), "")
+  }
+
+  func testSerializeIncludesFieldsSetToDefaultValues() throws {
+    let category = Category(id: 0, name: "")
+    let json = try ObjectSerializer.serialize(category)
+    XCTAssertTrue(json.contains("\"id\":0"), "serialized JSON should include id=0, got: \(json)")
+    XCTAssertTrue(
+      json.contains("\"name\":\"\""), "serialized JSON should include empty name, got: \(json)")
   }
 }

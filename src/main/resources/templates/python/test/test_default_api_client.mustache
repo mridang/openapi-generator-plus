@@ -164,3 +164,19 @@ class TestRedirectHandling:
         response = client.send_request('GET', wiremock_http_url + '/api/redirect', {}, None)
 
         assert response.status_code == 302
+
+
+class TestMaxRedirects:
+    def test_respects_max_redirects_limit(self) -> None:
+        transport = TransportOptions.builder().follow_redirects(True).max_redirects(5).build()
+        client = DefaultApiClient(transport)
+        assert client is not None
+        assert transport.max_redirects == 5
+
+
+class TestMultipartBody:
+    def test_sends_multipart_form_data(self, wiremock_http_url: Any) -> None:
+        client = DefaultApiClient()
+        form_data = {'description': 'A test file', 'file': b'file content'}
+        response = client.send_request('POST', wiremock_http_url + '/api/test', {}, form_data)
+        assert response is not None

@@ -5,12 +5,12 @@ package auth
 type ApiKeyLocation int
 
 const (
-	// ApiKeyLocationHeader sends the API key as a request header.
+	/* ApiKeyLocationHeader sends the API key as a request header. */
 	ApiKeyLocationHeader ApiKeyLocation = iota
 
-	// ApiKeyLocationQuery sends the API key as a query parameter.
+	/* ApiKeyLocationQuery sends the API key as a query parameter. */
 	ApiKeyLocationQuery
 
-	// ApiKeyLocationCookie sends the API key as a cookie.
+	/* ApiKeyLocationCookie sends the API key as a cookie. */
 	ApiKeyLocationCookie
 )

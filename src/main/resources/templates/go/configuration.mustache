@@ -14,13 +14,13 @@ package {{packageName}}
 //		DefaultHeader("Authorization", "Bearer token").
 //		Build()
 type Configuration struct {
-	// baseURL is the base URL for all API requests. Defaults to the first server URL
-	// from the OpenAPI specification.
+	/* baseURL is the base URL for all API requests. Defaults to the first server URL
+	 * from the OpenAPI specification. */
 	baseURL string
 
-	// defaultHeaders are included in every API request. These headers are
-	// merged after transport-level headers from TransportOptions but before
-	// operation-specific headers and authentication headers.
+	/* defaultHeaders are included in every API request. These headers are
+	 * merged after transport-level headers from TransportOptions but before
+	 * operation-specific headers and authentication headers. */
 	defaultHeaders map[string]string
 }
 

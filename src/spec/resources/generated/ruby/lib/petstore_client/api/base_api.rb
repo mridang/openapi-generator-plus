@@ -77,8 +77,7 @@ module PetstoreClient
           ct_pair = response.headers.find { |k, _| k.downcase == 'content-type' }
           resp_content_type = ct_pair ? ct_pair.last.split(';').first.strip : nil
           is_json = !resp_content_type ||
-                    resp_content_type.start_with?('application/json') ||
-                    resp_content_type.include?('+json')
+                    @header_selector.json_mime?(resp_content_type)
           data = if is_json
                    PetstoreClient::ObjectSerializer.deserialize(response.body, return_type)
                  else

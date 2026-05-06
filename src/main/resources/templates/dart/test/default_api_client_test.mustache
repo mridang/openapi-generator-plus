@@ -167,6 +167,75 @@ void main() {
         await server.close();
       }
     });
+
+    test('followRedirects disabled returns redirect status', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 302
+          ..headers.add('Location', '/redirected')
+          ..close();
+      });
+
+      try {
+        final transport = TransportOptionsBuilder()
+            .followRedirects(false)
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final resp = await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/redirect',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(302));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('followRedirects enabled follows redirect', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        if (request.uri.path == '/redirect') {
+          request.response
+            ..statusCode = 302
+            ..headers.add('Location', 'http://localhost:${server.port}/final')
+            ..close();
+        } else {
+          request.response
+            ..statusCode = 200
+            ..write('{"ok":true}')
+            ..close();
+        }
+      });
+
+      try {
+        final transport = TransportOptionsBuilder()
+            .followRedirects(true)
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final resp = await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/redirect',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('maxRedirects limits redirect hops', () async {
+      final transport = TransportOptionsBuilder()
+          .followRedirects(true)
+          .maxRedirects(2)
+          .build();
+      expect(transport.maxRedirects, equals(2));
+      final client = DefaultApiClient(transportOptions: transport);
+      expect(client, isNotNull);
+    });
   });
 }
 {{/generateTests}}

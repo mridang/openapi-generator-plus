@@ -9,10 +9,12 @@ package petstore_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
 	petstore "petstore/pkg"
+	"petstore/pkg/models"
 )
 
 func TestSerialize_MapToJSON(t *testing.T) {
@@ -141,6 +143,20 @@ func TestToQueryValue_StringSlicePipes(t *testing.T) {
 	}
 }
 
+func TestToQueryValue_BoolTrue(t *testing.T) {
+	result := petstore.ToQueryValue(true, "")
+	if result != "true" {
+		t.Errorf("expected 'true', got %v", result)
+	}
+}
+
+func TestToQueryValue_BoolFalse(t *testing.T) {
+	result := petstore.ToQueryValue(false, "")
+	if result != "false" {
+		t.Errorf("expected 'false', got %v", result)
+	}
+}
+
 func TestToQueryValue_Nil(t *testing.T) {
 	result := petstore.ToQueryValue(nil, "")
 	if result != nil {
@@ -248,5 +264,21 @@ func TestStringify_NilStringPointer(t *testing.T) {
 	result := petstore.Stringify(s)
 	if result != "" {
 		t.Errorf("expected empty string for nil *string, got %q", result)
+	}
+}
+
+func TestSerialize_IncludesFieldsSetToDefaultValues(t *testing.T) {
+	id := int64(0)
+	name := ""
+	category := models.Category{Id: &id, Name: &name}
+	data, err := petstore.Serialize(category)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), "\"id\":0") {
+		t.Errorf("serialized JSON should include id=0, got: %s", string(data))
+	}
+	if !strings.Contains(string(data), "\"name\":\"\"") {
+		t.Errorf("serialized JSON should include empty name, got: %s", string(data))
 	}
 }

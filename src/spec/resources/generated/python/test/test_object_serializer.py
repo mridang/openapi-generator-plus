@@ -63,6 +63,9 @@ class TestToQueryValue:
     def test_converts_true_to_true(self) -> None:
         assert ObjectSerializer.to_query_value(True) == 'true'
 
+    def test_converts_false_to_false(self) -> None:
+        assert ObjectSerializer.to_query_value(False) == 'false'
+
     def test_joins_array_with_comma_by_default(self) -> None:
         assert ObjectSerializer.to_query_value(['a', 'b', 'c']) == 'a,b,c'
 
@@ -126,6 +129,17 @@ class TestSerialize:
     def test_handles_none(self) -> None:
         result = ObjectSerializer().serialize(None)
         assert result == 'null'
+
+    def test_includes_fields_set_to_default_values(self) -> None:
+        import json
+
+        category = Category(id=0, name='')
+        result = ObjectSerializer().serialize(category)
+        data = json.loads(result)
+        assert 'id' in data, 'serialized JSON should include id field'
+        assert data['id'] == 0
+        assert 'name' in data, 'serialized JSON should include name field'
+        assert data['name'] == ''
 
 
 class TestDeserialize:

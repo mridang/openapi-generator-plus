@@ -32,6 +32,40 @@ class BaseApiTest {
         }
     }
 
+    class TestableApiWithClient(
+        private val client: CapturingApiClient,
+        baseUrl: String
+    ) : {{apiPackage}}.BaseApi(client, Configuration.builder().baseUrl(baseUrl).build()) {
+        suspend fun call(
+            method: String,
+            path: String,
+            queryParams: MutableMap<String, Any?> = mutableMapOf(),
+            headerParams: MutableMap<String, String> = mutableMapOf(),
+            body: Any? = null,
+            accepts: Array<String> = arrayOf("application/json"),
+            contentType: String = "application/json",
+            auth: Authenticator? = null
+        ): ApiResponse {
+            return invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, auth)
+        }
+    }
+
+    class CapturingApiClient : ApiClient {
+        var capturedHeaders: Map<String, String> = emptyMap()
+        var capturedBody: Any? = null
+
+        override fun sendRequest(
+            method: String,
+            url: String,
+            headers: Map<String, String>,
+            body: Any?
+        ): ApiResponse {
+            capturedHeaders = headers
+            capturedBody = body
+            return ApiResponse(200, "{}", mapOf("Content-Type" to "application/json"))
+        }
+    }
+
     class TestAuthenticator(
         private val headers: Map<String, String>,
         private val queryParams: Map<String, String>,
@@ -122,6 +156,20 @@ class BaseApiTest {
             assertThrows(ServerException::class.java) {
                 runBlocking { api().call("GET", "/api/error/502") }
             }
+        }
+    }
+
+    @Nested
+    @DisplayName("error body parsing")
+    inner class ErrorBodyParsing {
+
+        @Test
+        @DisplayName("parses JSON error body")
+        fun parsesJsonErrorBody() {
+            val ex = assertThrows(BadRequestException::class.java) {
+                runBlocking { api().call("GET", "/api/error/400") }
+            }
+            assertNotNull(ex.errorBody, "errorBody should not be null for JSON responses")
         }
     }
 
@@ -243,6 +291,73 @@ class BaseApiTest {
             runBlocking {
                 api().call("GET", "/api/test")
             }
+        }
+
+        @Test
+        @DisplayName("serializes text/plain body")
+        fun serializesTextPlainBody() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call("POST", "/api/test", body = "hello world", contentType = "text/plain")
+            }
+            assertNotNull(client.capturedBody)
+            assertEquals("hello world", client.capturedBody.toString())
+        }
+
+        @Test
+        @DisplayName("serializes form-urlencoded body")
+        fun serializesFormUrlencodedBody() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call("POST", "/api/test",
+                    body = mapOf("name" to "alice"),
+                    contentType = "application/x-www-form-urlencoded")
+            }
+            assertNotNull(client.capturedBody)
+            assertTrue(client.capturedBody.toString().contains("name=alice"))
+        }
+
+        @Test
+        @DisplayName("passes binary body as-is")
+        fun passesBinaryBody() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call("POST", "/api/test",
+                    body = byteArrayOf(0x01, 0x02, 0x03),
+                    contentType = "application/octet-stream")
+            }
+            assertNotNull(client.capturedBody)
+        }
+    }
+
+    @Nested
+    @DisplayName("header flow-through")
+    inner class HeaderFlowThrough {
+
+        @Test
+        @DisplayName("empty content-type defaults to application/json")
+        fun emptyContentTypeDefaultsToJson() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call("GET", "/api/test", contentType = "")
+            }
+            assertEquals("application/json", client.capturedHeaders["Content-Type"])
+        }
+
+        @Test
+        @DisplayName("all headers from selector flow through to request")
+        fun allHeadersFlowThrough() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call("GET", "/api/test")
+            }
+            assertTrue(client.capturedHeaders.containsKey("Accept"))
+            assertTrue(client.capturedHeaders.containsKey("Content-Type"))
         }
     }
 }

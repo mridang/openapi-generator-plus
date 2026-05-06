@@ -8,14 +8,14 @@
 import { injectTraceContext } from '../src/trace-context-util.js';
 
 describe('TraceContextUtil', () => {
-  test('should not inject traceparent when @opentelemetry/api is not installed', async () => {
+  test('should not inject traceparent when @opentelemetry/api is not installed', () => {
     const headers: Record<string, string> = {};
-    await injectTraceContext(headers);
+    injectTraceContext(headers);
     expect(headers['traceparent']).toBeUndefined();
   });
 
-  test('should not throw any exception', async () => {
+  test('should not throw any exception', () => {
     const headers: Record<string, string> = {};
-    await expect(injectTraceContext(headers)).resolves.not.toThrow();
+    expect(() => injectTraceContext(headers)).not.toThrow();
   });
 });

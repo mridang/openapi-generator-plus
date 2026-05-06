@@ -122,10 +122,18 @@ public final class DefaultApiClient implements ApiClient {
                 builder.sslContext(sslContext);
             }
 
-            builder.followRedirects(
-                    transportOptions.isFollowRedirects()
-                            ? HttpClient.Redirect.NORMAL
-                            : HttpClient.Redirect.NEVER);
+            if (!transportOptions.isFollowRedirects()) {
+                builder.followRedirects(HttpClient.Redirect.NEVER);
+            } else if (transportOptions.getMaxRedirects() != null) {
+                /*
+                 * Java's HttpClient does not support max redirect counts natively,
+                 * so we disable automatic redirects and handle them manually in
+                 * sendRequest when a maxRedirects limit is configured.
+                 */
+                builder.followRedirects(HttpClient.Redirect.NEVER);
+            } else {
+                builder.followRedirects(HttpClient.Redirect.NORMAL);
+            }
 
             if (transportOptions.getTimeout() != null) {
                 builder.connectTimeout(Duration.ofMillis(transportOptions.getTimeout()));
@@ -201,6 +209,36 @@ public final class DefaultApiClient implements ApiClient {
             HttpResponse<byte[]> response =
                     httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofByteArray());
 
+            /*
+             * Manual redirect handling when maxRedirects is configured. The
+             * underlying HttpClient has automatic redirects disabled in this
+             * case, so we follow Location headers ourselves up to the limit.
+             */
+            if (transportOptions.isFollowRedirects()
+                    && transportOptions.getMaxRedirects() != null) {
+                int redirectsRemaining = transportOptions.getMaxRedirects();
+                while (isRedirect(response.statusCode()) && redirectsRemaining > 0) {
+                    String location = response.headers()
+                            .firstValue("location").orElse(null);
+                    if (location == null) {
+                        break;
+                    }
+                    URI redirectUri = URI.create(url).resolve(location);
+                    HttpRequest.Builder redirectBuilder = HttpRequest.newBuilder(redirectUri)
+                            .method(method, bodyPublisher);
+                    if (transportOptions.getTimeout() != null) {
+                        redirectBuilder.timeout(Duration.ofMillis(transportOptions.getTimeout()));
+                    }
+                    for (Map.Entry<String, String> header : mergedHeaders.entrySet()) {
+                        redirectBuilder.header(header.getKey(), header.getValue());
+                    }
+                    response = httpClient.send(
+                            redirectBuilder.build(),
+                            HttpResponse.BodyHandlers.ofByteArray());
+                    redirectsRemaining--;
+                }
+            }
+
             Map<String, String> responseHeaders = new HashMap<>();
             response.headers()
                     .map()
@@ -226,6 +264,11 @@ public final class DefaultApiClient implements ApiClient {
             Thread.currentThread().interrupt();
             throw new ApiException(e.toString());
         }
+    }
+
+    private static boolean isRedirect(int statusCode) {
+        return statusCode == 301 || statusCode == 302 || statusCode == 303
+                || statusCode == 307 || statusCode == 308;
     }
 
     /**

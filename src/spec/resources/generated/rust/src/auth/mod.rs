@@ -8,9 +8,6 @@
 mod authenticator;
 pub use authenticator::*;
 
-mod base_authenticator;
-pub use base_authenticator::*;
-
 mod http_aware_authenticator;
 pub use http_aware_authenticator::*;
 

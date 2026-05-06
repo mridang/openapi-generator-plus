@@ -61,6 +61,8 @@ public class BaseApiTest
     private sealed class CapturingApiClient : IApiClient
     {
         public Uri? CapturedUrl { get; private set; }
+        public Dictionary<string, string> CapturedHeaders { get; private set; } = new();
+        public object? CapturedBody { get; private set; }
 
         public Task<ApiResponse> SendRequestAsync(
             string method,
@@ -70,6 +72,8 @@ public class BaseApiTest
         )
         {
             CapturedUrl = url;
+            CapturedHeaders = new Dictionary<string, string>(headers);
+            CapturedBody = body;
             return Task.FromResult(
                 new ApiResponse(
                     200,
@@ -149,6 +153,25 @@ public class BaseApiTest
             Assert.NotNull(ex.ResponseBody);
             Assert.NotEmpty(ex.ResponseBody);
         }
+    }
+
+    [Fact]
+    public async Task ParsesJsonErrorBody()
+    {
+        var ex = await Assert.ThrowsAsync<BadRequestException>(
+            () =>
+                Api()
+                    .CallAsync<object>(
+                        "GET",
+                        "/api/error/400",
+                        new Dictionary<string, object?>(),
+                        new Dictionary<string, string>(),
+                        null,
+                        ["application/json"],
+                        "application/json"
+                    )
+        );
+        Assert.NotNull(ex.ErrorBody);
     }
 
     [Fact]
@@ -448,5 +471,93 @@ public class BaseApiTest
             )
             .Build();
         Assert.Equal("https://staging.example.com/api/v3", config.BaseUrl);
+    }
+
+    [Fact]
+    public async Task SerializesTextPlainBody()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST",
+            "/api/test",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            "hello world",
+            ["application/json"],
+            "text/plain"
+        );
+        Assert.NotNull(client.CapturedBody);
+        Assert.Contains("hello world", client.CapturedBody.ToString()!);
+    }
+
+    [Fact]
+    public async Task SerializesFormUrlencodedBody()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST",
+            "/api/test",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "name", "alice" } },
+            ["application/json"],
+            "application/x-www-form-urlencoded"
+        );
+        Assert.NotNull(client.CapturedBody);
+        Assert.Contains("name=alice", client.CapturedBody.ToString()!);
+    }
+
+    [Fact]
+    public async Task PassesBinaryBodyAsIs()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST",
+            "/api/test",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new byte[] { 0x01, 0x02, 0x03 },
+            ["application/json"],
+            "application/octet-stream"
+        );
+        Assert.NotNull(client.CapturedBody);
+    }
+
+    [Fact]
+    public async Task EmptyContentTypeDefaultsToJson()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET",
+            "/api/test",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null,
+            ["application/json"],
+            ""
+        );
+        Assert.Equal("application/json", client.CapturedHeaders["Content-Type"]);
+    }
+
+    [Fact]
+    public async Task AllHeadersFromSelectorFlowThrough()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "GET",
+            "/api/test",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null,
+            ["application/json"],
+            "application/json"
+        );
+        Assert.True(client.CapturedHeaders.ContainsKey("Accept"));
+        Assert.True(client.CapturedHeaders.ContainsKey("Content-Type"));
     }
 }

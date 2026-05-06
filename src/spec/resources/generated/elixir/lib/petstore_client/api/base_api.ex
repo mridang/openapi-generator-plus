@@ -167,8 +167,7 @@ defmodule PetstoreClient.Api.BaseApi do
 
           is_json =
             is_nil(resp_content_type) or
-              String.starts_with?(resp_content_type, "application/json") or
-              String.contains?(resp_content_type, "+json")
+              PetstoreClient.HeaderSelector.json_mime?(resp_content_type)
 
           if is_json do
             PetstoreClient.ObjectSerializer.deserialize(response.body, return_type)

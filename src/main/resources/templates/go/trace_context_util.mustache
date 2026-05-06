@@ -1,34 +1,64 @@
 {{>api_info}}
 package {{packageName}}
 
+import (
+	"context"
+	"net/http"
+)
+
 // InjectTraceContext injects W3C Trace Context headers (traceparent, tracestate)
 // into outgoing API requests when OpenTelemetry is available.
 //
-// If the go.opentelemetry.io/otel package is not available, this function
-// silently no-ops.
-//
-// To enable trace context propagation, import the OpenTelemetry SDK and
-// configure a global propagator:
+// This implementation uses a pluggable propagator function. By default it is a
+// safe no-op. To enable trace context propagation, set the propagator at
+// application startup:
 //
 //	import (
 //		"go.opentelemetry.io/otel"
 //		"go.opentelemetry.io/otel/propagation"
 //	)
 //
-//	otel.SetTextMapPropagator(propagation.TraceContext{})
+//	func init() {
+//		otel.SetTextMapPropagator(propagation.TraceContext{})
+//		SetTraceContextPropagator(func(ctx context.Context, headers map[string]string) {
+//			otel.GetTextMapPropagator().Inject(ctx, propagation.MapCarrier(headers))
+//		})
+//	}
 func InjectTraceContext(headers map[string]string) {
-	injectTraceContextImpl(headers)
+	if traceContextPropagator != nil {
+		traceContextPropagator(context.Background(), headers)
+	}
 }
 
-// injectTraceContextImpl is the actual implementation. It attempts to use
-// OpenTelemetry if available, otherwise it is a no-op.
-//
-// Users who want OpenTelemetry support should import the otel packages
-// and provide a build-tag-based implementation. This default implementation
-// is a safe no-op.
-func injectTraceContextImpl(headers map[string]string) {
-	// No-op: OpenTelemetry integration requires the otel SDK.
-	// To enable, users should configure the global TextMapPropagator
-	// and inject context into requests at the application level.
-	_ = headers
+// TraceContextPropagatorFunc is a function that injects trace context into headers.
+type TraceContextPropagatorFunc func(ctx context.Context, headers map[string]string)
+
+// traceContextPropagator holds the current propagator function.
+// It is nil by default (no-op).
+var traceContextPropagator TraceContextPropagatorFunc
+
+// SetTraceContextPropagator sets the function used to inject trace context
+// headers. Pass nil to disable trace context injection.
+func SetTraceContextPropagator(fn TraceContextPropagatorFunc) {
+	traceContextPropagator = fn
+}
+
+// headerCarrier adapts map[string]string to http.Header for use with
+// OpenTelemetry propagators that expect http.Header.
+type headerCarrier map[string]string
+
+func (c headerCarrier) Get(key string) string {
+	return c[http.CanonicalHeaderKey(key)]
+}
+
+func (c headerCarrier) Set(key, value string) {
+	c[key] = value
+}
+
+func (c headerCarrier) Keys() []string {
+	keys := make([]string, 0, len(c))
+	for k := range c {
+		keys = append(keys, k)
+	}
+	return keys
 }

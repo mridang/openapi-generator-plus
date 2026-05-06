@@ -13,5 +13,13 @@ uuid = { version = "1", features = ["v4"] }
 regex = "1"
 urlencoding = "2"
 
+[features]
+default = []
+opentelemetry = ["dep:opentelemetry"]
+
+[dependencies.opentelemetry]
+version = "0.22"
+optional = true
+
 [dev-dependencies]
 testcontainers = { version = "0.24", features = ["blocking"] }

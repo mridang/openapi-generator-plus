@@ -32,6 +32,15 @@ class ObjectSerializerTest {
             val json = serializer.serialize("hello")
             assertEquals("\"hello\"", json)
         }
+
+        @Test
+        @DisplayName("includes fields explicitly set to default values")
+        fun includesFieldsSetToDefaultValues() {
+            val category = {{modelPackage}}.Category(id = 0L, name = "")
+            val json = serializer.serialize(category)
+            assertTrue(json.contains("\"id\":0"), "serialized JSON should include id=0, got: $json")
+            assertTrue(json.contains("\"name\":\"\""), "serialized JSON should include empty name, got: $json")
+        }
     }
 
     @Nested
@@ -225,6 +234,12 @@ class ObjectSerializerTest {
         @DisplayName("converts true to \"true\"")
         fun convertsTrueToString() {
             assertEquals("true", serializer.toQueryValue(true, null))
+        }
+
+        @Test
+        @DisplayName("converts false to \"false\"")
+        fun convertsFalseToString() {
+            assertEquals("false", serializer.toQueryValue(false, null))
         }
     }
 

@@ -27,7 +27,7 @@ public struct Metadata: Codable, Sendable {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
 
-    // Decode additional properties
+    /* Decode additional properties */
     let knownKeys = Set(CodingKeys.allCases.map { $0.rawValue })
     let dynamicContainer = try decoder.container(keyedBy: DynamicCodingKey.self)
     var additionalProperties = [String: AnyCodable]()
@@ -44,7 +44,7 @@ public struct Metadata: Codable, Sendable {
     var container = encoder.container(keyedBy: CodingKeys.self)
     try container.encodeIfPresent(createdAt, forKey: .createdAt)
 
-    // Encode additional properties
+    /* Encode additional properties */
     var dynamicContainer = encoder.container(keyedBy: DynamicCodingKey.self)
     for (key, value) in additionalProperties {
       let codingKey = DynamicCodingKey(stringValue: key)!

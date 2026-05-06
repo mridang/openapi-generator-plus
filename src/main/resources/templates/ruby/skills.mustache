@@ -120,3 +120,16 @@ pet = {{moduleName}}::Models::Pet.new(name: 'Fido', status: 'available')
 ## Binary / File Uploads
 
 File upload parameters accept `File` objects or `IO`-like objects. Binary response bodies are returned as `String` with binary encoding.
+
+## Comment Style
+
+Use `#` comments on their own line. Never place inline comments on the same line as code.
+
+```good
+# This explains the logic
+x = 1
+```
+
+```bad
+x = 1  # This explains the logic
+```

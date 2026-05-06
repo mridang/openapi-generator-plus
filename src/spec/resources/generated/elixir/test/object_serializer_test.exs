@@ -70,6 +70,10 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert PetstoreClient.ObjectSerializer.to_query_value(true) == "true"
     end
 
+    test "converts false to 'false'" do
+      assert PetstoreClient.ObjectSerializer.to_query_value(false) == "false"
+    end
+
     test "joins array with comma by default" do
       assert PetstoreClient.ObjectSerializer.to_query_value(["a", "b", "c"]) == "a,b,c"
     end
@@ -143,6 +147,16 @@ defmodule PetstoreClient.ObjectSerializerTest do
     test "handles nil" do
       json = PetstoreClient.ObjectSerializer.serialize(nil)
       assert json == "null"
+    end
+
+    test "includes fields explicitly set to default values" do
+      category = %PetstoreClient.Models.Category{id: 0, name: ""}
+      json = PetstoreClient.ObjectSerializer.serialize(category)
+      data = Jason.decode!(json)
+      assert Map.has_key?(data, "id"), "serialized JSON should include id field"
+      assert data["id"] == 0
+      assert Map.has_key?(data, "name"), "serialized JSON should include name field"
+      assert data["name"] == ""
     end
   end
 

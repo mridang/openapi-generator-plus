@@ -296,4 +296,37 @@ public class DefaultApiClientTest
 
         Assert.Equal(302, response.StatusCode);
     }
+
+    // -- Max redirects --
+
+    [Fact]
+    public void RespectsMaxRedirectsLimit()
+    {
+        var transport = TransportOptions.Builder().FollowRedirects(true).MaxRedirects(5).Build();
+
+        var client = new DefaultApiClient(transport);
+        Assert.NotNull(client);
+        Assert.Equal(5, transport.MaxRedirects);
+    }
+
+    // -- Multipart body --
+
+    [Fact]
+    public async Task SendsMultipartFormData()
+    {
+        var client = new DefaultApiClient();
+        var formData = new Dictionary<string, object>
+        {
+            { "description", "A test file" },
+            { "file", System.Text.Encoding.UTF8.GetBytes("file content") },
+        };
+        var response = await client.SendRequestAsync(
+            "POST",
+            new Uri(_fixture.WireMockHttpUrl + "/api/test"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.NotNull(response);
+    }
 }

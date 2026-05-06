@@ -74,7 +74,7 @@ impl BaseApi {
             request_url = format!("{}{}", self.config.base_url(), params.path);
         }
 
-        // Merge authentication query params
+        /* Merge authentication query params */
         let mut query_params = params.query_params;
         let effective_auth: Option<&dyn Authenticator> = params
             .auth
@@ -85,47 +85,34 @@ impl BaseApi {
             }
         }
 
-        // Build query string
+        /* Build query string */
         let query_string = build_query_string(&query_params);
         if !query_string.is_empty() {
             request_url = format!("{}?{}", request_url, query_string);
         }
 
-        // Select headers
+        /* Select headers */
         let is_multipart = params.content_type == "multipart/form-data";
-        let ct = if params.content_type.is_empty() {
-            "application/json"
-        } else {
-            params.content_type
-        };
-        let selected = self
-            .header_selector
-            .select_headers(&params.accepts, ct, is_multipart);
+        let mut headers =
+            self.header_selector
+                .select_headers(&params.accepts, params.content_type, is_multipart);
 
-        let mut headers = HashMap::new();
-        if let Some(accept) = selected.get("Accept") {
-            headers.insert("Accept".to_string(), accept.clone());
-        }
-        if let Some(content_type) = selected.get("Content-Type") {
-            headers.insert("Content-Type".to_string(), content_type.clone());
-        }
-
-        // Merge config default headers
+        /* Merge config default headers */
         for (k, v) in self.config.default_headers() {
             headers.insert(k, v);
         }
 
-        // Merge operation-specific headers
+        /* Merge operation-specific headers */
         for (k, v) in &params.header_params {
             headers.insert(k.clone(), v.clone());
         }
 
-        // Merge auth headers
+        /* Merge auth headers */
         if let Some(auth) = effective_auth {
             for (k, v) in auth.auth_headers() {
                 headers.insert(k, v);
             }
-            // Handle cookie params
+            /* Handle cookie params */
             let cookies = auth.cookie_params();
             if !cookies.is_empty() {
                 let cookie_parts: Vec<String> = cookies
@@ -144,13 +131,29 @@ impl BaseApi {
             }
         }
 
-        // Inject trace context
+        /* Inject trace context */
         trace_context_util::inject_trace_context(&mut headers);
 
-        // Serialize body
-        let serialized_body = serialize_body(params.body, params.content_type)?;
+        /* Serialize body -- multipart/form-data is handled separately so that
+         * the boundary can be injected into the Content-Type header. */
+        let serialized_body = if params.content_type == "multipart/form-data" {
+            if let Some(body_bytes) = params.body {
+                let form_fields: std::collections::HashMap<String, serde_json::Value> =
+                    serde_json::from_slice(&body_bytes)?;
+                let boundary = uuid::Uuid::new_v4().to_string();
+                headers.insert(
+                    "Content-Type".to_string(),
+                    format!("multipart/form-data; boundary={}", boundary),
+                );
+                Some(build_multipart_body(&form_fields, &boundary))
+            } else {
+                None
+            }
+        } else {
+            serialize_body(params.body, params.content_type)?
+        };
 
-        // Send request
+        /* Send request */
         let response = self
             .api_client
             .send_request(
@@ -161,7 +164,7 @@ impl BaseApi {
             )
             .await?;
 
-        // Check for errors
+        /* Check for errors */
         if response.status_code < 200 || response.status_code >= 300 {
             return Err(throw_api_error(&response));
         }
@@ -212,7 +215,89 @@ fn build_query_string(query_params: &[(String, String)]) -> String {
     parts.join("&")
 }
 
-fn serialize_body(
+/// Build a multipart/form-data request body from a map of form fields.
+///
+/// Each value may be a JSON string, number, boolean, array (repeated field),
+/// object (serialized as JSON part), or null (skipped).
+fn build_multipart_body(
+    form_fields: &std::collections::HashMap<String, serde_json::Value>,
+    boundary: &str,
+) -> Vec<u8> {
+    let mut body = Vec::new();
+
+    for (name, value) in form_fields {
+        if let serde_json::Value::Array(items) = value {
+            for item in items {
+                append_multipart_field(&mut body, boundary, name, item);
+            }
+        } else {
+            append_multipart_field(&mut body, boundary, name, value);
+        }
+    }
+    body.extend_from_slice(format!("--{}--\r\n", boundary).as_bytes());
+    body
+}
+
+fn append_multipart_field(
+    body: &mut Vec<u8>,
+    boundary: &str,
+    name: &str,
+    value: &serde_json::Value,
+) {
+    match value {
+        serde_json::Value::String(s) => {
+            body.extend_from_slice(
+                format!(
+                    "--{}\r\nContent-Disposition: form-data; name=\"{}\"\r\n\r\n{}\r\n",
+                    boundary, name, s
+                )
+                .as_bytes(),
+            );
+        }
+        serde_json::Value::Number(n) => {
+            body.extend_from_slice(
+                format!(
+                    "--{}\r\nContent-Disposition: form-data; name=\"{}\"\r\n\r\n{}\r\n",
+                    boundary, name, n
+                )
+                .as_bytes(),
+            );
+        }
+        serde_json::Value::Bool(b) => {
+            body.extend_from_slice(
+                format!(
+                    "--{}\r\nContent-Disposition: form-data; name=\"{}\"\r\n\r\n{}\r\n",
+                    boundary, name, b
+                )
+                .as_bytes(),
+            );
+        }
+        serde_json::Value::Object(_) => {
+            let json = serde_json::to_string(value).unwrap_or_default();
+            body.extend_from_slice(
+                format!(
+                    "--{}\r\nContent-Disposition: form-data; name=\"{}\"\r\nContent-Type: application/json\r\n\r\n{}\r\n",
+                    boundary, name, json
+                )
+                .as_bytes(),
+            );
+        }
+        serde_json::Value::Null => {}
+        serde_json::Value::Array(_) => {
+            /* Nested arrays are serialized as JSON */
+            let json = serde_json::to_string(value).unwrap_or_default();
+            body.extend_from_slice(
+                format!(
+                    "--{}\r\nContent-Disposition: form-data; name=\"{}\"\r\nContent-Type: application/json\r\n\r\n{}\r\n",
+                    boundary, name, json
+                )
+                .as_bytes(),
+            );
+        }
+    }
+}
+
+pub fn serialize_body(
     body: Option<Vec<u8>>,
     content_type: &str,
 ) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error + Send + Sync>> {
@@ -222,7 +307,7 @@ fn serialize_body(
     };
 
     if content_type == "multipart/form-data" {
-        // Multipart is handled separately by the API client
+        /* Multipart is handled separately by the API client */
         return Ok(None);
     }
 
@@ -231,13 +316,22 @@ fn serialize_body(
     }
 
     if content_type == "text/plain" {
-        return Ok(Some(body));
+        /* Ensure the body is valid UTF-8 text */
+        let text = String::from_utf8(body)?;
+        return Ok(Some(text.into_bytes()));
     }
 
     if content_type == "application/x-www-form-urlencoded" {
-        return Ok(Some(body));
+        /* Body arrives as JSON-serialized HashMap; re-encode as URL form data */
+        let params: std::collections::HashMap<String, String> = serde_json::from_slice(&body)?;
+        let encoded: Vec<String> = params
+            .iter()
+            .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
+            .collect();
+        return Ok(Some(encoded.join("&").into_bytes()));
     }
 
+    /* Default: JSON -- body is already serialized by the caller */
     Ok(Some(body))
 }
 
@@ -246,7 +340,13 @@ fn throw_api_error(response: &ApiResponse) -> Box<dyn std::error::Error + Send +
     let msg = format!("API returned status code {}", code);
     let body = response.body.clone();
 
-    let base_err = ApiError::new(code, msg, body, response.headers.clone());
+    let error_body: Option<serde_json::Value> = if !body.is_empty() {
+        serde_json::from_str(&body).ok()
+    } else {
+        None
+    };
+
+    let base_err = ApiError::new(code, msg, body, response.headers.clone(), error_body);
 
     if code >= 400 && code < 500 {
         let client_err = ClientError::from(base_err);

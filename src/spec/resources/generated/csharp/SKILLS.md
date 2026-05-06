@@ -131,3 +131,17 @@ var pet = new Pet
 ## Binary / File Uploads
 
 File upload parameters are typed as `Stream`. Binary response bodies are returned as `byte[]`.
+
+## Comment Style
+
+Never use inline comments (`//`). Always use block comments (`/* ... */`). XML doc comments (`///`) are allowed.
+
+```good
+/* This explains the logic */
+var x = 1;
+```
+
+```bad
+// This explains the logic
+var x = 1;
+```

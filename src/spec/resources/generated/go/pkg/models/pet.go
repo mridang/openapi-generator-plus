@@ -19,8 +19,8 @@ type Pet struct {
 	Category  *Category `json:"category,omitempty"`
 	PhotoUrls []string  `json:"photoUrls"`
 	Tags      *[]Tag    `json:"tags,omitempty"`
-	// Status pet status in the store
-	// Deprecated: This property is deprecated.
+	/* Status pet status in the store */
+	/* Deprecated: This property is deprecated. */
 	Status *string `json:"status,omitempty"`
 }
 

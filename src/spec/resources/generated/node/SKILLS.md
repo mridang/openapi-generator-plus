@@ -136,3 +136,17 @@ pet.status = 'available';
 ## Binary / File Uploads
 
 File upload parameters are typed as `Buffer`. Binary response bodies are returned as `Buffer`.
+
+## Comment Style
+
+Never use inline comments (`//`). Always use block comments (`/* ... */`).
+
+```good
+/* This explains the logic */
+const x = 1;
+```
+
+```bad
+// This explains the logic
+const x = 1;
+```

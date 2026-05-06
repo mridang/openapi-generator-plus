@@ -21,10 +21,12 @@ class TestableApi < PetstoreClient::Api::BaseApi
 end
 
 class CapturingApiClient
-  attr_reader :captured_url
+  attr_reader :captured_url, :captured_headers, :captured_body
 
-  def send_request(_method, url, _headers, _body)
+  def send_request(_method, url, headers, body)
     @captured_url = url
+    @captured_headers = headers
+    @captured_body = body
     PetstoreClient::ApiResponse.new(status_code: 200, body: '{}', headers: { 'content-type' => 'application/json' })
   end
 end
@@ -84,6 +86,16 @@ describe PetstoreClient::Api::BaseApi do
       _(err.response_body).wont_be_nil
       _(err.response_body).wont_be_empty
     end
+  end
+
+  # ── Error body parsing ──
+
+  it 'parses JSON error body' do
+    err = assert_raises(PetstoreClient::Errors::BadRequestError) do
+      api.call('GET', '/api/error/400', {}, {}, nil,
+               ['application/json'], 'application/json', nil)
+    end
+    _(err.error_body).wont_be_nil
   end
 
   # ── Exception hierarchy ──
@@ -240,5 +252,57 @@ describe PetstoreClient::Api::BaseApi do
     test_api.call('GET', '/test', {}, {}, nil,
                   ['application/json'], 'application/json', nil)
     _(client.captured_url).wont_include '?'
+  end
+
+  # ── Body serialization by content type ──
+
+  it 'serializes text/plain body' do
+    client = CapturingApiClient.new
+    config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('POST', '/test', {}, {}, 'hello world',
+                  ['application/json'], 'text/plain', nil)
+    _(client.captured_body).wont_be_nil
+    _(client.captured_body.to_s).must_include 'hello world'
+  end
+
+  it 'serializes form-urlencoded body' do
+    client = CapturingApiClient.new
+    config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('POST', '/test', {}, {}, { 'name' => 'alice' },
+                  ['application/json'], 'application/x-www-form-urlencoded', nil)
+    _(client.captured_body).wont_be_nil
+    _(client.captured_body.to_s).must_include 'name=alice'
+  end
+
+  it 'passes binary body as-is' do
+    client = CapturingApiClient.new
+    config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('POST', '/test', {}, {}, "\x01\x02\x03".b,
+                  ['application/json'], 'application/octet-stream', nil)
+    _(client.captured_body).wont_be_nil
+  end
+
+  # ── Header flow-through ──
+
+  it 'empty content-type defaults to application/json' do
+    client = CapturingApiClient.new
+    config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test', {}, {}, nil,
+                  ['application/json'], '', nil)
+    _(client.captured_headers['Content-Type']).must_equal 'application/json'
+  end
+
+  it 'all headers from selector flow through to request' do
+    client = CapturingApiClient.new
+    config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test', {}, {}, nil,
+                  ['application/json'], 'application/json', nil)
+    assert client.captured_headers.key?('Accept'), 'Expected Accept header'
+    assert client.captured_headers.key?('Content-Type'), 'Expected Content-Type header'
   end
 end

@@ -99,6 +99,48 @@ final class DefaultApiClientTests: XCTestCase {
         )
         XCTAssertNotNil(resp)
     }
+
+    func testFollowRedirectsEnabled() async throws {
+        let transport = TransportOptionsBuilder()
+            .followRedirects(true)
+            .build()
+        XCTAssertTrue(transport.followRedirects)
+        let client = DefaultApiClient(transportOptions: transport)
+        XCTAssertNotNil(client)
+    }
+
+    func testFollowRedirectsDisabled() async throws {
+        let transport = TransportOptionsBuilder()
+            .followRedirects(false)
+            .build()
+        XCTAssertFalse(transport.followRedirects)
+        let client = DefaultApiClient(transportOptions: transport)
+        XCTAssertNotNil(client)
+    }
+
+    func testMaxRedirects() async throws {
+        let transport = TransportOptionsBuilder()
+            .followRedirects(true)
+            .maxRedirects(3)
+            .build()
+        XCTAssertEqual(transport.maxRedirects, 3)
+        let client = DefaultApiClient(transportOptions: transport)
+        XCTAssertNotNil(client)
+    }
+
+    func testMultipartBodyBuilding() async throws {
+        let formFields: [String: Any] = [
+            "file": Data("file content".utf8),
+            "description": "A test file"
+        ]
+        let boundary = "test-boundary"
+        let body = BaseApi.buildMultipartBody(formFields, boundary: boundary)
+
+        let bodyString = String(data: body, encoding: .utf8) ?? ""
+        XCTAssertTrue(bodyString.contains("--test-boundary"))
+        XCTAssertTrue(bodyString.contains("Content-Disposition: form-data"))
+        XCTAssertTrue(bodyString.contains("--test-boundary--"))
+    }
 }
 
 /// Stub URLProtocol for test mocking.

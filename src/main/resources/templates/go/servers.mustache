@@ -17,8 +17,8 @@ package {{packageName}}
 //		Build()
 var (
 {{#serverConfigs}}
-	// Server{{serverIndex}} is the server configuration for: {{serverUrl}}{{#serverDescription}}
-	// {{serverDescription}}{{/serverDescription}}
+	/* Server{{serverIndex}} is the server configuration for: {{serverUrl}}{{#serverDescription}}
+	 * {{serverDescription}}{{/serverDescription}} */
 	Server{{serverIndex}} = &ServerConfiguration{
 		URLTemplate: "{{{serverUrl}}}",
 		Description: "{{#serverDescription}}{{{serverDescription}}}{{/serverDescription}}",

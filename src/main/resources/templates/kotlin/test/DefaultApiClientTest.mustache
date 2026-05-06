@@ -261,4 +261,39 @@ class DefaultApiClientTest {
             assertEquals(302, response.statusCode)
         }
     }
+
+    @Nested
+    @DisplayName("max redirects")
+    inner class MaxRedirects {
+        @Test
+        @DisplayName("respects maxRedirects limit")
+        fun respectsMaxRedirectsLimit() {
+            val transport = TransportOptions.builder()
+                .followRedirects(true)
+                .maxRedirects(5)
+                .build()
+            val client = DefaultApiClient(transport)
+            assertNotNull(client)
+            assertEquals(5, transport.maxRedirects)
+        }
+    }
+
+    @Nested
+    @DisplayName("multipart body")
+    inner class MultipartBody {
+        @Test
+        @DisplayName("sends multipart form data")
+        fun sendsMultipartFormData() {
+            val wiremockUrl = WireMockContainer.getHttpUrl()
+            val formFields = mapOf<String, Any?>(
+                "description" to "A test file",
+                "file" to "file content".toByteArray()
+            )
+            val client = DefaultApiClient()
+            val response = runBlocking {
+                client.sendRequest("POST", "$wiremockUrl/api/test", emptyMap(), formFields)
+            }
+            assertNotNull(response)
+        }
+    }
 }

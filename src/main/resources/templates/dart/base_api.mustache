@@ -1,5 +1,7 @@
 {{>api_info}}
 import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
 
 import '../api_client.dart';
 import '../api_response.dart';
@@ -45,7 +47,7 @@ class BaseApi {
     Map<String, String>? headerParams,
     Object? body,
     List<String> accepts = const [],
-    String contentType = 'application/json',
+    String contentType = '',
     String returnType = '',
     Authenticator? auth,
   }) async {
@@ -72,16 +74,7 @@ class BaseApi {
 
     // Select headers
     final isMultipart = contentType == 'multipart/form-data';
-    final ct = contentType.isEmpty ? 'application/json' : contentType;
-    final selected = _headerSelector.selectHeaders(accepts, ct, isMultipart);
-
-    final headers = <String, String>{};
-    if (selected.containsKey('Accept')) {
-      headers['Accept'] = selected['Accept']!;
-    }
-    if (selected.containsKey('Content-Type')) {
-      headers['Content-Type'] = selected['Content-Type']!;
-    }
+    final headers = _headerSelector.selectHeaders(accepts, contentType, isMultipart);
 
     // Merge config default headers
     headers.addAll(config.defaultHeaders);
@@ -113,8 +106,16 @@ class BaseApi {
     // Inject trace context
     TraceContextUtil.injectTraceContext(headers);
 
-    // Serialize body
-    final serializedBody = _serializeBody(body, contentType);
+    // Serialize body -- multipart/form-data is handled separately so that
+    // the boundary can be injected into the Content-Type header.
+    final Uint8List? serializedBody;
+    if (contentType == 'multipart/form-data' && body is Map<String, Object?>) {
+      final boundary = _generateUuid();
+      headers['Content-Type'] = 'multipart/form-data; boundary=$boundary';
+      serializedBody = _buildMultipartBody(body as Map<String, Object?>, boundary);
+    } else {
+      serializedBody = _serializeBody(body, contentType);
+    }
 
     // Send request
     final response = await apiClient.sendRequest(
@@ -144,7 +145,7 @@ class BaseApi {
     Map<String, String>? headerParams,
     Object? body,
     List<String> accepts = const [],
-    String contentType = 'application/json',
+    String contentType = '',
     String returnType = '',
     Authenticator? auth,
     T Function(String body)? deserialize,
@@ -226,6 +227,74 @@ class BaseApi {
     return serialize(body);
   }
 
+  /// Build a multipart/form-data request body from a map of form fields.
+  ///
+  /// Each entry value may be a `List<int>` (binary), a `List` (repeated
+  /// field), or any other value which is converted to its string
+  /// representation.
+  static Uint8List _buildMultipartBody(Map<String, Object?> formFields, String boundary) {
+    final parts = <List<int>>[];
+
+    for (final entry in formFields.entries) {
+      final name = entry.key;
+      final value = entry.value;
+      if (value is List && value is! List<int>) {
+        for (final item in value) {
+          _appendMultipartField(parts, boundary, name, item);
+        }
+      } else {
+        _appendMultipartField(parts, boundary, name, value);
+      }
+    }
+    parts.add(utf8.encode('--$boundary--\r\n'));
+
+    final builder = BytesBuilder();
+    for (final part in parts) {
+      builder.add(part);
+    }
+    return builder.toBytes();
+  }
+
+  static void _appendMultipartField(
+    List<List<int>> parts,
+    String boundary,
+    String name,
+    Object? value,
+  ) {
+    if (value is List<int>) {
+      parts.add(utf8.encode(
+        '--$boundary\r\nContent-Disposition: form-data; name="$name"; filename="$name"\r\nContent-Type: application/octet-stream\r\n\r\n',
+      ));
+      parts.add(value);
+      parts.add(utf8.encode('\r\n'));
+    } else if (value is String || value is num || value is bool) {
+      parts.add(utf8.encode(
+        '--$boundary\r\nContent-Disposition: form-data; name="$name"\r\n\r\n$value\r\n',
+      ));
+    } else if (value is Map) {
+      final json = jsonEncode(value);
+      parts.add(utf8.encode(
+        '--$boundary\r\nContent-Disposition: form-data; name="$name"\r\nContent-Type: application/json\r\n\r\n$json\r\n',
+      ));
+    } else if (value != null) {
+      final serialized = serialize(value);
+      parts.add(utf8.encode(
+        '--$boundary\r\nContent-Disposition: form-data; name="$name"\r\nContent-Type: application/json\r\n\r\n$serialized\r\n',
+      ));
+    }
+  }
+
+  static String _generateUuid() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
+        '${hex.substring(12, 16)}-${hex.substring(16, 20)}-'
+        '${hex.substring(20, 32)}';
+  }
+
   static ApiError _throwApiError(ApiResponse response) {
     final code = response.statusCode;
     final msg = 'API returned status code $code';
@@ -241,7 +310,7 @@ class BaseApi {
     }
 
     final baseErr = ApiError(
-      code: code,
+      statusCode: code,
       message: msg,
       responseBody: body,
       responseHeaders: response.headers,
@@ -250,7 +319,7 @@ class BaseApi {
 
     if (code >= 400 && code < 500) {
       final clientErr = ClientError(
-        code: code,
+        statusCode: code,
         message: msg,
         responseBody: body,
         responseHeaders: response.headers,
@@ -259,32 +328,32 @@ class BaseApi {
       switch (code) {
         case 400:
           return BadRequestError(
-            code: code, message: msg, responseBody: body,
+            statusCode: code, message: msg, responseBody: body,
             responseHeaders: response.headers, errorBody: parsed,
           );
         case 401:
           return UnauthorizedError(
-            code: code, message: msg, responseBody: body,
+            statusCode: code, message: msg, responseBody: body,
             responseHeaders: response.headers, errorBody: parsed,
           );
         case 403:
           return ForbiddenError(
-            code: code, message: msg, responseBody: body,
+            statusCode: code, message: msg, responseBody: body,
             responseHeaders: response.headers, errorBody: parsed,
           );
         case 404:
           return NotFoundError(
-            code: code, message: msg, responseBody: body,
+            statusCode: code, message: msg, responseBody: body,
             responseHeaders: response.headers, errorBody: parsed,
           );
         case 409:
           return ConflictError(
-            code: code, message: msg, responseBody: body,
+            statusCode: code, message: msg, responseBody: body,
             responseHeaders: response.headers, errorBody: parsed,
           );
         case 422:
           return UnprocessableEntityError(
-            code: code, message: msg, responseBody: body,
+            statusCode: code, message: msg, responseBody: body,
             responseHeaders: response.headers, errorBody: parsed,
           );
         default:
@@ -294,7 +363,7 @@ class BaseApi {
 
     if (code >= 500) {
       final serverErr = ServerError(
-        code: code,
+        statusCode: code,
         message: msg,
         responseBody: body,
         responseHeaders: response.headers,
@@ -303,7 +372,7 @@ class BaseApi {
       switch (code) {
         case 500:
           return InternalServerError(
-            code: code, message: msg, responseBody: body,
+            statusCode: code, message: msg, responseBody: body,
             responseHeaders: response.headers, errorBody: parsed,
           );
         default:

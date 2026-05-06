@@ -31,9 +31,9 @@ import (
 //		Build()
 //	client := petstore.NewClient(authenticator, transport)
 type Client struct {
-	// PetApi provides methods for the Pet API group.
+	/* PetApi provides methods for the Pet API group. */
 	PetApi *PetApi
-	// StoreApi provides methods for the Store API group.
+	/* StoreApi provides methods for the Store API group. */
 	StoreApi *StoreApi
 }
 

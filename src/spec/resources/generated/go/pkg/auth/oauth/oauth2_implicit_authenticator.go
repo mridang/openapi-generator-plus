@@ -53,8 +53,8 @@ func (a *OAuth2ImplicitAuthenticator) Host() string {
 // SetApiClient is a no-op for the implicit flow, but implements
 // the HttpAwareAuthenticator interface for consistency.
 func (a *OAuth2ImplicitAuthenticator) SetApiClient(_ auth.ApiClient) {
-	// Implicit flow does not make token exchange requests,
-	// but implements the interface for consistency.
+	/* Implicit flow does not make token exchange requests,
+	 * but implements the interface for consistency. */
 }
 
 // SetAccessToken sets the access token obtained from the authorization redirect fragment.

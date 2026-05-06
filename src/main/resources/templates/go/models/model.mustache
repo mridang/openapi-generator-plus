@@ -20,7 +20,7 @@ type {{classname}} string
 const (
 {{#allowableValues}}
 {{#enumVars}}
-	// {{classname}}{{name}} represents the value {{{value}}}.
+	/* {{classname}}{{name}} represents the value {{{value}}}. */
 	{{classname}}{{name}} {{classname}} = {{{value}}}
 {{/enumVars}}
 {{/allowableValues}}
@@ -55,10 +55,10 @@ func All{{classname}}Values() []{{classname}} {
 type {{classname}} struct {
 {{#vars}}
 {{#description}}
-	// {{name}} {{{.}}}
+	/* {{name}} {{{.}}} */
 {{/description}}
 {{#deprecated}}
-	// Deprecated: This property is deprecated.
+	/* Deprecated: This property is deprecated. */
 {{/deprecated}}
 {{#required}}
 	{{name}} {{{dataType}}} `json:"{{baseName}}"`
@@ -73,7 +73,7 @@ type {{classname}} struct {
 {{/required}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
-	// AdditionalProperties holds any extra fields not defined in the schema.
+	/* AdditionalProperties holds any extra fields not defined in the schema. */
 	AdditionalProperties map[string]interface{} `json:"-"`
 {{/isAdditionalPropertiesTrue}}
 }
@@ -114,7 +114,7 @@ func (o {{classname}}) MarshalJSON() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Merge the two JSON objects
+	/* Merge the two JSON objects */
 	b[len(b)-1] = ','
 	return append(b, extra[1:]...), nil
 }
@@ -128,7 +128,7 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 	}
 	*o = {{classname}}(*aux)
 
-	// Collect additional properties
+	/* Collect additional properties */
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -196,7 +196,7 @@ func (o {{classname}}) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON implements the json.Unmarshaler interface.
 func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 {{#discriminator}}
-	// Use discriminator to determine type
+	/* Use discriminator to determine type */
 	var disc struct {
 		{{#pascalcase}}{{propertyBaseName}}{{/pascalcase}} string `json:"{{propertyBaseName}}"`
 	}
@@ -217,7 +217,7 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 	return fmt.Errorf("unknown discriminator value: %s", disc.{{#pascalcase}}{{propertyBaseName}}{{/pascalcase}})
 {{/discriminator}}
 {{^discriminator}}
-	// Try each oneOf type
+	/* Try each oneOf type */
 {{#oneOf}}
 	var {{#goVarName}}{{{.}}}{{/goVarName}} {{{.}}}
 	if err := json.Unmarshal(data, &{{#goVarName}}{{{.}}}{{/goVarName}}); err == nil {

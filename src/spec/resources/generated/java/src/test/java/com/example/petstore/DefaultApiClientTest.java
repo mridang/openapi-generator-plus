@@ -306,4 +306,39 @@ class DefaultApiClientTest {
       assertEquals(302, response.statusCode());
     }
   }
+
+  @Nested
+  @DisplayName("max redirects")
+  class MaxRedirects {
+    @Test
+    @DisplayName("respects maxRedirects limit")
+    void respectsMaxRedirectsLimit() throws ApiException {
+      TransportOptions transport =
+          TransportOptions.builder().followRedirects(true).maxRedirects(5).build();
+
+      DefaultApiClient client = new DefaultApiClient(transport);
+      assertNotNull(client);
+      assertEquals(5, transport.getMaxRedirects());
+    }
+  }
+
+  @Nested
+  @DisplayName("multipart body")
+  class MultipartBody {
+    @Test
+    @DisplayName("sends multipart form data")
+    void sendsMultipartFormData() throws ApiException {
+      String wiremockUrl = WireMockContainer.getHttpUrl();
+
+      Map<String, Object> formFields = new HashMap<>();
+      formFields.put("description", "A test file");
+      formFields.put("file", "file content".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+      DefaultApiClient client = new DefaultApiClient();
+      ApiResponse response =
+          client.sendRequest("POST", wiremockUrl + "/api/test", new HashMap<>(), formFields);
+
+      assertNotNull(response);
+    }
+  }
 }

@@ -115,10 +115,19 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             config.connectionProxyDictionary = proxyDict
         }
 
-        // Use a session delegate when SSL verification is disabled or a custom
-        // CA certificate path is configured.
-        if !opts.verifySSL || opts.caCertPath != nil {
-            let delegate = SessionDelegate(verifySSL: opts.verifySSL, caCertPath: opts.caCertPath)
+        /* A session delegate is used when SSL verification is disabled, a
+         * custom CA certificate is configured, or redirect control is needed. */
+        let needsDelegate = !opts.verifySSL
+            || opts.caCertPath != nil
+            || !opts.followRedirects
+            || opts.maxRedirects > 0
+        if needsDelegate {
+            let delegate = SessionDelegate(
+                verifySSL: opts.verifySSL,
+                caCertPath: opts.caCertPath,
+                followRedirects: opts.followRedirects,
+                maxRedirects: opts.maxRedirects
+            )
             return (URLSession(configuration: config, delegate: delegate, delegateQueue: nil), delegate)
         }
 
@@ -126,18 +135,27 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     }
 }
 
-/// URLSession delegate that handles custom TLS trust evaluation.
+/// URLSession delegate that handles custom TLS trust evaluation and redirect control.
 ///
 /// When a custom CA certificate path is set, the delegate loads the certificate
 /// from disk and evaluates the server trust against it. When SSL verification
 /// is disabled, the delegate accepts all server certificates unconditionally.
-private final class SessionDelegate: NSObject, URLSessionDelegate, @unchecked Sendable {
+///
+/// When ``followRedirects`` is false, the delegate stops all HTTP 3xx redirects.
+/// When ``maxRedirects`` is greater than zero, the delegate limits the number
+/// of consecutive redirects before stopping.
+private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegate, @unchecked Sendable {
     private let verifySSL: Bool
     private let caCertPath: String?
+    private let followRedirects: Bool
+    private let maxRedirects: Int
+    private let redirectCount = LockedCounter()
 
-    init(verifySSL: Bool, caCertPath: String?) {
+    init(verifySSL: Bool, caCertPath: String?, followRedirects: Bool, maxRedirects: Int) {
         self.verifySSL = verifySSL
         self.caCertPath = caCertPath
+        self.followRedirects = followRedirects
+        self.maxRedirects = maxRedirects
         super.init()
     }
 
@@ -152,14 +170,14 @@ private final class SessionDelegate: NSObject, URLSessionDelegate, @unchecked Se
             return
         }
 
-        // When SSL verification is disabled, accept any certificate.
+        /* When SSL verification is disabled, accept any certificate. */
         if !verifySSL {
             completionHandler(.useCredential, URLCredential(trust: serverTrust))
             return
         }
 
-        // When a custom CA certificate path is configured, load the certificate
-        // and set it as the sole anchor for trust evaluation.
+        /* When a custom CA certificate path is configured, load the certificate
+         * and set it as the sole anchor for trust evaluation. */
         if let path = caCertPath {
             guard let certData = try? Data(contentsOf: URL(fileURLWithPath: path)),
                   let certificate = SecCertificateCreateWithData(nil, certData as CFData) else {
@@ -180,5 +198,39 @@ private final class SessionDelegate: NSObject, URLSessionDelegate, @unchecked Se
         }
 
         completionHandler(.performDefaultHandling, nil)
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        if !followRedirects {
+            completionHandler(nil)
+            return
+        }
+        if maxRedirects > 0 {
+            let count = redirectCount.increment()
+            if count > maxRedirects {
+                completionHandler(nil)
+                return
+            }
+        }
+        completionHandler(request)
+    }
+}
+
+/// Thread-safe counter used by ``SessionDelegate`` to track redirect hops.
+private final class LockedCounter: @unchecked Sendable {
+    private var value: Int = 0
+    private let lock = NSLock()
+
+    func increment() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        value += 1
+        return value
     }
 }

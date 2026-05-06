@@ -240,4 +240,29 @@ describe PetstoreClient::DefaultApiClient do
       _(response.status_code).must_equal(302)
     end
   end
+
+  describe 'max redirects' do
+    it 'respects max_redirects limit' do
+      transport = PetstoreClient::TransportOptions.builder
+                                                  .follow_redirects(true)
+                                                  .max_redirects(5)
+                                                  .build
+
+      client = PetstoreClient::DefaultApiClient.new(transport)
+      _(client).wont_be_nil
+      _(transport.max_redirects).must_equal(5)
+    end
+  end
+
+  describe 'multipart body' do
+    it 'sends multipart form data' do
+      wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
+
+      client = PetstoreClient::DefaultApiClient.new
+      form_data = { 'description' => 'A test file', 'file' => 'file content' }
+      response = client.send_request(:POST, "#{wiremock_url}/api/test", {}, form_data)
+
+      _(response).wont_be_nil
+    end
+  end
 end

@@ -92,6 +92,6 @@ impl Authenticator for OAuth2ImplicitAuthenticator {
 
 impl HttpAwareAuthenticator for OAuth2ImplicitAuthenticator {
     fn set_api_client(&mut self, _client: Arc<dyn ApiClient>) {
-        // Implicit flow does not make token exchange requests.
+        /* Implicit flow does not make token exchange requests. */
     }
 }
