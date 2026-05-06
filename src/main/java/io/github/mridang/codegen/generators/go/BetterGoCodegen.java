@@ -317,6 +317,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         setApiPackage("");
 
         supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
+        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
         supportingFiles.add(new SupportingFile("configuration.mustache", "pkg", "configuration.go"));
         supportingFiles.add(
                 new SupportingFile("transport_options.mustache", "pkg", "transport_options.go"));
@@ -457,6 +458,11 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                             "test/configuration_test.mustache",
                             "test",
                             "configuration_test.go"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/client_test.mustache",
+                            "test",
+                            "client_test.go"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/oauth2_token_manager_test.mustache",

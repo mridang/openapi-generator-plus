@@ -9,10 +9,9 @@ package petstore_test
 
 import (
 	"encoding/json"
+	petstore "petstore/pkg"
 	"strings"
 	"testing"
-
-	petstore "petstore/pkg"
 )
 
 func TestDefaultApiClient_TlsVerificationDisabled(t *testing.T) {

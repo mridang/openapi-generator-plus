@@ -31,7 +31,7 @@ defmodule PetstoreClient.Models.PetTreatment do
         {:cont, nil}
       else
         try do
-          result = PetstoreClient.ObjectSerializer.find_and_cast_into_type(type_name, data)
+          result = PetstoreClient.ObjectSerializer.convert_to_type(data, to_string(type_name))
           {:halt, result}
         rescue
           _ -> {:cont, nil}

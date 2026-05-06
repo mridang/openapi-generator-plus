@@ -241,6 +241,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         final String libDir = Path.of("lib", packageName).toString();
 
         supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
+        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
         supportingFiles.add(
                 new SupportingFile("configuration.mustache", libDir, "configuration.ex"));
         supportingFiles.add(
@@ -400,6 +401,11 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                             "test/configuration_test.mustache",
                             "test",
                             "configuration_test.exs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/client_test.mustache",
+                            "test",
+                            "client_test.exs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/metadata_test.mustache", "test", "metadata_test.exs"));

@@ -204,6 +204,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         final String packagePath = packageName.replace('.', File.separatorChar);
 
         supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
+        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
         supportingFiles.add(
                 new SupportingFile("models/__init__.mustache", modelPath, "__init__.py"));
         supportingFiles.add(
@@ -385,6 +386,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                             "test/test_configuration.mustache",
                             "test",
                             "test_configuration.py"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/test_client.mustache",
+                            "test",
+                            "test_client.py"));
             if (hasAnyOAuth2 || hasOpenIdConnect) {
                 supportingFiles.add(
                         new SupportingFile(

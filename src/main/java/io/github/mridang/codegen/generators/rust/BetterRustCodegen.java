@@ -266,6 +266,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen {
                         });
 
         supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
+        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
         supportingFiles.add(
                 new SupportingFile("configuration.mustache", "src", "configuration.rs"));
         supportingFiles.add(
@@ -419,6 +420,11 @@ public class BetterRustCodegen extends AbstractBetterCodegen {
                             "test/configuration_test.mustache",
                             "tests",
                             "configuration_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/client_test.mustache",
+                            "tests",
+                            "client_test.rs"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/oauth2_token_manager_test.mustache",

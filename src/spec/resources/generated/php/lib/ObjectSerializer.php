@@ -352,17 +352,19 @@ class ObjectSerializer
 
     /**
      * Resolve a oneOf schema by attempting deserialization against each candidate.
+     * Each candidate is a closure that accepts the raw data and returns a
+     * deserialized value, or throws on failure.
      *
-     * @param mixed         $data    the data to match
-     * @param array<string> $schemas list of fully-qualified class names
+     * @param mixed               $data       the data to match
+     * @param array<callable>     $candidates list of deserializer closures
      *
-     * @return mixed the deserialized value matching one of the schemas
+     * @return mixed the first successfully deserialized value, or the original data
      */
-    public static function resolveOneOf(mixed $data, array $schemas): mixed
+    public static function resolveOneOf(mixed $data, array $candidates): mixed
     {
-        foreach ($schemas as $schema) {
+        foreach ($candidates as $candidate) {
             try {
-                return self::deserialize($data, self::qualifySchemaName($schema));
+                return $candidate($data);
             } catch (\Throwable) {
                 continue;
             }
@@ -372,29 +374,24 @@ class ObjectSerializer
 
     /**
      * Resolve an anyOf schema by attempting deserialization against each candidate.
+     * Each candidate is a closure that accepts the raw data and returns a
+     * deserialized value, or throws on failure.
      *
-     * @param mixed         $data    the data to match
-     * @param array<string> $schemas list of candidate type names
+     * @param mixed               $data       the data to match
+     * @param array<callable>     $candidates list of deserializer closures
      *
-     * @return mixed the deserialized value matching any of the schemas
+     * @return mixed the first successfully deserialized value, or the original data
      */
-    public static function resolveAnyOf(mixed $data, array $schemas): mixed
+    public static function resolveAnyOf(mixed $data, array $candidates): mixed
     {
-        foreach ($schemas as $schema) {
-            try {
-                return self::deserialize($data, self::qualifySchemaName($schema));
-            } catch (\Throwable) {
-                continue;
-            }
-        }
-        return $data;
+        return self::resolveOneOf($data, $candidates);
     }
 
     /**
      * Qualify an unqualified model class name with the model namespace.
      * Primitive types (string, int, etc.) and already-qualified names are returned as-is.
      */
-    private static function qualifySchemaName(string $schema): string
+    public static function qualifySchemaName(string $schema): string
     {
         if (str_contains($schema, '\\') || !preg_match('/^[A-Z]/', $schema)) {
             return $schema;

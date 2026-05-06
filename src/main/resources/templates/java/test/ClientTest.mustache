@@ -1,0 +1,43 @@
+{{>api_info}}
+
+package {{invokerPackage}};
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import {{invokerPackage}}.auth.BearerAuthenticator;
+import org.junit.jupiter.api.Test;
+
+class ClientTest {
+
+    private final BearerAuthenticator authenticator =
+            new BearerAuthenticator("{{{basePath}}}", "test-token");
+
+    @Test
+    void constructWithAuthenticatorOnly() {
+        {{clientClassName}} client = new {{clientClassName}}(authenticator);
+
+        assertNotNull(client);
+    }
+
+    @Test
+    void constructWithAuthenticatorAndTransportOptions() {
+        TransportOptions transport = TransportOptions.builder().build();
+
+        {{clientClassName}} client = new {{clientClassName}}(authenticator, transport);
+
+        assertNotNull(client);
+    }
+
+    @Test
+    void apiGroupsAreAccessible() {
+        {{clientClassName}} client = new {{clientClassName}}(authenticator);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertNotNull(client.{{clientPropertyName}});
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+}

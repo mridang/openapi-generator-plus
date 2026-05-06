@@ -1,0 +1,40 @@
+{{>api_info}}
+import XCTest
+@testable import {{packageName}}
+
+final class ClientTests: XCTestCase {
+
+    private let authenticator = BearerAuthenticator(host: "{{{basePath}}}", token: "test-token")
+
+    func testConstructWithAuthenticatorOnly() {
+        let client = {{clientClassName}}(authenticator: authenticator)
+
+        XCTAssertNotNil(client)
+    }
+
+    func testConstructWithAuthenticatorAndNilTransportOptions() {
+        let client = {{clientClassName}}(authenticator: authenticator, transportOptions: nil)
+
+        XCTAssertNotNil(client)
+    }
+
+    func testConstructWithAuthenticatorAndTransportOptions() {
+        let transport = TransportOptionsBuilder().build()
+
+        let client = {{clientClassName}}(authenticator: authenticator, transportOptions: transport)
+
+        XCTAssertNotNil(client)
+    }
+
+    func testApiGroupsAreAccessible() {
+        let client = {{clientClassName}}(authenticator: authenticator)
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        XCTAssertNotNil(client.{{#lambda.camelcase}}{{classname}}{{/lambda.camelcase}})
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+}

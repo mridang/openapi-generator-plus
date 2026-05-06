@@ -260,38 +260,20 @@ defmodule {{moduleName}}.ObjectSerializer do
     resolve_one_of(data, candidates)
   end
 
-  @doc false
-  def find_and_cast_into_type(type_name, data) when is_nil(data), do: nil
+  @doc """
+  Attempt to deserialize data as the given type for oneOf/anyOf resolution.
+  Uses the try-deserialize-and-catch pattern by delegating to `convert_to_type/2`.
+  """
+  def find_and_cast_into_type(_type_name, data) when is_nil(data), do: nil
 
   def find_and_cast_into_type(type_name, data) do
     type_str = to_string(type_name)
+    result = convert_to_type(data, type_str)
 
-    case type_str do
-      "Boolean" ->
-        if is_boolean(data), do: data, else: raise({{moduleName}}.SchemaMismatchError, message: "not a Boolean")
-
-      "Float" ->
-        if is_float(data), do: data, else: raise({{moduleName}}.SchemaMismatchError, message: "not a Float")
-
-      "Integer" ->
-        if is_integer(data), do: data, else: raise({{moduleName}}.SchemaMismatchError, message: "not an Integer")
-
-      "String" ->
-        if is_binary(data), do: data, else: raise({{moduleName}}.SchemaMismatchError, message: "not a String")
-
-      "Object" ->
-        if is_map(data), do: data, else: raise({{moduleName}}.SchemaMismatchError, message: "not an Object")
-
-      _ ->
-        module = resolve_model_module(type_str)
-
-        cond do
-          function_exported?(module, :openapi_one_of, 0) or function_exported?(module, :openapi_any_of, 0) ->
-            module.build(data)
-
-          true ->
-            convert_to_type(data, type_str)
-        end
+    if is_nil(result) do
+      raise {{moduleName}}.SchemaMismatchError, message: "#{inspect(data)} doesn't match the #{type_str} type"
+    else
+      result
     end
   end
 

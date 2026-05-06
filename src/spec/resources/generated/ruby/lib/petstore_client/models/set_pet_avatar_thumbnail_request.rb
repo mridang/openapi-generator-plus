@@ -46,10 +46,10 @@ module PetstoreClient
           openapi_one_of.each do |klass_name|
             next if klass_name == :AnyType
 
-            typed_data = PetstoreClient::ObjectSerializer.find_and_cast_into_type(klass_name, data)
-            return typed_data if typed_data
+            result = PetstoreClient::ObjectSerializer.convert_to_type(data, klass_name.to_s)
+            return result unless result.nil?
           rescue StandardError
-            nil
+            next
           end
 
           openapi_one_of.include?(:AnyType) ? data : nil

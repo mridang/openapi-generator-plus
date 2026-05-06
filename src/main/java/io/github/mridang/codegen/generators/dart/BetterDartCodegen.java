@@ -245,6 +245,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen {
         final String srcDir = Path.of("lib", "src").toString();
 
         supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
+        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
         supportingFiles.add(
                 new SupportingFile("configuration.mustache", srcDir, "configuration.dart"));
         supportingFiles.add(
@@ -399,6 +400,11 @@ public class BetterDartCodegen extends AbstractBetterCodegen {
                             "test/configuration_test.mustache",
                             "test",
                             "configuration_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/client_test.mustache",
+                            "test",
+                            "client_test.dart"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/metadata_test.mustache", "test", "metadata_test.dart"));

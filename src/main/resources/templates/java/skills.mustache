@@ -1,0 +1,143 @@
+# {{appName}} SDK - AI Agent Reference
+
+## Installation
+
+Add to your `pom.xml`:
+
+```xml
+<dependency>
+    <groupId>{{groupId}}</groupId>
+    <artifactId>{{artifactId}}</artifactId>
+    <version>{{artifactVersion}}</version>
+</dependency>
+```
+
+Or with Gradle:
+
+```groovy
+implementation '{{groupId}}:{{artifactId}}:{{artifactVersion}}'
+```
+
+## Quick Start
+
+```java
+import {{invokerPackage}}.{{clientClassName}};
+import {{invokerPackage}}.auth.BearerAuthenticator;
+
+{{clientClassName}} client = {{clientClassName}}.withToken("https://api.example.com", "your-token");
+```
+
+## Authentication
+
+All authentication is handled via `Authenticator` implementations passed to the client constructor.
+
+### Bearer Token
+
+```java
+import {{invokerPackage}}.auth.BearerAuthenticator;
+
+var authenticator = new BearerAuthenticator("https://api.example.com", "your-token");
+var client = new {{clientClassName}}(authenticator);
+```
+
+{{#hasBasicAuth}}
+### Basic Auth
+
+```java
+import {{invokerPackage}}.auth.BasicAuthenticator;
+
+var authenticator = new BasicAuthenticator("https://api.example.com", "username", "password");
+var client = new {{clientClassName}}(authenticator);
+```
+
+{{/hasBasicAuth}}
+{{#hasApiKeyAuth}}
+### API Key
+
+```java
+import {{invokerPackage}}.auth.ApiKeyAuthenticator;
+import {{invokerPackage}}.auth.ApiKeyLocation;
+
+var authenticator = new ApiKeyAuthenticator("https://api.example.com", "key-name", "key-value", ApiKeyLocation.HEADER);
+var client = new {{clientClassName}}(authenticator);
+```
+
+{{/hasApiKeyAuth}}
+{{#hasOAuth2ClientCredentials}}
+### OAuth2 Client Credentials
+
+```java
+import {{invokerPackage}}.auth.oauth.OAuth2ClientCredentialsAuthenticator;
+
+var authenticator = new OAuth2ClientCredentialsAuthenticator(
+    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token");
+var client = new {{clientClassName}}(authenticator);
+```
+
+{{/hasOAuth2ClientCredentials}}
+
+## Error Handling
+
+All API errors extend `ApiError`. The error hierarchy is:
+
+- `ApiError` (base)
+  - `ClientError` (4xx)
+    - `BadRequestError` (400)
+    - `UnauthorizedError` (401)
+    - `ForbiddenError` (403)
+    - `NotFoundError` (404)
+    - `ConflictError` (409)
+    - `UnprocessableEntityError` (422)
+  - `ServerError` (5xx)
+    - `InternalServerError` (500)
+
+```java
+import {{invokerPackage}}.errors.*;
+
+try {
+    var result = client.petApi.getPetById(petId);
+} catch (NotFoundError e) {
+    System.out.println("Not found: " + e.getMessage());
+} catch (ClientError e) {
+    System.out.println("Client error " + e.getStatusCode() + ": " + e.getMessage());
+} catch (ServerError e) {
+    System.out.println("Server error: " + e.getMessage());
+} catch (ApiError e) {
+    System.out.println("API error: " + e.getMessage());
+}
+```
+
+## Configuration
+
+### Custom Transport Options
+
+```java
+import {{invokerPackage}}.TransportOptions;
+
+var transport = TransportOptions.builder()
+    .proxy("http://proxy:3128")
+    .timeout(5000)
+    .build();
+
+var client = new {{clientClassName}}(authenticator, transport);
+```
+
+## API Methods
+
+Each API group is exposed as a typed field on the client. API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+
+## Models
+
+Models are generated as Java classes with builder patterns. They are located in `{{apiPackage}}` and model packages.
+
+```java
+import {{invokerPackage}}.models.*;
+
+var pet = new Pet();
+pet.setName("Fido");
+pet.setStatus("available");
+```
+
+## Binary / File Uploads
+
+File upload parameters are typed as `File`. Binary response bodies are returned as `byte[]`.

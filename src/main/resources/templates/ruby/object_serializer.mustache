@@ -228,53 +228,14 @@ module {{moduleName}}
       klass.new(transformed)
     end
 
-    # Attempt to match data against a specific type for oneOf/anyOf resolution.
+    # Attempt to deserialize data as a specific type for oneOf/anyOf resolution.
+    # Uses the try-deserialize-and-catch pattern: attempts deserialization via
+    # convert_to_type and raises on failure.
     def self.find_and_cast_into_type(klass_name, data)
       return if data.nil?
 
-      case klass_name.to_s
-      when 'Boolean'
-        return data if data.instance_of?(TrueClass) || data.instance_of?(FalseClass)
-      when 'Float'
-        return data if data.instance_of?(Float)
-      when 'Integer'
-        return data if data.instance_of?(Integer)
-      when 'Time'
-        return Time.parse(data)
-      when 'Date'
-        return Date.parse(data)
-      when 'String'
-        return data if data.instance_of?(String)
-      when 'Object'
-        return data if data.instance_of?(Hash)
-      when /\AArray<(.+)>\z/
-        if data.instance_of?(Array)
-          sub_type = ::Regexp.last_match(1).to_s
-          return data.map { |item| find_and_cast_into_type(sub_type.to_sym, item) }
-        end
-      when /\ASet<(.+)>\z/
-        if data.instance_of?(Array)
-          sub_type = ::Regexp.last_match(1).to_s
-          return Set.new(data.map { |item| find_and_cast_into_type(sub_type.to_sym, item) })
-        end
-      when /\AHash<String, (.+)>\z/
-        if data.instance_of?(Hash) && data.keys.all? { |k| k.instance_of?(Symbol) || k.instance_of?(String) }
-          sub_type = ::Regexp.last_match(1).to_s
-          # @type var result: Hash[untyped, untyped]
-          result = {}
-          return data.each_with_object(result) { |(k, v), hsh| hsh[k] = find_and_cast_into_type(sub_type.to_sym, v) }
-        end
-      else
-        const = {{moduleName}}::Models.const_get(klass_name)
-        if const
-          model = if const.respond_to?(:openapi_one_of) || const.respond_to?(:openapi_any_of)
-                    const.build(data)
-                  else
-                    convert_to_type(data, klass_name.to_s)
-                  end
-          return model if model
-        end
-      end
+      result = convert_to_type(data, klass_name.to_s)
+      return result unless result.nil?
 
       raise SchemaMismatchError, "#{data.inspect} doesn't match the #{klass_name} type"
     end

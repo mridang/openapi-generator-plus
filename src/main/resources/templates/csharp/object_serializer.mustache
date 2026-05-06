@@ -150,22 +150,24 @@ public class ObjectSerializer
 
     /// <summary>
     /// Resolve a oneOf schema by attempting deserialization against each candidate.
+    /// Each candidate is a function that accepts a JSON string and returns a
+    /// deserialized value, or throws on failure.
     /// Returns the first successful deserialization result.
     /// </summary>
-    public object? ResolveOneOf(string json, params Type[] schemas)
+    public static object? ResolveOneOf(string json, params Func<string, object?>[] candidates)
     {
-        ArgumentNullException.ThrowIfNull(schemas);
+        ArgumentNullException.ThrowIfNull(candidates);
 
         if (string.IsNullOrEmpty(json))
         {
             return null;
         }
 
-        foreach (Type schema in schemas)
+        foreach (Func<string, object?> candidate in candidates)
         {
             try
             {
-                object? result = JsonSerializer.Deserialize(json, schema, _options);
+                object? result = candidate(json);
                 if (result != null)
                 {
                     return result;
@@ -181,11 +183,13 @@ public class ObjectSerializer
 
     /// <summary>
     /// Resolve an anyOf schema by attempting deserialization against each candidate.
+    /// Each candidate is a function that accepts a JSON string and returns a
+    /// deserialized value, or throws on failure.
     /// Returns the first successful deserialization result.
     /// </summary>
-    public object? ResolveAnyOf(string json, params Type[] schemas)
+    public static object? ResolveAnyOf(string json, params Func<string, object?>[] candidates)
     {
-        return ResolveOneOf(json, schemas);
+        return ResolveOneOf(json, candidates);
     }
 
     private static JsonSerializerOptions CreateDefaultOptions()

@@ -1,0 +1,143 @@
+# {{appName}} SDK - AI Agent Reference
+
+## Installation
+
+Add to your `pubspec.yaml`:
+
+```yaml
+dependencies:
+  {{packageName}}: ^{{packageVersion}}
+```
+
+Then run:
+
+```bash
+dart pub get
+```
+
+## Quick Start
+
+```dart
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+final client = {{clientClassName}}.withToken(
+  host: 'https://api.example.com',
+  accessToken: 'your-token',
+);
+```
+
+## Authentication
+
+All authentication is handled via `Authenticator` implementations passed to the client constructor.
+
+### Bearer Token
+
+```dart
+final authenticator = BearerAuthenticator(host: 'https://api.example.com', token: 'your-token');
+final client = {{clientClassName}}(authenticator: authenticator);
+```
+
+{{#hasBasicAuth}}
+### Basic Auth
+
+```dart
+final authenticator = BasicAuthenticator(
+  host: 'https://api.example.com',
+  username: 'username',
+  password: 'password',
+);
+final client = {{clientClassName}}(authenticator: authenticator);
+```
+
+{{/hasBasicAuth}}
+{{#hasApiKeyAuth}}
+### API Key
+
+```dart
+final authenticator = ApiKeyAuthenticator(
+  host: 'https://api.example.com',
+  keyName: 'key-name',
+  keyValue: 'key-value',
+  location: ApiKeyLocation.header,
+);
+final client = {{clientClassName}}(authenticator: authenticator);
+```
+
+{{/hasApiKeyAuth}}
+{{#hasOAuth2ClientCredentials}}
+### OAuth2 Client Credentials
+
+```dart
+final authenticator = OAuth2ClientCredentialsAuthenticator(
+  host: 'https://api.example.com',
+  clientId: 'client-id',
+  clientSecret: 'client-secret',
+  tokenUrl: 'https://auth.example.com/token',
+);
+final client = {{clientClassName}}(authenticator: authenticator);
+```
+
+{{/hasOAuth2ClientCredentials}}
+
+## Error Handling
+
+All API errors extend `ApiError`. The error hierarchy is:
+
+- `ApiError` (base)
+  - `ClientError` (4xx)
+    - `BadRequestError` (400)
+    - `UnauthorizedError` (401)
+    - `ForbiddenError` (403)
+    - `NotFoundError` (404)
+    - `ConflictError` (409)
+    - `UnprocessableEntityError` (422)
+  - `ServerError` (5xx)
+    - `InternalServerError` (500)
+
+```dart
+try {
+  final pet = await client.petApi.getPetById(petId: petId);
+} on NotFoundError catch (e) {
+  print('Not found: $e');
+} on ClientError catch (e) {
+  print('Client error ${e.statusCode}: $e');
+} on ServerError catch (e) {
+  print('Server error: $e');
+} on ApiError catch (e) {
+  print('API error: $e');
+}
+```
+
+## Configuration
+
+### Custom Transport Options
+
+```dart
+final transport = TransportOptionsBuilder()
+  .proxy('http://proxy:3128')
+  .timeout(5000)
+  .build();
+
+final client = {{clientClassName}}(
+  authenticator: authenticator,
+  transportOptions: transport,
+);
+```
+
+## API Methods
+
+Each API group is exposed as a typed field on the client (e.g., `client.petApi`). API classes have async methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
+
+All API methods return `Future<T>` and should be used with `await`.
+
+## Models
+
+Models are generated as Dart classes in the `models` directory.
+
+```dart
+final pet = Pet(name: 'Fido', status: 'available');
+```
+
+## Binary / File Uploads
+
+File upload parameters accept `List<int>` (byte lists). Binary response bodies are returned as `List<int>`.

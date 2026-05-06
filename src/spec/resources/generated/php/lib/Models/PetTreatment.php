@@ -20,8 +20,14 @@ use PetstoreClient\ObjectSerializer;
  */
 class PetTreatment
 {
-    /** @var string[] */
-    private const ANY_OF_SCHEMAS = ['Medication', 'Surgery'];
+    /** @return array<callable> */
+    private static function anyOfCandidates(): array
+    {
+        return [
+            fn(mixed $d): mixed => ObjectSerializer::deserialize($d, ObjectSerializer::qualifySchemaName('Medication')),
+            fn(mixed $d): mixed => ObjectSerializer::deserialize($d, ObjectSerializer::qualifySchemaName('Surgery')),
+        ];
+    }
 
     private mixed $actualInstance;
 
@@ -37,6 +43,6 @@ class PetTreatment
 
     public static function build(mixed $data): self
     {
-        return new self(ObjectSerializer::resolveAnyOf($data, self::ANY_OF_SCHEMAS));
+        return new self(ObjectSerializer::resolveAnyOf($data, self::anyOfCandidates()));
     }
 }

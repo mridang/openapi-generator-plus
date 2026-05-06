@@ -189,6 +189,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 Path.of(sourceFolder, packageName.replace(".", "/")).toString();
 
         supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
+        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
         supportingFiles.add(
                 new SupportingFile("api_client.mustache", invokerFolder, "ApiClient.cs"));
         supportingFiles.add(

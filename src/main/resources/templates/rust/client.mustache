@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use crate::api_client::ApiClient;
-use crate::auth::bearer_authenticator::BearerAuthenticator;
+use crate::auth::BearerAuthenticator;
 use crate::auth::Authenticator;
 use crate::configuration::ConfigurationBuilder;
 use crate::default_api_client::DefaultApiClient;
@@ -12,7 +12,7 @@ use crate::transport_options::TransportOptionsBuilder;
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-use crate::api::{{#lambda.snakecase}}{{classname}}{{/lambda.snakecase}}::{{classname}};
+use crate::api::{{classname}};
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}

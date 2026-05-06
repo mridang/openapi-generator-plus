@@ -1,0 +1,44 @@
+# frozen_string_literal: true
+
+require 'test_helper'
+
+describe {{moduleName}}::{{clientClassName}} do
+  it 'constructs with authenticator only' do
+    authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', 'test-token')
+
+    client = {{moduleName}}::{{clientClassName}}.new(authenticator)
+
+    _(client).wont_be_nil
+  end
+
+  it 'constructs with authenticator and nil transport options' do
+    authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', 'test-token')
+
+    client = {{moduleName}}::{{clientClassName}}.new(authenticator, nil)
+
+    _(client).wont_be_nil
+  end
+
+  it 'constructs with authenticator and transport options' do
+    authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', 'test-token')
+    transport = {{moduleName}}::TransportOptions.builder.build
+
+    client = {{moduleName}}::{{clientClassName}}.new(authenticator, transport)
+
+    _(client).wont_be_nil
+  end
+
+  it 'API groups are accessible' do
+    authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', 'test-token')
+
+    client = {{moduleName}}::{{clientClassName}}.new(authenticator)
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    _(client.{{clientPropertyName}}).wont_be_nil
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+  end
+end

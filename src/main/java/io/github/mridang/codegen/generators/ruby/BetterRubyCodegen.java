@@ -226,6 +226,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         final String libPath = Path.of(LIB_FOLDER, modulePath).toString();
 
         supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
+        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
         supportingFiles.add(new SupportingFile("gem.mustache", LIB_FOLDER, gemName + ".rb"));
         supportingFiles.add(new SupportingFile("configuration.mustache", libPath, "configuration.rb"));
         supportingFiles.add(new SupportingFile("transport_options.mustache", libPath, "transport_options.rb"));
@@ -371,6 +372,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                             "test/configuration_test.mustache",
                             "test",
                             "configuration_test.rb"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/client_test.mustache",
+                            "test",
+                            "client_test.rb"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/oauth2_token_manager_test.mustache",

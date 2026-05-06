@@ -233,6 +233,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         final String invokerFolder =
                 Path.of(sourceFolder, invokerPackage.replace(".", "/")).toString();
         supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
+        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
         supportingFiles.add(
                 new SupportingFile("api_exception.mustache", invokerFolder, "ApiException.java"));
 
@@ -402,6 +403,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "test/ConfigurationTest.mustache",
                             testFolder,
                             "ConfigurationTest.java"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ClientTest.mustache",
+                            testFolder,
+                            "ClientTest.java"));
             final String testModelsFolder = Path.of(testFolder, "models").toString();
             supportingFiles.add(
                     new SupportingFile(

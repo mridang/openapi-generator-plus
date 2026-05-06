@@ -1,0 +1,40 @@
+from {{packageName}}.auth.bearer_authenticator import BearerAuthenticator
+from {{packageName}}.{{clientClassFile}} import {{clientClassName}}
+from {{packageName}}.transport_options import TransportOptions
+
+
+class TestClient:
+    def test_construct_with_authenticator_only(self) -> None:
+        authenticator = BearerAuthenticator('{{{basePath}}}', 'test-token')
+
+        client = {{clientClassName}}(authenticator)
+
+        assert client is not None
+
+    def test_construct_with_authenticator_and_none_transport_options(self) -> None:
+        authenticator = BearerAuthenticator('{{{basePath}}}', 'test-token')
+
+        client = {{clientClassName}}(authenticator, None)
+
+        assert client is not None
+
+    def test_construct_with_authenticator_and_transport_options(self) -> None:
+        authenticator = BearerAuthenticator('{{{basePath}}}', 'test-token')
+        transport = TransportOptions.builder().build()
+
+        client = {{clientClassName}}(authenticator, transport)
+
+        assert client is not None
+
+    def test_api_groups_are_accessible(self) -> None:
+        authenticator = BearerAuthenticator('{{{basePath}}}', 'test-token')
+
+        client = {{clientClassName}}(authenticator)
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assert client.{{clientPropertyName}} is not None
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}

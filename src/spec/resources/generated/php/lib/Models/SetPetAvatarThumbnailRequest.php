@@ -17,8 +17,14 @@ use PetstoreClient\ObjectSerializer;
 
 class SetPetAvatarThumbnailRequest
 {
-    /** @var string[] */
-    private const ONE_OF_SCHEMAS = ['string', 'string[]'];
+    /** @return array<callable> */
+    private static function oneOfCandidates(): array
+    {
+        return [
+            fn(mixed $d): mixed => ObjectSerializer::deserialize($d, ObjectSerializer::qualifySchemaName('string')),
+            fn(mixed $d): mixed => ObjectSerializer::deserialize($d, ObjectSerializer::qualifySchemaName('string[]')),
+        ];
+    }
 
     private mixed $actualInstance;
 
@@ -34,6 +40,6 @@ class SetPetAvatarThumbnailRequest
 
     public static function build(mixed $data): self
     {
-        return new self(ObjectSerializer::resolveOneOf($data, self::ONE_OF_SCHEMAS));
+        return new self(ObjectSerializer::resolveOneOf($data, self::oneOfCandidates()));
     }
 }

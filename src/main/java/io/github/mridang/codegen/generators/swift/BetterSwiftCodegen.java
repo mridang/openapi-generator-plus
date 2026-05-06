@@ -246,6 +246,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         final String srcDir = Path.of("Sources", packageName).toString();
 
         supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
+        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
         supportingFiles.add(
                 new SupportingFile("configuration.mustache", srcDir, "Configuration.swift"));
         supportingFiles.add(
@@ -387,6 +388,11 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                             "test/ConfigurationTests.mustache",
                             testDir,
                             "ConfigurationTests.swift"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ClientTests.mustache",
+                            testDir,
+                            "ClientTests.swift"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/MetadataTests.mustache", testDir, "MetadataTests.swift"));

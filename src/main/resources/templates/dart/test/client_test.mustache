@@ -1,0 +1,48 @@
+{{>api_info}}
+{{#generateTests}}
+import 'package:test/test.dart';
+import 'package:{{packageName}}/{{packageName}}.dart';
+
+void main() {
+  group('{{clientClassName}}', () {
+    test('construct with authenticator only', () {
+      final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
+
+      final client = {{clientClassName}}(authenticator: authenticator);
+
+      expect(client, isNotNull);
+    });
+
+    test('construct with authenticator and null transport options', () {
+      final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
+
+      final client = {{clientClassName}}(authenticator: authenticator, transportOptions: null);
+
+      expect(client, isNotNull);
+    });
+
+    test('construct with authenticator and transport options', () {
+      final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
+      final transport = TransportOptionsBuilder().build();
+
+      final client = {{clientClassName}}(authenticator: authenticator, transportOptions: transport);
+
+      expect(client, isNotNull);
+    });
+
+    test('API groups are accessible', () {
+      final authenticator = BearerAuthenticator(host: '{{{basePath}}}', token: 'test-token');
+
+      final client = {{clientClassName}}(authenticator: authenticator);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+      expect(client.{{#lambda.camelcase}}{{classname}}{{/lambda.camelcase}}, isNotNull);
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    });
+  });
+}
+{{/generateTests}}

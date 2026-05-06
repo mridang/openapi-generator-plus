@@ -209,6 +209,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         final String apiFolder = toSrcPath(apiPackage);
 
         supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
+        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
         supportingFiles.add(
                 new SupportingFile("configuration.mustache", invokerFolder, "Configuration.php"));
         supportingFiles.add(
@@ -404,6 +405,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "test/ConfigurationTest.mustache",
                             "test",
                             "ConfigurationTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/ClientTest.mustache",
+                            "test",
+                            "ClientTest.php"));
             if (hasAnyOAuth2 || hasOpenIdConnect) {
                 supportingFiles.add(
                         new SupportingFile(

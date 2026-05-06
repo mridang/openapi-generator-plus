@@ -1,0 +1,45 @@
+{{>api_info}}
+
+package {{invokerPackage}}
+
+import {{invokerPackage}}.auth.BearerAuthenticator
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
+
+class ClientTest {
+
+    private val authenticator = BearerAuthenticator("{{{basePath}}}", "test-token")
+
+    @Test
+    @DisplayName("construct with authenticator only")
+    fun constructWithAuthenticatorOnly() {
+        val client = {{clientClassName}}(authenticator)
+
+        assertNotNull(client)
+    }
+
+    @Test
+    @DisplayName("construct with authenticator and transport options")
+    fun constructWithAuthenticatorAndTransportOptions() {
+        val transport = TransportOptions.builder().build()
+
+        val client = {{clientClassName}}(authenticator, transport)
+
+        assertNotNull(client)
+    }
+
+    @Test
+    @DisplayName("API groups are accessible")
+    fun apiGroupsAreAccessible() {
+        val client = {{clientClassName}}(authenticator)
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+        assertNotNull(client.{{clientPropertyName}})
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    }
+}

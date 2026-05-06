@@ -207,6 +207,7 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
         this.apiPackage = "api";
 
         supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
+        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
         supportingFiles.add(new SupportingFile("api_client.mustache", "src", "api-client.ts"));
         supportingFiles.add(
                 new SupportingFile(
@@ -377,6 +378,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                             "test/configuration.test.mustache",
                             "test",
                             "configuration.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/client.test.mustache",
+                            "test",
+                            "client.test.ts"));
             if (hasAnyOAuth2 || hasOpenIdConnect) {
                 supportingFiles.add(
                         new SupportingFile(

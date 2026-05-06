@@ -1,0 +1,46 @@
+{{>api_info}}
+package {{packageName}}_test
+
+import (
+	"testing"
+
+	"{{packageName}}/pkg"
+	"{{packageName}}/pkg/auth"
+)
+
+func TestClient_ConstructWithAuthenticatorOnly(t *testing.T) {
+	authenticator := auth.NewBearerAuthenticator("{{{basePath}}}", "test-token")
+
+	client := {{packageName}}.New{{clientClassName}}(authenticator, nil)
+
+	if client == nil {
+		t.Fatal("expected non-nil client")
+	}
+}
+
+func TestClient_ConstructWithAuthenticatorAndTransportOptions(t *testing.T) {
+	authenticator := auth.NewBearerAuthenticator("{{{basePath}}}", "test-token")
+	transport := {{packageName}}.NewTransportOptionsBuilder().Build()
+
+	client := {{packageName}}.New{{clientClassName}}(authenticator, transport)
+
+	if client == nil {
+		t.Fatal("expected non-nil client")
+	}
+}
+
+func TestClient_ApiGroupsAreAccessible(t *testing.T) {
+	authenticator := auth.NewBearerAuthenticator("{{{basePath}}}", "test-token")
+
+	client := {{packageName}}.New{{clientClassName}}(authenticator, nil)
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+	if client.{{classname}} == nil {
+		t.Fatal("expected non-nil {{classname}}")
+	}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+}

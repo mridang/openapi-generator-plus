@@ -1,0 +1,35 @@
+{{>api_info}}
+
+import { BearerAuthenticator } from '../src/auth/bearer-authenticator{{importFileExtension}}';
+import { {{clientClassName}} } from '../src/{{clientClassFile}}{{importFileExtension}}';
+import { TransportOptions } from '../src/transport-options{{importFileExtension}}';
+
+describe('{{clientClassName}}', () => {
+  const authenticator = new BearerAuthenticator('{{{basePath}}}', 'test-token');
+
+  test('construct with authenticator only', () => {
+    const client = new {{clientClassName}}(authenticator);
+
+    expect(client).toBeDefined();
+  });
+
+  test('construct with authenticator and transport options', () => {
+    const transport = TransportOptions.builder().build();
+
+    const client = new {{clientClassName}}(authenticator, transport);
+
+    expect(client).toBeDefined();
+  });
+
+  test('API groups are accessible', () => {
+    const client = new {{clientClassName}}(authenticator);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    expect(client.{{clientPropertyName}}).toBeDefined();
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+  });
+});

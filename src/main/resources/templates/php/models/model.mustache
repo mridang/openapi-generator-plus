@@ -64,8 +64,15 @@ class {{classname}}
     ];
 {{/discriminator}}
 {{^discriminator}}
-    /** @var string[] */
-    private const ONE_OF_SCHEMAS = [{{#oneOf}}'{{{.}}}'{{^-last}}, {{/-last}}{{/oneOf}}];
+    /** @return array<callable> */
+    private static function oneOfCandidates(): array
+    {
+        return [
+{{#oneOf}}
+            fn(mixed $d): mixed => \{{invokerPackage}}\ObjectSerializer::deserialize($d, \{{invokerPackage}}\ObjectSerializer::qualifySchemaName('{{{.}}}')),
+{{/oneOf}}
+        ];
+    }
 {{/discriminator}}
 
     private mixed $actualInstance;
@@ -98,7 +105,7 @@ class {{classname}}
         return new self($data);
 {{/discriminator}}
 {{^discriminator}}
-        return new self(\{{invokerPackage}}\ObjectSerializer::resolveOneOf($data, self::ONE_OF_SCHEMAS));
+        return new self(\{{invokerPackage}}\ObjectSerializer::resolveOneOf($data, self::oneOfCandidates()));
 {{/discriminator}}
     }
 }
@@ -144,8 +151,15 @@ class {{classname}}
 {{/isDeprecated}}
 class {{classname}}
 {
-    /** @var string[] */
-    private const ANY_OF_SCHEMAS = [{{#anyOf}}'{{{.}}}'{{^-last}}, {{/-last}}{{/anyOf}}];
+    /** @return array<callable> */
+    private static function anyOfCandidates(): array
+    {
+        return [
+{{#anyOf}}
+            fn(mixed $d): mixed => \{{invokerPackage}}\ObjectSerializer::deserialize($d, \{{invokerPackage}}\ObjectSerializer::qualifySchemaName('{{{.}}}')),
+{{/anyOf}}
+        ];
+    }
 
     private mixed $actualInstance;
 
@@ -161,7 +175,7 @@ class {{classname}}
 
     public static function build(mixed $data): self
     {
-        return new self(\{{invokerPackage}}\ObjectSerializer::resolveAnyOf($data, self::ANY_OF_SCHEMAS));
+        return new self(\{{invokerPackage}}\ObjectSerializer::resolveAnyOf($data, self::anyOfCandidates()));
     }
 }
 {{/-first}}

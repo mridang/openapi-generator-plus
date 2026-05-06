@@ -83,7 +83,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
         {:cont, nil}
       else
         try do
-          result = {{moduleName}}.ObjectSerializer.find_and_cast_into_type(type_name, data)
+          result = {{moduleName}}.ObjectSerializer.convert_to_type(data, to_string(type_name))
           {:halt, result}
         rescue
           _ -> {:cont, nil}
@@ -142,7 +142,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
         {:cont, nil}
       else
         try do
-          result = {{moduleName}}.ObjectSerializer.find_and_cast_into_type(type_name, data)
+          result = {{moduleName}}.ObjectSerializer.convert_to_type(data, to_string(type_name))
           {:halt, result}
         rescue
           _ -> {:cont, nil}

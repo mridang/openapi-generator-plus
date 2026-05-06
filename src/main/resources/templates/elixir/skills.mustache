@@ -1,0 +1,126 @@
+# {{appName}} SDK - AI Agent Reference
+
+## Installation
+
+Add to your `mix.exs`:
+
+```elixir
+defp deps do
+  [
+    {:{{packageName}}, "~> {{packageVersion}}"}
+  ]
+end
+```
+
+Then run:
+
+```bash
+mix deps.get
+```
+
+## Quick Start
+
+```elixir
+client = {{moduleName}}.{{clientClassName}}.with_token("https://api.example.com", "your-token")
+```
+
+## Authentication
+
+All authentication is handled via authenticator structs passed to the client constructor.
+
+### Bearer Token
+
+```elixir
+authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("https://api.example.com", "your-token")
+client = {{moduleName}}.{{clientClassName}}.new(authenticator)
+```
+
+{{#hasBasicAuth}}
+### Basic Auth
+
+```elixir
+authenticator = {{moduleName}}.Auth.BasicAuthenticator.new("https://api.example.com", "username", "password")
+client = {{moduleName}}.{{clientClassName}}.new(authenticator)
+```
+
+{{/hasBasicAuth}}
+{{#hasApiKeyAuth}}
+### API Key
+
+```elixir
+authenticator = {{moduleName}}.Auth.ApiKeyAuthenticator.new(
+  "https://api.example.com", "key-name", "key-value", :header)
+client = {{moduleName}}.{{clientClassName}}.new(authenticator)
+```
+
+{{/hasApiKeyAuth}}
+{{#hasOAuth2ClientCredentials}}
+### OAuth2 Client Credentials
+
+```elixir
+authenticator = {{moduleName}}.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+  "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token")
+client = {{moduleName}}.{{clientClassName}}.new(authenticator)
+```
+
+{{/hasOAuth2ClientCredentials}}
+
+## Error Handling
+
+All API errors are represented as exception structs. The error hierarchy is:
+
+- `ApiError` (base)
+  - `ClientError` (4xx)
+    - `BadRequestError` (400)
+    - `UnauthorizedError` (401)
+    - `ForbiddenError` (403)
+    - `NotFoundError` (404)
+    - `ConflictError` (409)
+    - `UnprocessableEntityError` (422)
+  - `ServerError` (5xx)
+    - `InternalServerError` (500)
+
+```elixir
+case {{moduleName}}.Api.PetApi.get_pet_by_id(client.pet_api, pet_id) do
+  {:ok, pet} ->
+    IO.inspect(pet)
+
+  {:error, %{{moduleName}}.Errors.NotFoundError{} = e} ->
+    IO.puts("Not found: #{e.message}")
+
+  {:error, %{{moduleName}}.Errors.ClientError{} = e} ->
+    IO.puts("Client error #{e.status_code}: #{e.message}")
+
+  {:error, %{{moduleName}}.Errors.ServerError{} = e} ->
+    IO.puts("Server error: #{e.message}")
+end
+```
+
+## Configuration
+
+### Custom Transport Options
+
+```elixir
+transport = {{moduleName}}.TransportOptions.new(
+  proxy: "http://proxy:3128",
+  timeout: 5000
+)
+
+client = {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
+```
+
+## API Methods
+
+Each API group is exposed as a typed field on the client struct (e.g., `client.pet_api`). API modules have functions that correspond to OpenAPI operations, accepting the API struct and typed request parameters and returning `{:ok, result}` or `{:error, reason}` tuples.
+
+## Models
+
+Models are generated as Elixir structs under the `{{moduleName}}.Models` namespace.
+
+```elixir
+pet = %{{moduleName}}.Models.Pet{name: "Fido", status: "available"}
+```
+
+## Binary / File Uploads
+
+File upload parameters accept `binary()` data. Binary response bodies are returned as `binary()`.

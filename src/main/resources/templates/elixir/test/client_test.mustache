@@ -1,0 +1,44 @@
+{{#generateTests}}
+defmodule {{moduleName}}.ClientTest do
+  use ExUnit.Case, async: true
+
+  test "construct with authenticator only" do
+    authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "test-token")
+
+    client = {{moduleName}}.{{clientClassName}}.new(authenticator)
+
+    assert %{{moduleName}}.{{clientClassName}}{} = client
+  end
+
+  test "construct with authenticator and nil transport options" do
+    authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "test-token")
+
+    client = {{moduleName}}.{{clientClassName}}.new(authenticator, nil)
+
+    assert %{{moduleName}}.{{clientClassName}}{} = client
+  end
+
+  test "construct with authenticator and transport options" do
+    authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "test-token")
+    transport = {{moduleName}}.TransportOptions.new()
+
+    client = {{moduleName}}.{{clientClassName}}.new(authenticator, transport)
+
+    assert %{{moduleName}}.{{clientClassName}}{} = client
+  end
+
+  test "API groups are accessible" do
+    authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "test-token")
+
+    client = {{moduleName}}.{{clientClassName}}.new(authenticator)
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    assert client.{{clientPropertyName}} != nil
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+  end
+end
+{{/generateTests}}

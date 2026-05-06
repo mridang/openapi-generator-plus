@@ -1,0 +1,40 @@
+{{>api_info}}
+
+use {{packageName}}::{{clientClassName}};
+use {{packageName}}::auth::BearerAuthenticator;
+use {{packageName}}::TransportOptionsBuilder;
+
+#[test]
+fn test_client_construct_with_authenticator_only() {
+    let authenticator = BearerAuthenticator::new("{{{basePath}}}", "test-token");
+
+    let client = {{clientClassName}}::new(Box::new(authenticator), None);
+
+    // Verify client was constructed by accessing a field
+    let _ = &client;
+}
+
+#[test]
+fn test_client_construct_with_transport_options() {
+    let authenticator = BearerAuthenticator::new("{{{basePath}}}", "test-token");
+    let transport = TransportOptionsBuilder::new().build();
+
+    let client = {{clientClassName}}::new(Box::new(authenticator), Some(transport));
+
+    let _ = &client;
+}
+
+#[test]
+fn test_client_api_groups_are_accessible() {
+    let authenticator = BearerAuthenticator::new("{{{basePath}}}", "test-token");
+
+    let client = {{clientClassName}}::new(Box::new(authenticator), None);
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    let _ = &client.{{clientPropertyName}};
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+}
