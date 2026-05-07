@@ -9,31 +9,33 @@ import Foundation
 
 /// Order is a model class generated from the OpenAPI schema.
 public struct Order: Codable, Sendable {
-    public var id: Int64?
-    public var petId: Int64?
-    public var quantity: Int?
-    public var shipDate: Date?
-    /// Order Status
-    public var status: String?
-    public var complete: Bool?
+  public var id: Int64?
+  public var petId: Int64?
+  public var quantity: Int?
+  public var shipDate: Date?
+  /// Order Status
+  public var status: String?
+  public var complete: Bool?
 
-    enum CodingKeys: String, CodingKey {
-        case id = "id"
-        case petId = "petId"
-        case quantity = "quantity"
-        case shipDate = "shipDate"
-        case status = "status"
-        case complete = "complete"
-    }
+  enum CodingKeys: String, CodingKey {
+    case id = "id"
+    case petId = "petId"
+    case quantity = "quantity"
+    case shipDate = "shipDate"
+    case status = "status"
+    case complete = "complete"
+  }
 
-    /// Creates a new Order instance.
-    public init(id: Int64? = nil, petId: Int64? = nil, quantity: Int? = nil, shipDate: Date? = nil, status: String? = "placed", complete: Bool? = nil) {
-        self.id = id
-        self.petId = petId
-        self.quantity = quantity
-        self.shipDate = shipDate
-        self.status = status
-        self.complete = complete
-    }
+  /// Creates a new Order instance.
+  public init(
+    id: Int64? = nil, petId: Int64? = nil, quantity: Int? = nil, shipDate: Date? = nil,
+    status: String? = "placed", complete: Bool? = nil
+  ) {
+    self.id = id
+    self.petId = petId
+    self.quantity = quantity
+    self.shipDate = shipDate
+    self.status = status
+    self.complete = complete
+  }
 }
-

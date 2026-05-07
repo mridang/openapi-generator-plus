@@ -183,9 +183,8 @@ void main() {
       });
 
       try {
-        final transport = TransportOptionsBuilder()
-            .followRedirects(false)
-            .build();
+        final transport =
+            TransportOptionsBuilder().followRedirects(false).build();
         final client = DefaultApiClient(transportOptions: transport);
         final resp = await client.sendRequest(
           'GET',
@@ -216,9 +215,8 @@ void main() {
       });
 
       try {
-        final transport = TransportOptionsBuilder()
-            .followRedirects(true)
-            .build();
+        final transport =
+            TransportOptionsBuilder().followRedirects(true).build();
         final client = DefaultApiClient(transportOptions: transport);
         final resp = await client.sendRequest(
           'GET',

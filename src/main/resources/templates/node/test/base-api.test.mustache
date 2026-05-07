@@ -17,6 +17,8 @@ import { UnprocessableEntityError } from '../src/exceptions/unprocessable-entity
 import { InternalServerError } from '../src/exceptions/internal-server-error{{importFileExtension}}';
 import type { ApiClient } from '../src/api-client{{importFileExtension}}';
 import type { ApiResponse } from '../src/api-response{{importFileExtension}}';
+import { PetApi } from '../src/api/pet-api{{importFileExtension}}';
+
 
 class CapturingApiClient implements ApiClient {
   capturedUrl = '';
@@ -168,6 +170,30 @@ describe('BaseApi query parameters', () => {
 });
 
 describe('BaseApi allowEmptyValue', () => {
+  test('omits query param when options is null', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const petApi = new PetApi(client, config);
+    try {
+      await petApi.findPetsByStatus(undefined);
+    } catch {
+      // Response deserialization may fail; we only care about the captured URL
+    }
+    expect(client.capturedUrl).not.toContain('status=');
+  });
+
+  test('includes allowEmptyValue param when options has null value', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const petApi = new PetApi(client, config);
+    try {
+      await petApi.findPetsByStatus({});
+    } catch {
+      // Response deserialization may fail; we only care about the captured URL
+    }
+    expect(client.capturedUrl).toContain('status=');
+  });
+
   test('includes empty value param in query string when value is empty string', async () => {
     const result = await api().call('GET', '/api/test', { filter: '' }, {}, null,
       ['application/json'], 'application/json', null);
@@ -285,6 +311,19 @@ describe('BaseApi content-type deserialization guard', () => {
       ['text/plain'], 'application/json',
       (json) => json as string);
     expect(result).toBe('hello');
+  });
+
+  test('deserializes vendor JSON MIME types like application/problem+json', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = '{"title":"Not Found"}';
+    client.responseHeaders = { 'content-type': 'application/problem+json' };
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    const result = await testApi.call('GET', '/api/test', {}, {}, null,
+      ['application/json'], 'application/json',
+      (json) => json as { title: string });
+    expect(result).toBeDefined();
+    expect((result as { title: string }).title).toBe('Not Found');
   });
 });
 

@@ -150,10 +150,15 @@ module PetstoreClient
       parts.join + "--#{boundary}--\r\n"
     end
 
-    def multipart_part(name, value, boundary)
+    def multipart_part(name, value, boundary) # rubocop:disable Metrics/MethodLength
       if value.respond_to?(:read)
+        data = begin
+          value.read
+        ensure
+          value.close if value.respond_to?(:close)
+        end
         "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{name}\"; filename=\"#{name}\"\r\n" \
-          "Content-Type: application/octet-stream\r\n\r\n#{value.read}\r\n"
+          "Content-Type: application/octet-stream\r\n\r\n#{data}\r\n"
       elsif value.respond_to?(:to_hash)
         json_str = JSON.generate(value.to_hash)
         "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{name}\"\r\n" \

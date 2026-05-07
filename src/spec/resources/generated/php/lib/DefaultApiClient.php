@@ -1,4 +1,5 @@
 <?php
+
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -14,6 +15,7 @@ namespace PetstoreClient;
 
 use RuntimeException;
 use Symfony\Component\HttpClient\HttpClient;
+use Symfony\Component\Mime\Header\HeaderInterface;
 use Symfony\Component\Mime\Part\DataPart;
 use Symfony\Component\Mime\Part\Multipart\FormDataPart;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
@@ -137,7 +139,11 @@ class DefaultApiClient implements ApiClient
                     } elseif ($v instanceof \SplFileObject) {
                         $parts[] = DataPart::fromPath($v->getRealPath());
                     } elseif (is_resource($v)) {
-                        $parts[] = new DataPart(stream_get_contents($v));
+                        try {
+                            $parts[] = new DataPart(stream_get_contents($v));
+                        } finally {
+                            fclose($v);
+                        }
                     } elseif (is_scalar($v)) {
                         $parts[] = strval($v);
                     } else {
@@ -148,7 +154,7 @@ class DefaultApiClient implements ApiClient
             }
             $formData = new FormDataPart($formFields);
             $contentType = $formData->getPreparedHeaders()->get('Content-Type');
-            if ($contentType instanceof \Symfony\Component\Mime\Header\HeaderInterface) {
+            if ($contentType instanceof HeaderInterface) {
                 $mergedHeaders['Content-Type'] = $contentType->getBodyAsString();
             }
             $options = [
@@ -237,13 +243,17 @@ class DefaultApiClient implements ApiClient
         }
 
         return match (strtolower($encoding)) {
-            'gzip', 'x-gzip' => gzdecode($body) ?: $body,
-            'deflate' => gzinflate($body) ?: $body,
+            'gzip', 'x-gzip' => gzdecode($body)
+                ?: throw new RuntimeException('Failed to gzip-decompress response body'),
+            'deflate' => gzinflate($body)
+                ?: throw new RuntimeException('Failed to deflate-decompress response body'),
             'br' => function_exists('brotli_uncompress')
-                ? (brotli_uncompress($body) ?: $body)
+                ? (brotli_uncompress($body)
+                    ?: throw new RuntimeException('Failed to brotli-decompress response body'))
                 : $body,
             'zstd' => function_exists('zstd_uncompress')
-                ? (zstd_uncompress($body) ?: $body)
+                ? (zstd_uncompress($body)
+                    ?: throw new RuntimeException('Failed to zstd-decompress response body'))
                 : $body,
             default => $body,
         };

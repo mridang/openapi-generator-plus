@@ -213,8 +213,11 @@ class {{classname}} extends BaseApi
 {{/isDeepObject}}
 {{^isDeepObject}}
 {{#isAllowEmptyValue}}
-        $serialized = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
-        $queryParams['{{baseName}}'] = $serialized ?? '';
+        if ($options->{{paramName}} !== null) {
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
+        } else {
+            $queryParams['{{baseName}}'] = '';
+        }
 {{/isAllowEmptyValue}}
 {{^isAllowEmptyValue}}
         if ($options->{{paramName}} !== null) {
@@ -352,8 +355,11 @@ class {{classname}} extends BaseApi
 {{/isDeepObject}}
 {{^isDeepObject}}
 {{#isAllowEmptyValue}}
-        $serialized = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
-        $queryParams['{{baseName}}'] = $serialized ?? '';
+        if ($options->{{paramName}} !== null) {
+            $queryParams['{{baseName}}'] = ValueSerializer::serializeStyled('{{baseName}}', $options->{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
+        } else {
+            $queryParams['{{baseName}}'] = '';
+        }
 {{/isAllowEmptyValue}}
 {{^isAllowEmptyValue}}
         if ($options->{{paramName}} !== null) {

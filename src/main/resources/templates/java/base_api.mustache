@@ -207,10 +207,15 @@ public abstract class BaseApi {
 
         T data = null;
         if (returnType != null && response.body() != null && !response.body().isEmpty()) {
-            String responseContentType = response.headers() != null
-                    ? response.headers().getOrDefault("content-type",
-                            response.headers().getOrDefault("Content-Type", ""))
-                    : "";
+            String responseContentType = "";
+            if (response.headers() != null) {
+                for (Map.Entry<String, String> entry : response.headers().entrySet()) {
+                    if (entry.getKey().equalsIgnoreCase("content-type")) {
+                        responseContentType = entry.getValue();
+                        break;
+                    }
+                }
+            }
             if (!responseContentType.isEmpty()
                     && !headerSelector.isJsonMime(responseContentType)) {
                 if (returnType.getType() == InputStream.class) {

@@ -71,10 +71,7 @@ public sealed class Client : IDisposable
             httpAware.SetApiClient(_apiClient);
         }
 
-        Configuration config = Configuration
-            .Builder()
-            .BaseUrl(authenticator.GetHost())
-            .Build();
+        Configuration config = Configuration.Builder().BaseUrl(authenticator.GetHost()).Build();
         Pet = new PetApi(_apiClient, config, authenticator);
         Store = new StoreApi(_apiClient, config, authenticator);
     }
@@ -86,9 +83,16 @@ public sealed class Client : IDisposable
     /// <param name="accessToken">Bearer token.</param>
     /// <param name="transportOptions">Optional HTTP transport configuration.</param>
     /// <returns>Configured client instance.</returns>
-    public static Client WithToken(string host, string accessToken, TransportOptions? transportOptions = null)
+    public static Client WithToken(
+        string host,
+        string accessToken,
+        TransportOptions? transportOptions = null
+    )
     {
-        return new Client(new BearerAuthenticator(host, accessToken), transportOptions ?? TransportOptions.Builder().Build());
+        return new Client(
+            new BearerAuthenticator(host, accessToken),
+            transportOptions ?? TransportOptions.Builder().Build()
+        );
     }
 
     /// <inheritdoc/>

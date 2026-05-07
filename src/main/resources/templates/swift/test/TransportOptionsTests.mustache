@@ -18,6 +18,15 @@ final class TransportOptionsTests: XCTestCase {
         XCTAssertFalse(opts.injectRequestID)
     }
 
+    func testFollowRedirectsDefaultsToTrueWithNilMaxRedirects() {
+        let opts = TransportOptionsBuilder()
+            .followRedirects(true)
+            .build()
+
+        XCTAssertTrue(opts.followRedirects)
+        XCTAssertNil(opts.maxRedirects)
+    }
+
     func testSetAllFields() {
         let opts = TransportOptionsBuilder()
             .verifySSL(false)
@@ -72,6 +81,40 @@ final class TransportOptionsTests: XCTestCase {
         }
     }
 
+    func testNilProxyIsAccepted() throws {
+        let opts = try TransportOptionsBuilder()
+            .proxy(nil)
+            .build()
+
+        XCTAssertNil(opts.proxy)
+    }
+
+    func testAccumulatesHeadersFromDefaultHeaderCalls() {
+        let opts = TransportOptionsBuilder()
+            .defaultHeader(name: "X-First", value: "one")
+            .defaultHeader(name: "X-Second", value: "two")
+            .build()
+
+        XCTAssertEqual(opts.defaultHeaders.count, 2)
+        XCTAssertEqual(opts.defaultHeaders["X-First"], "one")
+        XCTAssertEqual(opts.defaultHeaders["X-Second"], "two")
+    }
+
+    func testMergesHeadersFromDefaultHeadersCall() {
+        let opts = TransportOptionsBuilder()
+            .defaultHeader(name: "X-First", value: "one")
+            .defaultHeaders([
+                "X-Second": "two",
+                "X-Third": "three"
+            ])
+            .build()
+
+        XCTAssertEqual(opts.defaultHeaders.count, 3)
+        XCTAssertEqual(opts.defaultHeaders["X-First"], "one")
+        XCTAssertEqual(opts.defaultHeaders["X-Second"], "two")
+        XCTAssertEqual(opts.defaultHeaders["X-Third"], "three")
+    }
+
     func testDefaultHeadersCopyIsolation() {
         let opts = TransportOptionsBuilder()
             .defaultHeader(name: "X-Test", value: "value")
@@ -82,5 +125,15 @@ final class TransportOptionsTests: XCTestCase {
 
         XCTAssertNil(opts.defaultHeaders["X-Mutated"],
             "Modifying returned headers should not affect the transport options")
+    }
+
+    func testBuilderProducesIndependentInstances() {
+        let builder = TransportOptionsBuilder()
+            .verifySSL(false)
+        let first = builder.build()
+        let second = builder.build()
+
+        XCTAssertEqual(first.verifySSL, second.verifySSL)
+        XCTAssertFalse(first === second)
     }
 }

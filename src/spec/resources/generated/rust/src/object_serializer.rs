@@ -27,7 +27,9 @@ impl fmt::Display for SerializationError {
 
 impl std::error::Error for SerializationError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        self.cause.as_ref().map(|e| e.as_ref() as &(dyn std::error::Error + 'static))
+        self.cause
+            .as_ref()
+            .map(|e| e.as_ref() as &(dyn std::error::Error + 'static))
     }
 }
 
@@ -40,17 +42,17 @@ pub fn serialize<T: Serialize>(value: &T) -> Result<String, SerializationError> 
 }
 
 /// Deserializes a JSON byte slice into the target type.
-pub fn deserialize<T: DeserializeOwned>(data: &[u8]) -> Result<T, SerializationError> {
+/// Returns None if data is empty.
+pub fn deserialize<T: DeserializeOwned>(data: &[u8]) -> Result<Option<T>, SerializationError> {
     if data.is_empty() {
-        return Err(SerializationError {
-            message: "cannot deserialize empty data".to_string(),
-            cause: None,
-        });
+        return Ok(None);
     }
-    serde_json::from_slice(data).map_err(|e| SerializationError {
-        message: format!("failed to deserialize JSON: {}", e),
-        cause: Some(Box::new(e)),
-    })
+    serde_json::from_slice(data)
+        .map(Some)
+        .map_err(|e| SerializationError {
+            message: format!("failed to deserialize JSON: {}", e),
+            cause: Some(Box::new(e)),
+        })
 }
 
 /// Converts a single scalar value to its string representation.
@@ -103,6 +105,7 @@ pub fn to_query_value<T: Serialize>(value: &T, collection_format: &str) -> Query
             join_collection(&strings, collection_format)
         }
         serde_json::Value::String(s) => QueryValue::Single(s),
+        serde_json::Value::Null => QueryValue::Single(String::new()),
         other => QueryValue::Single(other.to_string()),
     }
 }
@@ -126,6 +129,7 @@ pub fn to_header_value<T: Serialize>(value: &T) -> String {
             strings.join(",")
         }
         serde_json::Value::String(s) => s,
+        serde_json::Value::Null => String::new(),
         other => other.to_string(),
     }
 }
@@ -143,28 +147,25 @@ pub fn to_form_value<T: Serialize>(value: &T) -> String {
 
 /// Resolve a oneOf schema by attempting deserialization against each candidate.
 /// Each candidate is a closure that takes the raw JSON bytes and returns a boxed
-/// result. Returns the first successful deserialization.
+/// result. Returns the first successful deserialization, or None if none match.
 pub fn resolve_one_of(
     data: &[u8],
     candidates: &[fn(&[u8]) -> Result<Box<dyn std::any::Any>, SerializationError>],
-) -> Result<Box<dyn std::any::Any>, SerializationError> {
+) -> Option<Box<dyn std::any::Any>> {
     for candidate in candidates {
         if let Ok(result) = candidate(data) {
-            return Ok(result);
+            return Some(result);
         }
     }
-    Err(SerializationError {
-        message: "data does not match any oneOf schemas".to_string(),
-        cause: None,
-    })
+    None
 }
 
 /// Resolve an anyOf schema by attempting deserialization against each candidate.
-/// Returns the first successful deserialization.
+/// Returns the first successful deserialization, or None if none match.
 pub fn resolve_any_of(
     data: &[u8],
     candidates: &[fn(&[u8]) -> Result<Box<dyn std::any::Any>, SerializationError>],
-) -> Result<Box<dyn std::any::Any>, SerializationError> {
+) -> Option<Box<dyn std::any::Any>> {
     resolve_one_of(data, candidates)
 }
 

@@ -11,4 +11,6 @@ from .oauth2_client_credentials_authenticator import OAuth2ClientCredentialsAuth
 
 class MachineAuthClientCredentialsAuthenticator(OAuth2ClientCredentialsAuthenticator):
     def __init__(self, host: str, client_id: str, client_secret: str):
-        super().__init__(host, client_id, client_secret, "https://auth.example.com/oauth/token", ["pets:read", "pets:write"])
+        super().__init__(
+            host, client_id, client_secret, 'https://auth.example.com/oauth/token', ['pets:read', 'pets:write']
+        )

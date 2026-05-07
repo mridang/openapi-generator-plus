@@ -106,10 +106,7 @@ public class OAuth2PasswordAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
             parameters["scope"] = string.Join(" ", _scopes);
         }
 
-        string token = _tokenManager
-            .GetAccessTokenAsync(url, parameters)
-            .GetAwaiter()
-            .GetResult();
+        string token = _tokenManager.GetAccessTokenAsync(url, parameters).GetAwaiter().GetResult();
         return new() { ["Authorization"] = "Bearer " + token };
     }
 }

@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import {{invokerPackage}}.auth.Authenticator;
 import {{invokerPackage}}.exceptions.*;
+import {{apiPackage}}.PetApi;
+import {{apiPackage}}.options.FindPetsByStatusOptions;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.*;
@@ -373,6 +375,58 @@ class BaseApiTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
+    @Nested
+    @DisplayName("allowEmptyValue query params")
+    class AllowEmptyValueQueryParams {
+
+        @Test
+        @DisplayName("null options omits allowEmptyValue param")
+        @SuppressWarnings("NullAway")
+        void nullOptionsOmitsAllowEmptyValueParam() {
+            var client = new CapturingApiClient();
+            var config = new Configuration("http://localhost", Map.of());
+            var api = new PetApi(client, config);
+            try {
+                api.findPetsByStatus(null);
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about the captured URL
+            }
+            assertFalse(client.capturedUrl.contains("status="),
+                    "Expected no status param when options is null, got: " + client.capturedUrl);
+        }
+
+        @Test
+        @DisplayName("allowEmptyValue param included when value is null in options")
+        void allowEmptyValueIncludedWhenNull() {
+            var client = new CapturingApiClient();
+            var config = new Configuration("http://localhost", Map.of());
+            var api = new PetApi(client, config);
+            try {
+                api.findPetsByStatus(new FindPetsByStatusOptions());
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about the captured URL
+            }
+            assertTrue(client.capturedUrl.contains("status="),
+                    "Expected status= in URL for allowEmptyValue param with null value, got: " + client.capturedUrl);
+        }
+
+        @Test
+        @DisplayName("allowEmptyValue param included when value is empty string")
+        void allowEmptyValueIncludedWhenEmpty() {
+            var client = new CapturingApiClient();
+            var config = new Configuration("http://localhost", Map.of());
+            var api = new PetApi(client, config);
+            try {
+                api.findPetsByStatus(new FindPetsByStatusOptions().status(""));
+            } catch (Exception ignored) {
+                // Response deserialization may fail; we only care about the captured URL
+            }
+            assertTrue(client.capturedUrl.contains("status="),
+                    "Expected status= in URL for empty string allowEmptyValue param, got: " + client.capturedUrl);
+        }
+    }
+
     @Nested
     @DisplayName("server variable overrides")
     class ServerVariableOverrides {
@@ -577,6 +631,35 @@ class BaseApiTest {
                     null);
             assertNotNull(result);
             assertEquals("hello", result);
+        }
+
+        @Test
+        @DisplayName("deserializes vendor JSON MIME types like application/problem+json")
+        void deserializesVendorJsonMimeType() throws ApiException {
+            var client = new CapturingApiClient() {
+                @Override
+                public ApiResponse sendRequest(
+                        String method, String url, Map<String, String> headers, @Nullable Object body) {
+                    this.capturedUrl = url;
+                    this.capturedHeaders = headers;
+                    this.capturedBody = body;
+                    return new ApiResponse(
+                            200,
+                            "{\"title\":\"Not Found\"}",
+                            Map.of("Content-Type", "application/problem+json"));
+                }
+            };
+            var testApi = new TestableApi(client, "http://localhost");
+            JsonNode result = testApi.call(
+                    "GET", "/api/test",
+                    new HashMap<>(), new HashMap<>(),
+                    null,
+                    new String[] {"application/json"},
+                    "application/json",
+                    JSON_NODE_TYPE,
+                    null);
+            assertNotNull(result);
+            assertEquals("Not Found", result.get("title").asText());
         }
     }
 

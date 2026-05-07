@@ -839,6 +839,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
     }
 
     @SuppressWarnings("StringConcatenationMissingWhitespace")
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification = "Comparing with ASCII-only constants")
     private String generateNodeAuthClass(
             String schemeName, String className, SecurityScheme scheme) {
         if (scheme.getType() == SecurityScheme.Type.HTTP) {

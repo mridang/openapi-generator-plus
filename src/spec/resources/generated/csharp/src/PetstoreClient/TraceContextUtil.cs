@@ -38,7 +38,10 @@ public static class TraceContextUtil
 
         string traceId = activity.TraceId.ToString();
         string spanId = activity.SpanId.ToString();
-        string traceFlags = ((int)activity.ActivityTraceFlags).ToString("x2", CultureInfo.InvariantCulture);
+        string traceFlags = ((int)activity.ActivityTraceFlags).ToString(
+            "x2",
+            CultureInfo.InvariantCulture
+        );
         headers["traceparent"] = $"00-{traceId}-{spanId}-{traceFlags}";
 
         if (!string.IsNullOrEmpty(activity.TraceStateString))

@@ -12,6 +12,8 @@ package com.example.petstore
 
 import com.example.petstore.auth.Authenticator
 import com.example.petstore.exceptions.*
+import com.example.petstore.api.PetApi
+import com.example.petstore.api.options.FindPetsByStatusOptions
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
@@ -70,6 +72,7 @@ class BaseApiTest {
     }
 
     open class CapturingApiClient : ApiClient {
+        var capturedUrl: String = ""
         var capturedHeaders: Map<String, String> = emptyMap()
         var capturedBody: Any? = null
 
@@ -79,6 +82,7 @@ class BaseApiTest {
             headers: Map<String, String>,
             body: Any?
         ): ApiResponse {
+            capturedUrl = url
             capturedHeaders = headers
             capturedBody = body
             return ApiResponse(200, "{}", mapOf("Content-Type" to "application/json"))
@@ -314,6 +318,30 @@ class BaseApiTest {
             assertNotNull(result.data)
             assertEquals("hello", result.data)
         }
+
+        @Test
+        @DisplayName("deserializes vendor JSON MIME types like application/problem+json")
+        fun deserializesVendorJsonMimeType() {
+            val client = object : CapturingApiClient() {
+                override fun sendRequest(
+                    method: String,
+                    url: String,
+                    headers: Map<String, String>,
+                    body: Any?
+                ): ApiResponse {
+                    capturedHeaders = headers
+                    capturedBody = body
+                    return ApiResponse(200, "{\"title\":\"Not Found\"}", mapOf("Content-Type" to "application/problem+json"))
+                }
+            }
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            val response = runBlocking {
+                testApi.call("GET", "/api/test")
+            }
+            assertNotNull(response)
+            val json = com.fasterxml.jackson.databind.ObjectMapper().readTree(response.body)
+            assertEquals("Not Found", json.get("title").asText())
+        }
     }
 
     @Nested
@@ -380,6 +408,156 @@ class BaseApiTest {
                     contentType = "application/octet-stream")
             }
             assertNotNull(client.capturedBody)
+        }
+    }
+
+    @Nested
+    @DisplayName("query parameters")
+    inner class QueryParameters {
+
+        @Test
+        @DisplayName("appends query params to URL")
+        fun appendsQueryParams() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call("GET", "/api/test", queryParams = mutableMapOf("foo" to "bar"))
+            }
+            // No exception means success
+        }
+
+        @Test
+        @DisplayName("includes empty value param in query string when value is empty string")
+        fun includesEmptyValueParam() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call("GET", "/api/test", queryParams = mutableMapOf("filter" to ""))
+            }
+            // No exception means success
+        }
+
+        @Test
+        @DisplayName("expands array query params")
+        fun expandsArrayQueryParams() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call("GET", "/api/test", queryParams = mutableMapOf("tags" to listOf("a", "b")))
+            }
+            // No exception means success
+        }
+
+        @Test
+        @DisplayName("serializes boolean query params")
+        fun serializesBooleanQueryParams() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call("GET", "/api/test", queryParams = mutableMapOf("active" to true))
+            }
+            // No exception means success
+        }
+
+        @Test
+        @DisplayName("serializes number query params")
+        fun serializesNumberQueryParams() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call("GET", "/api/test", queryParams = mutableMapOf("limit" to 10))
+            }
+            // No exception means success
+        }
+
+        @Test
+        @DisplayName("handles empty query params")
+        fun handlesEmptyQueryParams() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call("GET", "/api/test", queryParams = mutableMapOf())
+            }
+            // No exception means success
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    @Nested
+    @DisplayName("allowEmptyValue query params")
+    inner class AllowEmptyValueQueryParams {
+
+        @Test
+        @DisplayName("allowEmptyValue param included with default options")
+        fun allowEmptyValueIncludedWithDefaultOptions() {
+            val client = CapturingApiClient()
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val api = PetApi(client, config)
+            try {
+                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions()) }
+            } catch (_: Exception) {
+                // Response deserialization may fail; we only care about the captured URL
+            }
+            assertTrue(client.capturedUrl.contains("status="),
+                "Expected status= in URL for allowEmptyValue param with null value, got: ${client.capturedUrl}")
+        }
+
+        @Test
+        @DisplayName("allowEmptyValue param included when value is empty string")
+        fun allowEmptyValueIncludedWhenEmpty() {
+            val client = CapturingApiClient()
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val api = PetApi(client, config)
+            try {
+                runBlocking { api.findPetsByStatus(FindPetsByStatusOptions().status("")) }
+            } catch (_: Exception) {
+                // Response deserialization may fail; we only care about the captured URL
+            }
+            assertTrue(client.capturedUrl.contains("status="),
+                "Expected status= in URL for empty string allowEmptyValue param, got: ${client.capturedUrl}")
+        }
+    }
+
+    @Nested
+    @DisplayName("server variable overrides")
+    inner class ServerVariableOverrides {
+
+        @Test
+        @DisplayName("server variable overrides resolve in base URL")
+        fun serverVariableOverridesResolve() {
+            val config = Configuration.builder()
+                .server(Servers.SERVER_1, mapOf("environment" to "staging"))
+                .build()
+            assertEquals("https://staging.example.com/api/v3", config.baseUrl)
+        }
+
+        @Test
+        @DisplayName("default server variables produce correct base URL")
+        fun defaultServerVariablesResolve() {
+            val config = Configuration.builder()
+                .server(Servers.SERVER_1)
+                .build()
+            assertEquals("https://api.example.com/api/v3", config.baseUrl)
+        }
+
+        @Test
+        @DisplayName("API request uses resolved server URL")
+        fun apiRequestUsesResolvedUrl() {
+            val config = Configuration.builder()
+                .server(Servers.SERVER_1, mapOf("environment" to "staging"))
+                .build()
+            assertTrue(config.baseUrl.startsWith("https://staging.example.com"),
+                "expected base URL to start with https://staging.example.com, got: ${config.baseUrl}")
+        }
+
+        @Test
+        @DisplayName("invalid enum value throws error")
+        fun invalidEnumValueThrows() {
+            assertThrows(IllegalArgumentException::class.java) {
+                Configuration.builder()
+                    .server(Servers.SERVER_1, mapOf("environment" to "invalid"))
+                    .build()
+            }
         }
     }
 

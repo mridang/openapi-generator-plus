@@ -48,9 +48,13 @@ class DefaultApiClient implements ApiClient {
   /// from [TransportOptions] settings (TLS verification, CA certificates,
   /// proxy routing). Pass a custom [http.Client] to override this
   /// automatic configuration.
-  DefaultApiClient({TransportOptions? transportOptions, http.Client? httpClient})
-      : _transportOptions = transportOptions ?? TransportOptionsBuilder().build(),
-        _httpClient = httpClient ?? _createHttpClient(transportOptions ?? TransportOptionsBuilder().build());
+  DefaultApiClient(
+      {TransportOptions? transportOptions, http.Client? httpClient})
+      : _transportOptions =
+            transportOptions ?? TransportOptionsBuilder().build(),
+        _httpClient = httpClient ??
+            _createHttpClient(
+                transportOptions ?? TransportOptionsBuilder().build());
 
   /// Creates an [IOClient] configured from the given [TransportOptions].
   ///
@@ -69,7 +73,8 @@ class DefaultApiClient implements ApiClient {
     }
 
     if (options.proxy != null) {
-      ioClient.findProxy = (_) => 'PROXY ${options.proxy!.host}:${options.proxy!.port}';
+      ioClient.findProxy =
+          (_) => 'PROXY ${options.proxy!.host}:${options.proxy!.port}';
     }
 
     if (options.timeout != null) {
@@ -98,34 +103,39 @@ class DefaultApiClient implements ApiClient {
     merged.addAll(headers);
 
     // 3. User-Agent injection
-    if (!merged.containsKey('User-Agent') && _transportOptions.userAgent.isNotEmpty) {
+    if (!merged.containsKey('User-Agent') &&
+        _transportOptions.userAgent.isNotEmpty) {
       merged['User-Agent'] = _transportOptions.userAgent;
     }
 
     // 4. X-Request-ID injection
-    if (!merged.containsKey('X-Request-ID') && _transportOptions.injectRequestId) {
+    if (!merged.containsKey('X-Request-ID') &&
+        _transportOptions.injectRequestId) {
       merged['X-Request-ID'] = _generateUuid();
     }
 
     // 5. Accept-Encoding
     if (!merged.containsKey('Accept-Encoding')) {
-      merged['Accept-Encoding'] = 'gzip, deflate';
+      merged['Accept-Encoding'] = _supportedEncodings();
     }
 
     final uri = Uri.parse(url);
     final request = http.Request(method, uri);
     request.headers.addAll(merged);
     request.followRedirects = _transportOptions.followRedirects;
-    if (_transportOptions.followRedirects && _transportOptions.maxRedirects != null) {
+    if (_transportOptions.followRedirects &&
+        _transportOptions.maxRedirects != null) {
       request.maxRedirects = _transportOptions.maxRedirects!;
     }
     if (body != null) {
       request.bodyBytes = body;
     }
 
-    final Future<http.StreamedResponse> pendingResponse = _httpClient.send(request);
+    final Future<http.StreamedResponse> pendingResponse =
+        _httpClient.send(request);
     final streamedResponse = _transportOptions.timeout != null
-        ? await pendingResponse.timeout(Duration(milliseconds: _transportOptions.timeout!))
+        ? await pendingResponse
+            .timeout(Duration(milliseconds: _transportOptions.timeout!))
         : await pendingResponse;
     final responseBody = await streamedResponse.stream.bytesToString();
 
@@ -144,6 +154,17 @@ class DefaultApiClient implements ApiClient {
   /// Closes the underlying HTTP client.
   void close() {
     _httpClient.close();
+  }
+
+  /// Returns a comma-separated list of supported content encodings for
+  /// the Accept-Encoding header.
+  ///
+  /// Includes gzip and deflate which are natively supported by Dart's
+  /// `dart:io` [HttpClient]. Additional encodings can be added here
+  /// when third-party decompression packages are integrated.
+  static String _supportedEncodings() {
+    final encodings = ['gzip', 'deflate'];
+    return encodings.join(', ');
   }
 
   static String _generateUuid() {

@@ -80,10 +80,10 @@ public enum ObjectSerializer {
     }
 
     /// Deserializes JSON data into a Decodable value.
-    public static func deserialize<T: Decodable>(_ data: Data, as type: T.Type) throws -> T {
+    /// Returns nil if data is empty.
+    public static func deserialize<T: Decodable>(_ data: Data, as type: T.Type) throws -> T? {
         if data.isEmpty {
-            /* Handle empty data for optional or default-constructible types */
-            throw SerializationError(message: "Cannot deserialize empty data")
+            return nil
         }
         do {
             return try decoder.decode(type, from: data)
@@ -96,7 +96,11 @@ public enum ObjectSerializer {
     }
 
     /// Deserializes a JSON string into a Decodable value.
-    public static func deserialize<T: Decodable>(_ string: String, as type: T.Type) throws -> T {
+    /// Returns nil if the string is empty.
+    public static func deserialize<T: Decodable>(_ string: String, as type: T.Type) throws -> T? {
+        if string.isEmpty {
+            return nil
+        }
         guard let data = string.data(using: .utf8) else {
             throw SerializationError(message: "Failed to convert string to data")
         }

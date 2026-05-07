@@ -237,8 +237,17 @@ defmodule {{moduleName}}.Api.{{classname}} do
 {{/content}}
 {{^content}}
 {{#isAllowEmptyValue}}
-    query_params = Map.put(query_params, "{{baseName}}",
-      {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, :query, "{{{dataType}}}", {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, "{{style}}", {{isExplode}}) || "")
+    query_params =
+      if not is_nil(options) do
+        if not is_nil(options.{{paramName}}) do
+          Map.put(query_params, "{{baseName}}",
+            {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, :query, "{{{dataType}}}", {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, "{{style}}", {{isExplode}}))
+        else
+          Map.put(query_params, "{{baseName}}", "")
+        end
+      else
+        query_params
+      end
 {{/isAllowEmptyValue}}
 {{^isAllowEmptyValue}}
     query_params =

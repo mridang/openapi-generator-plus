@@ -143,6 +143,23 @@ class ObjectSerializerTest extends TestCase
         $this->assertSame('false', ObjectSerializer::toFormValue(false));
     }
 
+    // -- toCookieValue --
+
+    public function testToCookieValueReturnsEmptyStringForNull(): void
+    {
+        $this->assertSame('', ObjectSerializer::toCookieValue(null));
+    }
+
+    public function testToCookieValueReturnsTheStringForAStringValue(): void
+    {
+        $this->assertSame('hello', ObjectSerializer::toCookieValue('hello'));
+    }
+
+    public function testToCookieValueConvertsIntegerToString(): void
+    {
+        $this->assertSame('42', ObjectSerializer::toCookieValue(42));
+    }
+
     // -- stringify --
 
     public function testStringifyNullReturnsEmptyString(): void

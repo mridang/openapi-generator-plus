@@ -37,7 +37,7 @@ class Pet(BaseModel):
     photo_urls: Set[str] = Field(alias='photoUrls')
     tags: Optional[List[Tag]] = Field(default=None, alias='tags')
     # .. deprecated:: This property is deprecated.
-    status: Optional[PetStatusEnum] = Field(default=None, alias='status', description="pet status in the store")
+    status: Optional[PetStatusEnum] = Field(default=None, alias='status', description='pet status in the store')
     additional_properties: Dict[str, Any] = {}
 
     model_config = ConfigDict(

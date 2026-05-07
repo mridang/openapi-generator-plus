@@ -179,7 +179,7 @@ class DefaultApiClient : ApiClient {
             body is ByteArray ->
                 body.toRequestBody("application/octet-stream".toMediaType())
             body is InputStream ->
-                body.readBytes().toRequestBody("application/octet-stream".toMediaType())
+                body.use { it.readBytes() }.toRequestBody("application/octet-stream".toMediaType())
             else -> {
                 val contentType = mergedHeaders["Content-Type"] ?: "application/json"
                 body.toString().toRequestBody(contentType.toMediaType())
@@ -240,8 +240,8 @@ class DefaultApiClient : ApiClient {
             bis.use { it.readBytes() }
         } catch (_: ClassNotFoundException) {
             data
-        } catch (_: ReflectiveOperationException) {
-            data
+        } catch (e: ReflectiveOperationException) {
+            throw java.io.IOException("Failed to decompress brotli response", e)
         }
     }
 
@@ -257,8 +257,8 @@ class DefaultApiClient : ApiClient {
                 .invoke(null, data, size) as ByteArray
         } catch (_: ClassNotFoundException) {
             data
-        } catch (_: ReflectiveOperationException) {
-            data
+        } catch (e: ReflectiveOperationException) {
+            throw java.io.IOException("Failed to decompress zstd response", e)
         }
     }
 
@@ -297,9 +297,10 @@ class DefaultApiClient : ApiClient {
                 )
             }
             is InputStream -> {
+                val bytes = value.use { it.readBytes() }
                 builder.addFormDataPart(
                     fieldName, fieldName,
-                    value.readBytes().toRequestBody("application/octet-stream".toMediaType())
+                    bytes.toRequestBody("application/octet-stream".toMediaType())
                 )
             }
             is String, is Number, is Boolean -> {

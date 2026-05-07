@@ -74,3 +74,50 @@ class TestTransportOptions:
         assert opts.default_headers["X-Original"] == "original"
         assert "X-Added" not in opts.default_headers
         assert isinstance(opts.default_headers, MappingProxyType)
+
+    def test_builder_methods_return_same_instance(self) -> None:
+        builder = TransportOptions.builder()
+
+        assert builder.verify_ssl(True) is builder
+        assert builder.ca_cert_path(None) is builder
+        assert builder.proxy(None) is builder
+        assert builder.timeout(None) is builder
+        assert builder.follow_redirects(True) is builder
+        assert builder.max_redirects(None) is builder
+        assert builder.user_agent(None) is builder
+        assert builder.default_header("X-Key", "val") is builder
+        assert builder.default_headers({}) is builder
+        assert builder.inject_request_id(False) is builder
+
+    def test_accumulates_headers_from_default_header_calls(self) -> None:
+        opts = (
+            TransportOptions.builder()
+            .default_header("X-First", "one")
+            .default_header("X-Second", "two")
+            .build()
+        )
+
+        assert len(opts.default_headers) == 2
+        assert opts.default_headers["X-First"] == "one"
+        assert opts.default_headers["X-Second"] == "two"
+
+    def test_merges_headers_from_default_headers_call(self) -> None:
+        opts = (
+            TransportOptions.builder()
+            .default_header("X-First", "one")
+            .default_headers({"X-Second": "two", "X-Third": "three"})
+            .build()
+        )
+
+        assert len(opts.default_headers) == 3
+        assert opts.default_headers["X-First"] == "one"
+        assert opts.default_headers["X-Second"] == "two"
+        assert opts.default_headers["X-Third"] == "three"
+
+    def test_builder_produces_independent_instances(self) -> None:
+        builder = TransportOptions.builder().verify_ssl(False)
+        first = builder.build()
+        second = builder.build()
+
+        assert first.verify_ssl == second.verify_ssl
+        assert first is not second

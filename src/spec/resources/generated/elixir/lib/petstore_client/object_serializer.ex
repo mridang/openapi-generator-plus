@@ -245,13 +245,13 @@ defmodule PetstoreClient.ObjectSerializer do
   the first successful result. Each candidate is an anonymous function that
   accepts the raw JSON data and returns a deserialized value or raises on failure.
   """
-  @spec resolve_one_of(term(), [function()]) :: term()
+  @spec resolve_one_of(term(), [function()]) :: term() | nil
   def resolve_one_of(data, candidates) do
-    Enum.reduce_while(candidates, data, fn candidate, fallback ->
+    Enum.reduce_while(candidates, nil, fn candidate, _fallback ->
       try do
         {:halt, candidate.(data)}
       rescue
-        _ -> {:cont, fallback}
+        _ -> {:cont, nil}
       end
     end)
   end
@@ -260,7 +260,7 @@ defmodule PetstoreClient.ObjectSerializer do
   Attempt to deserialize data against a list of candidate schemas using
   anyOf semantics. Delegates to `resolve_one_of/2`.
   """
-  @spec resolve_any_of(term(), [function()]) :: term()
+  @spec resolve_any_of(term(), [function()]) :: term() | nil
   def resolve_any_of(data, candidates) do
     resolve_one_of(data, candidates)
   end

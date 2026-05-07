@@ -1,10 +1,100 @@
 {{>api_info}}
 
 import { ObjectSerializer } from '../src/object-serializer{{importFileExtension}}';
-import { PetWithOwner, PetFood, DryFood, Medication } from '../src/models/index{{importFileExtension}}';
-import * as models from '../src/models/index{{importFileExtension}}';
+import { PetWithOwner, PetFood, DryFood, WetFood, PetTreatment, Medication, Surgery } from '../src/models/index{{importFileExtension}}';
 
-describe('Composed Schema Deserialization', () => {
+describe('Composed Schema', () => {
+  // -- oneOf with discriminator: PetFood --
+
+  test('oneOf: PetFood resolves to DryFood', () => {
+    const data = { foodType: 'dry', weightKg: 2.5 };
+    const result = ObjectSerializer.deserialize(data, PetFood);
+    expect(result).toBeDefined();
+    const instance = result!.getActualInstance();
+    expect(instance).toBeDefined();
+    expect(instance).toBeInstanceOf(DryFood);
+  });
+
+  test('oneOf: PetFood resolves to WetFood', () => {
+    const data = { foodType: 'wet', volumeMl: 400 };
+    const result = ObjectSerializer.deserialize(data, PetFood);
+    expect(result).toBeDefined();
+    const instance = result!.getActualInstance();
+    expect(instance).toBeDefined();
+    expect(instance).toBeInstanceOf(WetFood);
+  });
+
+  test('oneOf: unknown discriminator returns null', () => {
+    const data = { foodType: 'raw', calories: 300 };
+    const result = ObjectSerializer.deserialize(data, PetFood);
+    expect(result).toBeNull();
+  });
+
+  test('oneOf: discriminator maps to unresolvable class returns null', () => {
+    // Simulate a misconfigured spec where the discriminator mapping points to a
+    // class name that does not exist in the models index. The deserializer should
+    // return null rather than falling through to the brute-force schema loop.
+    const FakePetFood = class {
+      static readonly ONE_OF_SCHEMAS: string[] = ['DryFood', 'WetFood'];
+      static readonly DISCRIMINATOR_PROPERTY = 'foodType';
+      static readonly DISCRIMINATOR_MAPPING: Record<string, string> = {
+        dry: 'NonExistentModelClass'
+      };
+      private actualInstance: unknown;
+      constructor(instance: unknown) {
+        this.actualInstance = instance;
+      }
+      getActualInstance(): unknown {
+        return this.actualInstance;
+      }
+    };
+    const data = { foodType: 'dry', weightKg: 2.5 };
+    const result = ObjectSerializer.deserialize(data, FakePetFood);
+    expect(result).toBeNull();
+  });
+
+  test('oneOf: serializes DryFood back to JSON', () => {
+    const data = { foodType: 'dry', weightKg: 2.5 };
+    const result = ObjectSerializer.deserialize(data, PetFood);
+    const serialized = ObjectSerializer.serialize(result!.getActualInstance());
+    expect(serialized).toBeDefined();
+    expect(serialized).toContain('dry');
+    expect(serialized).toContain('2.5');
+  });
+
+  // -- anyOf without discriminator: PetTreatment --
+
+  test('anyOf: PetTreatment is a constructable class', () => {
+    // PetTreatment must be a class (not just a type alias) to support runtime deserialization
+    expect(typeof PetTreatment).toBe('function');
+  });
+
+  test('anyOf: PetTreatment deserializes Medication', () => {
+    const data = { drugName: 'Amoxicillin', dosage: '500mg' };
+    const result = ObjectSerializer.deserialize(data, PetTreatment);
+    expect(result).toBeDefined();
+    expect(result!.getActualInstance()).toBeDefined();
+    expect(result!.getActualInstance()).toBeInstanceOf(Medication);
+  });
+
+  test('anyOf: PetTreatment deserializes Surgery', () => {
+    const data = { procedureName: 'Spay', durationMinutes: 45 };
+    const result = ObjectSerializer.deserialize(data, PetTreatment);
+    expect(result).toBeDefined();
+    expect(result!.getActualInstance()).toBeDefined();
+    expect(result!.getActualInstance()).toBeInstanceOf(Surgery);
+  });
+
+  test('anyOf: PetTreatment serialize round-trip', () => {
+    const data = { drugName: 'Amoxicillin', dosage: '500mg' };
+    const result = ObjectSerializer.deserialize(data, PetTreatment);
+    expect(result).toBeDefined();
+    const serialized = ObjectSerializer.serialize(result!.getActualInstance());
+    expect(serialized).toBeDefined();
+  });
+
+  // -- allOf: PetWithOwner --
+
   test('allOf: PetWithOwner deserializes all properties', () => {
     const data = {
       name: 'doggie',
@@ -14,36 +104,34 @@ describe('Composed Schema Deserialization', () => {
     };
     const result = ObjectSerializer.deserialize(data, PetWithOwner);
     expect(result).toBeDefined();
-    expect(result.name).toBe('doggie');
-    expect(result.ownerName).toBe('John');
-    expect(result.ownerEmail).toBe('john@example.com');
+    expect(result!.name).toBe('doggie');
+    expect(result!.ownerName).toBe('John');
+    expect(result!.ownerEmail).toBe('john@example.com');
   });
 
-  test('oneOf with discriminator: PetFood resolves to DryFood', () => {
-    const data = { foodType: 'dry', weightKg: 2.5 };
-    const result = ObjectSerializer.deserialize(data, PetFood);
-    expect(result).toBeDefined();
-    const instance = result.getActualInstance();
-    expect(instance).toBeDefined();
-    expect(instance).toBeInstanceOf(DryFood);
+  test('allOf: PetWithOwner serializes to JSON', () => {
+    const data = {
+      name: 'Fido',
+      photoUrls: ['http://example.com/fido.jpg'],
+      ownerName: 'John Doe'
+    };
+    const result = ObjectSerializer.deserialize(data, PetWithOwner);
+    const serialized = ObjectSerializer.serialize(result);
+    expect(serialized).toBeDefined();
+    expect(serialized).toContain('Fido');
+    expect(serialized).toContain('John Doe');
   });
 
-  test('anyOf: PetTreatment is a constructable class', () => {
-    // PetTreatment must be a class (not just a type alias) to support runtime deserialization
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const PetTreatmentCls = (models as any)['PetTreatment'];
-    expect(typeof PetTreatmentCls).toBe('function');
-  });
-
-  test('anyOf: PetTreatment deserializes Medication', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const PetTreatmentCls = (models as any)['PetTreatment'];
-    expect(PetTreatmentCls).toBeDefined();
-    const data = { drugName: 'Amoxicillin', dosage: '500mg' };
-    const result = ObjectSerializer.deserialize(data, PetTreatmentCls) as { getActualInstance(): unknown };
-    expect(result).toBeDefined();
-    const instance = result.getActualInstance();
-    expect(instance).toBeDefined();
-    expect(instance).toBeInstanceOf(Medication);
+  test('allOf: PetWithOwner round-trip preserves fields', () => {
+    const data = {
+      name: 'Buddy',
+      photoUrls: ['http://example.com/buddy.jpg'],
+      ownerName: 'Jane Smith'
+    };
+    const original = ObjectSerializer.deserialize(data, PetWithOwner);
+    const serialized = ObjectSerializer.serialize(original);
+    const restored = ObjectSerializer.deserialize(JSON.parse(serialized), PetWithOwner);
+    expect(restored!.name).toBe(original!.name);
+    expect(restored!.ownerName).toBe(original!.ownerName);
   });
 });

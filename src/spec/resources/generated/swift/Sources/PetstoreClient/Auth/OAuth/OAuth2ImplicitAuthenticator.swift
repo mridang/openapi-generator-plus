@@ -18,64 +18,66 @@ import Foundation
 ///  2. Redirect the user to that URL
 ///  3. Extract the access token from the fragment and call ``setAccessToken(_:)``
 ///  4. Use the authenticator normally
-public final class OAuth2ImplicitAuthenticator: BaseAuthenticator, HttpAwareAuthenticator, @unchecked Sendable {
-    private let _host: String
-    private let clientID: String
-    private let authorizationURL: String
-    private let scopes: [String]
-    private var accessToken: String = ""
+public final class OAuth2ImplicitAuthenticator: BaseAuthenticator, HttpAwareAuthenticator,
+  @unchecked Sendable
+{
+  private let _host: String
+  private let clientID: String
+  private let authorizationURL: String
+  private let scopes: [String]
+  private var accessToken: String = ""
 
-    /// Creates a new implicit flow authenticator.
-    public init(host: String, clientID: String, authorizationURL: String, scopes: [String] = []) {
-        self._host = host
-        self.clientID = clientID
-        self.authorizationURL = authorizationURL
-        self.scopes = scopes
-        super.init()
-    }
+  /// Creates a new implicit flow authenticator.
+  public init(host: String, clientID: String, authorizationURL: String, scopes: [String] = []) {
+    self._host = host
+    self.clientID = clientID
+    self.authorizationURL = authorizationURL
+    self.scopes = scopes
+    super.init()
+  }
 
-    /// Returns the API base URL.
-    override public func host() -> String {
-        return _host
-    }
+  /// Returns the API base URL.
+  override public func host() -> String {
+    return _host
+  }
 
-    /// No-op for the implicit flow, but conforms to
-    /// ``HttpAwareAuthenticator`` for consistency.
-    public func setApiClient(_ client: ApiClient) {
-        /* Implicit flow does not make token exchange requests,
+  /// No-op for the implicit flow, but conforms to
+  /// ``HttpAwareAuthenticator`` for consistency.
+  public func setApiClient(_ client: ApiClient) {
+    /* Implicit flow does not make token exchange requests,
          * but conforms to the protocol for consistency. */
-    }
+  }
 
-    /// Sets the access token obtained from the authorization redirect fragment.
-    public func setAccessToken(_ token: String) {
-        self.accessToken = token
-    }
+  /// Sets the access token obtained from the authorization redirect fragment.
+  public func setAccessToken(_ token: String) {
+    self.accessToken = token
+  }
 
-    /// Builds the authorization URL to redirect the user to.
-    ///
-    /// - Parameter state: Optional state parameter for CSRF protection.
-    /// - Returns: The authorization URL string.
-    public func buildAuthorizationURL(state: String = "") -> String {
-        var components = URLComponents(string: authorizationURL)!
-        var items: [URLQueryItem] = [
-            URLQueryItem(name: "response_type", value: "token"),
-            URLQueryItem(name: "client_id", value: clientID)
-        ]
-        if !scopes.isEmpty {
-            items.append(URLQueryItem(name: "scope", value: scopes.joined(separator: " ")))
-        }
-        if !state.isEmpty {
-            items.append(URLQueryItem(name: "state", value: state))
-        }
-        components.queryItems = items
-        return components.url!.absoluteString
+  /// Builds the authorization URL to redirect the user to.
+  ///
+  /// - Parameter state: Optional state parameter for CSRF protection.
+  /// - Returns: The authorization URL string.
+  public func buildAuthorizationURL(state: String = "") -> String {
+    var components = URLComponents(string: authorizationURL)!
+    var items: [URLQueryItem] = [
+      URLQueryItem(name: "response_type", value: "token"),
+      URLQueryItem(name: "client_id", value: clientID),
+    ]
+    if !scopes.isEmpty {
+      items.append(URLQueryItem(name: "scope", value: scopes.joined(separator: " ")))
     }
+    if !state.isEmpty {
+      items.append(URLQueryItem(name: "state", value: state))
+    }
+    components.queryItems = items
+    return components.url!.absoluteString
+  }
 
-    /// Returns the Bearer authentication header.
-    override public func authHeaders() -> [String: String] {
-        guard !accessToken.isEmpty else {
-            fatalError("Must set access token before making API requests")
-        }
-        return ["Authorization": "Bearer \(accessToken)"]
+  /// Returns the Bearer authentication header.
+  override public func authHeaders() -> [String: String] {
+    guard !accessToken.isEmpty else {
+      fatalError("Must set access token before making API requests")
     }
+    return ["Authorization": "Bearer \(accessToken)"]
+  }
 }

@@ -256,13 +256,10 @@ public class {{classname}} extends BaseApi {
 {{/content}}
 {{^content}}
 {{#isAllowEmptyValue}}
-        {
-            Object _{{paramName}}Val = ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}});
-            if (_{{paramName}}Val != null) {
-                queryParams.put("{{baseName}}", _{{paramName}}Val);
-            } else {
-                queryParams.put("{{baseName}}", "");
-            }
+        if (options.{{paramName}}() != null) {
+            queryParams.put("{{baseName}}", ValueSerializer.serializeStyled("{{baseName}}", options.{{paramName}}(), "query", "{{{dataType}}}", {{#collectionFormat}}"{{collectionFormat}}"{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, "{{style}}", {{isExplode}}));
+        } else {
+            queryParams.put("{{baseName}}", "");
         }
 {{/isAllowEmptyValue}}
 {{^isAllowEmptyValue}}

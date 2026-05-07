@@ -9,211 +9,215 @@ import Foundation
 
 /// SerializationError is thrown when serialization or deserialization fails.
 public struct SerializationError: Error, LocalizedError {
-    public let message: String
-    public let cause: Error?
+  public let message: String
+  public let cause: Error?
 
-    public init(message: String, cause: Error? = nil) {
-        self.message = message
-        self.cause = cause
-    }
+  public init(message: String, cause: Error? = nil) {
+    self.message = message
+    self.cause = cause
+  }
 
-    public var errorDescription: String? {
-        if let cause = cause {
-            return "\(message): \(cause.localizedDescription)"
-        }
-        return message
+  public var errorDescription: String? {
+    if let cause = cause {
+      return "\(message): \(cause.localizedDescription)"
     }
+    return message
+  }
 }
 
 /// ObjectSerializer provides JSON serialization and deserialization using
 /// Foundation's JSONEncoder and JSONDecoder.
 public enum ObjectSerializer {
-    private static let dateFormatter: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
+  private static let dateFormatter: ISO8601DateFormatter = {
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return formatter
+  }()
 
-    private static let encoder: JSONEncoder = {
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        return encoder
-    }()
+  private static let encoder: JSONEncoder = {
+    let encoder = JSONEncoder()
+    encoder.dateEncodingStrategy = .iso8601
+    return encoder
+  }()
 
-    private static let decoder: JSONDecoder = {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return decoder
-    }()
+  private static let decoder: JSONDecoder = {
+    let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .iso8601
+    return decoder
+  }()
 
-    /// Serializes an Encodable object to a JSON string.
-    public static func serialize<T: Encodable>(_ object: T) throws -> String {
-        do {
-            let data = try encoder.encode(object)
-            guard let string = String(data: data, encoding: .utf8) else {
-                throw SerializationError(message: "Failed to convert serialized data to UTF-8 string")
-            }
-            return string
-        } catch let error as SerializationError {
-            throw error
-        } catch {
-            throw SerializationError(
-                message: "Failed to serialize object to JSON",
-                cause: error
-            )
-        }
+  /// Serializes an Encodable object to a JSON string.
+  public static func serialize<T: Encodable>(_ object: T) throws -> String {
+    do {
+      let data = try encoder.encode(object)
+      guard let string = String(data: data, encoding: .utf8) else {
+        throw SerializationError(message: "Failed to convert serialized data to UTF-8 string")
+      }
+      return string
+    } catch let error as SerializationError {
+      throw error
+    } catch {
+      throw SerializationError(
+        message: "Failed to serialize object to JSON",
+        cause: error
+      )
     }
+  }
 
-    /// Serializes any value to a JSON string using JSONSerialization.
-    public static func serialize(_ object: Any) throws -> String {
-        if let encodable = object as? Encodable {
-            return try serialize(encodable)
-        }
-        do {
-            let data = try JSONSerialization.data(withJSONObject: object)
-            guard let string = String(data: data, encoding: .utf8) else {
-                throw SerializationError(message: "Failed to convert serialized data to UTF-8 string")
-            }
-            return string
-        } catch let error as SerializationError {
-            throw error
-        } catch {
-            throw SerializationError(
-                message: "Failed to serialize object to JSON",
-                cause: error
-            )
-        }
+  /// Serializes any value to a JSON string using JSONSerialization.
+  public static func serialize(_ object: Any) throws -> String {
+    if let encodable = object as? Encodable {
+      return try serialize(encodable)
     }
-
-    /// Deserializes JSON data into a Decodable value.
-    public static func deserialize<T: Decodable>(_ data: Data, as type: T.Type) throws -> T {
-        if data.isEmpty {
-            /* Handle empty data for optional or default-constructible types */
-            throw SerializationError(message: "Cannot deserialize empty data")
-        }
-        do {
-            return try decoder.decode(type, from: data)
-        } catch {
-            throw SerializationError(
-                message: "Failed to deserialize JSON",
-                cause: error
-            )
-        }
+    do {
+      let data = try JSONSerialization.data(withJSONObject: object)
+      guard let string = String(data: data, encoding: .utf8) else {
+        throw SerializationError(message: "Failed to convert serialized data to UTF-8 string")
+      }
+      return string
+    } catch let error as SerializationError {
+      throw error
+    } catch {
+      throw SerializationError(
+        message: "Failed to serialize object to JSON",
+        cause: error
+      )
     }
+  }
 
-    /// Deserializes a JSON string into a Decodable value.
-    public static func deserialize<T: Decodable>(_ string: String, as type: T.Type) throws -> T {
-        guard let data = string.data(using: .utf8) else {
-            throw SerializationError(message: "Failed to convert string to data")
-        }
-        return try deserialize(data, as: type)
+  /// Deserializes JSON data into a Decodable value.
+  /// Returns nil if data is empty.
+  public static func deserialize<T: Decodable>(_ data: Data, as type: T.Type) throws -> T? {
+    if data.isEmpty {
+      return nil
     }
-
-    /// Converts a single scalar value to its string representation.
-    ///
-    /// This is the canonical type-conversion method used by all parameter
-    /// encoding helpers and by ``ValueSerializer`` for transport formatting.
-    public static func stringify(_ value: Any?) -> String {
-        guard let value = value else { return "" }
-
-        switch value {
-        case let boolVal as Bool:
-            return boolVal ? "true" : "false"
-        case let date as Date:
-            return dateFormatter.string(from: date)
-        case let str as String:
-            return str
-        case let int as Int:
-            return "\(int)"
-        case let int32 as Int32:
-            return "\(int32)"
-        case let int64 as Int64:
-            return "\(int64)"
-        case let float as Float:
-            return "\(float)"
-        case let double as Double:
-            return "\(double)"
-        case let desc as CustomStringConvertible:
-            return desc.description
-        default:
-            return "\(value)"
-        }
+    do {
+      return try decoder.decode(type, from: data)
+    } catch {
+      throw SerializationError(
+        message: "Failed to deserialize JSON",
+        cause: error
+      )
     }
+  }
 
-    /// Converts a value to a string suitable for use as a URL path parameter.
-    public static func toPathValue(_ value: Any?) -> String {
-        return stringify(value)
+  /// Deserializes a JSON string into a Decodable value.
+  /// Returns nil if the string is empty.
+  public static func deserialize<T: Decodable>(_ string: String, as type: T.Type) throws -> T? {
+    if string.isEmpty {
+      return nil
     }
-
-    /// Converts a value to a representation suitable for use as a query parameter.
-    /// For collections, joins using the specified collection format delimiter.
-    public static func toQueryValue(_ value: Any?, collectionFormat: String = "") -> Any? {
-        guard let value = value else { return nil }
-
-        if let items = value as? [String] {
-            return joinCollection(items, collectionFormat: collectionFormat)
-        }
-        if let items = value as? [Any] {
-            let strItems = items.map { stringify($0) }
-            return joinCollection(strItems, collectionFormat: collectionFormat)
-        }
-        return stringify(value)
+    guard let data = string.data(using: .utf8) else {
+      throw SerializationError(message: "Failed to convert string to data")
     }
+    return try deserialize(data, as: type)
+  }
 
-    /// Converts a value to a string suitable for use as an HTTP header value.
-    public static func toHeaderValue(_ value: Any?) -> String {
-        guard let value = value else { return "" }
+  /// Converts a single scalar value to its string representation.
+  ///
+  /// This is the canonical type-conversion method used by all parameter
+  /// encoding helpers and by ``ValueSerializer`` for transport formatting.
+  public static func stringify(_ value: Any?) -> String {
+    guard let value = value else { return "" }
 
-        if let items = value as? [String] {
-            return items.joined(separator: ",")
-        }
-        if let items = value as? [Any] {
-            return items.map { stringify($0) }.joined(separator: ",")
-        }
-        return stringify(value)
+    switch value {
+    case let boolVal as Bool:
+      return boolVal ? "true" : "false"
+    case let date as Date:
+      return dateFormatter.string(from: date)
+    case let str as String:
+      return str
+    case let int as Int:
+      return "\(int)"
+    case let int32 as Int32:
+      return "\(int32)"
+    case let int64 as Int64:
+      return "\(int64)"
+    case let float as Float:
+      return "\(float)"
+    case let double as Double:
+      return "\(double)"
+    case let desc as CustomStringConvertible:
+      return desc.description
+    default:
+      return "\(value)"
     }
+  }
 
-    /// Converts a value to a string suitable for use as an HTTP cookie value.
-    /// Cookie values follow the same encoding rules as header values.
-    public static func toCookieValue(_ value: Any?) -> String {
-        return toHeaderValue(value)
-    }
+  /// Converts a value to a string suitable for use as a URL path parameter.
+  public static func toPathValue(_ value: Any?) -> String {
+    return stringify(value)
+  }
 
-    /// Converts a value to a representation suitable for use as a form parameter.
-    public static func toFormValue(_ value: Any?) -> String {
-        return stringify(value)
-    }
+  /// Converts a value to a representation suitable for use as a query parameter.
+  /// For collections, joins using the specified collection format delimiter.
+  public static func toQueryValue(_ value: Any?, collectionFormat: String = "") -> Any? {
+    guard let value = value else { return nil }
 
-    /// Resolve a oneOf schema by attempting deserialization against each candidate.
-    /// Each candidate is a closure that takes JSON data and returns a deserialized value.
-    /// Returns the first successful result.
-    public static func resolveOneOf<T>(_ data: Data, candidates: [(Data) throws -> T]) -> T? {
-        for candidate in candidates {
-            if let result = try? candidate(data) {
-                return result
-            }
-        }
-        return nil
+    if let items = value as? [String] {
+      return joinCollection(items, collectionFormat: collectionFormat)
     }
+    if let items = value as? [Any] {
+      let strItems = items.map { stringify($0) }
+      return joinCollection(strItems, collectionFormat: collectionFormat)
+    }
+    return stringify(value)
+  }
 
-    /// Resolve an anyOf schema by attempting deserialization against each candidate.
-    /// Returns the first successful result.
-    public static func resolveAnyOf<T>(_ data: Data, candidates: [(Data) throws -> T]) -> T? {
-        return resolveOneOf(data, candidates: candidates)
-    }
+  /// Converts a value to a string suitable for use as an HTTP header value.
+  public static func toHeaderValue(_ value: Any?) -> String {
+    guard let value = value else { return "" }
 
-    private static func joinCollection(_ items: [String], collectionFormat: String) -> Any {
-        switch collectionFormat {
-        case "ssv":
-            return items.joined(separator: " ")
-        case "tsv":
-            return items.joined(separator: "\t")
-        case "pipes":
-            return items.joined(separator: "|")
-        case "multi":
-            return items
-        default:
-            return items.joined(separator: ",")
-        }
+    if let items = value as? [String] {
+      return items.joined(separator: ",")
     }
+    if let items = value as? [Any] {
+      return items.map { stringify($0) }.joined(separator: ",")
+    }
+    return stringify(value)
+  }
+
+  /// Converts a value to a string suitable for use as an HTTP cookie value.
+  /// Cookie values follow the same encoding rules as header values.
+  public static func toCookieValue(_ value: Any?) -> String {
+    return toHeaderValue(value)
+  }
+
+  /// Converts a value to a representation suitable for use as a form parameter.
+  public static func toFormValue(_ value: Any?) -> String {
+    return stringify(value)
+  }
+
+  /// Resolve a oneOf schema by attempting deserialization against each candidate.
+  /// Each candidate is a closure that takes JSON data and returns a deserialized value.
+  /// Returns the first successful result.
+  public static func resolveOneOf<T>(_ data: Data, candidates: [(Data) throws -> T]) -> T? {
+    for candidate in candidates {
+      if let result = try? candidate(data) {
+        return result
+      }
+    }
+    return nil
+  }
+
+  /// Resolve an anyOf schema by attempting deserialization against each candidate.
+  /// Returns the first successful result.
+  public static func resolveAnyOf<T>(_ data: Data, candidates: [(Data) throws -> T]) -> T? {
+    return resolveOneOf(data, candidates: candidates)
+  }
+
+  private static func joinCollection(_ items: [String], collectionFormat: String) -> Any {
+    switch collectionFormat {
+    case "ssv":
+      return items.joined(separator: " ")
+    case "tsv":
+      return items.joined(separator: "\t")
+    case "pipes":
+      return items.joined(separator: "|")
+    case "multi":
+      return items
+    default:
+      return items.joined(separator: ",")
+    }
+  }
 }

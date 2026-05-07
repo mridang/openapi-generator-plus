@@ -30,7 +30,11 @@ public abstract class PetFood
     private sealed class PetFoodConverter : JsonConverter<PetFood>
 #pragma warning restore CA1812
     {
-        public override PetFood? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        public override PetFood? Read(
+            ref Utf8JsonReader reader,
+            Type typeToConvert,
+            JsonSerializerOptions options
+        )
         {
             using JsonDocument doc = JsonDocument.ParseValue(ref reader);
             string raw = doc.RootElement.GetRawText();
@@ -41,13 +45,17 @@ public abstract class PetFood
                 {
                     "dry" => JsonSerializer.Deserialize<DryFood>(raw, options),
                     "wet" => JsonSerializer.Deserialize<WetFood>(raw, options),
-                    _ => throw new JsonException($"Unknown discriminator value: {discValue}")
+                    _ => null,
                 };
             }
             throw new JsonException("Missing discriminator property 'foodType'");
         }
 
-        public override void Write(Utf8JsonWriter writer, PetFood value, JsonSerializerOptions options)
+        public override void Write(
+            Utf8JsonWriter writer,
+            PetFood value,
+            JsonSerializerOptions options
+        )
         {
             JsonSerializer.Serialize(writer, value, value.GetType(), options);
         }

@@ -132,7 +132,7 @@ impl BaseApi {
                     "Content-Type".to_string(),
                     format!("multipart/form-data; boundary={}", boundary),
                 );
-                Some(build_multipart_body(&form_fields, &boundary))
+                Some(build_multipart_body(&form_fields, &boundary)?)
             } else {
                 None
             }
@@ -162,9 +162,9 @@ impl BaseApi {
         let response = self.invoke_api(params).await?;
 
         /* Check Content-Type before deserializing -- only deserialize JSON responses */
-        let resp_content_type = response.headers.get("Content-Type")
-            .or_else(|| response.headers.get("content-type"))
-            .map(|v| v.split(';').next().unwrap_or("").trim().to_string());
+        let resp_content_type = response.headers.iter()
+            .find(|(k, _)| k.eq_ignore_ascii_case("content-type"))
+            .map(|(_, v)| v.split(';').next().unwrap_or("").trim().to_string());
 
         let is_json = match &resp_content_type {
             None => true,
@@ -180,12 +180,12 @@ impl BaseApi {
             /* Non-JSON response -- attempt deserialization as a fallback */
             crate::object_serializer::deserialize(response.body.as_bytes())?
         } else {
-            serde_json::from_str("null")?
+            None
         };
 
         Ok(ApiResult {
             status_code: response.status_code,
-            data: Some(data),
+            data,
             raw_body: response.body,
             headers: response.headers,
         })
@@ -232,20 +232,20 @@ fn build_query_string(query_params: &[(String, String)]) -> String {
 fn build_multipart_body(
     form_fields: &std::collections::HashMap<String, serde_json::Value>,
     boundary: &str,
-) -> Vec<u8> {
+) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
     let mut body = Vec::new();
 
     for (name, value) in form_fields {
         if let serde_json::Value::Array(items) = value {
             for item in items {
-                append_multipart_field(&mut body, boundary, name, item);
+                append_multipart_field(&mut body, boundary, name, item)?;
             }
         } else {
-            append_multipart_field(&mut body, boundary, name, value);
+            append_multipart_field(&mut body, boundary, name, value)?;
         }
     }
     body.extend_from_slice(format!("--{}--\r\n", boundary).as_bytes());
-    body
+    Ok(body)
 }
 
 fn append_multipart_field(
@@ -253,7 +253,7 @@ fn append_multipart_field(
     boundary: &str,
     name: &str,
     value: &serde_json::Value,
-) {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     match value {
         serde_json::Value::String(s) => {
             body.extend_from_slice(
@@ -283,7 +283,7 @@ fn append_multipart_field(
             );
         }
         serde_json::Value::Object(_) => {
-            let json = serde_json::to_string(value).unwrap_or_default();
+            let json = serde_json::to_string(value)?;
             body.extend_from_slice(
                 format!(
                     "--{}\r\nContent-Disposition: form-data; name=\"{}\"\r\nContent-Type: application/json\r\n\r\n{}\r\n",
@@ -295,7 +295,7 @@ fn append_multipart_field(
         serde_json::Value::Null => {}
         serde_json::Value::Array(_) => {
             /* Nested arrays are serialized as JSON */
-            let json = serde_json::to_string(value).unwrap_or_default();
+            let json = serde_json::to_string(value)?;
             body.extend_from_slice(
                 format!(
                     "--{}\r\nContent-Disposition: form-data; name=\"{}\"\r\nContent-Type: application/json\r\n\r\n{}\r\n",
@@ -305,6 +305,7 @@ fn append_multipart_field(
             );
         }
     }
+    Ok(())
 }
 
 pub fn serialize_body(

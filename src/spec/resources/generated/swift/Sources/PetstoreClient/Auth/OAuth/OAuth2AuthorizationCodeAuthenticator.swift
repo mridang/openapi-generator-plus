@@ -18,107 +18,109 @@ import Foundation
 ///  2. Redirect the user to that URL
 ///  3. After the callback, call ``exchangeCode(_:)`` with the auth code
 ///  4. Use the authenticator normally -- tokens are managed automatically
-public final class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareAuthenticator, @unchecked Sendable {
-    private let _host: String
-    private let clientID: String
-    private let clientSecret: String
-    private let authorizationURL: String
-    let tokenURL: String
-    private let refreshURL: String
-    private let redirectURI: String
-    private let scopes: [String]
-    let tokenManager: OAuth2TokenManager
-    private var tokenExchanged: Bool = false
+public final class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareAuthenticator,
+  @unchecked Sendable
+{
+  private let _host: String
+  private let clientID: String
+  private let clientSecret: String
+  private let authorizationURL: String
+  let tokenURL: String
+  private let refreshURL: String
+  private let redirectURI: String
+  private let scopes: [String]
+  let tokenManager: OAuth2TokenManager
+  private var tokenExchanged: Bool = false
 
-    /// Creates a new authorization code authenticator.
-    ///
-    /// If refreshURL is empty, the tokenURL is used for refresh requests.
-    public init(
-        host: String,
-        clientID: String,
-        clientSecret: String,
-        authorizationURL: String,
-        tokenURL: String,
-        redirectURI: String,
-        scopes: [String] = [],
-        refreshURL: String = ""
-    ) {
-        self._host = host
-        self.clientID = clientID
-        self.clientSecret = clientSecret
-        self.authorizationURL = authorizationURL
-        self.tokenURL = tokenURL
-        self.refreshURL = refreshURL.isEmpty ? tokenURL : refreshURL
-        self.redirectURI = redirectURI
-        self.scopes = scopes
-        self.tokenManager = OAuth2TokenManager()
-        super.init()
+  /// Creates a new authorization code authenticator.
+  ///
+  /// If refreshURL is empty, the tokenURL is used for refresh requests.
+  public init(
+    host: String,
+    clientID: String,
+    clientSecret: String,
+    authorizationURL: String,
+    tokenURL: String,
+    redirectURI: String,
+    scopes: [String] = [],
+    refreshURL: String = ""
+  ) {
+    self._host = host
+    self.clientID = clientID
+    self.clientSecret = clientSecret
+    self.authorizationURL = authorizationURL
+    self.tokenURL = tokenURL
+    self.refreshURL = refreshURL.isEmpty ? tokenURL : refreshURL
+    self.redirectURI = redirectURI
+    self.scopes = scopes
+    self.tokenManager = OAuth2TokenManager()
+    super.init()
+  }
+
+  /// Returns the API base URL.
+  override public func host() -> String {
+    return _host
+  }
+
+  /// Injects the shared ``ApiClient`` for making token requests.
+  public func setApiClient(_ client: ApiClient) {
+    tokenManager.setApiClient(client)
+  }
+
+  /// Builds the authorization URL to redirect the user to.
+  ///
+  /// - Parameter state: Optional state parameter for CSRF protection.
+  /// - Returns: The authorization URL string.
+  public func buildAuthorizationURL(state: String = "") -> String {
+    var components = URLComponents(string: authorizationURL)!
+    var items: [URLQueryItem] = [
+      URLQueryItem(name: "response_type", value: "code"),
+      URLQueryItem(name: "client_id", value: clientID),
+      URLQueryItem(name: "redirect_uri", value: redirectURI),
+    ]
+    if !scopes.isEmpty {
+      items.append(URLQueryItem(name: "scope", value: scopes.joined(separator: " ")))
+    }
+    if !state.isEmpty {
+      items.append(URLQueryItem(name: "state", value: state))
+    }
+    components.queryItems = items
+    return components.url!.absoluteString
+  }
+
+  /// Exchanges an authorization code for an access token.
+  public func exchangeCode(_ code: String) async throws {
+    let params: [String: String] = [
+      "grant_type": "authorization_code",
+      "code": code,
+      "client_id": clientID,
+      "client_secret": clientSecret,
+      "redirect_uri": redirectURI,
+    ]
+    _ = try await tokenManager.getAccessToken(tokenURL: tokenURL, params: params)
+    tokenExchanged = true
+  }
+
+  /// Returns the Bearer authentication header with a valid access token.
+  override public func authHeaders() -> [String: String] {
+    guard tokenExchanged else {
+      fatalError("Must call exchangeCode before making API requests")
     }
 
-    /// Returns the API base URL.
-    override public func host() -> String {
-        return _host
+    let params: [String: String] = [
+      "grant_type": "refresh_token",
+      "refresh_token": tokenManager.refreshToken,
+    ]
+
+    var token: String?
+    let semaphore = DispatchSemaphore(value: 0)
+    Task {
+      token = try? await tokenManager.getAccessToken(tokenURL: refreshURL, params: params)
+      semaphore.signal()
     }
+    semaphore.wait()
 
-    /// Injects the shared ``ApiClient`` for making token requests.
-    public func setApiClient(_ client: ApiClient) {
-        tokenManager.setApiClient(client)
-    }
-
-    /// Builds the authorization URL to redirect the user to.
-    ///
-    /// - Parameter state: Optional state parameter for CSRF protection.
-    /// - Returns: The authorization URL string.
-    public func buildAuthorizationURL(state: String = "") -> String {
-        var components = URLComponents(string: authorizationURL)!
-        var items: [URLQueryItem] = [
-            URLQueryItem(name: "response_type", value: "code"),
-            URLQueryItem(name: "client_id", value: clientID),
-            URLQueryItem(name: "redirect_uri", value: redirectURI)
-        ]
-        if !scopes.isEmpty {
-            items.append(URLQueryItem(name: "scope", value: scopes.joined(separator: " ")))
-        }
-        if !state.isEmpty {
-            items.append(URLQueryItem(name: "state", value: state))
-        }
-        components.queryItems = items
-        return components.url!.absoluteString
-    }
-
-    /// Exchanges an authorization code for an access token.
-    public func exchangeCode(_ code: String) async throws {
-        let params: [String: String] = [
-            "grant_type": "authorization_code",
-            "code": code,
-            "client_id": clientID,
-            "client_secret": clientSecret,
-            "redirect_uri": redirectURI
-        ]
-        _ = try await tokenManager.getAccessToken(tokenURL: tokenURL, params: params)
-        tokenExchanged = true
-    }
-
-    /// Returns the Bearer authentication header with a valid access token.
-    override public func authHeaders() -> [String: String] {
-        guard tokenExchanged else {
-            fatalError("Must call exchangeCode before making API requests")
-        }
-
-        let params: [String: String] = [
-            "grant_type": "refresh_token",
-            "refresh_token": tokenManager.refreshToken,
-        ]
-
-        var token: String?
-        let semaphore = DispatchSemaphore(value: 0)
-        Task {
-            token = try? await tokenManager.getAccessToken(tokenURL: refreshURL, params: params)
-            semaphore.signal()
-        }
-        semaphore.wait()
-
-        guard let accessToken = token else { return [:] }
-        return ["Authorization": "Bearer \(accessToken)"]
-    }
+    guard let accessToken = token else { return [:] }
+    return ["Authorization": "Bearer \(accessToken)"]
+  }
 }

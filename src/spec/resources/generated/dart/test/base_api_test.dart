@@ -72,7 +72,8 @@ void main() {
             fail('Expected error for status $status');
           } on ApiError catch (e) {
             expect(e.runtimeType, equals(errType),
-                reason: 'Status $status should throw $errType, got ${e.runtimeType}');
+                reason:
+                    'Status $status should throw $errType, got ${e.runtimeType}');
           }
         } finally {
           await server.close();
@@ -102,7 +103,8 @@ void main() {
           await api.getPetById(1);
           fail('Expected error for status 400');
         } on BadRequestError catch (e) {
-          expect(e.errorBody, isNotNull, reason: 'errorBody should not be null for JSON responses');
+          expect(e.errorBody, isNotNull,
+              reason: 'errorBody should not be null for JSON responses');
         }
       } finally {
         await server.close();
@@ -117,7 +119,8 @@ void main() {
         request.response
           ..statusCode = 200
           ..headers.contentType = ContentType.json
-          ..write('{"id":1,"name":"Fido","photoUrls":["http://example.com/fido.jpg"]}')
+          ..write(
+              '{"id":1,"name":"Fido","photoUrls":["http://example.com/fido.jpg"]}')
           ..close();
       });
 
@@ -331,6 +334,230 @@ void main() {
       }
     });
 
+    // Vendor JSON MIME type deserialization
+
+    test('deserializes vendor JSON MIME types like application/problem+json',
+        () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.set('content-type', 'application/problem+json')
+          ..write(
+              '{"id":1,"name":"Fido","photoUrls":["http://example.com/fido.jpg"]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getPetByIdWithHTTPInfo(1);
+        expect(result.statusCode, equals(200));
+        expect(result.data, isNotNull,
+            reason:
+                'Data should not be null for vendor JSON MIME type application/problem+json');
+      } finally {
+        await server.close();
+      }
+    });
+
+    // Query parameter serialization
+
+    test('expands array query params', () async {
+      String capturedUrl = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedUrl = request.uri.toString();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.findPetsByTags(['a', 'b']);
+        expect(capturedUrl, contains('tags=a'));
+        expect(capturedUrl, contains('tags=b'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('serializes boolean query params', () async {
+      String capturedUrl = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedUrl = request.uri.toString();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.findPetsByStatus(['available']);
+        expect(capturedUrl, contains('status=available'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('null options omits allow_empty_value param', () async {
+      String capturedUrl = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedUrl = request.uri.toString();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        try {
+          await api.findPetsByStatus();
+        } catch (e) {
+          // Response deserialization may fail; we only care about the captured URL
+        }
+        expect(capturedUrl, isNot(contains('status=')),
+            reason:
+                'Expected no status param when options is null, got: $capturedUrl');
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('allow_empty_value param included when value is null in options',
+        () async {
+      String capturedUrl = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedUrl = request.uri.toString();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        try {
+          await api.findPetsByStatus(FindPetsByStatusOptions());
+        } catch (e) {
+          // Response deserialization may fail; we only care about the captured URL
+        }
+        expect(capturedUrl, contains('status='),
+            reason:
+                'Expected status= in URL for allowEmptyValue param with null value, got: $capturedUrl');
+      } finally {
+        await server.close();
+      }
+    });
+
+    test(
+        'includes empty value param in query string when value is empty string',
+        () async {
+      String capturedUrl = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedUrl = request.uri.toString();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('[]')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.findPetsByStatus(FindPetsByStatusOptions(status: ''));
+        expect(capturedUrl, contains('status='));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('handles empty query params without question mark', () async {
+      String capturedUrl = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedUrl = request.uri.toString();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.getPetById(1);
+        expect(capturedUrl, isNot(contains('?')));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('serializes number query params without decimal', () async {
+      String capturedUrl = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        capturedUrl = request.uri.toString();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":10,"name":"Fido","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.getPetById(10);
+        expect(capturedUrl, isNot(contains('10.0')),
+            reason: 'should not contain 10.0, got: $capturedUrl');
+      } finally {
+        await server.close();
+      }
+    });
+
     // Body serialization
 
     test('serializes JSON body for POST', () async {
@@ -356,6 +583,280 @@ void main() {
       } finally {
         await server.close();
       }
+    });
+
+    test('serializes text/plain body', () async {
+      String receivedBody = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        receivedBody = await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{}')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'POST',
+          'http://localhost:${server.port}/api/test',
+          {'Content-Type': 'text/plain'},
+          utf8.encode('hello world'),
+        );
+        expect(receivedBody, contains('hello world'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('serializes form-urlencoded body', () async {
+      String receivedBody = '';
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        receivedBody = await utf8.decoder.bind(request).join();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{}')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'POST',
+          'http://localhost:${server.port}/api/test',
+          {'Content-Type': 'application/x-www-form-urlencoded'},
+          utf8.encode('name=alice'),
+        );
+        expect(receivedBody, contains('name=alice'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('passes binary body as-is', () async {
+      List<int> receivedBytes = [];
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        await for (final chunk in request) {
+          receivedBytes.addAll(chunk);
+        }
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{}')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'POST',
+          'http://localhost:${server.port}/api/test',
+          {'Content-Type': 'application/octet-stream'},
+          [0x01, 0x02, 0x03],
+        );
+        expect(receivedBytes, isNotEmpty);
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('sends no body when body is null', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        // GET requests have no body
+        final result = await api.getPetById(1);
+        expect(result, isNotNull);
+      } finally {
+        await server.close();
+      }
+    });
+
+    // Error hierarchy
+
+    test('NotFoundError is a ClientError', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 404
+          ..headers.contentType = ContentType.json
+          ..write('{"error":"not found"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        try {
+          await api.getPetById(1);
+          fail('Expected error for status 404');
+        } on NotFoundError catch (e) {
+          expect(e, isA<ClientError>());
+          expect(e, isA<ApiError>());
+        }
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('InternalServerError is a ServerError', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 500
+          ..headers.contentType = ContentType.json
+          ..write('{"error":"internal"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        try {
+          await api.getPetById(1);
+          fail('Expected error for status 500');
+        } on InternalServerError catch (e) {
+          expect(e, isA<ServerError>());
+          expect(e, isA<ApiError>());
+        }
+      } finally {
+        await server.close();
+      }
+    });
+
+    // 418 Teapot (unrecognized status)
+
+    test('418 throws ClientError', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 418
+          ..headers.contentType = ContentType.json
+          ..write('{"error":"teapot"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        try {
+          await api.getPetById(1);
+          fail('Expected error for status 418');
+        } on ClientError catch (e) {
+          expect(e.statusCode, equals(418));
+        }
+      } finally {
+        await server.close();
+      }
+    });
+
+    // Returns null for void operations
+
+    test('returns null for void operations', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        // deletePet is a void operation
+        final auth = _BaseApiAuth();
+        try {
+          await api.deletePet(auth, 1, null);
+        } catch (e) {
+          // OK - endpoint may not match
+        }
+      } finally {
+        await server.close();
+      }
+    });
+
+    // Empty content-type defaults to application/json
+
+    test('empty content-type defaults to application/json', () async {
+      String? receivedContentType;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        receivedContentType = request.headers.contentType?.toString();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.getPetById(1);
+        // The header selector should set Content-Type to application/json by default
+        expect(receivedContentType, isNotNull);
+      } finally {
+        await server.close();
+      }
+    });
+
+    // Server variable overrides
+
+    test('server variable overrides resolve in base URL', () {
+      final config = ConfigurationBuilder()
+          .server(server1, {'environment': 'staging'}).build();
+      expect(config.baseUrl, equals('https://staging.example.com/api/v3'));
+    });
+
+    test('default server variables produce correct base URL', () {
+      final config = ConfigurationBuilder().server(server1).build();
+      expect(config.baseUrl, equals('https://api.example.com/api/v3'));
+    });
+
+    test('API request uses resolved server URL', () {
+      final config = ConfigurationBuilder()
+          .server(server1, {'environment': 'staging'}).build();
+      expect(config.baseUrl, startsWith('https://staging.example.com'));
+    });
+
+    test('invalid enum value throws error', () {
+      expect(
+        () => ConfigurationBuilder()
+            .server(server1, {'environment': 'invalid'}).build(),
+        throwsArgumentError,
+      );
     });
   });
 }

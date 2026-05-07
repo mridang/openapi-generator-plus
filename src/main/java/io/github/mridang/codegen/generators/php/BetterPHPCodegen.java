@@ -709,9 +709,6 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     /** {@inheritDoc} */
     @Override
     @SuppressWarnings("StringConcatenationMissingWhitespace")
-    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
-            value = "IMPROPER_UNICODE",
-            justification = "Comparing with ASCII-only constants")
     protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
         if (openAPI.getComponents() == null
                 || openAPI.getComponents().getSecuritySchemes() == null) {
@@ -738,6 +735,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 final String filePath =
                         Path.of(outputFolder, folder, fileName).toString();
                 writeFile(filePath, code);
+                postProcessFile(Path.of(filePath).toFile(), "source");
             }
         }
     }
@@ -756,6 +754,9 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 .orElse("");
     }
 
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification = "Comparing with ASCII-only constants")
     private String generatePhpAuthClass(
             String schemeName, String className, SecurityScheme scheme) {
         final String authPkg = invokerPackage + "\\Auth";

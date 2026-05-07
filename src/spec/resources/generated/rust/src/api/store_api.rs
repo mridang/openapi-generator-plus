@@ -10,6 +10,8 @@ use std::sync::Arc;
 
 use crate::api::base_api::BaseApi;
 use crate::api::base_api::InvokeApiParams;
+#[allow(unused_imports)]
+use crate::api::options::*;
 use crate::api_client::ApiClient;
 use crate::api_result::ApiResult;
 use crate::auth::Authenticator;
@@ -17,8 +19,6 @@ use crate::configuration::Configuration;
 use crate::models::*;
 use crate::object_serializer;
 use crate::value_serializer;
-#[allow(unused_imports)]
-use crate::api::options::*;
 use crate::value_serializer::SerializedValue;
 
 /// StoreApi provides methods for the Store API group.
@@ -29,7 +29,11 @@ pub struct StoreApi {
 
 impl StoreApi {
     /// Creates a new StoreApi instance.
-    pub fn new(api_client: Arc<dyn ApiClient>, config: Configuration, authenticator: Option<Arc<dyn Authenticator>>) -> Self {
+    pub fn new(
+        api_client: Arc<dyn ApiClient>,
+        config: Configuration,
+        authenticator: Option<Arc<dyn Authenticator>>,
+    ) -> Self {
         Self {
             base: BaseApi::new(api_client, config, authenticator),
         }
@@ -39,12 +43,8 @@ impl StoreApi {
     pub async fn delete_order(
         &self,
         order_id: i64,
-
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.delete_order_with_http_info(
-            order_id,
-
-        ).await?;
+        let result = self.delete_order_with_http_info(order_id).await?;
         let _ = result;
         Ok(())
     }
@@ -53,9 +53,7 @@ impl StoreApi {
     pub async fn delete_order_with_http_info(
         &self,
         order_id: i64,
-
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/store/order/{orderId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "orderId",
@@ -94,20 +92,19 @@ impl StoreApi {
     /// Returns pet inventories by status
     pub async fn get_inventory(
         &self,
-
-    ) -> Result<std::collections::HashMap<String, i32>, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_inventory_with_http_info(
-
-        ).await?;
+    ) -> Result<std::collections::HashMap<String, i32>, Box<dyn std::error::Error + Send + Sync>>
+    {
+        let result = self.get_inventory_with_http_info().await?;
         Ok(result.data.ok_or("empty response body")?)
     }
 
     /// Performs the get_inventory operation and returns the full API result.
     pub async fn get_inventory_with_http_info(
         &self,
-
-    ) -> Result<ApiResult<std::collections::HashMap<String, i32>>, Box<dyn std::error::Error + Send + Sync>> {
-
+    ) -> Result<
+        ApiResult<std::collections::HashMap<String, i32>>,
+        Box<dyn std::error::Error + Send + Sync>,
+    > {
         let mut path = "/store/inventory".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -128,19 +125,17 @@ impl StoreApi {
             auth: None,
         };
 
-        self.base.invoke_api_for_result::<std::collections::HashMap<String, i32>>(params).await
+        self.base
+            .invoke_api_for_result::<std::collections::HashMap<String, i32>>(params)
+            .await
     }
 
     /// Find purchase order by ID
     pub async fn get_order_by_id(
         &self,
         order_id: i64,
-
     ) -> Result<Order, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.get_order_by_id_with_http_info(
-            order_id,
-
-        ).await?;
+        let result = self.get_order_by_id_with_http_info(order_id).await?;
         Ok(result.data.ok_or("empty response body")?)
     }
 
@@ -148,9 +143,7 @@ impl StoreApi {
     pub async fn get_order_by_id_with_http_info(
         &self,
         order_id: i64,
-
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/store/order/{orderId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "orderId",
@@ -190,12 +183,8 @@ impl StoreApi {
     pub async fn place_order(
         &self,
         order: Option<Order>,
-
     ) -> Result<Order, Box<dyn std::error::Error + Send + Sync>> {
-        let result = self.place_order_with_http_info(
-            order,
-
-        ).await?;
+        let result = self.place_order_with_http_info(order).await?;
         Ok(result.data.ok_or("empty response body")?)
     }
 
@@ -203,9 +192,7 @@ impl StoreApi {
     pub async fn place_order_with_http_info(
         &self,
         order: Option<Order>,
-
     ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
-
         let mut path = "/store/order".to_string();
 
         let mut query_params: Vec<(String, String)> = Vec::new();

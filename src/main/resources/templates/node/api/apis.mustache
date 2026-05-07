@@ -240,9 +240,12 @@ export class {{classname}} extends BaseApi {
 {{/content}}
 {{^content}}
 {{#isAllowEmptyValue}}
-    {
-      const serialized = ValueSerializer.serializeStyled('{{baseName}}', options?.{{paramName}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}});
-      queryParams['{{baseName}}'] = serialized ?? '';
+    if (options !== undefined) {
+      if (options.{{paramName}} != null) {
+        queryParams['{{baseName}}'] = ValueSerializer.serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{isExplode}});
+      } else {
+        queryParams['{{baseName}}'] = '';
+      }
     }
 {{/isAllowEmptyValue}}
 {{^isAllowEmptyValue}}
@@ -287,7 +290,7 @@ export class {{classname}} extends BaseApi {
       {{#hasFormParams}}formBody{{/hasFormParams}}{{^hasFormParams}}{{#bodyParam}}{{paramName}}{{/bodyParam}}{{^bodyParam}}null{{/bodyParam}}{{/hasFormParams}},
       [{{#produces}}'{{{mediaType}}}'{{^-last}}, {{/-last}}{{/produces}}],
       {{#consumes.0}}'{{{mediaType}}}'{{/consumes.0}}{{^consumes}}'application/json'{{/consumes}},
-      {{#returnType}}{{#isArray}}(json: unknown) => ObjectSerializer.deserializeArray(json, {{returnBaseType}}){{/isArray}}{{#isMap}}(json: unknown) => json as {{{returnType}}}{{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}(json: unknown) => json as {{{returnType}}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}(json: unknown) => ObjectSerializer.deserialize(json, {{returnBaseType}}){{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}}{{/returnType}}{{^returnType}}null{{/returnType}},
+      {{#returnType}}{{#isArray}}(json: unknown) => ObjectSerializer.deserializeArray(json, {{returnBaseType}}){{/isArray}}{{#isMap}}(json: unknown) => json as {{{returnType}}}{{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}(json: unknown) => json as {{{returnType}}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}(json: unknown) => ObjectSerializer.deserialize(json, {{returnBaseType}})!{{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}}{{/returnType}}{{^returnType}}null{{/returnType}},
       {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}}
     );
   }

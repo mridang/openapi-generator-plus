@@ -49,6 +49,16 @@ class TransportOptionsTest extends TestCase
         $this->assertTrue($opts->injectRequestId);
     }
 
+    public function testFollowRedirectsDefaultsToTrueWithNullMaxRedirects(): void
+    {
+        $opts = TransportOptions::builder()
+            ->followRedirects(true)
+            ->build();
+
+        $this->assertTrue($opts->followRedirects);
+        $this->assertNull($opts->maxRedirects);
+    }
+
     public function testInvalidProxyUrlThrowsException(): void
     {
         $this->expectException(\InvalidArgumentException::class);
@@ -82,5 +92,56 @@ class TransportOptionsTest extends TestCase
         $this->assertCount(1, $opts->defaultHeaders);
         $this->assertSame('original', $opts->defaultHeaders['X-Original']);
         $this->assertArrayNotHasKey('X-Added', $opts->defaultHeaders);
+    }
+
+    public function testBuilderMethodsReturnSameInstance(): void
+    {
+        $builder = TransportOptions::builder();
+
+        $this->assertSame($builder, $builder->verifySsl(true));
+        $this->assertSame($builder, $builder->caCertPath(null));
+        $this->assertSame($builder, $builder->proxy(null));
+        $this->assertSame($builder, $builder->timeout(null));
+        $this->assertSame($builder, $builder->followRedirects(true));
+        $this->assertSame($builder, $builder->maxRedirects(null));
+        $this->assertSame($builder, $builder->userAgent(null));
+        $this->assertSame($builder, $builder->defaultHeader('X-Key', 'val'));
+        $this->assertSame($builder, $builder->defaultHeaders([]));
+        $this->assertSame($builder, $builder->injectRequestId(false));
+    }
+
+    public function testAccumulatesHeadersFromDefaultHeaderCalls(): void
+    {
+        $opts = TransportOptions::builder()
+            ->defaultHeader('X-First', 'one')
+            ->defaultHeader('X-Second', 'two')
+            ->build();
+
+        $this->assertCount(2, $opts->defaultHeaders);
+        $this->assertSame('one', $opts->defaultHeaders['X-First']);
+        $this->assertSame('two', $opts->defaultHeaders['X-Second']);
+    }
+
+    public function testMergesHeadersFromDefaultHeadersCall(): void
+    {
+        $opts = TransportOptions::builder()
+            ->defaultHeader('X-First', 'one')
+            ->defaultHeaders(['X-Second' => 'two', 'X-Third' => 'three'])
+            ->build();
+
+        $this->assertCount(3, $opts->defaultHeaders);
+        $this->assertSame('one', $opts->defaultHeaders['X-First']);
+        $this->assertSame('two', $opts->defaultHeaders['X-Second']);
+        $this->assertSame('three', $opts->defaultHeaders['X-Third']);
+    }
+
+    public function testBuilderProducesIndependentInstances(): void
+    {
+        $builder = TransportOptions::builder()->verifySsl(false);
+        $first = $builder->build();
+        $second = $builder->build();
+
+        $this->assertSame($first->verifySsl, $second->verifySsl);
+        $this->assertNotSame($first, $second);
     }
 }

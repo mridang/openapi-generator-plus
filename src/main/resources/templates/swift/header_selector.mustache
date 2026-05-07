@@ -43,7 +43,7 @@ public final class HeaderSelector: Sendable {
     }
 
     /// Detects whether a string contains a valid JSON MIME type.
-    public func isJSONMIME(_ searchString: String) -> Bool {
+    public func isJsonMime(_ searchString: String) -> Bool {
         if searchString.isEmpty { return false }
         let range = NSRange(searchString.startIndex..., in: searchString)
         return Self.jsonMIMEPattern.firstMatch(in: searchString, range: range) != nil
@@ -54,7 +54,7 @@ public final class HeaderSelector: Sendable {
         if filtered.isEmpty { return "" }
         if filtered.count == 1 { return filtered[0] }
 
-        let headersWithJSON = filtered.filter { isJSONMIME($0) }
+        let headersWithJSON = filtered.filter { isJsonMime($0) }
         if headersWithJSON.isEmpty {
             return filtered.joined(separator: ",")
         }

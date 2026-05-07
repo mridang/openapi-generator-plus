@@ -603,21 +603,38 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                     (List<CodegenOperation>) operations.get("operation");
             if (ops != null) {
                 boolean hasOsImport = false;
+                boolean hasJsonImport = false;
+                boolean hasStringsImport = false;
                 for (final CodegenOperation op : ops) {
                     if (op.returnType != null && op.returnType.contains("os.File")) {
                         hasOsImport = true;
-                        break;
+                    }
+                    if (op.servers != null && !op.servers.isEmpty()) {
+                        hasStringsImport = true;
                     }
                     for (final CodegenParameter p : op.allParams) {
                         if (p.isFile || (p.dataType != null && p.dataType.contains("os.File"))) {
                             hasOsImport = true;
-                            break;
+                        }
+                        if (p.isQueryParam
+                                && !p.isDeepObject
+                                && p.getContent() != null
+                                && !p.getContent().isEmpty()) {
+                            hasJsonImport = true;
+                        }
+                        if (p.isCookieParam) {
+                            hasStringsImport = true;
                         }
                     }
-                    if (hasOsImport) break;
                 }
                 if (hasOsImport) {
                     objs.put("hasOsImport", true);
+                }
+                if (hasJsonImport) {
+                    objs.put("hasJsonImport", true);
+                }
+                if (hasStringsImport) {
+                    objs.put("hasStringsImport", true);
                 }
             }
         }
@@ -765,6 +782,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     }
 
     @SuppressWarnings("StringConcatenationMissingWhitespace")
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification = "Comparing with ASCII-only constants")
     private String generateGoAuthClass(
             String schemeName, String className, SecurityScheme scheme) {
         if (scheme.getType() == SecurityScheme.Type.HTTP) {

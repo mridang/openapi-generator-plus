@@ -110,7 +110,7 @@ impl ApiClient for DefaultApiClient {
                 .map(|(k, v)| {
                     (
                         k.as_str().to_string(),
-                        v.to_str().unwrap_or("").to_string(),
+                        String::from_utf8_lossy(v.as_bytes()).into_owned(),
                     )
                 })
                 .collect();

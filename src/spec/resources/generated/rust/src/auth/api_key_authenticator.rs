@@ -7,8 +7,8 @@
 
 use std::collections::HashMap;
 
-use crate::auth::api_key_location::ApiKeyLocation;
 use super::Authenticator;
+use crate::auth::api_key_location::ApiKeyLocation;
 
 /// ApiKeyAuthenticator provides API key authentication.
 ///

@@ -4,7 +4,7 @@
 
 # rubocop:disable Lint/RedundantCopDisableDirective, Layout/LineLength
 # rubocop:disable Layout/EmptyLinesAroundModuleBody, Layout/EmptyLineBetweenDefs, Layout/EmptyLines
-# rubocop:disable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:disable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Naming/AccessorMethodName
 # rubocop:disable Style/MethodCallWithoutArgsParentheses
 # rubocop:disable Style/DefWithParentheses
 # rubocop:disable Style/StringConcatenation
@@ -176,31 +176,37 @@ module {{moduleName}}
         # @type var query_params: Hash[String, untyped]
         query_params = {}
 {{#queryParams}}
+{{#isAllowEmptyValue}}
+        unless options.nil?
+          if options.{{paramName}}.nil?
+            query_params['{{baseName}}'] = ''
+          else
+            query_params['{{baseName}}'] =
+              {{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}})
+          end
+        end
+{{/isAllowEmptyValue}}
+{{^isAllowEmptyValue}}
 {{#isDeepObject}}
-        query_params.merge!({{moduleName}}::ValueSerializer.serialize_deep_object('{{baseName}}', options.{{paramName}})) unless options.{{paramName}}.nil?
+        query_params.merge!({{moduleName}}::ValueSerializer.serialize_deep_object('{{baseName}}', options.{{paramName}})) unless options.nil? || options.{{paramName}}.nil?
 {{/isDeepObject}}
 {{^isDeepObject}}
 {{#content}}
-        query_params['{{baseName}}'] = JSON.generate(options.{{paramName}}) unless options.{{paramName}}.nil?
+        query_params['{{baseName}}'] = JSON.generate(options.{{paramName}}) unless options.nil? || options.{{paramName}}.nil?
 {{/content}}
 {{^content}}
-{{#isAllowEmptyValue}}
-        query_params['{{baseName}}'] =
-          {{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}}) || ''
-{{/isAllowEmptyValue}}
-{{^isAllowEmptyValue}}
-        unless options.{{paramName}}.nil?
+        unless options.nil? || options.{{paramName}}.nil?
           query_params['{{baseName}}'] =
             {{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :query, '{{{dataType}}}', {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, '{{style}}', {{isExplode}})
         end
-{{/isAllowEmptyValue}}
 {{/content}}
 {{/isDeepObject}}
+{{/isAllowEmptyValue}}
 {{/queryParams}}
         # @type var header_params: Hash[String, String]
         header_params = {}
 {{#headerParams}}
-        header_params['{{baseName}}'] = {{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :header, '{{{dataType}}}', nil, '{{style}}', {{isExplode}}).to_s unless options.{{paramName}}.nil?
+        header_params['{{baseName}}'] = {{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :header, '{{{dataType}}}', nil, '{{style}}', {{isExplode}}).to_s unless options.nil? || options.{{paramName}}.nil?
 {{/headerParams}}
 {{#hasCookieParams}}
         cookie_parts = [] #: Array[String]
@@ -247,7 +253,7 @@ module {{moduleName}}
 end
 # rubocop:enable Lint/RedundantCopDisableDirective, Layout/LineLength
 # rubocop:enable Layout/EmptyLinesAroundModuleBody, Layout/EmptyLineBetweenDefs, Layout/EmptyLines
-# rubocop:enable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:enable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Naming/AccessorMethodName
 # rubocop:enable Style/MethodCallWithoutArgsParentheses
 # rubocop:enable Style/DefWithParentheses
 # rubocop:enable Style/StringConcatenation

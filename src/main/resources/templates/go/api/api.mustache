@@ -2,13 +2,16 @@
 package {{packageName}}
 
 import (
+{{#hasJsonImport}}
 	"encoding/json"
+{{/hasJsonImport}}
 	"fmt"
-	"net/url"
 {{#hasOsImport}}
 	"os"
 {{/hasOsImport}}
+{{#hasStringsImport}}
 	"strings"
+{{/hasStringsImport}}
 
 	. "{{packageName}}/pkg/models"
 {{#optionsImports}}
@@ -139,6 +142,16 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 
 	queryParams := make(map[string]interface{})
 {{#queryParams}}
+{{#isAllowEmptyValue}}
+	if options != nil {
+		if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
+			queryParams["{{baseName}}"] = SerializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
+		} else {
+			queryParams["{{baseName}}"] = ""
+		}
+	}
+{{/isAllowEmptyValue}}
+{{^isAllowEmptyValue}}
 	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
 {{#isDeepObject}}
 		for k, v := range SerializeDeepObject("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}) {
@@ -151,19 +164,11 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 		queryParams["{{baseName}}"] = string(jsonBytes)
 {{/content}}
 {{^content}}
-{{#isAllowEmptyValue}}
-	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
 		queryParams["{{baseName}}"] = SerializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
-	} else {
-		queryParams["{{baseName}}"] = ""
-	}
-{{/isAllowEmptyValue}}
-{{^isAllowEmptyValue}}
-		queryParams["{{baseName}}"] = SerializeStyled("{{baseName}}", options.{{#pascalcase}}{{paramName}}{{/pascalcase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}})
-{{/isAllowEmptyValue}}
 {{/content}}
 {{/isDeepObject}}
 	}
+{{/isAllowEmptyValue}}
 {{/queryParams}}
 
 	headerParams := make(map[string]string)
@@ -186,18 +191,18 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 
 {{#hasFormParams}}
 	formBody := make(map[string]string)
+	if options != nil {
 {{#formParams}}
 {{#required}}
-	if options != nil {
 		formBody["{{baseName}}"] = fmt.Sprintf("%v", options.{{#pascalcase}}{{paramName}}{{/pascalcase}})
-	}
 {{/required}}
 {{^required}}
-	if options != nil && options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
-		formBody["{{baseName}}"] = fmt.Sprintf("%v", *options.{{#pascalcase}}{{paramName}}{{/pascalcase}})
-	}
+		if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
+			formBody["{{baseName}}"] = fmt.Sprintf("%v", *options.{{#pascalcase}}{{paramName}}{{/pascalcase}})
+		}
 {{/required}}
 {{/formParams}}
+	}
 	var requestBody interface{} = formBody
 {{/hasFormParams}}
 {{^hasFormParams}}
@@ -209,7 +214,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 {{/bodyParam}}
 {{/hasFormParams}}
 
-	response, err := a.invokeAPI(invokeAPIParams{
+	response, err := a.invokeApi(invokeApiParams{
 		method:       "{{httpMethod}}",
 		path:         path,
 		queryParams:  queryParams,

@@ -69,7 +69,14 @@ fn test_serialize_value_header_array() {
 #[test]
 fn test_serialize_styled_matrix_scalar() {
     let result = value_serializer::serialize_styled(
-        "id", Some("5"), None, "path", "string", "", "matrix", false,
+        "id",
+        Some("5"),
+        None,
+        "path",
+        "string",
+        "",
+        "matrix",
+        false,
     );
     assert_eq!(unwrap_single(result), ";id=5");
 }
@@ -78,7 +85,14 @@ fn test_serialize_styled_matrix_scalar() {
 fn test_serialize_styled_matrix_array_no_explode() {
     let items: Vec<String> = vec!["red".into(), "green".into(), "blue".into()];
     let result = value_serializer::serialize_styled(
-        "color", None, Some(&items), "path", "array", "", "matrix", false,
+        "color",
+        None,
+        Some(&items),
+        "path",
+        "array",
+        "",
+        "matrix",
+        false,
     );
     assert_eq!(unwrap_single(result), ";color=red,green,blue");
 }
@@ -87,7 +101,14 @@ fn test_serialize_styled_matrix_array_no_explode() {
 fn test_serialize_styled_matrix_array_explode() {
     let items: Vec<String> = vec!["red".into(), "green".into(), "blue".into()];
     let result = value_serializer::serialize_styled(
-        "color", None, Some(&items), "path", "array", "", "matrix", true,
+        "color",
+        None,
+        Some(&items),
+        "path",
+        "array",
+        "",
+        "matrix",
+        true,
     );
     assert_eq!(unwrap_single(result), ";color=red;color=green;color=blue");
 }
@@ -97,7 +118,14 @@ fn test_serialize_styled_matrix_array_explode() {
 #[test]
 fn test_serialize_styled_label_scalar() {
     let result = value_serializer::serialize_styled(
-        "id", Some("5"), None, "path", "string", "", "label", false,
+        "id",
+        Some("5"),
+        None,
+        "path",
+        "string",
+        "",
+        "label",
+        false,
     );
     assert_eq!(unwrap_single(result), ".5");
 }
@@ -106,7 +134,14 @@ fn test_serialize_styled_label_scalar() {
 fn test_serialize_styled_label_array_no_explode() {
     let items: Vec<String> = vec!["red".into(), "green".into()];
     let result = value_serializer::serialize_styled(
-        "color", None, Some(&items), "path", "array", "", "label", false,
+        "color",
+        None,
+        Some(&items),
+        "path",
+        "array",
+        "",
+        "label",
+        false,
     );
     assert_eq!(unwrap_single(result), ".red,green");
 }
@@ -115,7 +150,14 @@ fn test_serialize_styled_label_array_no_explode() {
 fn test_serialize_styled_label_array_explode() {
     let items: Vec<String> = vec!["red".into(), "green".into()];
     let result = value_serializer::serialize_styled(
-        "color", None, Some(&items), "path", "array", "", "label", true,
+        "color",
+        None,
+        Some(&items),
+        "path",
+        "array",
+        "",
+        "label",
+        true,
     );
     assert_eq!(unwrap_single(result), ".red.green");
 }
@@ -125,7 +167,14 @@ fn test_serialize_styled_label_array_explode() {
 #[test]
 fn test_serialize_styled_simple_scalar() {
     let result = value_serializer::serialize_styled(
-        "id", Some("5"), None, "path", "string", "", "simple", false,
+        "id",
+        Some("5"),
+        None,
+        "path",
+        "string",
+        "",
+        "simple",
+        false,
     );
     assert_eq!(unwrap_single(result), "5");
 }
@@ -134,7 +183,14 @@ fn test_serialize_styled_simple_scalar() {
 fn test_serialize_styled_simple_array() {
     let items: Vec<String> = vec!["red".into(), "green".into()];
     let result = value_serializer::serialize_styled(
-        "color", None, Some(&items), "path", "array", "", "simple", false,
+        "color",
+        None,
+        Some(&items),
+        "path",
+        "array",
+        "",
+        "simple",
+        false,
     );
     assert_eq!(unwrap_single(result), "red,green");
 }
@@ -144,7 +200,14 @@ fn test_serialize_styled_simple_array() {
 #[test]
 fn test_serialize_styled_form_scalar() {
     let result = value_serializer::serialize_styled(
-        "color", Some("blue"), None, "query", "string", "", "form", true,
+        "color",
+        Some("blue"),
+        None,
+        "query",
+        "string",
+        "",
+        "form",
+        true,
     );
     assert_eq!(unwrap_single(result), "blue");
 }
@@ -153,7 +216,14 @@ fn test_serialize_styled_form_scalar() {
 fn test_serialize_styled_form_array_no_explode() {
     let items: Vec<String> = vec!["red".into(), "green".into()];
     let result = value_serializer::serialize_styled(
-        "color", None, Some(&items), "query", "array", "", "form", false,
+        "color",
+        None,
+        Some(&items),
+        "query",
+        "array",
+        "",
+        "form",
+        false,
     );
     assert_eq!(unwrap_single(result), "red,green");
 }
@@ -162,7 +232,14 @@ fn test_serialize_styled_form_array_no_explode() {
 fn test_serialize_styled_form_array_explode() {
     let items: Vec<String> = vec!["red".into(), "green".into()];
     let result = value_serializer::serialize_styled(
-        "color", None, Some(&items), "query", "array", "", "form", true,
+        "color",
+        None,
+        Some(&items),
+        "query",
+        "array",
+        "",
+        "form",
+        true,
     );
     assert_eq!(unwrap_multi(result), vec!["red", "green"]);
 }
@@ -173,7 +250,14 @@ fn test_serialize_styled_form_array_explode() {
 fn test_serialize_styled_space_delimited_array() {
     let items: Vec<String> = vec!["red".into(), "green".into(), "blue".into()];
     let result = value_serializer::serialize_styled(
-        "color", None, Some(&items), "query", "array", "", "spaceDelimited", false,
+        "color",
+        None,
+        Some(&items),
+        "query",
+        "array",
+        "",
+        "spaceDelimited",
+        false,
     );
     assert_eq!(unwrap_single(result), "red green blue");
 }
@@ -181,7 +265,14 @@ fn test_serialize_styled_space_delimited_array() {
 #[test]
 fn test_serialize_styled_space_delimited_scalar() {
     let result = value_serializer::serialize_styled(
-        "color", Some("red"), None, "query", "string", "", "spaceDelimited", false,
+        "color",
+        Some("red"),
+        None,
+        "query",
+        "string",
+        "",
+        "spaceDelimited",
+        false,
     );
     assert_eq!(unwrap_single(result), "red");
 }
@@ -192,7 +283,14 @@ fn test_serialize_styled_space_delimited_scalar() {
 fn test_serialize_styled_pipe_delimited_array() {
     let items: Vec<String> = vec!["red".into(), "green".into(), "blue".into()];
     let result = value_serializer::serialize_styled(
-        "color", None, Some(&items), "query", "array", "", "pipeDelimited", false,
+        "color",
+        None,
+        Some(&items),
+        "query",
+        "array",
+        "",
+        "pipeDelimited",
+        false,
     );
     assert_eq!(unwrap_single(result), "red|green|blue");
 }
@@ -200,7 +298,14 @@ fn test_serialize_styled_pipe_delimited_array() {
 #[test]
 fn test_serialize_styled_pipe_delimited_scalar() {
     let result = value_serializer::serialize_styled(
-        "color", Some("red"), None, "query", "string", "", "pipeDelimited", false,
+        "color",
+        Some("red"),
+        None,
+        "query",
+        "string",
+        "",
+        "pipeDelimited",
+        false,
     );
     assert_eq!(unwrap_single(result), "red");
 }
@@ -232,7 +337,14 @@ fn test_serialize_deep_object_empty() {
 #[test]
 fn test_serialize_styled_unknown_style_fallback() {
     let result = value_serializer::serialize_styled(
-        "id", Some("5"), None, "query", "string", "", "unknownStyle", false,
+        "id",
+        Some("5"),
+        None,
+        "query",
+        "string",
+        "",
+        "unknownStyle",
+        false,
     );
     assert_eq!(unwrap_single(result), "5");
 }
@@ -241,9 +353,8 @@ fn test_serialize_styled_unknown_style_fallback() {
 
 #[test]
 fn test_serialize_styled_empty_style() {
-    let result = value_serializer::serialize_styled(
-        "id", Some("5"), None, "query", "string", "", "", false,
-    );
+    let result =
+        value_serializer::serialize_styled("id", Some("5"), None, "query", "string", "", "", false);
     assert_eq!(unwrap_single(result), "5");
 }
 
@@ -252,7 +363,14 @@ fn test_serialize_styled_empty_style() {
 #[test]
 fn test_serialize_styled_form_explode_scalar_returns_single() {
     let result = value_serializer::serialize_styled(
-        "color", Some("blue"), None, "query", "string", "", "form", true,
+        "color",
+        Some("blue"),
+        None,
+        "query",
+        "string",
+        "",
+        "form",
+        true,
     );
     match result {
         Some(SerializedValue::Single(s)) => assert_eq!(s, "blue"),
@@ -263,7 +381,14 @@ fn test_serialize_styled_form_explode_scalar_returns_single() {
 #[test]
 fn test_serialize_styled_simple_path_no_url_encode() {
     let result = value_serializer::serialize_styled(
-        "name", Some("hello world"), None, "path", "string", "", "simple", false,
+        "name",
+        Some("hello world"),
+        None,
+        "path",
+        "string",
+        "",
+        "simple",
+        false,
     );
     assert_eq!(unwrap_single(result), "hello world");
 }
@@ -272,7 +397,14 @@ fn test_serialize_styled_simple_path_no_url_encode() {
 fn test_serialize_styled_form_explode_single_element_array() {
     let items: Vec<String> = vec!["red".into()];
     let result = value_serializer::serialize_styled(
-        "color", None, Some(&items), "query", "array", "", "form", true,
+        "color",
+        None,
+        Some(&items),
+        "query",
+        "array",
+        "",
+        "form",
+        true,
     );
     assert_eq!(unwrap_multi(result), vec!["red"]);
 }

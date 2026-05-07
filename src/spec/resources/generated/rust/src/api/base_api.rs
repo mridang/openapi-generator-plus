@@ -51,7 +51,11 @@ pub struct BaseApi {
 
 impl BaseApi {
     /// Creates a new BaseApi instance.
-    pub fn new(api_client: Arc<dyn ApiClient>, config: Configuration, authenticator: Option<Arc<dyn Authenticator>>) -> Self {
+    pub fn new(
+        api_client: Arc<dyn ApiClient>,
+        config: Configuration,
+        authenticator: Option<Arc<dyn Authenticator>>,
+    ) -> Self {
         Self {
             config,
             api_client,
@@ -72,7 +76,9 @@ impl BaseApi {
 
         /* Merge authentication query params */
         let mut query_params = params.query_params;
-        let effective_auth: Option<&dyn Authenticator> = params.auth.or_else(|| self.authenticator.as_ref().map(|a| a.as_ref()));
+        let effective_auth: Option<&dyn Authenticator> = params
+            .auth
+            .or_else(|| self.authenticator.as_ref().map(|a| a.as_ref()));
         if let Some(auth) = effective_auth {
             for (k, v) in auth.query_params() {
                 query_params.push((k, v));
@@ -87,7 +93,9 @@ impl BaseApi {
 
         /* Select headers */
         let is_multipart = params.content_type == "multipart/form-data";
-        let mut headers = self.header_selector.select_headers(&params.accepts, params.content_type, is_multipart);
+        let mut headers =
+            self.header_selector
+                .select_headers(&params.accepts, params.content_type, is_multipart);
 
         /* Merge config default headers */
         for (k, v) in self.config.default_headers() {
@@ -137,7 +145,7 @@ impl BaseApi {
                     "Content-Type".to_string(),
                     format!("multipart/form-data; boundary={}", boundary),
                 );
-                Some(build_multipart_body(&form_fields, &boundary))
+                Some(build_multipart_body(&form_fields, &boundary)?)
             } else {
                 None
             }
@@ -148,7 +156,12 @@ impl BaseApi {
         /* Send request */
         let response = self
             .api_client
-            .send_request(params.method, &request_url, &headers, serialized_body.as_deref())
+            .send_request(
+                params.method,
+                &request_url,
+                &headers,
+                serialized_body.as_deref(),
+            )
             .await?;
 
         /* Check for errors */
@@ -167,9 +180,11 @@ impl BaseApi {
         let response = self.invoke_api(params).await?;
 
         /* Check Content-Type before deserializing -- only deserialize JSON responses */
-        let resp_content_type = response.headers.get("Content-Type")
-            .or_else(|| response.headers.get("content-type"))
-            .map(|v| v.split(';').next().unwrap_or("").trim().to_string());
+        let resp_content_type = response
+            .headers
+            .iter()
+            .find(|(k, _)| k.eq_ignore_ascii_case("content-type"))
+            .map(|(_, v)| v.split(';').next().unwrap_or("").trim().to_string());
 
         let is_json = match &resp_content_type {
             None => true,
@@ -185,12 +200,12 @@ impl BaseApi {
             /* Non-JSON response -- attempt deserialization as a fallback */
             crate::object_serializer::deserialize(response.body.as_bytes())?
         } else {
-            serde_json::from_str("null")?
+            None
         };
 
         Ok(ApiResult {
             status_code: response.status_code,
-            data: Some(data),
+            data,
             raw_body: response.body,
             headers: response.headers,
         })
@@ -218,13 +233,7 @@ fn build_query_string(query_params: &[(String, String)]) -> String {
 
     let parts: Vec<String> = query_params
         .iter()
-        .map(|(k, v)| {
-            format!(
-                "{}={}",
-                urlencoding::encode(k),
-                urlencoding::encode(v)
-            )
-        })
+        .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
         .collect();
 
     parts.join("&")
@@ -237,20 +246,20 @@ fn build_query_string(query_params: &[(String, String)]) -> String {
 fn build_multipart_body(
     form_fields: &std::collections::HashMap<String, serde_json::Value>,
     boundary: &str,
-) -> Vec<u8> {
+) -> Result<Vec<u8>, Box<dyn std::error::Error + Send + Sync>> {
     let mut body = Vec::new();
 
     for (name, value) in form_fields {
         if let serde_json::Value::Array(items) = value {
             for item in items {
-                append_multipart_field(&mut body, boundary, name, item);
+                append_multipart_field(&mut body, boundary, name, item)?;
             }
         } else {
-            append_multipart_field(&mut body, boundary, name, value);
+            append_multipart_field(&mut body, boundary, name, value)?;
         }
     }
     body.extend_from_slice(format!("--{}--\r\n", boundary).as_bytes());
-    body
+    Ok(body)
 }
 
 fn append_multipart_field(
@@ -258,7 +267,7 @@ fn append_multipart_field(
     boundary: &str,
     name: &str,
     value: &serde_json::Value,
-) {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     match value {
         serde_json::Value::String(s) => {
             body.extend_from_slice(
@@ -288,7 +297,7 @@ fn append_multipart_field(
             );
         }
         serde_json::Value::Object(_) => {
-            let json = serde_json::to_string(value).unwrap_or_default();
+            let json = serde_json::to_string(value)?;
             body.extend_from_slice(
                 format!(
                     "--{}\r\nContent-Disposition: form-data; name=\"{}\"\r\nContent-Type: application/json\r\n\r\n{}\r\n",
@@ -300,7 +309,7 @@ fn append_multipart_field(
         serde_json::Value::Null => {}
         serde_json::Value::Array(_) => {
             /* Nested arrays are serialized as JSON */
-            let json = serde_json::to_string(value).unwrap_or_default();
+            let json = serde_json::to_string(value)?;
             body.extend_from_slice(
                 format!(
                     "--{}\r\nContent-Disposition: form-data; name=\"{}\"\r\nContent-Type: application/json\r\n\r\n{}\r\n",
@@ -310,6 +319,7 @@ fn append_multipart_field(
             );
         }
     }
+    Ok(())
 }
 
 pub fn serialize_body(
@@ -341,13 +351,7 @@ pub fn serialize_body(
         let params: std::collections::HashMap<String, String> = serde_json::from_slice(&body)?;
         let encoded: Vec<String> = params
             .iter()
-            .map(|(k, v)| {
-                format!(
-                    "{}={}",
-                    urlencoding::encode(k),
-                    urlencoding::encode(v)
-                )
-            })
+            .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
             .collect();
         return Ok(Some(encoded.join("&").into_bytes()));
     }
@@ -367,13 +371,7 @@ fn throw_api_error(response: &ApiResponse) -> Box<dyn std::error::Error + Send +
         None
     };
 
-    let base_err = ApiError::new(
-        code,
-        msg,
-        body,
-        response.headers.clone(),
-        error_body,
-    );
+    let base_err = ApiError::new(code, msg, body, response.headers.clone(), error_body);
 
     if code >= 400 && code < 500 {
         let client_err = ClientError::from(base_err);

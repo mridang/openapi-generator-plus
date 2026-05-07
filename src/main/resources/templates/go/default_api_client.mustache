@@ -68,7 +68,7 @@ func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]st
 		merged["X-Request-ID"] = uuid.New().String()
 	}
 	if _, ok := merged["Accept-Encoding"]; !ok {
-		merged["Accept-Encoding"] = "gzip, deflate"
+		merged["Accept-Encoding"] = supportedEncodings()
 	}
 
 	var bodyReader io.Reader
@@ -155,6 +155,16 @@ func buildHTTPClient(opts *TransportOptions) *http.Client {
 	}
 
 	return client
+}
+
+// supportedEncodings returns a comma-separated list of supported content
+// encodings for the Accept-Encoding header.
+//
+// Includes gzip and deflate which are provided by Go's standard library
+// (compress/gzip and compress/zlib). Additional encodings can be added
+// here when third-party decompression libraries are integrated.
+func supportedEncodings() string {
+	return "gzip, deflate"
 }
 
 func decompressBody(resp *http.Response) ([]byte, error) {

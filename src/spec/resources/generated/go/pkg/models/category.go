@@ -13,14 +13,13 @@ import (
 
 // Category is a model class generated from the OpenAPI schema.
 type Category struct {
-	Id *int64 `json:"id,omitempty"`
+	Id   *int64  `json:"id,omitempty"`
 	Name *string `json:"name,omitempty"`
 }
 
 // NewCategory creates a new Category instance.
 func NewCategory() *Category {
-	return &Category{
-	}
+	return &Category{}
 }
 
 // MarshalJSON implements the json.Marshaler interface.

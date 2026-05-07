@@ -7,13 +7,77 @@ namespace {{invokerPackage}}\Test;
 use PHPUnit\Framework\TestCase;
 use {{invokerPackage}}\ObjectSerializer;
 use {{modelPackage}}\DryFood;
+use {{modelPackage}}\WetFood;
 use {{modelPackage}}\Medication;
+use {{modelPackage}}\Surgery;
 use {{modelPackage}}\PetFood;
 use {{modelPackage}}\PetTreatment;
 use {{modelPackage}}\PetWithOwner;
 
 class ComposedSchemaTest extends TestCase
 {
+    // -- oneOf with discriminator: PetFood --
+
+    public function testOneOfDeserializesDryFood(): void
+    {
+        $data = ['foodType' => 'dry', 'weightKg' => 2.5];
+        $result = PetFood::build($data);
+        $this->assertInstanceOf(DryFood::class, $result->getActualInstance());
+        $this->assertSame('dry', $result->getActualInstance()->foodType);
+    }
+
+    public function testOneOfDeserializesWetFood(): void
+    {
+        $data = ['foodType' => 'wet', 'volumeMl' => 400];
+        $result = PetFood::build($data);
+        $this->assertInstanceOf(WetFood::class, $result->getActualInstance());
+        $this->assertSame('wet', $result->getActualInstance()->foodType);
+    }
+
+    public function testOneOfUnknownDiscriminatorReturnsNull(): void
+    {
+        $data = ['foodType' => 'raw', 'calories' => 300];
+        $result = PetFood::build($data);
+        $this->assertNull($result->getActualInstance());
+    }
+
+    public function testOneOfSerializesDryFood(): void
+    {
+        $data = ['foodType' => 'dry', 'weightKg' => 2.5];
+        $result = PetFood::build($data);
+        $serialized = json_encode(ObjectSerializer::serialize($result->getActualInstance()));
+        $this->assertNotFalse($serialized);
+        $this->assertStringContainsString('dry', $serialized);
+    }
+
+    // -- anyOf without discriminator: PetTreatment --
+
+    public function testAnyOfDeserializesMedication(): void
+    {
+        $data = ['drugName' => 'Amoxicillin', 'dosage' => '500mg'];
+        $result = PetTreatment::build($data);
+        $this->assertInstanceOf(Medication::class, $result->getActualInstance());
+        $this->assertSame('Amoxicillin', $result->getActualInstance()->drugName);
+    }
+
+    public function testAnyOfDeserializesSurgery(): void
+    {
+        $data = ['procedureName' => 'Spay', 'durationMinutes' => 45];
+        $result = PetTreatment::build($data);
+        $this->assertInstanceOf(Surgery::class, $result->getActualInstance());
+    }
+
+    public function testAnyOfSerializeRoundTrip(): void
+    {
+        $data = ['drugName' => 'Amoxicillin', 'dosage' => '500mg'];
+        $result = PetTreatment::build($data);
+        $serialized = json_encode(ObjectSerializer::serialize($result->getActualInstance()));
+        $this->assertNotFalse($serialized);
+        $this->assertNotEmpty($serialized);
+    }
+
+    // -- allOf: PetWithOwner --
+
     public function testAllOfDeserializesPetWithOwner(): void
     {
         $json = '{"name":"doggie","photoUrls":["http://example.com/photo.jpg"],'
@@ -26,19 +90,26 @@ class ComposedSchemaTest extends TestCase
         $this->assertSame('john@example.com', $result->ownerEmail);
     }
 
-    public function testOneOfWithDiscriminatorDeserializesDryFood(): void
+    public function testAllOfSerializesPetWithOwner(): void
     {
-        $data = ['foodType' => 'dry', 'weightKg' => 2.5];
-        $result = PetFood::build($data);
-        $this->assertInstanceOf(DryFood::class, $result->getActualInstance());
-        $this->assertSame('dry', $result->getActualInstance()->foodType);
+        $json = '{"name":"Fido","photoUrls":["http://example.com/fido.jpg"],"ownerName":"John Doe"}';
+        /** @var PetWithOwner $result */
+        $result = ObjectSerializer::deserialize($json, PetWithOwner::class);
+        $serialized = json_encode(ObjectSerializer::serialize($result));
+        $this->assertNotFalse($serialized);
+        $this->assertStringContainsString('Fido', $serialized);
+        $this->assertStringContainsString('John Doe', $serialized);
     }
 
-    public function testAnyOfDeserializesMedication(): void
+    public function testAllOfRoundTrip(): void
     {
-        $data = ['drugName' => 'Amoxicillin', 'dosage' => '500mg'];
-        $result = PetTreatment::build($data);
-        $this->assertInstanceOf(Medication::class, $result->getActualInstance());
-        $this->assertSame('Amoxicillin', $result->getActualInstance()->drugName);
+        $json = '{"name":"Buddy","photoUrls":["http://example.com/buddy.jpg"],"ownerName":"Jane Smith"}';
+        /** @var PetWithOwner $original */
+        $original = ObjectSerializer::deserialize($json, PetWithOwner::class);
+        $serialized = json_encode(ObjectSerializer::serialize($original));
+        /** @var PetWithOwner $restored */
+        $restored = ObjectSerializer::deserialize($serialized, PetWithOwner::class);
+        $this->assertSame($original->name, $restored->name);
+        $this->assertSame($original->ownerName, $restored->ownerName);
     }
 }

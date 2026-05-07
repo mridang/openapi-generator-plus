@@ -265,6 +265,29 @@ class ObjectSerializerTest {
     }
 
     @Nested
+    @DisplayName("toCookieValue")
+    class ToCookieValueTests {
+
+        @Test
+        @DisplayName("returns empty string for null")
+        void returnsEmptyStringForNull() {
+            assertEquals("", ObjectSerializer.toCookieValue(null));
+        }
+
+        @Test
+        @DisplayName("returns the string for a string value")
+        void returnsStringForStringValue() {
+            assertEquals("hello", ObjectSerializer.toCookieValue("hello"));
+        }
+
+        @Test
+        @DisplayName("converts integer to string")
+        void convertsIntegerToString() {
+            assertEquals("42", ObjectSerializer.toCookieValue(42));
+        }
+    }
+
+    @Nested
     @DisplayName("serialize")
     class SerializeTests {
 

@@ -667,6 +667,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen {
     }
 
     @SuppressWarnings("StringConcatenationMissingWhitespace")
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification = "Comparing with ASCII-only constants")
     private String generateRustAuthClass(
             String schemeName, String className, SecurityScheme scheme) {
         if (scheme.getType() == SecurityScheme.Type.HTTP) {

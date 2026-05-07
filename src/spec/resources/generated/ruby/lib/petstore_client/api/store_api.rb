@@ -9,7 +9,7 @@
 
 # rubocop:disable Lint/RedundantCopDisableDirective, Layout/LineLength
 # rubocop:disable Layout/EmptyLinesAroundModuleBody, Layout/EmptyLineBetweenDefs, Layout/EmptyLines
-# rubocop:disable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:disable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Naming/AccessorMethodName
 # rubocop:disable Style/MethodCallWithoutArgsParentheses
 # rubocop:disable Style/DefWithParentheses
 # rubocop:disable Style/StringConcatenation
@@ -164,7 +164,7 @@ module PetstoreClient
 end
 # rubocop:enable Lint/RedundantCopDisableDirective, Layout/LineLength
 # rubocop:enable Layout/EmptyLinesAroundModuleBody, Layout/EmptyLineBetweenDefs, Layout/EmptyLines
-# rubocop:enable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:enable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Naming/AccessorMethodName
 # rubocop:enable Style/MethodCallWithoutArgsParentheses
 # rubocop:enable Style/DefWithParentheses
 # rubocop:enable Style/StringConcatenation

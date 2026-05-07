@@ -5,7 +5,9 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     defstruct [:responses, :last_url, :last_body, :last_method]
 
     def new(responses) do
-      {:ok, agent} = Agent.start_link(fn -> %{responses: responses, last_url: nil, last_body: nil, last_method: nil} end)
+      {:ok, agent} =
+        Agent.start_link(fn -> %{responses: responses, last_url: nil, last_body: nil, last_method: nil} end)
+
       agent
     end
 
@@ -35,15 +37,17 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
 
   describe "OpenIdConnectAuthenticator" do
     test "builds authorization URL from discovery" do
-      fake_client = FakeApiClient.new([
-        %PetstoreClient.ApiResponse{
-          status_code: 200,
-          body: Jason.encode!(%{
-            "authorization_endpoint" => "https://auth.example.com/authorize",
-            "token_endpoint" => "https://auth.example.com/token"
-          })
-        }
-      ])
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "authorization_endpoint" => "https://auth.example.com/authorize",
+                "token_endpoint" => "https://auth.example.com/token"
+              })
+          }
+        ])
 
       auth = create_authenticator()
       auth = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
@@ -57,15 +61,17 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     end
 
     test "fetches discovery document" do
-      fake_client = FakeApiClient.new([
-        %PetstoreClient.ApiResponse{
-          status_code: 200,
-          body: Jason.encode!(%{
-            "authorization_endpoint" => "https://auth.example.com/authorize",
-            "token_endpoint" => "https://auth.example.com/token"
-          })
-        }
-      ])
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "authorization_endpoint" => "https://auth.example.com/authorize",
+                "token_endpoint" => "https://auth.example.com/token"
+              })
+          }
+        ])
 
       auth = create_authenticator()
       auth = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
@@ -77,19 +83,21 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     end
 
     test "obtains token after code exchange" do
-      fake_client = FakeApiClient.new([
-        %PetstoreClient.ApiResponse{
-          status_code: 200,
-          body: Jason.encode!(%{
-            "authorization_endpoint" => "https://auth.example.com/authorize",
-            "token_endpoint" => "https://auth.example.com/token"
-          })
-        },
-        %PetstoreClient.ApiResponse{
-          status_code: 200,
-          body: Jason.encode!(%{"access_token" => "oidc-tok", "expires_in" => 3600})
-        }
-      ])
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "authorization_endpoint" => "https://auth.example.com/authorize",
+                "token_endpoint" => "https://auth.example.com/token"
+              })
+          },
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "oidc-tok", "expires_in" => 3600})
+          }
+        ])
 
       auth = create_authenticator()
       auth = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
@@ -102,23 +110,25 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     end
 
     test "get_auth_headers returns Bearer after exchange" do
-      fake_client = FakeApiClient.new([
-        %PetstoreClient.ApiResponse{
-          status_code: 200,
-          body: Jason.encode!(%{
-            "authorization_endpoint" => "https://auth.example.com/authorize",
-            "token_endpoint" => "https://auth.example.com/token"
-          })
-        },
-        %PetstoreClient.ApiResponse{
-          status_code: 200,
-          body: Jason.encode!(%{"access_token" => "oidc-tok", "expires_in" => 3600})
-        },
-        %PetstoreClient.ApiResponse{
-          status_code: 200,
-          body: Jason.encode!(%{"access_token" => "oidc-tok", "expires_in" => 3600})
-        }
-      ])
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "authorization_endpoint" => "https://auth.example.com/authorize",
+                "token_endpoint" => "https://auth.example.com/token"
+              })
+          },
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "oidc-tok", "expires_in" => 3600})
+          },
+          %PetstoreClient.ApiResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "oidc-tok", "expires_in" => 3600})
+          }
+        ])
 
       auth = create_authenticator()
       auth = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)

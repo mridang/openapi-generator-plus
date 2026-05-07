@@ -211,6 +211,13 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("joins collection with tab for tsv")
+        fun joinsWithTabForTsv() {
+            val list = listOf("a", "b", "c")
+            assertEquals("a\tb\tc", serializer.toQueryValue(list, "tsv"))
+        }
+
+        @Test
         @DisplayName("joins collection with pipe for pipes")
         fun joinsWithPipeForPipes() {
             val list = listOf("a", "b", "c")
@@ -240,6 +247,29 @@ class ObjectSerializerTest {
         @DisplayName("converts false to \"false\"")
         fun convertsFalseToString() {
             assertEquals("false", serializer.toQueryValue(false, null))
+        }
+    }
+
+    @Nested
+    @DisplayName("toCookieValue")
+    inner class ToCookieValueTests {
+
+        @Test
+        @DisplayName("returns empty string for null")
+        fun returnsEmptyStringForNull() {
+            assertEquals("", serializer.toCookieValue(null))
+        }
+
+        @Test
+        @DisplayName("returns the string for a string value")
+        fun returnsStringForStringValue() {
+            assertEquals("hello", serializer.toCookieValue("hello"))
+        }
+
+        @Test
+        @DisplayName("converts integer to string")
+        fun convertsIntegerToString() {
+            assertEquals("42", serializer.toCookieValue(42))
         }
     }
 

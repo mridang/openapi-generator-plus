@@ -14,8 +14,7 @@ namespace Test;
 
 public class ClientTest : IDisposable
 {
-    private readonly BearerAuthenticator _authenticator =
-        new("/api/v3", "test-token");
+    private readonly BearerAuthenticator _authenticator = new("/api/v3", "test-token");
 
     public void Dispose()
     {

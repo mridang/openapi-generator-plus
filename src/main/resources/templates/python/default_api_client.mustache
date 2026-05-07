@@ -197,7 +197,11 @@ class DefaultApiClient:
             Encoded MIME part as bytes.
         """
         if hasattr(value, 'read'):
-            raw_data = value.read()
+            try:
+                raw_data = value.read()
+            finally:
+                if hasattr(value, 'close'):
+                    value.close()
             file_data: bytes = raw_data.encode('utf-8') if isinstance(raw_data, str) else raw_data
             header = (
                 f'--{boundary}\r\n'

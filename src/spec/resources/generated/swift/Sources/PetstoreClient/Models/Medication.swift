@@ -9,18 +9,17 @@ import Foundation
 
 /// Medication is a model class generated from the OpenAPI schema.
 public struct Medication: Codable, Sendable {
-    public var drugName: String
-    public var dosage: String?
+  public var drugName: String
+  public var dosage: String?
 
-    enum CodingKeys: String, CodingKey {
-        case drugName = "drugName"
-        case dosage = "dosage"
-    }
+  enum CodingKeys: String, CodingKey {
+    case drugName = "drugName"
+    case dosage = "dosage"
+  }
 
-    /// Creates a new Medication instance.
-    public init(drugName: String, dosage: String? = nil) {
-        self.drugName = drugName
-        self.dosage = dosage
-    }
+  /// Creates a new Medication instance.
+  public init(drugName: String, dosage: String? = nil) {
+    self.drugName = drugName
+    self.dosage = dosage
+  }
 }
-

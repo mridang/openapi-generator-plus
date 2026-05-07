@@ -87,7 +87,7 @@ public abstract class {{classname}}
                     {{#mappedModels}}
                     "{{mappingName}}" => JsonSerializer.Deserialize<{{modelName}}>(raw, options),
                     {{/mappedModels}}
-                    _ => throw new JsonException($"Unknown discriminator value: {discValue}")
+                    _ => null
                 };
             }
             throw new JsonException("Missing discriminator property '{{discriminator.propertyBaseName}}'");

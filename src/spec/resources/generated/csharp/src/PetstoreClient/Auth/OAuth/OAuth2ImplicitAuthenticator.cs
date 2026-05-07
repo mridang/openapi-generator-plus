@@ -40,7 +40,12 @@ public class OAuth2ImplicitAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
     /// <param name="clientId">OAuth2 client identifier.</param>
     /// <param name="authorizationUrl">Authorization endpoint URL.</param>
     /// <param name="scopes">Requested scopes.</param>
-    public OAuth2ImplicitAuthenticator(string host, string clientId, Uri authorizationUrl, string[] scopes)
+    public OAuth2ImplicitAuthenticator(
+        string host,
+        string clientId,
+        Uri authorizationUrl,
+        string[] scopes
+    )
     {
         _host = host;
         _clientId = clientId;

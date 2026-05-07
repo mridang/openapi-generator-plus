@@ -708,9 +708,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
     /** {@inheritDoc} */
     @Override
     @SuppressWarnings("StringConcatenationMissingWhitespace")
-    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
-            value = "IMPROPER_UNICODE",
-            justification = "Comparing with ASCII-only constants")
     protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
         if (openAPI.getComponents() == null
                 || openAPI.getComponents().getSecuritySchemes() == null) {
@@ -757,6 +754,9 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                 .orElse("");
     }
 
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification = "Comparing with ASCII-only constants")
     private String generatePythonAuthClass(
             String schemeName, String className, SecurityScheme scheme) {
         if (scheme.getType() == SecurityScheme.Type.HTTP) {

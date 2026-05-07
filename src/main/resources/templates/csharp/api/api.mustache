@@ -251,7 +251,7 @@ public class {{classname}} : BaseApi
 {{/isDeepObject}}
 {{^isDeepObject}}
 {{#isAllowEmptyValue}}
-        queryParams["{{baseName}}"] = options?.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null
+        queryParams["{{baseName}}"] = options!.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}} != null
             ? ValueSerializer.SerializeStyled(
                 "{{baseName}}",
                 options.{{#lambda.pascalcase}}{{paramName}}{{/lambda.pascalcase}},

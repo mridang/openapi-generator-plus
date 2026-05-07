@@ -65,8 +65,20 @@ void main() {
       expect(toQueryValue(['a', 'b', 'c'], 'ssv'), equals('a b c'));
     });
 
+    test('toQueryValue string slice TSV', () {
+      expect(toQueryValue(['a', 'b', 'c'], 'tsv'), equals('a\tb\tc'));
+    });
+
     test('toQueryValue string slice pipes', () {
       expect(toQueryValue(['a', 'b', 'c'], 'pipes'), equals('a|b|c'));
+    });
+
+    test('toQueryValue string slice multi', () {
+      expect(toQueryValue(['a', 'b', 'c'], 'multi'), equals(['a', 'b', 'c']));
+    });
+
+    test('toQueryValue int', () {
+      expect(toQueryValue(42, ''), equals('42'));
     });
 
     test('toQueryValue bool true', () {
@@ -89,6 +101,10 @@ void main() {
       expect(toHeaderValue(['a', 'b', 'c']), equals('a,b,c'));
     });
 
+    test('toHeaderValue int', () {
+      expect(toHeaderValue(42), equals('42'));
+    });
+
     test('toHeaderValue null', () {
       expect(toHeaderValue(null), equals(''));
     });
@@ -99,6 +115,30 @@ void main() {
 
     test('toFormValue int', () {
       expect(toFormValue(123), equals('123'));
+    });
+
+    test('toFormValue null', () {
+      expect(toFormValue(null), equals(''));
+    });
+
+    test('toFormValue bool true', () {
+      expect(toFormValue(true), equals('true'));
+    });
+
+    test('toFormValue bool false', () {
+      expect(toFormValue(false), equals('false'));
+    });
+
+    test('toCookieValue string', () {
+      expect(toCookieValue('hello'), equals('hello'));
+    });
+
+    test('toCookieValue null', () {
+      expect(toCookieValue(null), equals(''));
+    });
+
+    test('toCookieValue int', () {
+      expect(toCookieValue(42), equals('42'));
     });
 
     test('stringify string', () {

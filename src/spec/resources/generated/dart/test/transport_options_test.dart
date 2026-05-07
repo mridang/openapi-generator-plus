@@ -49,13 +49,18 @@ void main() {
       expect(opts.injectRequestId, isTrue);
     });
 
+    test('follow redirects defaults to true with null max redirects', () {
+      final opts = TransportOptionsBuilder().followRedirects(true).build();
+
+      expect(opts.followRedirects, isTrue);
+      expect(opts.maxRedirects, isNull);
+    });
+
     test('builder chaining', () {
       final builder = TransportOptionsBuilder();
 
-      final result = builder
-          .verifySSL(true)
-          .userAgent('Test/1.0')
-          .timeout(10000);
+      final result =
+          builder.verifySSL(true).userAgent('Test/1.0').timeout(10000);
 
       expect(result, isNotNull);
 
@@ -65,16 +70,20 @@ void main() {
     });
 
     test('multiple default headers', () {
-      final opts = TransportOptionsBuilder()
-          .defaultHeaders({
-            'X-First': 'one',
-            'X-Second': 'two',
-          })
-          .build();
+      final opts = TransportOptionsBuilder().defaultHeaders({
+        'X-First': 'one',
+        'X-Second': 'two',
+      }).build();
 
       final headers = opts.defaultHeaders;
       expect(headers['X-First'], equals('one'));
       expect(headers['X-Second'], equals('two'));
+    });
+
+    test('empty proxy is accepted', () {
+      final opts = TransportOptionsBuilder().proxy('').build();
+
+      expect(opts.proxy, isNull);
     });
 
     test('invalid proxy URL throws', () {
@@ -84,10 +93,43 @@ void main() {
       );
     });
 
-    test('default headers copy isolation', () {
+    test('accumulates headers from defaultHeader calls', () {
       final opts = TransportOptionsBuilder()
-          .defaultHeader('X-Test', 'value')
+          .defaultHeader('X-First', 'one')
+          .defaultHeader('X-Second', 'two')
           .build();
+
+      expect(opts.defaultHeaders.length, equals(2));
+      expect(opts.defaultHeaders['X-First'], equals('one'));
+      expect(opts.defaultHeaders['X-Second'], equals('two'));
+    });
+
+    test('merges headers from defaultHeaders call', () {
+      final opts = TransportOptionsBuilder()
+          .defaultHeader('X-First', 'one')
+          .defaultHeaders({
+        'X-Second': 'two',
+        'X-Third': 'three',
+      }).build();
+
+      expect(opts.defaultHeaders.length, equals(3));
+      expect(opts.defaultHeaders['X-First'], equals('one'));
+      expect(opts.defaultHeaders['X-Second'], equals('two'));
+      expect(opts.defaultHeaders['X-Third'], equals('three'));
+    });
+
+    test('builder produces independent instances', () {
+      final builder = TransportOptionsBuilder().verifySSL(false);
+      final first = builder.build();
+      final second = builder.build();
+
+      expect(first.verifySSL, equals(second.verifySSL));
+      expect(identical(first, second), isFalse);
+    });
+
+    test('default headers copy isolation', () {
+      final opts =
+          TransportOptionsBuilder().defaultHeader('X-Test', 'value').build();
 
       final headers = opts.defaultHeaders;
       headers['X-Mutated'] = 'should-not-affect-options';

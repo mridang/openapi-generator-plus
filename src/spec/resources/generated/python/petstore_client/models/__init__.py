@@ -21,7 +21,9 @@ from petstore_client.models.photo import Photo as Photo
 from petstore_client.models.photo_metadata import PhotoMetadata as PhotoMetadata
 from petstore_client.models.photo_metadata_location import PhotoMetadataLocation as PhotoMetadataLocation
 from petstore_client.models.set_pet_avatar_request import SetPetAvatarRequest as SetPetAvatarRequest
-from petstore_client.models.set_pet_avatar_thumbnail_request import SetPetAvatarThumbnailRequest as SetPetAvatarThumbnailRequest
+from petstore_client.models.set_pet_avatar_thumbnail_request import (
+    SetPetAvatarThumbnailRequest as SetPetAvatarThumbnailRequest,
+)
 from petstore_client.models.surgery import Surgery as Surgery
 from petstore_client.models.tag import Tag as Tag
 from petstore_client.models.wet_food import WetFood as WetFood

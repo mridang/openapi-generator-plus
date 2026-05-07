@@ -79,6 +79,22 @@ class TransportOptionsTest {
     }
 
     @Nested
+    @DisplayName("redirect defaults")
+    inner class RedirectDefaults {
+
+        @Test
+        @DisplayName("followRedirects defaults to true with null maxRedirects")
+        fun followRedirectsDefaultsToTrueWithNullMaxRedirects() {
+            val opts = TransportOptions.builder()
+                .followRedirects(true)
+                .build()
+
+            assertTrue(opts.followRedirects)
+            assertNull(opts.maxRedirects)
+        }
+    }
+
+    @Nested
     @DisplayName("setting all fields")
     inner class SettingAllFields {
 

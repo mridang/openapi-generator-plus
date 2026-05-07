@@ -15,10 +15,11 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   end
 
   test "client struct stores transport options" do
-    transport = PetstoreClient.TransportOptions.new(
-      user_agent: "TestAgent/1.0",
-      inject_request_id: true
-    )
+    transport =
+      PetstoreClient.TransportOptions.new(
+        user_agent: "TestAgent/1.0",
+        inject_request_id: true
+      )
 
     client = PetstoreClient.DefaultApiClient.new(transport)
     assert client.transport_options.user_agent == "TestAgent/1.0"

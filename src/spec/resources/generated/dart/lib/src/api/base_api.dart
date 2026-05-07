@@ -58,7 +58,8 @@ class BaseApi {
     Authenticator? auth,
   }) async {
     var requestUrl = path;
-    if (!requestUrl.startsWith('http://') && !requestUrl.startsWith('https://')) {
+    if (!requestUrl.startsWith('http://') &&
+        !requestUrl.startsWith('https://')) {
       requestUrl = config.baseUrl + path;
     }
 
@@ -80,7 +81,8 @@ class BaseApi {
 
     // Select headers
     final isMultipart = contentType == 'multipart/form-data';
-    final headers = _headerSelector.selectHeaders(accepts, contentType, isMultipart);
+    final headers =
+        _headerSelector.selectHeaders(accepts, contentType, isMultipart);
 
     // Merge config default headers
     headers.addAll(config.defaultHeaders);
@@ -97,9 +99,8 @@ class BaseApi {
       // Handle cookie params
       final cookies = effectiveAuth.cookieParams();
       if (cookies.isNotEmpty) {
-        final cookieParts = cookies.entries
-            .map((e) => '${e.key}=${e.value}')
-            .toList();
+        final cookieParts =
+            cookies.entries.map((e) => '${e.key}=${e.value}').toList();
         final cookieStr = cookieParts.join('; ');
         if (headers.containsKey('Cookie')) {
           headers['Cookie'] = '${headers["Cookie"]}; $cookieStr';
@@ -118,7 +119,8 @@ class BaseApi {
     if (contentType == 'multipart/form-data' && body is Map<String, Object?>) {
       final boundary = _generateUuid();
       headers['Content-Type'] = 'multipart/form-data; boundary=$boundary';
-      serializedBody = _buildMultipartBody(body as Map<String, Object?>, boundary);
+      serializedBody =
+          _buildMultipartBody(body as Map<String, Object?>, boundary);
     } else {
       serializedBody = _serializeBody(body, contentType);
     }
@@ -169,9 +171,15 @@ class BaseApi {
     );
 
     T? data;
-    if (returnType.isNotEmpty && response.body.isNotEmpty && deserialize != null) {
-      final responseContentType = response.headers['content-type'] ?? response.headers['Content-Type'] ?? '';
-      if (responseContentType.contains('application/json')) {
+    if (returnType.isNotEmpty &&
+        response.body.isNotEmpty &&
+        deserialize != null) {
+      final responseContentType = response.headers.entries
+              .where((e) => e.key.toLowerCase() == 'content-type')
+              .map((e) => e.value)
+              .firstOrNull ??
+          '';
+      if (_headerSelector.isJsonMime(responseContentType)) {
         data = deserialize(response.body);
       }
     }
@@ -215,7 +223,8 @@ class BaseApi {
       return null;
     }
 
-    if (contentType.startsWith('image/') || contentType == 'application/octet-stream') {
+    if (contentType.startsWith('image/') ||
+        contentType == 'application/octet-stream') {
       if (body is Uint8List) return body;
       if (body is List<int>) return Uint8List.fromList(body);
       if (body is String) return Uint8List.fromList(utf8.encode(body));
@@ -228,7 +237,8 @@ class BaseApi {
     if (contentType == 'application/x-www-form-urlencoded') {
       if (body is Map<String, String>) {
         final values = body.entries
-            .map((e) => '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+            .map((e) =>
+                '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
             .join('&');
         return Uint8List.fromList(utf8.encode(values));
       }
@@ -242,7 +252,8 @@ class BaseApi {
   /// Each entry value may be a `List<int>` (binary), a `List` (repeated
   /// field), or any other value which is converted to its string
   /// representation.
-  static Uint8List _buildMultipartBody(Map<String, Object?> formFields, String boundary) {
+  static Uint8List _buildMultipartBody(
+      Map<String, Object?> formFields, String boundary) {
     final parts = <List<int>>[];
 
     for (final entry in formFields.entries) {
@@ -338,33 +349,51 @@ class BaseApi {
       switch (code) {
         case 400:
           return BadRequestError(
-            statusCode: code, message: msg, responseBody: body,
-            responseHeaders: response.headers, errorBody: parsed,
+            statusCode: code,
+            message: msg,
+            responseBody: body,
+            responseHeaders: response.headers,
+            errorBody: parsed,
           );
         case 401:
           return UnauthorizedError(
-            statusCode: code, message: msg, responseBody: body,
-            responseHeaders: response.headers, errorBody: parsed,
+            statusCode: code,
+            message: msg,
+            responseBody: body,
+            responseHeaders: response.headers,
+            errorBody: parsed,
           );
         case 403:
           return ForbiddenError(
-            statusCode: code, message: msg, responseBody: body,
-            responseHeaders: response.headers, errorBody: parsed,
+            statusCode: code,
+            message: msg,
+            responseBody: body,
+            responseHeaders: response.headers,
+            errorBody: parsed,
           );
         case 404:
           return NotFoundError(
-            statusCode: code, message: msg, responseBody: body,
-            responseHeaders: response.headers, errorBody: parsed,
+            statusCode: code,
+            message: msg,
+            responseBody: body,
+            responseHeaders: response.headers,
+            errorBody: parsed,
           );
         case 409:
           return ConflictError(
-            statusCode: code, message: msg, responseBody: body,
-            responseHeaders: response.headers, errorBody: parsed,
+            statusCode: code,
+            message: msg,
+            responseBody: body,
+            responseHeaders: response.headers,
+            errorBody: parsed,
           );
         case 422:
           return UnprocessableEntityError(
-            statusCode: code, message: msg, responseBody: body,
-            responseHeaders: response.headers, errorBody: parsed,
+            statusCode: code,
+            message: msg,
+            responseBody: body,
+            responseHeaders: response.headers,
+            errorBody: parsed,
           );
         default:
           return clientErr;
@@ -382,8 +411,11 @@ class BaseApi {
       switch (code) {
         case 500:
           return InternalServerError(
-            statusCode: code, message: msg, responseBody: body,
-            responseHeaders: response.headers, errorBody: parsed,
+            statusCode: code,
+            message: msg,
+            responseBody: body,
+            responseHeaders: response.headers,
+            errorBody: parsed,
           );
         default:
           return serverErr;

@@ -7,8 +7,9 @@
 
 import Foundation
 import Security
+
 #if canImport(FoundationNetworking)
-import FoundationNetworking
+  import FoundationNetworking
 #endif
 
 /// DefaultApiClient is the default HTTP client implementation backed by URLSession.
@@ -24,121 +25,124 @@ import FoundationNetworking
 ///  3. TransportOptions.userAgent -- injected if not already set
 ///  4. TransportOptions.injectRequestID -- injected if not already set
 public final class DefaultApiClient: ApiClient, @unchecked Sendable {
-    private let transportOptions: TransportOptions
-    private let session: URLSession
-    private let sessionDelegate: SessionDelegate?
+  private let transportOptions: TransportOptions
+  private let session: URLSession
+  private let sessionDelegate: SessionDelegate?
 
-    /// Creates a client with the given transport settings.
-    /// If transportOptions is nil, default transport settings are used.
-    public init(transportOptions: TransportOptions? = nil) {
-        let opts = transportOptions ?? TransportOptionsBuilder().build()
-        self.transportOptions = opts
-        let (session, delegate) = DefaultApiClient.buildSession(opts)
-        self.session = session
-        self.sessionDelegate = delegate
+  /// Creates a client with the given transport settings.
+  /// If transportOptions is nil, default transport settings are used.
+  public init(transportOptions: TransportOptions? = nil) {
+    let opts = transportOptions ?? TransportOptionsBuilder().build()
+    self.transportOptions = opts
+    let (session, delegate) = DefaultApiClient.buildSession(opts)
+    self.session = session
+    self.sessionDelegate = delegate
+  }
+
+  /// Sends an HTTP request with transport-level settings applied.
+  ///
+  /// Merges headers according to the priority order documented on the class,
+  /// then dispatches via URLSession.
+  public func sendRequest(method: String, url: String, headers: [String: String], body: Data?)
+    async throws -> ApiResponse
+  {
+    guard let requestURL = URL(string: url) else {
+      throw URLError(.badURL)
     }
 
-    /// Sends an HTTP request with transport-level settings applied.
-    ///
-    /// Merges headers according to the priority order documented on the class,
-    /// then dispatches via URLSession.
-    public func sendRequest(method: String, url: String, headers: [String: String], body: Data?) async throws -> ApiResponse {
-        guard let requestURL = URL(string: url) else {
-            throw URLError(.badURL)
-        }
-
-        var merged: [String: String] = [:]
-        for (k, v) in transportOptions.defaultHeaders {
-            merged[k] = v
-        }
-        for (k, v) in headers {
-            merged[k] = v
-        }
-        if merged["User-Agent"] == nil && !transportOptions.userAgent.isEmpty {
-            merged["User-Agent"] = transportOptions.userAgent
-        }
-        if merged["X-Request-ID"] == nil && transportOptions.injectRequestID {
-            merged["X-Request-ID"] = UUID().uuidString
-        }
-        if merged["Accept-Encoding"] == nil {
-            merged["Accept-Encoding"] = "gzip, deflate"
-        }
-
-        var request = URLRequest(url: requestURL)
-        request.httpMethod = method
-        request.httpBody = body
-
-        for (k, v) in merged {
-            request.setValue(v, forHTTPHeaderField: k)
-        }
-
-        let (data, response) = try await session.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw URLError(.badServerResponse)
-        }
-
-        var respHeaders: [String: String] = [:]
-        for (key, value) in httpResponse.allHeaderFields {
-            if let k = key as? String, let v = value as? String {
-                respHeaders[k] = v
-            }
-        }
-
-        return ApiResponse(
-            statusCode: httpResponse.statusCode,
-            body: String(data: data, encoding: .utf8) ?? "",
-            headers: respHeaders
-        )
+    var merged: [String: String] = [:]
+    for (k, v) in transportOptions.defaultHeaders {
+      merged[k] = v
+    }
+    for (k, v) in headers {
+      merged[k] = v
+    }
+    if merged["User-Agent"] == nil && !transportOptions.userAgent.isEmpty {
+      merged["User-Agent"] = transportOptions.userAgent
+    }
+    if merged["X-Request-ID"] == nil && transportOptions.injectRequestID {
+      merged["X-Request-ID"] = UUID().uuidString
+    }
+    if merged["Accept-Encoding"] == nil {
+      merged["Accept-Encoding"] = "gzip, deflate"
     }
 
-    /// Returns the underlying URLSession for use by HTTP-aware authenticators.
-    public var urlSession: URLSession {
-        return session
+    var request = URLRequest(url: requestURL)
+    request.httpMethod = method
+    request.httpBody = body
+
+    for (k, v) in merged {
+      request.setValue(v, forHTTPHeaderField: k)
     }
 
-    private static func buildSession(_ opts: TransportOptions) -> (URLSession, SessionDelegate?) {
-        let config = URLSessionConfiguration.default
+    let (data, response) = try await session.data(for: request)
 
-        if let timeout = opts.timeout {
-            let seconds = TimeInterval(timeout) / 1000.0
-            config.timeoutIntervalForRequest = seconds
-            config.timeoutIntervalForResource = seconds
-        }
+    guard let httpResponse = response as? HTTPURLResponse else {
+      throw URLError(.badServerResponse)
+    }
 
-        if let proxy = opts.proxy {
-            var proxyDict: [AnyHashable: Any] = [:]
-            let scheme = proxy.scheme ?? "http"
-            if scheme == "https" {
-                proxyDict[kCFNetworkProxiesHTTPSEnable] = true
-                proxyDict[kCFNetworkProxiesHTTPSProxy] = proxy.host
-                proxyDict[kCFNetworkProxiesHTTPSPort] = proxy.port ?? 443
-            } else {
-                proxyDict[kCFNetworkProxiesHTTPEnable] = true
-                proxyDict[kCFNetworkProxiesHTTPProxy] = proxy.host
-                proxyDict[kCFNetworkProxiesHTTPPort] = proxy.port ?? 8080
-            }
-            config.connectionProxyDictionary = proxyDict
-        }
+    var respHeaders: [String: String] = [:]
+    for (key, value) in httpResponse.allHeaderFields {
+      if let k = key as? String, let v = value as? String {
+        respHeaders[k] = v
+      }
+    }
 
-        /* A session delegate is used when SSL verification is disabled, a
+    return ApiResponse(
+      statusCode: httpResponse.statusCode,
+      body: String(data: data, encoding: .utf8) ?? "",
+      headers: respHeaders
+    )
+  }
+
+  /// Returns the underlying URLSession for use by HTTP-aware authenticators.
+  public var urlSession: URLSession {
+    return session
+  }
+
+  private static func buildSession(_ opts: TransportOptions) -> (URLSession, SessionDelegate?) {
+    let config = URLSessionConfiguration.default
+
+    if let timeout = opts.timeout {
+      let seconds = TimeInterval(timeout) / 1000.0
+      config.timeoutIntervalForRequest = seconds
+      config.timeoutIntervalForResource = seconds
+    }
+
+    if let proxy = opts.proxy {
+      var proxyDict: [AnyHashable: Any] = [:]
+      let scheme = proxy.scheme ?? "http"
+      if scheme == "https" {
+        proxyDict[kCFNetworkProxiesHTTPSEnable] = true
+        proxyDict[kCFNetworkProxiesHTTPSProxy] = proxy.host
+        proxyDict[kCFNetworkProxiesHTTPSPort] = proxy.port ?? 443
+      } else {
+        proxyDict[kCFNetworkProxiesHTTPEnable] = true
+        proxyDict[kCFNetworkProxiesHTTPProxy] = proxy.host
+        proxyDict[kCFNetworkProxiesHTTPPort] = proxy.port ?? 8080
+      }
+      config.connectionProxyDictionary = proxyDict
+    }
+
+    /* A session delegate is used when SSL verification is disabled, a
          * custom CA certificate is configured, or redirect control is needed. */
-        let needsDelegate = !opts.verifySSL
-            || opts.caCertPath != nil
-            || !opts.followRedirects
-            || opts.maxRedirects != nil
-        if needsDelegate {
-            let delegate = SessionDelegate(
-                verifySSL: opts.verifySSL,
-                caCertPath: opts.caCertPath,
-                followRedirects: opts.followRedirects,
-                maxRedirects: opts.maxRedirects ?? 0
-            )
-            return (URLSession(configuration: config, delegate: delegate, delegateQueue: nil), delegate)
-        }
-
-        return (URLSession(configuration: config), nil)
+    let needsDelegate =
+      !opts.verifySSL
+      || opts.caCertPath != nil
+      || !opts.followRedirects
+      || opts.maxRedirects != nil
+    if needsDelegate {
+      let delegate = SessionDelegate(
+        verifySSL: opts.verifySSL,
+        caCertPath: opts.caCertPath,
+        followRedirects: opts.followRedirects,
+        maxRedirects: opts.maxRedirects
+      )
+      return (URLSession(configuration: config, delegate: delegate, delegateQueue: nil), delegate)
     }
+
+    return (URLSession(configuration: config), nil)
+  }
 }
 
 /// URLSession delegate that handles custom TLS trust evaluation and redirect control.
@@ -148,95 +152,99 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 /// is disabled, the delegate accepts all server certificates unconditionally.
 ///
 /// When ``followRedirects`` is false, the delegate stops all HTTP 3xx redirects.
-/// When ``maxRedirects`` is greater than zero, the delegate limits the number
-/// of consecutive redirects before stopping.
-private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegate, @unchecked Sendable {
-    private let verifySSL: Bool
-    private let caCertPath: String?
-    private let followRedirects: Bool
-    private let maxRedirects: Int
-    private let redirectCount = LockedCounter()
+/// When ``maxRedirects`` is set, the delegate limits the number of consecutive
+/// redirects before stopping. A value of 0 means no redirects are followed.
+private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegate,
+  @unchecked Sendable
+{
+  private let verifySSL: Bool
+  private let caCertPath: String?
+  private let followRedirects: Bool
+  private let maxRedirects: Int?
+  private let redirectCount = LockedCounter()
 
-    init(verifySSL: Bool, caCertPath: String?, followRedirects: Bool, maxRedirects: Int) {
-        self.verifySSL = verifySSL
-        self.caCertPath = caCertPath
-        self.followRedirects = followRedirects
-        self.maxRedirects = maxRedirects
-        super.init()
+  init(verifySSL: Bool, caCertPath: String?, followRedirects: Bool, maxRedirects: Int?) {
+    self.verifySSL = verifySSL
+    self.caCertPath = caCertPath
+    self.followRedirects = followRedirects
+    self.maxRedirects = maxRedirects
+    super.init()
+  }
+
+  func urlSession(
+    _ session: URLSession,
+    didReceive challenge: URLAuthenticationChallenge,
+    completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+  ) {
+    guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+      let serverTrust = challenge.protectionSpace.serverTrust
+    else {
+      completionHandler(.performDefaultHandling, nil)
+      return
     }
 
-    func urlSession(
-        _ session: URLSession,
-        didReceive challenge: URLAuthenticationChallenge,
-        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
-    ) {
-        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
-              let serverTrust = challenge.protectionSpace.serverTrust else {
-            completionHandler(.performDefaultHandling, nil)
-            return
-        }
+    /* When SSL verification is disabled, accept any certificate. */
+    if !verifySSL {
+      completionHandler(.useCredential, URLCredential(trust: serverTrust))
+      return
+    }
 
-        /* When SSL verification is disabled, accept any certificate. */
-        if !verifySSL {
-            completionHandler(.useCredential, URLCredential(trust: serverTrust))
-            return
-        }
-
-        /* When a custom CA certificate path is configured, load the certificate
+    /* When a custom CA certificate path is configured, load the certificate
          * and set it as the sole anchor for trust evaluation. */
-        if let path = caCertPath {
-            guard let certData = try? Data(contentsOf: URL(fileURLWithPath: path)),
-                  let certificate = SecCertificateCreateWithData(nil, certData as CFData) else {
-                completionHandler(.cancelAuthenticationChallenge, nil)
-                return
-            }
+    if let path = caCertPath {
+      guard let certData = try? Data(contentsOf: URL(fileURLWithPath: path)),
+        let certificate = SecCertificateCreateWithData(nil, certData as CFData)
+      else {
+        completionHandler(.cancelAuthenticationChallenge, nil)
+        return
+      }
 
-            SecTrustSetAnchorCertificates(serverTrust, [certificate] as CFArray)
-            SecTrustSetAnchorCertificatesOnly(serverTrust, true)
+      SecTrustSetAnchorCertificates(serverTrust, [certificate] as CFArray)
+      SecTrustSetAnchorCertificatesOnly(serverTrust, true)
 
-            var error: CFError?
-            if SecTrustEvaluateWithError(serverTrust, &error) {
-                completionHandler(.useCredential, URLCredential(trust: serverTrust))
-            } else {
-                completionHandler(.cancelAuthenticationChallenge, nil)
-            }
-            return
-        }
-
-        completionHandler(.performDefaultHandling, nil)
+      var error: CFError?
+      if SecTrustEvaluateWithError(serverTrust, &error) {
+        completionHandler(.useCredential, URLCredential(trust: serverTrust))
+      } else {
+        completionHandler(.cancelAuthenticationChallenge, nil)
+      }
+      return
     }
 
-    func urlSession(
-        _ session: URLSession,
-        task: URLSessionTask,
-        willPerformHTTPRedirection response: HTTPURLResponse,
-        newRequest request: URLRequest,
-        completionHandler: @escaping (URLRequest?) -> Void
-    ) {
-        if !followRedirects {
-            completionHandler(nil)
-            return
-        }
-        if maxRedirects > 0 {
-            let count = redirectCount.increment()
-            if count > maxRedirects {
-                completionHandler(nil)
-                return
-            }
-        }
-        completionHandler(request)
+    completionHandler(.performDefaultHandling, nil)
+  }
+
+  func urlSession(
+    _ session: URLSession,
+    task: URLSessionTask,
+    willPerformHTTPRedirection response: HTTPURLResponse,
+    newRequest request: URLRequest,
+    completionHandler: @escaping (URLRequest?) -> Void
+  ) {
+    if !followRedirects {
+      completionHandler(nil)
+      return
     }
+    if let limit = maxRedirects {
+      let count = redirectCount.increment()
+      if count > limit {
+        completionHandler(nil)
+        return
+      }
+    }
+    completionHandler(request)
+  }
 }
 
 /// Thread-safe counter used by ``SessionDelegate`` to track redirect hops.
 private final class LockedCounter: @unchecked Sendable {
-    private var value: Int = 0
-    private let lock = NSLock()
+  private var value: Int = 0
+  private let lock = NSLock()
 
-    func increment() -> Int {
-        lock.lock()
-        defer { lock.unlock() }
-        value += 1
-        return value
-    }
+  func increment() -> Int {
+    lock.lock()
+    defer { lock.unlock() }
+    value += 1
+    return value
+  }
 }

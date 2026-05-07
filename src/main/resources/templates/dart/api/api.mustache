@@ -47,7 +47,7 @@ class {{serverTypeName}}{{variantName}} extends {{serverTypeName}} {
   String getUrl() {
     var url = '{{url}}';
 {{#serverVariables}}
-    url = url.replaceAll('{{{name}}}', {{#hasEnumValues}}_{{camelName}}.value{{/hasEnumValues}}{{^hasEnumValues}}_{{camelName}}{{/hasEnumValues}});
+    url = url.replaceAll('{' + '{{{name}}}' + '}', {{#hasEnumValues}}_{{camelName}}.value{{/hasEnumValues}}{{^hasEnumValues}}_{{camelName}}{{/hasEnumValues}});
 {{/serverVariables}}
     return url;
   }
@@ -95,7 +95,7 @@ class {{classname}} extends BaseApi {
 
     var path = '{{{path}}}';
 {{#pathParams}}
-    path = path.replaceAll('{{{baseName}}}', '${serializeStyled('{{baseName}}', {{paramName}}, 'path', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}');
+    path = path.replaceAll('{' + '{{{baseName}}}' + '}', '${serializeStyled('{{baseName}}', {{paramName}}, 'path', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}');
 {{/pathParams}}
 {{#servers}}
 {{#-first}}
@@ -110,6 +110,16 @@ class {{classname}} extends BaseApi {
 
     final queryParams = <String, Object?>{};
 {{#queryParams}}
+{{#isAllowEmptyValue}}
+    if (options != null) {
+      if (options.{{paramName}} != null) {
+        queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
+      } else {
+        queryParams['{{baseName}}'] = '';
+      }
+    }
+{{/isAllowEmptyValue}}
+{{^isAllowEmptyValue}}
     if (options != null && options.{{paramName}} != null) {
 {{#isDeepObject}}
       serializeDeepObject('{{baseName}}', options.{{paramName}} as Map<String, Object?>?).forEach((k, v) {
@@ -121,19 +131,11 @@ class {{classname}} extends BaseApi {
       queryParams['{{baseName}}'] = jsonEncode(options.{{paramName}});
 {{/content}}
 {{^content}}
-{{#isAllowEmptyValue}}
-    if (options != null && options.{{paramName}} != null) {
       queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
-    } else {
-      queryParams['{{baseName}}'] = '';
-    }
-{{/isAllowEmptyValue}}
-{{^isAllowEmptyValue}}
-      queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
-{{/isAllowEmptyValue}}
 {{/content}}
 {{/isDeepObject}}
     }
+{{/isAllowEmptyValue}}
 {{/queryParams}}
 
     final headerParams = <String, String>{};

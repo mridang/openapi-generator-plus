@@ -32,7 +32,6 @@ from .options.upload_pet_certificate_options import UploadPetCertificateOptions
 from .options.upload_pet_document_options import UploadPetDocumentOptions
 
 
-
 class GetExternalPetInfoServer(ABC):
     """Server type for the get_external_pet_info operation."""
 
@@ -43,13 +42,13 @@ class GetExternalPetInfoServer(ABC):
 
 
 class GetExternalPetInfoServerServer0(GetExternalPetInfoServer):
-
     def __init__(self) -> None:
         pass
 
     def get_url(self) -> str:
         url = 'https://external-api.example.com/v1'
         return url
+
 
 class GetMultiServerPetInfoServer(ABC):
     """Server type for the get_multi_server_pet_info operation."""
@@ -58,7 +57,6 @@ class GetMultiServerPetInfoServer(ABC):
     def get_url(self) -> str:
         """Returns the server URL."""
         ...
-
 
 
 class GetMultiServerPetInfoServerRegion(str, Enum):
@@ -77,6 +75,7 @@ class GetMultiServerPetInfoServerPrimary(GetMultiServerPetInfoServer):
         url = 'https://primary.example.com/v1'
         return url
 
+
 class GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServer):
     """Regional"""
 
@@ -87,6 +86,7 @@ class GetMultiServerPetInfoServerRegional(GetMultiServerPetInfoServer):
         url = 'https://{region}.example.com/v1'
         url = url.replace('{' + 'region' + '}', self._region.value)
         return url
+
 
 class GetPetByIdServer(ABC):
     """Server type for the get_pet_by_id operation."""
@@ -106,6 +106,7 @@ class GetPetByIdServerCDNBackedReadEndpointForPetDetails(GetPetByIdServer):
     def get_url(self) -> str:
         url = 'https://cdn.petstore.io/v3'
         return url
+
 
 class GetStagingPetInfoServer(ABC):
     """Server type for the get_staging_pet_info operation."""
@@ -129,7 +130,9 @@ class GetStagingPetInfoServerVersion(str, Enum):
 class GetStagingPetInfoServerStagingServer(GetStagingPetInfoServer):
     """Staging server"""
 
-    def __init__(self, environment: GetStagingPetInfoServerEnvironment, version: GetStagingPetInfoServerVersion) -> None:
+    def __init__(
+        self, environment: GetStagingPetInfoServerEnvironment, version: GetStagingPetInfoServerVersion
+    ) -> None:
         self._environment = environment
         self._version = version
 
@@ -138,6 +141,7 @@ class GetStagingPetInfoServerStagingServer(GetStagingPetInfoServer):
         url = url.replace('{' + 'environment' + '}', self._environment.value)
         url = url.replace('{' + 'version' + '}', self._version.value)
         return url
+
 
 class PetApi(BaseApi):
     """PetApi provides methods for the pet API group.
@@ -159,8 +163,6 @@ class PetApi(BaseApi):
         self,
         auth: Authenticator,
         pet: Pet,
-
-
     ) -> Pet:
         """Add a new pet to the store
         :param auth: authenticator for this operation
@@ -180,8 +182,6 @@ class PetApi(BaseApi):
         self,
         auth: Authenticator,
         pet: Pet,
-
-
     ) -> 'ApiResult[Pet]':
         """Add a new pet to the store (with HTTP info)
         :param auth: authenticator for this operation
@@ -213,10 +213,7 @@ class PetApi(BaseApi):
     async def add_pet_photos(
         self,
         pet_id: int,
-
         options: Optional[AddPetPhotosOptions] = None,
-
-
     ) -> List[Photo]:
         """Add photos to the pet&#39;s gallery
         Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
@@ -243,10 +240,7 @@ class PetApi(BaseApi):
     async def add_pet_photos_with_http_info(
         self,
         pet_id: int,
-
         options: Optional[AddPetPhotosOptions] = None,
-
-
     ) -> 'ApiResult[List[Photo]]':
         """Add photos to the pet&#39;s gallery (with HTTP info)
         Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
@@ -267,7 +261,10 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'metadata'")
 
         path = '/pet/{petId}/photos'
-        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)))
+        path = path.replace(
+            '{' + 'petId' + '}',
+            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+        )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body: Dict[str, Any] = {}
@@ -293,8 +290,6 @@ class PetApi(BaseApi):
         auth: Authenticator,
         pet_id: int,
         pet_treatment: PetTreatment,
-
-
     ) -> PetTreatment:
         """Record a treatment for a pet
         :param auth: authenticator for this operation
@@ -319,8 +314,6 @@ class PetApi(BaseApi):
         auth: Authenticator,
         pet_id: int,
         pet_treatment: PetTreatment,
-
-
     ) -> 'ApiResult[PetTreatment]':
         """Record a treatment for a pet (with HTTP info)
         :param auth: authenticator for this operation
@@ -337,7 +330,10 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_treatment'")
 
         path = '/pet/{petId}/treatment'
-        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)))
+        path = path.replace(
+            '{' + 'petId' + '}',
+            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+        )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = pet_treatment
@@ -358,10 +354,7 @@ class PetApi(BaseApi):
         self,
         auth: Authenticator,
         pet_id: int,
-
         options: Optional[DeletePetOptions] = None,
-
-
     ) -> None:
         """Deletes a pet
         :param auth: authenticator for this operation
@@ -381,10 +374,7 @@ class PetApi(BaseApi):
         self,
         auth: Authenticator,
         pet_id: int,
-
         options: Optional[DeletePetOptions] = None,
-
-
     ) -> 'ApiResult[None]':
         """Deletes a pet (with HTTP info)
         :param auth: authenticator for this operation
@@ -399,12 +389,17 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}'
-        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)))
+        path = path.replace(
+            '{' + 'petId' + '}',
+            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+        )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         cookie_parts = []
         if options is not None and options.api_key is not None:
-            cookie_parts.append(f'api_key={ValueSerializer.serialize_styled("api_key", options.api_key, "cookie", "str", None, "form", True)}')
+            cookie_parts.append(
+                f'api_key={ValueSerializer.serialize_styled("api_key", options.api_key, "cookie", "str", None, "form", True)}'
+            )
         if cookie_parts:
             header_params['Cookie'] = '; '.join(cookie_parts)
         body = None
@@ -425,8 +420,6 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         document_id: int,
-
-
     ) -> bytes:
         """Download a vet document
         Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
@@ -450,8 +443,6 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         document_id: int,
-
-
     ) -> 'ApiResult[bytes]':
         """Download a vet document (with HTTP info)
         Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
@@ -468,8 +459,14 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'document_id'")
 
         path = '/pet/{petId}/documents/{documentId}'
-        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)))
-        path = path.replace('{' + 'documentId' + '}', str(ValueSerializer.serialize_styled('documentId', document_id, 'path', 'int', None, 'simple', False)))
+        path = path.replace(
+            '{' + 'petId' + '}',
+            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+        )
+        path = path.replace(
+            '{' + 'documentId' + '}',
+            str(ValueSerializer.serialize_styled('documentId', document_id, 'path', 'int', None, 'simple', False)),
+        )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -488,10 +485,7 @@ class PetApi(BaseApi):
 
     async def find_pets_by_status(
         self,
-
         options: Optional[FindPetsByStatusOptions] = None,
-
-
     ) -> List[Pet]:
         """Finds Pets by status
 
@@ -510,10 +504,7 @@ class PetApi(BaseApi):
 
     async def find_pets_by_status_with_http_info(
         self,
-
         options: Optional[FindPetsByStatusOptions] = None,
-
-
     ) -> 'ApiResult[List[Pet]]':
         """Finds Pets by status (with HTTP info)
 
@@ -524,10 +515,13 @@ class PetApi(BaseApi):
         """
         path = '/pet/findByStatus'
         query_params: Dict[str, Any] = {}
-        if options is not None and options.status is not None:
-            query_params['status'] = ValueSerializer.serialize_styled('status', options.status, 'query', 'str', None, 'form', True)
-        else:
-            query_params['status'] = ''
+        if options is not None:
+            if options.status is not None:
+                query_params['status'] = ValueSerializer.serialize_styled(
+                    'status', options.status, 'query', 'str', None, 'form', True
+                )
+            else:
+                query_params['status'] = ''
         if options is not None and options.filter is not None:
             query_params.update(ValueSerializer.serialize_deep_object('filter', options.filter))
         header_params: Dict[str, str] = {}
@@ -548,10 +542,7 @@ class PetApi(BaseApi):
     async def get_external_pet_info(
         self,
         pet_id: int,
-
-
         server: Optional['GetExternalPetInfoServer'] = None,
-
     ) -> Pet:
         """Get external pet info
         :param pet_id:  (required)
@@ -569,10 +560,7 @@ class PetApi(BaseApi):
     async def get_external_pet_info_with_http_info(
         self,
         pet_id: int,
-
-
         server: Optional['GetExternalPetInfoServer'] = None,
-
     ) -> 'ApiResult[Pet]':
         """Get external pet info (with HTTP info)
         :param pet_id:  (required)
@@ -584,7 +572,10 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}/external'
-        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)))
+        path = path.replace(
+            '{' + 'petId' + '}',
+            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+        )
         if server is not None:
             _server_url = server.get_url()
             if _server_url.startswith('http://') or _server_url.startswith('https://'):
@@ -608,10 +599,7 @@ class PetApi(BaseApi):
     async def get_multi_server_pet_info(
         self,
         pet_id: int,
-
-
         server: Optional['GetMultiServerPetInfoServer'] = None,
-
     ) -> Pet:
         """Get multi-server pet info
         :param pet_id:  (required)
@@ -629,10 +617,7 @@ class PetApi(BaseApi):
     async def get_multi_server_pet_info_with_http_info(
         self,
         pet_id: int,
-
-
         server: Optional['GetMultiServerPetInfoServer'] = None,
-
     ) -> 'ApiResult[Pet]':
         """Get multi-server pet info (with HTTP info)
         :param pet_id:  (required)
@@ -644,7 +629,10 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}/multi'
-        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)))
+        path = path.replace(
+            '{' + 'petId' + '}',
+            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+        )
         if server is not None:
             _server_url = server.get_url()
             if _server_url.startswith('http://') or _server_url.startswith('https://'):
@@ -668,8 +656,6 @@ class PetApi(BaseApi):
     async def get_pet_avatar(
         self,
         pet_id: int,
-
-
     ) -> bytes:
         """Get the pet&#39;s profile photo
         Returns the raw image bytes of the pet&#39;s current avatar.
@@ -688,8 +674,6 @@ class PetApi(BaseApi):
     async def get_pet_avatar_with_http_info(
         self,
         pet_id: int,
-
-
     ) -> 'ApiResult[bytes]':
         """Get the pet&#39;s profile photo (with HTTP info)
         Returns the raw image bytes of the pet&#39;s current avatar.
@@ -702,7 +686,10 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}/avatar'
-        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)))
+        path = path.replace(
+            '{' + 'petId' + '}',
+            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+        )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -722,8 +709,6 @@ class PetApi(BaseApi):
     async def get_pet_avatar_thumbnail(
         self,
         pet_id: int,
-
-
     ) -> bytes:
         """Get the pet&#39;s avatar thumbnail as base64
         Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
@@ -742,8 +727,6 @@ class PetApi(BaseApi):
     async def get_pet_avatar_thumbnail_with_http_info(
         self,
         pet_id: int,
-
-
     ) -> 'ApiResult[bytes]':
         """Get the pet&#39;s avatar thumbnail as base64 (with HTTP info)
         Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
@@ -756,7 +739,10 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}/avatar/thumbnail'
-        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)))
+        path = path.replace(
+            '{' + 'petId' + '}',
+            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+        )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -776,10 +762,7 @@ class PetApi(BaseApi):
     async def get_pet_by_id(
         self,
         pet_id: int,
-
-
         server: Optional['GetPetByIdServer'] = None,
-
     ) -> Pet:
         """Find pet by ID
         Returns a single pet
@@ -800,10 +783,7 @@ class PetApi(BaseApi):
     async def get_pet_by_id_with_http_info(
         self,
         pet_id: int,
-
-
         server: Optional['GetPetByIdServer'] = None,
-
     ) -> 'ApiResult[Pet]':
         """Find pet by ID (with HTTP info)
         Returns a single pet
@@ -816,7 +796,10 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}'
-        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)))
+        path = path.replace(
+            '{' + 'petId' + '}',
+            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+        )
         if server is not None:
             _server_url = server.get_url()
             if _server_url.startswith('http://') or _server_url.startswith('https://'):
@@ -840,8 +823,6 @@ class PetApi(BaseApi):
     async def get_pet_passport(
         self,
         pet_id: int,
-
-
     ) -> PetPassport:
         """Get the pet&#39;s passport
         Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
@@ -860,8 +841,6 @@ class PetApi(BaseApi):
     async def get_pet_passport_with_http_info(
         self,
         pet_id: int,
-
-
     ) -> 'ApiResult[PetPassport]':
         """Get the pet&#39;s passport (with HTTP info)
         Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
@@ -874,7 +853,10 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}/passport'
-        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)))
+        path = path.replace(
+            '{' + 'petId' + '}',
+            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+        )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -895,8 +877,6 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         photo_id: int,
-
-
     ) -> bytes:
         """Get a photo or its metadata
         Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
@@ -920,8 +900,6 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         photo_id: int,
-
-
     ) -> 'ApiResult[bytes]':
         """Get a photo or its metadata (with HTTP info)
         Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
@@ -938,8 +916,14 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'photo_id'")
 
         path = '/pet/{petId}/photos/{photoId}'
-        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)))
-        path = path.replace('{' + 'photoId' + '}', str(ValueSerializer.serialize_styled('photoId', photo_id, 'path', 'int', None, 'simple', False)))
+        path = path.replace(
+            '{' + 'petId' + '}',
+            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+        )
+        path = path.replace(
+            '{' + 'photoId' + '}',
+            str(ValueSerializer.serialize_styled('photoId', photo_id, 'path', 'int', None, 'simple', False)),
+        )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -960,10 +944,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         tag_name: str,
-
         options: Optional[GetPetTagOptions] = None,
-
-
     ) -> Pet:
         """Get a tag for a pet
         :param pet_id:  (required)
@@ -988,10 +969,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         tag_name: str,
-
         options: Optional[GetPetTagOptions] = None,
-
-
     ) -> 'ApiResult[Pet]':
         """Get a tag for a pet (with HTTP info)
         :param pet_id:  (required)
@@ -1009,17 +987,30 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'tag_name'")
 
         path = '/pet/{petId}/tag/{tagName}'
-        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'matrix', False)))
-        path = path.replace('{' + 'tagName' + '}', str(ValueSerializer.serialize_styled('tagName', tag_name, 'path', 'str', None, 'label', False)))
+        path = path.replace(
+            '{' + 'petId' + '}',
+            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'matrix', False)),
+        )
+        path = path.replace(
+            '{' + 'tagName' + '}',
+            str(ValueSerializer.serialize_styled('tagName', tag_name, 'path', 'str', None, 'label', False)),
+        )
         query_params: Dict[str, Any] = {}
         if options is not None and options.colors is not None:
-            query_params['colors'] = ValueSerializer.serialize_styled('colors', options.colors, 'query', 'List[str]', 'pipes', 'pipeDelimited', False)
+            query_params['colors'] = ValueSerializer.serialize_styled(
+                'colors', options.colors, 'query', 'List[str]', 'pipes', 'pipeDelimited', False
+            )
         if options is not None and options.sizes is not None:
-            query_params['sizes'] = ValueSerializer.serialize_styled('sizes', options.sizes, 'query', 'List[str]', 'ssv', 'spaceDelimited', False)
-        if options is not None and options.filter is not None:
-            query_params['filter'] = ValueSerializer.serialize_styled('filter', options.filter, 'query', 'str', None, 'form', True)
-        else:
-            query_params['filter'] = ''
+            query_params['sizes'] = ValueSerializer.serialize_styled(
+                'sizes', options.sizes, 'query', 'List[str]', 'ssv', 'spaceDelimited', False
+            )
+        if options is not None:
+            if options.filter is not None:
+                query_params['filter'] = ValueSerializer.serialize_styled(
+                    'filter', options.filter, 'query', 'str', None, 'form', True
+                )
+            else:
+                query_params['filter'] = ''
         header_params: Dict[str, str] = {}
         body = None
 
@@ -1038,10 +1029,7 @@ class PetApi(BaseApi):
     async def get_staging_pet_info(
         self,
         pet_id: int,
-
-
         server: Optional['GetStagingPetInfoServer'] = None,
-
     ) -> Pet:
         """Get staging pet info
         :param pet_id:  (required)
@@ -1059,10 +1047,7 @@ class PetApi(BaseApi):
     async def get_staging_pet_info_with_http_info(
         self,
         pet_id: int,
-
-
         server: Optional['GetStagingPetInfoServer'] = None,
-
     ) -> 'ApiResult[Pet]':
         """Get staging pet info (with HTTP info)
         :param pet_id:  (required)
@@ -1074,7 +1059,10 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet_id'")
 
         path = '/pet/{petId}/staging'
-        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)))
+        path = path.replace(
+            '{' + 'petId' + '}',
+            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+        )
         if server is not None:
             _server_url = server.get_url()
             if _server_url.startswith('http://') or _server_url.startswith('https://'):
@@ -1099,8 +1087,6 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         body: bytes,
-
-
     ) -> None:
         """Set the pet&#39;s profile photo
         Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
@@ -1122,8 +1108,6 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         body: bytes,
-
-
     ) -> 'ApiResult[None]':
         """Set the pet&#39;s profile photo (with HTTP info)
         Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
@@ -1140,7 +1124,10 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'body'")
 
         path = '/pet/{petId}/avatar'
-        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)))
+        path = path.replace(
+            '{' + 'petId' + '}',
+            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+        )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = body
@@ -1161,8 +1148,6 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
-
-
     ) -> None:
         """Set the pet&#39;s avatar thumbnail as base64
         Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
@@ -1184,8 +1169,6 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
-
-
     ) -> 'ApiResult[None]':
         """Set the pet&#39;s avatar thumbnail as base64 (with HTTP info)
         Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
@@ -1202,7 +1185,10 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'set_pet_avatar_thumbnail_request'")
 
         path = '/pet/{petId}/avatar/thumbnail'
-        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)))
+        path = path.replace(
+            '{' + 'petId' + '}',
+            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+        )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = set_pet_avatar_thumbnail_request
@@ -1223,8 +1209,6 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         pet: Pet,
-
-
     ) -> Pet:
         """Update an existing pet
         :param pet_id: ID of pet to update (required)
@@ -1247,8 +1231,6 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         pet: Pet,
-
-
     ) -> 'ApiResult[Pet]':
         """Update an existing pet (with HTTP info)
         :param pet_id: ID of pet to update (required)
@@ -1264,7 +1246,10 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet'")
 
         path = '/pet/{petId}'
-        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)))
+        path = path.replace(
+            '{' + 'petId' + '}',
+            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+        )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = pet
@@ -1284,10 +1269,7 @@ class PetApi(BaseApi):
     async def upload_pet_certificate(
         self,
         pet_id: int,
-
         options: Optional[UploadPetCertificateOptions] = None,
-
-
     ) -> ApiResponse:
         """Upload the pet&#39;s adoption certificate
         Attaches a single adoption certificate document. No metadata fields are required alongside the file.
@@ -1311,10 +1293,7 @@ class PetApi(BaseApi):
     async def upload_pet_certificate_with_http_info(
         self,
         pet_id: int,
-
         options: Optional[UploadPetCertificateOptions] = None,
-
-
     ) -> 'ApiResult[ApiResponse]':
         """Upload the pet&#39;s adoption certificate (with HTTP info)
         Attaches a single adoption certificate document. No metadata fields are required alongside the file.
@@ -1332,7 +1311,10 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'file'")
 
         path = '/pet/{petId}/certificate'
-        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)))
+        path = path.replace(
+            '{' + 'petId' + '}',
+            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+        )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body: Dict[str, Any] = {}
@@ -1354,10 +1336,7 @@ class PetApi(BaseApi):
     async def upload_pet_document(
         self,
         pet_id: int,
-
         options: Optional[UploadPetDocumentOptions] = None,
-
-
     ) -> ApiResponse:
         """Attach a vet document or health record
         Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
@@ -1381,10 +1360,7 @@ class PetApi(BaseApi):
     async def upload_pet_document_with_http_info(
         self,
         pet_id: int,
-
         options: Optional[UploadPetDocumentOptions] = None,
-
-
     ) -> 'ApiResult[ApiResponse]':
         """Attach a vet document or health record (with HTTP info)
         Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
@@ -1402,7 +1378,10 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'file'")
 
         path = '/pet/{petId}/documents'
-        path = path.replace('{' + 'petId' + '}', str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)))
+        path = path.replace(
+            '{' + 'petId' + '}',
+            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+        )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body: Dict[str, Any] = {}

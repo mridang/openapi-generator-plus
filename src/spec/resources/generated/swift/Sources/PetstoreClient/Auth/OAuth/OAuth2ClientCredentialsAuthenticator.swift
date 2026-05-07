@@ -12,56 +12,60 @@ import Foundation
 /// Conforms to ``HttpAwareAuthenticator`` so that token exchange requests use the
 /// shared ``ApiClient`` with the same transport configuration (proxy, TLS, timeouts)
 /// as regular API calls.
-public final class OAuth2ClientCredentialsAuthenticator: BaseAuthenticator, HttpAwareAuthenticator, @unchecked Sendable {
-    private let _host: String
-    private let clientID: String
-    private let clientSecret: String
-    private let tokenURL: String
-    private let scopes: [String]
-    private let tokenManager: OAuth2TokenManager
+public final class OAuth2ClientCredentialsAuthenticator: BaseAuthenticator, HttpAwareAuthenticator,
+  @unchecked Sendable
+{
+  private let _host: String
+  private let clientID: String
+  private let clientSecret: String
+  private let tokenURL: String
+  private let scopes: [String]
+  private let tokenManager: OAuth2TokenManager
 
-    /// Creates a new client credentials authenticator.
-    public init(host: String, clientID: String, clientSecret: String, tokenURL: String, scopes: [String] = []) {
-        self._host = host
-        self.clientID = clientID
-        self.clientSecret = clientSecret
-        self.tokenURL = tokenURL
-        self.scopes = scopes
-        self.tokenManager = OAuth2TokenManager()
-        super.init()
+  /// Creates a new client credentials authenticator.
+  public init(
+    host: String, clientID: String, clientSecret: String, tokenURL: String, scopes: [String] = []
+  ) {
+    self._host = host
+    self.clientID = clientID
+    self.clientSecret = clientSecret
+    self.tokenURL = tokenURL
+    self.scopes = scopes
+    self.tokenManager = OAuth2TokenManager()
+    super.init()
+  }
+
+  /// Returns the API base URL.
+  override public func host() -> String {
+    return _host
+  }
+
+  /// Injects the shared ``ApiClient`` for making token requests.
+  public func setApiClient(_ client: ApiClient) {
+    tokenManager.setApiClient(client)
+  }
+
+  /// Returns the Bearer authentication header with a valid access token.
+  override public func authHeaders() -> [String: String] {
+    var params: [String: String] = [
+      "grant_type": "client_credentials",
+      "client_id": clientID,
+      "client_secret": clientSecret,
+    ]
+    if !scopes.isEmpty {
+      params["scope"] = scopes.joined(separator: " ")
     }
 
-    /// Returns the API base URL.
-    override public func host() -> String {
-        return _host
+    /* Use a synchronous wrapper for the async token fetch */
+    var token: String?
+    let semaphore = DispatchSemaphore(value: 0)
+    Task {
+      token = try? await tokenManager.getAccessToken(tokenURL: tokenURL, params: params)
+      semaphore.signal()
     }
+    semaphore.wait()
 
-    /// Injects the shared ``ApiClient`` for making token requests.
-    public func setApiClient(_ client: ApiClient) {
-        tokenManager.setApiClient(client)
-    }
-
-    /// Returns the Bearer authentication header with a valid access token.
-    override public func authHeaders() -> [String: String] {
-        var params: [String: String] = [
-            "grant_type": "client_credentials",
-            "client_id": clientID,
-            "client_secret": clientSecret
-        ]
-        if !scopes.isEmpty {
-            params["scope"] = scopes.joined(separator: " ")
-        }
-
-        /* Use a synchronous wrapper for the async token fetch */
-        var token: String?
-        let semaphore = DispatchSemaphore(value: 0)
-        Task {
-            token = try? await tokenManager.getAccessToken(tokenURL: tokenURL, params: params)
-            semaphore.signal()
-        }
-        semaphore.wait()
-
-        guard let accessToken = token else { return [:] }
-        return ["Authorization": "Bearer \(accessToken)"]
-    }
+    guard let accessToken = token else { return [:] }
+    return ["Authorization": "Bearer \(accessToken)"]
+  }
 }

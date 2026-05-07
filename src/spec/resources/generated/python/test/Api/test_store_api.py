@@ -15,10 +15,9 @@ class TestStoreApi:
 
     @pytest.fixture(autouse=True)
     def setup(self, api_base_url: Any) -> None:
-        config = Configuration.builder() \
-            .base_url(api_base_url) \
-            .default_header('Authorization', 'Bearer test-token') \
-            .build()
+        config = (
+            Configuration.builder().base_url(api_base_url).default_header('Authorization', 'Bearer test-token').build()
+        )
         self.api = StoreApi(config=config)
 
     async def test_get_inventory(self) -> None:
@@ -33,7 +32,7 @@ class TestStoreApi:
             quantity=1,
             shipDate=datetime.now(timezone.utc),
             status=OrderStatusEnum.PLACED,
-            complete=False
+            complete=False,
         )
 
         result = await self.api.place_order(order)
@@ -76,9 +75,7 @@ def _create_mock_server(status: int, content_type: str, body: str) -> tuple[Stor
     thread.daemon = True
     thread.start()
 
-    config = Configuration.builder() \
-        .base_url(f'http://127.0.0.1:{port}') \
-        .build()
+    config = Configuration.builder().base_url(f'http://127.0.0.1:{port}').build()
     api = StoreApi(config=config)
     return api, server
 
@@ -93,13 +90,7 @@ class TestStoreApiErrorHandling:
 
     async def test_place_order_server_error(self) -> None:
         api, server = _create_mock_server(500, 'application/json', '{"message":"Internal server error"}')
-        order = Order(
-            id=1,
-            petId=12345,
-            quantity=1,
-            status=OrderStatusEnum.PLACED,
-            complete=False
-        )
+        order = Order(id=1, petId=12345, quantity=1, status=OrderStatusEnum.PLACED, complete=False)
         with pytest.raises(Exception):
             await api.place_order(order)
 

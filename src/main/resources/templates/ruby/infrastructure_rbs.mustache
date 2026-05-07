@@ -178,7 +178,7 @@ module {{moduleName}}
     def self.to_form_value: (untyped) -> String
     def self.convert_to_type: (untyped, String) -> untyped
     def self.find_and_cast_into_type: (untyped, untyped) -> untyped
-    def self.sanitize_for_serialization: (untyped) -> untyped
+    def self.sanitize_for_serialization: (untyped, ?Set[Integer]) -> untyped
     def self.deserialize_model: (untyped, untyped) -> untyped
     def self.resolve_one_of: (untyped, Array[Proc]) -> untyped
     def self.resolve_any_of: (untyped, Array[Proc]) -> untyped

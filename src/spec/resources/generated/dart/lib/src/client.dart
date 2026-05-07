@@ -43,6 +43,7 @@ import 'api/store_api.dart';
 class Client {
   /// Provides methods for the Pet API group.
   final PetApi pet;
+
   /// Provides methods for the Store API group.
   final StoreApi store;
 
@@ -56,8 +57,8 @@ class Client {
   Client._({
     required Authenticator authenticator,
     required DefaultApiClient apiClient,
-  }) : pet = _createPetApi(authenticator, apiClient),
-       store = _createStoreApi(authenticator, apiClient);
+  })  : pet = _createPetApi(authenticator, apiClient),
+        store = _createStoreApi(authenticator, apiClient);
 
   factory Client({
     required Authenticator authenticator,
@@ -70,17 +71,18 @@ class Client {
     return Client._(authenticator: authenticator, apiClient: apiClient);
   }
 
-  static PetApi _createPetApi(Authenticator authenticator, DefaultApiClient apiClient) {
-    final config = ConfigurationBuilder()
-        .baseUrl(authenticator.host())
-        .build();
-    return PetApi(apiClient: apiClient, config: config, authenticator: authenticator);
+  static PetApi _createPetApi(
+      Authenticator authenticator, DefaultApiClient apiClient) {
+    final config = ConfigurationBuilder().baseUrl(authenticator.host()).build();
+    return PetApi(
+        apiClient: apiClient, config: config, authenticator: authenticator);
   }
-  static StoreApi _createStoreApi(Authenticator authenticator, DefaultApiClient apiClient) {
-    final config = ConfigurationBuilder()
-        .baseUrl(authenticator.host())
-        .build();
-    return StoreApi(apiClient: apiClient, config: config, authenticator: authenticator);
+
+  static StoreApi _createStoreApi(
+      Authenticator authenticator, DefaultApiClient apiClient) {
+    final config = ConfigurationBuilder().baseUrl(authenticator.host()).build();
+    return StoreApi(
+        apiClient: apiClient, config: config, authenticator: authenticator);
   }
 
   /// Creates a client authenticated with a static Bearer token.

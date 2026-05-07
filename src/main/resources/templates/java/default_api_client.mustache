@@ -322,7 +322,7 @@ public final class DefaultApiClient implements ApiClient {
         }
     }
 
-    private static byte[] decompressZstd(byte[] data) {
+    private static byte[] decompressZstd(byte[] data) throws IOException {
         try {
             Class<?> zstdClass = Class.forName("com.github.luben.zstd.Zstd");
             long originalSize = (long) zstdClass
@@ -335,7 +335,7 @@ public final class DefaultApiClient implements ApiClient {
         } catch (ClassNotFoundException e) {
             return data;
         } catch (ReflectiveOperationException e) {
-            return data;
+            throw new IOException("Failed to decompress zstd response", e);
         }
     }
 
@@ -434,7 +434,7 @@ public final class DefaultApiClient implements ApiClient {
                             .getBytes(StandardCharsets.UTF_8));
             byteArrays.add(bytes);
         } else if (value instanceof InputStream stream) {
-            try {
+            try (stream) {
                 byteArrays.add(
                         ("\"" + fieldName + "\"; filename=\"" + fieldName + "\"\r\n"
                                         + "Content-Type: application/octet-stream\r\n\r\n")
@@ -456,9 +456,8 @@ public final class DefaultApiClient implements ApiClient {
                         ("\"" + fieldName + "\"\r\nContent-Type: application/json\r\n\r\n" + json)
                                 .getBytes(StandardCharsets.UTF_8));
             } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-                byteArrays.add(
-                        ("\"" + fieldName + "\"\r\n\r\n" + value)
-                                .getBytes(StandardCharsets.UTF_8));
+                throw new RuntimeException(
+                        "Failed to serialize multipart field '" + fieldName + "' as JSON", e);
             }
         }
         byteArrays.add("\r\n".getBytes(StandardCharsets.UTF_8));

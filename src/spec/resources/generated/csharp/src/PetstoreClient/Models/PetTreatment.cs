@@ -32,18 +32,32 @@ public class PetTreatment(object value)
     private sealed class PetTreatmentConverter : JsonConverter<PetTreatment>
 #pragma warning restore CA1812
     {
-        public override PetTreatment? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        public override PetTreatment? Read(
+            ref Utf8JsonReader reader,
+            Type typeToConvert,
+            JsonSerializerOptions options
+        )
         {
             using JsonDocument doc = JsonDocument.ParseValue(ref reader);
             string raw = doc.RootElement.GetRawText();
-            try { return new PetTreatment(JsonSerializer.Deserialize<Medication>(raw, options)!); }
+            try
+            {
+                return new PetTreatment(JsonSerializer.Deserialize<Medication>(raw, options)!);
+            }
             catch (JsonException) { }
-            try { return new PetTreatment(JsonSerializer.Deserialize<Surgery>(raw, options)!); }
+            try
+            {
+                return new PetTreatment(JsonSerializer.Deserialize<Surgery>(raw, options)!);
+            }
             catch (JsonException) { }
             return new PetTreatment(JsonDocument.Parse(raw).RootElement.Clone());
         }
 
-        public override void Write(Utf8JsonWriter writer, PetTreatment value, JsonSerializerOptions options)
+        public override void Write(
+            Utf8JsonWriter writer,
+            PetTreatment value,
+            JsonSerializerOptions options
+        )
         {
             JsonSerializer.Serialize(writer, value.ActualInstance, options);
         }

@@ -48,9 +48,7 @@ fn test_configuration_builder_sets_multiple_default_headers() {
     headers.insert("X-First".to_string(), "one".to_string());
     headers.insert("X-Second".to_string(), "two".to_string());
 
-    let config = ConfigurationBuilder::new()
-        .default_headers(headers)
-        .build();
+    let config = ConfigurationBuilder::new().default_headers(headers).build();
 
     let result = config.default_headers();
     assert_eq!(result.get("X-First").unwrap(), "one");
@@ -159,7 +157,10 @@ fn test_configuration_default_headers_copy_isolation() {
         .build();
 
     let mut headers = config.default_headers();
-    headers.insert("X-Mutated".to_string(), "should-not-affect-config".to_string());
+    headers.insert(
+        "X-Mutated".to_string(),
+        "should-not-affect-config".to_string(),
+    );
 
     let original = config.default_headers();
     assert!(

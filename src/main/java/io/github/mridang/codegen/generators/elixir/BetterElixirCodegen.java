@@ -658,6 +658,9 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
     }
 
     @SuppressWarnings("StringConcatenationMissingWhitespace")
+    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification = "Comparing with ASCII-only constants")
     private String generateElixirAuthClass(
             String schemeName, String className, SecurityScheme scheme) {
         final String authModule = moduleName + ".Auth";

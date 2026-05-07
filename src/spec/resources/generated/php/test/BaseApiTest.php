@@ -24,6 +24,8 @@ use PetstoreClient\Exceptions\UnprocessableEntityException;
 use PetstoreClient\Exceptions\InternalServerErrorException;
 use PetstoreClient\ApiClient;
 use PetstoreClient\ApiResponse;
+use PetstoreClient\Api\PetApi;
+use PetstoreClient\Api\Options\FindPetsByStatusOptions;
 
 class CapturingApiClient implements ApiClient
 {
@@ -346,6 +348,19 @@ class BaseApiTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
+    public function testAllowEmptyValueParamIncludedWithDefaultOptions(): void
+    {
+        $client = new CapturingApiClient();
+        $config = new Configuration('http://localhost');
+        $api = new PetApi($client, $config);
+        try {
+            $api->findPetsByStatus(new FindPetsByStatusOptions());
+        } catch (\Exception $e) {
+            // Response deserialization may fail; we only care about the captured URL
+        }
+        $this->assertStringContainsString('status=', $client->capturedUrl);
+    }
+
     public function testAllowEmptyValueIncludesParamInQueryString(): void
     {
         $result = $this->api()->call(
@@ -481,9 +496,42 @@ class BaseApiTest extends TestCase
         };
         $config = new Configuration('http://localhost');
         $testApi = new TestableApi($client, $config);
-        $result = $testApi->call('GET', '/api/test', [], [], null,
-            ['text/plain'], 'application/json', 'string');
+        $result = $testApi->call(
+            'GET',
+            '/api/test',
+            [],
+            [],
+            null,
+            ['text/plain'],
+            'application/json',
+            'string'
+        );
         $this->assertSame('hello', $result);
+    }
+
+    public function testDeserializesVendorJsonMimeTypes(): void
+    {
+        $client = new class implements ApiClient {
+            /** @param array<string, string> $headers */
+            public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
+            {
+                return new ApiResponse(200, '{"title":"Not Found"}', ['Content-Type' => 'application/problem+json']);
+            }
+        };
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $result = $testApi->call(
+            'GET',
+            '/api/test',
+            [],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            'array'
+        );
+        $this->assertIsArray($result);
+        $this->assertSame('Not Found', $result['title']);
     }
 
     // -- body serialization by content type --
@@ -493,8 +541,16 @@ class BaseApiTest extends TestCase
         $client = new CapturingApiClient();
         $config = new Configuration('http://localhost');
         $testApi = new TestableApi($client, $config);
-        $testApi->call('POST', '/api/test', [], [], 'hello world',
-            ['application/json'], 'text/plain', null);
+        $testApi->call(
+            'POST',
+            '/api/test',
+            [],
+            [],
+            'hello world',
+            ['application/json'],
+            'text/plain',
+            null
+        );
         $this->assertNotNull($client->capturedBody);
         $this->assertIsString($client->capturedBody);
         $this->assertStringContainsString('hello world', $client->capturedBody);
@@ -505,8 +561,16 @@ class BaseApiTest extends TestCase
         $client = new CapturingApiClient();
         $config = new Configuration('http://localhost');
         $testApi = new TestableApi($client, $config);
-        $testApi->call('POST', '/api/test', [], [], ['name' => 'alice'],
-            ['application/json'], 'application/x-www-form-urlencoded', null);
+        $testApi->call(
+            'POST',
+            '/api/test',
+            [],
+            [],
+            ['name' => 'alice'],
+            ['application/json'],
+            'application/x-www-form-urlencoded',
+            null
+        );
         $this->assertNotNull($client->capturedBody);
         $this->assertIsString($client->capturedBody);
         $this->assertStringContainsString('name=alice', $client->capturedBody);
@@ -517,8 +581,16 @@ class BaseApiTest extends TestCase
         $client = new CapturingApiClient();
         $config = new Configuration('http://localhost');
         $testApi = new TestableApi($client, $config);
-        $testApi->call('POST', '/api/test', [], [], "\x01\x02\x03",
-            ['application/json'], 'application/octet-stream', null);
+        $testApi->call(
+            'POST',
+            '/api/test',
+            [],
+            [],
+            "\x01\x02\x03",
+            ['application/json'],
+            'application/octet-stream',
+            null
+        );
         $this->assertNotNull($client->capturedBody);
     }
 
@@ -529,8 +601,16 @@ class BaseApiTest extends TestCase
         $client = new CapturingApiClient();
         $config = new Configuration('http://localhost');
         $testApi = new TestableApi($client, $config);
-        $testApi->call('GET', '/api/test', [], [], null,
-            ['application/json'], '', null);
+        $testApi->call(
+            'GET',
+            '/api/test',
+            [],
+            [],
+            null,
+            ['application/json'],
+            '',
+            null
+        );
         $this->assertSame('application/json', $client->capturedHeaders['Content-Type'] ?? '');
     }
 
@@ -539,8 +619,16 @@ class BaseApiTest extends TestCase
         $client = new CapturingApiClient();
         $config = new Configuration('http://localhost');
         $testApi = new TestableApi($client, $config);
-        $testApi->call('GET', '/api/test', [], [], null,
-            ['application/json'], 'application/json', null);
+        $testApi->call(
+            'GET',
+            '/api/test',
+            [],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null
+        );
         $this->assertArrayHasKey('Accept', $client->capturedHeaders);
         $this->assertArrayHasKey('Content-Type', $client->capturedHeaders);
     }

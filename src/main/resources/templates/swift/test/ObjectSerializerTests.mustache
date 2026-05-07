@@ -22,13 +22,15 @@ final class ObjectSerializerTests: XCTestCase {
 
         let json = "{\"name\":\"Fido\",\"age\":3}"
         let result = try ObjectSerializer.deserialize(json, as: TestModel.self)
-        XCTAssertEqual(result.name, "Fido")
-        XCTAssertEqual(result.age, 3)
+        XCTAssertNotNil(result)
+        XCTAssertEqual(result?.name, "Fido")
+        XCTAssertEqual(result?.age, 3)
     }
 
-    func testDeserializeEmptyDataThrows() {
+    func testDeserializeEmptyDataReturnsNil() throws {
         struct TestModel: Codable { let name: String }
-        XCTAssertThrowsError(try ObjectSerializer.deserialize(Data(), as: TestModel.self))
+        let result = try ObjectSerializer.deserialize(Data(), as: TestModel.self)
+        XCTAssertNil(result)
     }
 
     func testDeserializeInvalidJSON() {
@@ -71,9 +73,24 @@ final class ObjectSerializerTests: XCTestCase {
         XCTAssertEqual(result as? String, "a b c")
     }
 
+    func testToQueryValueStringSliceTSV() {
+        let result = ObjectSerializer.toQueryValue(["a", "b", "c"], collectionFormat: "tsv")
+        XCTAssertEqual(result as? String, "a\tb\tc")
+    }
+
     func testToQueryValueStringSlicePipes() {
         let result = ObjectSerializer.toQueryValue(["a", "b", "c"], collectionFormat: "pipes")
         XCTAssertEqual(result as? String, "a|b|c")
+    }
+
+    func testToQueryValueStringSliceMulti() {
+        let result = ObjectSerializer.toQueryValue(["a", "b", "c"], collectionFormat: "multi")
+        XCTAssertEqual(result as? [String], ["a", "b", "c"])
+    }
+
+    func testToQueryValueInt() {
+        let result = ObjectSerializer.toQueryValue(42)
+        XCTAssertEqual(result as? String, "42")
     }
 
     func testToQueryValueBoolTrue() {
@@ -114,6 +131,31 @@ final class ObjectSerializerTests: XCTestCase {
     func testToFormValueInt() {
         let result = ObjectSerializer.toFormValue(123)
         XCTAssertEqual(result, "123")
+    }
+
+    func testToFormValueNil() {
+        let result = ObjectSerializer.toFormValue(nil)
+        XCTAssertEqual(result, "")
+    }
+
+    func testToFormValueBoolTrue() {
+        XCTAssertEqual(ObjectSerializer.toFormValue(true), "true")
+    }
+
+    func testToFormValueBoolFalse() {
+        XCTAssertEqual(ObjectSerializer.toFormValue(false), "false")
+    }
+
+    func testToCookieValueString() {
+        XCTAssertEqual(ObjectSerializer.toCookieValue("hello"), "hello")
+    }
+
+    func testToCookieValueNil() {
+        XCTAssertEqual(ObjectSerializer.toCookieValue(nil), "")
+    }
+
+    func testToCookieValueInt() {
+        XCTAssertEqual(ObjectSerializer.toCookieValue(42), "42")
     }
 
     func testStringifyString() {

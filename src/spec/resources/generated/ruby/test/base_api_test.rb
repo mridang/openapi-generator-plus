@@ -188,31 +188,76 @@ describe PetstoreClient::Api::BaseApi do
 
   it 'server variable overrides resolve in base URL' do
     config = PetstoreClient::Configuration.builder
-      .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'staging')
-      .build
+                                          .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'staging')
+                                          .build
     _(config.base_url).must_equal('https://staging.example.com/api/v3')
   end
 
   it 'default server variables produce correct base URL' do
     config = PetstoreClient::Configuration.builder
-      .server(PetstoreClient::Servers::SERVER_1)
-      .build
+                                          .server(PetstoreClient::Servers::SERVER_1)
+                                          .build
     _(config.base_url).must_equal('https://api.example.com/api/v3')
   end
 
   it 'invalid enum value raises ArgumentError' do
     assert_raises(ArgumentError) do
       PetstoreClient::Configuration.builder
-        .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'invalid')
-        .build
+                                   .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'invalid')
+                                   .build
     end
   end
 
   it 'API request uses resolved server URL' do
     config = PetstoreClient::Configuration.builder
-      .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'staging')
-      .build
+                                          .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'staging')
+                                          .build
     _(config.base_url).must_equal('https://staging.example.com/api/v3')
+  end
+
+  # ── allowEmptyValue query params ──
+
+  it 'null options omits allow_empty_value param' do
+    client = CapturingApiClient.new
+    config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
+    api = PetstoreClient::Api::PetApi.new(client, config)
+    begin
+      api.find_pets_by_status(nil)
+    rescue StandardError
+      # Response deserialization may fail; we only care about the captured URL
+    end
+    _(client.captured_url).wont_include 'status=',
+                                        "Expected no status param when options is nil, got: #{client.captured_url}"
+  end
+
+  it 'allow_empty_value param included when value is nil in options' do
+    client = CapturingApiClient.new
+    config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
+    api = PetstoreClient::Api::PetApi.new(client, config)
+    begin
+      api.find_pets_by_status(PetstoreClient::Api::Options::FindPetsByStatusOptions.new)
+    rescue StandardError
+      # Response deserialization may fail; we only care about the captured URL
+    end
+    msg = 'Expected status= in URL for allowEmptyValue param ' \
+          "with nil value, got: #{client.captured_url}"
+    _(client.captured_url).must_include 'status=', msg
+  end
+
+  it 'allow_empty_value param included when value is empty string' do
+    client = CapturingApiClient.new
+    config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
+    api = PetstoreClient::Api::PetApi.new(client, config)
+    begin
+      opts = PetstoreClient::Api::Options::FindPetsByStatusOptions
+             .new(status: '')
+      api.find_pets_by_status(opts)
+    rescue StandardError
+      # Response deserialization may fail; we only care about the captured URL
+    end
+    msg = 'Expected status= in URL for empty string ' \
+          "allowEmptyValue param, got: #{client.captured_url}"
+    _(client.captured_url).must_include 'status=', msg
   end
 
   # ── Query serialization ──
@@ -297,6 +342,20 @@ describe PetstoreClient::Api::BaseApi do
     result = test_api.call('GET', '/test', {}, {}, nil,
                            ['text/plain'], 'application/json', 'String')
     _(result).must_equal 'hello'
+  end
+
+  it 'deserializes vendor JSON MIME types like application/problem+json' do
+    client = CapturingApiClient.new
+    def client.send_request(_method, _url, _headers, _body)
+      PetstoreClient::ApiResponse.new(status_code: 200, body: '{"title":"Not Found"}',
+                                      headers: { 'Content-Type' => 'application/problem+json' })
+    end
+    config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call('GET', '/test', {}, {}, nil,
+                           ['application/json'], 'application/json', 'Object')
+    _(result).wont_be_nil
+    _(result[:title]).must_equal 'Not Found'
   end
 
   # ── Header flow-through ──

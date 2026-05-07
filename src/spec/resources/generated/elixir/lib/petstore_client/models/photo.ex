@@ -55,5 +55,4 @@ defmodule PetstoreClient.Models.Photo do
       url: "String.t()"
     }
   end
-
 end

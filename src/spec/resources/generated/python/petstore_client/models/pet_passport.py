@@ -20,8 +20,10 @@ class PetPassport(BaseModel):
     """
 
     pet: Optional[Pet] = Field(default=None, alias='pet')
-    thumbnail: Optional[bytes] = Field(default=None, alias='thumbnail', description="Base64-encoded primary thumbnail")
-    scans: Optional[List[bytes]] = Field(default=None, alias='scans', description="Base64-encoded scans of each passport page")
+    thumbnail: Optional[bytes] = Field(default=None, alias='thumbnail', description='Base64-encoded primary thumbnail')
+    scans: Optional[List[bytes]] = Field(
+        default=None, alias='scans', description='Base64-encoded scans of each passport page'
+    )
     issued_at: Optional[datetime] = Field(default=None, alias='issuedAt')
     additional_properties: Dict[str, Any] = {}
 

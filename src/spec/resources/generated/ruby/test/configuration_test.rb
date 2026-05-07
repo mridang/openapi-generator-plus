@@ -29,40 +29,40 @@ describe PetstoreClient::Configuration do
 
   it 'builder sets base_url' do
     config = PetstoreClient::Configuration.builder
-      .base_url('https://custom.example.com')
-      .build
+                                          .base_url('https://custom.example.com')
+                                          .build
 
     _(config.base_url).must_equal('https://custom.example.com')
   end
 
   it 'builder sets single default header' do
     config = PetstoreClient::Configuration.builder
-      .default_header('Authorization', 'Bearer token123')
-      .build
+                                          .default_header('Authorization', 'Bearer token123')
+                                          .build
 
     _(config.default_headers).must_equal({ 'Authorization' => 'Bearer token123' })
   end
 
   it 'builder sets multiple default headers' do
     config = PetstoreClient::Configuration.builder
-      .default_headers({
-        'Authorization' => 'Bearer token123',
-        'X-Custom' => 'value'
-      })
-      .build
+                                          .default_headers({
+                                                             'Authorization' => 'Bearer token123',
+                                                             'X-Custom' => 'value'
+                                                           })
+                                          .build
 
     _(config.default_headers).must_equal({
-      'Authorization' => 'Bearer token123',
-      'X-Custom' => 'value'
-    })
+                                           'Authorization' => 'Bearer token123',
+                                           'X-Custom' => 'value'
+                                         })
   end
 
   it 'builder accumulates headers' do
     config = PetstoreClient::Configuration.builder
-      .default_header('X-First', 'one')
-      .default_header('X-Second', 'two')
-      .default_headers({ 'X-Third' => 'three' })
-      .build
+                                          .default_header('X-First', 'one')
+                                          .default_header('X-Second', 'two')
+                                          .default_headers({ 'X-Third' => 'three' })
+                                          .build
 
     _(config.default_headers.size).must_equal(3)
     _(config.default_headers['X-First']).must_equal('one')
@@ -72,16 +72,16 @@ describe PetstoreClient::Configuration do
 
   it 'builder sets all fields' do
     config = PetstoreClient::Configuration.builder
-      .base_url('https://api.example.com')
-      .default_header('Authorization', 'Bearer token')
-      .default_headers({ 'X-Custom' => 'value' })
-      .build
+                                          .base_url('https://api.example.com')
+                                          .default_header('Authorization', 'Bearer token')
+                                          .default_headers({ 'X-Custom' => 'value' })
+                                          .build
 
     _(config.base_url).must_equal('https://api.example.com')
     _(config.default_headers).must_equal({
-      'Authorization' => 'Bearer token',
-      'X-Custom' => 'value'
-    })
+                                           'Authorization' => 'Bearer token',
+                                           'X-Custom' => 'value'
+                                         })
   end
 
   it 'server resolves URL with default variables' do
@@ -101,8 +101,8 @@ describe PetstoreClient::Configuration do
     )
 
     config = PetstoreClient::Configuration.builder
-      .server(server)
-      .build
+                                          .server(server)
+                                          .build
 
     _(config.base_url).must_equal('https://api.example.com/api/v3')
   end
@@ -123,8 +123,8 @@ describe PetstoreClient::Configuration do
     )
 
     config = PetstoreClient::Configuration.builder
-      .server(server, { 'env' => 'staging', 'version' => 'v2' })
-      .build
+                                          .server(server, { 'env' => 'staging', 'version' => 'v2' })
+                                          .build
 
     _(config.base_url).must_equal('https://staging.example.com/api/v2')
   end
@@ -135,9 +135,9 @@ describe PetstoreClient::Configuration do
     )
 
     config = PetstoreClient::Configuration.builder
-      .server(server)
-      .base_url('https://override.example.com')
-      .build
+                                          .server(server)
+                                          .base_url('https://override.example.com')
+                                          .build
 
     _(config.base_url).must_equal('https://override.example.com')
   end
@@ -158,8 +158,8 @@ describe PetstoreClient::Configuration do
 
   it 'setting default changes the default' do
     custom = PetstoreClient::Configuration.builder
-      .base_url('https://custom.example.com')
-      .build
+                                          .base_url('https://custom.example.com')
+                                          .build
 
     PetstoreClient::Configuration.default = custom
 
@@ -169,8 +169,8 @@ describe PetstoreClient::Configuration do
 
   it 'configuration is frozen' do
     config = PetstoreClient::Configuration.builder
-      .default_header('X-Key', 'value')
-      .build
+                                          .default_header('X-Key', 'value')
+                                          .build
 
     _(config).must_be(:frozen?)
     _(config.default_headers).must_be(:frozen?)

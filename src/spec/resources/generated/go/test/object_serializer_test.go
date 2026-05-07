@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"petstore/pkg"
+	petstore "petstore/pkg"
 	"petstore/pkg/models"
 )
 
@@ -132,6 +132,17 @@ func TestToQueryValue_StringSliceSSV(t *testing.T) {
 	}
 }
 
+func TestToQueryValue_StringSliceTSV(t *testing.T) {
+	result := petstore.ToQueryValue([]string{"a", "b", "c"}, "tsv")
+	str, ok := result.(string)
+	if !ok {
+		t.Fatalf("expected string result, got %T", result)
+	}
+	if str != "a\tb\tc" {
+		t.Errorf("expected 'a\\tb\\tc', got %q", str)
+	}
+}
+
 func TestToQueryValue_StringSlicePipes(t *testing.T) {
 	result := petstore.ToQueryValue([]string{"a", "b", "c"}, "pipes")
 	str, ok := result.(string)
@@ -140,6 +151,30 @@ func TestToQueryValue_StringSlicePipes(t *testing.T) {
 	}
 	if str != "a|b|c" {
 		t.Errorf("expected 'a|b|c', got %q", str)
+	}
+}
+
+func TestToQueryValue_StringSliceMulti(t *testing.T) {
+	result := petstore.ToQueryValue([]string{"a", "b", "c"}, "multi")
+	slice, ok := result.([]string)
+	if !ok {
+		t.Fatalf("expected []string result, got %T", result)
+	}
+	expected := []string{"a", "b", "c"}
+	if len(slice) != len(expected) {
+		t.Fatalf("expected %d elements, got %d", len(expected), len(slice))
+	}
+	for i := range expected {
+		if slice[i] != expected[i] {
+			t.Errorf("element %d: expected %q, got %q", i, expected[i], slice[i])
+		}
+	}
+}
+
+func TestToQueryValue_Int(t *testing.T) {
+	result := petstore.ToQueryValue(42, "")
+	if result != "42" {
+		t.Errorf("expected '42', got %v", result)
 	}
 }
 
@@ -178,10 +213,38 @@ func TestToHeaderValue_StringSlice(t *testing.T) {
 	}
 }
 
+func TestToHeaderValue_Int(t *testing.T) {
+	result := petstore.ToHeaderValue(42)
+	if result != "42" {
+		t.Errorf("expected '42', got %q", result)
+	}
+}
+
 func TestToHeaderValue_Nil(t *testing.T) {
 	result := petstore.ToHeaderValue(nil)
 	if result != "" {
 		t.Errorf("expected empty string for nil, got %q", result)
+	}
+}
+
+func TestToCookieValue_String(t *testing.T) {
+	result := petstore.ToCookieValue("hello")
+	if result != "hello" {
+		t.Errorf("expected 'hello', got %q", result)
+	}
+}
+
+func TestToCookieValue_Nil(t *testing.T) {
+	result := petstore.ToCookieValue(nil)
+	if result != "" {
+		t.Errorf("expected empty string for nil, got %q", result)
+	}
+}
+
+func TestToCookieValue_Int(t *testing.T) {
+	result := petstore.ToCookieValue(42)
+	if result != "42" {
+		t.Errorf("expected '42', got %q", result)
 	}
 }
 
@@ -196,6 +259,27 @@ func TestToFormValue_Int(t *testing.T) {
 	result := petstore.ToFormValue(123)
 	if result != "123" {
 		t.Errorf("expected '123', got %q", result)
+	}
+}
+
+func TestToFormValue_Nil(t *testing.T) {
+	result := petstore.ToFormValue(nil)
+	if result != "" {
+		t.Errorf("expected empty string for nil, got %q", result)
+	}
+}
+
+func TestToFormValue_BoolTrue(t *testing.T) {
+	result := petstore.ToFormValue(true)
+	if result != "true" {
+		t.Errorf("expected 'true', got %q", result)
+	}
+}
+
+func TestToFormValue_BoolFalse(t *testing.T) {
+	result := petstore.ToFormValue(false)
+	if result != "false" {
+		t.Errorf("expected 'false', got %q", result)
 	}
 }
 

@@ -209,9 +209,9 @@ abstract class BaseApi {
         auth: Authenticator?
     ): ApiResult<T> {
         val response = invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, auth)
-        val responseContentType = response.headers["content-type"]
-            ?: response.headers["Content-Type"]
-            ?: ""
+        val responseContentType = response.headers.entries
+            .firstOrNull { it.key.equals("content-type", ignoreCase = true) }
+            ?.value ?: ""
         @Suppress("UNCHECKED_CAST")
         val data: T? = if (response.body.isNotEmpty()) {
             if (responseContentType.isNotEmpty()

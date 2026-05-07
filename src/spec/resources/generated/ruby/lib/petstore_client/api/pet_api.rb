@@ -9,7 +9,7 @@
 
 # rubocop:disable Lint/RedundantCopDisableDirective, Layout/LineLength
 # rubocop:disable Layout/EmptyLinesAroundModuleBody, Layout/EmptyLineBetweenDefs, Layout/EmptyLines
-# rubocop:disable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:disable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Naming/AccessorMethodName
 # rubocop:disable Style/MethodCallWithoutArgsParentheses
 # rubocop:disable Style/DefWithParentheses
 # rubocop:disable Style/StringConcatenation
@@ -294,7 +294,7 @@ module PetstoreClient
         query_params = {}
         # @type var header_params: Hash[String, String]
         header_params = {}
-        cookie_parts = [] #: Array[String]
+        cookie_parts = [] # : Array[String]
         cookie_parts << "api_key=#{PetstoreClient::ValueSerializer.serialize_styled('api_key', options.api_key, :cookie, 'String', nil, 'form', true)}" unless options.nil? || options.api_key.nil?
         header_params['Cookie'] = cookie_parts.join('; ') unless cookie_parts.empty?
         request_body = nil
@@ -378,9 +378,15 @@ module PetstoreClient
         path = '/pet/findByStatus'
         # @type var query_params: Hash[String, untyped]
         query_params = {}
-        query_params['status'] =
-          PetstoreClient::ValueSerializer.serialize_styled('status', options.status, :query, 'String', nil, 'form', true) || ''
-        query_params.merge!(PetstoreClient::ValueSerializer.serialize_deep_object('filter', options.filter)) unless options.filter.nil?
+        unless options.nil?
+          if options.status.nil?
+            query_params['status'] = ''
+          else
+            query_params['status'] =
+              PetstoreClient::ValueSerializer.serialize_styled('status', options.status, :query, 'String', nil, 'form', true)
+          end
+        end
+        query_params.merge!(PetstoreClient::ValueSerializer.serialize_deep_object('filter', options.filter)) unless options.nil? || options.filter.nil?
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
@@ -737,16 +743,22 @@ module PetstoreClient
         path = path.sub('{tagName}', PetstoreClient::ValueSerializer.serialize_styled('tagName', tag_name, :path, 'String', nil, 'label', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
-        unless options.colors.nil?
+        unless options.nil? || options.colors.nil?
           query_params['colors'] =
             PetstoreClient::ValueSerializer.serialize_styled('colors', options.colors, :query, 'Array<String>', :pipes, 'pipeDelimited', false)
         end
-        unless options.sizes.nil?
+        unless options.nil? || options.sizes.nil?
           query_params['sizes'] =
             PetstoreClient::ValueSerializer.serialize_styled('sizes', options.sizes, :query, 'Array<String>', :ssv, 'spaceDelimited', false)
         end
-        query_params['filter'] =
-          PetstoreClient::ValueSerializer.serialize_styled('filter', options.filter, :query, 'String', nil, 'form', true) || ''
+        unless options.nil?
+          if options.filter.nil?
+            query_params['filter'] = ''
+          else
+            query_params['filter'] =
+              PetstoreClient::ValueSerializer.serialize_styled('filter', options.filter, :query, 'String', nil, 'form', true)
+          end
+        end
         # @type var header_params: Hash[String, String]
         header_params = {}
         request_body = nil
@@ -1049,7 +1061,7 @@ module PetstoreClient
 end
 # rubocop:enable Lint/RedundantCopDisableDirective, Layout/LineLength
 # rubocop:enable Layout/EmptyLinesAroundModuleBody, Layout/EmptyLineBetweenDefs, Layout/EmptyLines
-# rubocop:enable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Naming/AccessorMethodName
+# rubocop:enable Metrics/AbcSize, Metrics/ClassLength, Metrics/MethodLength, Metrics/CyclomaticComplexity, Metrics/PerceivedComplexity, Naming/AccessorMethodName
 # rubocop:enable Style/MethodCallWithoutArgsParentheses
 # rubocop:enable Style/DefWithParentheses
 # rubocop:enable Style/StringConcatenation

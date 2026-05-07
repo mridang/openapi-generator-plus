@@ -11,7 +11,8 @@ import 'package:petstore_client/petstore_client.dart';
 void main() {
   group('Client', () {
     test('construct with authenticator only', () {
-      final authenticator = BearerAuthenticator(host: '/api/v3', token: 'test-token');
+      final authenticator =
+          BearerAuthenticator(host: '/api/v3', token: 'test-token');
 
       final client = Client(authenticator: authenticator);
 
@@ -19,24 +20,29 @@ void main() {
     });
 
     test('construct with authenticator and null transport options', () {
-      final authenticator = BearerAuthenticator(host: '/api/v3', token: 'test-token');
+      final authenticator =
+          BearerAuthenticator(host: '/api/v3', token: 'test-token');
 
-      final client = Client(authenticator: authenticator, transportOptions: null);
+      final client =
+          Client(authenticator: authenticator, transportOptions: null);
 
       expect(client, isNotNull);
     });
 
     test('construct with authenticator and transport options', () {
-      final authenticator = BearerAuthenticator(host: '/api/v3', token: 'test-token');
+      final authenticator =
+          BearerAuthenticator(host: '/api/v3', token: 'test-token');
       final transport = TransportOptionsBuilder().build();
 
-      final client = Client(authenticator: authenticator, transportOptions: transport);
+      final client =
+          Client(authenticator: authenticator, transportOptions: transport);
 
       expect(client, isNotNull);
     });
 
     test('API groups are accessible', () {
-      final authenticator = BearerAuthenticator(host: '/api/v3', token: 'test-token');
+      final authenticator =
+          BearerAuthenticator(host: '/api/v3', token: 'test-token');
 
       final client = Client(authenticator: authenticator);
 

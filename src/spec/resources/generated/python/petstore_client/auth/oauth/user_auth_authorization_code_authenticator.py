@@ -11,4 +11,13 @@ from .oauth2_auth_code_authenticator import OAuth2AuthorizationCodeAuthenticator
 
 class UserAuthAuthorizationCodeAuthenticator(OAuth2AuthorizationCodeAuthenticator):
     def __init__(self, host: str, client_id: str, client_secret: str, redirect_uri: str):
-        super().__init__(host, client_id, client_secret, "https://auth.example.com/authorize", "https://auth.example.com/oauth/token", redirect_uri, ["pets:read", "pets:write"], "https://auth.example.com/oauth/refresh")
+        super().__init__(
+            host,
+            client_id,
+            client_secret,
+            'https://auth.example.com/authorize',
+            'https://auth.example.com/oauth/token',
+            redirect_uri,
+            ['pets:read', 'pets:write'],
+            'https://auth.example.com/oauth/refresh',
+        )

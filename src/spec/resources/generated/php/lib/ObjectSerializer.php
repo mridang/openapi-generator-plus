@@ -1,4 +1,5 @@
 <?php
+
 /*
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing.
@@ -357,7 +358,7 @@ class ObjectSerializer
      * @param mixed               $data       the data to match
      * @param array<callable>     $candidates list of deserializer closures
      *
-     * @return mixed the first successfully deserialized value, or the original data
+     * @return mixed the first successfully deserialized value, or null if none match
      */
     public static function resolveOneOf(mixed $data, array $candidates): mixed
     {
@@ -368,7 +369,7 @@ class ObjectSerializer
                 continue;
             }
         }
-        return $data;
+        return null;
     }
 
     /**
@@ -379,7 +380,7 @@ class ObjectSerializer
      * @param mixed               $data       the data to match
      * @param array<callable>     $candidates list of deserializer closures
      *
-     * @return mixed the first successfully deserialized value, or the original data
+     * @return mixed the first successfully deserialized value, or null if none match
      */
     public static function resolveAnyOf(mixed $data, array $candidates): mixed
     {

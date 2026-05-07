@@ -648,6 +648,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 final String filePath =
                         Path.of(outputFolder, folder, fileName).toString();
                 writeFile(filePath, code);
+                postProcessFile(Path.of(filePath).toFile(), "source");
             }
         }
     }

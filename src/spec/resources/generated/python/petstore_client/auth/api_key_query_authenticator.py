@@ -12,4 +12,4 @@ from .api_key_location import ApiKeyLocation
 
 class ApiKeyQueryAuthenticator(ApiKeyAuthenticator):
     def __init__(self, host: str, api_key: str):
-        super().__init__(host, "api_key", api_key, ApiKeyLocation.QUERY)
+        super().__init__(host, 'api_key', api_key, ApiKeyLocation.QUERY)

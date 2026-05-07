@@ -44,6 +44,15 @@ describe {{moduleName}}::TransportOptions do
     _(opts.inject_request_id).must_equal true
   end
 
+  it 'follow_redirects defaults to true with nil max_redirects' do
+    opts = {{moduleName}}::TransportOptions.builder
+      .follow_redirects(true)
+      .build
+
+    _(opts.follow_redirects).must_equal true
+    _(opts.max_redirects).must_be_nil
+  end
+
   it 'raises ArgumentError for invalid proxy URL' do
     assert_raises(ArgumentError) do
       {{moduleName}}::TransportOptions.builder.proxy('not-a-url').build
@@ -73,5 +82,52 @@ describe {{moduleName}}::TransportOptions do
     _(opts.default_headers['X-Original']).must_equal 'original'
     _(opts.default_headers.key?('X-Added')).must_equal false
     _(opts.default_headers).must_be :frozen?
+  end
+
+  it 'builder methods return the same builder instance' do
+    builder = {{moduleName}}::TransportOptions.builder
+
+    _(builder.verify_ssl(true)).must_be_same_as builder
+    _(builder.ca_cert_path(nil)).must_be_same_as builder
+    _(builder.proxy(nil)).must_be_same_as builder
+    _(builder.timeout(nil)).must_be_same_as builder
+    _(builder.follow_redirects(true)).must_be_same_as builder
+    _(builder.max_redirects(nil)).must_be_same_as builder
+    _(builder.user_agent(nil)).must_be_same_as builder
+    _(builder.default_header('X-Key', 'val')).must_be_same_as builder
+    _(builder.default_headers({})).must_be_same_as builder
+    _(builder.inject_request_id(false)).must_be_same_as builder
+  end
+
+  it 'accumulates headers from default_header calls' do
+    opts = {{moduleName}}::TransportOptions.builder
+      .default_header('X-First', 'one')
+      .default_header('X-Second', 'two')
+      .build
+
+    _(opts.default_headers.size).must_equal 2
+    _(opts.default_headers['X-First']).must_equal 'one'
+    _(opts.default_headers['X-Second']).must_equal 'two'
+  end
+
+  it 'merges headers from default_headers call' do
+    opts = {{moduleName}}::TransportOptions.builder
+      .default_header('X-First', 'one')
+      .default_headers({ 'X-Second' => 'two', 'X-Third' => 'three' })
+      .build
+
+    _(opts.default_headers.size).must_equal 3
+    _(opts.default_headers['X-First']).must_equal 'one'
+    _(opts.default_headers['X-Second']).must_equal 'two'
+    _(opts.default_headers['X-Third']).must_equal 'three'
+  end
+
+  it 'builder produces independent instances' do
+    builder = {{moduleName}}::TransportOptions.builder.verify_ssl(false)
+    first = builder.build
+    second = builder.build
+
+    _(first.verify_ssl).must_equal second.verify_ssl
+    _(first).wont_be_same_as second
   end
 end

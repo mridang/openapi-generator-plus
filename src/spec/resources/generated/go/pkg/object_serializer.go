@@ -166,7 +166,7 @@ func ToFormValue(value interface{}) string {
 
 // ResolveOneOf attempts deserialization against each candidate factory function.
 // Each factory receives the raw JSON bytes and returns a deserialized value or an error.
-// Returns the first successful result and nil error, or nil and an error if none match.
+// Returns the first successful result and nil error, or nil and nil if none match.
 func ResolveOneOf(data []byte, candidates []func([]byte) (interface{}, error)) (interface{}, error) {
 	for _, candidate := range candidates {
 		result, err := candidate(data)
@@ -174,7 +174,7 @@ func ResolveOneOf(data []byte, candidates []func([]byte) (interface{}, error)) (
 			return result, nil
 		}
 	}
-	return nil, &SerializationError{Message: "data does not match any oneOf schemas"}
+	return nil, nil
 }
 
 // ResolveAnyOf attempts deserialization against each candidate factory function.

@@ -8,31 +8,42 @@
 import 'dart:convert';
 
 import 'package:test/test.dart';
+import 'package:petstore_client/petstore_client.dart';
 
 void main() {
   group('Composed schemas', () {
     // oneOf with discriminator: PetFood
 
     test('PetFood deserialize dry food', () {
-      final jsonData = '{"foodType":"dry","weightKg":2.5}';
+      final json = <String, dynamic>{'foodType': 'dry', 'weightKg': 2.5};
 
-      final parsed = jsonDecode(jsonData) as Map<String, dynamic>;
-      expect(parsed['foodType'], equals('dry'));
+      final food = PetFood.fromJson(json);
+      expect(food.value, isNotNull);
+      expect(food.value, isA<DryFood>());
     });
 
     test('PetFood deserialize wet food', () {
-      final jsonData = '{"foodType":"wet","volumeMl":400}';
+      final json = <String, dynamic>{'foodType': 'wet', 'volumeMl': 400};
 
-      final parsed = jsonDecode(jsonData) as Map<String, dynamic>;
-      expect(parsed['foodType'], equals('wet'));
+      final food = PetFood.fromJson(json);
+      expect(food.value, isNotNull);
+      expect(food.value, isA<WetFood>());
+    });
+
+    test('PetFood unknown discriminator throws', () {
+      final json = <String, dynamic>{'foodType': 'raw', 'calories': 300};
+
+      expect(
+        () => PetFood.fromJson(json),
+        throwsA(isA<ArgumentError>()),
+      );
     });
 
     test('PetFood serialize dry food', () {
-      final jsonData = '{"foodType":"dry","weightKg":2.5}';
+      final json = <String, dynamic>{'foodType': 'dry', 'weightKg': 2.5};
+      final food = PetFood.fromJson(json);
 
-      final parsed = jsonDecode(jsonData);
-      final serialized = jsonEncode(parsed);
-
+      final serialized = jsonEncode(food.toJson());
       final restored = jsonDecode(serialized) as Map<String, dynamic>;
       expect(restored['foodType'], equals('dry'));
     });
@@ -40,70 +51,79 @@ void main() {
     // anyOf without discriminator: PetTreatment
 
     test('PetTreatment deserialize medication', () {
-      final jsonData = '{"medicationName":"Amoxicillin","dosageMg":250}';
+      final json = <String, dynamic>{
+        'medicationName': 'Amoxicillin',
+        'dosageMg': 250,
+      };
 
-      final parsed = jsonDecode(jsonData) as Map<String, dynamic>;
-      expect(parsed['medicationName'], equals('Amoxicillin'));
+      final treatment = PetTreatment.fromJson(json);
+      expect(treatment.value, isNotNull);
     });
 
     test('PetTreatment deserialize surgery', () {
-      final jsonData = '{"procedureName":"Spay","durationMinutes":45}';
+      final json = <String, dynamic>{
+        'procedureName': 'Spay',
+        'durationMinutes': 45,
+      };
 
-      final parsed = jsonDecode(jsonData) as Map<String, dynamic>;
-      expect(parsed['procedureName'], equals('Spay'));
+      final treatment = PetTreatment.fromJson(json);
+      expect(treatment.value, isNotNull);
     });
 
     test('PetTreatment serialize round trip', () {
-      final jsonData = '{"medicationName":"Amoxicillin","dosageMg":250}';
+      final json = <String, dynamic>{
+        'medicationName': 'Amoxicillin',
+        'dosageMg': 250,
+      };
 
-      final parsed = jsonDecode(jsonData);
-      final serialized = jsonEncode(parsed);
+      final treatment = PetTreatment.fromJson(json);
+      final serialized = jsonEncode(treatment.toJson());
       expect(serialized, isNotEmpty);
     });
 
     // allOf: PetWithOwner extends Pet fields
 
     test('PetWithOwner deserialize', () {
-      final jsonData = jsonEncode({
+      final json = <String, dynamic>{
         'name': 'Fido',
         'photoUrls': ['http://example.com/fido.jpg'],
         'ownerName': 'John Doe',
         'ownerEmail': 'john@example.com',
-      });
+      };
 
-      final parsed = jsonDecode(jsonData) as Map<String, dynamic>;
-      expect(parsed['name'], equals('Fido'));
-      expect(parsed['ownerName'], equals('John Doe'));
+      final pet = PetWithOwner.fromJson(json);
+      expect(pet, isNotNull);
     });
 
     test('PetWithOwner serialize', () {
-      final data = {
+      final json = <String, dynamic>{
         'name': 'Fido',
         'photoUrls': ['http://example.com/fido.jpg'],
         'ownerName': 'John Doe',
       };
 
-      final serialized = jsonEncode(data);
+      final pet = PetWithOwner.fromJson(json);
+      final serialized = jsonEncode(pet.toJson());
       expect(serialized, isNotEmpty);
 
-      final parsed = jsonDecode(serialized) as Map<String, dynamic>;
-      expect(parsed['name'], equals('Fido'));
-      expect(parsed['ownerName'], equals('John Doe'));
+      final restored = jsonDecode(serialized) as Map<String, dynamic>;
+      expect(restored['name'], equals('Fido'));
+      expect(restored['ownerName'], equals('John Doe'));
     });
 
     test('PetWithOwner round trip', () {
-      final jsonData = jsonEncode({
+      final json = <String, dynamic>{
         'name': 'Buddy',
         'photoUrls': ['http://example.com/buddy.jpg'],
         'ownerName': 'Jane Smith',
-      });
+      };
 
-      final parsed = jsonDecode(jsonData);
-      final serialized = jsonEncode(parsed);
-      final restored = jsonDecode(serialized) as Map<String, dynamic>;
+      final original = PetWithOwner.fromJson(json);
+      final serialized = jsonEncode(original.toJson());
+      final restored =
+          PetWithOwner.fromJson(jsonDecode(serialized) as Map<String, dynamic>);
 
-      expect(restored['name'], equals('Buddy'));
-      expect(restored['ownerName'], equals('Jane Smith'));
+      expect(restored, isNotNull);
     });
   });
 }

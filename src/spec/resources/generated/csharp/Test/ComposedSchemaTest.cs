@@ -16,19 +16,10 @@ public class ComposedSchemaTest
 {
     private readonly ObjectSerializer _serializer = new();
 
-    [Fact]
-    public void AllOfDeserializesPetWithOwner()
-    {
-        var json = "{\"name\":\"doggie\",\"photoUrls\":[\"http://example.com/photo.jpg\"],\"ownerName\":\"John\",\"ownerEmail\":\"john@example.com\"}";
-        var result = _serializer.Deserialize<PetWithOwner>(json);
-        Assert.NotNull(result);
-        Assert.Equal("doggie", result!.Name);
-        Assert.Equal("John", result.OwnerName);
-        Assert.Equal("john@example.com", result.OwnerEmail);
-    }
+    // -- oneOf with discriminator: PetFood --
 
     [Fact]
-    public void OneOfWithDiscriminatorDeserializesDryFood()
+    public void OneOfDeserializesDryFood()
     {
         var json = "{\"foodType\":\"dry\",\"weightKg\":2.5}";
         var result = _serializer.Deserialize<PetFood>(json);
@@ -36,6 +27,37 @@ public class ComposedSchemaTest
         Assert.IsType<DryFood>(result);
         Assert.Equal("dry", ((DryFood)result!).FoodType);
     }
+
+    [Fact]
+    public void OneOfDeserializesWetFood()
+    {
+        var json = "{\"foodType\":\"wet\",\"volumeMl\":400}";
+        var result = _serializer.Deserialize<PetFood>(json);
+        Assert.NotNull(result);
+        Assert.IsType<WetFood>(result);
+        Assert.Equal("wet", ((WetFood)result!).FoodType);
+    }
+
+    [Fact]
+    public void OneOfUnknownDiscriminatorReturnsNull()
+    {
+        var json = "{\"foodType\":\"raw\",\"calories\":300}";
+        var result = _serializer.Deserialize<PetFood>(json);
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void OneOfSerializesDryFood()
+    {
+        var json = "{\"foodType\":\"dry\",\"weightKg\":2.5}";
+        var result = _serializer.Deserialize<PetFood>(json);
+
+        var serialized = _serializer.Serialize(result!);
+        Assert.Contains("dry", serialized);
+        Assert.Contains("2.5", serialized);
+    }
+
+    // -- anyOf without discriminator: PetTreatment --
 
     [Fact]
     public void AnyOfDeserializesMedication()
@@ -46,5 +68,66 @@ public class ComposedSchemaTest
         Assert.NotNull(result!.ActualInstance);
         Assert.IsType<Medication>(result.ActualInstance);
         Assert.Equal("Amoxicillin", ((Medication)result.ActualInstance!).DrugName);
+    }
+
+    [Fact]
+    public void AnyOfDeserializesSurgery()
+    {
+        var json = "{\"procedureName\":\"Spay\",\"durationMinutes\":45}";
+        var result = _serializer.Deserialize<PetTreatment>(json);
+        Assert.NotNull(result);
+        Assert.NotNull(result!.ActualInstance);
+        Assert.IsType<Surgery>(result.ActualInstance);
+    }
+
+    [Fact]
+    public void AnyOfSerializeRoundTrip()
+    {
+        var json = "{\"drugName\":\"Amoxicillin\",\"dosage\":\"500mg\"}";
+        var result = _serializer.Deserialize<PetTreatment>(json);
+
+        var serialized = _serializer.Serialize(result!);
+        Assert.NotNull(serialized);
+        Assert.NotEmpty(serialized);
+    }
+
+    // -- allOf: PetWithOwner --
+
+    [Fact]
+    public void AllOfDeserializesPetWithOwner()
+    {
+        var json =
+            "{\"name\":\"doggie\",\"photoUrls\":[\"http://example.com/photo.jpg\"],\"ownerName\":\"John\",\"ownerEmail\":\"john@example.com\"}";
+        var result = _serializer.Deserialize<PetWithOwner>(json);
+        Assert.NotNull(result);
+        Assert.Equal("doggie", result!.Name);
+        Assert.Equal("John", result.OwnerName);
+        Assert.Equal("john@example.com", result.OwnerEmail);
+    }
+
+    [Fact]
+    public void AllOfSerializesPetWithOwner()
+    {
+        var json =
+            "{\"name\":\"Fido\",\"photoUrls\":[\"http://example.com/fido.jpg\"],\"ownerName\":\"John Doe\"}";
+        var result = _serializer.Deserialize<PetWithOwner>(json);
+
+        var serialized = _serializer.Serialize(result!);
+        Assert.Contains("Fido", serialized);
+        Assert.Contains("John Doe", serialized);
+    }
+
+    [Fact]
+    public void AllOfRoundTrip()
+    {
+        var json =
+            "{\"name\":\"Buddy\",\"photoUrls\":[\"http://example.com/buddy.jpg\"],\"ownerName\":\"Jane Smith\"}";
+        var original = _serializer.Deserialize<PetWithOwner>(json);
+
+        var serialized = _serializer.Serialize(original!);
+        var restored = _serializer.Deserialize<PetWithOwner>(serialized);
+
+        Assert.Equal(original!.Name, restored!.Name);
+        Assert.Equal(original.OwnerName, restored.OwnerName);
     }
 }

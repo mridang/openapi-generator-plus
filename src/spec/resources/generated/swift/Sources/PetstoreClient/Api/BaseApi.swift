@@ -9,337 +9,361 @@ import Foundation
 
 /// BaseApi provides common functionality for all API classes.
 open class BaseApi {
-    let config: Configuration
-    let apiClient: ApiClient
-    let headerSelector: HeaderSelector
-    let authenticator: Authenticator?
+  let config: Configuration
+  let apiClient: ApiClient
+  let headerSelector: HeaderSelector
+  let authenticator: Authenticator?
 
-    /// Creates a new BaseApi instance.
-    public init(apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil) {
-        self.apiClient = apiClient ?? DefaultApiClient()
-        self.config = config ?? Configuration.default()
-        self.headerSelector = HeaderSelector()
-        self.authenticator = authenticator
+  /// Creates a new BaseApi instance.
+  public init(
+    apiClient: ApiClient? = nil, config: Configuration? = nil, authenticator: Authenticator? = nil
+  ) {
+    self.apiClient = apiClient ?? DefaultApiClient()
+    self.config = config ?? Configuration.default()
+    self.headerSelector = HeaderSelector()
+    self.authenticator = authenticator
+  }
+
+  /// Parameters for an API invocation.
+  struct InvokeAPIParams {
+    let method: String
+    let path: String
+    var queryParams: [String: Any?] = [:]
+    var headerParams: [String: String] = [:]
+    var body: Any? = nil
+    var accepts: [String] = []
+    var contentType: String = ""
+    var returnType: String = ""
+    var auth: Authenticator? = nil
+  }
+
+  /// Dispatches an API request and returns the raw response.
+  func invokeAPI(_ params: InvokeAPIParams) async throws -> ApiResponse {
+    var requestURL = params.path
+    if !requestURL.hasPrefix("http://") && !requestURL.hasPrefix("https://") {
+      requestURL = config.baseURL + params.path
     }
 
-    /// Parameters for an API invocation.
-    struct InvokeAPIParams {
-        let method: String
-        let path: String
-        var queryParams: [String: Any?] = [:]
-        var headerParams: [String: String] = [:]
-        var body: Any? = nil
-        var accepts: [String] = []
-        var contentType: String = ""
-        var returnType: String = ""
-        var auth: Authenticator? = nil
+    /* Merge authentication query params */
+    var queryParams = params.queryParams
+    let effectiveAuth: Authenticator? = params.auth ?? self.authenticator
+    if let auth = effectiveAuth {
+      for (k, v) in auth.queryParams() {
+        queryParams[k] = v
+      }
     }
 
-    /// Dispatches an API request and returns the raw response.
-    func invokeAPI(_ params: InvokeAPIParams) async throws -> ApiResponse {
-        var requestURL = params.path
-        if !requestURL.hasPrefix("http://") && !requestURL.hasPrefix("https://") {
-            requestURL = config.baseURL + params.path
+    /* Build query string */
+    let queryString = Self.buildQueryString(queryParams)
+    if !queryString.isEmpty {
+      requestURL = requestURL + "?" + queryString
+    }
+
+    /* Select headers */
+    let isMultipart = params.contentType == "multipart/form-data"
+    var headers = headerSelector.selectHeaders(
+      accept: params.accepts, contentType: params.contentType, isMultipart: isMultipart)
+
+    /* Merge config default headers */
+    for (k, v) in config.defaultHeaders {
+      headers[k] = v
+    }
+
+    /* Merge operation-specific headers */
+    for (k, v) in params.headerParams {
+      headers[k] = v
+    }
+
+    /* Merge auth headers */
+    if let auth = effectiveAuth {
+      for (k, v) in auth.authHeaders() {
+        headers[k] = v
+      }
+      /* Handle cookie params */
+      let cookies = auth.cookieParams()
+      if !cookies.isEmpty {
+        let cookieStr = cookies.map { "\($0.key)=\($0.value)" }.joined(separator: "; ")
+        if let existing = headers["Cookie"] {
+          headers["Cookie"] = existing + "; " + cookieStr
+        } else {
+          headers["Cookie"] = cookieStr
         }
+      }
+    }
 
-        /* Merge authentication query params */
-        var queryParams = params.queryParams
-        let effectiveAuth: Authenticator? = params.auth ?? self.authenticator
-        if let auth = effectiveAuth {
-            for (k, v) in auth.queryParams() {
-                queryParams[k] = v
-            }
-        }
+    /* Inject trace context */
+    TraceContextUtil.injectTraceContext(headers: &headers)
 
-        /* Build query string */
-        let queryString = Self.buildQueryString(queryParams)
-        if !queryString.isEmpty {
-            requestURL = requestURL + "?" + queryString
-        }
-
-        /* Select headers */
-        let isMultipart = params.contentType == "multipart/form-data"
-        var headers = headerSelector.selectHeaders(accept: params.accepts, contentType: params.contentType, isMultipart: isMultipart)
-
-        /* Merge config default headers */
-        for (k, v) in config.defaultHeaders {
-            headers[k] = v
-        }
-
-        /* Merge operation-specific headers */
-        for (k, v) in params.headerParams {
-            headers[k] = v
-        }
-
-        /* Merge auth headers */
-        if let auth = effectiveAuth {
-            for (k, v) in auth.authHeaders() {
-                headers[k] = v
-            }
-            /* Handle cookie params */
-            let cookies = auth.cookieParams()
-            if !cookies.isEmpty {
-                let cookieStr = cookies.map { "\($0.key)=\($0.value)" }.joined(separator: "; ")
-                if let existing = headers["Cookie"] {
-                    headers["Cookie"] = existing + "; " + cookieStr
-                } else {
-                    headers["Cookie"] = cookieStr
-                }
-            }
-        }
-
-        /* Inject trace context */
-        TraceContextUtil.injectTraceContext(headers: &headers)
-
-        /* Serialize body -- multipart/form-data is handled separately so that
+    /* Serialize body -- multipart/form-data is handled separately so that
          * the boundary can be injected into the Content-Type header. */
-        let serializedBody: Data?
-        if params.contentType == "multipart/form-data", let formFields = params.body as? [String: Any] {
-            let boundary = UUID().uuidString
-            headers["Content-Type"] = "multipart/form-data; boundary=\(boundary)"
-            serializedBody = Self.buildMultipartBody(formFields, boundary: boundary)
-        } else {
-            serializedBody = try Self.serializeBody(params.body, contentType: params.contentType)
-        }
+    let serializedBody: Data?
+    if params.contentType == "multipart/form-data", let formFields = params.body as? [String: Any] {
+      let boundary = UUID().uuidString
+      headers["Content-Type"] = "multipart/form-data; boundary=\(boundary)"
+      serializedBody = Self.buildMultipartBody(formFields, boundary: boundary)
+    } else {
+      serializedBody = try Self.serializeBody(params.body, contentType: params.contentType)
+    }
 
-        /* Send request */
-        let response = try await apiClient.sendRequest(
-            method: params.method,
-            url: requestURL,
-            headers: headers,
-            body: serializedBody
+    /* Send request */
+    let response = try await apiClient.sendRequest(
+      method: params.method,
+      url: requestURL,
+      headers: headers,
+      body: serializedBody
+    )
+
+    /* Check for errors */
+    if response.statusCode < 200 || response.statusCode >= 300 {
+      throw Self.throwAPIError(response)
+    }
+
+    return response
+  }
+
+  /// Dispatches an API request, deserializes the response, and returns an ApiResult.
+  func invokeAPIForResult<T: Decodable>(_ params: InvokeAPIParams, as type: T.Type) async throws
+    -> ApiResult<T>
+  {
+    let response = try await invokeAPI(params)
+    let responseContentType =
+      response.headers.first(where: {
+        $0.key.caseInsensitiveCompare("content-type") == .orderedSame
+      })?.value ?? ""
+    var data: T? = nil
+    if !response.body.isEmpty && headerSelector.isJsonMime(responseContentType) {
+      data = try ObjectSerializer.deserialize(response.body, as: type)
+    }
+    return ApiResult<T>(
+      statusCode: response.statusCode,
+      data: data,
+      rawBody: response.body,
+      headers: response.headers
+    )
+  }
+
+  /// Dispatches an API request and returns an ApiResult with Void data (for operations with no return type).
+  func invokeAPIForEmptyResult(_ params: InvokeAPIParams) async throws -> ApiResult<Void> {
+    let response = try await invokeAPI(params)
+    return ApiResult<Void>(
+      statusCode: response.statusCode,
+      data: nil,
+      rawBody: response.body,
+      headers: response.headers
+    )
+  }
+
+  static func buildQueryString(_ queryParams: [String: Any?]) -> String {
+    guard !queryParams.isEmpty else { return "" }
+
+    var parts: [String] = []
+    for (k, v) in queryParams {
+      guard let v = v else { continue }
+      let encodedKey = k.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? k
+
+      if let items = v as? [String] {
+        for item in items {
+          let encodedValue =
+            item.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? item
+          parts.append("\(encodedKey)=\(encodedValue)")
+        }
+      } else {
+        let strVal = ObjectSerializer.stringify(v)
+        let encodedValue =
+          strVal.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? strVal
+        parts.append("\(encodedKey)=\(encodedValue)")
+      }
+    }
+
+    return parts.joined(separator: "&")
+  }
+
+  static func serializeBody(_ body: Any?, contentType: String) throws -> Data? {
+    guard let body = body else { return nil }
+
+    if contentType == "multipart/form-data" {
+      return nil
+    }
+
+    if contentType.hasPrefix("image/") || contentType == "application/octet-stream" {
+      if let data = body as? Data {
+        return data
+      }
+      if let str = body as? String {
+        return str.data(using: .utf8)
+      }
+    }
+
+    if contentType == "text/plain" {
+      return "\(body)".data(using: .utf8)
+    }
+
+    if contentType == "application/x-www-form-urlencoded" {
+      if let params = body as? [String: Any] {
+        let formSafe = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+        let encoded = params.map {
+          let key =
+            "\($0.key)".addingPercentEncoding(withAllowedCharacters: formSafe) ?? "\($0.key)"
+          let val =
+            "\($0.value)".addingPercentEncoding(withAllowedCharacters: formSafe) ?? "\($0.value)"
+          return "\(key)=\(val)"
+        }.joined(separator: "&")
+        return encoded.data(using: .utf8)
+      }
+    }
+
+    let jsonString = try ObjectSerializer.serialize(body)
+    return jsonString.data(using: .utf8)
+  }
+
+  /// Build a multipart/form-data request body from a dictionary of form fields.
+  ///
+  /// Each entry value may be `Data`, `URL` (file), `[Any]` (repeated field), or
+  /// any other value which is converted to its string representation.
+  ///
+  /// - Parameters:
+  ///   - formFields: dictionary mapping field names to values
+  ///   - boundary: the multipart boundary string
+  /// - Returns: the assembled multipart body as `Data`
+  static func buildMultipartBody(_ formFields: [String: Any], boundary: String) -> Data {
+    var body = Data()
+
+    for (name, value) in formFields {
+      if let list = value as? [Any] {
+        for item in list {
+          appendMultipartField(&body, boundary: boundary, name: name, value: item)
+        }
+      } else {
+        appendMultipartField(&body, boundary: boundary, name: name, value: value)
+      }
+    }
+    body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+    return body
+  }
+
+  private static func appendMultipartField(
+    _ body: inout Data, boundary: String, name: String, value: Any
+  ) {
+    if let fileURL = value as? URL {
+      let fileName = fileURL.lastPathComponent
+      let fileData = (try? Data(contentsOf: fileURL)) ?? Data()
+      let mimeType = "application/octet-stream"
+      body.append(
+        "--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"; filename=\"\(fileName)\"\r\nContent-Type: \(mimeType)\r\n\r\n"
+          .data(using: .utf8)!)
+      body.append(fileData)
+      body.append("\r\n".data(using: .utf8)!)
+    } else if let data = value as? Data {
+      body.append(
+        "--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"; filename=\"\(name)\"\r\nContent-Type: application/octet-stream\r\n\r\n"
+          .data(using: .utf8)!)
+      body.append(data)
+      body.append("\r\n".data(using: .utf8)!)
+    } else if value is String || value is Int || value is Double || value is Bool {
+      body.append(
+        "--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n\(value)\r\n"
+          .data(using: .utf8)!)
+    } else {
+      /* Model objects -- serialize to JSON */
+      if let jsonString = try? ObjectSerializer.serialize(value) {
+        body.append(
+          "--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\nContent-Type: application/json\r\n\r\n\(jsonString)\r\n"
+            .data(using: .utf8)!)
+      } else {
+        body.append(
+          "--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n\(value)\r\n"
+            .data(using: .utf8)!)
+      }
+    }
+  }
+
+  static func throwAPIError(_ response: ApiResponse) -> ApiError {
+    let code = response.statusCode
+    let msg = "API returned status code \(code)"
+    let body = response.body
+
+    var parsed: Any? = nil
+    if !body.isEmpty, let data = body.data(using: .utf8) {
+      parsed = try? JSONSerialization.jsonObject(with: data)
+    }
+
+    let baseErr = ApiError(
+      statusCode: code,
+      message: msg,
+      responseBody: body,
+      responseHeaders: response.headers,
+      errorBody: parsed
+    )
+
+    if code >= 400 && code < 500 {
+      let clientErr = ClientError(
+        statusCode: code,
+        message: msg,
+        responseBody: body,
+        responseHeaders: response.headers,
+        errorBody: parsed
+      )
+      switch code {
+      case 400:
+        return BadRequestError(
+          statusCode: code, message: msg, responseBody: body,
+          responseHeaders: response.headers, errorBody: parsed
         )
-
-        /* Check for errors */
-        if response.statusCode < 200 || response.statusCode >= 300 {
-            throw Self.throwAPIError(response)
-        }
-
-        return response
-    }
-
-    /// Dispatches an API request, deserializes the response, and returns an ApiResult.
-    func invokeAPIForResult<T: Decodable>(_ params: InvokeAPIParams, as type: T.Type) async throws -> ApiResult<T> {
-        let response = try await invokeAPI(params)
-        let responseContentType = response.headers["Content-Type"] ?? response.headers["content-type"] ?? ""
-        var data: T? = nil
-        if !response.body.isEmpty && responseContentType.contains("application/json") {
-            data = try ObjectSerializer.deserialize(response.body, as: type)
-        }
-        return ApiResult<T>(
-            statusCode: response.statusCode,
-            data: data,
-            rawBody: response.body,
-            headers: response.headers
+      case 401:
+        return UnauthorizedError(
+          statusCode: code, message: msg, responseBody: body,
+          responseHeaders: response.headers, errorBody: parsed
         )
-    }
-
-    /// Dispatches an API request and returns an ApiResult with Void data (for operations with no return type).
-    func invokeAPIForEmptyResult(_ params: InvokeAPIParams) async throws -> ApiResult<Void> {
-        let response = try await invokeAPI(params)
-        return ApiResult<Void>(
-            statusCode: response.statusCode,
-            data: nil,
-            rawBody: response.body,
-            headers: response.headers
+      case 403:
+        return ForbiddenError(
+          statusCode: code, message: msg, responseBody: body,
+          responseHeaders: response.headers, errorBody: parsed
         )
-    }
-
-    static func buildQueryString(_ queryParams: [String: Any?]) -> String {
-        guard !queryParams.isEmpty else { return "" }
-
-        var parts: [String] = []
-        for (k, v) in queryParams {
-            guard let v = v else { continue }
-            let encodedKey = k.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? k
-
-            if let items = v as? [String] {
-                for item in items {
-                    let encodedValue = item.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? item
-                    parts.append("\(encodedKey)=\(encodedValue)")
-                }
-            } else {
-                let strVal = ObjectSerializer.stringify(v)
-                let encodedValue = strVal.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? strVal
-                parts.append("\(encodedKey)=\(encodedValue)")
-            }
-        }
-
-        return parts.joined(separator: "&")
-    }
-
-    static func serializeBody(_ body: Any?, contentType: String) throws -> Data? {
-        guard let body = body else { return nil }
-
-        if contentType == "multipart/form-data" {
-            return nil
-        }
-
-        if contentType.hasPrefix("image/") || contentType == "application/octet-stream" {
-            if let data = body as? Data {
-                return data
-            }
-            if let str = body as? String {
-                return str.data(using: .utf8)
-            }
-        }
-
-        if contentType == "text/plain" {
-            return "\(body)".data(using: .utf8)
-        }
-
-        if contentType == "application/x-www-form-urlencoded" {
-            if let params = body as? [String: Any] {
-                let formSafe = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
-                let encoded = params.map {
-                    let key = "\($0.key)".addingPercentEncoding(withAllowedCharacters: formSafe) ?? "\($0.key)"
-                    let val = "\($0.value)".addingPercentEncoding(withAllowedCharacters: formSafe) ?? "\($0.value)"
-                    return "\(key)=\(val)"
-                }.joined(separator: "&")
-                return encoded.data(using: .utf8)
-            }
-        }
-
-        let jsonString = try ObjectSerializer.serialize(body)
-        return jsonString.data(using: .utf8)
-    }
-
-    /// Build a multipart/form-data request body from a dictionary of form fields.
-    ///
-    /// Each entry value may be `Data`, `URL` (file), `[Any]` (repeated field), or
-    /// any other value which is converted to its string representation.
-    ///
-    /// - Parameters:
-    ///   - formFields: dictionary mapping field names to values
-    ///   - boundary: the multipart boundary string
-    /// - Returns: the assembled multipart body as `Data`
-    static func buildMultipartBody(_ formFields: [String: Any], boundary: String) -> Data {
-        var body = Data()
-
-        for (name, value) in formFields {
-            if let list = value as? [Any] {
-                for item in list {
-                    appendMultipartField(&body, boundary: boundary, name: name, value: item)
-                }
-            } else {
-                appendMultipartField(&body, boundary: boundary, name: name, value: value)
-            }
-        }
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-        return body
-    }
-
-    private static func appendMultipartField(_ body: inout Data, boundary: String, name: String, value: Any) {
-        if let fileURL = value as? URL {
-            let fileName = fileURL.lastPathComponent
-            let fileData = (try? Data(contentsOf: fileURL)) ?? Data()
-            let mimeType = "application/octet-stream"
-            body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"; filename=\"\(fileName)\"\r\nContent-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
-            body.append(fileData)
-            body.append("\r\n".data(using: .utf8)!)
-        } else if let data = value as? Data {
-            body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"; filename=\"\(name)\"\r\nContent-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
-            body.append(data)
-            body.append("\r\n".data(using: .utf8)!)
-        } else if value is String || value is Int || value is Double || value is Bool {
-            body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n\(value)\r\n".data(using: .utf8)!)
-        } else {
-            /* Model objects -- serialize to JSON */
-            if let jsonString = try? ObjectSerializer.serialize(value) {
-                body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\nContent-Type: application/json\r\n\r\n\(jsonString)\r\n".data(using: .utf8)!)
-            } else {
-                body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n\(value)\r\n".data(using: .utf8)!)
-            }
-        }
-    }
-
-    static func throwAPIError(_ response: ApiResponse) -> ApiError {
-        let code = response.statusCode
-        let msg = "API returned status code \(code)"
-        let body = response.body
-
-        var parsed: Any? = nil
-        if !body.isEmpty, let data = body.data(using: .utf8) {
-            parsed = try? JSONSerialization.jsonObject(with: data)
-        }
-
-        let baseErr = ApiError(
-            statusCode: code,
-            message: msg,
-            responseBody: body,
-            responseHeaders: response.headers,
-            errorBody: parsed
+      case 404:
+        return NotFoundError(
+          statusCode: code, message: msg, responseBody: body,
+          responseHeaders: response.headers, errorBody: parsed
         )
-
-        if code >= 400 && code < 500 {
-            let clientErr = ClientError(
-                statusCode: code,
-                message: msg,
-                responseBody: body,
-                responseHeaders: response.headers,
-                errorBody: parsed
-            )
-            switch code {
-            case 400:
-                return BadRequestError(
-                    statusCode: code, message: msg, responseBody: body,
-                    responseHeaders: response.headers, errorBody: parsed
-                )
-            case 401:
-                return UnauthorizedError(
-                    statusCode: code, message: msg, responseBody: body,
-                    responseHeaders: response.headers, errorBody: parsed
-                )
-            case 403:
-                return ForbiddenError(
-                    statusCode: code, message: msg, responseBody: body,
-                    responseHeaders: response.headers, errorBody: parsed
-                )
-            case 404:
-                return NotFoundError(
-                    statusCode: code, message: msg, responseBody: body,
-                    responseHeaders: response.headers, errorBody: parsed
-                )
-            case 409:
-                return ConflictError(
-                    statusCode: code, message: msg, responseBody: body,
-                    responseHeaders: response.headers, errorBody: parsed
-                )
-            case 422:
-                return UnprocessableEntityError(
-                    statusCode: code, message: msg, responseBody: body,
-                    responseHeaders: response.headers, errorBody: parsed
-                )
-            default:
-                return clientErr
-            }
-        }
-
-        if code >= 500 {
-            let serverErr = ServerError(
-                statusCode: code,
-                message: msg,
-                responseBody: body,
-                responseHeaders: response.headers,
-                errorBody: parsed
-            )
-            switch code {
-            case 500:
-                return InternalServerError(
-                    statusCode: code, message: msg, responseBody: body,
-                    responseHeaders: response.headers, errorBody: parsed
-                )
-            default:
-                return serverErr
-            }
-        }
-
-        return baseErr
+      case 409:
+        return ConflictError(
+          statusCode: code, message: msg, responseBody: body,
+          responseHeaders: response.headers, errorBody: parsed
+        )
+      case 422:
+        return UnprocessableEntityError(
+          statusCode: code, message: msg, responseBody: body,
+          responseHeaders: response.headers, errorBody: parsed
+        )
+      default:
+        return clientErr
+      }
     }
+
+    if code >= 500 {
+      let serverErr = ServerError(
+        statusCode: code,
+        message: msg,
+        responseBody: body,
+        responseHeaders: response.headers,
+        errorBody: parsed
+      )
+      switch code {
+      case 500:
+        return InternalServerError(
+          statusCode: code, message: msg, responseBody: body,
+          responseHeaders: response.headers, errorBody: parsed
+        )
+      default:
+        return serverErr
+      }
+    }
+
+    return baseErr
+  }
 }
 
 /// Replaces a path parameter placeholder with a percent-encoded value.
 func replacePathParam(_ path: String, name: String, value: String) -> String {
-    let encoded = value.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? value
-    return path.replacingOccurrences(of: "{\(name)}", with: encoded)
+  let encoded = value.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? value
+  return path.replacingOccurrences(of: "{\(name)}", with: encoded)
 }

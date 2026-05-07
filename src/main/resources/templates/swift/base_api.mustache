@@ -115,9 +115,9 @@ open class BaseApi {
     /// Dispatches an API request, deserializes the response, and returns an ApiResult.
     func invokeAPIForResult<T: Decodable>(_ params: InvokeAPIParams, as type: T.Type) async throws -> ApiResult<T> {
         let response = try await invokeAPI(params)
-        let responseContentType = response.headers["Content-Type"] ?? response.headers["content-type"] ?? ""
+        let responseContentType = response.headers.first(where: { $0.key.caseInsensitiveCompare("content-type") == .orderedSame })?.value ?? ""
         var data: T? = nil
-        if !response.body.isEmpty && responseContentType.contains("application/json") {
+        if !response.body.isEmpty && headerSelector.isJsonMime(responseContentType) {
             data = try ObjectSerializer.deserialize(response.body, as: type)
         }
         return ApiResult<T>(

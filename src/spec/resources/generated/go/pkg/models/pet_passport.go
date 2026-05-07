@@ -18,14 +18,13 @@ type PetPassport struct {
 	/* Thumbnail Base64-encoded primary thumbnail */
 	Thumbnail *[]byte `json:"thumbnail,omitempty"`
 	/* Scans Base64-encoded scans of each passport page */
-	Scans *[][]byte `json:"scans,omitempty"`
+	Scans    *[][]byte  `json:"scans,omitempty"`
 	IssuedAt *time.Time `json:"issuedAt,omitempty"`
 }
 
 // NewPetPassport creates a new PetPassport instance.
 func NewPetPassport() *PetPassport {
-	return &PetPassport{
-	}
+	return &PetPassport{}
 }
 
 // MarshalJSON implements the json.Marshaler interface.

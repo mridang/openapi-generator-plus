@@ -176,6 +176,9 @@ public class ObjectSerializer
             catch (JsonException)
             {
             }
+            catch (NotSupportedException)
+            {
+            }
         }
 
         return null;

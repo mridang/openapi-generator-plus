@@ -55,7 +55,10 @@ export class ObjectSerializer {
    * @param cls the class constructor to instantiate
    * @returns the deserialized object
    */
-  static deserialize<T>(json: unknown, cls: ClassConstructor<T>): T {
+  static deserialize<T>(json: unknown, cls: ClassConstructor<T>): T | null {
+    if (json === null || json === undefined) {
+      return null;
+    }
     try {
       const clsRecord = cls as unknown as Record<string, unknown>;
       const anyOfSchemas = clsRecord['ANY_OF_SCHEMAS'] as string[] | undefined;
@@ -75,6 +78,7 @@ export class ObjectSerializer {
               return new (cls as unknown as new (i: unknown) => T)(instance);
             }
           }
+          return null;
         }
         for (const schemaName of schemas) {
           const schemaCls = (models as Record<string, unknown>)[schemaName] as ClassConstructor<unknown> | undefined;
@@ -112,7 +116,7 @@ export class ObjectSerializer {
     if (!Array.isArray(json)) {
       throw new SerializationError('Expected array but received: ' + typeof json);
     }
-    return json.map((item: unknown) => ObjectSerializer.deserialize(item, cls));
+    return json.map((item: unknown) => ObjectSerializer.deserialize(item, cls)).filter((x): x is T => x !== null);
   }
 
   /**

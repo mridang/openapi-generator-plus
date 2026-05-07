@@ -25,15 +25,15 @@ import (
 // transport configuration (proxy, TLS, timeouts) as regular API calls.
 type OpenIdConnectAuthenticator struct {
 	auth.BaseAuthenticator
-	host              string
-	openIDConnectURL  string
-	clientID          string
-	clientSecret      string
-	redirectURI       string
-	scopes            []string
-	apiClient         auth.ApiClient
-	delegate          *OAuth2AuthorizationCodeAuthenticator
-	mu                sync.Mutex
+	host             string
+	openIDConnectURL string
+	clientID         string
+	clientSecret     string
+	redirectURI      string
+	scopes           []string
+	apiClient        auth.ApiClient
+	delegate         *OAuth2AuthorizationCodeAuthenticator
+	mu               sync.Mutex
 }
 
 // NewOpenIdConnectAuthenticator creates a new OpenID Connect authenticator.

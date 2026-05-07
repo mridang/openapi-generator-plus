@@ -11,6 +11,15 @@ namespace PetstoreClient.Auth.OAuth;
 /// <summary>
 /// Scheme-specific authenticator for the <c>machineAuth</c> security scheme.
 /// </summary>
-public sealed class MachineAuthClientCredentialsAuthenticator(string host, string clientId, string clientSecret)
-    : OAuth2ClientCredentialsAuthenticator(host, clientId, clientSecret, new Uri("https://auth.example.com/oauth/token"), ["pets:read", "pets:write"])
-{ }
+public sealed class MachineAuthClientCredentialsAuthenticator(
+    string host,
+    string clientId,
+    string clientSecret
+)
+    : OAuth2ClientCredentialsAuthenticator(
+        host,
+        clientId,
+        clientSecret,
+        new Uri("https://auth.example.com/oauth/token"),
+        ["pets:read", "pets:write"]
+    ) { }

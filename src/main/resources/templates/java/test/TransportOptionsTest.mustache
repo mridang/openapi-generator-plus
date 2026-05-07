@@ -54,6 +54,17 @@ class TransportOptionsTest {
     }
 
     @Test
+    @DisplayName("follow redirects defaults to true with null max redirects")
+    void followRedirectsDefaultsToTrueWithNullMaxRedirects() {
+        TransportOptions opts = TransportOptions.builder()
+                .followRedirects(true)
+                .build();
+
+        assertTrue(opts.isFollowRedirects());
+        assertNull(opts.getMaxRedirects());
+    }
+
+    @Test
     @DisplayName("invalid proxy URL throws IllegalArgumentException")
     void invalidProxyUrlThrowsException() {
         assertThrows(IllegalArgumentException.class, () ->
@@ -82,5 +93,60 @@ class TransportOptionsTest {
         assertEquals(1, opts.getDefaultHeaders().size());
         assertEquals("original", opts.getDefaultHeaders().get("X-Original"));
         assertNull(opts.getDefaultHeaders().get("X-Added"));
+    }
+
+    @Test
+    @DisplayName("builder methods return the same builder instance")
+    void builderMethodsReturnSameInstance() {
+        TransportOptions.Builder builder = TransportOptions.builder();
+
+        assertSame(builder, builder.verifySsl(true));
+        assertSame(builder, builder.caCertPath(null));
+        assertSame(builder, builder.proxy(null));
+        assertSame(builder, builder.timeout(null));
+        assertSame(builder, builder.followRedirects(true));
+        assertSame(builder, builder.maxRedirects(null));
+        assertSame(builder, builder.userAgent(null));
+        assertSame(builder, builder.defaultHeader("X-Key", "val"));
+        assertSame(builder, builder.defaultHeaders(new HashMap<>()));
+        assertSame(builder, builder.injectRequestId(false));
+    }
+
+    @Test
+    @DisplayName("accumulates headers from defaultHeader calls")
+    void accumulatesHeadersFromDefaultHeaderCalls() {
+        TransportOptions opts = TransportOptions.builder()
+                .defaultHeader("X-First", "one")
+                .defaultHeader("X-Second", "two")
+                .build();
+
+        assertEquals(2, opts.getDefaultHeaders().size());
+        assertEquals("one", opts.getDefaultHeaders().get("X-First"));
+        assertEquals("two", opts.getDefaultHeaders().get("X-Second"));
+    }
+
+    @Test
+    @DisplayName("merges headers from defaultHeaders call")
+    void mergesHeadersFromDefaultHeadersCall() {
+        TransportOptions opts = TransportOptions.builder()
+                .defaultHeader("X-First", "one")
+                .defaultHeaders(Map.of("X-Second", "two", "X-Third", "three"))
+                .build();
+
+        assertEquals(3, opts.getDefaultHeaders().size());
+        assertEquals("one", opts.getDefaultHeaders().get("X-First"));
+        assertEquals("two", opts.getDefaultHeaders().get("X-Second"));
+        assertEquals("three", opts.getDefaultHeaders().get("X-Third"));
+    }
+
+    @Test
+    @DisplayName("builder produces independent instances")
+    void builderProducesIndependentInstances() {
+        TransportOptions.Builder builder = TransportOptions.builder().verifySsl(false);
+        TransportOptions first = builder.build();
+        TransportOptions second = builder.build();
+
+        assertEquals(first.isVerifySsl(), second.isVerifySsl());
+        assertNotSame(first, second);
     }
 }

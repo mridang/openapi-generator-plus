@@ -4,7 +4,7 @@ import XCTest
 
 final class HeaderSelectorTests: XCTestCase {
 
-    func testIsJSONMIME() {
+    func testIsJsonMime() {
         let hs = HeaderSelector()
 
         let testCases: [(String, Bool)] = [
@@ -19,7 +19,7 @@ final class HeaderSelectorTests: XCTestCase {
         ]
 
         for (input, expected) in testCases {
-            XCTAssertEqual(hs.isJSONMIME(input), expected, "IsJSONMIME(\(input)) should be \(expected)")
+            XCTAssertEqual(hs.isJsonMime(input), expected, "IsJsonMime(\(input)) should be \(expected)")
         }
     }
 
@@ -93,10 +93,10 @@ final class HeaderSelectorTests: XCTestCase {
         XCTAssertTrue(accept.contains("application/vnd.api+json"))
     }
 
-    func testIsJSONMIMECaseInsensitive() {
+    func testIsJsonMimeCaseInsensitive() {
         let hs = HeaderSelector()
 
-        XCTAssertTrue(hs.isJSONMIME("APPLICATION/JSON"))
+        XCTAssertTrue(hs.isJsonMime("APPLICATION/JSON"))
     }
 
     func testGetNextWeightStandardSequence() {

@@ -17,9 +17,7 @@ namespace PetstoreClient.Auth.OAuth;
 /// use the shared <see cref="IApiClient"/> with the same transport configuration
 /// (proxy, TLS, timeouts) as regular API calls.
 /// </summary>
-public class OAuth2ClientCredentialsAuthenticator
-    : BaseAuthenticator,
-        IHttpAwareAuthenticator
+public class OAuth2ClientCredentialsAuthenticator : BaseAuthenticator, IHttpAwareAuthenticator
 {
     private readonly string _host;
     private readonly string _clientId;

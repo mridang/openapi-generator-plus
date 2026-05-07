@@ -45,11 +45,16 @@ class ApiError implements Exception {
   }
 
   /// Deserializes the response body into a typed value.
-  T typedErrorBody<T>(T Function(Map<String, dynamic>) fromJson) {
+  /// Returns null if the body is empty or deserialization fails.
+  T? typedErrorBody<T>(T Function(Map<String, dynamic>) fromJson) {
     if (responseBody.isEmpty) {
-      throw StateError('Response body is empty');
+      return null;
     }
-    final decoded = jsonDecode(responseBody);
-    return fromJson(decoded as Map<String, dynamic>);
+    try {
+      final decoded = jsonDecode(responseBody);
+      return fromJson(decoded as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
   }
 }

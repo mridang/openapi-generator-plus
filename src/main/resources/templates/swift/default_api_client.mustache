@@ -126,7 +126,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
                 verifySSL: opts.verifySSL,
                 caCertPath: opts.caCertPath,
                 followRedirects: opts.followRedirects,
-                maxRedirects: opts.maxRedirects ?? 0
+                maxRedirects: opts.maxRedirects
             )
             return (URLSession(configuration: config, delegate: delegate, delegateQueue: nil), delegate)
         }
@@ -142,16 +142,16 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 /// is disabled, the delegate accepts all server certificates unconditionally.
 ///
 /// When ``followRedirects`` is false, the delegate stops all HTTP 3xx redirects.
-/// When ``maxRedirects`` is greater than zero, the delegate limits the number
-/// of consecutive redirects before stopping.
+/// When ``maxRedirects`` is set, the delegate limits the number of consecutive
+/// redirects before stopping. A value of 0 means no redirects are followed.
 private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegate, @unchecked Sendable {
     private let verifySSL: Bool
     private let caCertPath: String?
     private let followRedirects: Bool
-    private let maxRedirects: Int
+    private let maxRedirects: Int?
     private let redirectCount = LockedCounter()
 
-    init(verifySSL: Bool, caCertPath: String?, followRedirects: Bool, maxRedirects: Int) {
+    init(verifySSL: Bool, caCertPath: String?, followRedirects: Bool, maxRedirects: Int?) {
         self.verifySSL = verifySSL
         self.caCertPath = caCertPath
         self.followRedirects = followRedirects
@@ -211,9 +211,9 @@ private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTas
             completionHandler(nil)
             return
         }
-        if maxRedirects > 0 {
+        if let limit = maxRedirects {
             let count = redirectCount.increment()
-            if count > maxRedirects {
+            if count > limit {
                 completionHandler(nil)
                 return
             }

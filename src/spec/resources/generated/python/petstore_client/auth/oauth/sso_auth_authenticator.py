@@ -11,4 +11,11 @@ from .openid_connect_authenticator import OpenIdConnectAuthenticator
 
 class SsoAuthAuthenticator(OpenIdConnectAuthenticator):
     def __init__(self, host: str, client_id: str, client_secret: str, redirect_uri: str):
-        super().__init__(host, "https://auth.example.com/.well-known/openid-configuration", client_id, client_secret, redirect_uri, [])
+        super().__init__(
+            host,
+            'https://auth.example.com/.well-known/openid-configuration',
+            client_id,
+            client_secret,
+            redirect_uri,
+            [],
+        )

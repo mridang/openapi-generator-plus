@@ -27,9 +27,10 @@ String serialize(Object object) {
 }
 
 /// Parses a JSON string into a dynamic value.
-T deserialize<T>(String data, T Function(Map<String, dynamic>) fromJson) {
+/// Returns null if data is empty.
+T? deserialize<T>(String data, T Function(Map<String, dynamic>) fromJson) {
   if (data.isEmpty) {
-    throw SerializationError('Cannot deserialize empty data');
+    return null;
   }
 
   try {
@@ -45,9 +46,10 @@ T deserialize<T>(String data, T Function(Map<String, dynamic>) fromJson) {
 }
 
 /// Parses a JSON string into a list of values.
-List<T> deserializeList<T>(String data, T Function(Map<String, dynamic>) fromJson) {
+/// Returns null if data is empty.
+List<T>? deserializeList<T>(String data, T Function(Map<String, dynamic>) fromJson) {
   if (data.isEmpty) {
-    throw SerializationError('Cannot deserialize empty data');
+    return null;
   }
 
   try {

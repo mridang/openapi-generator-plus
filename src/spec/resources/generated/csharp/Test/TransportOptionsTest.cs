@@ -32,7 +32,8 @@ public class TransportOptionsTest
     [Fact]
     public void BuilderSetsAllFields()
     {
-        var opts = TransportOptions.Builder()
+        var opts = TransportOptions
+            .Builder()
             .VerifySsl(false)
             .CaCertPath("/path/to/ca.pem")
             .Proxy("http://proxy:8080")
@@ -56,10 +57,28 @@ public class TransportOptionsTest
     }
 
     [Fact]
+    public void FollowRedirectsDefaultsToTrueWithNullMaxRedirects()
+    {
+        var opts = TransportOptions.Builder().FollowRedirects(true).Build();
+
+        Assert.True(opts.FollowRedirects);
+        Assert.Null(opts.MaxRedirects);
+    }
+
+    [Fact]
     public void InvalidProxyUrlThrows()
     {
-        Assert.Throws<UriFormatException>(() =>
-            TransportOptions.Builder().Proxy("not a valid url").Build());
+        Assert.Throws<UriFormatException>(
+            () => TransportOptions.Builder().Proxy("not a valid url").Build()
+        );
+    }
+
+    [Fact]
+    public void NullProxyIsAccepted()
+    {
+        var opts = TransportOptions.Builder().Proxy(null).Build();
+
+        Assert.Null(opts.Proxy);
     }
 
     [Fact]
@@ -67,14 +86,71 @@ public class TransportOptionsTest
     {
         var headers = new Dictionary<string, string> { { "X-Original", "original" } };
 
-        var opts = TransportOptions.Builder()
-            .DefaultHeaders(headers)
-            .Build();
+        var opts = TransportOptions.Builder().DefaultHeaders(headers).Build();
 
         headers["X-Added"] = "added";
 
         Assert.Single(opts.DefaultHeaders);
         Assert.Equal("original", opts.DefaultHeaders["X-Original"]);
         Assert.False(opts.DefaultHeaders.ContainsKey("X-Added"));
+    }
+
+    [Fact]
+    public void BuilderMethodsReturnSameInstance()
+    {
+        var builder = TransportOptions.Builder();
+
+        Assert.Same(builder, builder.VerifySsl(true));
+        Assert.Same(builder, builder.CaCertPath(null));
+        Assert.Same(builder, builder.Proxy(null));
+        Assert.Same(builder, builder.Timeout(null));
+        Assert.Same(builder, builder.FollowRedirects(true));
+        Assert.Same(builder, builder.MaxRedirects(null));
+        Assert.Same(builder, builder.UserAgent(null));
+        Assert.Same(builder, builder.DefaultHeader("X-Key", "val"));
+        Assert.Same(builder, builder.DefaultHeaders(new Dictionary<string, string>()));
+        Assert.Same(builder, builder.InjectRequestId(false));
+    }
+
+    [Fact]
+    public void AccumulatesHeadersFromDefaultHeaderCalls()
+    {
+        var opts = TransportOptions
+            .Builder()
+            .DefaultHeader("X-First", "one")
+            .DefaultHeader("X-Second", "two")
+            .Build();
+
+        Assert.Equal(2, opts.DefaultHeaders.Count);
+        Assert.Equal("one", opts.DefaultHeaders["X-First"]);
+        Assert.Equal("two", opts.DefaultHeaders["X-Second"]);
+    }
+
+    [Fact]
+    public void MergesHeadersFromDefaultHeadersCall()
+    {
+        var opts = TransportOptions
+            .Builder()
+            .DefaultHeader("X-First", "one")
+            .DefaultHeaders(
+                new Dictionary<string, string> { { "X-Second", "two" }, { "X-Third", "three" } }
+            )
+            .Build();
+
+        Assert.Equal(3, opts.DefaultHeaders.Count);
+        Assert.Equal("one", opts.DefaultHeaders["X-First"]);
+        Assert.Equal("two", opts.DefaultHeaders["X-Second"]);
+        Assert.Equal("three", opts.DefaultHeaders["X-Third"]);
+    }
+
+    [Fact]
+    public void BuilderProducesIndependentInstances()
+    {
+        var builder = TransportOptions.Builder().VerifySsl(false);
+        var first = builder.Build();
+        var second = builder.Build();
+
+        Assert.Equal(first.VerifySsl, second.VerifySsl);
+        Assert.NotSame(first, second);
     }
 }

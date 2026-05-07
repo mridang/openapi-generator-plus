@@ -116,9 +116,21 @@ class TestToFormValue:
         assert ObjectSerializer.to_form_value(False) == 'false'
 
 
+class TestToCookieValue:
+    def test_returns_empty_string_for_none(self) -> None:
+        assert ObjectSerializer.to_cookie_value(None) == ''
+
+    def test_returns_the_string_for_a_string_value(self) -> None:
+        assert ObjectSerializer.to_cookie_value('hello') == 'hello'
+
+    def test_converts_integer_to_string(self) -> None:
+        assert ObjectSerializer.to_cookie_value(42) == '42'
+
+
 class TestSerialize:
     def test_serializes_model_to_valid_json(self) -> None:
         import json
+
         category = Category(id=1, name='Dogs')
         result = ObjectSerializer().serialize(category)
         data = json.loads(result)
@@ -131,6 +143,7 @@ class TestSerialize:
 
     def test_includes_fields_set_to_default_values(self) -> None:
         import json
+
         category = Category(id=0, name='')
         result = ObjectSerializer().serialize(category)
         data = json.loads(result)

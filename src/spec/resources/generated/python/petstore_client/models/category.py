@@ -30,5 +30,4 @@ class Category(BaseModel):
     )
 
 
-
 Category.model_rebuild(raise_errors=False)

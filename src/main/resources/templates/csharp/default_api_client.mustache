@@ -144,7 +144,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
 
         if (!mergedHeaders.ContainsKey("Accept-Encoding"))
         {
-            mergedHeaders["Accept-Encoding"] = "gzip, deflate";
+            mergedHeaders["Accept-Encoding"] = SupportedEncodings();
         }
 
         using HttpRequestMessage request = new(new HttpMethod(method), url);
@@ -267,6 +267,20 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                 }
                 break;
         }
+    }
+
+    /// <summary>
+    /// Returns a comma-separated list of supported content encodings for
+    /// the Accept-Encoding header.
+    ///
+    /// Includes gzip and deflate unconditionally. Brotli ("br") is included
+    /// when <see cref="System.IO.Compression.BrotliStream"/> is available
+    /// (.NET 6+).
+    /// </summary>
+    /// <returns>Comma-separated encoding names.</returns>
+    private static string SupportedEncodings()
+    {
+        return "gzip, deflate, br";
     }
 
     /// <inheritdoc/>

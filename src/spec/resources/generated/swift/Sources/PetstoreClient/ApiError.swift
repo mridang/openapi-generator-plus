@@ -10,54 +10,54 @@ import Foundation
 /// ApiError represents an error returned by the API, including the HTTP status
 /// code, response headers, and response body.
 public class ApiError: Error, LocalizedError, @unchecked Sendable {
-    /// The HTTP status code.
-    public let statusCode: Int
+  /// The HTTP status code.
+  public let statusCode: Int
 
-    /// The error message.
-    public let message: String
+  /// The error message.
+  public let message: String
 
-    /// The raw response body.
-    public let responseBody: String
+  /// The raw response body.
+  public let responseBody: String
 
-    /// The response headers.
-    public let responseHeaders: [String: String]
+  /// The response headers.
+  public let responseHeaders: [String: String]
 
-    /// The parsed response body, if JSON.
-    public let errorBody: Any?
+  /// The parsed response body, if JSON.
+  public let errorBody: Any?
 
-    public init(
-        statusCode: Int = 0,
-        message: String = "",
-        responseBody: String = "",
-        responseHeaders: [String: String] = [:],
-        errorBody: Any? = nil
-    ) {
-        self.statusCode = statusCode
-        self.message = message
-        self.responseBody = responseBody
-        self.responseHeaders = responseHeaders
-        self.errorBody = errorBody
+  public init(
+    statusCode: Int = 0,
+    message: String = "",
+    responseBody: String = "",
+    responseHeaders: [String: String] = [:],
+    errorBody: Any? = nil
+  ) {
+    self.statusCode = statusCode
+    self.message = message
+    self.responseBody = responseBody
+    self.responseHeaders = responseHeaders
+    self.errorBody = errorBody
+  }
+
+  public var errorDescription: String? {
+    var msg = message.isEmpty ? "Error message: the server returns an error" : message
+    if statusCode != 0 {
+      msg += "\nHTTP status code: \(statusCode)"
     }
-
-    public var errorDescription: String? {
-        var msg = message.isEmpty ? "Error message: the server returns an error" : message
-        if statusCode != 0 {
-            msg += "\nHTTP status code: \(statusCode)"
-        }
-        if !responseHeaders.isEmpty {
-            msg += "\nResponse headers: \(responseHeaders)"
-        }
-        if !responseBody.isEmpty {
-            msg += "\nResponse body: \(responseBody)"
-        }
-        return msg
+    if !responseHeaders.isEmpty {
+      msg += "\nResponse headers: \(responseHeaders)"
     }
-
-    /// Deserializes the response body into the target type.
-    public func typedErrorBody<T: Decodable>(as type: T.Type) throws -> T? {
-        guard !responseBody.isEmpty, let data = responseBody.data(using: .utf8) else {
-            return nil
-        }
-        return try JSONDecoder().decode(type, from: data)
+    if !responseBody.isEmpty {
+      msg += "\nResponse body: \(responseBody)"
     }
+    return msg
+  }
+
+  /// Deserializes the response body into the target type.
+  public func typedErrorBody<T: Decodable>(as type: T.Type) throws -> T? {
+    guard !responseBody.isEmpty, let data = responseBody.data(using: .utf8) else {
+      return nil
+    }
+    return try JSONDecoder().decode(type, from: data)
+  }
 }

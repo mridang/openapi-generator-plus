@@ -82,8 +82,7 @@ void main() {
       expect(client.lastMethod, equals('GET'));
       expect(
         client.lastUrl,
-        equals(
-            'https://auth.example.com/.well-known/openid-configuration'),
+        equals('https://auth.example.com/.well-known/openid-configuration'),
       );
     });
 

@@ -3,6 +3,7 @@
 using System.Text.Json.Nodes;
 using {{packageName}};
 using {{packageName}}.Api;
+using {{packageName}}.Api.Options;
 using {{packageName}}.Auth;
 using {{packageName}}.Exceptions;
 using Xunit;
@@ -212,6 +213,32 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task DeserializesVendorJsonMimeTypes()
+    {
+        var vendorJsonClient = new VendorJsonApiClient();
+        var testApi = new TestableApi(vendorJsonClient, "http://localhost");
+        var result = await testApi.CallAsync<JsonNode>(
+            "GET", "/api/test",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.NotNull(result);
+        Assert.Equal("Not Found", result!["title"]?.GetValue<string>());
+    }
+
+    private sealed class VendorJsonApiClient : IApiClient
+    {
+        public Task<ApiResponse> SendRequestAsync(
+            string method, Uri url, Dictionary<string, string> headers, object? body)
+        {
+            return Task.FromResult(new ApiResponse(200, "{\"title\":\"Not Found\"}", new Dictionary<string, string>
+            {
+                { "Content-Type", "application/problem+json" }
+            }));
+        }
+    }
+
+    [Fact]
     public async Task AppendsQueryParams()
     {
         await Api().CallAsync<object>(
@@ -331,6 +358,44 @@ public class BaseApiTest
             new Dictionary<string, string>(),
             null, ["application/json"], "application/json");
         Assert.DoesNotContain("?", client.CapturedUrl!.ToString());
+    }
+
+    [Fact]
+    public async Task AllowEmptyValueParamIncludedWithDefaultOptions()
+    {
+        var client = new CapturingApiClient();
+        var config = new Configuration("http://localhost");
+        var api = new PetApi(client, config);
+#pragma warning disable CS0618
+        try
+        {
+            await api.FindPetsByStatusAsync(new FindPetsByStatusOptions());
+        }
+        catch (Exception)
+        {
+            // Response deserialization may fail; we only care about the captured URL
+        }
+#pragma warning restore CS0618
+        Assert.Contains("status=", client.CapturedUrl!.ToString());
+    }
+
+    [Fact]
+    public async Task AllowEmptyValueParamIncludedWhenEmpty()
+    {
+        var client = new CapturingApiClient();
+        var config = new Configuration("http://localhost");
+        var api = new PetApi(client, config);
+#pragma warning disable CS0618
+        try
+        {
+            await api.FindPetsByStatusAsync(new FindPetsByStatusOptions { Status = "" });
+        }
+        catch (Exception)
+        {
+            // Response deserialization may fail; we only care about the captured URL
+        }
+#pragma warning restore CS0618
+        Assert.Contains("status=", client.CapturedUrl!.ToString());
     }
 
     [Fact]

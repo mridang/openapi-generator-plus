@@ -150,6 +150,20 @@ describe PetstoreClient::ObjectSerializer do
     end
   end
 
+  describe '.to_cookie_value' do
+    it 'returns empty string for nil' do
+      _(PetstoreClient::ObjectSerializer.to_cookie_value(nil)).must_equal('')
+    end
+
+    it 'returns the string for a string value' do
+      _(PetstoreClient::ObjectSerializer.to_cookie_value('hello')).must_equal('hello')
+    end
+
+    it 'converts integer to string' do
+      _(PetstoreClient::ObjectSerializer.to_cookie_value(42)).must_equal('42')
+    end
+  end
+
   describe '.serialize' do
     it 'serializes a model to valid JSON' do
       category = PetstoreClient::Models::Category.new(id: 1, name: 'Dogs')

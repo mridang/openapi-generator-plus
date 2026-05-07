@@ -60,7 +60,7 @@ public struct GetMultiServerPetInfoServerRegional: GetMultiServerPetInfoServer {
 
     public func getUrl() -> String {
         var url = "https://{region}.example.com/v1"
-        url = url.replacingOccurrences(of: "region", with: region.rawValue)
+        url = url.replacingOccurrences(of: "{" + "region" + "}", with: region.rawValue)
         return url
     }
 }
@@ -113,8 +113,8 @@ public struct GetStagingPetInfoServerStagingServer: GetStagingPetInfoServer {
 
     public func getUrl() -> String {
         var url = "https://{environment}.example.com/api/{version}"
-        url = url.replacingOccurrences(of: "environment", with: environment.rawValue)
-        url = url.replacingOccurrences(of: "version", with: version.rawValue)
+        url = url.replacingOccurrences(of: "{" + "environment" + "}", with: environment.rawValue)
+        url = url.replacingOccurrences(of: "{" + "version" + "}", with: version.rawValue)
         return url
     }
 }
@@ -175,10 +175,10 @@ public final class PetApi: BaseApi {
 
         var formBody: [String: String] = [:]
         if let options = options {
-            formBody["files"] = "\(options.)"
+            formBody["files"] = "\(options.files)"
         }
         if let options = options {
-            formBody["metadata"] = "\(options.)"
+            formBody["metadata"] = "\(options.metadata)"
         }
         let requestBody: Any? = formBody
 
@@ -246,7 +246,7 @@ public final class PetApi: BaseApi {
 
         var headerParams: [String: String] = [:]
         var cookieParts: [String] = []
-        if let options = options, let val = options. {
+        if let options = options, let val = options.apiKey {
             cookieParts.append("api_key=\(ValueSerializer.serializeStyled("api_key", value: val, location: "cookie", schemaType: "String", collectionFormat: "", style: "form", explode: true) ?? "")")
         }
         if !cookieParts.isEmpty {
@@ -319,14 +319,14 @@ public final class PetApi: BaseApi {
         var path = "/pet/findByStatus"
 
         var queryParams: [String: Any?] = [:]
-        if let options = options, let val = options. {
-        if let options = options, let val = options. {
-            queryParams["status"] = ValueSerializer.serializeStyled("status", value: val, location: "query", schemaType: "String", collectionFormat: "", style: "form", explode: true)
-        } else {
-            queryParams["status"] = ""
+        if let options = options {
+            if let val = options.status {
+                queryParams["status"] = ValueSerializer.serializeStyled("status", value: val, location: "query", schemaType: "String", collectionFormat: "", style: "form", explode: true)
+            } else {
+                queryParams["status"] = ""
+            }
         }
-        }
-        if let options = options, let val = options. {
+        if let options = options, let val = options.filter {
             if let dict = val as? [String: Any] {
                 for (k, v) in ValueSerializer.serializeDeepObject("filter", value: dict) {
                     queryParams[k] = v
@@ -626,18 +626,18 @@ public final class PetApi: BaseApi {
         path = replacePathParam(path, name: "tagName", value: "\(tagName)")
 
         var queryParams: [String: Any?] = [:]
-        if let options = options, let val = options. {
+        if let options = options, let val = options.colors {
             queryParams["colors"] = ValueSerializer.serializeStyled("colors", value: val, location: "query", schemaType: "[String]", collectionFormat: "pipes", style: "pipeDelimited", explode: false)
         }
-        if let options = options, let val = options. {
+        if let options = options, let val = options.sizes {
             queryParams["sizes"] = ValueSerializer.serializeStyled("sizes", value: val, location: "query", schemaType: "[String]", collectionFormat: "ssv", style: "spaceDelimited", explode: false)
         }
-        if let options = options, let val = options. {
-        if let options = options, let val = options. {
-            queryParams["filter"] = ValueSerializer.serializeStyled("filter", value: val, location: "query", schemaType: "String", collectionFormat: "", style: "form", explode: true)
-        } else {
-            queryParams["filter"] = ""
-        }
+        if let options = options {
+            if let val = options.filter {
+                queryParams["filter"] = ValueSerializer.serializeStyled("filter", value: val, location: "query", schemaType: "String", collectionFormat: "", style: "form", explode: true)
+            } else {
+                queryParams["filter"] = ""
+            }
         }
 
         var headerParams: [String: String] = [:]
@@ -818,7 +818,7 @@ public final class PetApi: BaseApi {
 
         var formBody: [String: String] = [:]
         if let options = options {
-            formBody["file"] = "\(options.)"
+            formBody["file"] = "\(options.file)"
         }
         let requestBody: Any? = formBody
 
@@ -856,12 +856,12 @@ public final class PetApi: BaseApi {
 
         var formBody: [String: String] = [:]
         if let options = options {
-            formBody["file"] = "\(options.)"
+            formBody["file"] = "\(options.file)"
         }
-        if let options = options, let val = options. {
+        if let options = options, let val = options.documentType {
             formBody["documentType"] = "\(val)"
         }
-        if let options = options, let val = options. {
+        if let options = options, let val = options.notes {
             formBody["notes"] = "\(val)"
         }
         let requestBody: Any? = formBody

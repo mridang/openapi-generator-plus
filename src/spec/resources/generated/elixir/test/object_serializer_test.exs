@@ -78,6 +78,10 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert PetstoreClient.ObjectSerializer.to_query_value(["a", "b", "c"]) == "a,b,c"
     end
 
+    test "joins array with comma for csv" do
+      assert PetstoreClient.ObjectSerializer.to_query_value(["a", "b", "c"], :csv) == "a,b,c"
+    end
+
     test "joins array with space for ssv" do
       assert PetstoreClient.ObjectSerializer.to_query_value(["a", "b", "c"], :ssv) == "a b c"
     end
@@ -132,6 +136,20 @@ defmodule PetstoreClient.ObjectSerializerTest do
 
     test "converts false to 'false'" do
       assert PetstoreClient.ObjectSerializer.to_form_value(false) == "false"
+    end
+  end
+
+  describe "to_cookie_value/1" do
+    test "returns empty string for nil" do
+      assert PetstoreClient.ObjectSerializer.to_cookie_value(nil) == ""
+    end
+
+    test "returns the string for a string value" do
+      assert PetstoreClient.ObjectSerializer.to_cookie_value("hello") == "hello"
+    end
+
+    test "converts integer to string" do
+      assert PetstoreClient.ObjectSerializer.to_cookie_value(42) == "42"
     end
   end
 

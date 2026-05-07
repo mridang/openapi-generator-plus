@@ -12,4 +12,4 @@ from .api_key_location import ApiKeyLocation
 
 class SessionCookieAuthenticator(ApiKeyAuthenticator):
     def __init__(self, host: str, api_key: str):
-        super().__init__(host, "SESSION_ID", api_key, ApiKeyLocation.COOKIE)
+        super().__init__(host, 'SESSION_ID', api_key, ApiKeyLocation.COOKIE)

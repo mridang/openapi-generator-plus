@@ -9,7 +9,6 @@ package models
 
 import (
 	"encoding/json"
-	"fmt"
 )
 
 // PetFood Food for pets, discriminated by foodType
@@ -47,7 +46,7 @@ func (o *PetFood) UnmarshalJSON(data []byte) error {
 		o.value = v
 		return nil
 	}
-	return fmt.Errorf("unknown discriminator value: %s", disc.FoodType)
+	return nil
 }
 
 // Value returns the underlying value of the union type.

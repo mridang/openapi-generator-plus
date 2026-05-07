@@ -246,6 +246,27 @@ public class ObjectSerializerTest
         }
     }
 
+    public class ToCookieValueTests
+    {
+        [Fact]
+        public void ReturnsEmptyStringForNull()
+        {
+            Assert.Equal("", ObjectSerializer.ToCookieValue(null));
+        }
+
+        [Fact]
+        public void ReturnsStringForStringValue()
+        {
+            Assert.Equal("hello", ObjectSerializer.ToCookieValue("hello"));
+        }
+
+        [Fact]
+        public void ConvertsIntegerToString()
+        {
+            Assert.Equal("42", ObjectSerializer.ToCookieValue(42));
+        }
+    }
+
     public class SerializeTests
     {
         private readonly ObjectSerializer _serializer = new();

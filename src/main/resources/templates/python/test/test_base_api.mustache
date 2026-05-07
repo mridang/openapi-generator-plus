@@ -3,6 +3,8 @@ import pytest
 from typing import Any, Optional
 
 from {{packageName}}.api.base_api import BaseApi
+from {{packageName}}.api.pet_api import PetApi
+from {{packageName}}.api.options.find_pets_by_status_options import FindPetsByStatusOptions
 from {{packageName}}.configuration import Configuration
 from {{packageName}}.default_api_client import DefaultApiClient
 from {{packageName}}.auth.authenticator import Authenticator
@@ -193,6 +195,42 @@ class TestQuerySerialization:
         assert '?' not in client.captured_url
 
 
+class TestAllowEmptyValueQueryParams:
+
+    async def test_null_options_omits_allow_empty_value_param(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        api = PetApi(api_client=client, config=config)
+        try:
+            await api.find_pets_by_status(None)
+        except Exception:
+            pass  # Response deserialization may fail; we only care about the captured URL
+        assert 'status=' not in client.captured_url, \
+            f'Expected no status param when options is None, got: {client.captured_url}'
+
+    async def test_allow_empty_value_param_included_when_null(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        api = PetApi(api_client=client, config=config)
+        try:
+            await api.find_pets_by_status(FindPetsByStatusOptions())
+        except Exception:
+            pass  # Response deserialization may fail; we only care about the captured URL
+        assert 'status=' in client.captured_url, \
+            f'Expected status= in URL for allowEmptyValue param with null value, got: {client.captured_url}'
+
+    async def test_allow_empty_value_param_included_when_empty(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        api = PetApi(api_client=client, config=config)
+        try:
+            await api.find_pets_by_status(FindPetsByStatusOptions(status=''))
+        except Exception:
+            pass  # Response deserialization may fail; we only care about the captured URL
+        assert 'status=' in client.captured_url, \
+            f'Expected status= in URL for empty string allowEmptyValue param, got: {client.captured_url}'
+
+
 class TestAuthInjection:
 
     async def test_forwards_auth_headers(self, api: Any) -> None:
@@ -255,6 +293,14 @@ class PlainTextApiClient(CapturingApiClient):
         return ApiResponse(status_code=200, body='hello', headers={'Content-Type': 'text/plain'})
 
 
+class VendorJsonApiClient(CapturingApiClient):
+    """API client that returns a vendor JSON response (application/problem+json)."""
+
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None) -> ApiResponse:
+        super().send_request(method, url, headers, body)
+        return ApiResponse(status_code=200, body='{"title":"Not Found"}', headers={'Content-Type': 'application/problem+json'})
+
+
 class TestContentTypeDeserialization:
 
     async def test_skips_deserialization_for_non_json_content_type(self) -> None:
@@ -264,6 +310,15 @@ class TestContentTypeDeserialization:
         result = await stub.call('GET', '/api/test', {}, {}, None,
                                  ['text/plain'], 'application/json', 'str')
         assert result == 'hello'
+
+    async def test_deserializes_vendor_json_mime_types(self) -> None:
+        client = VendorJsonApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        result = await stub.call('GET', '/api/test', {}, {}, None,
+                                 ['application/json'], 'application/json', 'object')
+        assert result is not None
+        assert result['title'] == 'Not Found'
 
 
 class TestHeaderFlowThrough:

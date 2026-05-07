@@ -57,8 +57,11 @@ func TestPetFood_DeserializeUnknownDiscriminator(t *testing.T) {
 
 	var food models.PetFood
 	err := json.Unmarshal(jsonData, &food)
-	if err == nil {
-		t.Fatal("expected error for unknown discriminator value")
+	if err != nil {
+		t.Fatalf("expected no error for unknown discriminator, got: %v", err)
+	}
+	if food.Value() != nil {
+		t.Errorf("expected nil value for unknown discriminator, got %T", food.Value())
 	}
 }
 

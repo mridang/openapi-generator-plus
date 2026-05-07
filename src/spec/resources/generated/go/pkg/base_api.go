@@ -43,21 +43,21 @@ func NewBaseApi(apiClient ApiClient, config *Configuration, authenticator Authen
 	}
 }
 
-// invokeAPIParams holds parameters for the invokeAPI call.
-type invokeAPIParams struct {
-	method      string
-	path        string
-	queryParams map[string]interface{}
+// invokeApiParams holds parameters for the invokeApi call.
+type invokeApiParams struct {
+	method       string
+	path         string
+	queryParams  map[string]interface{}
 	headerParams map[string]string
-	body        interface{}
-	accepts     []string
-	contentType string
-	returnType  string
-	auth        Authenticator
+	body         interface{}
+	accepts      []string
+	contentType  string
+	returnType   string
+	auth         Authenticator
 }
 
-// invokeAPIForResult dispatches an API request and returns the full result.
-func (b *BaseApi) invokeAPIForResult(params invokeAPIParams) (*HttpResponse, error) {
+// invokeApiForResult dispatches an API request and returns the full result.
+func (b *BaseApi) invokeApiForResult(params invokeApiParams) (*HttpResponse, error) {
 	requestURL := params.path
 	if !strings.HasPrefix(requestURL, "http://") && !strings.HasPrefix(requestURL, "https://") {
 		requestURL = b.config.BaseURL() + params.path
@@ -134,7 +134,11 @@ func (b *BaseApi) invokeAPIForResult(params invokeAPIParams) (*HttpResponse, err
 		}
 		boundary := uuid.New().String()
 		headers["Content-Type"] = "multipart/form-data; boundary=" + boundary
-		serializedBody = buildMultipartBody(formFields, boundary)
+		var merr error
+		serializedBody, merr = buildMultipartBody(formFields, boundary)
+		if merr != nil {
+			return nil, fmt.Errorf("failed to build multipart body: %w", merr)
+		}
 	} else {
 		var err error
 		serializedBody, err = serializeBody(params.body, params.contentType)
@@ -157,9 +161,9 @@ func (b *BaseApi) invokeAPIForResult(params invokeAPIParams) (*HttpResponse, err
 	return response, nil
 }
 
-// invokeAPI dispatches an API request and returns just the response.
-func (b *BaseApi) invokeAPI(params invokeAPIParams) (*HttpResponse, error) {
-	return b.invokeAPIForResult(params)
+// invokeApi dispatches an API request and returns just the response.
+func (b *BaseApi) invokeApi(params invokeApiParams) (*HttpResponse, error) {
+	return b.invokeApiForResult(params)
 }
 
 func buildQueryString(queryParams map[string]interface{}) string {
@@ -195,7 +199,7 @@ func serializeBody(body interface{}, contentType string) ([]byte, error) {
 	}
 
 	if contentType == "multipart/form-data" {
-		/* Multipart is handled by invokeAPIForResult before calling serializeBody */
+		/* Multipart is handled by invokeApiForResult before calling serializeBody */
 		return nil, nil
 	}
 
@@ -228,7 +232,7 @@ func serializeBody(body interface{}, contentType string) ([]byte, error) {
 /* buildMultipartBody constructs a multipart/form-data request body from
  * a map of form fields. Each value may be a string, number, boolean,
  * slice (repeated field), map (serialized as JSON part), or nil (skipped). */
-func buildMultipartBody(formFields map[string]interface{}, boundary string) []byte {
+func buildMultipartBody(formFields map[string]interface{}, boundary string) ([]byte, error) {
 	var buf strings.Builder
 	writer := multipart.NewWriter(&buf)
 	_ = writer.SetBoundary(boundary)
@@ -240,33 +244,40 @@ func buildMultipartBody(formFields map[string]interface{}, boundary string) []by
 		switch v := value.(type) {
 		case []interface{}:
 			for _, item := range v {
-				writeMultipartField(writer, name, item)
+				if err := writeMultipartField(writer, name, item); err != nil {
+					return nil, err
+				}
 			}
 		default:
-			writeMultipartField(writer, name, v)
+			if err := writeMultipartField(writer, name, v); err != nil {
+				return nil, err
+			}
 		}
 	}
 	writer.Close()
-	return []byte(buf.String())
+	return []byte(buf.String()), nil
 }
 
-func writeMultipartField(writer *multipart.Writer, name string, value interface{}) {
+func writeMultipartField(writer *multipart.Writer, name string, value interface{}) error {
 	if value == nil {
-		return
+		return nil
 	}
 	switch v := value.(type) {
 	case string:
-		_ = writer.WriteField(name, v)
+		return writer.WriteField(name, v)
 	case map[string]interface{}:
 		jsonBytes, err := json.Marshal(v)
-		if err == nil {
-			part, perr := writer.CreateFormField(name)
-			if perr == nil {
-				_, _ = part.Write(jsonBytes)
-			}
+		if err != nil {
+			return fmt.Errorf("failed to marshal multipart field %q as JSON: %w", name, err)
 		}
+		part, err := writer.CreateFormField(name)
+		if err != nil {
+			return fmt.Errorf("failed to create multipart field %q: %w", name, err)
+		}
+		_, err = part.Write(jsonBytes)
+		return err
 	default:
-		_ = writer.WriteField(name, fmt.Sprintf("%v", v))
+		return writer.WriteField(name, fmt.Sprintf("%v", v))
 	}
 }
 

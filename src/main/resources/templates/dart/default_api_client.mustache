@@ -103,7 +103,7 @@ class DefaultApiClient implements ApiClient {
 
     // 5. Accept-Encoding
     if (!merged.containsKey('Accept-Encoding')) {
-      merged['Accept-Encoding'] = 'gzip, deflate';
+      merged['Accept-Encoding'] = _supportedEncodings();
     }
 
     final uri = Uri.parse(url);
@@ -138,6 +138,17 @@ class DefaultApiClient implements ApiClient {
   /// Closes the underlying HTTP client.
   void close() {
     _httpClient.close();
+  }
+
+  /// Returns a comma-separated list of supported content encodings for
+  /// the Accept-Encoding header.
+  ///
+  /// Includes gzip and deflate which are natively supported by Dart's
+  /// `dart:io` [HttpClient]. Additional encodings can be added here
+  /// when third-party decompression packages are integrated.
+  static String _supportedEncodings() {
+    final encodings = ['gzip', 'deflate'];
+    return encodings.join(', ');
   }
 
   static String _generateUuid() {

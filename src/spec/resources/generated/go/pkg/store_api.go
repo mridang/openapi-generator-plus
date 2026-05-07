@@ -8,10 +8,7 @@
 package petstore
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/url"
-	"strings"
 
 	. "petstore/pkg/models"
 )
@@ -30,7 +27,7 @@ func NewStoreApi(apiClient ApiClient, config *Configuration, authenticator Authe
 }
 
 // DeleteOrder Delete purchase order by ID
-func (a *StoreApi) DeleteOrder(orderId int64) (error) {
+func (a *StoreApi) DeleteOrder(orderId int64) error {
 	result, err := a.DeleteOrderWithHTTPInfo(orderId)
 	if err != nil {
 		return err
@@ -51,13 +48,13 @@ func (a *StoreApi) DeleteOrderWithHTTPInfo(orderId int64) (*ApiResult[interface{
 
 	var requestBody interface{}
 
-	response, err := a.invokeAPI(invokeAPIParams{
+	response, err := a.invokeApi(invokeApiParams{
 		method:       "DELETE",
 		path:         path,
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{  },
+		accepts:      []string{},
 		contentType:  "application/json",
 		returnType:   "",
 		auth:         nil,
@@ -94,13 +91,13 @@ func (a *StoreApi) GetInventoryWithHTTPInfo() (*ApiResult[map[string]int32], err
 
 	var requestBody interface{}
 
-	response, err := a.invokeAPI(invokeAPIParams{
+	response, err := a.invokeApi(invokeApiParams{
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{ "application/json" },
+		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "map[string]int32",
 		auth:         nil,
@@ -152,13 +149,13 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(orderId int64) (*ApiResult[Order], e
 
 	var requestBody interface{}
 
-	response, err := a.invokeAPI(invokeAPIParams{
+	response, err := a.invokeApi(invokeApiParams{
 		method:       "GET",
 		path:         path,
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{ "application/json" },
+		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Order",
 		auth:         nil,
@@ -209,13 +206,13 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(order *Order) (*ApiResult[Order], erro
 
 	var requestBody interface{} = order
 
-	response, err := a.invokeAPI(invokeAPIParams{
+	response, err := a.invokeApi(invokeApiParams{
 		method:       "POST",
 		path:         path,
 		queryParams:  queryParams,
 		headerParams: headerParams,
 		body:         requestBody,
-		accepts:      []string{ "application/json" },
+		accepts:      []string{"application/json"},
 		contentType:  "application/json",
 		returnType:   "Order",
 		auth:         nil,

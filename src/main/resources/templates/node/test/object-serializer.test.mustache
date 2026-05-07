@@ -112,6 +112,20 @@ describe('ObjectSerializer', () => {
     });
   });
 
+  describe('toCookieValue', () => {
+    test('returns empty string for null', () => {
+      expect(ObjectSerializer.toCookieValue(null)).toBe('');
+    });
+
+    test('returns the string for a string value', () => {
+      expect(ObjectSerializer.toCookieValue('hello')).toBe('hello');
+    });
+
+    test('converts integer to string', () => {
+      expect(ObjectSerializer.toCookieValue(42)).toBe('42');
+    });
+  });
+
   describe('stringify', () => {
     test('null returns empty string', () => {
       expect(ObjectSerializer.stringify(null)).toBe('');
@@ -185,8 +199,8 @@ describe('ObjectSerializer', () => {
       const json = { id: 1, name: 'Dogs' };
       const category = ObjectSerializer.deserialize(json, Category);
       expect(category).toBeDefined();
-      expect(category.id).toBe(1);
-      expect(category.name).toBe('Dogs');
+      expect(category!.id).toBe(1);
+      expect(category!.name).toBe('Dogs');
     });
   });
 });

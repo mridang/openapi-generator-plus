@@ -14,7 +14,7 @@ class TestTransportOptions:
         assert opts.timeout is None
         assert opts.follow_redirects is True
         assert opts.max_redirects is None
-        assert opts.user_agent == "petstore_client/1.0.0 (python)"
+        assert opts.user_agent == 'petstore_client/1.0.0 (python)'
         assert len(opts.default_headers) == 0
         assert opts.inject_request_id is False
 
@@ -22,25 +22,25 @@ class TestTransportOptions:
         opts = (
             TransportOptions.builder()
             .verify_ssl(False)
-            .ca_cert_path("/path/to/ca.pem")
-            .proxy("http://proxy:8080")
+            .ca_cert_path('/path/to/ca.pem')
+            .proxy('http://proxy:8080')
             .timeout(5000)
             .follow_redirects(False)
             .max_redirects(3)
-            .user_agent("TestAgent/1.0")
-            .default_header("X-Custom", "value")
+            .user_agent('TestAgent/1.0')
+            .default_header('X-Custom', 'value')
             .inject_request_id(True)
             .build()
         )
 
         assert opts.verify_ssl is False
-        assert opts.ca_cert_path == "/path/to/ca.pem"
-        assert opts.proxy == "http://proxy:8080"
+        assert opts.ca_cert_path == '/path/to/ca.pem'
+        assert opts.proxy == 'http://proxy:8080'
         assert opts.timeout == 5000
         assert opts.follow_redirects is False
         assert opts.max_redirects == 3
-        assert opts.user_agent == "TestAgent/1.0"
-        assert opts.default_headers["X-Custom"] == "value"
+        assert opts.user_agent == 'TestAgent/1.0'
+        assert opts.default_headers['X-Custom'] == 'value'
         assert opts.inject_request_id is True
 
     def test_follow_redirects_without_max_defaults_to_twenty(self) -> None:
@@ -64,13 +64,55 @@ class TestTransportOptions:
         assert opts.proxy is None
 
     def test_default_headers_is_immutable(self) -> None:
-        headers = {"X-Original": "original"}
+        headers = {'X-Original': 'original'}
 
         opts = TransportOptions.builder().default_headers(headers).build()
 
-        headers["X-Added"] = "added"
+        headers['X-Added'] = 'added'
 
         assert len(opts.default_headers) == 1
-        assert opts.default_headers["X-Original"] == "original"
-        assert "X-Added" not in opts.default_headers
+        assert opts.default_headers['X-Original'] == 'original'
+        assert 'X-Added' not in opts.default_headers
         assert isinstance(opts.default_headers, MappingProxyType)
+
+    def test_builder_methods_return_same_instance(self) -> None:
+        builder = TransportOptions.builder()
+
+        assert builder.verify_ssl(True) is builder
+        assert builder.ca_cert_path(None) is builder
+        assert builder.proxy(None) is builder
+        assert builder.timeout(None) is builder
+        assert builder.follow_redirects(True) is builder
+        assert builder.max_redirects(None) is builder
+        assert builder.user_agent(None) is builder
+        assert builder.default_header('X-Key', 'val') is builder
+        assert builder.default_headers({}) is builder
+        assert builder.inject_request_id(False) is builder
+
+    def test_accumulates_headers_from_default_header_calls(self) -> None:
+        opts = TransportOptions.builder().default_header('X-First', 'one').default_header('X-Second', 'two').build()
+
+        assert len(opts.default_headers) == 2
+        assert opts.default_headers['X-First'] == 'one'
+        assert opts.default_headers['X-Second'] == 'two'
+
+    def test_merges_headers_from_default_headers_call(self) -> None:
+        opts = (
+            TransportOptions.builder()
+            .default_header('X-First', 'one')
+            .default_headers({'X-Second': 'two', 'X-Third': 'three'})
+            .build()
+        )
+
+        assert len(opts.default_headers) == 3
+        assert opts.default_headers['X-First'] == 'one'
+        assert opts.default_headers['X-Second'] == 'two'
+        assert opts.default_headers['X-Third'] == 'three'
+
+    def test_builder_produces_independent_instances(self) -> None:
+        builder = TransportOptions.builder().verify_ssl(False)
+        first = builder.build()
+        second = builder.build()
+
+        assert first.verify_ssl == second.verify_ssl
+        assert first is not second

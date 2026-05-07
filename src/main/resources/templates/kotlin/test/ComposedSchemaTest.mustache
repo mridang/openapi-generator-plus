@@ -48,6 +48,15 @@ class ComposedSchemaTest {
         }
 
         @Test
+        @DisplayName("returns null for unknown discriminator value")
+        fun testUnknownDiscriminator() {
+            val jsonString = """{"foodType":"raw","calories":300}"""
+
+            val result = json.decodeFromString<PetFood>(jsonString)
+            assertNull(result)
+        }
+
+        @Test
         @DisplayName("serializes DryFood back to JSON")
         fun testSerializeDryFood() {
             val dryFood = DryFood(foodType = "dry", weightKg = 2.5)

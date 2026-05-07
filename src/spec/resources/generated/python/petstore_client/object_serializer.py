@@ -85,10 +85,11 @@ class ObjectSerializer:
             raise SerializationError(f'Failed to deserialize JSON to {target_type}: {e}', e)
 
     @classmethod
-    def _sanitize_for_serialization(cls, obj: Any) -> Any:
+    def _sanitize_for_serialization(cls, obj: Any, _visited: Optional[set[int]] = None) -> Any:
         """Convert an object to a JSON-safe dict/list/primitive.
 
         For Pydantic models, delegates to model_dump().
+        A visited set tracks object ids to detect circular references.
         """
         if obj is None:
             return None
@@ -102,16 +103,28 @@ class ObjectSerializer:
             return base64.b64encode(obj).decode('ascii')
         elif isinstance(obj, cls._PRIMITIVE_TYPES):
             return obj
-        elif isinstance(obj, list):
-            return [cls._sanitize_for_serialization(item) for item in obj]
-        elif isinstance(obj, tuple):
-            return tuple(cls._sanitize_for_serialization(item) for item in obj)
         elif isinstance(obj, (datetime.datetime, datetime.date)):
             return obj.isoformat()
         elif isinstance(obj, decimal.Decimal):
             return str(obj)
-        elif isinstance(obj, dict):
-            return {key: cls._sanitize_for_serialization(val) for key, val in obj.items()}
+        elif isinstance(obj, (list, tuple, dict)) or hasattr(obj, '__dict__'):
+            if _visited is None:
+                _visited = set()
+            obj_id = id(obj)
+            if obj_id in _visited:
+                raise SerializationError('Circular reference detected during serialization')
+            _visited.add(obj_id)
+            try:
+                if isinstance(obj, list):
+                    return [cls._sanitize_for_serialization(item, _visited) for item in obj]
+                elif isinstance(obj, tuple):
+                    return tuple(cls._sanitize_for_serialization(item, _visited) for item in obj)
+                elif isinstance(obj, dict):
+                    return {key: cls._sanitize_for_serialization(val, _visited) for key, val in obj.items()}
+                else:
+                    return str(obj)
+            finally:
+                _visited.discard(obj_id)
         else:
             return str(obj)
 
@@ -191,6 +204,7 @@ class ObjectSerializer:
                 if mapped:
                     instance = self._deserialize(data, mapped)
                     return klass(instance)
+                return None
 
         for schema_name in schemas:
             try:

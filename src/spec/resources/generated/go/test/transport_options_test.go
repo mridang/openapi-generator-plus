@@ -8,9 +8,8 @@
 package petstore_test
 
 import (
+	petstore "petstore/pkg"
 	"testing"
-
-	"petstore/pkg"
 )
 
 func TestTransportOptions_Defaults(t *testing.T) {
@@ -90,6 +89,19 @@ func TestTransportOptions_SetAllFields(t *testing.T) {
 	}
 }
 
+func TestTransportOptions_FollowRedirectsDefaultsToTrueWithNilMaxRedirects(t *testing.T) {
+	opts := petstore.NewTransportOptionsBuilder().
+		FollowRedirects(true).
+		Build()
+
+	if !opts.FollowRedirects() {
+		t.Error("expected FollowRedirects to be true")
+	}
+	if opts.MaxRedirects() != nil {
+		t.Error("expected MaxRedirects to be nil")
+	}
+}
+
 func TestTransportOptions_BuilderChaining(t *testing.T) {
 	builder := petstore.NewTransportOptionsBuilder()
 
@@ -126,6 +138,71 @@ func TestTransportOptions_MultipleDefaultHeaders(t *testing.T) {
 	}
 	if headers["X-Second"] != "two" {
 		t.Errorf("expected X-Second='two', got %q", headers["X-Second"])
+	}
+}
+
+func TestTransportOptions_EmptyProxyIsAccepted(t *testing.T) {
+	opts := petstore.NewTransportOptionsBuilder().
+		Proxy("").
+		Build()
+
+	if opts.Proxy() != nil {
+		t.Error("expected nil Proxy for empty string")
+	}
+}
+
+func TestTransportOptions_AccumulatesHeadersFromDefaultHeaderCalls(t *testing.T) {
+	opts := petstore.NewTransportOptionsBuilder().
+		DefaultHeader("X-First", "one").
+		DefaultHeader("X-Second", "two").
+		Build()
+
+	headers := opts.DefaultHeaders()
+	if len(headers) != 2 {
+		t.Errorf("expected 2 headers, got %d", len(headers))
+	}
+	if headers["X-First"] != "one" {
+		t.Errorf("expected X-First='one', got %q", headers["X-First"])
+	}
+	if headers["X-Second"] != "two" {
+		t.Errorf("expected X-Second='two', got %q", headers["X-Second"])
+	}
+}
+
+func TestTransportOptions_MergesHeadersFromDefaultHeadersCalls(t *testing.T) {
+	opts := petstore.NewTransportOptionsBuilder().
+		DefaultHeader("X-First", "one").
+		DefaultHeaders(map[string]string{
+			"X-Second": "two",
+			"X-Third":  "three",
+		}).
+		Build()
+
+	headers := opts.DefaultHeaders()
+	if len(headers) != 3 {
+		t.Errorf("expected 3 headers, got %d", len(headers))
+	}
+	if headers["X-First"] != "one" {
+		t.Errorf("expected X-First='one', got %q", headers["X-First"])
+	}
+	if headers["X-Second"] != "two" {
+		t.Errorf("expected X-Second='two', got %q", headers["X-Second"])
+	}
+	if headers["X-Third"] != "three" {
+		t.Errorf("expected X-Third='three', got %q", headers["X-Third"])
+	}
+}
+
+func TestTransportOptions_BuilderProducesIndependentInstances(t *testing.T) {
+	builder := petstore.NewTransportOptionsBuilder().VerifySSL(false)
+	first := builder.Build()
+	second := builder.Build()
+
+	if first.VerifySSL() != second.VerifySSL() {
+		t.Error("expected both instances to have the same VerifySSL value")
+	}
+	if first == second {
+		t.Error("expected builder to produce independent instances")
 	}
 }
 

@@ -131,37 +131,58 @@ module PetstoreClient
       stringify(value)
     end
 
-    def self.sanitize_for_serialization(object)
+    def self.sanitize_for_serialization(object, visited = nil)
       case object
       when nil
         nil
       when String, Integer, Float, TrueClass, FalseClass
         object
-      when Array, Set
-        object.map { |item| sanitize_for_serialization(item) }
-      when Hash
-        # @type var sanitized: Hash[untyped, untyped]
-        sanitized = {}
-        object.each_with_object(sanitized) do |(key, value), hash|
-          hash[key] = sanitize_for_serialization(value)
-        end
       when Date
         object.to_s
       when Time, DateTime
         object.strftime(DEFAULT_DATETIME_FORMAT)
+      when Array, Set, Hash
+        visited ||= Set.new
+        obj_id = object.object_id
+        raise SerializationError, 'Circular reference detected during serialization' if visited.include?(obj_id)
+
+        visited.add(obj_id)
+        begin
+          case object
+          when Array, Set
+            object.map { |item| sanitize_for_serialization(item, visited) }
+          when Hash
+            # @type var sanitized: Hash[untyped, untyped]
+            sanitized = {}
+            object.each_with_object(sanitized) do |(key, value), hash|
+              hash[key] = sanitize_for_serialization(value, visited)
+            end
+          end
+        ensure
+          visited.delete(obj_id)
+        end
       else
         if object.class.const_defined?(:ATTRIBUTE_MAP)
-          # @type var hash: Hash[untyped, untyped]
-          hash = {}
-          object.class::ATTRIBUTE_MAP.each do |attr, json_key|
-            value = object.send(attr)
-            next if value.nil?
+          visited ||= Set.new
+          obj_id = object.object_id
+          raise SerializationError, 'Circular reference detected during serialization' if visited.include?(obj_id)
 
-            hash[json_key] = sanitize_for_serialization(value)
+          visited.add(obj_id)
+          begin
+            # @type var hash: Hash[untyped, untyped]
+            hash = {}
+            object.class::ATTRIBUTE_MAP.each do |attr, json_key|
+              value = object.send(attr)
+              next if value.nil?
+
+              hash[json_key] = sanitize_for_serialization(value, visited)
+            end
+            hash
+          ensure
+            visited.delete(obj_id)
           end
-          hash
         elsif object.respond_to?(:to_hash)
-          sanitize_for_serialization(object.to_hash)
+          sanitize_for_serialization(object.to_hash, visited)
         elsif object.respond_to?(:to_json)
           object
         else
@@ -251,15 +272,15 @@ module PetstoreClient
     #
     # @param data [Object] the parsed JSON data
     # @param candidates [Array<Proc>] lambdas that attempt deserialization
-    # @return [Object] the first successfully deserialized result, or the
-    #   original data if no candidate matches
+    # @return [Object, nil] the first successfully deserialized result, or nil
+    #   if no candidate matches
     def self.resolve_one_of(data, candidates)
       candidates.each do |candidate|
         return candidate.call(data)
       rescue StandardError
         next
       end
-      data
+      nil
     end
 
     # Attempt to deserialize data against a list of candidate schemas using
@@ -267,8 +288,8 @@ module PetstoreClient
     #
     # @param data [Object] the parsed JSON data
     # @param candidates [Array<Proc>] lambdas that attempt deserialization
-    # @return [Object] the first successfully deserialized result, or the
-    #   original data if no candidate matches
+    # @return [Object, nil] the first successfully deserialized result, or nil
+    #   if no candidate matches
     def self.resolve_any_of(data, candidates)
       resolve_one_of(data, candidates)
     end

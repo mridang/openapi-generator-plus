@@ -37,7 +37,7 @@ public struct {{serverTypeName}}{{variantName}}: {{serverTypeName}} {
     public func getUrl() -> String {
         var url = "{{url}}"
 {{#serverVariables}}
-        url = url.replacingOccurrences(of: "{{{name}}}", with: {{#hasEnumValues}}{{camelName}}.rawValue{{/hasEnumValues}}{{^hasEnumValues}}{{camelName}}{{/hasEnumValues}})
+        url = url.replacingOccurrences(of: "{" + "{{name}}" + "}", with: {{#hasEnumValues}}{{camelName}}.rawValue{{/hasEnumValues}}{{^hasEnumValues}}{{camelName}}{{/hasEnumValues}})
 {{/serverVariables}}
         return url
     }
@@ -108,7 +108,17 @@ public final class {{classname}}: BaseApi {
 
         var queryParams: [String: Any?] = [:]
 {{#queryParams}}
-        if let options = options, let val = options.{{name}} {
+{{#isAllowEmptyValue}}
+        if let options = options {
+            if let val = options.{{paramName}} {
+                queryParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}})
+            } else {
+                queryParams["{{baseName}}"] = ""
+            }
+        }
+{{/isAllowEmptyValue}}
+{{^isAllowEmptyValue}}
+        if let options = options, let val = options.{{paramName}} {
 {{#isDeepObject}}
             if let dict = val as? [String: Any] {
                 for (k, v) in ValueSerializer.serializeDeepObject("{{baseName}}", value: dict) {
@@ -123,31 +133,23 @@ public final class {{classname}}: BaseApi {
             }
 {{/content}}
 {{^content}}
-{{#isAllowEmptyValue}}
-        if let options = options, let val = options.{{name}} {
             queryParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}})
-        } else {
-            queryParams["{{baseName}}"] = ""
-        }
-{{/isAllowEmptyValue}}
-{{^isAllowEmptyValue}}
-            queryParams["{{baseName}}"] = ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}})
-{{/isAllowEmptyValue}}
 {{/content}}
 {{/isDeepObject}}
         }
+{{/isAllowEmptyValue}}
 {{/queryParams}}
 
         var headerParams: [String: String] = [:]
 {{#headerParams}}
-        if let options = options, let val = options.{{name}} {
+        if let options = options, let val = options.{{paramName}} {
             headerParams["{{baseName}}"] = "\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "header", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")"
         }
 {{/headerParams}}
 {{#hasCookieParams}}
         var cookieParts: [String] = []
 {{#cookieParams}}
-        if let options = options, let val = options.{{name}} {
+        if let options = options, let val = options.{{paramName}} {
             cookieParts.append("{{baseName}}=\(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "cookie", schemaType: "{{{dataType}}}", collectionFormat: "", style: "{{style}}", explode: {{isExplode}}) ?? "")")
         }
 {{/cookieParams}}
@@ -161,11 +163,11 @@ public final class {{classname}}: BaseApi {
 {{#formParams}}
 {{#required}}
         if let options = options {
-            formBody["{{baseName}}"] = "\(options.{{name}})"
+            formBody["{{baseName}}"] = "\(options.{{paramName}})"
         }
 {{/required}}
 {{^required}}
-        if let options = options, let val = options.{{name}} {
+        if let options = options, let val = options.{{paramName}} {
             formBody["{{baseName}}"] = "\(val)"
         }
 {{/required}}
