@@ -133,7 +133,7 @@ defmodule PetstoreClient.DefaultApiClient do
 
           _ ->
             Keyword.put(req_opts, :connect_options,
-              proxy: {:http, String.to_charlist(proxy_uri.host), proxy_uri.port || 3128, []}
+              proxy: {:http, String.to_charlist(proxy_uri.host), proxy_uri.port || 80, []}
             )
         end
       else

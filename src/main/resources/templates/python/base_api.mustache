@@ -2,7 +2,7 @@
 
 import asyncio
 from typing import Any, Dict, List, Optional, TypeVar
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from ..api_client import ApiClient
 from ..api_response import ApiResponse
@@ -110,14 +110,12 @@ class BaseApi:
         if query_params:
             filtered = {k: v for k, v in query_params.items() if v is not None}
             if filtered:
-                normalized: Dict[str, Any] = {}
+                normalized: dict[str, str | list[str]] = {}
                 for k, v in filtered.items():
-                    if isinstance(v, bool):
-                        normalized[k] = str(v).lower()
-                    elif isinstance(v, list):
-                        normalized[k] = [str(i).lower() if isinstance(i, bool) else i for i in v]
+                    if isinstance(v, list):
+                        normalized[k] = [self._object_serializer.stringify(item) for item in v]
                     else:
-                        normalized[k] = v
+                        normalized[k] = self._object_serializer.stringify(v)
                 url += '?' + urlencode(normalized, doseq=True)
 
         is_multipart = content_type == 'multipart/form-data'
@@ -129,7 +127,10 @@ class BaseApi:
             headers.update(effective_auth.get_auth_headers())
             cookies = effective_auth.get_cookie_params()
             if cookies:
-                cookie_str = '; '.join(f'{k}={v}' for k, v in cookies.items())
+                cookie_str = '; '.join(
+                    f'{quote(str(k), safe="")}={quote(str(v), safe="")}'
+                    for k, v in cookies.items()
+                )
                 existing = headers.get('Cookie', '')
                 if existing:
                     headers['Cookie'] = existing + '; ' + cookie_str

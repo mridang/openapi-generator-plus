@@ -162,20 +162,23 @@ public class ObjectSerializer
 
     /// <summary>
     /// Resolve a oneOf schema by attempting deserialization against each candidate.
-    /// Each candidate is a function that accepts a JSON string and returns a
-    /// deserialized value, or throws on failure.
+    /// Each candidate is a function that accepts a parsed <see cref="JsonElement"/>
+    /// and returns a deserialized value, or throws on failure.
     /// Returns the first successful deserialization result.
     /// </summary>
-    public static object? ResolveOneOf(string json, params Func<string, object?>[] candidates)
+    public static object? ResolveOneOf(
+        JsonElement json,
+        params Func<JsonElement, object?>[] candidates
+    )
     {
         ArgumentNullException.ThrowIfNull(candidates);
 
-        if (string.IsNullOrEmpty(json))
+        if (json.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
         {
             return null;
         }
 
-        foreach (Func<string, object?> candidate in candidates)
+        foreach (Func<JsonElement, object?> candidate in candidates)
         {
             try
             {
@@ -194,11 +197,14 @@ public class ObjectSerializer
 
     /// <summary>
     /// Resolve an anyOf schema by attempting deserialization against each candidate.
-    /// Each candidate is a function that accepts a JSON string and returns a
-    /// deserialized value, or throws on failure.
+    /// Each candidate is a function that accepts a parsed <see cref="JsonElement"/>
+    /// and returns a deserialized value, or throws on failure.
     /// Returns the first successful deserialization result.
     /// </summary>
-    public static object? ResolveAnyOf(string json, params Func<string, object?>[] candidates)
+    public static object? ResolveAnyOf(
+        JsonElement json,
+        params Func<JsonElement, object?>[] candidates
+    )
     {
         return ResolveOneOf(json, candidates);
     }

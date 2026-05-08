@@ -130,7 +130,10 @@ module {{moduleName}}
       def proxy(val)
         if val
           uri = URI.parse(val)
-          raise ArgumentError, "Invalid proxy URL (missing scheme): #{val}" unless uri.scheme
+          unless uri.scheme && %w[http https].include?(uri.scheme.downcase)
+            raise ArgumentError, "Invalid proxy URL (must use http or https scheme): #{val}"
+          end
+          raise ArgumentError, "Invalid proxy URL (missing host): #{val}" unless uri.host && !uri.host.empty?
         end
         @proxy = val
         self

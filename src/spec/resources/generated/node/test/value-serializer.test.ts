@@ -251,9 +251,9 @@ describe('ValueSerializer', () => {
       );
     });
 
-    test('scalar does not URL-encode path value', () => {
+    test('scalar URL-encodes path value', () => {
       expect(ValueSerializer.serializeStyled('id', 'hello world', 'path', 'string', null, 'simple', false)).toBe(
-        'hello world'
+        'hello%20world'
       );
     });
   });

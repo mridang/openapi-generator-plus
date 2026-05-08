@@ -241,6 +241,19 @@ class BaseApiTest {
             assertNotNull(response)
             assertTrue(response.body.contains("hello plain text"))
         }
+
+        @Test
+        @DisplayName("returns null when returnType is null")
+        fun returnsNullWhenReturnTypeIsNull() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            val result = runBlocking {
+                testApi.callForResult<Unit>(
+                    "GET", "/api/test"
+                )
+            }
+            assertEquals(200, result.statusCode)
+        }
     }
 
     @Nested

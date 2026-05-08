@@ -207,7 +207,9 @@ describe('ValueSerializer', () => {
     });
 
     test('single-element array with explode true returns list', () => {
-      expect(ValueSerializer.serializeStyled('color', ['blue'], 'query', 'array', null, 'form', true)).toEqual(['blue']);
+      expect(ValueSerializer.serializeStyled('color', ['blue'], 'query', 'array', null, 'form', true)).toEqual([
+        'blue'
+      ]);
     });
   });
 
@@ -220,8 +222,8 @@ describe('ValueSerializer', () => {
       expect(ValueSerializer.serializeStyled('id', ['3', '4', '5'], 'path', 'array', null, 'simple', false)).toBe('3,4,5');
     });
 
-    test('scalar does not URL-encode path value', () => {
-      expect(ValueSerializer.serializeStyled('id', 'hello world', 'path', 'string', null, 'simple', false)).toBe('hello world');
+    test('scalar URL-encodes path value', () => {
+      expect(ValueSerializer.serializeStyled('id', 'hello world', 'path', 'string', null, 'simple', false)).toBe('hello%20world');
     });
   });
 

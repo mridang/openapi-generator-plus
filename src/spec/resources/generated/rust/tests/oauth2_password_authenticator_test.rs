@@ -10,7 +10,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
-use petstore::api_client::ApiClient;
+use petstore::api_client::{ApiClient, RequestBody};
 use petstore::api_response::ApiResponse;
 use petstore::auth::oauth::OAuth2PasswordAuthenticator;
 use petstore::auth::Authenticator;
@@ -51,7 +51,7 @@ impl ApiClient for FakeApiClient {
         _method: &str,
         url: &str,
         _headers: &HashMap<String, String>,
-        body: Option<&[u8]>,
+        body: Option<&RequestBody>,
     ) -> Pin<
         Box<
             dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
@@ -63,7 +63,7 @@ impl ApiClient for FakeApiClient {
             let mut last_url = self.last_url.lock().unwrap();
             *last_url = Some(url.to_string());
         }
-        if let Some(b) = body {
+        if let Some(RequestBody::Bytes(b)) = body {
             let mut last_body = self.last_body.lock().unwrap();
             *last_body = Some(String::from_utf8_lossy(b).to_string());
         }

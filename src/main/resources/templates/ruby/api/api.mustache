@@ -58,10 +58,10 @@ module {{moduleName}}
         url = '{{url}}'
 {{#serverVariables}}
 {{^-last}}
-        url = url.sub('{' + '{{name}}' + '}', @{{snakeName}}.to_s)
+        url = url.gsub('{' + '{{name}}' + '}', @{{snakeName}}.to_s)
 {{/-last}}
 {{#-last}}
-        url.sub('{' + '{{name}}' + '}', @{{snakeName}}.to_s)
+        url.gsub('{' + '{{name}}' + '}', @{{snakeName}}.to_s)
 {{/-last}}
 {{/serverVariables}}
 {{/hasVariables}}
@@ -162,7 +162,7 @@ module {{moduleName}}
         path = '{{{path}}}'
 {{#pathParams}}
 {{=<% %>=}}
-        path = path.sub('{<%baseName%>}', <%moduleName%>::ValueSerializer.serialize_styled('<%baseName%>', <%paramName%>, :path, '<%& dataType%>', nil, '<%style%>', <%isExplode%>).to_s)
+        path = path.gsub('{<%baseName%>}', <%moduleName%>::ValueSerializer.serialize_styled('<%baseName%>', <%paramName%>, :path, '<%& dataType%>', nil, '<%style%>', <%isExplode%>).to_s)
 <%={{ }}=%>
 {{/pathParams}}
 {{#servers}}

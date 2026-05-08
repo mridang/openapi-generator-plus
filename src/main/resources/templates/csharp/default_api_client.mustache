@@ -193,10 +193,27 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             }
         }
 
-        using HttpResponseMessage response = await _httpClient
-            .SendAsync(request)
-            .ConfigureAwait(false);
-        string responseBody = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        HttpResponseMessage response;
+        try
+        {
+            response = await _httpClient
+                .SendAsync(request)
+                .ConfigureAwait(false);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new ApiException(ex.Message, ex);
+        }
+        catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
+        {
+            throw new ApiException("Request timed out", ex);
+        }
+
+        byte[] responseBytes = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+        string responseBody = IsTextContentType(response.Content.Headers.ContentType?.MediaType)
+            ? Encoding.UTF8.GetString(responseBytes)
+            : Convert.ToBase64String(responseBytes);
+
         Dictionary<string, string> responseHeaders = [];
 
         foreach (KeyValuePair<string, IEnumerable<string>> header in response.Headers)
@@ -281,6 +298,23 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     private static string SupportedEncodings()
     {
         return "gzip, deflate, br";
+    }
+
+    /// <summary>
+    /// Determines whether the given media type represents text content
+    /// that is safe to decode as a UTF-8 string.
+    /// </summary>
+    /// <param name="mediaType">The Content-Type media type, or null.</param>
+    /// <returns><c>true</c> for text-like content types, <c>false</c> otherwise.</returns>
+    private static bool IsTextContentType(string? mediaType)
+    {
+        return string.IsNullOrEmpty(mediaType)
+            || mediaType.StartsWith("text/", StringComparison.OrdinalIgnoreCase)
+            || mediaType.Equals("application/json", StringComparison.OrdinalIgnoreCase)
+            || mediaType.Equals("application/xml", StringComparison.OrdinalIgnoreCase)
+            || mediaType.Equals("application/javascript", StringComparison.OrdinalIgnoreCase)
+            || mediaType.EndsWith("+json", StringComparison.OrdinalIgnoreCase)
+            || mediaType.EndsWith("+xml", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc/>

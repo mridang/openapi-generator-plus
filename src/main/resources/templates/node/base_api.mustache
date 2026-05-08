@@ -115,7 +115,9 @@ export abstract class BaseApi {
       const cookies = effectiveAuth.getCookieParams();
       const cookieEntries = Object.entries(cookies);
       if (cookieEntries.length > 0) {
-        const cookieStr = cookieEntries.map(([k, v]) => `${k}=${v}`).join('; ');
+        const cookieStr = cookieEntries
+          .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+          .join('; ');
         const existing = headers['Cookie'];
         headers['Cookie'] = existing ? `${existing}; ${cookieStr}` : cookieStr;
       }

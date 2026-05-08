@@ -120,7 +120,7 @@ class BaseApi
             if ($cookies !== []) {
                 $cookieParts = [];
                 foreach ($cookies as $k => $v) {
-                    $cookieParts[] = $k . '=' . $v;
+                    $cookieParts[] = rawurlencode($k) . '=' . rawurlencode($v);
                 }
                 $cookieStr = implode('; ', $cookieParts);
                 $existing = $headers['Cookie'] ?? '';
@@ -266,6 +266,8 @@ class BaseApi
                         $qs .= '=' . rawurlencode($vv ? 'true' : 'false');
                     } elseif (is_scalar($vv)) {
                         $qs .= '=' . rawurlencode((string) $vv);
+                    } else {
+                        $qs .= '=' . rawurlencode((string) json_encode($vv, JSON_UNESCAPED_SLASHES));
                     }
                     $qs .= '&';
                 }
@@ -275,6 +277,8 @@ class BaseApi
                     $qs .= '=' . rawurlencode($v ? 'true' : 'false');
                 } elseif (is_scalar($v)) {
                     $qs .= '=' . rawurlencode((string) $v);
+                } elseif (!is_null($v)) {
+                    $qs .= '=' . rawurlencode((string) json_encode($v, JSON_UNESCAPED_SLASHES));
                 }
                 $qs .= '&';
             }

@@ -16,8 +16,9 @@ type ApiClient interface {
 	 *   - method: HTTP method (GET, POST, PUT, DELETE, etc.)
 	 *   - url: fully qualified URL
 	 *   - headers: caller-provided headers
-	 *   - body: request body, or nil
+	 *   - body: request body as []byte, map[string]interface{} for multipart
+	 *           form data, or nil
 	 *
 	 * Returns an HttpResponse and any error that occurred. */
-	SendRequest(method, url string, headers map[string]string, body []byte) (*HttpResponse, error)
+	SendRequest(method, url string, headers map[string]string, body interface{}) (*HttpResponse, error)
 }

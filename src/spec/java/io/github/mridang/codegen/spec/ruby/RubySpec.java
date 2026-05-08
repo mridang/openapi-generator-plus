@@ -3,8 +3,10 @@ package io.github.mridang.codegen.spec.ruby;
 import io.github.mridang.codegen.spec.DockerImageSpec;
 import io.github.mridang.codegen.spec.LanguageSpec;
 import java.util.Map;
+import org.junit.jupiter.api.Tag;
 import org.testcontainers.utility.DockerImageName;
 
+@Tag("ruby")
 interface RubySpec extends LanguageSpec, DockerImageSpec {
 
   @Override

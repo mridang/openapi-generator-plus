@@ -132,6 +132,8 @@ module PetstoreClient
     end
 
     def self.sanitize_for_serialization(object, visited = nil)
+      return sanitize_for_serialization(object.actual_instance, visited) if object.respond_to?(:actual_instance)
+
       case object
       when nil
         nil

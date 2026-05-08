@@ -101,6 +101,8 @@ class TransportOptionsBuilder {
 
   /// Sets the HTTP/HTTPS proxy URL.
   ///
+  /// Only HTTP and HTTPS proxy URLs are supported.
+  ///
   /// Throws [ArgumentError] if the URL is not a valid HTTP or HTTPS URL.
   TransportOptionsBuilder proxy(String val) {
     if (val.isEmpty) {
@@ -109,6 +111,13 @@ class TransportOptionsBuilder {
       final parsed = Uri.tryParse(val);
       if (parsed == null || parsed.scheme.isEmpty) {
         throw ArgumentError('Invalid proxy URL: $val');
+      }
+      if (parsed.scheme != 'http' && parsed.scheme != 'https') {
+        throw ArgumentError(
+            'Invalid proxy URL (must use http or https scheme): $val');
+      }
+      if (parsed.host.isEmpty) {
+        throw ArgumentError('Invalid proxy URL (missing host): $val');
       }
       _proxy = parsed;
     }

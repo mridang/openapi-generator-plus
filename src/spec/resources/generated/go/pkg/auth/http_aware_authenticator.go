@@ -27,7 +27,7 @@ type HttpResponse struct {
 // auth subpackage and the root module package.
 type ApiClient interface {
 	/* SendRequest sends an HTTP request and returns the response. */
-	SendRequest(method, url string, headers map[string]string, body []byte) (*HttpResponse, error)
+	SendRequest(method, url string, headers map[string]string, body interface{}) (*HttpResponse, error)
 }
 
 // HttpAwareAuthenticator is implemented by authentication schemes that

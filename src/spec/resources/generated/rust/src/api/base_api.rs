@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use serde::de::DeserializeOwned;
 
-use crate::api_client::ApiClient;
+use crate::api_client::{ApiClient, RequestBody};
 use crate::api_error::ApiError;
 use crate::api_response::ApiResponse;
 use crate::api_result::ApiResult;
@@ -117,7 +117,7 @@ impl BaseApi {
             if !cookies.is_empty() {
                 let cookie_parts: Vec<String> = cookies
                     .iter()
-                    .map(|(k, v)| format!("{}={}", k, v))
+                    .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
                     .collect();
                 let cookie_str = cookie_parts.join("; ");
                 if let Some(existing) = headers.get("Cookie").cloned() {
@@ -136,7 +136,7 @@ impl BaseApi {
 
         /* Serialize body -- multipart/form-data is handled separately so that
          * the boundary can be injected into the Content-Type header. */
-        let serialized_body = if params.content_type == "multipart/form-data" {
+        let serialized_body: Option<RequestBody> = if params.content_type == "multipart/form-data" {
             if let Some(body_bytes) = params.body {
                 let form_fields: std::collections::HashMap<String, serde_json::Value> =
                     serde_json::from_slice(&body_bytes)?;
@@ -145,12 +145,15 @@ impl BaseApi {
                     "Content-Type".to_string(),
                     format!("multipart/form-data; boundary={}", boundary),
                 );
-                Some(build_multipart_body(&form_fields, &boundary)?)
+                Some(RequestBody::Bytes(build_multipart_body(
+                    &form_fields,
+                    &boundary,
+                )?))
             } else {
                 None
             }
         } else {
-            serialize_body(params.body, params.content_type)?
+            serialize_body(params.body, params.content_type)?.map(RequestBody::Bytes)
         };
 
         /* Send request */
@@ -160,7 +163,7 @@ impl BaseApi {
                 params.method,
                 &request_url,
                 &headers,
-                serialized_body.as_deref(),
+                serialized_body.as_ref(),
             )
             .await?;
 
@@ -196,10 +199,8 @@ impl BaseApi {
 
         let data = if is_json && !response.body.is_empty() {
             crate::object_serializer::deserialize(response.body.as_bytes())?
-        } else if !response.body.is_empty() {
-            /* Non-JSON response -- attempt deserialization as a fallback */
-            crate::object_serializer::deserialize(response.body.as_bytes())?
         } else {
+            /* Non-JSON or empty response -- skip deserialization */
             None
         };
 

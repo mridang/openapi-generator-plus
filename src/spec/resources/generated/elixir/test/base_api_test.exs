@@ -322,6 +322,37 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert result["title"] == "Not Found"
   end
 
+  # Nil content-type skips deserialization
+
+  defmodule NilContentTypeApiClient do
+    @behaviour PetstoreClient.ApiClient
+
+    @impl true
+    def send_request(_method, _url, _headers, _body) do
+      {:ok, %PetstoreClient.ApiResponse{status_code: 200, body: "raw body content", headers: %{}}}
+    end
+  end
+
+  test "nil content-type skips JSON deserialization and returns raw body" do
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: NilContentTypeApiClient}
+
+    assert {:ok, result} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/api/test",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               "String"
+             )
+
+    assert result == "raw body content"
+  end
+
   # Server variable overrides
 
   test "server variable overrides resolve in base URL" do

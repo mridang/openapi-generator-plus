@@ -63,6 +63,16 @@ public final class ObjectSerializer {
    */
   public String serialize(@Nullable Object object) throws SerializationException {
     try {
+      if (object != null) {
+        try {
+          java.lang.reflect.Method getter = object.getClass().getMethod("getActualInstance");
+          object = getter.invoke(object);
+        } catch (NoSuchMethodException ignored) {
+          /* expected for non-wrapper types */
+        } catch (ReflectiveOperationException e) {
+          throw new SerializationException("Failed to unwrap oneOf/anyOf instance", e);
+        }
+      }
       return objectMapper.writeValueAsString(object);
     } catch (JsonProcessingException e) {
       throw new SerializationException("Failed to serialize object to JSON", e);

@@ -150,19 +150,21 @@ impl TransportOptionsBuilder {
     }
 
     /// Sets the HTTP/HTTPS proxy URL. Panics if the URL is invalid.
+    ///
+    /// Only HTTP and HTTPS proxy URLs are supported.
     pub fn proxy(mut self, val: &str) -> Self {
         if val.is_empty() {
             self.proxy = None;
-        } else if val.starts_with("http://")
-            || val.starts_with("https://")
-            || val.starts_with("socks5://")
-        {
-            self.proxy = Some(val.to_string());
         } else {
-            panic!(
-                "invalid proxy URL {:?}: must start with http://, https://, or socks5://",
-                val
-            );
+            let parsed = reqwest::Url::parse(val)
+                .unwrap_or_else(|e| panic!("invalid proxy URL {:?}: {}", val, e));
+            if parsed.scheme() != "http" && parsed.scheme() != "https" {
+                panic!("invalid proxy URL {:?}: must use http or https scheme", val);
+            }
+            if parsed.host_str().unwrap_or("").is_empty() {
+                panic!("invalid proxy URL {:?}: missing host", val);
+            }
+            self.proxy = Some(val.to_string());
         }
         self
     }
@@ -180,8 +182,9 @@ impl TransportOptionsBuilder {
     }
 
     /// Sets the maximum number of redirects to follow.
-    pub fn max_redirects(mut self, val: usize) -> Self {
-        self.max_redirects = Some(val);
+    /// Pass `Some(n)` to limit to `n` redirects, or `None` for unlimited.
+    pub fn max_redirects(mut self, val: Option<usize>) -> Self {
+        self.max_redirects = val;
         self
     }
 

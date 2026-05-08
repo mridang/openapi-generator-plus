@@ -142,7 +142,10 @@ abstract class BaseApi {
             headers.putAll(effectiveAuth.getAuthHeaders())
             val cookies = effectiveAuth.getCookieParams()
             if (cookies.isNotEmpty()) {
-                val cookieStr = cookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
+                val cookieStr =
+                    cookies.entries.joinToString("; ") {
+                        URLEncoder.encode(it.key, "UTF-8") + "=" + URLEncoder.encode(it.value, "UTF-8")
+                    }
                 val existing = headers["Cookie"]
                 if (!existing.isNullOrEmpty()) {
                     headers["Cookie"] = "$existing; $cookieStr"

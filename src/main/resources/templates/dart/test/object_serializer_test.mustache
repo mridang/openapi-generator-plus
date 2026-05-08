@@ -165,7 +165,7 @@ void main() {
     test('stringify DateTime', () {
       final ts = DateTime.utc(2024, 1, 15, 10, 30, 0);
       final result = stringify(ts);
-      expect(result, isNotEmpty);
+      expect(result, equals('2024-01-15T10:30:00+00:00'));
     });
 
     test('stringify null', () {

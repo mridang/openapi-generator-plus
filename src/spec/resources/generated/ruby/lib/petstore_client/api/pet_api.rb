@@ -66,7 +66,7 @@ module PetstoreClient
 
       def url
         url = 'https://{region}.example.com/v1'
-        url.sub('{' + 'region' + '}', @region.to_s)
+        url.gsub('{' + 'region' + '}', @region.to_s)
       end
     end
 
@@ -115,8 +115,8 @@ module PetstoreClient
 
       def url
         url = 'https://{environment}.example.com/api/{version}'
-        url = url.sub('{' + 'environment' + '}', @environment.to_s)
-        url.sub('{' + 'version' + '}', @version.to_s)
+        url = url.gsub('{' + 'environment' + '}', @environment.to_s)
+        url.gsub('{' + 'version' + '}', @version.to_s)
       end
     end
 
@@ -193,7 +193,7 @@ module PetstoreClient
         end
 
         path = '/pet/{petId}/photos'
-        path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -247,7 +247,7 @@ module PetstoreClient
         end
 
         path = '/pet/{petId}/treatment'
-        path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -289,7 +289,7 @@ module PetstoreClient
         end
 
         path = '/pet/{petId}'
-        path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -343,8 +343,8 @@ module PetstoreClient
         end
 
         path = '/pet/{petId}/documents/{documentId}'
-        path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
-        path = path.sub('{documentId}', PetstoreClient::ValueSerializer.serialize_styled('documentId', document_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{documentId}', PetstoreClient::ValueSerializer.serialize_styled('documentId', document_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -423,7 +423,7 @@ module PetstoreClient
         end
 
         path = '/pet/{petId}/external'
-        path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         if server
           server_url = server.url
           path = server_url + path if server_url.start_with?('http://', 'https://')
@@ -466,7 +466,7 @@ module PetstoreClient
         end
 
         path = '/pet/{petId}/multi'
-        path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         if server
           server_url = server.url
           path = server_url + path if server_url.start_with?('http://', 'https://')
@@ -510,7 +510,7 @@ module PetstoreClient
         end
 
         path = '/pet/{petId}/avatar'
-        path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -550,7 +550,7 @@ module PetstoreClient
         end
 
         path = '/pet/{petId}/avatar/thumbnail'
-        path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -591,7 +591,7 @@ module PetstoreClient
         end
 
         path = '/pet/{petId}'
-        path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         if server
           server_url = server.url
           path = server_url + path if server_url.start_with?('http://', 'https://')
@@ -635,7 +635,7 @@ module PetstoreClient
         end
 
         path = '/pet/{petId}/passport'
-        path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -686,8 +686,8 @@ module PetstoreClient
         end
 
         path = '/pet/{petId}/photos/{photoId}'
-        path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
-        path = path.sub('{photoId}', PetstoreClient::ValueSerializer.serialize_styled('photoId', photo_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{photoId}', PetstoreClient::ValueSerializer.serialize_styled('photoId', photo_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -739,8 +739,8 @@ module PetstoreClient
         end
 
         path = '/pet/{petId}/tag/{tagName}'
-        path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'matrix', false).to_s)
-        path = path.sub('{tagName}', PetstoreClient::ValueSerializer.serialize_styled('tagName', tag_name, :path, 'String', nil, 'label', false).to_s)
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'matrix', false).to_s)
+        path = path.gsub('{tagName}', PetstoreClient::ValueSerializer.serialize_styled('tagName', tag_name, :path, 'String', nil, 'label', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         unless options.nil? || options.colors.nil?
@@ -795,7 +795,7 @@ module PetstoreClient
         end
 
         path = '/pet/{petId}/staging'
-        path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         if server
           server_url = server.url
           path = server_url + path if server_url.start_with?('http://', 'https://')
@@ -850,7 +850,7 @@ module PetstoreClient
         end
 
         path = '/pet/{petId}/avatar'
-        path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -901,7 +901,7 @@ module PetstoreClient
         end
 
         path = '/pet/{petId}/avatar/thumbnail'
-        path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -951,7 +951,7 @@ module PetstoreClient
         end
 
         path = '/pet/{petId}'
-        path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -993,7 +993,7 @@ module PetstoreClient
         end
 
         path = '/pet/{petId}/certificate'
-        path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -1037,7 +1037,7 @@ module PetstoreClient
         end
 
         path = '/pet/{petId}/documents'
-        path = path.sub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{petId}', PetstoreClient::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]

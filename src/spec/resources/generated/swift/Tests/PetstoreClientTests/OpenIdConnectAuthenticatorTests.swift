@@ -20,7 +20,7 @@ final class OpenIdConnectAuthenticatorTests: XCTestCase {
     var lastHeaders: [String: String] = [:]
     var lastBody: Data? = nil
 
-    func sendRequest(method: String, url: String, headers: [String: String], body: Data?)
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
       async throws -> ApiResponse
     {
       lastMethod = method

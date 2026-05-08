@@ -158,7 +158,10 @@ public abstract class BaseApi {
             if (!cookies.isEmpty()) {
                 StringJoiner cookieJoiner = new StringJoiner("; ");
                 for (Map.Entry<String, String> entry : cookies.entrySet()) {
-                    cookieJoiner.add(entry.getKey() + "=" + entry.getValue());
+                    cookieJoiner.add(
+                            URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8)
+                                    + "="
+                                    + URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8));
                 }
                 String existing = headers.get("Cookie");
                 if (existing != null && !existing.isEmpty()) {

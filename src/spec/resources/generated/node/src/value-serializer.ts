@@ -98,30 +98,33 @@ export class ValueSerializer {
 
     switch (style) {
       case 'matrix': {
+        const enc = (s: string) => (location === 'path' ? encodeURIComponent(s) : s);
         if (Array.isArray(value)) {
-          const items = value.map((v) => ObjectSerializer.stringify(v));
+          const items = value.map((v) => enc(ObjectSerializer.stringify(v)));
           if (explode) {
             return items.map((item) => `;${paramName}=${item}`).join('');
           }
           return `;${paramName}=${items.join(',')}`;
         }
-        return `;${paramName}=${ObjectSerializer.stringify(value)}`;
+        return `;${paramName}=${enc(ObjectSerializer.stringify(value))}`;
       }
       case 'label': {
+        const enc = (s: string) => (location === 'path' ? encodeURIComponent(s) : s);
         if (Array.isArray(value)) {
-          const items = value.map((v) => ObjectSerializer.stringify(v));
+          const items = value.map((v) => enc(ObjectSerializer.stringify(v)));
           if (explode) {
             return '.' + items.join('.');
           }
           return '.' + items.join(',');
         }
-        return '.' + ObjectSerializer.stringify(value);
+        return '.' + enc(ObjectSerializer.stringify(value));
       }
       case 'simple': {
+        const enc = (s: string) => (location === 'path' ? encodeURIComponent(s) : s);
         if (Array.isArray(value)) {
-          return value.map((v) => ObjectSerializer.stringify(v)).join(',');
+          return value.map((v) => enc(ObjectSerializer.stringify(v))).join(',');
         }
-        return ObjectSerializer.stringify(value);
+        return enc(ObjectSerializer.stringify(value));
       }
       case 'form': {
         if (Array.isArray(value)) {

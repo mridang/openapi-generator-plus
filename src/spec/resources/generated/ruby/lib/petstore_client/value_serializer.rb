@@ -135,12 +135,10 @@ module PetstoreClient
         return nil if value.nil? && location == :query
         return '' if value.nil?
 
-        if value.is_a?(Array)
-          if explode
-            value.map { |v| ObjectSerializer.stringify(v) }
-          else
-            value.map { |v| ObjectSerializer.stringify(v) }.join(',')
-          end
+        if value.is_a?(Array) && explode
+          value.map { |v| ObjectSerializer.stringify(v) }
+        elsif value.is_a?(Array)
+          value.map { |v| ObjectSerializer.stringify(v) }.join(',')
         else
           ObjectSerializer.stringify(value)
         end

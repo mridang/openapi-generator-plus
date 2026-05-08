@@ -42,6 +42,21 @@ public class BaseApiTest
                 method, path, queryParams, headerParams, body,
                 accepts, contentType, typeof(T), auth);
         }
+
+        public async Task<object?> CallAsyncWithNullReturnType(
+            string method,
+            string path,
+            Dictionary<string, object?> queryParams,
+            Dictionary<string, string> headerParams,
+            object? body,
+            string[] accepts,
+            string contentType,
+            IAuthenticator? auth = null)
+        {
+            return await InvokeApiAsync<object>(
+                method, path, queryParams, headerParams, body,
+                accepts, contentType, null, auth);
+        }
     }
 
     private sealed class CapturingApiClient : IApiClient
@@ -172,6 +187,17 @@ public class BaseApiTest
             null, ["application/json"], "application/json");
         Assert.NotNull(result);
         Assert.Equal("success", result!["message"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task ReturnsNullWhenReturnTypeIsNull()
+    {
+        var result = await Api().CallAsyncWithNullReturnType(
+            "GET", "/api/test",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json");
+        Assert.Null(result);
     }
 
     [Fact]

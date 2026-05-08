@@ -139,11 +139,11 @@ pub fn to_form_value<T: Serialize>(value: &T) -> String {
 }
 
 /// Resolve a oneOf schema by attempting deserialization against each candidate.
-/// Each candidate is a closure that takes the raw JSON bytes and returns a boxed
+/// Each candidate is a closure that takes a parsed JSON value and returns a boxed
 /// result. Returns the first successful deserialization, or None if none match.
 pub fn resolve_one_of(
-    data: &[u8],
-    candidates: &[fn(&[u8]) -> Result<Box<dyn std::any::Any>, SerializationError>],
+    data: &serde_json::Value,
+    candidates: &[fn(&serde_json::Value) -> Result<Box<dyn std::any::Any>, SerializationError>],
 ) -> Option<Box<dyn std::any::Any>> {
     for candidate in candidates {
         if let Ok(result) = candidate(data) {
@@ -156,8 +156,8 @@ pub fn resolve_one_of(
 /// Resolve an anyOf schema by attempting deserialization against each candidate.
 /// Returns the first successful deserialization, or None if none match.
 pub fn resolve_any_of(
-    data: &[u8],
-    candidates: &[fn(&[u8]) -> Result<Box<dyn std::any::Any>, SerializationError>],
+    data: &serde_json::Value,
+    candidates: &[fn(&serde_json::Value) -> Result<Box<dyn std::any::Any>, SerializationError>],
 ) -> Option<Box<dyn std::any::Any>> {
     resolve_one_of(data, candidates)
 }

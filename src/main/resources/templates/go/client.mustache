@@ -77,7 +77,7 @@ type authApiClientAdapter struct {
 	inner ApiClient
 }
 
-func (a *authApiClientAdapter) SendRequest(method, url string, headers map[string]string, body []byte) (*auth.HttpResponse, error) {
+func (a *authApiClientAdapter) SendRequest(method, url string, headers map[string]string, body interface{}) (*auth.HttpResponse, error) {
 	resp, err := a.inner.SendRequest(method, url, headers, body)
 	if err != nil {
 		return nil, err

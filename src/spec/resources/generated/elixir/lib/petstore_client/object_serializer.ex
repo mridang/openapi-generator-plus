@@ -152,6 +152,10 @@ defmodule PetstoreClient.ObjectSerializer do
   def sanitize_for_serialization(%DateTime{} = dt), do: Calendar.strftime(dt, "%Y-%m-%dT%H:%M:%S%:z")
   def sanitize_for_serialization(%NaiveDateTime{} = dt), do: NaiveDateTime.to_iso8601(dt)
 
+  def sanitize_for_serialization(%{__struct__: _module, actual_instance: inner}) do
+    sanitize_for_serialization(inner)
+  end
+
   def sanitize_for_serialization(%{__struct__: module} = struct) do
     if function_exported?(module, :attribute_map, 0) do
       attr_map = module.attribute_map()

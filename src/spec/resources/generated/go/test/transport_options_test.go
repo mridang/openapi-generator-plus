@@ -24,8 +24,8 @@ func TestTransportOptions_Defaults(t *testing.T) {
 	if opts.Proxy() != nil {
 		t.Error("expected nil Proxy by default")
 	}
-	if opts.Timeout() != 0 {
-		t.Errorf("expected zero timeout by default, got %d", opts.Timeout())
+	if opts.Timeout() != nil {
+		t.Error("expected nil timeout by default")
 	}
 	if !opts.FollowRedirects() {
 		t.Error("expected FollowRedirects to be true by default")
@@ -69,8 +69,8 @@ func TestTransportOptions_SetAllFields(t *testing.T) {
 	if opts.Proxy().String() != "http://proxy.example.com:8080" {
 		t.Errorf("expected proxy 'http://proxy.example.com:8080', got %q", opts.Proxy().String())
 	}
-	if opts.Timeout() != 30000 {
-		t.Errorf("expected timeout 30000ms, got %d", opts.Timeout())
+	if opts.Timeout() == nil || *opts.Timeout() != 30000 {
+		t.Error("expected timeout 30000ms")
 	}
 	if opts.FollowRedirects() {
 		t.Error("expected FollowRedirects to be false")
@@ -119,8 +119,8 @@ func TestTransportOptions_BuilderChaining(t *testing.T) {
 	if opts.UserAgent() != "Test/1.0" {
 		t.Errorf("expected UserAgent 'Test/1.0', got %q", opts.UserAgent())
 	}
-	if opts.Timeout() != 10000 {
-		t.Errorf("expected timeout 10000ms, got %d", opts.Timeout())
+	if opts.Timeout() == nil || *opts.Timeout() != 10000 {
+		t.Error("expected timeout 10000ms")
 	}
 }
 

@@ -95,7 +95,7 @@ public final class DefaultApiClient implements ApiClient {
                 URI proxyUri = URI.create(transportOptions.getProxy());
                 int port = proxyUri.getPort();
                 if (port == -1) {
-                    port = "https".equals(proxyUri.getScheme()) ? 443 : 8080;
+                    port = "https".equals(proxyUri.getScheme()) ? 443 : 80;
                 }
                 builder.proxy(
                         ProxySelector.of(new InetSocketAddress(proxyUri.getHost(), port)));

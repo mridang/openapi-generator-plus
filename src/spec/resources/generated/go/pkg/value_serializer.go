@@ -28,7 +28,21 @@ func SerializeValue(value interface{}, location, schemaType, collectionFormat st
 	}
 
 	if items, ok := toStringSlice(value); ok {
-		return serializeArray(items, location, collectionFormat)
+		if location == "query" {
+			switch collectionFormat {
+			case "multi":
+				return items
+			case "ssv":
+				return strings.Join(items, " ")
+			case "tsv":
+				return strings.Join(items, "\t")
+			case "pipes":
+				return strings.Join(items, "|")
+			default:
+				return strings.Join(items, ",")
+			}
+		}
+		return strings.Join(items, ",")
 	}
 
 	strVal := Stringify(value)
@@ -186,31 +200,6 @@ func serializeNil(location string) interface{} {
 		return nil
 	}
 	return ""
-}
-
-func serializeArray(items []string, location, collectionFormat string) interface{} {
-	if location == "query" {
-		return serializeQueryArray(items, collectionFormat)
-	}
-	if location == "header" {
-		return strings.Join(items, ",")
-	}
-	return strings.Join(items, ",")
-}
-
-func serializeQueryArray(items []string, collectionFormat string) interface{} {
-	switch collectionFormat {
-	case "multi":
-		return items
-	case "ssv":
-		return strings.Join(items, " ")
-	case "tsv":
-		return strings.Join(items, "\t")
-	case "pipes":
-		return strings.Join(items, "|")
-	default:
-		return strings.Join(items, ",")
-	}
 }
 
 // toStringSlice attempts to convert an interface{} to a []string.

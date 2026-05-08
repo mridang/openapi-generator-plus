@@ -28,8 +28,6 @@ import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
 import java.util.UUID
 import java.util.concurrent.TimeUnit
-import java.util.zip.GZIPInputStream
-import java.util.zip.InflaterInputStream
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
@@ -92,7 +90,7 @@ class DefaultApiClient : ApiClient {
             val proxyUri = java.net.URI.create(transportOptions.proxy)
             val port =
                 if (proxyUri.port == -1) {
-                    if ("https" == proxyUri.scheme) 443 else 8080
+                    if ("https" == proxyUri.scheme) 443 else 80
                 } else {
                     proxyUri.port
                 }
@@ -245,12 +243,10 @@ class DefaultApiClient : ApiClient {
         encoding: String,
     ): String {
         if (data.isEmpty()) return ""
+        /* OkHttp transparently handles gzip and deflate decompression, so only
+         * brotli and zstd need manual handling here. */
         val decompressed =
             when (encoding.lowercase()) {
-                "gzip", "x-gzip" ->
-                    GZIPInputStream(data.inputStream()).readBytes()
-                "deflate" ->
-                    InflaterInputStream(data.inputStream()).readBytes()
                 "br" -> decompressBrotli(data)
                 "zstd" -> decompressZstd(data)
                 else -> data
@@ -291,6 +287,8 @@ class DefaultApiClient : ApiClient {
 
     @Suppress("SwallowedException")
     private fun getSupportedEncodings(): String {
+        /* OkHttp transparently handles gzip and deflate, so we only
+         * advertise those plus any optional encodings that are available. */
         val sb = StringBuilder("gzip, deflate")
         try {
             Class.forName("org.brotli.dec.BrotliInputStream")

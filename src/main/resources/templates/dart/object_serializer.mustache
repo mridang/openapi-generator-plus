@@ -85,7 +85,7 @@ String stringify(Object? value) {
   if (value == null) return '';
 
   if (value is bool) return value ? 'true' : 'false';
-  if (value is DateTime) return value.toIso8601String();
+  if (value is DateTime) return _formatDateTimeOffset(value);
   if (value is String) return value;
   if (value is int) return value.toString();
   if (value is double) return value.toString();
@@ -160,6 +160,20 @@ T? resolveOneOf<T>(Map<String, dynamic> data, List<T Function(Map<String, dynami
 /// deserialize the given map. Returns the first successful result.
 T? resolveAnyOf<T>(Map<String, dynamic> data, List<T Function(Map<String, dynamic>)> fromJsonCandidates) {
   return resolveOneOf(data, fromJsonCandidates);
+}
+
+/// Formats a DateTime as an ISO 8601 string with a UTC offset (+00:00)
+/// instead of the "Z" suffix, matching the format used by Java, Kotlin, C#,
+/// and other language generators.
+String _formatDateTimeOffset(DateTime date) {
+  final utc = date.toUtc();
+  final y = utc.year.toString().padLeft(4, '0');
+  final mo = utc.month.toString().padLeft(2, '0');
+  final d = utc.day.toString().padLeft(2, '0');
+  final h = utc.hour.toString().padLeft(2, '0');
+  final mi = utc.minute.toString().padLeft(2, '0');
+  final s = utc.second.toString().padLeft(2, '0');
+  return '$y-$mo-${d}T$h:$mi:$s+00:00';
 }
 
 Object? _joinCollection(List<String> items, String collectionFormat) {

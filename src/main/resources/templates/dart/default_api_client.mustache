@@ -1,14 +1,17 @@
 {{>api_info}}
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
+import 'package:http_parser/http_parser.dart';
 import 'dart:math';
 
 import 'api_client.dart';
 import 'api_response.dart';
+import 'errors/api_error.dart';
 import 'transport_options.dart';
 
 /// DefaultApiClient is the default HTTP client implementation backed by
@@ -81,7 +84,7 @@ class DefaultApiClient implements ApiClient {
     String method,
     String url,
     Map<String, String> headers,
-    Uint8List? body,
+    Object? body,
   ) async {
     final merged = <String, String>{};
 
@@ -107,21 +110,58 @@ class DefaultApiClient implements ApiClient {
     }
 
     final uri = Uri.parse(url);
-    final request = http.Request(method, uri);
-    request.headers.addAll(merged);
-    request.followRedirects = _transportOptions.followRedirects;
-    if (_transportOptions.followRedirects && _transportOptions.maxRedirects != null) {
-      request.maxRedirects = _transportOptions.maxRedirects!;
-    }
-    if (body != null) {
-      request.bodyBytes = body;
+    http.BaseRequest request;
+
+    if (body is Map<String, Object>) {
+      final multipartRequest = http.MultipartRequest(method, uri);
+      multipartRequest.headers.addAll(merged);
+      for (final entry in body.entries) {
+        final name = entry.key;
+        final value = entry.value;
+        if (value is List) {
+          for (final item in value) {
+            _addMultipartField(multipartRequest, name, item);
+          }
+        } else {
+          _addMultipartField(multipartRequest, name, value);
+        }
+      }
+      if (_transportOptions.followRedirects && _transportOptions.maxRedirects != null) {
+        multipartRequest.maxRedirects = _transportOptions.maxRedirects!;
+      }
+      multipartRequest.followRedirects = _transportOptions.followRedirects;
+      request = multipartRequest;
+    } else {
+      final standardRequest = http.Request(method, uri);
+      standardRequest.headers.addAll(merged);
+      standardRequest.followRedirects = _transportOptions.followRedirects;
+      if (_transportOptions.followRedirects && _transportOptions.maxRedirects != null) {
+        standardRequest.maxRedirects = _transportOptions.maxRedirects!;
+      }
+      if (body is Uint8List) {
+        standardRequest.bodyBytes = body;
+      }
+      request = standardRequest;
     }
 
-    final Future<http.StreamedResponse> pendingResponse = _httpClient.send(request);
-    final streamedResponse = _transportOptions.timeout != null
-        ? await pendingResponse.timeout(Duration(milliseconds: _transportOptions.timeout!))
-        : await pendingResponse;
-    final responseBody = await streamedResponse.stream.bytesToString();
+    final http.StreamedResponse streamedResponse;
+    try {
+      final Future<http.StreamedResponse> pendingResponse = _httpClient.send(request);
+      streamedResponse = _transportOptions.timeout != null
+          ? await pendingResponse.timeout(Duration(milliseconds: _transportOptions.timeout!))
+          : await pendingResponse;
+    } on SocketException catch (e) {
+      throw ApiError(statusCode: 0, message: e.message);
+    } on HttpException catch (e) {
+      throw ApiError(statusCode: 0, message: e.message);
+    } on TimeoutException catch (e) {
+      throw ApiError(statusCode: 0, message: e.message ?? 'Request timed out');
+    }
+    final responseBytes = await streamedResponse.stream.toBytes();
+    final contentType = streamedResponse.headers['content-type'] ?? '';
+    final responseBody = _isTextContentType(contentType)
+        ? String.fromCharCodes(responseBytes)
+        : base64Encode(responseBytes);
 
     final responseHeaders = <String, String>{};
     streamedResponse.headers.forEach((key, value) {
@@ -133,6 +173,33 @@ class DefaultApiClient implements ApiClient {
       body: responseBody,
       headers: responseHeaders,
     );
+  }
+
+  /// Adds a single field to a multipart request, handling bytes, strings, and
+  /// other types (JSON-serialized).
+  static void _addMultipartField(
+    http.MultipartRequest request,
+    String name,
+    Object value,
+  ) {
+    if (value is Uint8List) {
+      request.files.add(http.MultipartFile.fromBytes(
+        name,
+        value,
+        filename: name,
+      ));
+    } else if (value is String) {
+      request.fields[name] = value;
+    } else if (value is num || value is bool) {
+      request.fields[name] = value.toString();
+    } else {
+      final json = jsonEncode(value);
+      request.files.add(http.MultipartFile.fromString(
+        name,
+        json,
+        contentType: MediaType('application', 'json'),
+      ));
+    }
   }
 
   /// Closes the underlying HTTP client.
@@ -149,6 +216,19 @@ class DefaultApiClient implements ApiClient {
   static String _supportedEncodings() {
     final encodings = ['gzip', 'deflate'];
     return encodings.join(', ');
+  }
+
+  /// Determines whether the given content type represents text content
+  /// that is safe to decode as a UTF-8 string.
+  static bool _isTextContentType(String contentType) {
+    final mediaType = contentType.split(';').first.trim().toLowerCase();
+    if (mediaType.isEmpty) return true;
+    if (mediaType.startsWith('text/')) return true;
+    return mediaType == 'application/json' ||
+        mediaType == 'application/xml' ||
+        mediaType == 'application/javascript' ||
+        mediaType.endsWith('+json') ||
+        mediaType.endsWith('+xml');
   }
 
   static String _generateUuid() {

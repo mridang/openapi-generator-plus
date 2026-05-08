@@ -27,8 +27,17 @@ func (e *SerializationError) Unwrap() error {
 	return e.Cause
 }
 
+// oneOfUnwrapper is implemented by oneOf/anyOf wrapper types.
+type oneOfUnwrapper interface {
+	GetActualInstance() interface{}
+}
+
 // Serialize converts an object to a JSON byte slice.
+// Unwraps oneOf/anyOf wrapper types before serialization.
 func Serialize(object interface{}) ([]byte, error) {
+	if wrapper, ok := object.(oneOfUnwrapper); ok {
+		object = wrapper.GetActualInstance()
+	}
 	data, err := json.Marshal(object)
 	if err != nil {
 		return nil, &SerializationError{
@@ -159,9 +168,9 @@ func ToFormValue(value interface{}) string {
 }
 
 // ResolveOneOf attempts deserialization against each candidate factory function.
-// Each factory receives the raw JSON bytes and returns a deserialized value or an error.
-// Returns the first successful result and nil error, or nil and nil if none match.
-func ResolveOneOf(data []byte, candidates []func([]byte) (interface{}, error)) (interface{}, error) {
+// Each factory receives parsed JSON (map/slice/primitive) and returns a deserialized
+// value or an error. Returns the first successful result, or nil if none match.
+func ResolveOneOf(data interface{}, candidates []func(interface{}) (interface{}, error)) (interface{}, error) {
 	for _, candidate := range candidates {
 		result, err := candidate(data)
 		if err == nil {
@@ -173,7 +182,7 @@ func ResolveOneOf(data []byte, candidates []func([]byte) (interface{}, error)) (
 
 // ResolveAnyOf attempts deserialization against each candidate factory function.
 // Returns the first successful result.
-func ResolveAnyOf(data []byte, candidates []func([]byte) (interface{}, error)) (interface{}, error) {
+func ResolveAnyOf(data interface{}, candidates []func(interface{}) (interface{}, error)) (interface{}, error) {
 	return ResolveOneOf(data, candidates)
 }
 

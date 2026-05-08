@@ -36,10 +36,16 @@ export class ObjectSerializer {
     if (obj === null || obj === undefined) {
       return 'null';
     }
+    if (typeof obj === 'object' && 'actualInstance' in (obj as Record<string, unknown>)) {
+      obj = (obj as Record<string, unknown>).actualInstance;
+    }
     try {
-      return JSON.stringify(obj, (_key, value) =>
-        value instanceof Set ? [...value] : value
-      );
+      return JSON.stringify(obj, function (_key, value) {
+        if (value === null) return undefined;
+        if (value instanceof Set) return [...value];
+        if (this[_key] instanceof Date) return ObjectSerializer.formatDateTimeOffset(this[_key]);
+        return value;
+      });
     } catch (e) {
       throw new SerializationError(
         `Failed to serialize object to JSON: ${e instanceof Error ? e.message : String(e)}`,
@@ -137,9 +143,25 @@ export class ObjectSerializer {
       return value ? 'true' : 'false';
     }
     if (value instanceof Date) {
-      return value.toISOString();
+      return ObjectSerializer.formatDateTimeOffset(value);
     }
     return String(value);
+  }
+
+  /**
+   * Formats a Date as an ISO 8601 string with a UTC offset (+00:00) instead
+   * of the "Z" suffix, matching the format used by Java, Kotlin, C#, and
+   * other language generators.
+   */
+  private static formatDateTimeOffset(date: Date): string {
+    const pad = (n: number, w = 2): string => String(n).padStart(w, '0');
+    const y = date.getUTCFullYear();
+    const mo = pad(date.getUTCMonth() + 1);
+    const d = pad(date.getUTCDate());
+    const h = pad(date.getUTCHours());
+    const mi = pad(date.getUTCMinutes());
+    const s = pad(date.getUTCSeconds());
+    return `${y}-${mo}-${d}T${h}:${mi}:${s}+00:00`;
   }
 
   /**

@@ -69,9 +69,14 @@ defmodule PetstoreClient.TransportOptions do
     if result.proxy do
       parsed = URI.parse(result.proxy)
 
-      if is_nil(parsed.scheme) or parsed.scheme == "" do
+      unless parsed.scheme in ["http", "https"] do
         raise ArgumentError,
-              "invalid proxy URL #{inspect(result.proxy)}: must have a scheme (http or https)"
+              "invalid proxy URL #{inspect(result.proxy)}: must use http or https scheme"
+      end
+
+      if is_nil(parsed.host) or parsed.host == "" do
+        raise ArgumentError,
+              "invalid proxy URL #{inspect(result.proxy)}: missing host"
       end
     end
 

@@ -21,12 +21,22 @@ Before code generation, the tool can preprocess and standardize your OpenAPI v3 
 
 **Opinionated Code Generators**
 
-A set of custom generators that produce lean, modern clients for various languages. They are "opinionated" in that they make specific technology choices and generate only what is necessary.
-* **Java**: Generates a minimal client using Apache HttpClient for requests, Jackson for JSON serialization, and the modern `java.time` library for dates
-* **PHP**: Creates a Guzzle-based client that uses `camelCase` for variable and parameter naming and generates a `ModelInterface.php` for type-hinting.
-* **Python**: Produces a simple client built on `urllib3`. It generates the necessary `__init__.py` files to ensure the output is a well-formed Python package.
-* **Ruby**: Creates a modern client using Typhoeus for performance. It correctly generates namespaced modules and Zeitwerk-compatible, snake_cased filenames for seamless autoloading.
-* **Node.js / TypeScript**: A Fetch API-based client configured for modern JavaScript environments, supporting ES Modules with `.js` import extensions.
+A set of custom generators that produce lean, modern clients for 12 languages. They are "opinionated" in that they make specific technology choices and generate only what is necessary. All generators share a consistent architecture: a `BaseApi` for request construction, a `DefaultApiClient` for HTTP transport, an `ObjectSerializer` for JSON handling, a `ValueSerializer` for OpenAPI style/explode serialization, and `TransportOptions` for client configuration.
+
+| Generator | Language | HTTP Client | Serialization |
+|-----------|----------|-------------|---------------|
+| `java-plus` | Java | `java.net.http.HttpClient` | Jackson |
+| `kotlin-plus` | Kotlin | OkHttp | kotlinx.serialization |
+| `csharp-plus` | C# | `System.Net.Http.HttpClient` | `System.Text.Json` |
+| `node-plus` | Node.js / TypeScript | Fetch API (undici) | Native JSON |
+| `python-plus` | Python | urllib3 | Native JSON |
+| `ruby-plus` | Ruby | Faraday | Native JSON |
+| `php-plus` | PHP | Symfony HttpClient | Native JSON |
+| `go-plus` | Go | `net/http` | `encoding/json` |
+| `rust-plus` | Rust | reqwest | serde |
+| `swift-plus` | Swift | URLSession | `JSONEncoder`/`JSONDecoder` |
+| `dart-plus` | Dart | `package:http` | `dart:convert` |
+| `elixir-plus` | Elixir | Req | Jason |
 
 ## Installation
 
@@ -229,6 +239,123 @@ docker run --rm \
   my-generator generate \
     --input-spec="/local/spec.json" \
     --generator-name="ruby-plus" \
+    --output="/local/client" \
+    --config="/local/config.yml"
+```
+
+### Generate a C# Client
+
+```yaml
+packageName: PetstoreClient
+sourceFolder: src
+```
+
+```shell
+docker run --rm \
+  --volume="${PWD}:/local" \
+  my-generator generate \
+    --input-spec="/local/spec.json" \
+    --generator-name="csharp-plus" \
+    --output="/local/client" \
+    --config="/local/config.yml"
+```
+
+### Generate a Go Client
+
+```yaml
+packageName: petstore
+```
+
+```shell
+docker run --rm \
+  --volume="${PWD}:/local" \
+  my-generator generate \
+    --input-spec="/local/spec.json" \
+    --generator-name="go-plus" \
+    --output="/local/client" \
+    --config="/local/config.yml"
+```
+
+### Generate a Kotlin Client
+
+```yaml
+groupId: com.example
+invokerPackage: com.example.petstore
+apiPackage: com.example.petstore.api
+modelPackage: com.example.petstore.models
+```
+
+```shell
+docker run --rm \
+  --volume="${PWD}:/local" \
+  my-generator generate \
+    --input-spec="/local/spec.json" \
+    --generator-name="kotlin-plus" \
+    --output="/local/client" \
+    --config="/local/config.yml"
+```
+
+### Generate a Rust Client
+
+```yaml
+packageName: petstore
+```
+
+```shell
+docker run --rm \
+  --volume="${PWD}:/local" \
+  my-generator generate \
+    --input-spec="/local/spec.json" \
+    --generator-name="rust-plus" \
+    --output="/local/client" \
+    --config="/local/config.yml"
+```
+
+### Generate a Swift Client
+
+```yaml
+projectName: PetstoreClient
+```
+
+```shell
+docker run --rm \
+  --volume="${PWD}:/local" \
+  my-generator generate \
+    --input-spec="/local/spec.json" \
+    --generator-name="swift-plus" \
+    --output="/local/client" \
+    --config="/local/config.yml"
+```
+
+### Generate a Dart Client
+
+```yaml
+pubName: petstore_client
+pubVersion: 1.0.0
+```
+
+```shell
+docker run --rm \
+  --volume="${PWD}:/local" \
+  my-generator generate \
+    --input-spec="/local/spec.json" \
+    --generator-name="dart-plus" \
+    --output="/local/client" \
+    --config="/local/config.yml"
+```
+
+### Generate an Elixir Client
+
+```yaml
+packageName: petstore_client
+```
+
+```shell
+docker run --rm \
+  --volume="${PWD}:/local" \
+  my-generator generate \
+    --input-spec="/local/spec.json" \
+    --generator-name="elixir-plus" \
     --output="/local/client" \
     --config="/local/config.yml"
 ```

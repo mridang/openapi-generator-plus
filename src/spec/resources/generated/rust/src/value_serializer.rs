@@ -134,11 +134,10 @@ pub fn serialize_styled(
                     )))
                 }
             } else {
-                Some(SerializedValue::Single(format!(
-                    ";{}={}",
-                    param_name,
-                    value.unwrap_or("")
-                )))
+                match value {
+                    Some(val) => Some(SerializedValue::Single(format!(";{}={}", param_name, val))),
+                    None => Some(SerializedValue::Single(format!(";{}", param_name))),
+                }
             }
         }
         "label" => {
@@ -156,7 +155,10 @@ pub fn serialize_styled(
                     Some(SerializedValue::Single(format!(".{}", arr.join(","))))
                 }
             } else {
-                Some(SerializedValue::Single(format!(".{}", value.unwrap_or(""))))
+                match value {
+                    Some(val) => Some(SerializedValue::Single(format!(".{}", val))),
+                    None => Some(SerializedValue::Single(".".to_string())),
+                }
             }
         }
         "spaceDelimited" => {
@@ -170,7 +172,10 @@ pub fn serialize_styled(
             if let Some(arr) = items {
                 Some(SerializedValue::Single(arr.join(" ")))
             } else {
-                Some(SerializedValue::Single(value.unwrap_or("").to_string()))
+                match value {
+                    Some(val) => Some(SerializedValue::Single(val.to_string())),
+                    None => Some(SerializedValue::Single(String::new())),
+                }
             }
         }
         "pipeDelimited" => {
@@ -184,7 +189,10 @@ pub fn serialize_styled(
             if let Some(arr) = items {
                 Some(SerializedValue::Single(arr.join("|")))
             } else {
-                Some(SerializedValue::Single(value.unwrap_or("").to_string()))
+                match value {
+                    Some(val) => Some(SerializedValue::Single(val.to_string())),
+                    None => Some(SerializedValue::Single(String::new())),
+                }
             }
         }
         "form" => {
@@ -202,7 +210,10 @@ pub fn serialize_styled(
                     Some(SerializedValue::Single(arr.join(",")))
                 }
             } else {
-                Some(SerializedValue::Single(value.unwrap_or("").to_string()))
+                match value {
+                    Some(val) => Some(SerializedValue::Single(val.to_string())),
+                    None => Some(SerializedValue::Single(String::new())),
+                }
             }
         }
         "simple" => {
@@ -216,7 +227,10 @@ pub fn serialize_styled(
             if let Some(arr) = items {
                 Some(SerializedValue::Single(arr.join(",")))
             } else {
-                Some(SerializedValue::Single(value.unwrap_or("").to_string()))
+                match value {
+                    Some(val) => Some(SerializedValue::Single(val.to_string())),
+                    None => Some(SerializedValue::Single(String::new())),
+                }
             }
         }
         _ => match value {

@@ -149,7 +149,7 @@ describe('ObjectSerializer', () => {
 
     test('date-time returns ISO 8601 string', () => {
       const date = new Date('2024-01-15T10:30:00.000Z');
-      expect(ObjectSerializer.stringify(date)).toBe('2024-01-15T10:30:00.000Z');
+      expect(ObjectSerializer.stringify(date)).toBe('2024-01-15T10:30:00+00:00');
     });
 
     test('plain string passes through unchanged', () => {

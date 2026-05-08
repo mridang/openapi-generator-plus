@@ -45,7 +45,7 @@ final class BaseApiTests: XCTestCase {
     var responseBody: String = "{}"
     var responseHeaders: [String: String] = ["Content-Type": "application/json"]
 
-    func sendRequest(method: String, url: String, headers: [String: String], body: Data?)
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
       async throws -> ApiResponse
     {
       lastMethod = method

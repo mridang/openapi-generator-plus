@@ -43,7 +43,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   ///
   /// Merges headers according to the priority order documented on the class,
   /// then dispatches via URLSession.
-  public func sendRequest(method: String, url: String, headers: [String: String], body: Data?)
+  public func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
     async throws -> ApiResponse
   {
     guard let requestURL = URL(string: url) else {
@@ -57,8 +57,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     for (k, v) in headers {
       merged[k] = v
     }
-    if merged["User-Agent"] == nil && !transportOptions.userAgent.isEmpty {
-      merged["User-Agent"] = transportOptions.userAgent
+    if merged["User-Agent"] == nil, let ua = transportOptions.userAgent, !ua.isEmpty {
+      merged["User-Agent"] = ua
     }
     if merged["X-Request-ID"] == nil && transportOptions.injectRequestID {
       merged["X-Request-ID"] = UUID().uuidString
@@ -69,13 +69,26 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
 
     var request = URLRequest(url: requestURL)
     request.httpMethod = method
-    request.httpBody = body
+
+    if let formParts = body as? [String: Any] {
+      let boundary = UUID().uuidString
+      merged["Content-Type"] = "multipart/form-data; boundary=\(boundary)"
+      request.httpBody = DefaultApiClient.buildMultipartBody(formParts, boundary: boundary)
+    } else if let data = body as? Data {
+      request.httpBody = data
+    }
 
     for (k, v) in merged {
       request.setValue(v, forHTTPHeaderField: k)
     }
 
-    let (data, response) = try await session.data(for: request)
+    let data: Data
+    let response: URLResponse
+    do {
+      (data, response) = try await session.data(for: request)
+    } catch let urlError as URLError {
+      throw ApiError(statusCode: 0, message: urlError.localizedDescription)
+    }
 
     guard let httpResponse = response as? HTTPURLResponse else {
       throw URLError(.badServerResponse)
@@ -88,9 +101,17 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       }
     }
 
+    let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type") ?? ""
+    let responseBody: String
+    if DefaultApiClient.isTextContentType(contentType) {
+      responseBody = String(data: data, encoding: .utf8) ?? ""
+    } else {
+      responseBody = data.base64EncodedString()
+    }
+
     return ApiResponse(
       statusCode: httpResponse.statusCode,
-      body: String(data: data, encoding: .utf8) ?? "",
+      body: responseBody,
       headers: respHeaders
     )
   }
@@ -98,6 +119,72 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   /// Returns the underlying URLSession for use by HTTP-aware authenticators.
   public var urlSession: URLSession {
     return session
+  }
+
+  /// Builds a multipart/form-data request body from a dictionary of form fields.
+  ///
+  /// Each value may be `Data` (sent as a file part), `String`/number/bool (sent as
+  /// a text part), `[Any]` (each element is added as a separate part with the same name),
+  /// or any other Encodable type (JSON-serialized).
+  private static func buildMultipartBody(_ formParts: [String: Any], boundary: String) -> Data {
+    var body = Data()
+    let crlf = "\r\n"
+
+    for (name, value) in formParts {
+      if let list = value as? [Any] {
+        for item in list {
+          appendMultipartField(&body, name: name, value: item, boundary: boundary, crlf: crlf)
+        }
+      } else {
+        appendMultipartField(&body, name: name, value: value, boundary: boundary, crlf: crlf)
+      }
+    }
+
+    body.append(Data("--\(boundary)--\(crlf)".utf8))
+    return body
+  }
+
+  private static func appendMultipartField(
+    _ body: inout Data, name: String, value: Any, boundary: String, crlf: String
+  ) {
+    let separator = "--\(boundary)\(crlf)Content-Disposition: form-data; name="
+
+    if let data = value as? Data {
+      body.append(
+        Data(
+          "\(separator)\"\(name)\"; filename=\"\(name)\"\(crlf)Content-Type: application/octet-stream\(crlf)\(crlf)"
+            .utf8))
+      body.append(data)
+      body.append(Data(crlf.utf8))
+    } else if let text = value as? String {
+      body.append(Data("\(separator)\"\(name)\"\(crlf)\(crlf)\(text)\(crlf)".utf8))
+    } else if let number = value as? NSNumber {
+      body.append(Data("\(separator)\"\(name)\"\(crlf)\(crlf)\(number)\(crlf)".utf8))
+    } else {
+      if let jsonData = try? JSONSerialization.data(withJSONObject: value),
+        let json = String(data: jsonData, encoding: .utf8)
+      {
+        body.append(
+          Data(
+            "\(separator)\"\(name)\"\(crlf)Content-Type: application/json\(crlf)\(crlf)\(json)\(crlf)"
+              .utf8))
+      }
+    }
+  }
+
+  /// Determines whether the given content type represents text content
+  /// that is safe to decode as a UTF-8 string.
+  private static func isTextContentType(_ contentType: String) -> Bool {
+    let mediaType =
+      contentType.split(separator: ";").first?
+      .trimmingCharacters(in: .whitespaces).lowercased() ?? ""
+    if mediaType.isEmpty { return true }
+    if mediaType.hasPrefix("text/") { return true }
+    return mediaType == "application/json"
+      || mediaType == "application/xml"
+      || mediaType == "application/javascript"
+      || mediaType.hasSuffix("+json")
+      || mediaType.hasSuffix("+xml")
   }
 
   private static func buildSession(_ opts: TransportOptions) -> (URLSession, SessionDelegate?) {
@@ -119,7 +206,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       } else {
         proxyDict[kCFNetworkProxiesHTTPEnable] = true
         proxyDict[kCFNetworkProxiesHTTPProxy] = proxy.host
-        proxyDict[kCFNetworkProxiesHTTPPort] = proxy.port ?? 8080
+        proxyDict[kCFNetworkProxiesHTTPPort] = proxy.port ?? 80
       }
       config.connectionProxyDictionary = proxyDict
     }

@@ -226,7 +226,7 @@ async fn test_default_api_client_follow_redirects_disabled() {
 async fn test_default_api_client_max_redirects() {
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
-        .max_redirects(5)
+        .max_redirects(Some(5))
         .build();
     let client = DefaultApiClient::new(Some(transport));
     assert!(client.send_request("GET", "http://127.0.0.1:1/unused", &HashMap::new(), None).await.is_err() || true);
@@ -240,9 +240,10 @@ async fn test_default_api_client_multipart_body() {
         "file": "file content"
     });
     let body = serde_json::to_vec(&form_data).expect("failed to serialize");
+    let request_body = {{packageName}}::api_client::RequestBody::Bytes(body);
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let _resp = client
-        .send_request("POST", &format!("{}/api/test", wiremock_url), &headers, Some(&body))
+        .send_request("POST", &format!("{}/api/test", wiremock_url), &headers, Some(&request_body))
         .await;
 }

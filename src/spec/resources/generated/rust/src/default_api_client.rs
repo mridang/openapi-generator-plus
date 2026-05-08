@@ -15,7 +15,8 @@ use reqwest::Proxy;
 use reqwest::{Client, ClientBuilder};
 use uuid::Uuid;
 
-use crate::api_client::ApiClient;
+use crate::api_client::{ApiClient, MultipartValue, RequestBody};
+use crate::api_error::ApiError;
 use crate::api_response::ApiResponse;
 use crate::transport_options::TransportOptions;
 use crate::transport_options::TransportOptionsBuilder;
@@ -60,7 +61,7 @@ impl ApiClient for DefaultApiClient {
         method: &str,
         url: &str,
         headers: &HashMap<String, String>,
-        body: Option<&[u8]>,
+        body: Option<&RequestBody>,
     ) -> Pin<
         Box<
             dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>
@@ -71,7 +72,7 @@ impl ApiClient for DefaultApiClient {
         let method = method.to_string();
         let url = url.to_string();
         let headers = headers.clone();
-        let body = body.map(|b| b.to_vec());
+        let body = body.cloned();
 
         Box::pin(async move {
             let mut merged: HashMap<String, String> = self.transport_options.default_headers();
@@ -106,11 +107,29 @@ impl ApiClient for DefaultApiClient {
                 request_builder = request_builder.header(k.as_str(), v.as_str());
             }
 
-            if let Some(body_bytes) = body {
-                request_builder = request_builder.body(body_bytes);
+            match body {
+                Some(RequestBody::Bytes(bytes)) => {
+                    request_builder = request_builder.body(bytes);
+                }
+                Some(RequestBody::Multipart(fields)) => {
+                    let mut form = reqwest::multipart::Form::new();
+                    for (name, value) in fields {
+                        form = add_multipart_field(form, &name, value);
+                    }
+                    request_builder = request_builder.multipart(form);
+                }
+                None => {}
             }
 
-            let response = request_builder.send().await?;
+            let response = request_builder.send().await.map_err(|e| {
+                Box::new(ApiError::new(
+                    0,
+                    e.to_string(),
+                    String::new(),
+                    HashMap::new(),
+                    None,
+                )) as Box<dyn std::error::Error + Send + Sync>
+            })?;
 
             let status_code = response.status().as_u16();
             let resp_headers: HashMap<String, String> = response
@@ -124,7 +143,17 @@ impl ApiClient for DefaultApiClient {
                 })
                 .collect();
 
-            let resp_body = response.text().await?;
+            let content_type = resp_headers
+                .get("content-type")
+                .cloned()
+                .unwrap_or_default();
+            let resp_bytes = response.bytes().await?;
+            let resp_body = if is_text_content_type(&content_type) {
+                String::from_utf8_lossy(&resp_bytes).into_owned()
+            } else {
+                use base64::Engine as _;
+                base64::engine::general_purpose::STANDARD.encode(&resp_bytes)
+            };
 
             Ok(ApiResponse {
                 status_code,
@@ -165,4 +194,51 @@ fn build_http_client(opts: &TransportOptions) -> Client {
     }
 
     builder.build().expect("failed to build HTTP client")
+}
+
+/// Adds a single field to a multipart form, handling bytes, text, and lists.
+fn add_multipart_field(
+    form: reqwest::multipart::Form,
+    name: &str,
+    value: MultipartValue,
+) -> reqwest::multipart::Form {
+    match value {
+        MultipartValue::Bytes(bytes) => {
+            let part = reqwest::multipart::Part::bytes(bytes)
+                .file_name(name.to_string())
+                .mime_str("application/octet-stream")
+                .unwrap_or_else(|_| reqwest::multipart::Part::bytes(vec![]));
+            form.part(name.to_string(), part)
+        }
+        MultipartValue::Text(text) => form.text(name.to_string(), text),
+        MultipartValue::List(items) => {
+            let mut f = form;
+            for item in items {
+                f = add_multipart_field(f, name, item);
+            }
+            f
+        }
+    }
+}
+
+/// Determines whether the given content type represents text content
+/// that is safe to decode as a UTF-8 string.
+fn is_text_content_type(content_type: &str) -> bool {
+    let media_type = content_type
+        .split(';')
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_lowercase();
+    if media_type.is_empty() {
+        return true;
+    }
+    if media_type.starts_with("text/") {
+        return true;
+    }
+    matches!(
+        media_type.as_str(),
+        "application/json" | "application/xml" | "application/javascript"
+    ) || media_type.ends_with("+json")
+        || media_type.ends_with("+xml")
 }

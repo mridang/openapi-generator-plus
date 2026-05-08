@@ -125,7 +125,10 @@ defmodule PetstoreClient.Api.BaseApi do
         cookies = effective_auth.cookie_params
 
         if map_size(cookies) > 0 do
-          cookie_str = Enum.map_join(cookies, "; ", fn {k, v} -> "#{k}=#{v}" end)
+          cookie_str =
+            Enum.map_join(cookies, "; ", fn {k, v} ->
+              "#{URI.encode_www_form(to_string(k))}=#{URI.encode_www_form(to_string(v))}"
+            end)
 
           existing = Map.get(headers, "Cookie")
 
@@ -166,7 +169,7 @@ defmodule PetstoreClient.Api.BaseApi do
             end
 
           is_json =
-            is_nil(resp_content_type) or
+            not is_nil(resp_content_type) and
               PetstoreClient.HeaderSelector.json_mime?(resp_content_type)
 
           if is_json do

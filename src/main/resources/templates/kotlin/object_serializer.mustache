@@ -46,10 +46,14 @@ class ObjectSerializer(
 ) {
     fun serialize(obj: Any?): String {
         if (obj == null) return "null"
-        if (obj is Map<*, *> || obj is List<*>) {
-            return json.encodeToString(JsonElement.serializer(), toJsonElement(obj))
+        val unwrapped = try {
+            obj::class.java.getMethod("getActualInstance").invoke(obj)
+        } catch (_: NoSuchMethodException) { obj }
+        if (unwrapped == null) return "null"
+        if (unwrapped is Map<*, *> || unwrapped is List<*>) {
+            return json.encodeToString(JsonElement.serializer(), toJsonElement(unwrapped))
         }
-        return json.encodeToString(serializer(obj::class.java), obj)
+        return json.encodeToString(serializer(unwrapped::class.java), unwrapped)
     }
 
     private fun toJsonElement(value: Any?): JsonElement = when (value) {
@@ -156,6 +160,7 @@ class ObjectSerializer(
         fun createDefaultJson(): Json = Json {
             ignoreUnknownKeys = true
             encodeDefaults = true
+            explicitNulls = false
             isLenient = true
             coerceInputValues = true
             serializersModule = SerializersModule {

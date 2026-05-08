@@ -43,10 +43,18 @@ class TransportOptions private constructor(
         fun proxy(proxy: String?): Builder =
             apply {
                 if (proxy != null) {
-                    try {
-                        java.net.URI.create(proxy)
-                    } catch (e: IllegalArgumentException) {
-                        throw IllegalArgumentException("Invalid proxy URL: $proxy", e)
+                    val uri =
+                        try {
+                            java.net.URI.create(proxy)
+                        } catch (e: IllegalArgumentException) {
+                            throw IllegalArgumentException("Invalid proxy URL: $proxy", e)
+                        }
+                    val scheme = uri.scheme
+                    if (scheme == null || (scheme !in listOf("http", "https"))) {
+                        throw IllegalArgumentException("Invalid proxy URL (must use http or https scheme): $proxy")
+                    }
+                    if (uri.host.isNullOrEmpty()) {
+                        throw IllegalArgumentException("Invalid proxy URL (missing host): $proxy")
                     }
                 }
                 this.proxy = proxy

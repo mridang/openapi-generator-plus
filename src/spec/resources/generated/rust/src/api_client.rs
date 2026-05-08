@@ -11,6 +11,30 @@ use std::pin::Pin;
 
 use crate::api_response::ApiResponse;
 
+/// Represents the body of an HTTP request.
+///
+/// Supports raw bytes, multipart form data (as a map of field names to values),
+/// or no body.
+#[derive(Debug, Clone)]
+pub enum RequestBody {
+    /// Raw bytes body.
+    Bytes(Vec<u8>),
+    /// Multipart form data: field names to values. Values may be raw bytes
+    /// (for file uploads), strings, or JSON-serializable objects.
+    Multipart(HashMap<String, MultipartValue>),
+}
+
+/// A single value in a multipart form data body.
+#[derive(Debug, Clone)]
+pub enum MultipartValue {
+    /// Raw bytes (sent as file upload).
+    Bytes(Vec<u8>),
+    /// Text value.
+    Text(String),
+    /// A list of values for the same field name.
+    List(Vec<MultipartValue>),
+}
+
 /// ApiClient is the trait for HTTP clients. Implementations must provide
 /// `send_request` to perform the actual HTTP call.
 pub trait ApiClient: Send + Sync {
@@ -21,7 +45,7 @@ pub trait ApiClient: Send + Sync {
     /// * `method` - HTTP method (GET, POST, PUT, DELETE, etc.)
     /// * `url` - Fully qualified URL
     /// * `headers` - Caller-provided headers
-    /// * `body` - Request body, or None
+    /// * `body` - Request body as raw bytes, multipart form data, or None
     ///
     /// # Returns
     ///
@@ -31,7 +55,7 @@ pub trait ApiClient: Send + Sync {
         method: &str,
         url: &str,
         headers: &HashMap<String, String>,
-        body: Option<&[u8]>,
+        body: Option<&RequestBody>,
     ) -> Pin<
         Box<
             dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>

@@ -47,13 +47,18 @@ public final class TransportOptions: Sendable {
   /// HTTP client's built-in default. A value of 0 means zero redirects.
   public let maxRedirects: Int?
 
-  /// Custom User-Agent header value.
-  public let userAgent: String
+  /// Custom User-Agent header value, or nil to omit.
+  public let userAgent: String?
 
   /// Transport-level default headers included in every request.
   /// These have the lowest priority: API-level headers, operation-specific headers,
   /// and authentication headers all take precedence.
-  public let defaultHeaders: [String: String]
+  private let _defaultHeaders: [String: String]
+
+  /// Returns a copy of the transport-level default headers.
+  public var defaultHeaders: [String: String] {
+    return _defaultHeaders
+  }
 
   /// Controls whether to auto-inject an X-Request-ID header
   /// with a unique UUID on every request.
@@ -66,7 +71,7 @@ public final class TransportOptions: Sendable {
     timeout: Int?,
     followRedirects: Bool,
     maxRedirects: Int?,
-    userAgent: String,
+    userAgent: String?,
     defaultHeaders: [String: String],
     injectRequestID: Bool
   ) {
@@ -77,7 +82,7 @@ public final class TransportOptions: Sendable {
     self.followRedirects = followRedirects
     self.maxRedirects = maxRedirects
     self.userAgent = userAgent
-    self.defaultHeaders = defaultHeaders
+    self._defaultHeaders = defaultHeaders
     self.injectRequestID = injectRequestID
   }
 }
@@ -90,7 +95,7 @@ public final class TransportOptionsBuilder {
   private var timeout: Int? = nil
   private var followRedirects: Bool = true
   private var maxRedirects: Int? = nil
-  private var userAgent: String = "PetstoreClient/1.0.0 (swift)"
+  private var userAgent: String? = "PetstoreClient/1.0.0 (swift)"
   private var defaultHeaders: [String: String] = [:]
   private var injectRequestID: Bool = false
 
@@ -113,11 +118,21 @@ public final class TransportOptionsBuilder {
 
   /// Sets the HTTP/HTTPS proxy URL.
   ///
-  /// - Throws: ``TransportOptionsError/invalidProxyURL`` if the URL is not valid.
+  /// Only HTTP and HTTPS proxy URLs are supported.
+  ///
+  /// - Throws: ``TransportOptionsError/invalidProxyURL`` if the URL is not valid
+  ///   or does not use the http or https scheme.
   @discardableResult
   public func proxy(_ val: String?) throws -> TransportOptionsBuilder {
     if let val = val, !val.isEmpty {
       guard let parsed = URL(string: val) else {
+        throw TransportOptionsError.invalidProxyURL(val)
+      }
+      let scheme = parsed.scheme?.lowercased() ?? ""
+      guard scheme == "http" || scheme == "https" else {
+        throw TransportOptionsError.invalidProxyURL(val)
+      }
+      guard let host = parsed.host, !host.isEmpty else {
         throw TransportOptionsError.invalidProxyURL(val)
       }
       self.proxy = parsed
@@ -148,9 +163,9 @@ public final class TransportOptionsBuilder {
     return self
   }
 
-  /// Sets a custom User-Agent header value.
+  /// Sets a custom User-Agent header value, or nil to omit.
   @discardableResult
-  public func userAgent(_ val: String) -> TransportOptionsBuilder {
+  public func userAgent(_ val: String?) -> TransportOptionsBuilder {
     self.userAgent = val
     return self
   }

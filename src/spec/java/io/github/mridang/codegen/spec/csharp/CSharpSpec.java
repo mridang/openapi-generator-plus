@@ -3,8 +3,10 @@ package io.github.mridang.codegen.spec.csharp;
 import io.github.mridang.codegen.spec.DockerImageSpec;
 import io.github.mridang.codegen.spec.LanguageSpec;
 import java.util.Map;
+import org.junit.jupiter.api.Tag;
 import org.testcontainers.utility.DockerImageName;
 
+@Tag("csharp")
 interface CSharpSpec extends LanguageSpec, DockerImageSpec {
 
   @Override

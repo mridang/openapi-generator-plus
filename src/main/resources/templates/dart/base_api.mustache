@@ -92,7 +92,7 @@ class BaseApi {
       final cookies = effectiveAuth.cookieParams();
       if (cookies.isNotEmpty) {
         final cookieParts = cookies.entries
-            .map((e) => '${e.key}=${e.value}')
+            .map((e) => '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
             .toList();
         final cookieStr = cookieParts.join('; ');
         if (headers.containsKey('Cookie')) {

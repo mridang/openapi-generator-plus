@@ -7,9 +7,12 @@ import (
 	"compress/zlib"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"os"
 	"strings"
 	"time"
@@ -53,7 +56,7 @@ func NewDefaultApiClient(transportOptions *TransportOptions) *DefaultApiClient {
 //
 // Merges headers according to the priority order documented on the struct,
 // then dispatches via net/http.
-func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]string, body []byte) (*HttpResponse, error) {
+func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*HttpResponse, error) {
 	merged := make(map[string]string)
 	for k, v := range c.transportOptions.DefaultHeaders() {
 		merged[k] = v
@@ -72,8 +75,20 @@ func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]st
 	}
 
 	var bodyReader io.Reader
-	if body != nil {
-		bodyReader = bytes.NewReader(body)
+	switch b := body.(type) {
+	case nil:
+		// no body
+	case []byte:
+		bodyReader = bytes.NewReader(b)
+	case map[string]interface{}:
+		buf, contentType, err := buildTransportMultipartBody(b)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build multipart body: %w", err)
+		}
+		bodyReader = buf
+		merged["Content-Type"] = contentType
+	default:
+		return nil, fmt.Errorf("unsupported body type: %T", body)
 	}
 
 	req, err := http.NewRequest(method, url, bodyReader)
@@ -136,8 +151,8 @@ func buildHTTPClient(opts *TransportOptions) *http.Client {
 		Transport: transport,
 	}
 
-	if opts.Timeout() > 0 {
-		client.Timeout = time.Duration(opts.Timeout()) * time.Millisecond
+	if opts.Timeout() != nil {
+		client.Timeout = time.Duration(*opts.Timeout()) * time.Millisecond
 	}
 
 	if !opts.FollowRedirects() {
@@ -188,4 +203,95 @@ func decompressBody(resp *http.Response) ([]byte, error) {
 	default:
 		return io.ReadAll(resp.Body)
 	}
+}
+
+// buildTransportMultipartBody constructs a multipart/form-data request body from
+// a map of form field names to values. Values may be []byte (sent as file parts),
+// strings/numbers/bools (sent as text parts), or any other type (JSON-serialized).
+func buildTransportMultipartBody(formFields map[string]interface{}) (*bytes.Buffer, string, error) {
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	for fieldName, value := range formFields {
+		switch v := value.(type) {
+		case []byte:
+			partHeader := make(textproto.MIMEHeader)
+			partHeader.Set("Content-Disposition",
+				fmt.Sprintf(`form-data; name="%s"; filename="%s"`, fieldName, fieldName))
+			partHeader.Set("Content-Type", "application/octet-stream")
+			part, err := writer.CreatePart(partHeader)
+			if err != nil {
+				return nil, "", err
+			}
+			if _, err := part.Write(v); err != nil {
+				return nil, "", err
+			}
+		case string:
+			if err := writer.WriteField(fieldName, v); err != nil {
+				return nil, "", err
+			}
+		case bool:
+			if err := writer.WriteField(fieldName, fmt.Sprintf("%t", v)); err != nil {
+				return nil, "", err
+			}
+		case int, int64, float64:
+			if err := writer.WriteField(fieldName, fmt.Sprintf("%v", v)); err != nil {
+				return nil, "", err
+			}
+		case []interface{}:
+			for _, item := range v {
+				if b, ok := item.([]byte); ok {
+					partHeader := make(textproto.MIMEHeader)
+					partHeader.Set("Content-Disposition",
+						fmt.Sprintf(`form-data; name="%s"; filename="%s"`, fieldName, fieldName))
+					partHeader.Set("Content-Type", "application/octet-stream")
+					part, err := writer.CreatePart(partHeader)
+					if err != nil {
+						return nil, "", err
+					}
+					if _, err := part.Write(b); err != nil {
+						return nil, "", err
+					}
+				} else {
+					jsonBytes, err := json.Marshal(item)
+					if err != nil {
+						return nil, "", fmt.Errorf("failed to serialize multipart field %q: %w", fieldName, err)
+					}
+					partHeader := make(textproto.MIMEHeader)
+					partHeader.Set("Content-Disposition",
+						fmt.Sprintf(`form-data; name="%s"`, fieldName))
+					partHeader.Set("Content-Type", "application/json")
+					part, err := writer.CreatePart(partHeader)
+					if err != nil {
+						return nil, "", err
+					}
+					if _, err := part.Write(jsonBytes); err != nil {
+						return nil, "", err
+					}
+				}
+			}
+		default:
+			jsonBytes, err := json.Marshal(v)
+			if err != nil {
+				return nil, "", fmt.Errorf("failed to serialize multipart field %q: %w", fieldName, err)
+			}
+			partHeader := make(textproto.MIMEHeader)
+			partHeader.Set("Content-Disposition",
+				fmt.Sprintf(`form-data; name="%s"`, fieldName))
+			partHeader.Set("Content-Type", "application/json")
+			part, err := writer.CreatePart(partHeader)
+			if err != nil {
+				return nil, "", err
+			}
+			if _, err := part.Write(jsonBytes); err != nil {
+				return nil, "", err
+			}
+		}
+	}
+
+	if err := writer.Close(); err != nil {
+		return nil, "", err
+	}
+
+	return body, writer.FormDataContentType(), nil
 }

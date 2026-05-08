@@ -1,8 +1,10 @@
 package io.github.mridang.codegen.spec.node;
 
 import io.github.mridang.codegen.spec.LanguageSpec;
+import org.junit.jupiter.api.Tag;
 import org.testcontainers.utility.DockerImageName;
 
+@Tag("node")
 interface NodeSpec extends LanguageSpec {
 
   @Override

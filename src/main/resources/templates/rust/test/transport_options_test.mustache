@@ -27,7 +27,7 @@ fn test_transport_options_set_all_fields() {
         .proxy("http://proxy.example.com:8080")
         .timeout(30000)
         .follow_redirects(false)
-        .max_redirects(5)
+        .max_redirects(Some(5))
         .user_agent("CustomAgent/2.0")
         .default_header("X-Custom", "value")
         .inject_request_id(true)

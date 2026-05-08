@@ -265,7 +265,7 @@ async fn test_default_api_client_follow_redirects_disabled() {
 async fn test_default_api_client_max_redirects() {
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
-        .max_redirects(5)
+        .max_redirects(Some(5))
         .build();
     let client = DefaultApiClient::new(Some(transport));
     assert!(
@@ -285,6 +285,7 @@ async fn test_default_api_client_multipart_body() {
         "file": "file content"
     });
     let body = serde_json::to_vec(&form_data).expect("failed to serialize");
+    let request_body = petstore::api_client::RequestBody::Bytes(body);
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let _resp = client
@@ -292,7 +293,7 @@ async fn test_default_api_client_multipart_body() {
             "POST",
             &format!("{}/api/test", wiremock_url),
             &headers,
-            Some(&body),
+            Some(&request_body),
         )
         .await;
 }

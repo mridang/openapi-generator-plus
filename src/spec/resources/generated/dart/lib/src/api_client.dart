@@ -18,13 +18,14 @@ abstract class ApiClient {
   ///   - [method]: HTTP method (GET, POST, PUT, DELETE, etc.)
   ///   - [url]: fully qualified URL
   ///   - [headers]: caller-provided headers
-  ///   - [body]: request body, or null
+  ///   - [body]: request body as [Uint8List], [Map<String, Object>] for
+  ///     multipart form data, or null
   ///
   /// Returns an [ApiResponse] and throws on transport errors.
   Future<ApiResponse> sendRequest(
     String method,
     String url,
     Map<String, String> headers,
-    Uint8List? body,
+    Object? body,
   );
 }

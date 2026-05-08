@@ -134,7 +134,13 @@ export class TransportOptionsBuilder {
    */
   proxy(proxy: string | null): this {
     if (proxy != null) {
-      new URL(proxy);
+      const parsed = new URL(proxy);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        throw new Error(`Invalid proxy URL (must use http or https scheme): ${proxy}`);
+      }
+      if (!parsed.hostname) {
+        throw new Error(`Invalid proxy URL (missing host): ${proxy}`);
+      }
     }
     this._proxy = proxy;
     return this;

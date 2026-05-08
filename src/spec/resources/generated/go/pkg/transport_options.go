@@ -39,8 +39,9 @@ type TransportOptions struct {
 
 	/* timeout is the end-to-end request timeout in milliseconds. Covers the
 	 * entire request lifecycle: connection, TLS handshake, sending the request
-	 * body, and reading the response. A zero value means no timeout. */
-	timeout int
+	 * body, and reading the response. A nil value means no timeout (wait
+	 * indefinitely); a zero value means 0ms timeout. */
+	timeout *int
 
 	/* followRedirects controls whether the client follows HTTP 3xx redirects. */
 	followRedirects bool
@@ -72,8 +73,9 @@ func (t *TransportOptions) CACertPath() string { return t.caCertPath }
 // Proxy returns the proxy URL, or nil if no proxy is configured.
 func (t *TransportOptions) Proxy() *url.URL { return t.proxy }
 
-// Timeout returns the end-to-end request timeout in milliseconds.
-func (t *TransportOptions) Timeout() int { return t.timeout }
+// Timeout returns the end-to-end request timeout in milliseconds,
+// or nil if no timeout is configured (wait indefinitely).
+func (t *TransportOptions) Timeout() *int { return t.timeout }
 
 // FollowRedirects returns whether the client follows HTTP 3xx redirects.
 func (t *TransportOptions) FollowRedirects() bool { return t.followRedirects }
@@ -102,7 +104,7 @@ type TransportOptionsBuilder struct {
 	verifySSL       bool
 	caCertPath      string
 	proxy           *url.URL
-	timeout         int
+	timeout         *int
 	followRedirects bool
 	maxRedirects    *int
 	userAgent       string
@@ -141,8 +143,11 @@ func (b *TransportOptionsBuilder) Proxy(val string) *TransportOptionsBuilder {
 		if err != nil {
 			panic(fmt.Sprintf("invalid proxy URL %q: %v", val, err))
 		}
-		if parsed.Scheme == "" || parsed.Host == "" {
-			panic(fmt.Sprintf("invalid proxy URL %q: must have a scheme and host", val))
+		if parsed.Scheme != "http" && parsed.Scheme != "https" {
+			panic(fmt.Sprintf("invalid proxy URL %q: must use http or https scheme", val))
+		}
+		if parsed.Host == "" {
+			panic(fmt.Sprintf("invalid proxy URL %q: missing host", val))
 		}
 		b.proxy = parsed
 	}
@@ -150,8 +155,9 @@ func (b *TransportOptionsBuilder) Proxy(val string) *TransportOptionsBuilder {
 }
 
 // Timeout sets the end-to-end request timeout in milliseconds.
+// A value of 0 means 0ms timeout; use nil (do not call this method) for no timeout.
 func (b *TransportOptionsBuilder) Timeout(val int) *TransportOptionsBuilder {
-	b.timeout = val
+	b.timeout = &val
 	return b
 }
 

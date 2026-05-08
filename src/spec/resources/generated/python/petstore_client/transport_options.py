@@ -184,8 +184,10 @@ class TransportOptionsBuilder:
             from urllib.parse import urlparse
 
             parsed = urlparse(proxy)
-            if not parsed.scheme:
-                raise ValueError(f'Invalid proxy URL (missing scheme): {proxy}')
+            if parsed.scheme not in ('http', 'https'):
+                raise ValueError(f'Invalid proxy URL (must use http or https scheme): {proxy}')
+            if not parsed.hostname:
+                raise ValueError(f'Invalid proxy URL (missing host): {proxy}')
         self._proxy = proxy
         return self
 

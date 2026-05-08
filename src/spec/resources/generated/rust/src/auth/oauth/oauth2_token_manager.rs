@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crate::api_client::ApiClient;
+use crate::api_client::{ApiClient, RequestBody};
 
 /// OAuth2TokenManager manages the OAuth2 token lifecycle: fetching, caching,
 /// and refreshing.
@@ -102,7 +102,7 @@ impl OAuth2TokenManager {
                 "POST",
                 token_url,
                 &headers,
-                Some(body.as_bytes()),
+                Some(&RequestBody::Bytes(body.into_bytes())),
             ))
         })?;
 

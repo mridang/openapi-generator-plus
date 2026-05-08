@@ -99,8 +99,10 @@ class BaseApi {
       // Handle cookie params
       final cookies = effectiveAuth.cookieParams();
       if (cookies.isNotEmpty) {
-        final cookieParts =
-            cookies.entries.map((e) => '${e.key}=${e.value}').toList();
+        final cookieParts = cookies.entries
+            .map((e) =>
+                '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+            .toList();
         final cookieStr = cookieParts.join('; ');
         if (headers.containsKey('Cookie')) {
           headers['Cookie'] = '${headers["Cookie"]}; $cookieStr';

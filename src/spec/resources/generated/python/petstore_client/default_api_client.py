@@ -14,6 +14,7 @@ import zlib
 import urllib3
 
 from petstore_client.api_response import ApiResponse
+from petstore_client.exceptions import ApiException
 from petstore_client.transport_options import TransportOptions
 
 try:
@@ -152,15 +153,18 @@ class DefaultApiClient:
         else:
             request_kwargs['redirect'] = 20
 
-        response = self._pool_manager.request(
-            method,
-            url,
-            headers=merged_headers,
-            body=encoded_body,
-            preload_content=False,
-            decode_content=False,
-            **request_kwargs,
-        )
+        try:
+            response = self._pool_manager.request(
+                method,
+                url,
+                headers=merged_headers,
+                body=encoded_body,
+                preload_content=False,
+                decode_content=False,
+                **request_kwargs,
+            )
+        except urllib3.exceptions.HTTPError as e:
+            raise ApiException(message=str(e)) from e
 
         raw_data = response.read()
         content_encoding = (response.headers.get('content-encoding') or '').lower()

@@ -73,7 +73,11 @@ open class BaseApi {
             /* Handle cookie params */
             let cookies = auth.cookieParams()
             if !cookies.isEmpty {
-                let cookieStr = cookies.map { "\($0.key)=\($0.value)" }.joined(separator: "; ")
+                let cookieStr = cookies.map {
+                    let ek = $0.key.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0.key
+                    let ev = $0.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0.value
+                    return "\(ek)=\(ev)"
+                }.joined(separator: "; ")
                 if let existing = headers["Cookie"] {
                     headers["Cookie"] = existing + "; " + cookieStr
                 } else {

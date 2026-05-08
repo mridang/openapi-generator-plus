@@ -26,12 +26,12 @@ class _FakeApiClient implements ApiClient {
     String method,
     String url,
     Map<String, String> headers,
-    Uint8List? body,
+    Object? body,
   ) async {
     lastMethod = method;
     lastUrl = url;
     if (body != null) {
-      lastBody = utf8.decode(body);
+      lastBody = utf8.decode(body as List<int>);
     }
     return _responses.removeAt(0);
   }

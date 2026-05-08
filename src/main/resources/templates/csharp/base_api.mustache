@@ -136,7 +136,8 @@ public abstract class BaseApi
             Dictionary<string, string> cookies = effectiveAuth.GetCookieParams();
             if (cookies.Count > 0)
             {
-                string cookieStr = string.Join("; ", cookies.Select(c => c.Key + "=" + c.Value));
+                string cookieStr = string.Join("; ", cookies.Select(c =>
+                    Uri.EscapeDataString(c.Key) + "=" + Uri.EscapeDataString(c.Value)));
                 headers["Cookie"] =
                     headers.TryGetValue("Cookie", out string? existing)
                     && !string.IsNullOrEmpty(existing)

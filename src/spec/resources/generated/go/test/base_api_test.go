@@ -193,6 +193,19 @@ func TestBaseApi_ReturnsRawBodyForNonJSON(t *testing.T) {
 	}
 }
 
+// ── Returns nil when return type is void ──
+
+func TestBaseApi_ReturnsNilWhenReturnTypeIsVoid(t *testing.T) {
+	client := &capturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+	// DeletePet is a void operation -- it should return no error for a 200 OK response
+	err := api.DeletePet(nil, int64(1), nil)
+	if err != nil {
+		t.Fatalf("expected no error for void operation with 200 response, got: %v", err)
+	}
+}
+
 // ── Auth header injection ──
 
 func TestBaseApi_ForwardsAuthHeaders(t *testing.T) {
@@ -254,10 +267,10 @@ func TestBaseApi_HandlesNilBody(t *testing.T) {
 // capturingApiClient captures the headers and body sent by BaseApi.
 type capturingApiClient struct {
 	capturedHeaders map[string]string
-	capturedBody    []byte
+	capturedBody    interface{}
 }
 
-func (c *capturingApiClient) SendRequest(method, url string, headers map[string]string, body []byte) (*petstore.HttpResponse, error) {
+func (c *capturingApiClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*petstore.HttpResponse, error) {
 	c.capturedHeaders = make(map[string]string)
 	for k, v := range headers {
 		c.capturedHeaders[k] = v
@@ -304,7 +317,7 @@ type contentTypeApiClient struct {
 	responseBody        string
 }
 
-func (c *contentTypeApiClient) SendRequest(method, url string, headers map[string]string, body []byte) (*petstore.HttpResponse, error) {
+func (c *contentTypeApiClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*petstore.HttpResponse, error) {
 	return &petstore.HttpResponse{
 		StatusCode: 200,
 		Body:       c.responseBody,
@@ -356,8 +369,8 @@ func TestBaseApi_SerializesJsonBody(t *testing.T) {
 	if client.capturedBody == nil {
 		t.Fatal("expected body to be captured")
 	}
-	if !strings.Contains(string(client.capturedBody), "TestPet") {
-		t.Errorf("expected body to contain 'TestPet', got %q", string(client.capturedBody))
+	if b, ok := client.capturedBody.([]byte); !ok || !strings.Contains(string(b), "TestPet") {
+		t.Errorf("expected body to contain 'TestPet', got %v", client.capturedBody)
 	}
 }
 
@@ -368,7 +381,7 @@ type queryCapturingApiClient struct {
 	capturedURL string
 }
 
-func (c *queryCapturingApiClient) SendRequest(method, url string, headers map[string]string, body []byte) (*petstore.HttpResponse, error) {
+func (c *queryCapturingApiClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*petstore.HttpResponse, error) {
 	c.capturedURL = url
 	return &petstore.HttpResponse{StatusCode: 200, Body: "{}", Headers: map[string]string{"Content-Type": "application/json"}}, nil
 }
@@ -423,6 +436,22 @@ func TestBaseApi_AllowEmptyValueIncludesParamInQueryString(t *testing.T) {
 	_, _ = api.FindPetsByStatus(&options.FindPetsByStatusOptions{Status: &emptyStr})
 	if !strings.Contains(client.capturedURL, "status=") {
 		t.Errorf("expected URL to contain status= for empty string allowEmptyValue param, got %q", client.capturedURL)
+	}
+}
+
+func TestBaseApi_ExpandsArrayQueryParams(t *testing.T) {
+	client := &queryCapturingApiClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+	colors := []string{"red", "blue"}
+	_, _ = api.GetPetTag(int64(1), "favorite", &options.GetPetTagOptions{Colors: &colors})
+	// pipeDelimited array params should appear in the URL
+	if !strings.Contains(client.capturedURL, "colors=") {
+		t.Errorf("expected URL to contain array query param 'colors=', got %q", client.capturedURL)
+	}
+	// Verify both values are present in the URL
+	if !strings.Contains(client.capturedURL, "red") || !strings.Contains(client.capturedURL, "blue") {
+		t.Errorf("expected URL to contain both array values 'red' and 'blue', got %q", client.capturedURL)
 	}
 }
 
@@ -519,11 +548,11 @@ func TestBaseApi_SerializesNumberQueryParams(t *testing.T) {
 // ── Body serialization by content type ──
 
 type bodyCapturingApiClient struct {
-	capturedBody    []byte
+	capturedBody    interface{}
 	capturedHeaders map[string]string
 }
 
-func (c *bodyCapturingApiClient) SendRequest(method, url string, headers map[string]string, body []byte) (*petstore.HttpResponse, error) {
+func (c *bodyCapturingApiClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*petstore.HttpResponse, error) {
 	c.capturedBody = body
 	c.capturedHeaders = make(map[string]string)
 	for k, v := range headers {

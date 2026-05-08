@@ -30,11 +30,13 @@ type fakeOIDCResponse struct {
 	statusCode int
 }
 
-func (c *fakeOIDCClient) SendRequest(method, url string, headers map[string]string, body []byte) (*auth.HttpResponse, error) {
+func (c *fakeOIDCClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*auth.HttpResponse, error) {
 	c.LastMethod = method
 	c.LastURL = url
 	if body != nil {
-		c.LastBody = string(body)
+		if b, ok := body.([]byte); ok {
+			c.LastBody = string(b)
+		}
 	}
 	idx := atomic.AddInt32(&c.index, 1) - 1
 	resp := c.responses[idx]

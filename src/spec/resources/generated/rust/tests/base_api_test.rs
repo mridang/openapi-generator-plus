@@ -212,6 +212,25 @@ async fn test_base_api_returns_raw_body_for_non_json() {
     assert!(resp.body.contains("hello plain text"));
 }
 
+// -- Returns unit when return type is void --
+
+#[tokio::test]
+async fn test_base_api_returns_unit_when_return_type_is_void() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let auth = NoopAuthenticator;
+    // DeletePet is a void operation -- it should return Ok(()) for a 200 OK response
+    let result = api.delete_pet(&auth, 1, None).await;
+    assert!(
+        result.is_ok(),
+        "expected Ok(()) for void operation with 200 response, got: {:?}",
+        result.err()
+    );
+}
+
 // -- Auth header forwarding --
 
 #[tokio::test]
@@ -265,7 +284,7 @@ impl petstore::api_client::ApiClient for PlainTextApiClient {
         _method: &str,
         _url: &str,
         _headers: &HashMap<String, String>,
-        _body: Option<&[u8]>,
+        _body: Option<&petstore::api_client::RequestBody>,
     ) -> std::pin::Pin<
         Box<
             dyn std::future::Future<
@@ -298,9 +317,19 @@ async fn test_base_api_skips_deserialization_for_non_json() {
         .base_url("http://localhost")
         .build();
     let api = PetApi::new(client, config, None);
-    /* The call may fail on deserialization, but should not panic.
-     * The important thing is that it does not try to JSON-parse plain text. */
-    let _ = api.get_pet_by_id(1, None).await;
+    /* Non-JSON responses should skip deserialization entirely.
+     * The result should be Ok with data = None, not an error from serde. */
+    let result = api.get_pet_by_id_with_http_info(1, None).await;
+    match result {
+        Ok(api_result) => {
+            assert!(
+                api_result.data.is_none(),
+                "expected data to be None for non-JSON response"
+            );
+            assert_eq!(api_result.raw_body, "hello plain text");
+        }
+        Err(_) => { /* If the API returns an error, it should not be a deserialization error */ }
+    }
 }
 
 struct VendorJsonApiClient;
@@ -311,7 +340,7 @@ impl petstore::api_client::ApiClient for VendorJsonApiClient {
         _method: &str,
         _url: &str,
         _headers: &HashMap<String, String>,
-        _body: Option<&[u8]>,
+        _body: Option<&petstore::api_client::RequestBody>,
     ) -> std::pin::Pin<
         Box<
             dyn std::future::Future<
@@ -391,7 +420,7 @@ impl petstore::api_client::ApiClient for CapturingApiClient {
         _method: &str,
         _url: &str,
         headers: &HashMap<String, String>,
-        body: Option<&[u8]>,
+        body: Option<&petstore::api_client::RequestBody>,
     ) -> std::pin::Pin<
         Box<
             dyn std::future::Future<
@@ -404,7 +433,10 @@ impl petstore::api_client::ApiClient for CapturingApiClient {
         >,
     > {
         *self.captured_headers.lock().unwrap() = headers.clone();
-        *self.captured_body.lock().unwrap() = body.map(|b| b.to_vec());
+        *self.captured_body.lock().unwrap() = match body {
+            Some(petstore::api_client::RequestBody::Bytes(b)) => Some(b.clone()),
+            _ => None,
+        };
         Box::pin(async {
             Ok(petstore::api_response::ApiResponse {
                 status_code: 200,
@@ -656,7 +688,7 @@ impl petstore::api_client::ApiClient for QueryCapturingApiClient {
         _method: &str,
         url: &str,
         _headers: &HashMap<String, String>,
-        _body: Option<&[u8]>,
+        _body: Option<&petstore::api_client::RequestBody>,
     ) -> std::pin::Pin<
         Box<
             dyn std::future::Future<

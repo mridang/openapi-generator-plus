@@ -62,7 +62,7 @@ module PetstoreClient
     # @param headers [Hash{String => String}] caller-provided headers
     # @param body [Object, nil] request body
     # @return [ApiResponse] the HTTP response
-    def send_request(method, url, headers, body) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
+    def send_request(method, url, headers, body) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/MethodLength,Metrics/PerceivedComplexity
       merged = @transport_options.default_headers.dup.merge(headers)
       merged['User-Agent'] ||= @transport_options.user_agent if @transport_options.user_agent
       merged['X-Request-ID'] ||= SecureRandom.uuid if @transport_options.inject_request_id
@@ -77,7 +77,11 @@ module PetstoreClient
 
       merged['Accept-Encoding'] ||= self.class.supported_encodings
 
-      response = build_connection.run_request(method.downcase.to_sym, url, serialized_body, merged)
+      begin
+        response = build_connection.run_request(method.downcase.to_sym, url, serialized_body, merged)
+      rescue Faraday::ConnectionFailed, Faraday::TimeoutError, Faraday::SSLError => e
+        raise ApiError, e.message
+      end
       decoded_body = decompress_body(response.body, response.headers['content-encoding'])
 
       ApiResponse.new(

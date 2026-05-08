@@ -28,21 +28,23 @@ public struct SerializationError: Error, LocalizedError {
 /// ObjectSerializer provides JSON serialization and deserialization using
 /// Foundation's JSONEncoder and JSONDecoder.
 public enum ObjectSerializer {
-  private static let dateFormatter: ISO8601DateFormatter = {
-    let formatter = ISO8601DateFormatter()
-    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+  private static let dateFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssxxx"
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.timeZone = TimeZone(secondsFromGMT: 0)
     return formatter
   }()
 
   private static let encoder: JSONEncoder = {
     let encoder = JSONEncoder()
-    encoder.dateEncodingStrategy = .iso8601
+    encoder.dateEncodingStrategy = .formatted(dateFormatter)
     return encoder
   }()
 
   private static let decoder: JSONDecoder = {
     let decoder = JSONDecoder()
-    decoder.dateDecodingStrategy = .iso8601
+    decoder.dateDecodingStrategy = .formatted(dateFormatter)
     return decoder
   }()
 
@@ -189,11 +191,11 @@ public enum ObjectSerializer {
   }
 
   /// Resolve a oneOf schema by attempting deserialization against each candidate.
-  /// Each candidate is a closure that takes JSON data and returns a deserialized value.
+  /// Each candidate is a closure that takes parsed JSON (Any) and returns a deserialized value.
   /// Returns the first successful result.
-  public static func resolveOneOf<T>(_ data: Data, candidates: [(Data) throws -> T]) -> T? {
+  public static func resolveOneOf<T>(_ json: Any, candidates: [(Any) throws -> T]) -> T? {
     for candidate in candidates {
-      if let result = try? candidate(data) {
+      if let result = try? candidate(json) {
         return result
       }
     }
@@ -202,8 +204,8 @@ public enum ObjectSerializer {
 
   /// Resolve an anyOf schema by attempting deserialization against each candidate.
   /// Returns the first successful result.
-  public static func resolveAnyOf<T>(_ data: Data, candidates: [(Data) throws -> T]) -> T? {
-    return resolveOneOf(data, candidates: candidates)
+  public static func resolveAnyOf<T>(_ json: Any, candidates: [(Any) throws -> T]) -> T? {
+    return resolveOneOf(json, candidates: candidates)
   }
 
   private static func joinCollection(_ items: [String], collectionFormat: String) -> Any {

@@ -137,7 +137,7 @@ public class DefaultApiClientTest
 
         var client = new DefaultApiClient(transport);
 
-        await Assert.ThrowsAsync<TaskCanceledException>(
+        await Assert.ThrowsAsync<ApiException>(
             () =>
                 client.SendRequestAsync(
                     "GET",

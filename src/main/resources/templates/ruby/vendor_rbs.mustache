@@ -103,4 +103,16 @@ module Faraday
     def body: () -> String
     def headers: () -> Hash[String, String]
   end
+
+  class Error < StandardError
+  end
+
+  class ConnectionFailed < Error
+  end
+
+  class TimeoutError < Error
+  end
+
+  class SSLError < Error
+  end
 end

@@ -110,7 +110,7 @@ func (b *BaseApi) invokeApiForResult(params invokeApiParams) (*HttpResponse, err
 		if len(cookies) > 0 {
 			var cookieParts []string
 			for k, v := range cookies {
-				cookieParts = append(cookieParts, fmt.Sprintf("%s=%s", k, v))
+				cookieParts = append(cookieParts, fmt.Sprintf("%s=%s", url.QueryEscape(k), url.QueryEscape(v)))
 			}
 			cookieStr := strings.Join(cookieParts, "; ")
 			if existing, ok := headers["Cookie"]; ok {

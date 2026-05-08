@@ -136,7 +136,7 @@ module {{moduleName}}::Api
       {{/hasValidation}}
     {{/allParams}}
     # resource path
-    local_var_path = '{{{path}}}'{{#pathParams}}.sub('{' + '{{baseName}}' + '}', CGI.escape({{paramName}}.to_s){{^strictSpecBehavior}}.gsub('%2F', '/'){{/strictSpecBehavior}}){{/pathParams}}
+    local_var_path = '{{{path}}}'{{#pathParams}}.gsub('{' + '{{baseName}}' + '}', CGI.escape({{paramName}}.to_s){{^strictSpecBehavior}}.gsub('%2F', '/'){{/strictSpecBehavior}}){{/pathParams}}
 
     # query parameters
     query_params = opts[:query_params] || {}

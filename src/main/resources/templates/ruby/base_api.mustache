@@ -57,7 +57,7 @@ module {{moduleName}}
         headers.merge!(effective_auth.auth_headers) if effective_auth
         cookies = effective_auth&.cookie_params || {}
         unless cookies.empty?
-          cookie_str = cookies.map { |k, v| "#{k}=#{v}" }.join('; ')
+          cookie_str = cookies.map { |k, v| "#{CGI.escape(k.to_s)}=#{CGI.escape(v.to_s)}" }.join('; ')
           existing = headers['Cookie']
           headers['Cookie'] = existing ? "#{existing}; #{cookie_str}" : cookie_str
         end
