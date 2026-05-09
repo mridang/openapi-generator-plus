@@ -14,7 +14,7 @@ public class GoBuildSpec extends AbstractIntegrationSpec implements GoSpec {
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {"go mod tidy", "go build ./..."};
+        return new String[] {"go build ./..."};
     }
 
     @Test

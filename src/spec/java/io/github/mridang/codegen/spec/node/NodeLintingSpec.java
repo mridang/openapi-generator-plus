@@ -18,7 +18,7 @@ public class NodeLintingSpec extends AbstractIntegrationSpec implements NodeSpec
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {"npm install", "npx eslint ."};
+    return new String[] {"npx eslint ."};
   }
 
   @Test

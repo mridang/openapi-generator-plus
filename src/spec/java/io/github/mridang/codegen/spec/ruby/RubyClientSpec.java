@@ -14,10 +14,7 @@ public class RubyClientSpec extends AbstractClientSpec implements RubySpec {
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {
-      "bundle install --quiet",
-      "bundle exec rake test"
-    };
+    return new String[] {"bundle exec rake test"};
   }
 
   @Override

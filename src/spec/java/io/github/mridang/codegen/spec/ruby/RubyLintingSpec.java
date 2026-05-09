@@ -18,10 +18,7 @@ public class RubyLintingSpec extends AbstractIntegrationSpec implements RubySpec
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {
-      "bundle install --quiet",
-      "bundle exec rubocop --format simple"
-    };
+    return new String[] {"bundle exec rubocop --format simple"};
   }
 
   @Test

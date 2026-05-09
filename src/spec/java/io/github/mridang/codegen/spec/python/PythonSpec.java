@@ -2,6 +2,7 @@ package io.github.mridang.codegen.spec.python;
 
 import io.github.mridang.codegen.spec.DockerImageSpec;
 import io.github.mridang.codegen.spec.LanguageSpec;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Tag;
 import org.testcontainers.utility.DockerImageName;
@@ -27,5 +28,10 @@ interface PythonSpec extends LanguageSpec, DockerImageSpec {
   @Override
   default Map<String, Object> getCodegenProperties() {
     return Map.of("packageName", "petstore_client", "projectName", "petstore-client");
+  }
+
+  @Override
+  default List<String> getSetupCommands() {
+    return List.of("pip install --quiet -e . --group dev");
   }
 }

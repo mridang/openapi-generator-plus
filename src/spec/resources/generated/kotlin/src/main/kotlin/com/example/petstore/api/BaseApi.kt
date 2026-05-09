@@ -261,7 +261,7 @@ abstract class BaseApi {
         val errorBody: Any? =
             if (body.isNotEmpty()) {
                 try {
-                    objectSerializer.deserialize<Any>(body)
+                    objectSerializer.json.parseToJsonElement(body)
                 } catch (_: Exception) {
                     null
                 }

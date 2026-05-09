@@ -18,10 +18,7 @@ public class PhpStaticAnalysisSpec extends AbstractIntegrationSpec implements Ph
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {
-      "COMPOSER_PROCESS_TIMEOUT=600 composer install --no-interaction --prefer-dist",
-      "vendor/bin/phpstan analyse --no-progress"
-    };
+    return new String[] {"vendor/bin/phpstan analyse --no-progress"};
   }
 
   @Test

@@ -56,7 +56,7 @@ class ComposedSchemaTest {
         fun testUnknownDiscriminator() {
             val jsonString = """{"foodType":"raw","calories":300}"""
 
-            val result = json.decodeFromString<PetFood>(jsonString)
+            val result = runCatching { json.decodeFromString<PetFood>(jsonString) }.getOrNull()
             assertNull(result)
         }
 

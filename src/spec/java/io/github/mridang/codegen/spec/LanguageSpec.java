@@ -1,5 +1,6 @@
 package io.github.mridang.codegen.spec;
 
+import java.util.List;
 import java.util.Map;
 import org.testcontainers.utility.DockerImageName;
 
@@ -11,5 +12,9 @@ public interface LanguageSpec {
 
   default Map<String, Object> getCodegenProperties() {
     return Map.of();
+  }
+
+  default List<String> getSetupCommands() {
+    return List.of();
   }
 }

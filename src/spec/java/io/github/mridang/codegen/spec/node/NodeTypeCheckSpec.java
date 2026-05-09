@@ -18,7 +18,7 @@ public class NodeTypeCheckSpec extends AbstractIntegrationSpec implements NodeSp
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {"npm install", "npx tsc --noEmit"};
+    return new String[] {"npx tsc --noEmit"};
   }
 
   @Test

@@ -18,10 +18,7 @@ public class PythonLintingSpec extends AbstractIntegrationSpec implements Python
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {
-      "pip install --quiet -e . --group dev",
-      "ruff check ."
-    };
+    return new String[] {"ruff check ."};
   }
 
   @Test

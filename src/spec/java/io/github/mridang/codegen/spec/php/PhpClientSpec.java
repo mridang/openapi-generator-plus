@@ -14,11 +14,7 @@ public class PhpClientSpec extends AbstractClientSpec implements PhpSpec {
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {
-      "apk add --no-cache $PHPIZE_DEPS > /dev/null 2>&1 && pecl install pcov > /dev/null 2>&1 && docker-php-ext-enable pcov",
-      "COMPOSER_PROCESS_TIMEOUT=600 composer install --no-interaction --prefer-dist",
-      "mkdir -p .out && vendor/bin/phpunit --testdox"
-    };
+    return new String[] {"mkdir -p .out && vendor/bin/phpunit --testdox"};
   }
 
   @Override

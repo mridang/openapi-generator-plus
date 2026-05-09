@@ -18,10 +18,7 @@ public class RubyTypeCheckSpec extends AbstractIntegrationSpec implements RubySp
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {
-      "bundle install --quiet",
-      "bundle exec steep check"
-    };
+    return new String[] {"bundle exec steep check"};
   }
 
   @Test

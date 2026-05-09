@@ -20,10 +20,7 @@ public class PythonFormattingSpec extends AbstractFormattingSpec implements Pyth
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {
-      "pip install --quiet -e . --group dev",
-      "ruff format --check ."
-    };
+    return new String[] {"ruff format --check ."};
   }
 
   @Override

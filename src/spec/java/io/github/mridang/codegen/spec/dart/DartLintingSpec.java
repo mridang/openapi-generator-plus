@@ -14,7 +14,7 @@ public class DartLintingSpec extends AbstractIntegrationSpec implements DartSpec
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {"dart pub get", "dart analyze"};
+        return new String[] {"dart analyze"};
     }
 
     @Test

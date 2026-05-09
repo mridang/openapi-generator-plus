@@ -53,7 +53,7 @@ class BaseApiTest {
             auth: Authenticator? = null,
         ): ApiResponse = invokeApi(method, path, queryParams, headerParams, body, accepts, contentType, auth)
 
-        suspend inline fun <reified T> callForResult(
+        internal suspend inline fun <reified T> callForResult(
             method: String,
             path: String,
             queryParams: MutableMap<String, Any?> = mutableMapOf(),
@@ -70,7 +70,7 @@ class BaseApiTest {
         var capturedHeaders: Map<String, String> = emptyMap()
         var capturedBody: Any? = null
 
-        override fun sendRequest(
+        override suspend fun sendRequest(
             method: String,
             url: String,
             headers: Map<String, String>,
@@ -319,7 +319,7 @@ class BaseApiTest {
         fun skipsDeserializationForTextPlain() {
             val client =
                 object : CapturingApiClient() {
-                    override fun sendRequest(
+                    override suspend fun sendRequest(
                         method: String,
                         url: String,
                         headers: Map<String, String>,
@@ -348,7 +348,7 @@ class BaseApiTest {
         fun deserializesVendorJsonMimeType() {
             val client =
                 object : CapturingApiClient() {
-                    override fun sendRequest(
+                    override suspend fun sendRequest(
                         method: String,
                         url: String,
                         headers: Map<String, String>,

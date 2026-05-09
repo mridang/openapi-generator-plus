@@ -19,10 +19,7 @@ public class PhpModernizationSpec extends AbstractIntegrationSpec implements Php
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {
-      "COMPOSER_PROCESS_TIMEOUT=600 composer install --no-interaction --prefer-dist",
-      "vendor/bin/rector process --dry-run"
-    };
+    return new String[] {"vendor/bin/rector process --dry-run"};
   }
 
   @Test

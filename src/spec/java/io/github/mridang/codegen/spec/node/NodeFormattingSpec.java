@@ -19,7 +19,7 @@ public class NodeFormattingSpec extends AbstractFormattingSpec implements NodeSp
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {"npm install", "npx prettier --check ."};
+    return new String[] {"npx prettier --check ."};
   }
 
   @Override

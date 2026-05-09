@@ -243,10 +243,18 @@ class DefaultApiClient : ApiClient {
         encoding: String,
     ): String {
         if (data.isEmpty()) return ""
-        /* OkHttp transparently handles gzip and deflate decompression, so only
-         * brotli and zstd need manual handling here. */
+        /* We explicitly set Accept-Encoding, so OkHttp disables its transparent
+         * decompression. All encodings must be handled manually here. */
         val decompressed =
             when (encoding.lowercase()) {
+                "gzip" ->
+                    java.util.zip
+                        .GZIPInputStream(data.inputStream())
+                        .use { it.readBytes() }
+                "deflate" ->
+                    java.util.zip
+                        .InflaterInputStream(data.inputStream())
+                        .use { it.readBytes() }
                 "br" -> decompressBrotli(data)
                 "zstd" -> decompressZstd(data)
                 else -> data

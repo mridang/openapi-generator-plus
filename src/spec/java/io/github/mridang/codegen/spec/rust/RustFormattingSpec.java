@@ -16,7 +16,7 @@ public class RustFormattingSpec extends AbstractFormattingSpec implements RustSp
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {"rustup component add rustfmt", "cargo fmt -- --check"};
+        return new String[] {"cargo fmt -- --check"};
     }
 
     @Override

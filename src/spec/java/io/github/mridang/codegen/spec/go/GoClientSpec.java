@@ -14,7 +14,7 @@ public class GoClientSpec extends AbstractClientSpec implements GoSpec {
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {"go mod tidy", "go test ./test/..."};
+        return new String[] {"go test ./test/..."};
     }
 
     @Override

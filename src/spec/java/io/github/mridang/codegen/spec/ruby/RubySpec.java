@@ -2,6 +2,7 @@ package io.github.mridang.codegen.spec.ruby;
 
 import io.github.mridang.codegen.spec.DockerImageSpec;
 import io.github.mridang.codegen.spec.LanguageSpec;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Tag;
 import org.testcontainers.utility.DockerImageName;
@@ -27,5 +28,10 @@ interface RubySpec extends LanguageSpec, DockerImageSpec {
   @Override
   default Map<String, Object> getCodegenProperties() {
     return Map.of("gemName", "petstore_client", "moduleName", "PetstoreClient");
+  }
+
+  @Override
+  default List<String> getSetupCommands() {
+    return List.of("bundle install --quiet");
   }
 }

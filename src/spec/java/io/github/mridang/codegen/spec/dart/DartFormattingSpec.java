@@ -15,7 +15,7 @@ public class DartFormattingSpec extends AbstractFormattingSpec implements DartSp
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {"dart pub get", "dart format --set-exit-if-changed ."};
+        return new String[] {"dart format --set-exit-if-changed ."};
     }
 
     @Override

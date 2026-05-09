@@ -18,10 +18,7 @@ public class PythonTypeCheckSpec extends AbstractIntegrationSpec implements Pyth
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {
-      "pip install --quiet -e . --group dev",
-      "mypy petstore_client/ test/"
-    };
+    return new String[] {"mypy petstore_client/ test/"};
   }
 
   @Test

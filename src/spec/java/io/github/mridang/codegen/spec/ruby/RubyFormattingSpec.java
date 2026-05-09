@@ -20,10 +20,7 @@ public class RubyFormattingSpec extends AbstractFormattingSpec implements RubySp
 
   @Override
   protected String[] getBuildCommands() {
-    return new String[] {
-      "bundle install --quiet",
-      "bundle exec rubocop --only Layout --format simple"
-    };
+    return new String[] {"bundle exec rubocop --only Layout --format simple"};
   }
 
   @Override

@@ -14,7 +14,7 @@ public class GoLintingSpec extends AbstractIntegrationSpec implements GoSpec {
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {"go mod tidy", "go vet ./..."};
+        return new String[] {"go vet ./..."};
     }
 
     @Test
