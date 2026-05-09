@@ -27,6 +27,7 @@ import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
 import org.openapitools.codegen.model.ModelsMap;
+import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -100,15 +101,27 @@ public class BetterDartCodegen extends AbstractBetterCodegen {
                                 "Object",
                                 "void",
                                 "Null",
-                                "DateTime"));
+                                "DateTime",
+                                "List<int>"));
 
         reservedWords = loadReservedWords("/reserved-words/dart.txt");
+
     }
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */
     @Override
     public String getName() {
         return "dart-plus";
+    }
+
+    /**
+     * Escapes a reserved word by appending an underscore suffix
+     * instead of prepending one. In Dart, names starting with
+     * underscore are library-private, so we avoid the prefix.
+     */
+    @Override
+    public String escapeReservedWord(String name) {
+        return name + "_";
     }
 
     /** Returns a short description shown in the help output. */
@@ -171,7 +184,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen {
     /** {@inheritDoc} */
     @Override
     protected String[] getFormatterCommands() {
-        return new String[] {"dart format ."};
+        return new String[] {"dart pub get", "dart fix --apply", "dart format ."};
     }
 
     /** {@inheritDoc} */
@@ -264,6 +277,9 @@ public class BetterDartCodegen extends AbstractBetterCodegen {
         final String errorsDir = Path.of(srcDir, "errors").toString();
         supportingFiles.add(
                 new SupportingFile(
+                        "errors/api_error.mustache", errorsDir, "api_error.dart"));
+        supportingFiles.add(
+                new SupportingFile(
                         "errors/client_error.mustache", errorsDir, "client_error.dart"));
         supportingFiles.add(
                 new SupportingFile(
@@ -351,6 +367,11 @@ public class BetterDartCodegen extends AbstractBetterCodegen {
 
         if (generateTests) {
             supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/testcontainers_helper.mustache",
+                            "test",
+                            "testcontainers_helper.dart"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/api/pet_api_test.mustache", "test", "pet_api_test.dart"));
@@ -513,8 +534,102 @@ public class BetterDartCodegen extends AbstractBetterCodegen {
             for (final CodegenProperty prop : model.requiredVars) {
                 fixEnumDefaultValue(prop);
             }
+
+            for (final CodegenProperty prop : model.vars) {
+                clearEnumOnPrimitives(prop);
+            }
+            for (final CodegenProperty prop : model.allVars) {
+                clearEnumOnPrimitives(prop);
+            }
+            for (final CodegenProperty prop : model.optionalVars) {
+                clearEnumOnPrimitives(prop);
+            }
+            for (final CodegenProperty prop : model.requiredVars) {
+                clearEnumOnPrimitives(prop);
+            }
+
+            final List<Map<String, String>> dartImports = new ArrayList<>();
+            for (final String importName : model.imports) {
+                if (!languageSpecificPrimitives.contains(importName)
+                        && !typeMapping.containsValue(importName)) {
+                    final Map<String, String> dartImport = new HashMap<>();
+                    dartImport.put("classname", importName);
+                    dartImport.put("filename", toModelFilename(importName));
+                    dartImports.add(dartImport);
+                }
+            }
+            modelMap.put("dartImports", dartImports);
+            modelMap.put("hasDartImports", !dartImports.isEmpty());
+
+            final Set<String> filteredOneOf = new java.util.LinkedHashSet<>();
+            for (final String typeName : model.oneOf) {
+                if (!languageSpecificPrimitives.contains(typeName)
+                        && !typeName.startsWith("List<")
+                        && !typeName.startsWith("Map<")
+                        && !typeName.startsWith("Set<")) {
+                    filteredOneOf.add(typeName);
+                }
+            }
+            model.oneOf = filteredOneOf;
+
+            final Set<String> filteredAnyOf = new java.util.LinkedHashSet<>();
+            for (final String typeName : model.anyOf) {
+                if (!languageSpecificPrimitives.contains(typeName)
+                        && !typeName.startsWith("List<")
+                        && !typeName.startsWith("Map<")
+                        && !typeName.startsWith("Set<")) {
+                    filteredAnyOf.add(typeName);
+                }
+            }
+            model.anyOf = filteredAnyOf;
         }
         return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public OperationsMap postProcessOperationsWithModels(
+            OperationsMap objs, List<ModelMap> allModels) {
+        objs = super.postProcessOperationsWithModels(objs, allModels);
+
+        final List<Map<String, String>> imports =
+                (List<Map<String, String>>) objs.get("imports");
+        if (imports != null) {
+            imports.removeIf(imp -> {
+                final String importName = imp.getOrDefault("import", "");
+                final String className =
+                        importName.contains(".")
+                                ? importName.substring(importName.lastIndexOf('.') + 1)
+                                : importName;
+                return languageSpecificPrimitives.contains(className)
+                        || typeMapping.containsValue(className)
+                        || className.startsWith("List<")
+                        || className.equals("List")
+                        || className.startsWith("Map<")
+                        || className.equals("Map")
+                        || className.startsWith("Set<")
+                        || className.equals("Set");
+            });
+            for (final Map<String, String> imp : imports) {
+                if (!imp.containsKey("className") && imp.containsKey("import")) {
+                    String className = imp.get("import");
+                    if (className.contains(".")) {
+                        className = className.substring(className.lastIndexOf('.') + 1);
+                    }
+                    imp.put("className", className);
+                    imp.put("filename", toModelFilename(className));
+                }
+            }
+        }
+        return objs;
+    }
+
+    private void clearEnumOnPrimitives(CodegenProperty prop) {
+        if (prop.isEnum
+                && (languageSpecificPrimitives.contains(prop.dataType)
+                        || typeMapping.containsValue(prop.dataType))) {
+            prop.isEnum = false;
+        }
     }
 
     private void fixEnumDefaultValue(CodegenProperty prop) {
@@ -696,10 +811,10 @@ public class BetterDartCodegen extends AbstractBetterCodegen {
             final String url = scheme.getOpenIdConnectUrl();
             return renderDartSchemeAuth(className + "Authenticator",
                     "OpenIdConnectAuthenticator",
-                    List.of("oauth/openid_connect_authenticator.dart"),
+                    List.of("openid_connect_authenticator.dart"),
                     "required String host, required String clientId, "
                             + "required String clientSecret, required String redirectUri",
-                    "host: host, discoveryUrl: '" + url + "', clientId: clientId, "
+                    "host: host, openIdConnectUrl: '" + url + "', clientId: clientId, "
                             + "clientSecret: clientSecret, redirectUri: redirectUri, "
                             + "scopes: []");
         }
@@ -716,7 +831,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen {
             return renderDartSchemeAuth(
                     className + "ClientCredentialsAuthenticator",
                     "OAuth2ClientCredentialsAuthenticator",
-                    List.of("oauth/oauth2_client_credentials_authenticator.dart"),
+                    List.of("oauth2_client_credentials_authenticator.dart"),
                     "required String host, required String clientId, "
                             + "required String clientSecret",
                     "host: host, clientId: clientId, clientSecret: clientSecret, "
@@ -731,7 +846,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen {
             return renderDartSchemeAuth(
                     className + "PasswordAuthenticator",
                     "OAuth2PasswordAuthenticator",
-                    List.of("oauth/oauth2_password_authenticator.dart"),
+                    List.of("oauth2_password_authenticator.dart"),
                     "required String host, required String clientId, "
                             + "required String clientSecret, required String username, "
                             + "required String password",
@@ -749,7 +864,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen {
             return renderDartSchemeAuth(
                     className + "AuthorizationCodeAuthenticator",
                     "OAuth2AuthorizationCodeAuthenticator",
-                    List.of("oauth/oauth2_auth_code_authenticator.dart"),
+                    List.of("oauth2_auth_code_authenticator.dart"),
                     "required String host, required String clientId, "
                             + "required String clientSecret, required String redirectUri",
                     "host: host, clientId: clientId, clientSecret: clientSecret, "
@@ -764,7 +879,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen {
             return renderDartSchemeAuth(
                     className + "ImplicitAuthenticator",
                     "OAuth2ImplicitAuthenticator",
-                    List.of("oauth/oauth2_implicit_authenticator.dart"),
+                    List.of("oauth2_implicit_authenticator.dart"),
                     "required String host, required String clientId",
                     "host: host, clientId: clientId, authorizationUrl: '"
                             + authUrl + "', scopes: " + scopes);
@@ -852,11 +967,25 @@ public class BetterDartCodegen extends AbstractBetterCodegen {
             params.add(param);
         }
 
+        final List<Map<String, String>> optionsImports = new ArrayList<>();
+        for (final CodegenParameter p : optionsParams) {
+            if (p.baseType != null
+                    && !languageSpecificPrimitives.contains(p.baseType)
+                    && !typeMapping.containsValue(p.baseType)) {
+                final Map<String, String> imp = new HashMap<>();
+                imp.put("classname", p.baseType);
+                imp.put("filename", toModelFilename(p.baseType));
+                optionsImports.add(imp);
+            }
+        }
+
         final Map<String, Object> context = new HashMap<>();
         context.put("className", className);
         context.put("packageName", packageName);
         context.put("operationId", op.operationId);
         context.put("params", params);
+        context.put("dartImports", optionsImports);
+        context.put("hasDartImports", !optionsImports.isEmpty());
         return renderOptionsTemplate("api/options.mustache", context);
     }
 
@@ -867,5 +996,34 @@ public class BetterDartCodegen extends AbstractBetterCodegen {
         return Path.of(
                         getOutputDir(), "lib", "src", "api", "options", fileName + ".dart")
                 .toString();
+    }
+
+    /** Appends options class exports to the barrel file. */
+    @Override
+    protected void writeOptionsBarrelFiles(List<Map<String, String>> optionsFiles) {
+        if (optionsFiles.isEmpty()) {
+            return;
+        }
+        final Path barrelPath =
+                Path.of(getOutputDir(), "lib", packageName + ".dart");
+        try {
+            final StringBuilder sb = new StringBuilder();
+            for (final Map<String, String> meta : optionsFiles) {
+                final String className = meta.get("optionsClassName");
+                if (className == null) {
+                    continue;
+                }
+                final String fileName = NamingConvention.SNAKE_CASE.apply(className);
+                sb.append("export 'src/api/options/")
+                        .append(fileName)
+                        .append(".dart';\n");
+            }
+            Files.writeString(
+                    barrelPath,
+                    Files.readString(barrelPath) + sb,
+                    StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            LOGGER.warn("Failed to append options exports to barrel: {}", e.getMessage());
+        }
     }
 }

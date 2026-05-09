@@ -9,13 +9,13 @@
 class ApiResponse {
   final int? code;
 
-  final String? _type;
+  final String? type_;
 
   final String? message;
 
   const ApiResponse({
     this.code,
-    this._type,
+    this.type_,
     this.message,
   });
 
@@ -23,7 +23,7 @@ class ApiResponse {
   factory ApiResponse.fromJson(Map<String, dynamic> json) {
     return ApiResponse(
       code: json['code'] as int?,
-      _type: json['type'] as String?,
+      type_: json['type'] as String?,
       message: json['message'] as String?,
     );
   }
@@ -34,8 +34,8 @@ class ApiResponse {
     if (code != null) {
       json['code'] = code;
     }
-    if (_type != null) {
-      json['type'] = _type;
+    if (type_ != null) {
+      json['type'] = type_;
     }
     if (message != null) {
       json['message'] = message;

@@ -8,6 +8,9 @@
 import 'basic_authenticator.dart';
 
 class PetStoreBasicAuthenticator extends BasicAuthenticator {
-  PetStoreBasicAuthenticator(required String host, required String username, required String password)
-      : super(host: host, username: username, password: password);
+  PetStoreBasicAuthenticator({
+    required super.host,
+    required super.username,
+    required super.password,
+  });
 }

@@ -4,7 +4,6 @@
 /// {{#appDescription}}{{{.}}}{{/appDescription}}
 library {{packageName}};
 
-// Core infrastructure
 export 'src/configuration.dart';
 export 'src/transport_options.dart';
 export 'src/server_configuration.dart';
@@ -20,7 +19,6 @@ export 'src/value_serializer.dart';
 export 'src/trace_context_util.dart';
 export 'src/auth/authenticator.dart';
 
-// Errors
 export 'src/errors/api_error.dart';
 export 'src/errors/client_error.dart';
 export 'src/errors/server_error.dart';
@@ -32,13 +30,28 @@ export 'src/errors/conflict_error.dart';
 export 'src/errors/unprocessable_entity_error.dart';
 export 'src/errors/internal_server_error.dart';
 
-// Auth
 export 'src/auth/base_authenticator.dart';
 export 'src/auth/http_aware_authenticator.dart';
 export 'src/auth/basic_authenticator.dart';
 export 'src/auth/bearer_authenticator.dart';
 export 'src/auth/api_key_authenticator.dart';
 export 'src/auth/api_key_location.dart';
+export 'src/auth/oauth/oauth2_token_manager.dart';
+export 'src/auth/oauth/oauth2_implicit_authenticator.dart';
+export 'src/auth/oauth/oauth2_auth_code_authenticator.dart';
+export 'src/auth/oauth/oauth2_client_credentials_authenticator.dart';
+export 'src/auth/oauth/oauth2_password_authenticator.dart';
+export 'src/auth/oauth/openid_connect_authenticator.dart';
 
-// Client
+{{#apiInfo}}
+{{#apis}}
+export 'src/api/{{classFilename}}.dart';
+{{/apis}}
+{{/apiInfo}}
+{{#models}}
+{{#model}}
+export 'src/models/{{classFilename}}.dart';
+{{/model}}
+{{/models}}
+
 export 'src/client.dart';

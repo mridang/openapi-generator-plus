@@ -8,6 +8,9 @@
 import 'basic_authenticator.dart';
 
 class AdminBasicAuthenticator extends BasicAuthenticator {
-  AdminBasicAuthenticator(required String host, required String username, required String password)
-      : super(host: host, username: username, password: password);
+  AdminBasicAuthenticator({
+    required super.host,
+    required super.username,
+    required super.password,
+  });
 }

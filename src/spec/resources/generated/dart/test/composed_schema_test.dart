@@ -7,8 +7,8 @@
 
 import 'dart:convert';
 
-import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart';
+import 'package:test/test.dart';
 
 void main() {
   group('Composed schemas', () {
@@ -52,12 +52,13 @@ void main() {
 
     test('PetTreatment deserialize medication', () {
       final json = <String, dynamic>{
-        'medicationName': 'Amoxicillin',
-        'dosageMg': 250,
+        'drugName': 'Amoxicillin',
+        'dosage': '250mg',
       };
 
       final treatment = PetTreatment.fromJson(json);
       expect(treatment.value, isNotNull);
+      expect(treatment.value, isA<Medication>());
     });
 
     test('PetTreatment deserialize surgery', () {
@@ -68,12 +69,13 @@ void main() {
 
       final treatment = PetTreatment.fromJson(json);
       expect(treatment.value, isNotNull);
+      expect(treatment.value, isA<Surgery>());
     });
 
     test('PetTreatment serialize round trip', () {
       final json = <String, dynamic>{
-        'medicationName': 'Amoxicillin',
-        'dosageMg': 250,
+        'drugName': 'Amoxicillin',
+        'dosage': '250mg',
       };
 
       final treatment = PetTreatment.fromJson(json);

@@ -9,6 +9,11 @@ import 'api_key_authenticator.dart';
 import 'api_key_location.dart';
 
 class SessionCookieAuthenticator extends ApiKeyAuthenticator {
-  SessionCookieAuthenticator(required String host, required String apiKey)
-      : super(host: host, keyParamName: 'SESSION_ID', apiKey: apiKey, location: ApiKeyLocation.cookie);
+  SessionCookieAuthenticator({
+    required super.host,
+    required super.apiKey,
+  }) : super(
+          keyParamName: 'SESSION_ID',
+          location: ApiKeyLocation.cookie,
+        );
 }

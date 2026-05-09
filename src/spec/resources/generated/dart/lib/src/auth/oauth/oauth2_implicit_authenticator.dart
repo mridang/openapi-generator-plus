@@ -45,10 +45,7 @@ class OAuth2ImplicitAuthenticator extends BaseAuthenticator
   /// No-op for the implicit flow, but implements the
   /// [HttpAwareAuthenticator] interface for consistency.
   @override
-  void setApiClient(ApiClient client) {
-    // Implicit flow does not make token exchange requests,
-    // but implements the interface for consistency.
-  }
+  void setApiClient(ApiClient client) {}
 
   /// Sets the access token obtained from the authorization redirect fragment.
   void setAccessToken(String token) {

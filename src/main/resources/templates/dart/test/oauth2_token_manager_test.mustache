@@ -7,16 +7,16 @@ import 'package:test/test.dart';
 import 'package:{{packageName}}/{{packageName}}.dart';
 
 class _FakeApiClient implements ApiClient {
-  final List<ApiResponse> _responses = [];
+  final List<HttpApiResponse> _responses = [];
   String? lastBody;
   String? lastUrl;
 
   void enqueue(String body, {int statusCode = 200}) {
-    _responses.add(ApiResponse(statusCode, body, {}));
+    _responses.add(HttpApiResponse(statusCode: statusCode, body: body, headers: {}));
   }
 
   @override
-  Future<ApiResponse> sendRequest(
+  Future<HttpApiResponse> sendRequest(
     String method,
     String url,
     Map<String, String> headers,
@@ -134,7 +134,7 @@ void main() {
           'https://auth.example.com/token',
           {'grant_type': 'client_credentials'},
         ),
-        throwsA(isA<Exception>()),
+        throwsA(isA<StateError>()),
       );
     });
   });

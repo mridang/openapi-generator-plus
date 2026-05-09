@@ -8,6 +8,8 @@
 import 'bearer_authenticator.dart';
 
 class ServiceTokenAuthenticator extends BearerAuthenticator {
-  ServiceTokenAuthenticator(required String host, required String token)
-      : super(host: host, token: token);
+  ServiceTokenAuthenticator({
+    required super.host,
+    required super.token,
+  });
 }

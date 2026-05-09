@@ -15,19 +15,19 @@ import '../api_result.dart';
 import '../auth/authenticator.dart';
 import '../configuration.dart';
 import '../default_api_client.dart';
+import '../errors/api_error.dart';
+import '../errors/bad_request_error.dart';
+import '../errors/client_error.dart';
+import '../errors/conflict_error.dart';
+import '../errors/forbidden_error.dart';
+import '../errors/internal_server_error.dart';
+import '../errors/not_found_error.dart';
+import '../errors/server_error.dart';
+import '../errors/unauthorized_error.dart';
+import '../errors/unprocessable_entity_error.dart';
 import '../header_selector.dart';
 import '../object_serializer.dart';
 import '../trace_context_util.dart';
-import '../errors/api_error.dart';
-import '../errors/client_error.dart';
-import '../errors/server_error.dart';
-import '../errors/bad_request_error.dart';
-import '../errors/unauthorized_error.dart';
-import '../errors/forbidden_error.dart';
-import '../errors/not_found_error.dart';
-import '../errors/conflict_error.dart';
-import '../errors/unprocessable_entity_error.dart';
-import '../errors/internal_server_error.dart';
 
 /// BaseApi provides common functionality for all API classes.
 class BaseApi {
@@ -46,7 +46,7 @@ class BaseApi {
         _authenticator = authenticator;
 
   /// Dispatches an API request and returns the full result.
-  Future<ApiResponse> invokeApi({
+  Future<HttpApiResponse> invokeApi({
     required String method,
     required String path,
     Map<String, Object?>? queryParams,
@@ -63,7 +63,6 @@ class BaseApi {
       requestUrl = config.baseUrl + path;
     }
 
-    // Merge authentication query params
     final allQueryParams = <String, Object?>{};
     if (queryParams != null) {
       allQueryParams.addAll(queryParams);
@@ -73,30 +72,24 @@ class BaseApi {
       allQueryParams.addAll(effectiveAuth.queryParams());
     }
 
-    // Build query string
     final queryString = _buildQueryString(allQueryParams);
     if (queryString.isNotEmpty) {
       requestUrl = '$requestUrl?$queryString';
     }
 
-    // Select headers
     final isMultipart = contentType == 'multipart/form-data';
     final headers =
         _headerSelector.selectHeaders(accepts, contentType, isMultipart);
 
-    // Merge config default headers
     headers.addAll(config.defaultHeaders);
 
-    // Merge operation-specific headers
     if (headerParams != null) {
       headers.addAll(headerParams);
     }
 
-    // Merge auth headers
     if (effectiveAuth != null) {
       headers.addAll(effectiveAuth.authHeaders());
 
-      // Handle cookie params
       final cookies = effectiveAuth.cookieParams();
       if (cookies.isNotEmpty) {
         final cookieParts = cookies.entries
@@ -112,22 +105,17 @@ class BaseApi {
       }
     }
 
-    // Inject trace context
     TraceContextUtil.injectTraceContext(headers);
 
-    // Serialize body -- multipart/form-data is handled separately so that
-    // the boundary can be injected into the Content-Type header.
     final Uint8List? serializedBody;
     if (contentType == 'multipart/form-data' && body is Map<String, Object?>) {
       final boundary = _generateUuid();
       headers['Content-Type'] = 'multipart/form-data; boundary=$boundary';
-      serializedBody =
-          _buildMultipartBody(body as Map<String, Object?>, boundary);
+      serializedBody = _buildMultipartBody(body, boundary);
     } else {
       serializedBody = _serializeBody(body, contentType);
     }
 
-    // Send request
     final response = await apiClient.sendRequest(
       method,
       requestUrl,
@@ -135,7 +123,6 @@ class BaseApi {
       serializedBody,
     );
 
-    // Check for errors
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw _throwApiError(response);
     }
@@ -146,7 +133,7 @@ class BaseApi {
   /// Dispatches an API request and returns the full result including
   /// deserialized data, status code, raw body, and headers.
   ///
-  /// Calls [invokeApi] to get the raw [ApiResponse], then deserializes
+  /// Calls [invokeApi] to get the raw [HttpApiResponse], then deserializes
   /// the response body when [returnType] is not empty.
   Future<ApiResult<T>> invokeApiForResult<T>({
     required String method,
@@ -318,7 +305,7 @@ class BaseApi {
         '${hex.substring(20, 32)}';
   }
 
-  static ApiError _throwApiError(ApiResponse response) {
+  static ApiError _throwApiError(HttpApiResponse response) {
     final code = response.statusCode;
     final msg = 'API returned status code $code';
     final body = response.body;
@@ -327,9 +314,7 @@ class BaseApi {
     if (body.isNotEmpty) {
       try {
         parsed = jsonDecode(body);
-      } catch (_) {
-        // Ignore parse errors
-      }
+      } catch (_) {}
     }
 
     final baseErr = ApiError(

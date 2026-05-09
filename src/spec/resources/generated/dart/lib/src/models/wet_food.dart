@@ -27,8 +27,11 @@ class WetFood {
   /// Converts this [WetFood] to a JSON map.
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
+
     json['foodType'] = foodType;
+
     json['volumeMl'] = volumeMl;
+
     return json;
   }
 }

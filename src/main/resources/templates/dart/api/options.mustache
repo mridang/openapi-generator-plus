@@ -1,3 +1,9 @@
+{{#hasDartImports}}
+{{#dartImports}}
+import '../../models/{{filename}}.dart';
+{{/dartImports}}
+
+{{/hasDartImports}}
 /// {{className}} holds optional parameters for the {{operationId}} operation.
 class {{className}} {
 {{#params}}

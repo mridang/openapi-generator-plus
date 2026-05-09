@@ -9,6 +9,11 @@ import 'api_key_authenticator.dart';
 import 'api_key_location.dart';
 
 class InternalApiKeyAuthenticator extends ApiKeyAuthenticator {
-  InternalApiKeyAuthenticator(required String host, required String apiKey)
-      : super(host: host, keyParamName: 'X-Internal-Key', apiKey: apiKey, location: ApiKeyLocation.header);
+  InternalApiKeyAuthenticator({
+    required super.host,
+    required super.apiKey,
+  }) : super(
+          keyParamName: 'X-Internal-Key',
+          location: ApiKeyLocation.header,
+        );
 }

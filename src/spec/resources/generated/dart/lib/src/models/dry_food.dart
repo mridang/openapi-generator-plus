@@ -27,8 +27,11 @@ class DryFood {
   /// Converts this [DryFood] to a JSON map.
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
+
     json['foodType'] = foodType;
+
     json['weightKg'] = weightKg;
+
     return json;
   }
 }

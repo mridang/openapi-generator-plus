@@ -15,8 +15,8 @@ abstract class ApiClient {
   ///   - [body]: request body as [Uint8List], [Map<String, Object>] for
   ///     multipart form data, or null
   ///
-  /// Returns an [ApiResponse] and throws on transport errors.
-  Future<ApiResponse> sendRequest(
+  /// Returns an [HttpApiResponse] and throws on transport errors.
+  Future<HttpApiResponse> sendRequest(
     String method,
     String url,
     Map<String, String> headers,

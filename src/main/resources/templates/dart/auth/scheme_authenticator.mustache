@@ -4,6 +4,9 @@ import '{{{.}}}';
 {{/imports}}
 
 class {{className}} extends {{baseClass}} {
-  {{className}}({{{constructorSignature}}})
-      : super({{{superCall}}});
+  {{className}}({
+    {{{constructorSignature}}},
+  }) : super(
+         {{{superCall}}},
+       );
 }

@@ -29,7 +29,9 @@ class Metadata {
       }
     }
     return Metadata(
-      createdAt: json['createdAt'] as DateTime?,
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : null,
       additionalProperties: additionalProperties,
     );
   }
@@ -38,7 +40,7 @@ class Metadata {
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
     if (createdAt != null) {
-      json['createdAt'] = createdAt;
+      json['createdAt'] = createdAt?.toIso8601String();
     }
     json.addAll(additionalProperties);
     return json;

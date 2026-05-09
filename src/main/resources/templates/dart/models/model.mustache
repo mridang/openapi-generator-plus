@@ -1,6 +1,14 @@
 {{>api_info}}
 {{#models}}
 {{#model}}
+import 'dart:convert';
+
+{{#hasDartImports}}
+{{#dartImports}}
+import '{{filename}}.dart';
+{{/dartImports}}
+
+{{/hasDartImports}}
 {{#isEnum}}
 /// {{classname}} is an enumeration of allowed values.
 enum {{classname}} {
@@ -62,6 +70,7 @@ class {{classname}} {
   final Map<String, dynamic> additionalProperties;
 
 {{/isAdditionalPropertiesTrue}}
+{{#hasVars}}
   const {{classname}}({
 {{#vars}}
 {{#required}}
@@ -85,6 +94,17 @@ class {{classname}} {
     this.additionalProperties = const {},
 {{/isAdditionalPropertiesTrue}}
   });
+{{/hasVars}}
+{{^hasVars}}
+{{#isAdditionalPropertiesTrue}}
+  const {{classname}}({
+    this.additionalProperties = const {},
+  });
+{{/isAdditionalPropertiesTrue}}
+{{^isAdditionalPropertiesTrue}}
+  const {{classname}}();
+{{/isAdditionalPropertiesTrue}}
+{{/hasVars}}
 
   /// Creates a [{{classname}}] from a JSON map.
   factory {{classname}}.fromJson(Map<String, dynamic> json) {
@@ -104,15 +124,91 @@ class {{classname}} {
     return {{classname}}(
 {{#vars}}
 {{#required}}
-      {{name}}: json['{{baseName}}']{{#isEnum}} != null ? {{dataType}}.fromJson(json['{{baseName}}'] as String) : throw ArgumentError('Missing required enum field {{baseName}}'){{/isEnum}}{{^isEnum}} as {{{dataType}}}{{/isEnum}},
+{{#isEnum}}
+      {{name}}: json['{{baseName}}'] != null ? {{dataType}}.fromJson(json['{{baseName}}'] as String) : throw ArgumentError('Missing required enum field {{baseName}}'),
+{{/isEnum}}
+{{^isEnum}}
+{{#isArray}}
+      {{name}}: (json['{{baseName}}'] as List).map((e) => {{#items}}{{#isByteArray}}base64Decode(e as String) as List<int>{{/isByteArray}}{{^isByteArray}}{{#isPrimitiveType}}e as {{{dataType}}}{{/isPrimitiveType}}{{^isPrimitiveType}}{{{dataType}}}.fromJson(e as Map<String, dynamic>){{/isPrimitiveType}}{{/isByteArray}}{{/items}}).toList(),
+{{/isArray}}
+{{^isArray}}
+{{#isMap}}
+      {{name}}: json['{{baseName}}'] as {{{dataType}}},
+{{/isMap}}
+{{^isMap}}
+{{#isByteArray}}
+      {{name}}: base64Decode(json['{{baseName}}'] as String),
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isPrimitiveType}}
+{{#isDateTime}}
+      {{name}}: DateTime.parse(json['{{baseName}}'] as String),
+{{/isDateTime}}
+{{#isDate}}
+      {{name}}: DateTime.parse(json['{{baseName}}'] as String),
+{{/isDate}}
+{{^isDateTime}}{{^isDate}}
+      {{name}}: json['{{baseName}}'] as {{{dataType}}},
+{{/isDate}}{{/isDateTime}}
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+      {{name}}: {{{dataType}}}.fromJson(json['{{baseName}}'] as Map<String, dynamic>),
+{{/isPrimitiveType}}
+{{/isByteArray}}
+{{/isMap}}
+{{/isArray}}
+{{/isEnum}}
 {{/required}}
 {{^required}}
+{{#isEnum}}
 {{#defaultValue}}
-      {{name}}: json['{{baseName}}']{{#isEnum}} != null ? {{dataType}}.fromJson(json['{{baseName}}'] as String) : {{{defaultValue}}}{{/isEnum}}{{^isEnum}} != null ? json['{{baseName}}'] as {{{dataType}}} : {{{defaultValue}}}{{/isEnum}},
+      {{name}}: json['{{baseName}}'] != null ? {{dataType}}.fromJson(json['{{baseName}}'] as String) : {{{defaultValue}}},
 {{/defaultValue}}
 {{^defaultValue}}
-      {{name}}: json['{{baseName}}']{{#isEnum}} != null ? {{dataType}}.fromJson(json['{{baseName}}'] as String) : null{{/isEnum}}{{^isEnum}} as {{{dataType}}}?{{/isEnum}},
+      {{name}}: json['{{baseName}}'] != null ? {{dataType}}.fromJson(json['{{baseName}}'] as String) : null,
 {{/defaultValue}}
+{{/isEnum}}
+{{^isEnum}}
+{{#isArray}}
+      {{name}}: (json['{{baseName}}'] as List?)?.map((e) => {{#items}}{{#isByteArray}}base64Decode(e as String) as List<int>{{/isByteArray}}{{^isByteArray}}{{#isPrimitiveType}}e as {{{dataType}}}{{/isPrimitiveType}}{{^isPrimitiveType}}{{{dataType}}}.fromJson(e as Map<String, dynamic>){{/isPrimitiveType}}{{/isByteArray}}{{/items}}).toList(),
+{{/isArray}}
+{{^isArray}}
+{{#isMap}}
+      {{name}}: json['{{baseName}}'] as {{{dataType}}}?,
+{{/isMap}}
+{{^isMap}}
+{{#isByteArray}}
+      {{name}}: json['{{baseName}}'] != null ? base64Decode(json['{{baseName}}'] as String) : null,
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isPrimitiveType}}
+{{#isDateTime}}
+      {{name}}: json['{{baseName}}'] != null ? DateTime.parse(json['{{baseName}}'] as String) : null,
+{{/isDateTime}}
+{{#isDate}}
+      {{name}}: json['{{baseName}}'] != null ? DateTime.parse(json['{{baseName}}'] as String) : null,
+{{/isDate}}
+{{^isDateTime}}{{^isDate}}
+{{#defaultValue}}
+      {{name}}: json['{{baseName}}'] != null ? json['{{baseName}}'] as {{{dataType}}} : {{{defaultValue}}},
+{{/defaultValue}}
+{{^defaultValue}}
+      {{name}}: json['{{baseName}}'] as {{{dataType}}}?,
+{{/defaultValue}}
+{{/isDate}}{{/isDateTime}}
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+{{#defaultValue}}
+      {{name}}: json['{{baseName}}'] != null ? {{{dataType}}}.fromJson(json['{{baseName}}'] as Map<String, dynamic>) : {{{defaultValue}}},
+{{/defaultValue}}
+{{^defaultValue}}
+      {{name}}: json['{{baseName}}'] != null ? {{{dataType}}}.fromJson(json['{{baseName}}'] as Map<String, dynamic>) : null,
+{{/defaultValue}}
+{{/isPrimitiveType}}
+{{/isByteArray}}
+{{/isMap}}
+{{/isArray}}
+{{/isEnum}}
 {{/required}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
@@ -126,11 +222,101 @@ class {{classname}} {
     final json = <String, dynamic>{};
 {{#vars}}
 {{#required}}
-    json['{{baseName}}'] = {{name}}{{#isEnum}}.toJson(){{/isEnum}};
+{{#isEnum}}
+    json['{{baseName}}'] = {{name}}.toJson();
+{{/isEnum}}
+{{^isEnum}}
+{{#isArray}}
+{{#items}}
+{{#isByteArray}}
+    json['{{baseName}}'] = {{name}}.map((e) => base64Encode(e)).toList();
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isPrimitiveType}}
+    json['{{baseName}}'] = {{name}};
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+    json['{{baseName}}'] = {{name}}.map((e) => e.toJson()).toList();
+{{/isPrimitiveType}}
+{{/isByteArray}}
+{{/items}}
+{{/isArray}}
+{{^isArray}}
+{{#isByteArray}}
+    json['{{baseName}}'] = base64Encode({{name}});
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isPrimitiveType}}
+{{#isDateTime}}
+    json['{{baseName}}'] = {{name}}.toIso8601String();
+{{/isDateTime}}
+{{#isDate}}
+    json['{{baseName}}'] = {{name}}.toIso8601String();
+{{/isDate}}
+{{^isDateTime}}{{^isDate}}
+    json['{{baseName}}'] = {{name}};
+{{/isDate}}{{/isDateTime}}
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+{{#isMap}}
+    json['{{baseName}}'] = {{name}};
+{{/isMap}}
+{{^isMap}}
+    json['{{baseName}}'] = {{name}}.toJson();
+{{/isMap}}
+{{/isPrimitiveType}}
+{{/isByteArray}}
+{{/isArray}}
+{{/isEnum}}
 {{/required}}
 {{^required}}
     if ({{name}} != null) {
-      json['{{baseName}}'] = {{name}}{{#isEnum}}?.toJson(){{/isEnum}};
+{{#isEnum}}
+      json['{{baseName}}'] = {{name}}?.toJson();
+{{/isEnum}}
+{{^isEnum}}
+{{#isArray}}
+{{#items}}
+{{#isByteArray}}
+      json['{{baseName}}'] = {{name}}?.map((e) => base64Encode(e)).toList();
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isPrimitiveType}}
+      json['{{baseName}}'] = {{name}};
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+      json['{{baseName}}'] = {{name}}?.map((e) => e.toJson()).toList();
+{{/isPrimitiveType}}
+{{/isByteArray}}
+{{/items}}
+{{/isArray}}
+{{^isArray}}
+{{#isByteArray}}
+      json['{{baseName}}'] = base64Encode({{name}}!);
+{{/isByteArray}}
+{{^isByteArray}}
+{{#isPrimitiveType}}
+{{#isDateTime}}
+      json['{{baseName}}'] = {{name}}?.toIso8601String();
+{{/isDateTime}}
+{{#isDate}}
+      json['{{baseName}}'] = {{name}}?.toIso8601String();
+{{/isDate}}
+{{^isDateTime}}{{^isDate}}
+      json['{{baseName}}'] = {{name}};
+{{/isDate}}{{/isDateTime}}
+{{/isPrimitiveType}}
+{{^isPrimitiveType}}
+{{#isMap}}
+      json['{{baseName}}'] = {{name}};
+{{/isMap}}
+{{^isMap}}
+      json['{{baseName}}'] = {{name}}?.toJson();
+{{/isMap}}
+{{/isPrimitiveType}}
+{{/isByteArray}}
+{{/isArray}}
+{{/isEnum}}
     }
 {{/required}}
 {{/vars}}
@@ -187,7 +373,6 @@ class {{classname}} {
     }
 {{/discriminator}}
 {{^discriminator}}
-    // Try each oneOf type
 {{#oneOf}}
     try {
       return {{classname}}._({{{.}}}.fromJson(json));

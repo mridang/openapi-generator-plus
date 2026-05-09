@@ -27,7 +27,9 @@ class Surgery {
   /// Converts this [Surgery] to a JSON map.
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
+
     json['procedureName'] = procedureName;
+
     if (durationMinutes != null) {
       json['durationMinutes'] = durationMinutes;
     }

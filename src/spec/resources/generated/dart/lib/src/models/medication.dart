@@ -27,7 +27,9 @@ class Medication {
   /// Converts this [Medication] to a JSON map.
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{};
+
     json['drugName'] = drugName;
+
     if (dosage != null) {
       json['dosage'] = dosage;
     }

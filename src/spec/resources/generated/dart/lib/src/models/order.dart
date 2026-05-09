@@ -35,10 +35,10 @@ class Order {
       id: json['id'] as int?,
       petId: json['petId'] as int?,
       quantity: json['quantity'] as int?,
-      shipDate: json['shipDate'] as DateTime?,
-      status: json['status'] != null
-          ? String.fromJson(json['status'] as String)
-          : 'placed',
+      shipDate: json['shipDate'] != null
+          ? DateTime.parse(json['shipDate'] as String)
+          : null,
+      status: json['status'] != null ? json['status'] as String : 'placed',
       complete: json['complete'] as bool?,
     );
   }
@@ -56,10 +56,10 @@ class Order {
       json['quantity'] = quantity;
     }
     if (shipDate != null) {
-      json['shipDate'] = shipDate;
+      json['shipDate'] = shipDate?.toIso8601String();
     }
     if (status != null) {
-      json['status'] = status?.toJson();
+      json['status'] = status;
     }
     if (complete != null) {
       json['complete'] = complete;

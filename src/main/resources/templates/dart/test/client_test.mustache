@@ -38,7 +38,7 @@ void main() {
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-      expect(client.{{#lambda.camelcase}}{{classname}}{{/lambda.camelcase}}, isNotNull);
+      expect(client.{{clientPropertyName}}, isNotNull);
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}

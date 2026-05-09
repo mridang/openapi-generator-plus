@@ -1,6 +1,4 @@
 {{>api_info}}
-import 'dart:convert';
-
 import '../api_client.dart';
 import '../api_result.dart';
 import '../auth/authenticator.dart';
@@ -8,6 +6,12 @@ import 'base_api.dart';
 import '../configuration.dart';
 import '../object_serializer.dart';
 import '../value_serializer.dart';
+{{#imports}}
+import '../models/{{filename}}.dart';
+{{/imports}}
+{{#optionsImports}}
+import 'options/{{optionsFileName}}.dart';
+{{/optionsImports}}
 
 {{#operations}}
 {{#serverTypeDefs}}
@@ -76,22 +80,18 @@ class {{classname}} extends BaseApi {
 {{#isDeprecated}}
   @Deprecated('This operation is deprecated.')
 {{/isDeprecated}}
-  Future<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}> {{operationId}}({{#hasAuthMethods}}Authenticator auth, {{/hasAuthMethods}}{{#pathParams}}{{{dataType}}} {{paramName}}, {{/pathParams}}{{#bodyParam}}{{^required}}{{{dataType}}}? {{/required}}{{#required}}{{{dataType}}} {{/required}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}{{{operationId}}}Options? options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{{operationId}}}Options? options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{{operationId}}}Options? options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{{operationId}}}Options? options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server? server, {{/-first}}{{/servers}}) async {
-    final result = await {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth, {{/hasAuthMethods}}{{#pathParams}}{{paramName}}, {{/pathParams}}{{#bodyParam}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server, {{/-first}}{{/servers}});
+  Future<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}> {{operationId}}({{#hasAuthMethods}}Authenticator auth, {{/hasAuthMethods}}{{#pathParams}}{{{dataType}}} {{paramName}}, {{/pathParams}}{{#bodyParam}}{{^required}}{{{dataType}}}? {{/required}}{{#required}}{{{dataType}}} {{/required}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server? server, {{/-first}}{{/servers}}) async {
 {{#returnType}}
-    return result.data;
+    final result = await {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth, {{/hasAuthMethods}}{{#pathParams}}{{paramName}}, {{/pathParams}}{{#bodyParam}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server, {{/-first}}{{/servers}});
+    return result.data as {{{returnType}}};
+{{/returnType}}
+{{^returnType}}
+    await {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth, {{/hasAuthMethods}}{{#pathParams}}{{paramName}}, {{/pathParams}}{{#bodyParam}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server, {{/-first}}{{/servers}});
 {{/returnType}}
   }
 
   /// Performs the {{operationId}} operation and returns the full API result.
-  Future<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}>> {{operationId}}WithHTTPInfo({{#hasAuthMethods}}Authenticator auth, {{/hasAuthMethods}}{{#pathParams}}{{{dataType}}} {{paramName}}, {{/pathParams}}{{#bodyParam}}{{^required}}{{{dataType}}}? {{/required}}{{#required}}{{{dataType}}} {{/required}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}{{{operationId}}}Options? options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{{operationId}}}Options? options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{{operationId}}}Options? options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{{operationId}}}Options? options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server? server, {{/-first}}{{/servers}}) async {
-{{#pathParams}}
-{{#required}}
-    if ({{paramName}} == {{#isString}}''{{/isString}}{{^isString}}{{#isInteger}}0{{/isInteger}}{{^isInteger}}null{{/isInteger}}{{/isString}}) {
-      throw ArgumentError("Missing required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
-    }
-{{/required}}
-{{/pathParams}}
+  Future<ApiResult<{{#returnType}}{{{.}}}{{/returnType}}{{^returnType}}void{{/returnType}}>> {{operationId}}WithHTTPInfo({{#hasAuthMethods}}Authenticator auth, {{/hasAuthMethods}}{{#pathParams}}{{{dataType}}} {{paramName}}, {{/pathParams}}{{#bodyParam}}{{^required}}{{{dataType}}}? {{/required}}{{#required}}{{{dataType}}} {{/required}}{{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server? server, {{/-first}}{{/servers}}) async {
 
     var path = '{{{path}}}';
 {{#pathParams}}
@@ -128,7 +128,7 @@ class {{classname}} extends BaseApi {
 {{/isDeepObject}}
 {{^isDeepObject}}
 {{#content}}
-      queryParams['{{baseName}}'] = jsonEncode(options.{{paramName}});
+      queryParams['{{baseName}}'] = serialize(options.{{paramName}});
 {{/content}}
 {{^content}}
       queryParams['{{baseName}}'] = serializeStyled('{{baseName}}', options.{{paramName}}, 'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}});
@@ -192,7 +192,27 @@ class {{classname}} extends BaseApi {
       returnType: '{{#returnType}}{{{.}}}{{/returnType}}',
       auth: {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}null{{/hasAuthMethods}},
 {{#returnType}}
+{{#returnTypeIsPrimitive}}
+{{#isMap}}
+      deserialize: (body) => (deserializeRaw(body) as Map).cast<String, {{{returnBaseType}}}>(),
+{{/isMap}}
+{{^isMap}}
       deserialize: (body) => deserializeRaw(body) as {{{returnType}}},
+{{/isMap}}
+{{/returnTypeIsPrimitive}}
+{{^returnTypeIsPrimitive}}
+{{#isArray}}
+      deserialize: (body) => deserializeList(body, {{{returnBaseType}}}.fromJson) as {{{returnType}}},
+{{/isArray}}
+{{^isArray}}
+{{#isMap}}
+      deserialize: (body) => (deserializeRaw(body) as Map).cast<String, {{{returnBaseType}}}>(),
+{{/isMap}}
+{{^isMap}}
+      deserialize: (body) => deserialize(body, {{{returnBaseType}}}.fromJson) as {{{returnType}}},
+{{/isMap}}
+{{/isArray}}
+{{/returnTypeIsPrimitive}}
 {{/returnType}}
     );
   }

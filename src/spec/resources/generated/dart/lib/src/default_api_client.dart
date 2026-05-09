@@ -8,12 +8,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:http_parser/http_parser.dart';
-import 'dart:math';
 
 import 'api_client.dart';
 import 'api_response.dart';
@@ -91,7 +91,7 @@ class DefaultApiClient implements ApiClient {
   http.Client get httpClient => _httpClient;
 
   @override
-  Future<ApiResponse> sendRequest(
+  Future<HttpApiResponse> sendRequest(
     String method,
     String url,
     Map<String, String> headers,
@@ -99,25 +99,19 @@ class DefaultApiClient implements ApiClient {
   ) async {
     final merged = <String, String>{};
 
-    // 1. Transport-level default headers (lowest priority)
     merged.addAll(_transportOptions.defaultHeaders);
-
-    // 2. Caller-provided headers
     merged.addAll(headers);
 
-    // 3. User-Agent injection
     if (!merged.containsKey('User-Agent') &&
         _transportOptions.userAgent.isNotEmpty) {
       merged['User-Agent'] = _transportOptions.userAgent;
     }
 
-    // 4. X-Request-ID injection
     if (!merged.containsKey('X-Request-ID') &&
         _transportOptions.injectRequestId) {
       merged['X-Request-ID'] = _generateUuid();
     }
 
-    // 5. Accept-Encoding
     if (!merged.containsKey('Accept-Encoding')) {
       merged['Accept-Encoding'] = _supportedEncodings();
     }
@@ -133,7 +127,7 @@ class DefaultApiClient implements ApiClient {
         final value = entry.value;
         if (value is List) {
           for (final item in value) {
-            _addMultipartField(multipartRequest, name, item);
+            _addMultipartField(multipartRequest, name, item as Object);
           }
         } else {
           _addMultipartField(multipartRequest, name, value);
@@ -185,7 +179,7 @@ class DefaultApiClient implements ApiClient {
       responseHeaders[key] = value;
     });
 
-    return ApiResponse(
+    return HttpApiResponse(
       statusCode: streamedResponse.statusCode,
       body: responseBody,
       headers: responseHeaders,
