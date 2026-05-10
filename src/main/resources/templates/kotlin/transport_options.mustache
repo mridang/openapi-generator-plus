@@ -14,7 +14,7 @@ class TransportOptions private constructor(
     val maxRedirects: Int?,
     val userAgent: String?,
     val defaultHeaders: Map<String, String>,
-    val injectRequestId: Boolean
+    val injectRequestId: Boolean,
 ) {
     companion object {
         fun builder(): Builder = Builder()
@@ -32,35 +32,62 @@ class TransportOptions private constructor(
         private var injectRequestId: Boolean = false
 
         fun verifySsl(verifySsl: Boolean): Builder = apply { this.verifySsl = verifySsl }
-        fun caCertPath(caCertPath: String?): Builder = apply { this.caCertPath = caCertPath }
-        fun proxy(proxy: String?): Builder = apply {
-            if (proxy != null) {
-                val uri = try {
-                    java.net.URI.create(proxy)
-                } catch (e: IllegalArgumentException) {
-                    throw IllegalArgumentException("Invalid proxy URL: $proxy", e)
-                }
-                val scheme = uri.scheme
-                if (scheme == null || (scheme !in listOf("http", "https"))) {
-                    throw IllegalArgumentException("Invalid proxy URL (must use http or https scheme): $proxy")
-                }
-                if (uri.host.isNullOrEmpty()) {
-                    throw IllegalArgumentException("Invalid proxy URL (missing host): $proxy")
-                }
-            }
-            this.proxy = proxy
-        }
-        fun timeout(timeout: Int?): Builder = apply { this.timeout = timeout }
-        fun followRedirects(followRedirects: Boolean): Builder = apply { this.followRedirects = followRedirects }
-        fun maxRedirects(maxRedirects: Int?): Builder = apply { this.maxRedirects = maxRedirects }
-        fun userAgent(userAgent: String?): Builder = apply { this.userAgent = userAgent }
-        fun defaultHeader(name: String, value: String): Builder = apply { defaultHeaders[name] = value }
-        fun defaultHeaders(headers: Map<String, String>): Builder = apply { defaultHeaders.putAll(headers) }
-        fun injectRequestId(injectRequestId: Boolean): Builder = apply { this.injectRequestId = injectRequestId }
 
-        fun build(): TransportOptions = TransportOptions(
-            verifySsl, caCertPath, proxy, timeout, followRedirects,
-            maxRedirects, userAgent, defaultHeaders.toMap(), injectRequestId
-        )
+        fun caCertPath(caCertPath: String?): Builder = apply { this.caCertPath = caCertPath }
+
+        fun proxy(proxy: String?): Builder =
+            apply {
+                if (proxy != null) {
+                    val schemeEnd = proxy.indexOf("://")
+                    if (schemeEnd == -1) {
+                        throw IllegalArgumentException("Invalid proxy URL (missing scheme): $proxy")
+                    }
+                    val scheme = proxy.substring(0, schemeEnd)
+                    if (scheme !in listOf("http", "https")) {
+                        throw IllegalArgumentException(
+                            "Invalid proxy URL (must use http or https scheme): $proxy",
+                        )
+                    }
+                    val hostPart = proxy.substring(schemeEnd + 3)
+                    val host = hostPart.split("/").first().split(":").first()
+                    if (host.isEmpty()) {
+                        throw IllegalArgumentException("Invalid proxy URL (missing host): $proxy")
+                    }
+                }
+                this.proxy = proxy
+            }
+
+        fun timeout(timeout: Int?): Builder = apply { this.timeout = timeout }
+
+        fun followRedirects(followRedirects: Boolean): Builder =
+            apply { this.followRedirects = followRedirects }
+
+        fun maxRedirects(maxRedirects: Int?): Builder = apply { this.maxRedirects = maxRedirects }
+
+        fun userAgent(userAgent: String?): Builder = apply { this.userAgent = userAgent }
+
+        fun defaultHeader(
+            name: String,
+            value: String,
+        ): Builder = apply { defaultHeaders[name] = value }
+
+        fun defaultHeaders(headers: Map<String, String>): Builder =
+            apply { defaultHeaders.putAll(headers) }
+
+        fun injectRequestId(injectRequestId: Boolean): Builder =
+            apply { this.injectRequestId = injectRequestId }
+
+        fun build(): TransportOptions =
+            TransportOptions(
+                verifySsl,
+                caCertPath,
+                proxy,
+                timeout,
+                followRedirects,
+                maxRedirects,
+                userAgent,
+                defaultHeaders.toMap(),
+                injectRequestId,
+            )
     }
 }

@@ -9,11 +9,13 @@ package com.example.petstore.auth.oauth
 
 import com.example.petstore.ApiClient
 import com.example.petstore.ApiResponse
-import com.fasterxml.jackson.databind.ObjectMapper
+import io.ktor.http.encodeURLQueryComponent
 import kotlinx.coroutines.runBlocking
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
-import java.time.Instant
+import kotlinx.datetime.Clock
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 
 /**
  * Manages OAuth2 token lifecycle including fetching, caching, and refreshing tokens.
@@ -23,14 +25,14 @@ import java.time.Instant
  * API calls.
  */
 class OAuth2TokenManager {
-    private val objectMapper = ObjectMapper()
+    private val json = Json { ignoreUnknownKeys = true }
     var apiClient: ApiClient? = null
 
     @Volatile
     private var accessToken: String? = null
 
     @Volatile
-    private var tokenExpiry: Instant? = null
+    private var tokenExpiryMs: Long? = null
 
     @Volatile
     private var refreshToken: String? = null
@@ -38,21 +40,18 @@ class OAuth2TokenManager {
     /**
      * Get a valid access token, fetching or refreshing as necessary.
      *
-     * This method is synchronized to prevent concurrent token requests.
-     *
      * @param tokenUrl the OAuth2 token endpoint URL
      * @param params   the token request parameters (grant_type, client_id, etc.)
      * @return a valid access token
      * @throws IllegalStateException if no API client has been injected or token fetch fails
      */
-    @Synchronized
     fun getAccessToken(
         tokenUrl: String,
         params: Map<String, String>,
     ): String {
         val token = accessToken
-        val expiry = tokenExpiry
-        if (token != null && (expiry == null || Instant.now().isBefore(expiry))) {
+        val expiry = tokenExpiryMs
+        if (token != null && (expiry == null || Clock.System.now().toEpochMilliseconds() < expiry)) {
             return token
         }
         fetchToken(tokenUrl, params)
@@ -64,10 +63,9 @@ class OAuth2TokenManager {
      *
      * @param token the access token to use
      */
-    @Synchronized
     fun setAccessToken(token: String) {
         this.accessToken = token
-        this.tokenExpiry = null
+        this.tokenExpiryMs = null
     }
 
     /**
@@ -82,15 +80,16 @@ class OAuth2TokenManager {
         params: Map<String, String>,
     ) {
         val client =
-            apiClient ?: throw IllegalStateException(
-                "ApiClient has not been injected. " +
-                    "Ensure the client constructor calls setApiClient() " +
-                    "on HttpAwareAuthenticator before making API requests.",
-            )
+            apiClient
+                ?: throw IllegalStateException(
+                    "ApiClient has not been injected. " +
+                        "Ensure the client constructor calls setApiClient() " +
+                        "on HttpAwareAuthenticator before making API requests.",
+                )
 
         val body =
             params.entries.joinToString("&") { (k, v) ->
-                "${URLEncoder.encode(k, StandardCharsets.UTF_8)}=${URLEncoder.encode(v, StandardCharsets.UTF_8)}"
+                "${k.encodeURLQueryComponent(spaceToPlus = true)}=${v.encodeURLQueryComponent(spaceToPlus = true)}"
             }
 
         val headers = mapOf("Content-Type" to "application/x-www-form-urlencoded")
@@ -102,18 +101,18 @@ class OAuth2TokenManager {
             )
         }
 
-        val json = objectMapper.readTree(response.body)
-        this.accessToken = json.get("access_token").asText()
-        if (json.has("refresh_token")) {
-            this.refreshToken = json.get("refresh_token").asText()
+        val jsonObject = json.parseToJsonElement(response.body).jsonObject
+        this.accessToken =
+            jsonObject["access_token"]?.jsonPrimitive?.content
+                ?: throw RuntimeException("Token response missing access_token field")
+        if (jsonObject.containsKey("refresh_token")) {
+            this.refreshToken = jsonObject["refresh_token"]?.jsonPrimitive?.content
         }
-        if (json.has("expires_in")) {
-            val expiresIn = json.get("expires_in").asLong()
-            if (expiresIn > 30) {
-                this.tokenExpiry = Instant.now().plusSeconds(expiresIn - 30)
-            } else {
-                this.tokenExpiry = Instant.now()
-            }
+        val expiresIn = jsonObject["expires_in"]?.jsonPrimitive?.longOrNull
+        if (expiresIn != null) {
+            val bufferSecs = minOf(expiresIn, 30L)
+            this.tokenExpiryMs =
+                Clock.System.now().toEpochMilliseconds() + (expiresIn - bufferSecs) * 1000L
         }
     }
 }

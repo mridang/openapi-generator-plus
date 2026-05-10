@@ -2,11 +2,13 @@
 
 package {{invokerPackage}}
 
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.mock.toByteArray
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
 import kotlinx.coroutines.runBlocking
-import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
-import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -14,20 +16,22 @@ import org.junit.jupiter.api.Assertions.*
 
 class DefaultApiClientUnitTest {
 
-    private lateinit var server: MockWebServer
-
-    @BeforeEach
-    fun setUp() {
-        server = MockWebServer()
-        server.start()
+    private fun mockClient(
+        statusCode: HttpStatusCode = HttpStatusCode.OK,
+        body: String = "{}",
+        requestCapture: ((io.ktor.client.request.HttpRequestData) -> Unit)? = null,
+    ): HttpClient {
+        val engine =
+            MockEngine { request ->
+                requestCapture?.invoke(request)
+                respond(
+                    content = body,
+                    status = statusCode,
+                    headers = headersOf("Content-Type", "application/json"),
+                )
+            }
+        return HttpClient(engine)
     }
-
-    @AfterEach
-    fun tearDown() {
-        server.shutdown()
-    }
-
-    private fun baseUrl(): String = server.url("/").toString().trimEnd('/')
 
     @Nested
     @DisplayName("User-Agent injection")
@@ -36,30 +40,37 @@ class DefaultApiClientUnitTest {
         @Test
         @DisplayName("injects custom User-Agent header")
         fun injectsCustomUserAgent() {
-            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
-            val transport = TransportOptions.builder()
-                .userAgent("MyApp/1.0")
-                .build()
-            val client = DefaultApiClient(transport)
+            var capturedUserAgent: String? = null
+            val client =
+                mockClient(requestCapture = { req ->
+                    capturedUserAgent = req.headers["User-Agent"]
+                })
+            val transport =
+                TransportOptions
+                    .builder()
+                    .userAgent("MyApp/1.0")
+                    .build()
+            val apiClient = DefaultApiClient(client, transport)
             runBlocking {
-                client.sendRequest("GET", baseUrl() + "/test", emptyMap(), null)
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
             }
-            val request = server.takeRequest()
-            assertEquals("MyApp/1.0", request.getHeader("User-Agent"))
+            assertEquals("MyApp/1.0", capturedUserAgent)
         }
 
         @Test
         @DisplayName("injects default User-Agent when not explicitly set")
         fun injectsDefaultUserAgent() {
-            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
-            val client = DefaultApiClient()
+            var capturedUserAgent: String? = null
+            val client =
+                mockClient(requestCapture = { req ->
+                    capturedUserAgent = req.headers["User-Agent"]
+                })
+            val apiClient = DefaultApiClient(client)
             runBlocking {
-                client.sendRequest("GET", baseUrl() + "/test", emptyMap(), null)
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
             }
-            val request = server.takeRequest()
-            val ua = request.getHeader("User-Agent")
-            assertNotNull(ua)
-            assertTrue(ua!!.isNotEmpty())
+            assertNotNull(capturedUserAgent)
+            assertTrue(capturedUserAgent!!.isNotEmpty())
         }
     }
 
@@ -70,76 +81,89 @@ class DefaultApiClientUnitTest {
         @Test
         @DisplayName("injects X-Request-ID when enabled")
         fun injectsRequestId() {
-            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
-            val transport = TransportOptions.builder()
-                .injectRequestId(true)
-                .build()
-            val client = DefaultApiClient(transport)
+            var capturedRequestId: String? = null
+            val client =
+                mockClient(requestCapture = { req ->
+                    capturedRequestId = req.headers["X-Request-ID"]
+                })
+            val transport =
+                TransportOptions
+                    .builder()
+                    .injectRequestId(true)
+                    .build()
+            val apiClient = DefaultApiClient(client, transport)
             runBlocking {
-                client.sendRequest("GET", baseUrl() + "/test", emptyMap(), null)
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
             }
-            val request = server.takeRequest()
-            val requestId = request.getHeader("X-Request-ID")
-            assertNotNull(requestId)
+            assertNotNull(capturedRequestId)
             assertTrue(
-                requestId!!.matches(
-                    Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
-                )
+                capturedRequestId!!.matches(
+                    Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"),
+                ),
             )
         }
 
         @Test
         @DisplayName("does not inject X-Request-ID when disabled")
         fun doesNotInjectRequestIdWhenDisabled() {
-            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
-            val transport = TransportOptions.builder()
-                .injectRequestId(false)
-                .build()
-            val client = DefaultApiClient(transport)
+            var capturedRequestId: String? = null
+            val client =
+                mockClient(requestCapture = { req ->
+                    capturedRequestId = req.headers["X-Request-ID"]
+                })
+            val transport =
+                TransportOptions
+                    .builder()
+                    .injectRequestId(false)
+                    .build()
+            val apiClient = DefaultApiClient(client, transport)
             runBlocking {
-                client.sendRequest("GET", baseUrl() + "/test", emptyMap(), null)
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
             }
-            val request = server.takeRequest()
-            assertNull(request.getHeader("X-Request-ID"))
+            assertNull(capturedRequestId)
         }
 
         @Test
         @DisplayName("does not override caller-provided X-Request-ID")
         fun doesNotOverrideCallerRequestId() {
-            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
-            val transport = TransportOptions.builder()
-                .injectRequestId(true)
-                .build()
-            val client = DefaultApiClient(transport)
+            var capturedRequestId: String? = null
+            val client =
+                mockClient(requestCapture = { req ->
+                    capturedRequestId = req.headers["X-Request-ID"]
+                })
+            val transport =
+                TransportOptions
+                    .builder()
+                    .injectRequestId(true)
+                    .build()
+            val apiClient = DefaultApiClient(client, transport)
             val headers = mapOf("X-Request-ID" to "caller-provided-id")
             runBlocking {
-                client.sendRequest("GET", baseUrl() + "/test", headers, null)
+                apiClient.sendRequest("GET", "http://localhost/test", headers, null)
             }
-            val request = server.takeRequest()
-            assertEquals("caller-provided-id", request.getHeader("X-Request-ID"))
+            assertEquals("caller-provided-id", capturedRequestId)
         }
 
         @Test
         @DisplayName("generates unique X-Request-ID per request")
         fun generatesUniqueRequestIds() {
-            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
-            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
-            val transport = TransportOptions.builder()
-                .injectRequestId(true)
-                .build()
-            val client = DefaultApiClient(transport)
-
+            val ids = mutableListOf<String?>()
+            val client =
+                mockClient(requestCapture = { req ->
+                    ids.add(req.headers["X-Request-ID"])
+                })
+            val transport =
+                TransportOptions
+                    .builder()
+                    .injectRequestId(true)
+                    .build()
+            val apiClient = DefaultApiClient(client, transport)
             runBlocking {
-                client.sendRequest("GET", baseUrl() + "/test", emptyMap(), null)
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
             }
-            val id1 = server.takeRequest().getHeader("X-Request-ID")
-
-            runBlocking {
-                client.sendRequest("GET", baseUrl() + "/test", emptyMap(), null)
-            }
-            val id2 = server.takeRequest().getHeader("X-Request-ID")
-
-            assertNotEquals(id1, id2)
+            assertEquals(2, ids.size)
+            assertNotEquals(ids[0], ids[1])
         }
     }
 
@@ -150,32 +174,42 @@ class DefaultApiClientUnitTest {
         @Test
         @DisplayName("includes transport-level default headers")
         fun includesTransportDefaultHeaders() {
-            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
-            val transport = TransportOptions.builder()
-                .defaultHeader("X-Custom", "custom-value")
-                .build()
-            val client = DefaultApiClient(transport)
+            var capturedCustomHeader: String? = null
+            val client =
+                mockClient(requestCapture = { req ->
+                    capturedCustomHeader = req.headers["X-Custom"]
+                })
+            val transport =
+                TransportOptions
+                    .builder()
+                    .defaultHeader("X-Custom", "custom-value")
+                    .build()
+            val apiClient = DefaultApiClient(client, transport)
             runBlocking {
-                client.sendRequest("GET", baseUrl() + "/test", emptyMap(), null)
+                apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
             }
-            val request = server.takeRequest()
-            assertEquals("custom-value", request.getHeader("X-Custom"))
+            assertEquals("custom-value", capturedCustomHeader)
         }
 
         @Test
         @DisplayName("caller headers override transport default headers")
         fun callerHeadersOverrideDefaults() {
-            server.enqueue(MockResponse().setResponseCode(200).setBody("{}"))
-            val transport = TransportOptions.builder()
-                .defaultHeader("Accept", "text/plain")
-                .build()
-            val client = DefaultApiClient(transport)
+            var capturedAccept: String? = null
+            val client =
+                mockClient(requestCapture = { req ->
+                    capturedAccept = req.headers["Accept"]
+                })
+            val transport =
+                TransportOptions
+                    .builder()
+                    .defaultHeader("Accept", "text/plain")
+                    .build()
+            val apiClient = DefaultApiClient(client, transport)
             val callerHeaders = mapOf("Accept" to "application/json")
             runBlocking {
-                client.sendRequest("GET", baseUrl() + "/test", callerHeaders, null)
+                apiClient.sendRequest("GET", "http://localhost/test", callerHeaders, null)
             }
-            val request = server.takeRequest()
-            assertEquals("application/json", request.getHeader("Accept"))
+            assertEquals("application/json", capturedAccept)
         }
     }
 }

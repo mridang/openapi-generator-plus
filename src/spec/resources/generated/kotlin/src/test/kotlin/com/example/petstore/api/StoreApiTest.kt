@@ -9,10 +9,12 @@ package com.example.petstore.api
 
 import com.example.petstore.*
 import com.example.petstore.models.*
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
 import kotlinx.coroutines.runBlocking
-import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -128,35 +130,23 @@ class StoreApiTest {
     @Nested
     @DisplayName("Mock tests")
     inner class MockTests {
-        private lateinit var mockServer: MockWebServer
-        private lateinit var api: StoreApi
-
-        @BeforeEach
-        fun setUp() {
-            mockServer = MockWebServer()
-            mockServer.start()
-            val config =
-                Configuration
-                    .builder()
-                    .baseUrl(mockServer.url("/").toString().trimEnd('/'))
-                    .build()
-            api = StoreApi(DefaultApiClient(), config)
-        }
-
-        @AfterEach
-        fun tearDown() {
-            mockServer.shutdown()
-        }
-
         @Test
         @DisplayName("getOrderById 404 throws ApiException")
         fun testGetOrderNotFound() {
-            mockServer.enqueue(
-                MockResponse()
-                    .setResponseCode(404)
-                    .setHeader("Content-Type", "application/json")
-                    .setBody("""{"code":404,"message":"Order not found"}"""),
-            )
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = """{"code":404,"message":"Order not found"}""",
+                        status = HttpStatusCode.NotFound,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = StoreApi(DefaultApiClient(HttpClient(engine)), config)
 
             val exception =
                 assertThrows(ApiException::class.java) {
@@ -168,12 +158,20 @@ class StoreApiTest {
         @Test
         @DisplayName("placeOrder 500 throws ApiException")
         fun testPlaceOrderServerError() {
-            mockServer.enqueue(
-                MockResponse()
-                    .setResponseCode(500)
-                    .setHeader("Content-Type", "application/json")
-                    .setBody("""{"code":500,"message":"Internal Server Error"}"""),
-            )
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = """{"code":500,"message":"Internal Server Error"}""",
+                        status = HttpStatusCode.InternalServerError,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = StoreApi(DefaultApiClient(HttpClient(engine)), config)
 
             val order =
                 Order(
@@ -194,12 +192,20 @@ class StoreApiTest {
         @Test
         @DisplayName("deleteOrder 404 throws ApiException")
         fun testDeleteOrderNotFound() {
-            mockServer.enqueue(
-                MockResponse()
-                    .setResponseCode(404)
-                    .setHeader("Content-Type", "application/json")
-                    .setBody("""{"code":404,"message":"Order not found"}"""),
-            )
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = """{"code":404,"message":"Order not found"}""",
+                        status = HttpStatusCode.NotFound,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = StoreApi(DefaultApiClient(HttpClient(engine)), config)
 
             val exception =
                 assertThrows(ApiException::class.java) {

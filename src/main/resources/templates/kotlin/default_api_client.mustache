@@ -2,33 +2,14 @@
 
 package {{invokerPackage}}
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import okhttp3.Headers.Companion.toHeaders
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.MultipartBody
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody
-import okhttp3.RequestBody.Companion.asRequestBody
-import okhttp3.RequestBody.Companion.toRequestBody
-import java.io.File
-import java.io.InputStream
-import java.net.InetSocketAddress
-import java.net.Proxy
-import java.security.KeyStore
-import java.security.cert.CertificateFactory
-import java.security.cert.X509Certificate
-import java.util.UUID
-import java.util.concurrent.TimeUnit
-import okhttp3.Interceptor
-import okhttp3.Response
-import javax.net.ssl.SSLContext
-import javax.net.ssl.TrustManagerFactory
-import javax.net.ssl.X509TrustManager
+import io.ktor.client.HttpClient
+import io.ktor.client.request.*
+import io.ktor.client.request.forms.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
 
 /**
- * Default implementation of [ApiClient] using OkHttp.
+ * Default implementation of [ApiClient] using Ktor.
  *
  * Applies transport-level settings from [TransportOptions]: TLS
  * verification, custom CA certificates, proxy routing, timeouts, redirect
@@ -41,18 +22,32 @@ import javax.net.ssl.X509TrustManager
  * 3. [TransportOptions.userAgent] -- injected if not already set
  * 4. [TransportOptions.injectRequestId] -- injected if not already set
  */
-class DefaultApiClient : ApiClient {
+class DefaultApiClient internal constructor(
+    private val httpClient: HttpClient,
+    private val transportOptions: TransportOptions,
+) : ApiClient {
 
-    private val httpClient: OkHttpClient
-    private val transportOptions: TransportOptions
+    /**
+     * Create a client with a pre-configured Ktor [HttpClient].
+     *
+     * Uses default [TransportOptions] for header injection settings.
+     *
+     * @param httpClient the Ktor client to use
+     */
+    constructor(httpClient: HttpClient) : this(httpClient, TransportOptions.builder().build())
 
-    companion object {
-        private val TRUST_ALL_MANAGER = object : X509TrustManager {
-            override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
-            override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
-            override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
-        }
-    }
+    /**
+     * Create a client configured from the given [TransportOptions].
+     *
+     * Applies proxy, custom CA certificate, TLS verification, timeout,
+     * and redirect settings to the underlying Ktor client.
+     *
+     * @param transportOptions transport configuration to apply
+     */
+    constructor(transportOptions: TransportOptions) : this(
+        buildPlatformHttpClient(transportOptions),
+        transportOptions,
+    )
 
     /**
      * Create a client with default transport settings.
@@ -61,89 +56,13 @@ class DefaultApiClient : ApiClient {
      */
     constructor() : this(TransportOptions.builder().build())
 
-    /**
-     * Create a client configured from the given [TransportOptions].
-     *
-     * Applies proxy, custom CA certificate, TLS verification, timeout,
-     * and redirect settings to the underlying OkHttp client.
-     *
-     * @param transportOptions transport configuration to apply
-     */
-    constructor(transportOptions: TransportOptions) {
-        this.transportOptions = transportOptions
-        val builder = OkHttpClient.Builder()
-
-        if (transportOptions.proxy != null) {
-            val proxyUri = java.net.URI.create(transportOptions.proxy)
-            val port = if (proxyUri.port == -1) {
-                if ("https" == proxyUri.scheme) 443 else 80
-            } else {
-                proxyUri.port
-            }
-            builder.proxy(Proxy(Proxy.Type.HTTP, InetSocketAddress(proxyUri.host, port)))
-        }
-
-        if (!transportOptions.verifySsl) {
-            val sslContext = SSLContext.getInstance("TLS")
-            sslContext.init(null, arrayOf(TRUST_ALL_MANAGER), null)
-            builder.sslSocketFactory(sslContext.socketFactory, TRUST_ALL_MANAGER)
-            builder.hostnameVerifier { _, _ -> true }
-        } else if (transportOptions.caCertPath != null) {
-            val cf = CertificateFactory.getInstance("X.509")
-            val caCert = java.io.FileInputStream(transportOptions.caCertPath).use { fis ->
-                cf.generateCertificate(fis) as X509Certificate
-            }
-            val trustStore = KeyStore.getInstance(KeyStore.getDefaultType())
-            trustStore.load(null, null)
-            trustStore.setCertificateEntry("ca", caCert)
-            val tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm())
-            tmf.init(trustStore)
-            val sslContext = SSLContext.getInstance("TLS")
-            sslContext.init(null, tmf.trustManagers, null)
-            val trustManager = tmf.trustManagers[0] as X509TrustManager
-            builder.sslSocketFactory(sslContext.socketFactory, trustManager)
-        }
-
-        if (!transportOptions.followRedirects) {
-            builder.followRedirects(false)
-        } else if (transportOptions.maxRedirects != null) {
-            /* OkHttp's followRedirects is boolean-only, so we disable automatic
-             * redirects and use a network interceptor to manually follow
-             * Location headers up to the configured limit. */
-            builder.followRedirects(false)
-            builder.addNetworkInterceptor(MaxRedirectsInterceptor(transportOptions.maxRedirects!!))
-        } else {
-            builder.followRedirects(true)
-        }
-
-        if (transportOptions.timeout != null) {
-            builder.connectTimeout(transportOptions.timeout.toLong(), TimeUnit.MILLISECONDS)
-            builder.readTimeout(transportOptions.timeout.toLong(), TimeUnit.MILLISECONDS)
-            builder.writeTimeout(transportOptions.timeout.toLong(), TimeUnit.MILLISECONDS)
-        }
-
-        this.httpClient = builder.build()
-    }
-
-    /**
-     * Create a client with a pre-configured OkHttp client.
-     *
-     * Uses default [TransportOptions] for header injection settings.
-     *
-     * @param httpClient the OkHttp client to use
-     */
-    constructor(httpClient: OkHttpClient) {
-        this.httpClient = httpClient
-        this.transportOptions = TransportOptions.builder().build()
-    }
-
     @Suppress("UNCHECKED_CAST")
     override suspend fun sendRequest(
         method: String,
         url: String,
         headers: Map<String, String>,
-        body: Any?
-    ): ApiResponse = withContext(Dispatchers.IO) {
+        body: Any?,
+    ): ApiResponse {
         val mergedHeaders = mutableMapOf<String, String>()
         mergedHeaders.putAll(transportOptions.defaultHeaders)
         mergedHeaders.putAll(headers)
@@ -152,196 +71,108 @@ class DefaultApiClient : ApiClient {
             mergedHeaders["User-Agent"] = transportOptions.userAgent!!
         }
         if (transportOptions.injectRequestId && "X-Request-ID" !in mergedHeaders) {
-            mergedHeaders["X-Request-ID"] = UUID.randomUUID().toString()
+            mergedHeaders["X-Request-ID"] = generateRequestId()
         }
 
-        val requestBody: RequestBody? = when {
-            body == null && method in listOf("POST", "PUT", "PATCH") ->
-                "".toRequestBody(null)
-            body == null ->
-                null
-            body is Map<*, *> -> {
-                val multipartBuilder = MultipartBody.Builder()
-                    .setType(MultipartBody.FORM)
-                val formFields = body as Map<String, Any?>
-                for ((fieldName, value) in formFields) {
-                    when (value) {
-                        is List<*> -> value.forEach { item ->
-                            addMultipartField(multipartBuilder, fieldName, item)
-                        }
-                        else -> addMultipartField(multipartBuilder, fieldName, value)
+        val response =
+            try {
+                httpClient.request(url) {
+                    this.method = HttpMethod(method)
+                    for ((key, value) in mergedHeaders) {
+                        header(key, value)
                     }
+                    buildRequestBody(this, method, body, mergedHeaders)
                 }
-                multipartBuilder.build()
+            } catch (e: Exception) {
+                throw ApiException(e.toString())
             }
-            body is ByteArray ->
-                body.toRequestBody("application/octet-stream".toMediaType())
-            body is InputStream ->
-                body.use { it.readBytes() }.toRequestBody("application/octet-stream".toMediaType())
-            else -> {
-                val contentType = mergedHeaders["Content-Type"] ?: "application/json"
-                body.toString().toRequestBody(contentType.toMediaType())
-            }
-        }
-
-        if (!mergedHeaders.containsKey("Accept-Encoding")) {
-            mergedHeaders["Accept-Encoding"] = getSupportedEncodings()
-        }
-
-        val requestBuilder = Request.Builder()
-            .url(url)
-            .method(method, requestBody)
-            .headers(mergedHeaders.toHeaders())
-
-        val response = try {
-            httpClient.newCall(requestBuilder.build()).execute()
-        } catch (e: java.io.IOException) {
-            throw ApiException(e.toString())
-        }
 
         val responseHeaders = mutableMapOf<String, String>()
-        for (name in response.headers.names()) {
-            responseHeaders[name] = response.headers.values(name).joinToString(", ")
+        response.headers.forEach { name, values ->
+            responseHeaders[name] = values.joinToString(", ")
         }
 
-        val contentEncoding = response.header("content-encoding") ?: "identity"
-        val bodyBytes = response.body?.bytes() ?: ByteArray(0)
-        val responseBody = decompressBody(bodyBytes, contentEncoding)
-
-        ApiResponse(
-            statusCode = response.code,
-            body = responseBody,
-            headers = responseHeaders
+        return ApiResponse(
+            statusCode = response.status.value,
+            body = response.bodyAsText(),
+            headers = responseHeaders,
         )
     }
 
-    private fun decompressBody(data: ByteArray, encoding: String): String {
-        if (data.isEmpty()) return ""
-        /* We explicitly set Accept-Encoding, so OkHttp disables its transparent
-         * decompression. All encodings must be handled manually here. */
-        val decompressed = when (encoding.lowercase()) {
-            "gzip" -> java.util.zip.GZIPInputStream(data.inputStream()).use { it.readBytes() }
-            "deflate" -> java.util.zip.InflaterInputStream(data.inputStream()).use { it.readBytes() }
-            "br" -> decompressBrotli(data)
-            "zstd" -> decompressZstd(data)
-            else -> data
-        }
-        return String(decompressed, Charsets.UTF_8)
-    }
-
-    private fun decompressBrotli(data: ByteArray): ByteArray {
-        return try {
-            val brotliClass = Class.forName("org.brotli.dec.BrotliInputStream")
-            val bis = brotliClass
-                .getConstructor(InputStream::class.java)
-                .newInstance(data.inputStream()) as InputStream
-            bis.use { it.readBytes() }
-        } catch (_: ClassNotFoundException) {
-            data
-        } catch (e: ReflectiveOperationException) {
-            throw java.io.IOException("Failed to decompress brotli response", e)
-        }
-    }
-
-    private fun decompressZstd(data: ByteArray): ByteArray {
-        return try {
-            val zstdClass = Class.forName("com.github.luben.zstd.Zstd")
-            val originalSize = zstdClass
-                .getMethod("decompressedSize", ByteArray::class.java)
-                .invoke(null, data) as Long
-            val size = if (originalSize > 0) originalSize.toInt() else data.size * 4
-            zstdClass
-                .getMethod("decompress", ByteArray::class.java, Int::class.java)
-                .invoke(null, data, size) as ByteArray
-        } catch (_: ClassNotFoundException) {
-            data
-        } catch (e: ReflectiveOperationException) {
-            throw java.io.IOException("Failed to decompress zstd response", e)
-        }
-    }
-
-    @Suppress("SwallowedException")
-    private fun getSupportedEncodings(): String {
-        /* OkHttp transparently handles gzip and deflate, so we only
-         * advertise those plus any optional encodings that are available. */
-        val sb = StringBuilder("gzip, deflate")
-        try {
-            Class.forName("org.brotli.dec.BrotliInputStream")
-            sb.append(", br")
-        } catch (_: ClassNotFoundException) {}
-        try {
-            Class.forName("com.github.luben.zstd.Zstd")
-            sb.append(", zstd")
-        } catch (_: ClassNotFoundException) {}
-        return sb.toString()
-    }
-
-    private fun addMultipartField(
-        builder: MultipartBody.Builder,
-        fieldName: String,
-        value: Any?
+    private fun buildRequestBody(
+        builder: HttpRequestBuilder,
+        method: String,
+        body: Any?,
+        mergedHeaders: Map<String, String>,
     ) {
-        when (value) {
-            is File -> {
-                val mediaType = java.nio.file.Files.probeContentType(value.toPath())
-                    ?: "application/octet-stream"
-                builder.addFormDataPart(
-                    fieldName, value.name,
-                    value.asRequestBody(mediaType.toMediaType())
+        when {
+            body == null && method in listOf("POST", "PUT", "PATCH") ->
+                builder.setBody(ByteArray(0))
+            body == null -> {}
+            body is Map<*, *> -> {
+                @Suppress("UNCHECKED_CAST")
+                val formFields = body as Map<String, Any?>
+                builder.setBody(
+                    MultiPartFormDataContent(
+                        formData {
+                            for ((fieldName, value) in formFields) {
+                                when (value) {
+                                    is List<*> ->
+                                        value.forEach { item ->
+                                            appendFormField(fieldName, item)
+                                        }
+                                    else -> appendFormField(fieldName, value)
+                                }
+                            }
+                        },
+                    ),
                 )
             }
-            is ByteArray -> {
-                builder.addFormDataPart(
-                    fieldName, fieldName,
-                    value.toRequestBody("application/octet-stream".toMediaType())
-                )
-            }
-            is InputStream -> {
-                val bytes = value.use { it.readBytes() }
-                builder.addFormDataPart(
-                    fieldName, fieldName,
-                    bytes.toRequestBody("application/octet-stream".toMediaType())
-                )
-            }
-            is String, is Number, is Boolean -> {
-                builder.addFormDataPart(fieldName, value.toString())
+            body is ByteArray -> {
+                builder.header(HttpHeaders.ContentType, ContentType.Application.OctetStream)
+                builder.setBody(body)
             }
             else -> {
-                val json = kotlinx.serialization.json.Json.encodeToString(
-                    kotlinx.serialization.serializer<Any>(), value as Any
-                )
-                builder.addFormDataPart(
-                    fieldName, null,
-                    json.toRequestBody("application/json".toMediaType())
-                )
+                val contentType = mergedHeaders["Content-Type"] ?: "application/json"
+                builder.contentType(ContentType.parse(contentType))
+                builder.setBody(body.toString())
             }
         }
     }
-}
 
-/**
- * OkHttp interceptor that manually follows HTTP redirects up to a maximum
- * number of hops. When the limit is exceeded, the last redirect response is
- * returned as-is.
- */
-private class MaxRedirectsInterceptor(private val maxRedirects: Int) : Interceptor {
-    override fun intercept(chain: Interceptor.Chain): Response {
-        var request = chain.request()
-        var response = chain.proceed(request)
-        var redirectCount = 0
-
-        while (isRedirect(response.code) && redirectCount < maxRedirects) {
-            val location = response.header("Location") ?: break
-            response.close()
-            request = request.newBuilder()
-                .url(request.url.resolve(location) ?: break)
-                .build()
-            response = chain.proceed(request)
-            redirectCount++
+    private fun FormBuilder.appendFormField(
+        fieldName: String,
+        value: Any?,
+    ) {
+        when (value) {
+            is ByteArray ->
+                append(
+                    fieldName,
+                    value,
+                    Headers.build {
+                        append(HttpHeaders.ContentType, ContentType.Application.OctetStream.toString())
+                        append(HttpHeaders.ContentDisposition, "filename=$fieldName")
+                    },
+                )
+            null -> {}
+            else -> append(fieldName, value.toString())
         }
-        return response
     }
-
-    private fun isRedirect(code: Int): Boolean =
-        code in listOf(301, 302, 303, 307, 308)
 }
+
+/** Generates a UUID v4 string without JVM-specific APIs. */
+internal fun generateRequestId(): String {
+    val rand = kotlin.random.Random.Default
+    fun hex(n: Int) = n.toString(16).padStart(2, '0')
+    val b = Array(16) { rand.nextInt(256) }
+    b[6] = (b[6] and 0x0f) or 0x40
+    b[8] = (b[8] and 0x3f) or 0x80
+    return "${hex(b[0])}${hex(b[1])}${hex(b[2])}${hex(b[3])}-" +
+        "${hex(b[4])}${hex(b[5])}-" +
+        "${hex(b[6])}${hex(b[7])}-" +
+        "${hex(b[8])}${hex(b[9])}-" +
+        "${hex(b[10])}${hex(b[11])}${hex(b[12])}${hex(b[13])}${hex(b[14])}${hex(b[15])}"
+}
+
+/** Platform-specific [HttpClient] factory; configured with engine, TLS, proxy, and common plugins. */
+internal expect fun buildPlatformHttpClient(options: TransportOptions): HttpClient

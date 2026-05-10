@@ -9,8 +9,10 @@ package com.example.petstore.auth.oauth
 
 import com.example.petstore.ApiClient
 import com.example.petstore.auth.HttpAwareAuthenticator
-import com.fasterxml.jackson.databind.ObjectMapper
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * Authenticator for OpenID Connect.
@@ -31,7 +33,7 @@ open class OpenIdConnectAuthenticator(
     private val redirectUri: String,
     private val scopes: List<String>,
 ) : HttpAwareAuthenticator {
-    private val objectMapper = ObjectMapper()
+    private val json = Json { ignoreUnknownKeys = true }
 
     @Volatile
     private var apiClient: ApiClient? = null
@@ -48,7 +50,6 @@ open class OpenIdConnectAuthenticator(
      *
      * @return the resolved authorization code authenticator
      */
-    @Synchronized
     private fun resolveDelegate(): OAuth2AuthorizationCodeAuthenticator {
         delegate?.let { return it }
 
@@ -68,9 +69,13 @@ open class OpenIdConnectAuthenticator(
             )
         }
 
-        val discovery = objectMapper.readTree(response.body)
-        val authorizationEndpoint = discovery.get("authorization_endpoint").asText()
-        val tokenEndpoint = discovery.get("token_endpoint").asText()
+        val discovery = json.parseToJsonElement(response.body).jsonObject
+        val authorizationEndpoint =
+            discovery["authorization_endpoint"]?.jsonPrimitive?.content
+                ?: throw RuntimeException("OIDC discovery document missing authorization_endpoint")
+        val tokenEndpoint =
+            discovery["token_endpoint"]?.jsonPrimitive?.content
+                ?: throw RuntimeException("OIDC discovery document missing token_endpoint")
 
         val resolved =
             OAuth2AuthorizationCodeAuthenticator(

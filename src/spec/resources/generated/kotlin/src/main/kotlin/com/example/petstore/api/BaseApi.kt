@@ -26,8 +26,7 @@ import com.example.petstore.exceptions.NotFoundException
 import com.example.petstore.exceptions.ServerException
 import com.example.petstore.exceptions.UnauthorizedException
 import com.example.petstore.exceptions.UnprocessableEntityException
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
+import io.ktor.http.encodeURLQueryComponent
 
 /**
  * Base class for all API classes. Provides the [invokeApi] method that
@@ -144,7 +143,7 @@ abstract class BaseApi {
             if (cookies.isNotEmpty()) {
                 val cookieStr =
                     cookies.entries.joinToString("; ") {
-                        URLEncoder.encode(it.key, "UTF-8") + "=" + URLEncoder.encode(it.value, "UTF-8")
+                        "${encode(it.key)}=${encode(it.value)}"
                     }
                 val existing = headers["Cookie"]
                 if (!existing.isNullOrEmpty()) {
@@ -168,9 +167,7 @@ abstract class BaseApi {
                         @Suppress("UNCHECKED_CAST")
                         val formParams = body as Map<String, Any?>
                         formParams.entries.joinToString("&") { (key, value) ->
-                            URLEncoder.encode(key, StandardCharsets.UTF_8) +
-                                "=" +
-                                URLEncoder.encode(value.toString(), StandardCharsets.UTF_8)
+                            "${encode(key)}=${encode(value.toString())}"
                         }
                     }
                     else -> objectSerializer.serialize(body)
@@ -270,19 +267,21 @@ abstract class BaseApi {
             }
 
         when {
-            code in 400..499 -> throw when (code) {
-                400 -> BadRequestException(message, headers, body, errorBody)
-                401 -> UnauthorizedException(message, headers, body, errorBody)
-                403 -> ForbiddenException(message, headers, body, errorBody)
-                404 -> NotFoundException(message, headers, body, errorBody)
-                409 -> ConflictException(message, headers, body, errorBody)
-                422 -> UnprocessableEntityException(message, headers, body, errorBody)
-                else -> ClientException(code, message, headers, body, errorBody)
-            }
-            code >= 500 -> throw when (code) {
-                500 -> InternalServerErrorException(message, headers, body, errorBody)
-                else -> ServerException(code, message, headers, body, errorBody)
-            }
+            code in 400..499 ->
+                throw when (code) {
+                    400 -> BadRequestException(message, headers, body, errorBody)
+                    401 -> UnauthorizedException(message, headers, body, errorBody)
+                    403 -> ForbiddenException(message, headers, body, errorBody)
+                    404 -> NotFoundException(message, headers, body, errorBody)
+                    409 -> ConflictException(message, headers, body, errorBody)
+                    422 -> UnprocessableEntityException(message, headers, body, errorBody)
+                    else -> ClientException(code, message, headers, body, errorBody)
+                }
+            code >= 500 ->
+                throw when (code) {
+                    500 -> InternalServerErrorException(message, headers, body, errorBody)
+                    else -> ServerException(code, message, headers, body, errorBody)
+                }
             else -> throw ApiException(code, message, headers, body, errorBody)
         }
     }
@@ -311,10 +310,10 @@ abstract class BaseApi {
     }
 
     /**
-     * URL-encode a string.
+     * URL-encode a string using application/x-www-form-urlencoded encoding.
      *
      * @param value the string to encode
      * @return URL-encoded string
      */
-    internal fun encode(value: String): String = URLEncoder.encode(value, StandardCharsets.UTF_8)
+    internal fun encode(value: String): String = value.encodeURLQueryComponent(spaceToPlus = true)
 }

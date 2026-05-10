@@ -15,10 +15,13 @@ import com.example.petstore.api.options.UploadPetCertificateOptions
 import com.example.petstore.auth.AdminBasicAuthenticator
 import com.example.petstore.auth.PetStoreBearerAuthenticator
 import com.example.petstore.models.*
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.mock.toByteArray
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
 import kotlinx.coroutines.runBlocking
-import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -160,70 +163,80 @@ class PetApiTest {
     @Nested
     @DisplayName("Mock tests")
     inner class MockTests {
-        private lateinit var mockServer: MockWebServer
-        private lateinit var api: PetApi
-
-        @BeforeEach
-        fun setUp() {
-            mockServer = MockWebServer()
-            mockServer.start()
-            val config =
-                Configuration
-                    .builder()
-                    .baseUrl(mockServer.url("/").toString().trimEnd('/'))
-                    .build()
-            api = PetApi(DefaultApiClient(), config)
-        }
-
-        @AfterEach
-        fun tearDown() {
-            mockServer.shutdown()
-        }
-
         @Test
         @DisplayName("setPetAvatar sends binary body")
         fun testSetPetAvatar() {
-            mockServer.enqueue(
-                MockResponse()
-                    .setResponseCode(204),
-            )
+            var capturedMethod: String? = null
+            var capturedPath: String? = null
+            var capturedBodyBytes: ByteArray? = null
+            val engine =
+                MockEngine { request ->
+                    capturedMethod = request.method.value
+                    capturedPath = request.url.encodedPath
+                    capturedBodyBytes = request.body.toByteArray()
+                    respond(content = "", status = HttpStatusCode.NoContent, headers = headersOf())
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
 
             val imageData = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())
             runBlocking { api.setPetAvatar(1L, imageData) }
 
-            val request = mockServer.takeRequest()
-            assertEquals("PUT", request.method)
-            assertTrue(request.path!!.contains("/pet/1/avatar"))
-            assertEquals(4, request.bodySize)
+            assertEquals("PUT", capturedMethod)
+            assertTrue(capturedPath!!.contains("/pet/1/avatar"))
+            assertEquals(4, capturedBodyBytes!!.size)
         }
 
         @Test
         @DisplayName("upload multipart sends correct request")
         fun testUploadMultipart() {
-            mockServer.enqueue(
-                MockResponse()
-                    .setResponseCode(200)
-                    .setHeader("Content-Type", "application/json")
-                    .setBody("""{"code":200,"type":"ok","message":"uploaded"}"""),
-            )
+            var capturedMethod: String? = null
+            var capturedPath: String? = null
+            val engine =
+                MockEngine { request ->
+                    capturedMethod = request.method.value
+                    capturedPath = request.url.encodedPath
+                    respond(
+                        content = """{"code":200,"type":"ok","message":"uploaded"}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
 
             val fileBytes = byteArrayOf(0x25, 0x50, 0x44, 0x46)
             runBlocking { api.uploadPetCertificate(1L, UploadPetCertificateOptions(fileBytes)) }
 
-            val request = mockServer.takeRequest()
-            assertEquals("POST", request.method)
-            assertTrue(request.path!!.contains("/pet/1/certificate"))
+            assertEquals("POST", capturedMethod)
+            assertTrue(capturedPath!!.contains("/pet/1/certificate"))
         }
 
         @Test
         @DisplayName("404 response throws ApiException")
         fun testErrorHandlingNotFound() {
-            mockServer.enqueue(
-                MockResponse()
-                    .setResponseCode(404)
-                    .setHeader("Content-Type", "application/json")
-                    .setBody("""{"code":404,"message":"Pet not found"}"""),
-            )
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = """{"code":404,"message":"Pet not found"}""",
+                        status = HttpStatusCode.NotFound,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
 
             val exception =
                 assertThrows(ApiException::class.java) {
@@ -235,12 +248,20 @@ class PetApiTest {
         @Test
         @DisplayName("500 response throws ApiException")
         fun testErrorHandlingServerError() {
-            mockServer.enqueue(
-                MockResponse()
-                    .setResponseCode(500)
-                    .setHeader("Content-Type", "application/json")
-                    .setBody("""{"code":500,"message":"Internal Server Error"}"""),
-            )
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = """{"code":500,"message":"Internal Server Error"}""",
+                        status = HttpStatusCode.InternalServerError,
+                        headers = headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
 
             val exception =
                 assertThrows(ApiException::class.java) {
@@ -252,12 +273,20 @@ class PetApiTest {
         @Test
         @DisplayName("binary download returns data from mock")
         fun testDownloadBinaryMock() {
-            mockServer.enqueue(
-                MockResponse()
-                    .setResponseCode(200)
-                    .setHeader("Content-Type", "application/octet-stream")
-                    .setBody("FAKE_BINARY_DATA"),
-            )
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "FAKE_BINARY_DATA",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/octet-stream"),
+                    )
+                }
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .build()
+            val api = PetApi(DefaultApiClient(HttpClient(engine)), config)
 
             val result = runBlocking { api.getPetAvatar(1L) }
             assertNotNull(result)

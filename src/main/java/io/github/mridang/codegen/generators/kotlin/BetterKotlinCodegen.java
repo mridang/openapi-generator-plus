@@ -325,6 +325,21 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         supportingFiles.add(
                 new SupportingFile(
                         "trace_context_util.mustache", invokerFolder, "TraceContextUtil.kt"));
+
+        /* JVM-specific actual implementations in jvmMain source set */
+        final String jvmInvokerFolder =
+                Path.of("src", "jvmMain", "kotlin", invokerPackage.replace(".", "/")).toString();
+        supportingFiles.add(
+                new SupportingFile(
+                        "http_client_factory_jvm.mustache",
+                        jvmInvokerFolder,
+                        "HttpClientFactory.kt"));
+        supportingFiles.add(
+                new SupportingFile(
+                        "trace_context_util_jvm.mustache",
+                        jvmInvokerFolder,
+                        "TraceContextUtil.kt"));
+
         supportingFiles.add(
                 new SupportingFile("build_gradle.mustache", "", "build.gradle.kts"));
         supportingFiles.add(
