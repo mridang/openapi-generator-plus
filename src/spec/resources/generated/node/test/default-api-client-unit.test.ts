@@ -29,6 +29,12 @@ beforeAll(async () => {
       return;
     }
 
+    if (req.url === '/multi-header') {
+      res.writeHead(200, { 'X-Custom-Value': ['val1', 'val2'] });
+      res.end('ok');
+      return;
+    }
+
     let body = '';
     req.on('data', (chunk: Buffer) => (body += chunk.toString()));
     req.on('end', () => {
@@ -116,5 +122,12 @@ describe('DefaultApiClient unit', () => {
 
     const body = JSON.parse(response.body);
     expect(body.format).toBe('vendor');
+  });
+
+  it('joins multi-value response headers', async () => {
+    const client = new DefaultApiClient();
+    const response = await client.sendRequest('GET', `${baseUrl}/multi-header`, {}, null);
+    expect(response.statusCode).toBe(200);
+    expect(response.headers['x-custom-value']).toBe('val1, val2');
   });
 });

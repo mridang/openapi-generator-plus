@@ -142,6 +142,32 @@ public class DefaultApiClientUnitTest
         Assert.Contains("vendor", response.Body);
     }
 
+    [Fact]
+    public async Task JoinsMultiValueResponseHeaders()
+    {
+        var handler = new MockHandler(
+            HttpStatusCode.OK,
+            "ok",
+            multiValueHeaders: new Dictionary<string, IEnumerable<string>>
+            {
+                { "X-Custom-Value", ["val1", "val2"] }
+            }
+        );
+        var httpClient = new HttpClient(handler);
+        var client = new DefaultApiClient(httpClient);
+
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/multi-header"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.True(response.Headers.ContainsKey("X-Custom-Value"));
+        Assert.Equal("val1, val2", response.Headers["X-Custom-Value"]);
+    }
+
     private static HttpClient CreateMockHttpClient(
         HttpStatusCode statusCode,
         string body,
@@ -152,23 +178,42 @@ public class DefaultApiClientUnitTest
         return new HttpClient(handler);
     }
 
-    private sealed class MockHandler(
-        HttpStatusCode statusCode,
-        string body,
-        Dictionary<string, string> headers
-    ) : HttpMessageHandler
+    private sealed class MockHandler : HttpMessageHandler
     {
+        private readonly HttpStatusCode _statusCode;
+        private readonly string _body;
+        private readonly Dictionary<string, string> _headers;
+        private readonly Dictionary<string, IEnumerable<string>> _multiValueHeaders;
+
+        public MockHandler(
+            HttpStatusCode statusCode,
+            string body,
+            Dictionary<string, string>? headers = null,
+            Dictionary<string, IEnumerable<string>>? multiValueHeaders = null
+        )
+        {
+            _statusCode = statusCode;
+            _body = body;
+            _headers = headers ?? [];
+            _multiValueHeaders = multiValueHeaders ?? [];
+        }
+
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken
         )
         {
-            var response = new HttpResponseMessage(statusCode)
+            var response = new HttpResponseMessage(_statusCode)
             {
-                Content = new StringContent(body),
+                Content = new StringContent(_body),
             };
 
-            foreach (var header in headers)
+            foreach (var header in _headers)
+            {
+                response.Headers.TryAddWithoutValidation(header.Key, header.Value);
+            }
+
+            foreach (var header in _multiValueHeaders)
             {
                 response.Headers.TryAddWithoutValidation(header.Key, header.Value);
             }

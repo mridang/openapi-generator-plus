@@ -106,4 +106,19 @@ describe {{moduleName}}::DefaultApiClient do
     end
     stubs.verify_stubbed_calls
   end
+
+  it 'returns response headers as flat strings' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/echo') do
+        [200, { 'x-custom-value' => 'test-value', 'x-another' => 'another-value' }, 'ok']
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/echo', {}, nil)
+      _(response.headers['x-custom-value']).must_be_kind_of String
+      _(response.headers['x-another']).must_be_kind_of String
+    end
+    stubs.verify_stubbed_calls
+  end
 end
