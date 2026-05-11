@@ -296,4 +296,44 @@ class DefaultApiClientTest {
             assertNotNull(response)
         }
     }
+
+    @Nested
+    @DisplayName("HTTP compression")
+    inner class HttpCompression {
+
+        private val compressionUrl = "https://jsonplaceholder.typicode.com/posts/1"
+
+        @Test
+        @DisplayName("decompresses gzip response")
+        fun decompressesGzipResponse() {
+            val client = DefaultApiClient()
+            val response = runBlocking {
+                client.sendRequest("GET", compressionUrl, mapOf("Accept-Encoding" to "gzip"), null)
+            }
+            assertEquals(200, response.statusCode)
+            assertTrue(response.body.contains("userId"))
+        }
+
+        @Test
+        @DisplayName("decompresses brotli response")
+        fun decompressesBrotliResponse() {
+            val client = DefaultApiClient()
+            val response = runBlocking {
+                client.sendRequest("GET", compressionUrl, mapOf("Accept-Encoding" to "br"), null)
+            }
+            assertEquals(200, response.statusCode)
+            assertTrue(response.body.contains("userId"))
+        }
+
+        @Test
+        @DisplayName("decompresses zstd response")
+        fun decompressesZstdResponse() {
+            val client = DefaultApiClient()
+            val response = runBlocking {
+                client.sendRequest("GET", compressionUrl, mapOf("Accept-Encoding" to "zstd"), null)
+            }
+            assertEquals(200, response.statusCode)
+            assertTrue(response.body.contains("userId"))
+        }
+    }
 }

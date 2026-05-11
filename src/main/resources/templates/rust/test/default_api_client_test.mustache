@@ -247,3 +247,42 @@ async fn test_default_api_client_multipart_body() {
         .send_request("POST", &format!("{}/api/test", wiremock_url), &headers, Some(&request_body))
         .await;
 }
+
+#[tokio::test]
+async fn test_default_api_client_compression_gzip() {
+    let client = DefaultApiClient::new(None);
+    let mut headers = HashMap::new();
+    headers.insert("Accept-Encoding".to_string(), "gzip".to_string());
+    let resp = client
+        .send_request("GET", "https://jsonplaceholder.typicode.com/posts/1", &headers, None)
+        .await
+        .expect("unexpected error");
+    assert_eq!(resp.status_code, 200);
+    assert!(resp.body.contains("userId"));
+}
+
+#[tokio::test]
+async fn test_default_api_client_compression_brotli() {
+    let client = DefaultApiClient::new(None);
+    let mut headers = HashMap::new();
+    headers.insert("Accept-Encoding".to_string(), "br".to_string());
+    let resp = client
+        .send_request("GET", "https://jsonplaceholder.typicode.com/posts/1", &headers, None)
+        .await
+        .expect("unexpected error");
+    assert_eq!(resp.status_code, 200);
+    assert!(resp.body.contains("userId"));
+}
+
+#[tokio::test]
+async fn test_default_api_client_compression_zstd() {
+    let client = DefaultApiClient::new(None);
+    let mut headers = HashMap::new();
+    headers.insert("Accept-Encoding".to_string(), "zstd".to_string());
+    let resp = client
+        .send_request("GET", "https://jsonplaceholder.typicode.com/posts/1", &headers, None)
+        .await
+        .expect("unexpected error");
+    assert_eq!(resp.status_code, 200);
+    assert!(resp.body.contains("userId"));
+}

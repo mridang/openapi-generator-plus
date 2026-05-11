@@ -169,4 +169,52 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
 
     assert response != nil
   end
+
+  test "decompresses gzip response" do
+    client = PetstoreClient.DefaultApiClient.new()
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "https://jsonplaceholder.typicode.com/posts/1",
+        %{"Accept-Encoding" => "gzip"},
+        nil
+      )
+
+    assert response.status_code == 200
+    assert String.contains?(response.body, "userId")
+  end
+
+  test "decompresses brotli response" do
+    client = PetstoreClient.DefaultApiClient.new()
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "https://jsonplaceholder.typicode.com/posts/1",
+        %{"Accept-Encoding" => "br"},
+        nil
+      )
+
+    assert response.status_code == 200
+    assert String.contains?(response.body, "userId")
+  end
+
+  test "decompresses zstd response" do
+    client = PetstoreClient.DefaultApiClient.new()
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "https://jsonplaceholder.typicode.com/posts/1",
+        %{"Accept-Encoding" => "zstd"},
+        nil
+      )
+
+    assert response.status_code == 200
+    assert String.contains?(response.body, "userId")
+  end
 end

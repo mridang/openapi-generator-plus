@@ -252,3 +252,48 @@ func TestDefaultApiClient_MultipartBody(t *testing.T) {
 		t.Fatal("expected non-nil response")
 	}
 }
+
+func TestDefaultApiClient_CompressionGzip(t *testing.T) {
+	client := petstore.NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("GET", "https://jsonplaceholder.typicode.com/posts/1",
+		map[string]string{"Accept-Encoding": "gzip"}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+	if !strings.Contains(resp.Body, "userId") {
+		t.Errorf("expected body to contain 'userId', got %q", resp.Body)
+	}
+}
+
+func TestDefaultApiClient_CompressionBrotli(t *testing.T) {
+	client := petstore.NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("GET", "https://jsonplaceholder.typicode.com/posts/1",
+		map[string]string{"Accept-Encoding": "br"}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+	if !strings.Contains(resp.Body, "userId") {
+		t.Errorf("expected body to contain 'userId', got %q", resp.Body)
+	}
+}
+
+func TestDefaultApiClient_CompressionZstd(t *testing.T) {
+	client := petstore.NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("GET", "https://jsonplaceholder.typicode.com/posts/1",
+		map[string]string{"Accept-Encoding": "zstd"}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+	if !strings.Contains(resp.Body, "userId") {
+		t.Errorf("expected body to contain 'userId', got %q", resp.Body)
+	}
+}
