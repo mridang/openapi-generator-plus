@@ -242,5 +242,37 @@ void main() {
       expect(resp.statusCode, equals(200));
       expect(resp.body, contains('userId'));
     });
+
+    test(
+      'decompresses brotli response',
+      () async {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'https://jsonplaceholder.typicode.com/posts/1',
+          {'Accept-Encoding': 'br'},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+        expect(resp.body, contains('userId'));
+      },
+      skip: 'brotli decompression not supported by dart:io',
+    );
+
+    test(
+      'decompresses zstd response',
+      () async {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'https://jsonplaceholder.typicode.com/posts/1',
+          {'Accept-Encoding': 'zstd'},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+        expect(resp.body, contains('userId'));
+      },
+      skip: 'zstd decompression not supported by dart:io',
+    );
   });
 }

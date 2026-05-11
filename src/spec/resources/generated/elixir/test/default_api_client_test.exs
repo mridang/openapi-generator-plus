@@ -213,4 +213,22 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert response.status_code == 200
     assert String.contains?(response.body, "userId")
   end
+
+  @tag :skip
+  test "decompresses zstd response" do
+    # zstd is not supported by the Req HTTP library or Erlang's built-in HTTP client
+    client = PetstoreClient.DefaultApiClient.new()
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "https://jsonplaceholder.typicode.com/posts/1",
+        %{"Accept-Encoding" => "zstd"},
+        nil
+      )
+
+    assert response.status_code == 200
+    assert String.contains?(response.body, "userId")
+  end
 end
