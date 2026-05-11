@@ -202,6 +202,42 @@ void main() {
       }
     });
 
+    test('X-Request-ID generates unique values per request', () async {
+      final List<String?> ids = [];
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        ids.add(request.headers.value('x-request-id'));
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final transport =
+            TransportOptionsBuilder().injectRequestId(true).build();
+        final client = DefaultApiClient(transportOptions: transport);
+
+        await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/test',
+          {},
+          null,
+        );
+        await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/test',
+          {},
+          null,
+        );
+        expect(ids.length, equals(2));
+        expect(ids[0], isNotNull);
+        expect(ids[1], isNotNull);
+        expect(ids[0], isNot(equals(ids[1])));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('verifySSL disabled accepts self-signed certificate', () async {
       // Use a basic HTTP server (not HTTPS) to verify that the IOClient is
       // created without error when verifySSL is false
