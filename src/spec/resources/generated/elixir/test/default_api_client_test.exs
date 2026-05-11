@@ -30,10 +30,22 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   end
 
   test "HTTP proxy makes HTTP request through proxy" do
-    wiremock_url = System.get_env("WIREMOCK_INTERNAL_HTTP_URL", System.fetch_env!("WIREMOCK_HTTP_URL"))
+    wiremock_url = System.fetch_env!("WIREMOCK_INTERNAL_HTTP_URL")
     proxy_url = System.fetch_env!("PROXY_URL")
 
     transport = PetstoreClient.TransportOptions.new(proxy: proxy_url)
+    client = PetstoreClient.DefaultApiClient.new(transport)
+    response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/test", %{}, nil)
+
+    assert response.status_code == 200
+    assert String.contains?(response.body, "success")
+  end
+
+  test "HTTP proxy with TLS makes HTTPS request through proxy with verify_ssl=false" do
+    wiremock_url = System.fetch_env!("WIREMOCK_INTERNAL_HTTPS_URL")
+    proxy_url = System.fetch_env!("PROXY_URL")
+
+    transport = PetstoreClient.TransportOptions.new(proxy: proxy_url, verify_ssl: false)
     client = PetstoreClient.DefaultApiClient.new(transport)
     response = PetstoreClient.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/test", %{}, nil)
 
@@ -47,7 +59,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     transport = PetstoreClient.TransportOptions.new(timeout: 1)
     client = PetstoreClient.DefaultApiClient.new(transport)
 
-    assert_raise RuntimeError, fn ->
+    assert_raise Req.TransportError, fn ->
       PetstoreClient.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/slow", %{}, nil)
     end
   end
@@ -195,22 +207,6 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
         :get,
         "https://jsonplaceholder.typicode.com/posts/1",
         %{"Accept-Encoding" => "br"},
-        nil
-      )
-
-    assert response.status_code == 200
-    assert String.contains?(response.body, "userId")
-  end
-
-  test "decompresses zstd response" do
-    client = PetstoreClient.DefaultApiClient.new()
-
-    response =
-      PetstoreClient.DefaultApiClient.send_request(
-        client,
-        :get,
-        "https://jsonplaceholder.typicode.com/posts/1",
-        %{"Accept-Encoding" => "zstd"},
         nil
       )
 

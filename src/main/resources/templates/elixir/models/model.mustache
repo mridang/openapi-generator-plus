@@ -1,11 +1,5 @@
 {{>api_info}}
 
-defmodule {{moduleName}}.Models do
-  @moduledoc """
-  Model modules generated from OpenAPI schemas.
-  """
-end
-
 {{#models}}
 {{#model}}
 {{#isEnum}}
@@ -41,11 +35,11 @@ defmodule {{moduleName}}.Models.{{classname}} do
   {{#oneOf}}
   {{#-first}}
   @doc "List of types defined in oneOf (OpenAPI v3)."
-  @spec openapi_one_of() :: [atom()]
+  @spec openapi_one_of() :: [String.t()]
   def openapi_one_of do
     [
   {{/-first}}
-      :{{.}}{{^-last}},{{/-last}}
+      "{{.}}"{{^-last}},{{/-last}}
   {{#-last}}
     ]
   end
@@ -62,7 +56,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
   def openapi_discriminator_mapping do
     %{
   {{/-first}}
-      "{{{mappingName}}}" => :{{modelName}}{{^-last}},{{/-last}}
+      "{{{mappingName}}}" => "{{modelName}}"{{^-last}},{{/-last}}
   {{#-last}}
     }
   end
@@ -79,17 +73,17 @@ defmodule {{moduleName}}.Models.{{classname}} do
   {{/discriminator}}
   {{^discriminator}}
     Enum.reduce_while(openapi_one_of(), nil, fn type_name, _acc ->
-      if type_name == :AnyType do
+      if type_name == "AnyType" do
         {:cont, nil}
       else
         try do
-          result = {{moduleName}}.ObjectSerializer.convert_to_type(data, to_string(type_name))
+          result = {{moduleName}}.ObjectSerializer.convert_to_type(data, type_name)
           {:halt, result}
         rescue
           _ -> {:cont, nil}
         end
       end
-    end) || if(:AnyType in openapi_one_of(), do: data, else: nil)
+    end) || if("AnyType" in openapi_one_of(), do: data, else: nil)
   {{/discriminator}}
   end
 
@@ -123,11 +117,11 @@ defmodule {{moduleName}}.Models.{{classname}} do
   {{#anyOf}}
   {{#-first}}
   @doc "List of types defined in anyOf (OpenAPI v3)."
-  @spec openapi_any_of() :: [atom()]
+  @spec openapi_any_of() :: [String.t()]
   def openapi_any_of do
     [
   {{/-first}}
-      :{{.}}{{^-last}},{{/-last}}
+      "{{.}}"{{^-last}},{{/-last}}
   {{#-last}}
     ]
   end
@@ -137,18 +131,15 @@ defmodule {{moduleName}}.Models.{{classname}} do
   @doc "Build the appropriate type from data."
   @spec build(term()) :: term()
   def build(data) do
-    Enum.reduce_while(openapi_any_of(), nil, fn type_name, _acc ->
-      if type_name == :AnyType do
-        {:cont, nil}
-      else
-        try do
-          result = {{moduleName}}.ObjectSerializer.convert_to_type(data, to_string(type_name))
-          {:halt, result}
-        rescue
-          _ -> {:cont, nil}
-        end
-      end
-    end) || if(:AnyType in openapi_any_of(), do: data, else: nil)
+    candidates =
+      openapi_any_of()
+      |> Enum.reject(& &1 == "AnyType")
+      |> Enum.map(fn type_name ->
+        fn d -> {{moduleName}}.ObjectSerializer.convert_to_type(d, type_name) end
+      end)
+
+    result = {{moduleName}}.ObjectSerializer.resolve_any_of(data, candidates)
+    result || if("AnyType" in openapi_any_of(), do: data, else: nil)
   end
 end
 {{/-first}}
@@ -183,7 +174,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
     {{name}}: {{{defaultValue}}}{{^-last}},{{/-last}}
 {{/defaultValue}}
 {{^defaultValue}}
-    :{{name}}{{^-last}},{{/-last}}
+    {{name}}: nil{{^-last}},{{/-last}}
 {{/defaultValue}}
   {{/vars}}
   ]

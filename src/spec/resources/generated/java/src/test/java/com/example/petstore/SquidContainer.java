@@ -28,7 +28,7 @@ public final class SquidContainer {
                 MountableFile.forHostPath(Path.of("/app/src/test/resources/proxy/squid.conf")),
                 "/etc/squid/squid.conf")
             .withNetwork(WireMockContainer.PROXY_NETWORK)
-            .withStartupTimeout(Duration.ofSeconds(60));
+            .withStartupTimeout(Duration.ofMinutes(2));
     INSTANCE.start();
     try {
       Thread.sleep(3000);

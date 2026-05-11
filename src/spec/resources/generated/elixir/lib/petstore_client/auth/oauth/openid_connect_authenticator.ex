@@ -115,7 +115,10 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     headers = %{"Accept" => "application/json"}
 
     response =
-      PetstoreClient.DefaultApiClient.send_request(self.api_client, :get, self.openid_connect_url, headers, nil)
+      case self.api_client do
+        %{__struct__: mod} = c -> mod.send_request(c, :get, self.openid_connect_url, headers, nil)
+        mod when is_atom(mod) -> mod.send_request(:get, self.openid_connect_url, headers, nil)
+      end
 
     discovery = Jason.decode!(response.body)
 

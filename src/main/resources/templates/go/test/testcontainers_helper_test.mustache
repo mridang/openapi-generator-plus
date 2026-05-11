@@ -65,7 +65,7 @@ func TestMain(m *testing.M) {
 		},
 		Networks:       []string{networkName},
 		NetworkAliases: map[string][]string{networkName: {"wiremock"}},
-		WaitingFor:     wait.ForLog("port:").WithStartupTimeout(60 * time.Second),
+		WaitingFor:     wait.ForLog("port:").WithStartupTimeout(120 * time.Second),
 	}
 
 	wiremockContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -97,7 +97,7 @@ func TestMain(m *testing.M) {
 			{HostFilePath: squidConfPath, ContainerFilePath: "/etc/squid/squid.conf"},
 		},
 		Networks: []string{networkName},
-		WaitingFor: wait.ForListeningPort("3128/tcp").WithStartupTimeout(60 * time.Second),
+		WaitingFor: wait.ForListeningPort("3128/tcp").WithStartupTimeout(120 * time.Second),
 	}
 
 	squidContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -125,7 +125,7 @@ func TestMain(m *testing.M) {
 			{HostFilePath: specPath, ContainerFilePath: "/tmp/openapi.yaml"},
 		},
 		Cmd:        []string{"mock", "-m", "false", "-h", "0.0.0.0", "/tmp/openapi.yaml"},
-		WaitingFor: wait.ForLog("Prism is listening").WithStartupTimeout(60 * time.Second),
+		WaitingFor: wait.ForLog("Prism is listening").WithStartupTimeout(120 * time.Second),
 	}
 
 	prismContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{

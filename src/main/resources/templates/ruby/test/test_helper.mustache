@@ -35,6 +35,7 @@ PRISM = Testcontainers::DockerContainer.new('stoplight/prism:5')
 PRISM.with_exposed_port(4010)
 PRISM.with_filesystem_binds(["#{spec_path}:/tmp/openapi.yaml:ro"])
 PRISM.with_command('mock', '-m', 'false', '-h', '0.0.0.0', '/tmp/openapi.yaml')
+PRISM.with_wait_for(:logs, /Prism is listening/, timeout: 120)
 
 PRISM.start
 
@@ -43,14 +44,6 @@ PRISM.start
 # (which runs the tests) before ours, so at_exit { PRISM.stop } would stop
 # Prism before the tests even start.
 Minitest.after_run { PRISM.stop }
-
-# Wait for Prism to be ready by checking container logs
-60.times do
-  logs = PRISM._container.logs(stdout: true, stderr: true)
-  break if logs.include?('Prism is listening')
-
-  sleep 1
-end
 
 # Ruby testcontainers does not respect TESTCONTAINERS_HOST_OVERRIDE like other
 # language implementations, so we read it ourselves for DooD compatibility.
@@ -91,16 +84,10 @@ WIREMOCK.with_command(
   '--key-manager-password', 'changeit',
   '--verbose'
 )
+WIREMOCK.with_wait_for(:logs, /port:/, timeout: 120)
 
 WIREMOCK.start
 Minitest.after_run { WIREMOCK.stop }
-
-60.times do
-  logs = WIREMOCK._container.logs(stdout: true, stderr: true)
-  break if logs.include?('port:')
-
-  sleep 1
-end
 
 PROXY_NETWORK.connect(WIREMOCK._container.id, {}, { 'EndpointConfig' => { 'Aliases' => ['wiremock'] } })
 

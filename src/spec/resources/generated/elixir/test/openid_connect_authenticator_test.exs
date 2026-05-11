@@ -2,16 +2,16 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
   use ExUnit.Case, async: true
 
   defmodule FakeApiClient do
-    defstruct [:responses, :last_url, :last_body, :last_method]
+    defstruct [:agent]
 
     def new(responses) do
       {:ok, agent} =
         Agent.start_link(fn -> %{responses: responses, last_url: nil, last_body: nil, last_method: nil} end)
 
-      agent
+      %__MODULE__{agent: agent}
     end
 
-    def send_request(agent, method, url, _headers, body) do
+    def send_request(%__MODULE__{agent: agent}, method, url, _headers, body) do
       Agent.get_and_update(agent, fn state ->
         [response | rest] = state.responses
         new_state = %{state | responses: rest, last_url: url, last_body: body, last_method: method}
@@ -19,9 +19,9 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       end)
     end
 
-    def last_url(agent), do: Agent.get(agent, & &1.last_url)
-    def last_body(agent), do: Agent.get(agent, & &1.last_body)
-    def last_method(agent), do: Agent.get(agent, & &1.last_method)
+    def last_url(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_url)
+    def last_body(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_body)
+    def last_method(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_method)
   end
 
   defp create_authenticator do

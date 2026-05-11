@@ -29,3 +29,7 @@ devbox.lock
 .out
 .phpcsf
 .phpstan
+
+# Elixir compiled files and crash dumps
+*.beam
+erl_crash.dump

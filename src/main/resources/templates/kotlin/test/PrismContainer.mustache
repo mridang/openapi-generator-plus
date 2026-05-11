@@ -22,7 +22,7 @@ object PrismContainer {
                 "/tmp/openapi.yaml"
             )
             .withCommand("mock", "-m", "false", "-h", "0.0.0.0", "/tmp/openapi.yaml")
-            .waitingFor(Wait.forLogMessage(".*Prism is listening.*", 1))
+            .waitingFor(Wait.forLogMessage("Prism is listening", 1))
             .withStartupTimeout(java.time.Duration.ofSeconds(120))
         INSTANCE.start()
     }

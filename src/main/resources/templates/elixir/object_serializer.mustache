@@ -248,12 +248,32 @@ defmodule {{moduleName}}.ObjectSerializer do
   def resolve_one_of(data, candidates) do
     Enum.reduce_while(candidates, nil, fn candidate, _fallback ->
       try do
-        {:halt, candidate.(data)}
+        result = candidate.(data)
+
+        if fields_overlap?(result, data) do
+          {:halt, result}
+        else
+          {:cont, nil}
+        end
       rescue
         _ -> {:cont, nil}
       end
     end)
   end
+
+  defp fields_overlap?(result, data) when is_struct(result) and is_map(data) do
+    module = result.__struct__
+
+    if function_exported?(module, :attribute_map, 0) do
+      json_keys = Map.values(module.attribute_map())
+      data_keys = data |> Map.keys() |> Enum.map(&to_string/1)
+      Enum.any?(json_keys, fn k -> k in data_keys end)
+    else
+      true
+    end
+  end
+
+  defp fields_overlap?(_result, _data), do: true
 
   @doc """
   Attempt to deserialize data against a list of candidate schemas using

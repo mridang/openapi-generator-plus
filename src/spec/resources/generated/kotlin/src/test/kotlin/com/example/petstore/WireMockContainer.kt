@@ -49,8 +49,8 @@ object WireMockContainer {
                     "--verbose",
                 ).withNetwork(PROXY_NETWORK)
                 .withNetworkAliases("wiremock")
-                .waitingFor(Wait.forLogMessage(".*port:.*", 1))
-                .withStartupTimeout(Duration.ofSeconds(60))
+                .waitingFor(Wait.forLogMessage("port:", 1))
+                .withStartupTimeout(Duration.ofSeconds(120))
         INSTANCE.start()
     }
 

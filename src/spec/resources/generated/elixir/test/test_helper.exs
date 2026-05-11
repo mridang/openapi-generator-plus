@@ -21,11 +21,11 @@ prism_config =
   |> Testcontainers.Container.with_exposed_port(4010)
   |> Testcontainers.Container.with_bind_mount(spec_path, "/tmp/openapi.yaml")
   |> Testcontainers.Container.with_cmd(["mock", "-m", "false", "-h", "0.0.0.0", "/tmp/openapi.yaml"])
-  |> Testcontainers.Container.with_waiting_strategy(Testcontainers.LogWaitStrategy.new(~r/Prism is listening/, 60_000))
+  |> Testcontainers.Container.with_waiting_strategy(Testcontainers.LogWaitStrategy.new(~r/Prism is listening/, 120_000))
 
 {:ok, prism} = Testcontainers.start_container(prism_config)
 
-prism_host = Testcontainers.get_host()
+prism_host = System.get_env("TESTCONTAINERS_HOST_OVERRIDE") || Testcontainers.get_host()
 prism_port = Testcontainers.Container.mapped_port(prism, 4010)
 prism_url = "http://#{prism_host}:#{prism_port}"
 System.put_env("API_BASE_URL", prism_url)
@@ -54,16 +54,18 @@ wiremock_config =
   ])
   |> Testcontainers.Container.with_network(network_name)
   |> Testcontainers.Container.with_hostname("wiremock")
-  |> Testcontainers.Container.with_waiting_strategy(Testcontainers.LogWaitStrategy.new(~r/port:/, 60_000))
+  |> Testcontainers.Container.with_waiting_strategy(Testcontainers.LogWaitStrategy.new(~r/port:/, 120_000))
 
 {:ok, wiremock} = Testcontainers.start_container(wiremock_config)
 
-wiremock_host = Testcontainers.get_host()
+wiremock_host = System.get_env("TESTCONTAINERS_HOST_OVERRIDE") || Testcontainers.get_host()
 wiremock_http_port = Testcontainers.Container.mapped_port(wiremock, 8080)
 wiremock_https_port = Testcontainers.Container.mapped_port(wiremock, 8443)
 
 System.put_env("WIREMOCK_HTTP_URL", "http://#{wiremock_host}:#{wiremock_http_port}")
 System.put_env("WIREMOCK_HTTPS_URL", "https://#{wiremock_host}:#{wiremock_https_port}")
+System.put_env("WIREMOCK_INTERNAL_HTTP_URL", "http://wiremock:8080")
+System.put_env("WIREMOCK_INTERNAL_HTTPS_URL", "https://wiremock:8443")
 System.put_env("CA_CERT_PATH", Path.join([File.cwd!(), "test", "fixtures", "certs", "ca.pem"]))
 
 # Start Squid proxy on the same network as WireMock
@@ -77,6 +79,6 @@ squid_config =
 
 Process.sleep(3000)
 
-squid_host = Testcontainers.get_host()
+squid_host = System.get_env("TESTCONTAINERS_HOST_OVERRIDE") || Testcontainers.get_host()
 squid_port = Testcontainers.Container.mapped_port(squid, 3128)
 System.put_env("PROXY_URL", "http://#{squid_host}:#{squid_port}")

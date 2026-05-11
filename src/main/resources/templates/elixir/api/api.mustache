@@ -1,11 +1,5 @@
 {{>api_info}}
 
-defmodule {{moduleName}}.Api do
-  @moduledoc """
-  API modules for the {{moduleName}} client.
-  """
-end
-
 {{#operations}}
 {{#serverTypeDefs}}
 defmodule {{moduleName}}.Api.{{serverTypeName}} do
@@ -19,7 +13,7 @@ end
 defmodule {{moduleName}}.Api.{{serverTypeName}}.{{pascalName}} do
   @moduledoc "Valid values for {{name}} in {{serverTypeName}}."
 {{#enumValues}}
-  def {{name}}, do: "{{value}}"
+  def {{value}}, do: "{{value}}"
 {{/enumValues}}
 end
 {{/hasEnumValues}}{{/serverVariables}}

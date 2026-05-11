@@ -85,6 +85,8 @@ defmodule PetstoreClient.Api.BaseApi do
         return_type,
         auth \\ nil
       ) do
+    method = if is_atom(method), do: method |> Atom.to_string() |> String.downcase() |> String.to_atom(), else: method
+
     url =
       if String.starts_with?(path, "http://") or String.starts_with?(path, "https://") do
         path
@@ -150,44 +152,63 @@ defmodule PetstoreClient.Api.BaseApi do
     headers = PetstoreClient.TraceContextUtil.inject_trace_context(headers)
     serialized_body = serialize_body(body, content_type)
 
-    response = PetstoreClient.DefaultApiClient.send_request(state.api_client, method, url, headers, serialized_body)
+    result =
+      try do
+        {:ok,
+         case state.api_client do
+           %{__struct__: mod} = client -> mod.send_request(client, method, url, headers, serialized_body)
+           mod when is_atom(mod) -> mod.send_request(method, url, headers, serialized_body)
+         end}
+      rescue
+        e -> {:error, e}
+      end
 
-    if response.status_code < 200 or response.status_code >= 300 do
-      {:error, throw_api_error(response)}
-    else
-      data =
-        if return_type && response.body && response.body != "" do
-          ct_header =
-            Enum.find(response.headers, fn {k, _v} ->
-              String.downcase(k) == "content-type"
-            end)
+    case result do
+      {:error, _} = error ->
+        error
 
-          resp_content_type =
-            case ct_header do
-              {_k, v} -> v |> String.split(";") |> List.first() |> String.trim()
-              nil -> nil
+      {:ok, response} ->
+        if response.status_code < 200 or response.status_code >= 300 do
+          {:error, throw_api_error(response)}
+        else
+          data =
+            if return_type && response.body && response.body != "" do
+              ct_header =
+                Enum.find(response.headers, fn {k, _v} ->
+                  String.downcase(k) == "content-type"
+                end)
+
+              resp_content_type =
+                case ct_header do
+                  {_k, v} -> v |> String.split(";") |> List.first() |> String.trim()
+                  nil -> nil
+                end
+
+              is_json =
+                not is_nil(resp_content_type) and
+                  PetstoreClient.HeaderSelector.json_mime?(resp_content_type)
+
+              if is_json do
+                try do
+                  PetstoreClient.ObjectSerializer.deserialize(response.body, return_type)
+                rescue
+                  _ -> response.body
+                end
+              else
+                response.body
+              end
+            else
+              nil
             end
 
-          is_json =
-            not is_nil(resp_content_type) and
-              PetstoreClient.HeaderSelector.json_mime?(resp_content_type)
-
-          if is_json do
-            PetstoreClient.ObjectSerializer.deserialize(response.body, return_type)
-          else
-            response.body
-          end
-        else
-          nil
+          {:ok,
+           %PetstoreClient.ApiResult{
+             status_code: response.status_code,
+             data: data,
+             raw_body: response.body,
+             headers: response.headers
+           }}
         end
-
-      {:ok,
-       %PetstoreClient.ApiResult{
-         status_code: response.status_code,
-         data: data,
-         raw_body: response.body,
-         headers: response.headers
-       }}
     end
   end
 
@@ -274,15 +295,19 @@ defmodule PetstoreClient.Api.BaseApi do
 
   defp serialize_body(body, "multipart/form-data"), do: body
 
-  defp serialize_body(body, content_type)
-       when content_type in ["application/octet-stream"] or
-              (is_binary(content_type) and String.starts_with?(content_type, "image/")) do
-    body
-  end
+  defp serialize_body(body, "application/octet-stream"), do: body
 
   defp serialize_body(body, "text/plain"), do: to_string(body)
 
   defp serialize_body(body, "application/x-www-form-urlencoded"), do: URI.encode_query(body)
+
+  defp serialize_body(body, content_type) when is_binary(content_type) do
+    if String.starts_with?(content_type, "image/") do
+      body
+    else
+      PetstoreClient.ObjectSerializer.serialize(body)
+    end
+  end
 
   defp serialize_body(body, _content_type), do: PetstoreClient.ObjectSerializer.serialize(body)
 end

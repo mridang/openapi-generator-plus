@@ -60,6 +60,7 @@ class DefaultApiClient implements ApiClient {
     }
 
     final ioClient = HttpClient(context: context);
+    ioClient.autoUncompress = false;
 
     if (!options.verifySSL) {
       ioClient.badCertificateCallback = (_, __, ___) => true;
@@ -151,10 +152,12 @@ class DefaultApiClient implements ApiClient {
     } on TimeoutException catch (e) {
       throw ApiError(statusCode: 0, message: e.message ?? 'Request timed out');
     }
-    final responseBytes = await streamedResponse.stream.toBytes();
+    final rawBytes = await streamedResponse.stream.toBytes();
+    final contentEncoding = (streamedResponse.headers['content-encoding'] ?? '').toLowerCase().trim();
+    final responseBytes = _decompressBytes(rawBytes, contentEncoding);
     final contentType = streamedResponse.headers['content-type'] ?? '';
     final responseBody = _isTextContentType(contentType)
-        ? String.fromCharCodes(responseBytes)
+        ? utf8.decode(responseBytes, allowMalformed: true)
         : base64Encode(responseBytes);
 
     final responseHeaders = <String, String>{};
@@ -201,12 +204,31 @@ class DefaultApiClient implements ApiClient {
     _httpClient.close();
   }
 
+  /// Decompresses [bytes] according to [contentEncoding].
+  ///
+  /// Handles `gzip` and `deflate` using [GZipCodec] and [ZLibDecoder]
+  /// from `dart:io`. Unknown or empty encodings are returned as-is.
+  static Uint8List _decompressBytes(Uint8List bytes, String contentEncoding) {
+    if (bytes.isEmpty) return bytes;
+    switch (contentEncoding) {
+      case 'gzip':
+        return Uint8List.fromList(GZipCodec().decode(bytes));
+      case 'deflate':
+        try {
+          return Uint8List.fromList(ZLibDecoder().convert(bytes));
+        } catch (_) {
+          return bytes;
+        }
+      default:
+        return bytes;
+    }
+  }
+
   /// Returns a comma-separated list of supported content encodings for
   /// the Accept-Encoding header.
   ///
   /// Includes gzip and deflate which are natively supported by Dart's
-  /// `dart:io` [HttpClient]. Additional encodings can be added here
-  /// when third-party decompression packages are integrated.
+  /// `dart:io` [HttpClient].
   static String _supportedEncodings() {
     final encodings = ['gzip', 'deflate'];
     return encodings.join(', ');

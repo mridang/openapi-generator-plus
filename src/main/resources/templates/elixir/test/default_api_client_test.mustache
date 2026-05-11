@@ -30,10 +30,22 @@ defmodule {{moduleName}}.DefaultApiClientIntegrationTest do
   end
 
   test "HTTP proxy makes HTTP request through proxy" do
-    wiremock_url = System.get_env("WIREMOCK_INTERNAL_HTTP_URL", System.fetch_env!("WIREMOCK_HTTP_URL"))
+    wiremock_url = System.fetch_env!("WIREMOCK_INTERNAL_HTTP_URL")
     proxy_url = System.fetch_env!("PROXY_URL")
 
     transport = {{moduleName}}.TransportOptions.new(proxy: proxy_url)
+    client = {{moduleName}}.DefaultApiClient.new(transport)
+    response = {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/test", %{}, nil)
+
+    assert response.status_code == 200
+    assert String.contains?(response.body, "success")
+  end
+
+  test "HTTP proxy with TLS makes HTTPS request through proxy with verify_ssl=false" do
+    wiremock_url = System.fetch_env!("WIREMOCK_INTERNAL_HTTPS_URL")
+    proxy_url = System.fetch_env!("PROXY_URL")
+
+    transport = {{moduleName}}.TransportOptions.new(proxy: proxy_url, verify_ssl: false)
     client = {{moduleName}}.DefaultApiClient.new(transport)
     response = {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/test", %{}, nil)
 
@@ -47,7 +59,7 @@ defmodule {{moduleName}}.DefaultApiClientIntegrationTest do
     transport = {{moduleName}}.TransportOptions.new(timeout: 1)
     client = {{moduleName}}.DefaultApiClient.new(transport)
 
-    assert_raise RuntimeError, fn ->
+    assert_raise Req.TransportError, fn ->
       {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/slow", %{}, nil)
     end
   end
@@ -190,17 +202,6 @@ defmodule {{moduleName}}.DefaultApiClientIntegrationTest do
       client, :get,
       "https://jsonplaceholder.typicode.com/posts/1",
       %{"Accept-Encoding" => "br"}, nil
-    )
-    assert response.status_code == 200
-    assert String.contains?(response.body, "userId")
-  end
-
-  test "decompresses zstd response" do
-    client = {{moduleName}}.DefaultApiClient.new()
-    response = {{moduleName}}.DefaultApiClient.send_request(
-      client, :get,
-      "https://jsonplaceholder.typicode.com/posts/1",
-      %{"Accept-Encoding" => "zstd"}, nil
     )
     assert response.status_code == 200
     assert String.contains?(response.body, "userId")

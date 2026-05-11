@@ -59,16 +59,16 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
   """
   @spec get_access_token(pid(), String.t(), %{optional(String.t()) => String.t()}) :: String.t()
   def get_access_token(manager, token_url, params) do
-    Agent.get_and_update(manager, fn state ->
-      now = System.system_time(:second)
+    state = Agent.get(manager, & &1)
+    now = System.system_time(:second)
 
-      if state.access_token && (is_nil(state.token_expiry) || now < state.token_expiry) do
-        {state.access_token, state}
-      else
-        new_state = fetch_token(state, token_url, params)
-        {new_state.access_token, new_state}
-      end
-    end)
+    if state.access_token && (is_nil(state.token_expiry) || now < state.token_expiry) do
+      state.access_token
+    else
+      new_state = fetch_token(state, token_url, params)
+      Agent.update(manager, fn _ -> new_state end)
+      new_state.access_token
+    end
   end
 
   @doc """
@@ -93,7 +93,11 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
     headers = %{"Content-Type" => "application/x-www-form-urlencoded"}
     body = URI.encode_query(params)
 
-    response = {{moduleName}}.DefaultApiClient.send_request(client, :post, token_url, headers, body)
+    response =
+      case client do
+        %{__struct__: mod} = c -> mod.send_request(c, :post, token_url, headers, body)
+        mod when is_atom(mod) -> mod.send_request(:post, token_url, headers, body)
+      end
 
     if response.status_code < 200 or response.status_code >= 300 do
       raise "Token request failed with status #{response.status_code}"

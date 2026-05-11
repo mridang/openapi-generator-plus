@@ -40,7 +40,7 @@ public final class WireMockContainer {
             .withNetwork(PROXY_NETWORK)
             .withNetworkAliases("wiremock")
             .waitingFor(Wait.forLogMessage(".*port:.*", 1))
-            .withStartupTimeout(Duration.ofSeconds(60));
+            .withStartupTimeout(Duration.ofMinutes(2));
         INSTANCE.start();
     }
 

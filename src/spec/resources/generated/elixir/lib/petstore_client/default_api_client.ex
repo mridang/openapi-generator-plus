@@ -23,6 +23,8 @@ defmodule PetstoreClient.DefaultApiClient do
 
   @behaviour PetstoreClient.ApiClient
 
+  import Bitwise
+
   @type t :: %__MODULE__{
           transport_options: PetstoreClient.TransportOptions.t()
         }
@@ -75,7 +77,7 @@ defmodule PetstoreClient.DefaultApiClient do
 
     merged =
       if !Map.has_key?(merged, "Accept-Encoding") do
-        Map.put(merged, "Accept-Encoding", "gzip, deflate")
+        Map.put(merged, "Accept-Encoding", "br, gzip, deflate")
       else
         merged
       end
@@ -127,14 +129,10 @@ defmodule PetstoreClient.DefaultApiClient do
 
         case proxy_uri.scheme do
           "https" ->
-            Keyword.put(req_opts, :connect_options,
-              proxy: {:https, String.to_charlist(proxy_uri.host), proxy_uri.port || 443, []}
-            )
+            Keyword.put(req_opts, :connect_options, proxy: {:https, proxy_uri.host, proxy_uri.port || 443, []})
 
           _ ->
-            Keyword.put(req_opts, :connect_options,
-              proxy: {:http, String.to_charlist(proxy_uri.host), proxy_uri.port || 80, []}
-            )
+            Keyword.put(req_opts, :connect_options, proxy: {:http, proxy_uri.host, proxy_uri.port || 80, []})
         end
       else
         req_opts
@@ -226,12 +224,10 @@ defmodule PetstoreClient.DefaultApiClient do
   end
 
   defp generate_uuid do
-    <<a::48, _::4, b::12, _::2, c::62>> = :crypto.strong_rand_bytes(16)
+    <<a::32, b::16, _::4, c::12, _::2, d::14, e::48>> = :crypto.strong_rand_bytes(16)
 
-    :io_lib.format(
-      "~8.16.0b-~4.16.0b-4~3.16.0b-~4.16.0b-~12.16.0b",
-      [a, b >>> 0, b &&& 0xFFF, (c >>> 48 &&& 0x3FFF) ||| 0x8000, c &&& 0xFFFFFFFFFFFF]
-    )
-    |> to_string()
+    pad = fn n, len -> Integer.to_string(n, 16) |> String.downcase() |> String.pad_leading(len, "0") end
+
+    "#{pad.(a, 8)}-#{pad.(b, 4)}-4#{pad.(c, 3)}-#{pad.(0x8000 ||| (d &&& 0x3FFF), 4)}-#{pad.(e, 12)}"
   end
 end

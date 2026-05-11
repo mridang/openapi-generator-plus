@@ -28,6 +28,7 @@ defmodule PetstoreClient.MixProject do
     [
       {:req, "~> 0.5"},
       {:jason, "~> 1.4"},
+      {:brotli, "~> 0.3"},
       {:excoveralls, "~> 0.18", only: :test},
       {:junit_formatter, "~> 3.4", only: :test},
       {:testcontainers, "~> 1.12", only: :test}

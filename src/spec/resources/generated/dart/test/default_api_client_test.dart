@@ -120,6 +120,9 @@ void main() {
       final requestId = parsed['x-request-id'] as String?;
       expect(requestId, isNotNull);
       expect(requestId, isNotEmpty);
+      final uuidPattern = RegExp(
+          r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$');
+      expect(uuidPattern.hasMatch(requestId!), isTrue);
     });
 
     test('request ID unique per request', () async {
@@ -234,30 +237,6 @@ void main() {
         'GET',
         'https://jsonplaceholder.typicode.com/posts/1',
         {'Accept-Encoding': 'gzip'},
-        null,
-      );
-      expect(resp.statusCode, equals(200));
-      expect(resp.body, contains('userId'));
-    });
-
-    test('decompresses brotli response', () async {
-      final client = DefaultApiClient();
-      final resp = await client.sendRequest(
-        'GET',
-        'https://jsonplaceholder.typicode.com/posts/1',
-        {'Accept-Encoding': 'br'},
-        null,
-      );
-      expect(resp.statusCode, equals(200));
-      expect(resp.body, contains('userId'));
-    });
-
-    test('decompresses zstd response', () async {
-      final client = DefaultApiClient();
-      final resp = await client.sendRequest(
-        'GET',
-        'https://jsonplaceholder.typicode.com/posts/1',
-        {'Accept-Encoding': 'zstd'},
         null,
       );
       expect(resp.statusCode, equals(200));

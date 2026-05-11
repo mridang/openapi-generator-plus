@@ -23,7 +23,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/andybalholm/brotli"
 	"github.com/google/uuid"
+	"github.com/klauspost/compress/zstd"
 )
 
 // DefaultApiClient is the default HTTP client implementation backed by net/http.
@@ -178,14 +180,8 @@ func buildHTTPClient(opts *TransportOptions) *http.Client {
 	return client
 }
 
-// supportedEncodings returns a comma-separated list of supported content
-// encodings for the Accept-Encoding header.
-//
-// Includes gzip and deflate which are provided by Go's standard library
-// (compress/gzip and compress/zlib). Additional encodings can be added
-// here when third-party decompression libraries are integrated.
 func supportedEncodings() string {
-	return "gzip, deflate"
+	return "br, gzip, deflate, zstd"
 }
 
 func decompressBody(resp *http.Response) ([]byte, error) {
@@ -201,6 +197,15 @@ func decompressBody(resp *http.Response) ([]byte, error) {
 		return io.ReadAll(reader)
 	case "deflate":
 		reader, err := zlib.NewReader(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		defer reader.Close()
+		return io.ReadAll(reader)
+	case "br":
+		return io.ReadAll(brotli.NewReader(resp.Body))
+	case "zstd":
+		reader, err := zstd.NewReader(resp.Body)
 		if err != nil {
 			return nil, err
 		}

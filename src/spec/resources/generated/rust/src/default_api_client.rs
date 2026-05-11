@@ -87,7 +87,10 @@ impl ApiClient for DefaultApiClient {
                 );
             }
             if !merged.contains_key("Accept-Encoding") {
-                merged.insert("Accept-Encoding".to_string(), "gzip, deflate".to_string());
+                merged.insert(
+                    "Accept-Encoding".to_string(),
+                    "br, gzip, deflate, zstd".to_string(),
+                );
             }
             if !merged.contains_key("X-Request-ID") && self.transport_options.inject_request_id() {
                 merged.insert("X-Request-ID".to_string(), Uuid::new_v4().to_string());

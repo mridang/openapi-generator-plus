@@ -53,8 +53,10 @@ internal actual fun buildPlatformHttpClient(options: TransportOptions): HttpClie
         }
 
         install(ContentEncoding) {
+            brotli()
             gzip()
             deflate()
+            zstd()
         }
 
         if (options.timeout != null) {

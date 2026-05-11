@@ -8,6 +8,7 @@
 package com.example.petstore;
 
 import java.nio.file.Path;
+import java.time.Duration;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.utility.MountableFile;
@@ -25,7 +26,8 @@ public final class PrismContainer {
                 MountableFile.forHostPath(Path.of("/app/src/test/resources/openapi.yaml")),
                 "/tmp/openapi.yaml")
             .withCommand("mock", "-m", "false", "-h", "0.0.0.0", "/tmp/openapi.yaml")
-            .waitingFor(Wait.forLogMessage(".*Prism is listening.*", 1));
+            .waitingFor(Wait.forLogMessage(".*Prism is listening.*", 1))
+            .withStartupTimeout(Duration.ofMinutes(2));
     INSTANCE.start();
   }
 

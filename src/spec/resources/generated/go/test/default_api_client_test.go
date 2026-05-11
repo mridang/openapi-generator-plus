@@ -10,6 +10,7 @@ package petstore_test
 import (
 	"encoding/json"
 	petstore "petstore/pkg"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -130,6 +131,10 @@ func TestDefaultApiClient_RequestIdInjection(t *testing.T) {
 	requestId, ok := parsed["x-request-id"].(string)
 	if !ok || requestId == "" {
 		t.Error("expected non-empty x-request-id")
+	}
+	uuidPattern := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	if !uuidPattern.MatchString(requestId) {
+		t.Errorf("expected UUID format, got %q", requestId)
 	}
 }
 

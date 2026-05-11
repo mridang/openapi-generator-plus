@@ -292,12 +292,11 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     @impl true
     def send_request(_method, _url, _headers, _body) do
-      {:ok,
-       %PetstoreClient.ApiResponse{
-         status_code: 200,
-         body: "{\"title\":\"Not Found\"}",
-         headers: %{"Content-Type" => "application/problem+json"}
-       }}
+      %PetstoreClient.ApiResponse{
+        status_code: 200,
+        body: "{\"title\":\"Not Found\"}",
+        headers: %{"Content-Type" => "application/problem+json"}
+      }
     end
   end
 
@@ -329,7 +328,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     @impl true
     def send_request(_method, _url, _headers, _body) do
-      {:ok, %PetstoreClient.ApiResponse{status_code: 200, body: "raw body content", headers: %{}}}
+      %PetstoreClient.ApiResponse{status_code: 200, body: "raw body content", headers: %{}}
     end
   end
 
@@ -396,16 +395,16 @@ defmodule PetstoreClient.Api.BaseApiTest do
     @impl true
     def send_request(_method, url, _headers, _body) do
       Agent.update(__MODULE__, fn _ -> url end)
-      {:ok, %PetstoreClient.ApiResponse{status_code: 200, body: "{}", headers: %{"Content-Type" => "application/json"}}}
+      %PetstoreClient.ApiResponse{status_code: 200, body: "{}", headers: %{"Content-Type" => "application/json"}}
     end
   end
 
   test "null options omits allow_empty_value param" do
     {:ok, _} = CapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
-    state = %{config: config, api_client: CapturingApiClient}
+    api = PetstoreClient.Api.PetApi.new(CapturingApiClient, config)
 
-    _result = PetstoreClient.Api.PetApi.find_pets_by_status(state, nil)
+    _result = PetstoreClient.Api.PetApi.find_pets_by_status(api, nil)
     url = CapturingApiClient.captured_url()
 
     refute String.contains?(url, "status="),
@@ -417,11 +416,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
   test "allow_empty_value param included when value is nil in options" do
     {:ok, _} = CapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
-    state = %{config: config, api_client: CapturingApiClient}
+    api = PetstoreClient.Api.PetApi.new(CapturingApiClient, config)
 
-    _result =
-      PetstoreClient.Api.PetApi.find_pets_by_status(state, %PetstoreClient.Api.Options.FindPetsByStatusOptions{})
-
+    _result = PetstoreClient.Api.PetApi.find_pets_by_status(api, %PetstoreClient.Api.Options.FindPetsByStatusOptions{})
     url = CapturingApiClient.captured_url()
 
     assert String.contains?(url, "status="),
@@ -433,12 +430,10 @@ defmodule PetstoreClient.Api.BaseApiTest do
   test "allow_empty_value param included when value is empty string" do
     {:ok, _} = CapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
-    state = %{config: config, api_client: CapturingApiClient}
+    api = PetstoreClient.Api.PetApi.new(CapturingApiClient, config)
 
     _result =
-      PetstoreClient.Api.PetApi.find_pets_by_status(state, %PetstoreClient.Api.Options.FindPetsByStatusOptions{
-        status: ""
-      })
+      PetstoreClient.Api.PetApi.find_pets_by_status(api, %PetstoreClient.Api.Options.FindPetsByStatusOptions{status: ""})
 
     url = CapturingApiClient.captured_url()
 
