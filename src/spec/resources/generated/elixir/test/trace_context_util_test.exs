@@ -18,5 +18,35 @@ defmodule PetstoreClient.TraceContextUtilTest do
       result = PetstoreClient.TraceContextUtil.inject_trace_context(headers)
       assert result == headers
     end
+
+    test "empty headers do not cause exception" do
+      headers = %{}
+      result = PetstoreClient.TraceContextUtil.inject_trace_context(headers)
+      assert result == %{}
+    end
+
+    test "does not inject tracestate without OpenTelemetry" do
+      headers = %{}
+      result = PetstoreClient.TraceContextUtil.inject_trace_context(headers)
+      refute Map.has_key?(result, "tracestate")
+    end
+
+    test "preserves existing Authorization header" do
+      headers = %{"Authorization" => "Bearer token123"}
+      result = PetstoreClient.TraceContextUtil.inject_trace_context(headers)
+      assert result["Authorization"] == "Bearer token123"
+    end
+
+    test "preserves existing Content-Type header" do
+      headers = %{"Content-Type" => "application/json"}
+      result = PetstoreClient.TraceContextUtil.inject_trace_context(headers)
+      assert result["Content-Type"] == "application/json"
+    end
+
+    test "preserves existing X-Request-ID header" do
+      headers = %{"X-Request-ID" => "req-12345"}
+      result = PetstoreClient.TraceContextUtil.inject_trace_context(headers)
+      assert result["X-Request-ID"] == "req-12345"
+    end
   end
 end

@@ -83,4 +83,91 @@ class TraceContextUtilTest {
       GlobalOpenTelemetry.resetForTest();
     }
   }
+
+  @Test
+  @DisplayName("empty headers map does not cause an exception")
+  void emptyHeadersDoNotCauseException() {
+    GlobalOpenTelemetry.resetForTest();
+    try {
+      Map<String, String> headers = new HashMap<>();
+      assertDoesNotThrow(() -> TraceContextUtil.injectTraceContext(headers));
+      assertTrue(headers.isEmpty());
+    } finally {
+      GlobalOpenTelemetry.resetForTest();
+    }
+  }
+
+  @Test
+  @DisplayName("does not inject tracestate without OpenTelemetry")
+  void doesNotInjectTracestateWithoutOTel() {
+    GlobalOpenTelemetry.resetForTest();
+    try {
+      Map<String, String> headers = new HashMap<>();
+      TraceContextUtil.injectTraceContext(headers);
+      assertFalse(headers.containsKey("tracestate"));
+    } finally {
+      GlobalOpenTelemetry.resetForTest();
+    }
+  }
+
+  @Test
+  @DisplayName("preserves existing Authorization header")
+  void preservesAuthorizationHeader() {
+    GlobalOpenTelemetry.resetForTest();
+    try {
+      Map<String, String> headers = new HashMap<>();
+      headers.put("Authorization", "Bearer token123");
+      TraceContextUtil.injectTraceContext(headers);
+      assertEquals("Bearer token123", headers.get("Authorization"));
+    } finally {
+      GlobalOpenTelemetry.resetForTest();
+    }
+  }
+
+  @Test
+  @DisplayName("preserves existing Content-Type header")
+  void preservesContentTypeHeader() {
+    GlobalOpenTelemetry.resetForTest();
+    try {
+      Map<String, String> headers = new HashMap<>();
+      headers.put("Content-Type", "application/json");
+      TraceContextUtil.injectTraceContext(headers);
+      assertEquals("application/json", headers.get("Content-Type"));
+    } finally {
+      GlobalOpenTelemetry.resetForTest();
+    }
+  }
+
+  @Test
+  @DisplayName("preserves existing X-Request-ID header")
+  void preservesXRequestIdHeader() {
+    GlobalOpenTelemetry.resetForTest();
+    try {
+      Map<String, String> headers = new HashMap<>();
+      headers.put("X-Request-ID", "req-12345");
+      TraceContextUtil.injectTraceContext(headers);
+      assertEquals("req-12345", headers.get("X-Request-ID"));
+    } finally {
+      GlobalOpenTelemetry.resetForTest();
+    }
+  }
+
+  @Test
+  @DisplayName("preserves all existing headers together")
+  void preservesAllExistingHeaders() {
+    GlobalOpenTelemetry.resetForTest();
+    try {
+      Map<String, String> headers = new HashMap<>();
+      headers.put("Authorization", "Bearer token");
+      headers.put("Content-Type", "application/json");
+      headers.put("X-Request-ID", "abc-123");
+      TraceContextUtil.injectTraceContext(headers);
+      assertEquals(3, headers.size());
+      assertEquals("Bearer token", headers.get("Authorization"));
+      assertEquals("application/json", headers.get("Content-Type"));
+      assertEquals("abc-123", headers.get("X-Request-ID"));
+    } finally {
+      GlobalOpenTelemetry.resetForTest();
+    }
+  }
 }

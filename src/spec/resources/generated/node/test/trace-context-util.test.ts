@@ -18,4 +18,53 @@ describe('TraceContextUtil', () => {
     const headers: Record<string, string> = {};
     expect(() => injectTraceContext(headers)).not.toThrow();
   });
+
+  test('is a no-op when no tracer configured', () => {
+    const headers: Record<string, string> = {};
+    injectTraceContext(headers);
+    expect(Object.keys(headers).length).toBe(0);
+  });
+
+  test('empty headers do not cause exception', () => {
+    const headers: Record<string, string> = {};
+    expect(() => injectTraceContext(headers)).not.toThrow();
+    expect(Object.keys(headers).length).toBe(0);
+  });
+
+  test('does not inject tracestate without OTel', () => {
+    const headers: Record<string, string> = {};
+    injectTraceContext(headers);
+    expect(headers['tracestate']).toBeUndefined();
+  });
+
+  test('preserves Authorization header', () => {
+    const headers: Record<string, string> = { Authorization: 'Bearer token123' };
+    injectTraceContext(headers);
+    expect(headers['Authorization']).toBe('Bearer token123');
+  });
+
+  test('preserves Content-Type header', () => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    injectTraceContext(headers);
+    expect(headers['Content-Type']).toBe('application/json');
+  });
+
+  test('preserves X-Request-ID header', () => {
+    const headers: Record<string, string> = { 'X-Request-ID': 'req-12345' };
+    injectTraceContext(headers);
+    expect(headers['X-Request-ID']).toBe('req-12345');
+  });
+
+  test('preserves all existing headers', () => {
+    const headers: Record<string, string> = {
+      Authorization: 'Bearer token',
+      'Content-Type': 'application/json',
+      'X-Request-ID': 'abc-123',
+    };
+    injectTraceContext(headers);
+    expect(Object.keys(headers).length).toBe(3);
+    expect(headers['Authorization']).toBe('Bearer token');
+    expect(headers['Content-Type']).toBe('application/json');
+    expect(headers['X-Request-ID']).toBe('abc-123');
+  });
 });

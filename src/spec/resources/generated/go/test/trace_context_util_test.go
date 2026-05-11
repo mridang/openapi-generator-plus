@@ -68,3 +68,39 @@ func TestInjectTraceContext_PreservesExistingHeaders(t *testing.T) {
 		t.Error("X-Request-ID header was modified")
 	}
 }
+
+func TestInjectTraceContext_PreservesAuthorizationHeader(t *testing.T) {
+	headers := map[string]string{
+		"Authorization": "Bearer token123",
+	}
+
+	petstore.InjectTraceContext(headers)
+
+	if headers["Authorization"] != "Bearer token123" {
+		t.Errorf("expected Authorization header %q, got %q", "Bearer token123", headers["Authorization"])
+	}
+}
+
+func TestInjectTraceContext_PreservesContentTypeHeader(t *testing.T) {
+	headers := map[string]string{
+		"Content-Type": "application/json",
+	}
+
+	petstore.InjectTraceContext(headers)
+
+	if headers["Content-Type"] != "application/json" {
+		t.Errorf("expected Content-Type header %q, got %q", "application/json", headers["Content-Type"])
+	}
+}
+
+func TestInjectTraceContext_PreservesXRequestIdHeader(t *testing.T) {
+	headers := map[string]string{
+		"X-Request-ID": "req-12345",
+	}
+
+	petstore.InjectTraceContext(headers)
+
+	if headers["X-Request-ID"] != "req-12345" {
+		t.Errorf("expected X-Request-ID header %q, got %q", "req-12345", headers["X-Request-ID"])
+	}
+}

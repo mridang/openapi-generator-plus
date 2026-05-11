@@ -41,5 +41,48 @@ describe PetstoreClient::TraceContextUtil do
       headers = {}
       PetstoreClient::TraceContextUtil.inject_trace_context(headers)
     end
+
+    it 'empty headers do not cause exception' do
+      headers = {}
+      PetstoreClient::TraceContextUtil.inject_trace_context(headers)
+      _(headers.size).must_equal(0)
+    end
+
+    it 'does not inject tracestate without OpenTelemetry' do
+      headers = {}
+      PetstoreClient::TraceContextUtil.inject_trace_context(headers)
+      _(headers).wont_include('tracestate')
+    end
+
+    it 'preserves existing Authorization header' do
+      headers = { 'Authorization' => 'Bearer token123' }
+      PetstoreClient::TraceContextUtil.inject_trace_context(headers)
+      _(headers['Authorization']).must_equal('Bearer token123')
+    end
+
+    it 'preserves existing Content-Type header' do
+      headers = { 'Content-Type' => 'application/json' }
+      PetstoreClient::TraceContextUtil.inject_trace_context(headers)
+      _(headers['Content-Type']).must_equal('application/json')
+    end
+
+    it 'preserves existing X-Request-ID header' do
+      headers = { 'X-Request-ID' => 'req-12345' }
+      PetstoreClient::TraceContextUtil.inject_trace_context(headers)
+      _(headers['X-Request-ID']).must_equal('req-12345')
+    end
+
+    it 'preserves all existing headers together' do
+      headers = {
+        'Authorization' => 'Bearer token',
+        'Content-Type' => 'application/json',
+        'X-Request-ID' => 'abc-123'
+      }
+      PetstoreClient::TraceContextUtil.inject_trace_context(headers)
+      _(headers.size).must_equal(3)
+      _(headers['Authorization']).must_equal('Bearer token')
+      _(headers['Content-Type']).must_equal('application/json')
+      _(headers['X-Request-ID']).must_equal('abc-123')
+    end
   end
 end

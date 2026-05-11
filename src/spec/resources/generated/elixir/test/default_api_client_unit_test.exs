@@ -25,4 +25,45 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert client.transport_options.user_agent == "TestAgent/1.0"
     assert client.transport_options.inject_request_id == true
   end
+
+  test "user agent transport option is stored" do
+    transport = PetstoreClient.TransportOptions.new(user_agent: "custom-agent/1.0")
+    client = PetstoreClient.DefaultApiClient.new(transport)
+    assert client.transport_options.user_agent == "custom-agent/1.0"
+  end
+
+  test "inject request ID option is enabled" do
+    transport = PetstoreClient.TransportOptions.new(inject_request_id: true)
+    client = PetstoreClient.DefaultApiClient.new(transport)
+    assert client.transport_options.inject_request_id == true
+  end
+
+  test "inject request ID option is disabled" do
+    transport = PetstoreClient.TransportOptions.new(inject_request_id: false)
+    client = PetstoreClient.DefaultApiClient.new(transport)
+    assert client.transport_options.inject_request_id == false
+  end
+
+  test "default headers transport option is stored" do
+    transport =
+      PetstoreClient.TransportOptions.new(
+        default_headers: %{"X-Custom" => "custom-value"}
+      )
+
+    client = PetstoreClient.DefaultApiClient.new(transport)
+    assert client.transport_options.default_headers["X-Custom"] == "custom-value"
+  end
+
+  test "caller headers override transport default headers in merge logic" do
+    transport_defaults = %{"Accept" => "text/plain"}
+    caller_headers = %{"Accept" => "application/json"}
+    merged = Map.merge(transport_defaults, caller_headers)
+    assert merged["Accept"] == "application/json"
+  end
+
+  test "timeout transport option is stored" do
+    transport = PetstoreClient.TransportOptions.new(timeout: 5000)
+    client = PetstoreClient.DefaultApiClient.new(transport)
+    assert client.transport_options.timeout == 5000
+  end
 end

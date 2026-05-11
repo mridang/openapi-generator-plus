@@ -47,4 +47,28 @@ final class TraceContextUtilTests: XCTestCase {
         XCTAssertEqual(headers["Content-Type"], "application/json")
         XCTAssertEqual(headers["X-Request-ID"], "abc-123")
     }
+
+    func testInjectTraceContextPreservesAuthorizationHeader() {
+        var headers: [String: String] = ["Authorization": "Bearer token123"]
+
+        TraceContextUtil.injectTraceContext(headers: &headers)
+
+        XCTAssertEqual(headers["Authorization"], "Bearer token123")
+    }
+
+    func testInjectTraceContextPreservesContentTypeHeader() {
+        var headers: [String: String] = ["Content-Type": "application/json"]
+
+        TraceContextUtil.injectTraceContext(headers: &headers)
+
+        XCTAssertEqual(headers["Content-Type"], "application/json")
+    }
+
+    func testInjectTraceContextPreservesXRequestIdHeader() {
+        var headers: [String: String] = ["X-Request-ID": "req-12345"]
+
+        TraceContextUtil.injectTraceContext(headers: &headers)
+
+        XCTAssertEqual(headers["X-Request-ID"], "req-12345")
+    }
 }

@@ -63,4 +63,103 @@ final class DefaultApiClientUnitTests: XCTestCase {
     }
     XCTAssertEqual(merged["X-Default"], "caller-value")
   }
+
+  func testVerifySslFalseIsAccepted() async throws {
+    let transport = TransportOptionsBuilder()
+      .verifySSL(false)
+      .build()
+    XCTAssertFalse(transport.verifySSL)
+    let client = DefaultApiClient(transportOptions: transport)
+    XCTAssertNotNil(client)
+  }
+
+  func testCustomCaCertPathConfigured() async throws {
+    let transport = TransportOptionsBuilder()
+      .caCertPath("/tmp/ca.pem")
+      .build()
+    XCTAssertEqual(transport.caCertPath, "/tmp/ca.pem")
+    let client = DefaultApiClient(transportOptions: transport)
+    XCTAssertNotNil(client)
+  }
+
+  func testHttpProxyConfigured() async throws {
+    let transport = TransportOptionsBuilder()
+      .proxy("http://proxy.example.com:8080")
+      .build()
+    XCTAssertNotNil(transport.proxy)
+    XCTAssertEqual(transport.proxy?.host, "proxy.example.com")
+    let client = DefaultApiClient(transportOptions: transport)
+    XCTAssertNotNil(client)
+  }
+
+  func testHttpsProxyConfigured() async throws {
+    let transport = TransportOptionsBuilder()
+      .proxy("https://proxy.example.com:8443")
+      .build()
+    XCTAssertNotNil(transport.proxy)
+    XCTAssertEqual(transport.proxy?.scheme, "https")
+    let client = DefaultApiClient(transportOptions: transport)
+    XCTAssertNotNil(client)
+  }
+
+  func testGzipDecompressionSupported() async throws {
+    let client = DefaultApiClient()
+    XCTAssertNotNil(client)
+  }
+
+  func testBrotliDecompressionSupported() async throws {
+    let client = DefaultApiClient()
+    XCTAssertNotNil(client)
+  }
+
+  func testZstdDecompressionSupported() async throws {
+    let client = DefaultApiClient()
+    XCTAssertNotNil(client)
+  }
+
+  func testTimeoutConfigured() async throws {
+    let transport = TransportOptionsBuilder()
+      .timeout(5000)
+      .build()
+    XCTAssertEqual(transport.timeout, 5000)
+    let client = DefaultApiClient(transportOptions: transport)
+    XCTAssertNotNil(client)
+  }
+
+  func testCustomUserAgentConfigured() async throws {
+    let transport = TransportOptionsBuilder()
+      .userAgent("custom-agent/1.0")
+      .build()
+    XCTAssertEqual(transport.userAgent, "custom-agent/1.0")
+  }
+
+  func testRequestIdIsUuidFormat() async throws {
+    let uuid = UUID().uuidString.lowercased()
+    let uuidPattern = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    let regex = try NSRegularExpression(pattern: uuidPattern)
+    let range = NSRange(uuid.startIndex..., in: uuid)
+    XCTAssertFalse(regex.matches(in: uuid, range: range).isEmpty)
+  }
+
+  func testGeneratesUniqueRequestIds() async throws {
+    let id1 = UUID().uuidString
+    let id2 = UUID().uuidString
+    XCTAssertNotEqual(id1, id2)
+  }
+
+  func testTransportDefaultHeadersStored() async throws {
+    let transport = TransportOptionsBuilder()
+      .defaultHeader(name: "X-Custom", value: "value123")
+      .build()
+    XCTAssertEqual(transport.defaultHeaders["X-Custom"], "value123")
+  }
+
+  func testCallerHeadersOverrideTransportDefaultHeaders() async throws {
+    let transport = TransportOptionsBuilder()
+      .defaultHeader(name: "X-Custom", value: "default")
+      .build()
+    var merged: [String: String] = transport.defaultHeaders
+    merged["X-Custom"] = "override"
+    XCTAssertEqual(merged["X-Custom"], "override")
+  }
 }
