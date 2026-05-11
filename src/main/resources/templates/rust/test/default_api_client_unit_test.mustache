@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::io::Read;
 use std::net::TcpListener;
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 use {{packageName}}::*;
@@ -28,6 +29,38 @@ fn start_echo_server() -> String {
 
     thread::sleep(std::time::Duration::from_millis(50));
     base_url
+}
+
+/// Starts a minimal HTTP server that handles `n_requests` connections, extracts
+/// the X-Request-ID header from each, and returns the captured values.
+fn start_request_id_capture_server(n_requests: usize) -> (String, Arc<Mutex<Vec<String>>>) {
+    let captured = Arc::new(Mutex::new(Vec::new()));
+    let captured_clone = captured.clone();
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let base_url = format!("http://{}", addr);
+
+    thread::spawn(move || {
+        for (i, stream) in listener.incoming().enumerate() {
+            if i >= n_requests {
+                break;
+            }
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let n_read = stream.read(&mut buf).unwrap_or(0);
+            let text = String::from_utf8_lossy(&buf[..n_read]);
+            for line in text.lines() {
+                if line.to_lowercase().starts_with("x-request-id:") {
+                    captured_clone.lock().unwrap().push(line[13..].trim().to_string());
+                }
+            }
+            let response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    (base_url, captured)
 }
 
 #[tokio::test]
@@ -155,4 +188,28 @@ async fn test_default_api_client_caller_headers_override_defaults() {
         .expect("unexpected error");
 
     assert_eq!(resp.status_code, 200);
+}
+
+#[tokio::test]
+async fn test_default_api_client_generates_unique_request_ids() {
+    let (base_url, captured_ids) = start_request_id_capture_server(2);
+
+    let transport = TransportOptionsBuilder::new()
+        .inject_request_id(true)
+        .build();
+    let client = DefaultApiClient::new(Some(transport));
+
+    let headers = HashMap::new();
+    client
+        .send_request("GET", &format!("{}/test", base_url), &headers, None)
+        .await
+        .expect("unexpected error");
+    client
+        .send_request("GET", &format!("{}/test", base_url), &headers, None)
+        .await
+        .expect("unexpected error");
+
+    let ids = captured_ids.lock().unwrap();
+    assert_eq!(ids.len(), 2, "expected 2 request IDs to be captured");
+    assert_ne!(ids[0], ids[1], "expected unique X-Request-ID per request");
 }

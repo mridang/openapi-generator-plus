@@ -165,3 +165,30 @@ func TestDefaultApiClient_CallerHeadersOverrideDefaults(t *testing.T) {
 		t.Errorf("expected caller header to override default, got %q", receivedCustom)
 	}
 }
+
+func TestDefaultApiClient_GeneratesUniqueRequestIDs(t *testing.T) {
+	var ids []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ids = append(ids, r.Header.Get("X-Request-ID"))
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	transport := petstore.NewTransportOptionsBuilder().
+		InjectRequestID(true).
+		Build()
+	client := petstore.NewDefaultApiClient(transport)
+
+	for i := 0; i < 2; i++ {
+		_, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	}
+	if len(ids) != 2 {
+		t.Fatalf("expected 2 request IDs, got %d", len(ids))
+	}
+	if ids[0] == ids[1] {
+		t.Errorf("expected unique request IDs, got same value: %q", ids[0])
+	}
+}
