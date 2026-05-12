@@ -8,6 +8,3 @@
 
 # Crash dumps
 erl_crash.dump
-
-# Mix lock
-/mix.lock
