@@ -10,6 +10,23 @@ use PetstoreClient\Models\Metadata;
 
 class MetadataTest extends TestCase
 {
+    public function testSerializesEmptyMetadata(): void
+    {
+        $metadata = new Metadata();
+
+        $json = ObjectSerializer::serialize($metadata);
+
+        $this->assertIsString($json);
+    }
+
+    public function testDeserializesEmptyObject(): void
+    {
+        /** @var Metadata $metadata */
+        $metadata = ObjectSerializer::deserialize('{}', Metadata::class);
+
+        $this->assertInstanceOf(Metadata::class, $metadata);
+    }
+
     public function testDeserializesAdditionalStringProperties(): void
     {
         $json = '{"createdAt":"2024-01-01T00:00:00+00:00","customField":"hello"}';

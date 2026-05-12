@@ -1,0 +1,32 @@
+{{>api_info}}
+namespace {{invokerPackage}}\Test;
+
+use {{invokerPackage}}\ApiClient;
+use {{invokerPackage}}\ApiResponse;
+
+class MockTokenApiClient implements ApiClient
+{
+    /** @var ApiResponse[] */
+    private array $responses = [];
+    private int $callIndex = 0;
+
+    /** @var array<int, array{method: string, url: string, headers: array<string, string>, body: mixed}> */
+    public array $capturedRequests = [];
+
+    public function enqueueResponse(ApiResponse $response): void
+    {
+        $this->responses[] = $response;
+    }
+
+    /** @param array<string, string> $headers */
+    public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
+    {
+        $this->capturedRequests[] = [
+            'method' => $method,
+            'url' => $url,
+            'headers' => $headers,
+            'body' => $body,
+        ];
+        return $this->responses[$this->callIndex++] ?? new ApiResponse(500, '{}', []);
+    }
+}
