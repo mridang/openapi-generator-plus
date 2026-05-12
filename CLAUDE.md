@@ -33,3 +33,24 @@ When generating file content programmatically (e.g., per-operation Options class
 ## Integration Tests
 
 Integration tests for generated clients (Ruby, Python, PHP, Java) run inside Docker containers. Docker itself does not need to be inside devbox, but Maven commands that trigger these tests do.
+
+## Running Tests — Always Save to a File
+
+**Never tail or pipe `mvn verify` output directly.** Long-running test suites produce too much output; tailing means you lose context on failure and must re-run to see errors.
+
+**Always save to a file, then read the file:**
+
+```bash
+# Correct
+devbox run -- mvn verify -pl . > /tmp/mvn-output.txt 2>&1
+cat /tmp/mvn-output.txt | grep -E "FAIL|ERROR|BUILD" | head -40
+# Then read the full file if needed
+
+# Wrong — do NOT do this
+devbox run -- mvn verify -pl . 2>&1 | tail -60
+```
+
+This way:
+- The full output is preserved even if the build takes minutes
+- You can grep/read specific sections without re-running
+- If a test fails, the error details are already on disk — no need to rerun
