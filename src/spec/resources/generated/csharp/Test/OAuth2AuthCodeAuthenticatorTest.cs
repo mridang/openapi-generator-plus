@@ -39,6 +39,8 @@ public class OAuth2AuthCodeAuthenticatorTest
         }
     }
 
+    private static readonly string[] Scopes = new[] { "read", "write" };
+
     private static OAuth2AuthorizationCodeAuthenticator CreateAuthenticator()
     {
         return new OAuth2AuthorizationCodeAuthenticator(
@@ -49,7 +51,7 @@ public class OAuth2AuthCodeAuthenticatorTest
             new Uri("https://auth.example.com/token"),
             null,
             new Uri("https://app.example.com/callback"),
-            new[] { "read", "write" }
+            Scopes
         );
     }
 

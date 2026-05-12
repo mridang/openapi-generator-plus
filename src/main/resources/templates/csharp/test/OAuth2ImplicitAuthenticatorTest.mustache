@@ -8,13 +8,15 @@ namespace Test;
 
 public class OAuth2ImplicitAuthenticatorTest
 {
+    private static readonly string[] Scopes = new[] { "read", "write" };
+
     private static OAuth2ImplicitAuthenticator CreateAuthenticator()
     {
         return new OAuth2ImplicitAuthenticator(
             "https://api.example.com",
             "my-client-id",
             new Uri("https://auth.example.com/authorize"),
-            new[] { "read", "write" });
+            Scopes);
     }
 
     [Fact]

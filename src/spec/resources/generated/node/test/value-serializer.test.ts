@@ -239,8 +239,8 @@ describe('ValueSerializer', () => {
       ]);
     });
 
-    test('null returns null for query location', () => {
-      expect(ValueSerializer.serializeStyled('color', null, 'query', 'string', null, 'form', true)).toBeNull();
+    test('null returns undefined for query location', () => {
+      expect(ValueSerializer.serializeStyled('color', null, 'query', 'string', null, 'form', true)).toBeUndefined();
     });
   });
 
@@ -278,11 +278,11 @@ describe('ValueSerializer', () => {
 
   describe('cookie location', () => {
     test('string returns as-is', () => {
-      expect(ValueSerializer.serialize('hello', 'cookie', 'string', null)).toBe('hello');
+      expect(ValueSerializer.serialize('hello', 'cookie', 'string', undefined)).toBe('hello');
     });
 
     test('null returns empty string', () => {
-      expect(ValueSerializer.serialize(null, 'cookie', 'string', null)).toBe('');
+      expect(ValueSerializer.serialize(null, 'cookie', 'string', undefined)).toBe('');
     });
   });
 

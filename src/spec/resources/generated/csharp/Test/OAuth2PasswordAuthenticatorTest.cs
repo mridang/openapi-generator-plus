@@ -39,6 +39,8 @@ public class OAuth2PasswordAuthenticatorTest
         }
     }
 
+    private static readonly string[] Scopes = new[] { "read", "write" };
+
     private static OAuth2PasswordAuthenticator CreateAuthenticator()
     {
         return new OAuth2PasswordAuthenticator(
@@ -49,7 +51,7 @@ public class OAuth2PasswordAuthenticatorTest
             null,
             "testuser",
             "testpass",
-            new[] { "read", "write" }
+            Scopes
         );
     }
 

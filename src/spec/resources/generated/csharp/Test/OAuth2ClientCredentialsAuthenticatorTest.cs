@@ -39,6 +39,8 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         }
     }
 
+    private static readonly string[] Scopes = new[] { "read", "write" };
+
     private static OAuth2ClientCredentialsAuthenticator CreateAuthenticator()
     {
         return new OAuth2ClientCredentialsAuthenticator(
@@ -46,7 +48,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
             "my-client-id",
             "my-client-secret",
             new Uri("https://auth.example.com/token"),
-            new[] { "read", "write" }
+            Scopes
         );
     }
 

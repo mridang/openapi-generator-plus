@@ -41,6 +41,8 @@ public class OpenIdConnectAuthenticatorTest
         }
     }
 
+    private static readonly string[] Scopes = new[] { "openid", "profile" };
+
     private static OpenIdConnectAuthenticator CreateAuthenticator()
     {
         return new OpenIdConnectAuthenticator(
@@ -49,7 +51,7 @@ public class OpenIdConnectAuthenticatorTest
             "my-client-id",
             "my-client-secret",
             new Uri("https://app.example.com/callback"),
-            new[] { "openid", "profile" }
+            Scopes
         );
     }
 
@@ -141,11 +143,13 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public void ThrowsWhenNoApiClientInjected()
+    public async Task ThrowsWhenNoApiClientInjected()
     {
         var auth = CreateAuthenticator();
 
-        Assert.ThrowsAsync<InvalidOperationException>(() => auth.BuildAuthorizationUrlAsync());
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => auth.BuildAuthorizationUrlAsync()
+        );
     }
 
     [Fact]

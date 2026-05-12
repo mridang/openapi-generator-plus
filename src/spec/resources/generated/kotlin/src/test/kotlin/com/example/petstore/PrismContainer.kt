@@ -26,7 +26,7 @@ object PrismContainer {
                     MountableFile.forHostPath(Path.of("/app/src/test/resources/openapi.yaml")),
                     "/tmp/openapi.yaml",
                 ).withCommand("mock", "-m", "false", "-h", "0.0.0.0", "/tmp/openapi.yaml")
-                .waitingFor(Wait.forLogMessage("Prism is listening", 1))
+                .waitingFor(Wait.forListeningPort())
                 .withStartupTimeout(java.time.Duration.ofSeconds(120))
         INSTANCE.start()
     }

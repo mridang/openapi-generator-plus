@@ -104,30 +104,28 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
-    public void SetAccessTokenBypassesEndpoint()
+    public async Task SetAccessTokenBypassesEndpoint()
     {
         var manager = new OAuth2TokenManager();
         manager.SetAccessToken("manual-token");
 
         // No API client needed since token is set manually
-        string token = manager.GetAccessTokenAsync(
+        string token = await manager.GetAccessTokenAsync(
             new Uri("https://auth.example.com/token"),
-            new Dictionary<string, string>()).GetAwaiter().GetResult();
+            new Dictionary<string, string>());
 
         Assert.Equal("manual-token", token);
     }
 
     [Fact]
-    public void ThrowsWhenNoApiClientInjected()
+    public async Task ThrowsWhenNoApiClientInjected()
     {
         var manager = new OAuth2TokenManager();
 
-        var ex = Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<InvalidOperationException>(
             () => manager.GetAccessTokenAsync(
                 new Uri("https://auth.example.com/token"),
                 new Dictionary<string, string> { ["grant_type"] = "client_credentials" }));
-
-        Assert.NotNull(ex);
     }
 
     [Fact]

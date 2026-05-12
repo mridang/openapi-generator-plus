@@ -19,14 +19,14 @@ export class ValueSerializer {
    * Serialize a parameter value for use in an HTTP request.
    *
    * @param value the value to serialize
-   * @param location where the parameter appears: 'path', 'query', 'header', or 'form'
+   * @param location where the parameter appears: 'path', 'query', 'header', 'form', or 'cookie'
    * @param schemaType the OpenAPI schema type (e.g. 'string', 'integer', 'boolean', 'array')
    * @param collectionFormat for array query params: 'csv', 'ssv', 'tsv', 'pipes', or 'multi'
    * @returns the serialized value ready for the HTTP request
    */
   static serialize(
     value: unknown,
-    location: 'path' | 'query' | 'header' | 'form',
+    location: 'path' | 'query' | 'header' | 'form' | 'cookie',
     schemaType: string,
     collectionFormat?: string
   ): string | string[] | undefined {
@@ -66,7 +66,7 @@ export class ValueSerializer {
    *
    * @param paramName the parameter name (used for matrix/label prefixes)
    * @param value the value to serialize
-   * @param location where the parameter appears: 'path', 'query', 'header', or 'form'
+   * @param location where the parameter appears: 'path', 'query', 'header', 'form', or 'cookie'
    * @param schemaType the OpenAPI schema type
    * @param collectionFormat legacy collection format (csv/ssv/tsv/pipes/multi)
    * @param style OAS 3.0 style (matrix, label, simple, form, spaceDelimited, pipeDelimited)
@@ -90,7 +90,7 @@ export class ValueSerializer {
     if (!style) {
       return ValueSerializer.serialize(
         value,
-        location as 'path' | 'query' | 'header' | 'form',
+        location as 'path' | 'query' | 'header' | 'form' | 'cookie',
         schemaType,
         collectionFormat ?? undefined
       );
@@ -151,7 +151,7 @@ export class ValueSerializer {
       default:
         return ValueSerializer.serialize(
           value,
-          location as 'path' | 'query' | 'header' | 'form',
+          location as 'path' | 'query' | 'header' | 'form' | 'cookie',
           schemaType,
           collectionFormat ?? undefined
         );
