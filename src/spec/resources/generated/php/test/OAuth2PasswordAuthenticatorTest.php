@@ -41,7 +41,7 @@ class OAuth2PasswordAuthenticatorTest extends TestCase
         $authenticator->getAuthHeaders();
 
         $request = $client->capturedRequests[0];
-        $this->assertStringContainsString('grant_type=password', (string) $request['body']);
+        $this->assertStringContainsString('grant_type=password', $request['body'] ?? '');
     }
 
     public function testSendsUsernameAndPassword(): void
@@ -66,8 +66,8 @@ class OAuth2PasswordAuthenticatorTest extends TestCase
         $authenticator->getAuthHeaders();
 
         $request = $client->capturedRequests[0];
-        $this->assertStringContainsString('username=testuser', (string) $request['body']);
-        $this->assertStringContainsString('password=testpass', (string) $request['body']);
+        $this->assertStringContainsString('username=testuser', $request['body'] ?? '');
+        $this->assertStringContainsString('password=testpass', $request['body'] ?? '');
     }
 
     public function testSendsClientIdAndClientSecret(): void
@@ -92,8 +92,8 @@ class OAuth2PasswordAuthenticatorTest extends TestCase
         $authenticator->getAuthHeaders();
 
         $request = $client->capturedRequests[0];
-        $this->assertStringContainsString('client_id=my-client-id', (string) $request['body']);
-        $this->assertStringContainsString('client_secret=my-client-secret', (string) $request['body']);
+        $this->assertStringContainsString('client_id=my-client-id', $request['body'] ?? '');
+        $this->assertStringContainsString('client_secret=my-client-secret', $request['body'] ?? '');
     }
 
     public function testReturnsAuthorizationBearerHeader(): void
@@ -151,8 +151,8 @@ class OAuth2PasswordAuthenticatorTest extends TestCase
 
         $this->assertSame('Bearer pw-token-2', $headers['Authorization']);
         $request = $client->capturedRequests[1];
-        $this->assertStringContainsString('grant_type=refresh_token', (string) $request['body']);
-        $this->assertStringContainsString('refresh_token=refresh-1', (string) $request['body']);
+        $this->assertStringContainsString('grant_type=refresh_token', $request['body'] ?? '');
+        $this->assertStringContainsString('refresh_token=refresh-1', $request['body'] ?? '');
     }
 
     public function testReturnsHost(): void

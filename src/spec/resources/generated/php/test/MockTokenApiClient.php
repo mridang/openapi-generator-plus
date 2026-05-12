@@ -22,7 +22,7 @@ class MockTokenApiClient implements ApiClient
     private array $responses = [];
     private int $callIndex = 0;
 
-    /** @var array<int, array{method: string, url: string, headers: array<string, string>, body: mixed}> */
+    /** @var array<int, array{method: string, url: string, headers: array<string, string>, body: string|null}> */
     public array $capturedRequests = [];
 
     public function enqueueResponse(ApiResponse $response): void
@@ -37,7 +37,7 @@ class MockTokenApiClient implements ApiClient
             'method' => $method,
             'url' => $url,
             'headers' => $headers,
-            'body' => $body,
+            'body' => is_string($body) ? $body : null,
         ];
         return $this->responses[$this->callIndex++] ?? new ApiResponse(500, '{}', []);
     }

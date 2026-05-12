@@ -28,7 +28,11 @@ class OAuth2AuthCodeAuthenticatorTest extends TestCase
         if ($refreshToken !== null) {
             $body['refresh_token'] = $refreshToken;
         }
-        $client->enqueueResponse(new ApiResponse(200, (string) json_encode($body), ['Content-Type' => 'application/json']));
+        $client->enqueueResponse(new ApiResponse(
+            200,
+            (string) json_encode($body),
+            ['Content-Type' => 'application/json']
+        ));
         return $client;
     }
 
@@ -74,10 +78,10 @@ class OAuth2AuthCodeAuthenticatorTest extends TestCase
         $request = $client->capturedRequests[0];
         $this->assertSame('POST', $request['method']);
         $this->assertSame('https://auth.example.com/token', $request['url']);
-        $this->assertStringContainsString('grant_type=authorization_code', (string) $request['body']);
-        $this->assertStringContainsString('code=auth-code-123', (string) $request['body']);
-        $this->assertStringContainsString('client_id=my-client-id', (string) $request['body']);
-        $this->assertStringContainsString('client_secret=my-client-secret', (string) $request['body']);
+        $this->assertStringContainsString('grant_type=authorization_code', $request['body'] ?? '');
+        $this->assertStringContainsString('code=auth-code-123', $request['body'] ?? '');
+        $this->assertStringContainsString('client_id=my-client-id', $request['body'] ?? '');
+        $this->assertStringContainsString('client_secret=my-client-secret', $request['body'] ?? '');
     }
 
     public function testIncludesRefreshTokenOnRefresh(): void
@@ -111,8 +115,8 @@ class OAuth2AuthCodeAuthenticatorTest extends TestCase
         $headers = $authenticator->getAuthHeaders();
 
         $refreshRequest = $client->capturedRequests[1];
-        $this->assertStringContainsString('refresh_token=refresh1', (string) $refreshRequest['body']);
-        $this->assertStringContainsString('grant_type=refresh_token', (string) $refreshRequest['body']);
+        $this->assertStringContainsString('refresh_token=refresh1', $refreshRequest['body'] ?? '');
+        $this->assertStringContainsString('grant_type=refresh_token', $refreshRequest['body'] ?? '');
         $this->assertSame('Bearer access2', $headers['Authorization']);
     }
 

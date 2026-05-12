@@ -81,8 +81,8 @@ class OpenIdConnectAuthenticatorTest extends TestCase
         $tokenRequest = $client->capturedRequests[1];
         $this->assertSame('POST', $tokenRequest['method']);
         $this->assertSame('https://auth.example.com/token', $tokenRequest['url']);
-        $this->assertStringContainsString('grant_type=authorization_code', (string) $tokenRequest['body']);
-        $this->assertStringContainsString('code=oidc-code-123', (string) $tokenRequest['body']);
+        $this->assertStringContainsString('grant_type=authorization_code', $tokenRequest['body'] ?? '');
+        $this->assertStringContainsString('code=oidc-code-123', $tokenRequest['body'] ?? '');
     }
 
     public function testGetAuthHeadersReturnsBearerAfterCodeExchange(): void

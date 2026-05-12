@@ -41,7 +41,7 @@ class OAuth2ClientCredentialsAuthenticatorTest extends TestCase
         $this->assertSame('Bearer cc-token', $headers['Authorization']);
         $this->assertCount(1, $client->capturedRequests);
         $request = $client->capturedRequests[0];
-        $this->assertStringContainsString('grant_type=client_credentials', (string) $request['body']);
+        $this->assertStringContainsString('grant_type=client_credentials', $request['body'] ?? '');
     }
 
     public function testSendsClientIdAndClientSecret(): void
@@ -64,8 +64,8 @@ class OAuth2ClientCredentialsAuthenticatorTest extends TestCase
         $authenticator->getAuthHeaders();
 
         $request = $client->capturedRequests[0];
-        $this->assertStringContainsString('client_id=my-client-id', (string) $request['body']);
-        $this->assertStringContainsString('client_secret=my-client-secret', (string) $request['body']);
+        $this->assertStringContainsString('client_id=my-client-id', $request['body'] ?? '');
+        $this->assertStringContainsString('client_secret=my-client-secret', $request['body'] ?? '');
     }
 
     public function testIncludesScopesWhenProvided(): void
@@ -88,7 +88,7 @@ class OAuth2ClientCredentialsAuthenticatorTest extends TestCase
         $authenticator->getAuthHeaders();
 
         $request = $client->capturedRequests[0];
-        $this->assertStringContainsString('scope=read+write', (string) $request['body']);
+        $this->assertStringContainsString('scope=read+write', $request['body'] ?? '');
     }
 
     public function testReturnsHost(): void

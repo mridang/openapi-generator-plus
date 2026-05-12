@@ -16,7 +16,7 @@ class MetadataTest extends TestCase
 
         $json = ObjectSerializer::serialize($metadata);
 
-        $this->assertIsString($json);
+        $this->assertNotEmpty($json);
     }
 
     public function testDeserializesEmptyObject(): void
