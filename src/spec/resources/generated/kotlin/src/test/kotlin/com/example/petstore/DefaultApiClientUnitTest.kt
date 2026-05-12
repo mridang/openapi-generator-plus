@@ -10,6 +10,7 @@ package com.example.petstore
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.http.Headers
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.runBlocking
@@ -210,6 +211,158 @@ class DefaultApiClientUnitTest {
                 apiClient.sendRequest("GET", "http://localhost/test", callerHeaders, null)
             }
             assertEquals("application/json", capturedAccept)
+        }
+    }
+
+    @Nested
+    @DisplayName("basic HTTP")
+    inner class BasicHttp {
+        @Test
+        @DisplayName("sends GET request and returns response")
+        fun sendsGetRequestAndReturnsResponse() {
+            val client = mockClient(body = "{\"method\":\"GET\"}")
+            val apiClient = DefaultApiClient(client)
+            var response: ApiResponse? = null
+            runBlocking {
+                response = apiClient.sendRequest("GET", "http://localhost/echo", emptyMap(), null)
+            }
+            assertEquals(200, response!!.statusCode)
+            assertTrue(response!!.body.contains("GET"))
+        }
+
+        @Test
+        @DisplayName("sends POST with JSON body")
+        fun sendsPostWithJsonBody() {
+            val client = mockClient(body = "{\"method\":\"POST\",\"body\":\"key\"}")
+            val apiClient = DefaultApiClient(client)
+            var response: ApiResponse? = null
+            runBlocking {
+                response =
+                    apiClient.sendRequest(
+                        "POST",
+                        "http://localhost/echo",
+                        mapOf("Content-Type" to "application/json"),
+                        "{\"key\":\"value\"}",
+                    )
+            }
+            assertEquals(200, response!!.statusCode)
+            assertTrue(response!!.body.contains("POST"))
+            assertTrue(response!!.body.contains("key"))
+        }
+
+        @Test
+        @DisplayName("returns response headers")
+        fun returnsResponseHeaders() {
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "ok",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("X-Test-Header", "test-value"),
+                    )
+                }
+            val client = HttpClient(engine)
+            val apiClient = DefaultApiClient(client)
+            var response: ApiResponse? = null
+            runBlocking {
+                response = apiClient.sendRequest("GET", "http://localhost/echo", emptyMap(), null)
+            }
+            val value =
+                response!!
+                    .headers.entries
+                    .firstOrNull { it.key.equals("X-Test-Header", ignoreCase = true) }
+                    ?.value
+            assertEquals("test-value", value)
+        }
+
+        @Test
+        @DisplayName("returns non-2xx status code")
+        fun returnsNon2xxStatusCode() {
+            val client = mockClient(statusCode = HttpStatusCode.NotFound, body = "not found")
+            val apiClient = DefaultApiClient(client)
+            var response: ApiResponse? = null
+            runBlocking {
+                response = apiClient.sendRequest("GET", "http://localhost/not-found", emptyMap(), null)
+            }
+            assertEquals(404, response!!.statusCode)
+            assertEquals("not found", response!!.body)
+        }
+
+        @Test
+        @DisplayName("sends PUT request")
+        fun sendsPutRequest() {
+            val client = mockClient(body = "{\"method\":\"PUT\"}")
+            val apiClient = DefaultApiClient(client)
+            var response: ApiResponse? = null
+            runBlocking {
+                response = apiClient.sendRequest("PUT", "http://localhost/echo", emptyMap(), "update")
+            }
+            assertEquals(200, response!!.statusCode)
+            assertTrue(response!!.body.contains("PUT"))
+        }
+
+        @Test
+        @DisplayName("sends DELETE request")
+        fun sendsDeleteRequest() {
+            val client = mockClient(body = "{\"method\":\"DELETE\"}")
+            val apiClient = DefaultApiClient(client)
+            var response: ApiResponse? = null
+            runBlocking {
+                response = apiClient.sendRequest("DELETE", "http://localhost/echo", emptyMap(), null)
+            }
+            assertEquals(200, response!!.statusCode)
+            assertTrue(response!!.body.contains("DELETE"))
+        }
+
+        @Test
+        @DisplayName("returns JSON body for vendor JSON content type")
+        fun returnsJsonBodyForVendorJsonContentType() {
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "{\"format\":\"vendor\"}",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "application/vnd.api+json"),
+                    )
+                }
+            val client = HttpClient(engine)
+            val apiClient = DefaultApiClient(client)
+            var response: ApiResponse? = null
+            runBlocking {
+                response = apiClient.sendRequest("GET", "http://localhost/vendor-json", emptyMap(), null)
+            }
+            assertEquals(200, response!!.statusCode)
+            assertTrue(response!!.body.contains("vendor"))
+        }
+
+        @Test
+        @DisplayName("joins multi-value response headers")
+        fun joinsMultiValueResponseHeaders() {
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "ok",
+                        status = HttpStatusCode.OK,
+                        headers =
+                            Headers.build {
+                                append("X-Custom-Value", "val1")
+                                append("X-Custom-Value", "val2")
+                            },
+                    )
+                }
+            val client = HttpClient(engine)
+            val apiClient = DefaultApiClient(client)
+            var response: ApiResponse? = null
+            runBlocking {
+                response = apiClient.sendRequest("GET", "http://localhost/multi-header", emptyMap(), null)
+            }
+            assertEquals(200, response!!.statusCode)
+            val value =
+                response!!
+                    .headers.entries
+                    .firstOrNull { it.key.equals("X-Custom-Value", ignoreCase = true) }
+                    ?.value
+            assertEquals("val1, val2", value)
         }
     }
 }

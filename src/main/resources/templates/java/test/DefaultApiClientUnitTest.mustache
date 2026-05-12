@@ -10,6 +10,7 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.*;
 
@@ -52,6 +53,26 @@ class DefaultApiClientUnitTest {
           String json = "{\"format\":\"vendor\"}";
           exchange.getResponseHeaders().add("Content-Type", "application/vnd.api+json");
           byte[] response = json.getBytes(StandardCharsets.UTF_8);
+          exchange.sendResponseHeaders(200, response.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(response);
+          }
+        });
+    server.createContext(
+        "/echo-headers",
+        exchange -> {
+          StringBuilder json = new StringBuilder("{");
+          boolean first = true;
+          for (Map.Entry<String, List<String>> entry : exchange.getRequestHeaders().entrySet()) {
+            if (!first) json.append(",");
+            first = false;
+            String key = entry.getKey().toLowerCase(java.util.Locale.ROOT);
+            String value = String.join(", ", entry.getValue()).replace("\"", "\\\"");
+            json.append("\"").append(key).append("\":\"").append(value).append("\"");
+          }
+          json.append("}");
+          byte[] response = json.toString().getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().add("Content-Type", "application/json");
           exchange.sendResponseHeaders(200, response.length);
           try (OutputStream os = exchange.getResponseBody()) {
             os.write(response);
@@ -156,5 +177,93 @@ class DefaultApiClientUnitTest {
             .map(Map.Entry::getValue)
             .orElse(null);
     assertEquals("a=1, b=2", cookieValue);
+  }
+
+  @Test
+  void injectsCustomUserAgent() throws Exception {
+    TransportOptions transport = TransportOptions.builder().userAgent("MyApp/1.0").build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertTrue(response.body().contains("\"user-agent\":\"MyApp/1.0\""));
+  }
+
+  @Test
+  void injectsDefaultUserAgent() throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    ApiResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertTrue(response.body().contains("\"user-agent\":"));
+  }
+
+  @Test
+  void injectsRequestId() throws Exception {
+    TransportOptions transport = TransportOptions.builder().injectRequestId(true).build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertTrue(response.body().contains("\"x-request-id\":"));
+    // Parse out the UUID value and verify format
+    String body = response.body();
+    int idx = body.indexOf("\"x-request-id\":\"");
+    assertTrue(idx >= 0);
+    String uuid = body.substring(idx + 16, body.indexOf("\"", idx + 16));
+    assertTrue(uuid.matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"));
+  }
+
+  @Test
+  void doesNotInjectRequestIdWhenDisabled() throws Exception {
+    TransportOptions transport = TransportOptions.builder().injectRequestId(false).build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertFalse(response.body().contains("\"x-request-id\":"));
+  }
+
+  @Test
+  void doesNotOverrideCallerRequestId() throws Exception {
+    TransportOptions transport = TransportOptions.builder().injectRequestId(true).build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    Map<String, String> headers = new HashMap<>();
+    headers.put("X-Request-ID", "caller-provided-id");
+    ApiResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", headers, null);
+    assertEquals(200, response.statusCode());
+    assertTrue(response.body().contains("\"x-request-id\":\"caller-provided-id\""));
+  }
+
+  @Test
+  void generatesUniqueRequestIds() throws Exception {
+    TransportOptions transport = TransportOptions.builder().injectRequestId(true).build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiResponse response1 = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    ApiResponse response2 = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    String body1 = response1.body();
+    String body2 = response2.body();
+    int idx1 = body1.indexOf("\"x-request-id\":\"");
+    int idx2 = body2.indexOf("\"x-request-id\":\"");
+    assertTrue(idx1 >= 0 && idx2 >= 0);
+    String id1 = body1.substring(idx1 + 16, body1.indexOf("\"", idx1 + 16));
+    String id2 = body2.substring(idx2 + 16, body2.indexOf("\"", idx2 + 16));
+    assertNotEquals(id1, id2);
+  }
+
+  @Test
+  void includesTransportDefaultHeaders() throws Exception {
+    TransportOptions transport = TransportOptions.builder().defaultHeader("X-Custom", "custom-value").build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    ApiResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertTrue(response.body().contains("\"x-custom\":\"custom-value\""));
+  }
+
+  @Test
+  void callerHeadersOverrideDefaults() throws Exception {
+    TransportOptions transport = TransportOptions.builder().defaultHeader("Accept", "text/plain").build();
+    DefaultApiClient client = new DefaultApiClient(transport);
+    Map<String, String> callerHeaders = new HashMap<>();
+    callerHeaders.put("Accept", "application/json");
+    ApiResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", callerHeaders, null);
+    assertEquals(200, response.statusCode());
+    assertTrue(response.body().contains("\"accept\":\"application/json\""));
   }
 }

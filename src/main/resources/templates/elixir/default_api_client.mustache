@@ -213,12 +213,15 @@ defmodule {{moduleName}}.DefaultApiClient do
     Enum.reduce(headers, %{}, fn {key, values}, acc ->
       value =
         case values do
-          [v | _] -> v
+          values when is_list(values) -> Enum.join(values, ", ")
           v when is_binary(v) -> v
           _ -> to_string(values)
         end
 
-      Map.put(acc, key, value)
+      case Map.get(acc, key) do
+        nil -> Map.put(acc, key, value)
+        existing -> Map.put(acc, key, existing <> ", " <> value)
+      end
     end)
   end
 

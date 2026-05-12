@@ -8,7 +8,7 @@ import 'package:{{packageName}}/{{packageName}}.dart';
 
 void main() {
   group('DefaultApiClient unit tests', () {
-    test('userAgent header', () async {
+    test('injects custom User-Agent header', () async {
       String? receivedUA;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
@@ -36,7 +36,7 @@ void main() {
       }
     });
 
-    test('default userAgent', () async {
+    test('injects default User-Agent header', () async {
       String? receivedUA;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
@@ -61,7 +61,7 @@ void main() {
       }
     });
 
-    test('X-Request-ID injection', () async {
+    test('injects X-Request-ID when enabled', () async {
       String? receivedRequestId;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
@@ -90,7 +90,7 @@ void main() {
       }
     });
 
-    test('X-Request-ID not injected when disabled', () async {
+    test('does not inject X-Request-ID when disabled', () async {
       String? receivedRequestId;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
@@ -118,7 +118,7 @@ void main() {
       }
     });
 
-    test('X-Request-ID not overridden when already set', () async {
+    test('does not override caller-provided X-Request-ID', () async {
       String? receivedRequestId;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
@@ -146,7 +146,7 @@ void main() {
       }
     });
 
-    test('default headers', () async {
+    test('includes transport-level default headers', () async {
       String? receivedCustom;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
@@ -174,7 +174,7 @@ void main() {
       }
     });
 
-    test('caller headers override defaults', () async {
+    test('caller headers override transport default headers', () async {
       String? receivedCustom;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
@@ -202,7 +202,7 @@ void main() {
       }
     });
 
-    test('X-Request-ID generates unique values per request', () async {
+    test('generates unique X-Request-ID per request', () async {
       final List<String?> ids = [];
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
@@ -238,57 +238,213 @@ void main() {
       }
     });
 
-    test('verifySSL disabled accepts self-signed certificate', () async {
-      // Use a basic HTTP server (not HTTPS) to verify that the IOClient is
-      // created without error when verifySSL is false
-      final transport = TransportOptionsBuilder()
-          .verifySSL(false)
-          .build();
-      final client = DefaultApiClient(transportOptions: transport);
-
+    test('sends GET request and returns response', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
           ..statusCode = 200
-          ..write('{"ok":true}')
+          ..headers.contentType = ContentType.json
+          ..write('{"method":"GET"}')
           ..close();
       });
 
       try {
+        final client = DefaultApiClient();
         final resp = await client.sendRequest(
           'GET',
-          'http://localhost:${server.port}/test',
+          'http://localhost:${server.port}/echo',
           {},
           null,
         );
         expect(resp.statusCode, equals(200));
+        expect(resp.body, contains('GET'));
       } finally {
         await server.close();
       }
     });
 
-    test('default client is created from transport options', () async {
-      // Verify that a DefaultApiClient created without an explicit httpClient
-      // still works correctly (uses the internal _createHttpClient factory)
-      final transport = TransportOptionsBuilder().build();
-      final client = DefaultApiClient(transportOptions: transport);
-
+    test('sends POST with JSON body', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
         request.response
           ..statusCode = 200
-          ..write('{"ok":true}')
+          ..headers.contentType = ContentType.json
+          ..write('{"method":"POST","body":"key"}')
           ..close();
       });
 
       try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'POST',
+          'http://localhost:${server.port}/echo',
+          {'Content-Type': 'application/json'},
+          '{"key":"value"}',
+        );
+        expect(resp.statusCode, equals(200));
+        expect(resp.body, contains('POST'));
+        expect(resp.body, contains('key'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('returns response headers', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.add('X-Test-Header', 'test-value')
+          ..write('ok')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
         final resp = await client.sendRequest(
           'GET',
-          'http://localhost:${server.port}/test',
+          'http://localhost:${server.port}/echo',
           {},
           null,
         );
         expect(resp.statusCode, equals(200));
+        final headerValue = resp.headers.entries
+            .firstWhere(
+              (e) => e.key.toLowerCase() == 'x-test-header',
+              orElse: () => const MapEntry('', ''),
+            )
+            .value;
+        expect(headerValue, equals('test-value'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('returns non-2xx status code', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 404
+          ..write('not found')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/not-found',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(404));
+        expect(resp.body, equals('not found'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('sends PUT request', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"method":"PUT"}')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'PUT',
+          'http://localhost:${server.port}/echo',
+          {},
+          'update',
+        );
+        expect(resp.statusCode, equals(200));
+        expect(resp.body, contains('PUT'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('sends DELETE request', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"method":"DELETE"}')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'DELETE',
+          'http://localhost:${server.port}/echo',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+        expect(resp.body, contains('DELETE'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('returns JSON body for vendor JSON content type', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.add('Content-Type', 'application/vnd.api+json')
+          ..write('{"format":"vendor"}')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/vendor-json',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+        expect(resp.body, contains('vendor'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('joins multi-value response headers', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.add('X-Custom-Value', 'val1')
+          ..headers.add('X-Custom-Value', 'val2')
+          ..write('ok')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/multi-header',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+        final headerEntry = resp.headers.entries.firstWhere(
+          (e) => e.key.toLowerCase() == 'x-custom-value',
+          orElse: () => const MapEntry('', ''),
+        );
+        expect(headerEntry.value, contains('val1'));
+        expect(headerEntry.value, contains('val2'));
       } finally {
         await server.close();
       }

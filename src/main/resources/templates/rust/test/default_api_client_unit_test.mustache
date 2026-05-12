@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use {{packageName}}::*;
+use {{packageName}}::api_client::RequestBody;
 
 /// Starts a minimal HTTP server that captures request headers and responds
 /// with a 200. Returns the base URL.
@@ -64,7 +65,7 @@ fn start_request_id_capture_server(n_requests: usize) -> (String, Arc<Mutex<Vec<
 }
 
 #[tokio::test]
-async fn test_default_api_client_user_agent_header() {
+async fn test_default_api_client_injects_custom_user_agent() {
     let base_url = start_echo_server();
 
     let transport = TransportOptionsBuilder::new()
@@ -82,7 +83,7 @@ async fn test_default_api_client_user_agent_header() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_default_user_agent() {
+async fn test_default_api_client_injects_default_user_agent() {
     let base_url = start_echo_server();
 
     let client = DefaultApiClient::new(None);
@@ -97,7 +98,7 @@ async fn test_default_api_client_default_user_agent() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_x_request_id_injection() {
+async fn test_default_api_client_injects_request_id() {
     let base_url = start_echo_server();
 
     let transport = TransportOptionsBuilder::new()
@@ -115,7 +116,7 @@ async fn test_default_api_client_x_request_id_injection() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_x_request_id_not_injected_when_disabled() {
+async fn test_default_api_client_does_not_inject_request_id_when_disabled() {
     let base_url = start_echo_server();
 
     let transport = TransportOptionsBuilder::new()
@@ -133,7 +134,7 @@ async fn test_default_api_client_x_request_id_not_injected_when_disabled() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_x_request_id_not_overridden_when_already_set() {
+async fn test_default_api_client_does_not_override_caller_request_id() {
     let base_url = start_echo_server();
 
     let transport = TransportOptionsBuilder::new()
@@ -153,7 +154,7 @@ async fn test_default_api_client_x_request_id_not_overridden_when_already_set() 
 }
 
 #[tokio::test]
-async fn test_default_api_client_default_headers() {
+async fn test_default_api_client_includes_transport_default_headers() {
     let base_url = start_echo_server();
 
     let transport = TransportOptionsBuilder::new()
@@ -212,4 +213,246 @@ async fn test_default_api_client_generates_unique_request_ids() {
     let ids = captured_ids.lock().unwrap();
     assert_eq!(ids.len(), 2, "expected 2 request IDs to be captured");
     assert_ne!(ids[0], ids[1], "expected unique X-Request-ID per request");
+}
+
+/// Starts a server that echoes the HTTP method as JSON and includes a
+/// X-Test-Header response header. Handles one request then stops.
+fn start_method_echo_server() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let base_url = format!("http://{}", addr);
+
+    thread::spawn(move || {
+        for stream in listener.incoming() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 8192];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let text = String::from_utf8_lossy(&buf[..n]);
+
+            let method = text.lines().next()
+                .and_then(|l| l.split_whitespace().next())
+                .unwrap_or("GET")
+                .to_string();
+
+            let body_text = if let Some(pos) = text.find("\r\n\r\n") {
+                text[pos + 4..].trim_end_matches('\0').to_string()
+            } else {
+                String::new()
+            };
+
+            let json_body = format!(
+                r#"{{"method":"{}","body":"{}"}}"#,
+                method,
+                body_text.replace('"', "\\\"")
+            );
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nX-Test-Header: test-value\r\nContent-Length: {}\r\n\r\n{}",
+                json_body.len(),
+                json_body
+            );
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+            break;
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    base_url
+}
+
+/// Starts a server that returns a 404 Not Found response. Handles one request then stops.
+fn start_404_server() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let base_url = format!("http://{}", addr);
+
+    thread::spawn(move || {
+        for stream in listener.incoming() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            let body = b"not found";
+            let response = format!(
+                "HTTP/1.1 404 Not Found\r\nContent-Length: {}\r\n\r\n",
+                body.len()
+            );
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+            let _ = std::io::Write::write_all(&mut stream, body);
+            break;
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    base_url
+}
+
+/// Starts a server that returns a vendor JSON content type response. Handles one request then stops.
+fn start_vendor_json_server() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let base_url = format!("http://{}", addr);
+
+    thread::spawn(move || {
+        for stream in listener.incoming() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            let body = br#"{"format":"vendor"}"#;
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/vnd.api+json\r\nContent-Length: {}\r\n\r\n",
+                body.len()
+            );
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+            let _ = std::io::Write::write_all(&mut stream, body);
+            break;
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    base_url
+}
+
+/// Starts a server that returns two X-Custom-Value response headers. Handles one request then stops.
+fn start_multi_header_server() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    let base_url = format!("http://{}", addr);
+
+    thread::spawn(move || {
+        for stream in listener.incoming() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            let body = b"ok";
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nX-Custom-Value: val1\r\nX-Custom-Value: val2\r\nContent-Length: {}\r\n\r\n",
+                body.len()
+            );
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+            let _ = std::io::Write::write_all(&mut stream, body);
+            break;
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    base_url
+}
+
+#[tokio::test]
+async fn test_default_api_client_sends_get_request_and_returns_response() {
+    let base_url = start_method_echo_server();
+    let client = DefaultApiClient::new(None);
+    let headers = HashMap::new();
+    let resp = client
+        .send_request("GET", &format!("{}/echo", base_url), &headers, None)
+        .await
+        .expect("unexpected error");
+    assert_eq!(resp.status_code, 200);
+    assert!(resp.body.contains("GET"), "expected body to contain GET, got: {}", resp.body);
+}
+
+#[tokio::test]
+async fn test_default_api_client_sends_post_with_json_body() {
+    let base_url = start_method_echo_server();
+    let client = DefaultApiClient::new(None);
+    let mut headers = HashMap::new();
+    headers.insert("Content-Type".to_string(), "application/json".to_string());
+    let body = RequestBody::Bytes(br#"{"key":"value"}"#.to_vec());
+    let resp = client
+        .send_request("POST", &format!("{}/echo", base_url), &headers, Some(&body))
+        .await
+        .expect("unexpected error");
+    assert_eq!(resp.status_code, 200);
+    assert!(resp.body.contains("POST"), "expected body to contain POST, got: {}", resp.body);
+    assert!(resp.body.contains("key"), "expected body to contain key, got: {}", resp.body);
+}
+
+#[tokio::test]
+async fn test_default_api_client_returns_response_headers() {
+    let base_url = start_method_echo_server();
+    let client = DefaultApiClient::new(None);
+    let headers = HashMap::new();
+    let resp = client
+        .send_request("GET", &format!("{}/echo", base_url), &headers, None)
+        .await
+        .expect("unexpected error");
+    assert_eq!(resp.status_code, 200);
+    let found = resp.headers.iter().any(|(k, v)| {
+        k.to_lowercase() == "x-test-header" && v == "test-value"
+    });
+    assert!(found, "expected X-Test-Header: test-value in response headers, got: {:?}", resp.headers);
+}
+
+#[tokio::test]
+async fn test_default_api_client_returns_non_2xx_status_code() {
+    let base_url = start_404_server();
+    let client = DefaultApiClient::new(None);
+    let headers = HashMap::new();
+    let resp = client
+        .send_request("GET", &format!("{}/not-found", base_url), &headers, None)
+        .await
+        .expect("unexpected error");
+    assert_eq!(resp.status_code, 404);
+    assert_eq!(resp.body, "not found");
+}
+
+#[tokio::test]
+async fn test_default_api_client_sends_put_request() {
+    let base_url = start_method_echo_server();
+    let client = DefaultApiClient::new(None);
+    let headers = HashMap::new();
+    let body = RequestBody::Bytes(b"update".to_vec());
+    let resp = client
+        .send_request("PUT", &format!("{}/echo", base_url), &headers, Some(&body))
+        .await
+        .expect("unexpected error");
+    assert_eq!(resp.status_code, 200);
+    assert!(resp.body.contains("PUT"), "expected body to contain PUT, got: {}", resp.body);
+}
+
+#[tokio::test]
+async fn test_default_api_client_sends_delete_request() {
+    let base_url = start_method_echo_server();
+    let client = DefaultApiClient::new(None);
+    let headers = HashMap::new();
+    let resp = client
+        .send_request("DELETE", &format!("{}/echo", base_url), &headers, None)
+        .await
+        .expect("unexpected error");
+    assert_eq!(resp.status_code, 200);
+    assert!(resp.body.contains("DELETE"), "expected body to contain DELETE, got: {}", resp.body);
+}
+
+#[tokio::test]
+async fn test_default_api_client_returns_json_body_for_vendor_json_content_type() {
+    let base_url = start_vendor_json_server();
+    let client = DefaultApiClient::new(None);
+    let headers = HashMap::new();
+    let resp = client
+        .send_request("GET", &format!("{}/vendor-json", base_url), &headers, None)
+        .await
+        .expect("unexpected error");
+    assert_eq!(resp.status_code, 200);
+    assert!(resp.body.contains("vendor"), "expected body to contain vendor, got: {}", resp.body);
+}
+
+#[tokio::test]
+async fn test_default_api_client_joins_multi_value_response_headers() {
+    let base_url = start_multi_header_server();
+    let client = DefaultApiClient::new(None);
+    let headers = HashMap::new();
+    let resp = client
+        .send_request("GET", &format!("{}/multi-header", base_url), &headers, None)
+        .await
+        .expect("unexpected error");
+    assert_eq!(resp.status_code, 200);
+    let value = resp.headers.iter()
+        .find(|(k, _)| k.to_lowercase() == "x-custom-value")
+        .map(|(_, v)| v.as_str());
+    assert!(value.is_some(), "expected X-Custom-Value header to be present");
+    let val = value.unwrap();
+    assert!(
+        val.contains("val1") || val.contains("val2"),
+        "expected X-Custom-Value to contain val1 or val2, got: {}",
+        val
+    );
 }

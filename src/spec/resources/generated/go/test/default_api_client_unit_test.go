@@ -8,13 +8,16 @@
 package petstore_test
 
 import (
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	petstore "petstore/pkg"
+	"strings"
 	"testing"
 )
 
-func TestDefaultApiClient_UserAgentHeader(t *testing.T) {
+func TestDefaultApiClient_InjectsCustomUserAgent(t *testing.T) {
 	var receivedUA string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedUA = r.Header.Get("User-Agent")
@@ -36,7 +39,7 @@ func TestDefaultApiClient_UserAgentHeader(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_DefaultUserAgent(t *testing.T) {
+func TestDefaultApiClient_InjectsDefaultUserAgent(t *testing.T) {
 	var receivedUA string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedUA = r.Header.Get("User-Agent")
@@ -54,7 +57,7 @@ func TestDefaultApiClient_DefaultUserAgent(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_XRequestIDInjection(t *testing.T) {
+func TestDefaultApiClient_InjectsRequestId(t *testing.T) {
 	var receivedRequestID string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedRequestID = r.Header.Get("X-Request-ID")
@@ -76,7 +79,7 @@ func TestDefaultApiClient_XRequestIDInjection(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_XRequestIDNotInjectedWhenDisabled(t *testing.T) {
+func TestDefaultApiClient_DoesNotInjectRequestIdWhenDisabled(t *testing.T) {
 	var receivedRequestID string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedRequestID = r.Header.Get("X-Request-ID")
@@ -98,7 +101,7 @@ func TestDefaultApiClient_XRequestIDNotInjectedWhenDisabled(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_XRequestIDNotOverriddenWhenAlreadySet(t *testing.T) {
+func TestDefaultApiClient_DoesNotOverrideCallerRequestId(t *testing.T) {
 	var receivedRequestID string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedRequestID = r.Header.Get("X-Request-ID")
@@ -121,7 +124,7 @@ func TestDefaultApiClient_XRequestIDNotOverriddenWhenAlreadySet(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_DefaultHeaders(t *testing.T) {
+func TestDefaultApiClient_IncludesTransportDefaultHeaders(t *testing.T) {
 	var receivedCustom string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedCustom = r.Header.Get("X-Default")
@@ -166,7 +169,7 @@ func TestDefaultApiClient_CallerHeadersOverrideDefaults(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_GeneratesUniqueRequestIDs(t *testing.T) {
+func TestDefaultApiClient_GeneratesUniqueRequestIds(t *testing.T) {
 	var ids []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ids = append(ids, r.Header.Get("X-Request-ID"))
@@ -190,5 +193,196 @@ func TestDefaultApiClient_GeneratesUniqueRequestIDs(t *testing.T) {
 	}
 	if ids[0] == ids[1] {
 		t.Errorf("expected unique request IDs, got same value: %q", ids[0])
+	}
+}
+
+func TestDefaultApiClient_SendsGetRequestAndReturnsResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		fmt.Fprintf(w, `{"method":"%s"}`, r.Method)
+	}))
+	defer server.Close()
+
+	client := petstore.NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("GET", server.URL+"/echo", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+	if !strings.Contains(resp.Body, "GET") {
+		t.Errorf("expected body to contain GET, got %q", resp.Body)
+	}
+}
+
+func TestDefaultApiClient_SendsPostWithJsonBody(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		fmt.Fprintf(w, `{"method":"%s","body":"%s"}`, r.Method, string(body))
+	}))
+	defer server.Close()
+
+	client := petstore.NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("POST", server.URL+"/echo",
+		map[string]string{"Content-Type": "application/json"},
+		[]byte(`{"key":"value"}`))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+	if !strings.Contains(resp.Body, "POST") {
+		t.Errorf("expected body to contain POST, got %q", resp.Body)
+	}
+	if !strings.Contains(resp.Body, "key") {
+		t.Errorf("expected body to contain key, got %q", resp.Body)
+	}
+}
+
+func TestDefaultApiClient_ReturnsResponseHeaders(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Test-Header", "test-value")
+		w.WriteHeader(200)
+		w.Write([]byte("ok"))
+	}))
+	defer server.Close()
+
+	client := petstore.NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("GET", server.URL+"/echo", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+	var found string
+	for k, v := range resp.Headers {
+		if strings.EqualFold(k, "X-Test-Header") {
+			found = v
+			break
+		}
+	}
+	if found != "test-value" {
+		t.Errorf("expected X-Test-Header: test-value, got %q", found)
+	}
+}
+
+func TestDefaultApiClient_ReturnsNon2xxStatusCode(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(404)
+		w.Write([]byte("not found"))
+	}))
+	defer server.Close()
+
+	client := petstore.NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("GET", server.URL+"/not-found", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 404 {
+		t.Errorf("expected status 404, got %d", resp.StatusCode)
+	}
+	if resp.Body != "not found" {
+		t.Errorf("expected body 'not found', got %q", resp.Body)
+	}
+}
+
+func TestDefaultApiClient_SendsPutRequest(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		fmt.Fprintf(w, `{"method":"%s"}`, r.Method)
+	}))
+	defer server.Close()
+
+	client := petstore.NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("PUT", server.URL+"/echo", map[string]string{}, []byte("update"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+	if !strings.Contains(resp.Body, "PUT") {
+		t.Errorf("expected body to contain PUT, got %q", resp.Body)
+	}
+}
+
+func TestDefaultApiClient_SendsDeleteRequest(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		fmt.Fprintf(w, `{"method":"%s"}`, r.Method)
+	}))
+	defer server.Close()
+
+	client := petstore.NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("DELETE", server.URL+"/echo", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+	if !strings.Contains(resp.Body, "DELETE") {
+		t.Errorf("expected body to contain DELETE, got %q", resp.Body)
+	}
+}
+
+func TestDefaultApiClient_ReturnsJsonBodyForVendorJsonContentType(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.api+json")
+		w.WriteHeader(200)
+		w.Write([]byte(`{"format":"vendor"}`))
+	}))
+	defer server.Close()
+
+	client := petstore.NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("GET", server.URL+"/vendor-json", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+	if !strings.Contains(resp.Body, "vendor") {
+		t.Errorf("expected body to contain vendor, got %q", resp.Body)
+	}
+}
+
+func TestDefaultApiClient_JoinsMultiValueResponseHeaders(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("X-Custom-Value", "val1")
+		w.Header().Add("X-Custom-Value", "val2")
+		w.WriteHeader(200)
+		w.Write([]byte("ok"))
+	}))
+	defer server.Close()
+
+	client := petstore.NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("GET", server.URL+"/multi-header", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+	var found string
+	for k, v := range resp.Headers {
+		if strings.EqualFold(k, "X-Custom-Value") {
+			found = v
+			break
+		}
+	}
+	if found == "" {
+		t.Errorf("expected X-Custom-Value header to be present")
+	}
+	if !strings.Contains(found, "val1") {
+		t.Errorf("expected X-Custom-Value to contain val1, got %q", found)
 	}
 }

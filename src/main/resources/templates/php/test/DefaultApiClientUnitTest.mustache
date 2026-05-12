@@ -6,12 +6,13 @@ namespace {{invokerPackage}}\Test;
 
 use PHPUnit\Framework\TestCase;
 use {{invokerPackage}}\DefaultApiClient;
+use {{invokerPackage}}\TransportOptionsBuilder;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
 class DefaultApiClientUnitTest extends TestCase
 {
-    public function testSendsGetRequest(): void
+    public function testSendsGetRequestAndReturnsResponse(): void
     {
         $mockResponse = new MockResponse('{"method":"GET","body":""}', [
             'http_code' => 200,
@@ -58,7 +59,7 @@ class DefaultApiClientUnitTest extends TestCase
         $this->assertSame('test-value', $response->headers['x-test-header']);
     }
 
-    public function testReturnsNon2xxStatus(): void
+    public function testReturnsNon2xxStatusCode(): void
     {
         $mockResponse = new MockResponse('not found', [
             'http_code' => 404,
@@ -97,7 +98,7 @@ class DefaultApiClientUnitTest extends TestCase
         $this->assertStringContainsString('DELETE', $response->body);
     }
 
-    public function testVndJsonContentTypeReturnsJsonBody(): void
+    public function testReturnsJsonBodyForVendorJsonContentType(): void
     {
         $mockResponse = new MockResponse('{"id":1,"name":"test"}', [
             'http_code' => 200,
@@ -111,22 +112,223 @@ class DefaultApiClientUnitTest extends TestCase
         $this->assertJson($response->body);
     }
 
-    public function testResponseHeadersAreFlatStrings(): void
+    public function testJoinsMultiValueResponseHeaders(): void
     {
         $mockResponse = new MockResponse('ok', [
             'http_code' => 200,
-            'response_headers' => [
-                'Content-Type' => 'application/json',
-                'X-Request-Id' => 'abc-123',
-            ],
+            'response_headers' => ['X-Custom-Value' => ['val1', 'val2']],
         ]);
         $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
 
-        $response = $client->sendRequest('GET', 'http://example.com/echo', [], null);
+        $response = $client->sendRequest('GET', 'http://example.com/multi-header', [], null);
 
-        $this->assertArrayHasKey('content-type', $response->headers);
-        $this->assertIsString($response->headers['content-type']);
-        $this->assertArrayHasKey('x-request-id', $response->headers);
-        $this->assertIsString($response->headers['x-request-id']);
+        $this->assertSame(200, $response->statusCode);
+        $this->assertArrayHasKey('x-custom-value', $response->headers);
+        $this->assertStringContainsString('val1', $response->headers['x-custom-value']);
+        $this->assertStringContainsString('val2', $response->headers['x-custom-value']);
+    }
+
+    public function testInjectsCustomUserAgent(): void
+    {
+        $capturedHeaders = [];
+        $mockClient = new MockHttpClient(
+            function (string $method, string $url, array $options) use (&$capturedHeaders): MockResponse {
+                $capturedHeaders = [];
+                foreach ($options['normalized_headers'] ?? [] as $values) {
+                    [$name, $value] = explode(': ', $values[0], 2);
+                    $capturedHeaders[$name] = $value;
+                }
+                return new MockResponse('{}', ['http_code' => 200]);
+            }
+        );
+
+        $transport = (new TransportOptionsBuilder())
+            ->userAgent('MyApp/1.0')
+            ->build();
+        $client = new DefaultApiClient($transport, $mockClient);
+        $client->sendRequest('GET', 'http://example.com/test', [], null);
+
+        $this->assertSame('MyApp/1.0', $capturedHeaders['User-Agent'] ?? null);
+    }
+
+    public function testInjectsDefaultUserAgent(): void
+    {
+        $capturedHeaders = [];
+        $mockClient = new MockHttpClient(
+            function (string $method, string $url, array $options) use (&$capturedHeaders): MockResponse {
+                $capturedHeaders = [];
+                foreach ($options['normalized_headers'] ?? [] as $values) {
+                    [$name, $value] = explode(': ', $values[0], 2);
+                    $capturedHeaders[$name] = $value;
+                }
+                return new MockResponse('{}', ['http_code' => 200]);
+            }
+        );
+
+        $client = new DefaultApiClient(null, $mockClient);
+        $client->sendRequest('GET', 'http://example.com/test', [], null);
+
+        $this->assertNotEmpty($capturedHeaders['User-Agent'] ?? null);
+    }
+
+    public function testInjectsRequestId(): void
+    {
+        $capturedHeaders = [];
+        $mockClient = new MockHttpClient(
+            function (string $method, string $url, array $options) use (&$capturedHeaders): MockResponse {
+                $capturedHeaders = [];
+                foreach ($options['normalized_headers'] ?? [] as $values) {
+                    [$name, $value] = explode(': ', $values[0], 2);
+                    $capturedHeaders[$name] = $value;
+                }
+                return new MockResponse('{}', ['http_code' => 200]);
+            }
+        );
+
+        $transport = (new TransportOptionsBuilder())
+            ->injectRequestId(true)
+            ->build();
+        $client = new DefaultApiClient($transport, $mockClient);
+        $client->sendRequest('GET', 'http://example.com/test', [], null);
+
+        $requestId = $capturedHeaders['X-Request-ID'] ?? null;
+        $this->assertNotNull($requestId);
+        $this->assertMatchesRegularExpression(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/',
+            $requestId
+        );
+    }
+
+    public function testDoesNotInjectRequestIdWhenDisabled(): void
+    {
+        $capturedHeaders = [];
+        $mockClient = new MockHttpClient(
+            function (string $method, string $url, array $options) use (&$capturedHeaders): MockResponse {
+                $capturedHeaders = [];
+                foreach ($options['normalized_headers'] ?? [] as $values) {
+                    [$name, $value] = explode(': ', $values[0], 2);
+                    $capturedHeaders[$name] = $value;
+                }
+                return new MockResponse('{}', ['http_code' => 200]);
+            }
+        );
+
+        $transport = (new TransportOptionsBuilder())
+            ->injectRequestId(false)
+            ->build();
+        $client = new DefaultApiClient($transport, $mockClient);
+        $client->sendRequest('GET', 'http://example.com/test', [], null);
+
+        $this->assertArrayNotHasKey('X-Request-ID', $capturedHeaders);
+    }
+
+    public function testDoesNotOverrideCallerRequestId(): void
+    {
+        $capturedHeaders = [];
+        $mockClient = new MockHttpClient(
+            function (string $method, string $url, array $options) use (&$capturedHeaders): MockResponse {
+                $capturedHeaders = [];
+                foreach ($options['normalized_headers'] ?? [] as $values) {
+                    [$name, $value] = explode(': ', $values[0], 2);
+                    $capturedHeaders[$name] = $value;
+                }
+                return new MockResponse('{}', ['http_code' => 200]);
+            }
+        );
+
+        $transport = (new TransportOptionsBuilder())
+            ->injectRequestId(true)
+            ->build();
+        $client = new DefaultApiClient($transport, $mockClient);
+        $client->sendRequest('GET', 'http://example.com/test', ['X-Request-ID' => 'caller-id'], null);
+
+        $this->assertSame('caller-id', $capturedHeaders['X-Request-ID'] ?? null);
+    }
+
+    public function testGeneratesUniqueRequestIds(): void
+    {
+        $capturedIds = [];
+
+        $mockClient1 = new MockHttpClient(
+            function (string $method, string $url, array $options) use (&$capturedIds): MockResponse {
+                $requestHeaders = [];
+                foreach ($options['normalized_headers'] ?? [] as $values) {
+                    [$name, $value] = explode(': ', $values[0], 2);
+                    $requestHeaders[$name] = $value;
+                }
+                $capturedIds[] = $requestHeaders['X-Request-ID'] ?? null;
+                return new MockResponse('{}', ['http_code' => 200]);
+            }
+        );
+        $mockClient2 = new MockHttpClient(
+            function (string $method, string $url, array $options) use (&$capturedIds): MockResponse {
+                $requestHeaders = [];
+                foreach ($options['normalized_headers'] ?? [] as $values) {
+                    [$name, $value] = explode(': ', $values[0], 2);
+                    $requestHeaders[$name] = $value;
+                }
+                $capturedIds[] = $requestHeaders['X-Request-ID'] ?? null;
+                return new MockResponse('{}', ['http_code' => 200]);
+            }
+        );
+
+        $transport = (new TransportOptionsBuilder())
+            ->injectRequestId(true)
+            ->build();
+
+        $client1 = new DefaultApiClient($transport, $mockClient1);
+        $client1->sendRequest('GET', 'http://example.com/test', [], null);
+
+        $client2 = new DefaultApiClient($transport, $mockClient2);
+        $client2->sendRequest('GET', 'http://example.com/test', [], null);
+
+        $this->assertCount(2, $capturedIds);
+        $this->assertNotSame($capturedIds[0], $capturedIds[1]);
+    }
+
+    public function testIncludesTransportDefaultHeaders(): void
+    {
+        $capturedHeaders = [];
+        $mockClient = new MockHttpClient(
+            function (string $method, string $url, array $options) use (&$capturedHeaders): MockResponse {
+                $capturedHeaders = [];
+                foreach ($options['normalized_headers'] ?? [] as $values) {
+                    [$name, $value] = explode(': ', $values[0], 2);
+                    $capturedHeaders[$name] = $value;
+                }
+                return new MockResponse('{}', ['http_code' => 200]);
+            }
+        );
+
+        $transport = (new TransportOptionsBuilder())
+            ->defaultHeader('X-Custom', 'custom-value')
+            ->build();
+        $client = new DefaultApiClient($transport, $mockClient);
+        $client->sendRequest('GET', 'http://example.com/test', [], null);
+
+        $this->assertSame('custom-value', $capturedHeaders['X-Custom'] ?? null);
+    }
+
+    public function testCallerHeadersOverrideDefaults(): void
+    {
+        $capturedHeaders = [];
+        $mockClient = new MockHttpClient(
+            function (string $method, string $url, array $options) use (&$capturedHeaders): MockResponse {
+                $capturedHeaders = [];
+                foreach ($options['normalized_headers'] ?? [] as $values) {
+                    [$name, $value] = explode(': ', $values[0], 2);
+                    $capturedHeaders[$name] = $value;
+                }
+                return new MockResponse('{}', ['http_code' => 200]);
+            }
+        );
+
+        $transport = (new TransportOptionsBuilder())
+            ->defaultHeader('Accept', 'text/plain')
+            ->build();
+        $client = new DefaultApiClient($transport, $mockClient);
+        $client->sendRequest('GET', 'http://example.com/test', ['Accept' => 'application/json'], null);
+
+        $this->assertSame('application/json', $capturedHeaders['Accept'] ?? null);
     }
 }

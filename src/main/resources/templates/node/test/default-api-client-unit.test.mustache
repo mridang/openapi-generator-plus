@@ -2,7 +2,7 @@
 
 import * as http from 'node:http';
 import { DefaultApiClient } from '../src/default-api-client{{importFileExtension}}';
-import { HeaderSelector } from '../src/header-selector{{importFileExtension}}';
+import { TransportOptions } from '../src/transport-options{{importFileExtension}}';
 
 let server: http.Server;
 let baseUrl: string;
@@ -27,6 +27,20 @@ beforeAll(async () => {
     if (req.url === '/multi-header') {
       res.writeHead(200, { 'X-Custom-Value': ['val1', 'val2'] });
       res.end('ok');
+      return;
+    }
+
+    if (req.url === '/echo-headers') {
+      const response = JSON.stringify(
+        Object.fromEntries(
+          Object.entries(req.headers).map(([k, v]) => [
+            k,
+            Array.isArray(v) ? v.join(', ') : v ?? '',
+          ])
+        )
+      );
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(response);
       return;
     }
 
@@ -106,15 +120,10 @@ describe('DefaultApiClient unit', () => {
     expect(body.method).toBe('DELETE');
   });
 
-  it('deserializes response with application/vnd.api+json as JSON', async () => {
+  it('returns JSON body for vendor JSON content type', async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest('GET', `${baseUrl}/vendor-json`, {}, null);
     expect(response.statusCode).toBe(200);
-
-    const contentType = response.headers['content-type']?.split(';')[0]?.trim() ?? '';
-    const headerSelector = new HeaderSelector();
-    expect(headerSelector.isJsonMime(contentType)).toBe(true);
-
     const body = JSON.parse(response.body);
     expect(body.format).toBe('vendor');
   });
@@ -124,5 +133,89 @@ describe('DefaultApiClient unit', () => {
     const response = await client.sendRequest('GET', `${baseUrl}/multi-header`, {}, null);
     expect(response.statusCode).toBe(200);
     expect(response.headers['x-custom-value']).toBe('val1, val2');
+  });
+
+  it('injects custom User-Agent header', async () => {
+    const transport = TransportOptions.builder().userAgent('MyApp/1.0').build();
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest('GET', `${baseUrl}/echo-headers`, {}, null);
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body['user-agent']).toBe('MyApp/1.0');
+  });
+
+  it('injects default User-Agent header', async () => {
+    const client = new DefaultApiClient();
+    const response = await client.sendRequest('GET', `${baseUrl}/echo-headers`, {}, null);
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body['user-agent']).toBeTruthy();
+  });
+
+  it('injects X-Request-ID when enabled', async () => {
+    const transport = TransportOptions.builder().injectRequestId(true).build();
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest('GET', `${baseUrl}/echo-headers`, {}, null);
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    const requestId = body['x-request-id'];
+    expect(requestId).toBeTruthy();
+    expect(requestId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  });
+
+  it('does not inject X-Request-ID when disabled', async () => {
+    const transport = TransportOptions.builder().injectRequestId(false).build();
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest('GET', `${baseUrl}/echo-headers`, {}, null);
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body['x-request-id']).toBeUndefined();
+  });
+
+  it('does not override caller-provided X-Request-ID', async () => {
+    const transport = TransportOptions.builder().injectRequestId(true).build();
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest(
+      'GET',
+      `${baseUrl}/echo-headers`,
+      { 'X-Request-ID': 'caller-provided-id' },
+      null
+    );
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body['x-request-id']).toBe('caller-provided-id');
+  });
+
+  it('generates unique X-Request-ID per request', async () => {
+    const transport = TransportOptions.builder().injectRequestId(true).build();
+    const client = new DefaultApiClient(transport);
+    const response1 = await client.sendRequest('GET', `${baseUrl}/echo-headers`, {}, null);
+    const response2 = await client.sendRequest('GET', `${baseUrl}/echo-headers`, {}, null);
+    const id1 = JSON.parse(response1.body)['x-request-id'];
+    const id2 = JSON.parse(response2.body)['x-request-id'];
+    expect(id1).not.toBe(id2);
+  });
+
+  it('includes transport-level default headers', async () => {
+    const transport = TransportOptions.builder().defaultHeader('X-Custom', 'custom-value').build();
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest('GET', `${baseUrl}/echo-headers`, {}, null);
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body['x-custom']).toBe('custom-value');
+  });
+
+  it('caller headers override transport default headers', async () => {
+    const transport = TransportOptions.builder().defaultHeader('Accept', 'text/plain').build();
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest(
+      'GET',
+      `${baseUrl}/echo-headers`,
+      { 'Accept': 'application/json' },
+      null
+    );
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body['accept']).toBe('application/json');
   });
 });

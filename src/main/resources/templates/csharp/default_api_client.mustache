@@ -116,6 +116,20 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         _transportOptions = TransportOptions.Builder().Build();
     }
 
+    /// <summary>
+    /// Create a client with a pre-configured HttpClient and explicit transport options.
+    /// Use this overload in tests to supply a capturing or mock HttpClient together with
+    /// specific <see cref="TransportOptions"/> (e.g. to test header injection behaviour).
+    /// </summary>
+    /// <param name="httpClient">The HTTP client to use.</param>
+    /// <param name="transportOptions">Transport configuration to apply.</param>
+    public DefaultApiClient(HttpClient httpClient, TransportOptions transportOptions)
+    {
+        ArgumentNullException.ThrowIfNull(transportOptions);
+        _httpClient = httpClient;
+        _transportOptions = transportOptions;
+    }
+
     /// <inheritdoc/>
     public async Task<ApiResponse> SendRequestAsync(
         string method,

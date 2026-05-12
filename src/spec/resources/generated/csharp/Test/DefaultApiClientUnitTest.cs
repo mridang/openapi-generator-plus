@@ -168,6 +168,194 @@ public class DefaultApiClientUnitTest
         Assert.Equal("val1, val2", response.Headers["X-Custom-Value"]);
     }
 
+    [Fact]
+    public async Task InjectsCustomUserAgent()
+    {
+        string? capturedUserAgent = null;
+        var handler = new CapturingHandler(req =>
+        {
+            capturedUserAgent = req.Headers.UserAgent.ToString();
+            return Task.CompletedTask;
+        });
+        var httpClient = new HttpClient(handler);
+        var transport = TransportOptions.Builder().UserAgent("MyApp/1.0").Build();
+        var client = new DefaultApiClient(httpClient, transport);
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string>(),
+            null
+        );
+        Assert.Equal("MyApp/1.0", capturedUserAgent);
+    }
+
+    [Fact]
+    public async Task InjectsDefaultUserAgent()
+    {
+        string? capturedUserAgent = null;
+        var handler = new CapturingHandler(req =>
+        {
+            capturedUserAgent = req.Headers.UserAgent.ToString();
+            return Task.CompletedTask;
+        });
+        var httpClient = new HttpClient(handler);
+        var client = new DefaultApiClient(httpClient);
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string>(),
+            null
+        );
+        Assert.False(string.IsNullOrEmpty(capturedUserAgent));
+    }
+
+    [Fact]
+    public async Task InjectsRequestId()
+    {
+        string? capturedRequestId = null;
+        var handler = new CapturingHandler(req =>
+        {
+            req.Headers.TryGetValues("X-Request-ID", out var vals);
+            capturedRequestId = vals?.FirstOrDefault();
+            return Task.CompletedTask;
+        });
+        var httpClient = new HttpClient(handler);
+        var transport = TransportOptions.Builder().InjectRequestId(true).Build();
+        var client = new DefaultApiClient(httpClient, transport);
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string>(),
+            null
+        );
+        Assert.NotNull(capturedRequestId);
+        Assert.Matches(
+            @"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            capturedRequestId
+        );
+    }
+
+    [Fact]
+    public async Task DoesNotInjectRequestIdWhenDisabled()
+    {
+        bool requestIdPresent = false;
+        var handler = new CapturingHandler(req =>
+        {
+            requestIdPresent = req.Headers.Contains("X-Request-ID");
+            return Task.CompletedTask;
+        });
+        var httpClient = new HttpClient(handler);
+        var transport = TransportOptions.Builder().InjectRequestId(false).Build();
+        var client = new DefaultApiClient(httpClient, transport);
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string>(),
+            null
+        );
+        Assert.False(requestIdPresent);
+    }
+
+    [Fact]
+    public async Task DoesNotOverrideCallerRequestId()
+    {
+        string? capturedRequestId = null;
+        var handler = new CapturingHandler(req =>
+        {
+            req.Headers.TryGetValues("X-Request-ID", out var vals);
+            capturedRequestId = vals?.FirstOrDefault();
+            return Task.CompletedTask;
+        });
+        var httpClient = new HttpClient(handler);
+        var transport = TransportOptions.Builder().InjectRequestId(true).Build();
+        var client = new DefaultApiClient(httpClient, transport);
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string> { { "X-Request-ID", "caller-id" } },
+            null
+        );
+        Assert.Equal("caller-id", capturedRequestId);
+    }
+
+    [Fact]
+    public async Task GeneratesUniqueRequestIds()
+    {
+        var capturedIds = new List<string>();
+        var handler = new CapturingHandler(req =>
+        {
+            req.Headers.TryGetValues("X-Request-ID", out var vals);
+            var id = vals?.FirstOrDefault();
+            if (id != null)
+                capturedIds.Add(id);
+            return Task.CompletedTask;
+        });
+        var httpClient = new HttpClient(handler);
+        var transport = TransportOptions.Builder().InjectRequestId(true).Build();
+        var client = new DefaultApiClient(httpClient, transport);
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string>(),
+            null
+        );
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string>(),
+            null
+        );
+        Assert.Equal(2, capturedIds.Count);
+        Assert.NotEqual(capturedIds[0], capturedIds[1]);
+    }
+
+    [Fact]
+    public async Task IncludesTransportDefaultHeaders()
+    {
+        string? capturedValue = null;
+        var handler = new CapturingHandler(req =>
+        {
+            req.Headers.TryGetValues("X-Custom", out var vals);
+            capturedValue = vals?.FirstOrDefault();
+            return Task.CompletedTask;
+        });
+        var httpClient = new HttpClient(handler);
+        var transport = TransportOptions
+            .Builder()
+            .DefaultHeader("X-Custom", "custom-value")
+            .Build();
+        var client = new DefaultApiClient(httpClient, transport);
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string>(),
+            null
+        );
+        Assert.Equal("custom-value", capturedValue);
+    }
+
+    [Fact]
+    public async Task CallerHeadersOverrideDefaults()
+    {
+        string? capturedAccept = null;
+        var handler = new CapturingHandler(req =>
+        {
+            req.Headers.TryGetValues("Accept", out var vals);
+            capturedAccept = vals?.FirstOrDefault();
+            return Task.CompletedTask;
+        });
+        var httpClient = new HttpClient(handler);
+        var transport = TransportOptions.Builder().DefaultHeader("Accept", "text/plain").Build();
+        var client = new DefaultApiClient(httpClient, transport);
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string> { { "Accept", "application/json" } },
+            null
+        );
+        Assert.Equal("application/json", capturedAccept);
+    }
+
     private static HttpClient CreateMockHttpClient(
         HttpStatusCode statusCode,
         string body,
@@ -176,6 +364,33 @@ public class DefaultApiClientUnitTest
     {
         var handler = new MockHandler(statusCode, body, responseHeaders ?? []);
         return new HttpClient(handler);
+    }
+
+    private sealed class CapturingHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, Task> _onRequest;
+        private readonly HttpStatusCode _statusCode;
+        private readonly string _body;
+
+        public CapturingHandler(
+            Func<HttpRequestMessage, Task> onRequest,
+            HttpStatusCode statusCode = HttpStatusCode.OK,
+            string body = "{}"
+        )
+        {
+            _onRequest = onRequest;
+            _statusCode = statusCode;
+            _body = body;
+        }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            await _onRequest(request);
+            return new HttpResponseMessage(_statusCode) { Content = new StringContent(_body) };
+        }
     }
 
     private sealed class MockHandler : HttpMessageHandler

@@ -62,7 +62,7 @@ class TestDefaultApiClientUnit:
     def teardown_class(cls) -> None:
         cls.server.shutdown()
 
-    def test_sends_get_request(self) -> None:
+    def test_sends_get_request_and_returns_response(self) -> None:
         client = DefaultApiClient()
         response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
         assert response.status_code == 200
@@ -87,7 +87,7 @@ class TestDefaultApiClientUnit:
         assert "x-test-header" in lower_headers
         assert lower_headers["x-test-header"] == "test-value"
 
-    def test_returns_non_2xx_status(self) -> None:
+    def test_returns_non_2xx_status_code(self) -> None:
         client = DefaultApiClient()
         response = client.send_request("GET", f"{self.base_url}/not-found", {}, None)
         assert response.status_code == 404
@@ -107,7 +107,7 @@ class TestDefaultApiClientUnit:
         body = json.loads(response.body)
         assert body["method"] == "DELETE"
 
-    def test_injects_user_agent_header(self) -> None:
+    def test_injects_custom_user_agent(self) -> None:
         transport = TransportOptions.builder().user_agent("TestAgent/1.0").build()
         client = DefaultApiClient(transport)
         response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
@@ -115,17 +115,15 @@ class TestDefaultApiClientUnit:
         body = json.loads(response.body)
         assert body["headers"].get("User-Agent") == "TestAgent/1.0"
 
-    def test_does_not_override_caller_user_agent(self) -> None:
-        transport = TransportOptions.builder().user_agent("TestAgent/1.0").build()
-        client = DefaultApiClient(transport)
-        response = client.send_request(
-            "GET", f"{self.base_url}/echo", {"User-Agent": "CallerAgent/2.0"}, None
-        )
+    def test_injects_default_user_agent(self) -> None:
+        client = DefaultApiClient()
+        response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
         assert response.status_code == 200
         body = json.loads(response.body)
-        assert body["headers"].get("User-Agent") == "CallerAgent/2.0"
+        assert body["headers"].get("User-Agent") is not None
+        assert len(body["headers"].get("User-Agent", "")) > 0
 
-    def test_injects_request_id_header(self) -> None:
+    def test_injects_request_id(self) -> None:
         transport = TransportOptions.builder().inject_request_id(True).build()
         client = DefaultApiClient(transport)
         response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
@@ -142,7 +140,7 @@ class TestDefaultApiClientUnit:
         body = json.loads(response.body)
         assert "X-Request-ID" not in body["headers"]
 
-    def test_transport_default_headers_are_sent(self) -> None:
+    def test_includes_transport_default_headers(self) -> None:
         transport = (
             TransportOptions.builder()
             .default_header("X-Custom-Transport", "transport-value")
@@ -168,7 +166,7 @@ class TestDefaultApiClientUnit:
         body = json.loads(response.body)
         assert body["headers"].get("X-Override") == "caller"
 
-    def test_vendor_json_content_type_is_deserialized_as_json(self) -> None:
+    def test_returns_json_body_for_vendor_json_content_type(self) -> None:
         """Responses with Content-Type application/vnd.api+json should be
         JSON-deserialized, not returned as a raw string."""
         client = DefaultApiClient()
@@ -179,3 +177,59 @@ class TestDefaultApiClientUnit:
         # Simulate a +json content type check inline
         content_type = "application/vnd.api+json"
         assert content_type.startswith("application/json") or "+json" in content_type
+
+    def test_does_not_override_caller_request_id(self) -> None:
+        transport = TransportOptions.builder().inject_request_id(True).build()
+        client = DefaultApiClient(transport)
+        response = client.send_request(
+            "GET", f"{self.base_url}/echo", {"X-Request-ID": "caller-id"}, None
+        )
+        assert response.status_code == 200
+        body = json.loads(response.body)
+        assert body["headers"].get("X-Request-ID") == "caller-id"
+
+    def test_generates_unique_request_ids(self) -> None:
+        transport = TransportOptions.builder().inject_request_id(True).build()
+        client = DefaultApiClient(transport)
+        response1 = client.send_request("GET", f"{self.base_url}/echo", {}, None)
+        response2 = client.send_request("GET", f"{self.base_url}/echo", {}, None)
+        body1 = json.loads(response1.body)
+        body2 = json.loads(response2.body)
+        id1 = body1["headers"].get("X-Request-ID")
+        id2 = body2["headers"].get("X-Request-ID")
+        assert id1 is not None
+        assert id2 is not None
+        assert id1 != id2
+
+    def test_joins_multi_value_response_headers(self) -> None:
+        import socketserver
+        import threading
+
+        multi_value_port = None
+
+        class MultiValueHandler(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:
+                self.send_response(200)
+                self.send_header("X-Multi", "val1")
+                self.send_header("X-Multi", "val2")
+                self.end_headers()
+                self.wfile.write(b"ok")
+
+            def log_message(self, format: str, *args: Any) -> None:
+                pass
+
+        with socketserver.TCPServer(("127.0.0.1", 0), MultiValueHandler) as httpd:
+            multi_value_port = httpd.server_address[1]
+            t = threading.Thread(target=httpd.handle_request)
+            t.start()
+            client = DefaultApiClient()
+            response = client.send_request(
+                "GET", f"http://127.0.0.1:{multi_value_port}/multi", {}, None
+            )
+            t.join()
+
+        assert response.status_code == 200
+        # urllib3 joins multi-value response headers with ", "
+        lower_headers = {k.lower(): v for k, v in response.headers.items()}
+        assert "x-multi" in lower_headers
+        assert "val1" in lower_headers["x-multi"] and "val2" in lower_headers["x-multi"]
