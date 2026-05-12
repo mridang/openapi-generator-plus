@@ -120,4 +120,51 @@ final class ConfigurationTests: XCTestCase {
         XCTAssertNil(config.defaultHeaders["X-Mutated"],
             "Modifying returned headers should not affect the configuration")
     }
+
+    func testBuilderAccumulatesMultipleHeaders() {
+        let config = ConfigurationBuilder()
+            .defaultHeader(name: "X-First", value: "one")
+            .defaultHeader(name: "X-Second", value: "two")
+            .build()
+
+        XCTAssertEqual(config.defaultHeaders.count, 2)
+        XCTAssertEqual(config.defaultHeaders["X-First"], "one")
+        XCTAssertEqual(config.defaultHeaders["X-Second"], "two")
+    }
+
+    func testBuilderMergesSingleAndBulkHeaders() {
+        let config = ConfigurationBuilder()
+            .defaultHeader(name: "X-First", value: "one")
+            .defaultHeaders(["X-Second": "two"])
+            .defaultHeader(name: "X-Third", value: "three")
+            .build()
+
+        XCTAssertEqual(config.defaultHeaders.count, 3)
+        XCTAssertEqual(config.defaultHeaders["X-First"], "one")
+        XCTAssertEqual(config.defaultHeaders["X-Second"], "two")
+        XCTAssertEqual(config.defaultHeaders["X-Third"], "three")
+    }
+
+    func testInvalidServerVariableEnumValueThrows() {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.example.com",
+            variables: [
+                "env": ServerVariable(defaultValue: "api", enumValues: ["api", "staging"])
+            ]
+        )
+
+        XCTAssertThrowsError(
+            try ConfigurationBuilder().server(server, variables: ["env": "invalid"]).build()
+        )
+    }
+
+    func testBuilderProducesIndependentInstances() {
+        let builder = ConfigurationBuilder().baseURL("https://example.com")
+        let first = builder.build()
+        let second = builder.build()
+
+        XCTAssertEqual(first.baseURL, second.baseURL)
+        XCTAssertFalse(first === second as AnyObject,
+            "Build() should produce independent instances")
+    }
 }

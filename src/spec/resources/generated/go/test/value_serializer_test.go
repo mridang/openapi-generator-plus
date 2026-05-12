@@ -33,6 +33,41 @@ func TestSerializeValue_PathString(t *testing.T) {
 	}
 }
 
+func TestSerializeValue_PathStringAsIs(t *testing.T) {
+	result := petstore.SerializeValue("hello", "path", "string", "")
+	if result != "hello" {
+		t.Errorf("expected 'hello', got %v", result)
+	}
+}
+
+func TestSerializeValue_PathStringSlash(t *testing.T) {
+	result := petstore.SerializeValue("a/b", "path", "string", "")
+	if result != "a%2Fb" {
+		t.Errorf("expected 'a%%2Fb', got %v", result)
+	}
+}
+
+func TestSerializeValue_PathInteger(t *testing.T) {
+	result := petstore.SerializeValue(42, "path", "integer", "")
+	if result != "42" {
+		t.Errorf("expected '42', got %v", result)
+	}
+}
+
+func TestSerializeValue_PathBooleanTrue(t *testing.T) {
+	result := petstore.SerializeValue(true, "path", "boolean", "")
+	if result != "true" {
+		t.Errorf("expected 'true', got %v", result)
+	}
+}
+
+func TestSerializeValue_PathBooleanFalse(t *testing.T) {
+	result := petstore.SerializeValue(false, "path", "boolean", "")
+	if result != "false" {
+		t.Errorf("expected 'false', got %v", result)
+	}
+}
+
 func TestSerializeValue_HeaderString(t *testing.T) {
 	result := petstore.SerializeValue("hello", "header", "string", "")
 	if result != "hello" {
@@ -44,6 +79,13 @@ func TestSerializeValue_CookieString(t *testing.T) {
 	result := petstore.SerializeValue("hello", "cookie", "string", "")
 	if result != "hello" {
 		t.Errorf("expected 'hello', got %v", result)
+	}
+}
+
+func TestSerializeValue_CookieNull(t *testing.T) {
+	result := petstore.SerializeValue(nil, "cookie", "string", "")
+	if result != "" {
+		t.Errorf("expected empty string for nil cookie value, got %v", result)
 	}
 }
 
@@ -61,10 +103,91 @@ func TestSerializeValue_NilPath(t *testing.T) {
 	}
 }
 
+func TestSerializeValue_QueryInteger(t *testing.T) {
+	result := petstore.SerializeValue(42, "query", "integer", "")
+	if result != "42" {
+		t.Errorf("expected '42', got %v", result)
+	}
+}
+
+func TestSerializeValue_QueryBooleanTrue(t *testing.T) {
+	result := petstore.SerializeValue(true, "query", "boolean", "")
+	if result != "true" {
+		t.Errorf("expected 'true', got %v", result)
+	}
+}
+
+func TestSerializeValue_QueryBooleanFalse(t *testing.T) {
+	result := petstore.SerializeValue(false, "query", "boolean", "")
+	if result != "false" {
+		t.Errorf("expected 'false', got %v", result)
+	}
+}
+
 func TestSerializeValue_QueryArray(t *testing.T) {
 	result := petstore.SerializeValue([]string{"a", "b", "c"}, "query", "array", "csv")
 	if result != "a,b,c" {
 		t.Errorf("expected 'a,b,c', got %v", result)
+	}
+}
+
+func TestSerializeValue_QueryArraySsv(t *testing.T) {
+	result := petstore.SerializeValue([]string{"a", "b", "c"}, "query", "array", "ssv")
+	if result != "a b c" {
+		t.Errorf("expected 'a b c', got %v", result)
+	}
+}
+
+func TestSerializeValue_QueryArrayTsv(t *testing.T) {
+	result := petstore.SerializeValue([]string{"a", "b", "c"}, "query", "array", "tsv")
+	if result != "a\tb\tc" {
+		t.Errorf("expected tab-separated, got %v", result)
+	}
+}
+
+func TestSerializeValue_QueryArrayPipes(t *testing.T) {
+	result := petstore.SerializeValue([]string{"a", "b", "c"}, "query", "array", "pipes")
+	if result != "a|b|c" {
+		t.Errorf("expected 'a|b|c', got %v", result)
+	}
+}
+
+func TestSerializeValue_QueryEmptyArrayCsv(t *testing.T) {
+	result := petstore.SerializeValue([]string{}, "query", "array", "csv")
+	if result != "" {
+		t.Errorf("expected empty string for empty array, got %v", result)
+	}
+}
+
+func TestSerializeValue_QueryEmptyArrayMulti(t *testing.T) {
+	result := petstore.SerializeValue([]string{}, "query", "array", "multi")
+	items, ok := result.([]string)
+	if !ok {
+		t.Fatalf("expected []string, got %T", result)
+	}
+	if len(items) != 0 {
+		t.Errorf("expected empty slice, got %v", items)
+	}
+}
+
+func TestSerializeValue_QuerySingleElementArray(t *testing.T) {
+	result := petstore.SerializeValue([]string{"a"}, "query", "array", "csv")
+	if result != "a" {
+		t.Errorf("expected 'a', got %v", result)
+	}
+}
+
+func TestSerializeValue_QueryIntegerArray(t *testing.T) {
+	result := petstore.SerializeValue([]interface{}{1, 2, 3}, "query", "array", "csv")
+	if result != "1,2,3" {
+		t.Errorf("expected '1,2,3', got %v", result)
+	}
+}
+
+func TestSerializeValue_QueryBooleanArray(t *testing.T) {
+	result := petstore.SerializeValue([]interface{}{true, false}, "query", "array", "csv")
+	if result != "true,false" {
+		t.Errorf("expected 'true,false', got %v", result)
 	}
 }
 
@@ -79,10 +202,80 @@ func TestSerializeValue_QueryArrayMulti(t *testing.T) {
 	}
 }
 
+func TestSerializeValue_HeaderNull(t *testing.T) {
+	result := petstore.SerializeValue(nil, "header", "string", "")
+	if result != "" {
+		t.Errorf("expected empty string for nil header value, got %v", result)
+	}
+}
+
+func TestSerializeValue_HeaderInteger(t *testing.T) {
+	result := petstore.SerializeValue(42, "header", "integer", "")
+	if result != "42" {
+		t.Errorf("expected '42', got %v", result)
+	}
+}
+
+func TestSerializeValue_HeaderBooleanTrue(t *testing.T) {
+	result := petstore.SerializeValue(true, "header", "boolean", "")
+	if result != "true" {
+		t.Errorf("expected 'true', got %v", result)
+	}
+}
+
 func TestSerializeValue_HeaderArray(t *testing.T) {
 	result := petstore.SerializeValue([]string{"a", "b", "c"}, "header", "array", "")
 	if result != "a,b,c" {
 		t.Errorf("expected 'a,b,c', got %v", result)
+	}
+}
+
+func TestSerializeValue_HeaderEmptyArray(t *testing.T) {
+	result := petstore.SerializeValue([]string{}, "header", "array", "")
+	if result != "" {
+		t.Errorf("expected empty string for empty header array, got %v", result)
+	}
+}
+
+func TestSerializeValue_HeaderIntegerArray(t *testing.T) {
+	result := petstore.SerializeValue([]interface{}{1, 2, 3}, "header", "array", "")
+	if result != "1,2,3" {
+		t.Errorf("expected '1,2,3', got %v", result)
+	}
+}
+
+func TestSerializeValue_FormNull(t *testing.T) {
+	result := petstore.SerializeValue(nil, "form", "string", "")
+	if result != "" {
+		t.Errorf("expected empty string for nil form value, got %v", result)
+	}
+}
+
+func TestSerializeValue_FormString(t *testing.T) {
+	result := petstore.SerializeValue("hello", "form", "string", "")
+	if result != "hello" {
+		t.Errorf("expected 'hello', got %v", result)
+	}
+}
+
+func TestSerializeValue_FormInteger(t *testing.T) {
+	result := petstore.SerializeValue(42, "form", "integer", "")
+	if result != "42" {
+		t.Errorf("expected '42', got %v", result)
+	}
+}
+
+func TestSerializeValue_FormBooleanTrue(t *testing.T) {
+	result := petstore.SerializeValue(true, "form", "boolean", "")
+	if result != "true" {
+		t.Errorf("expected 'true', got %v", result)
+	}
+}
+
+func TestSerializeValue_FormBooleanFalse(t *testing.T) {
+	result := petstore.SerializeValue(false, "form", "boolean", "")
+	if result != "false" {
+		t.Errorf("expected 'false', got %v", result)
 	}
 }
 
@@ -136,6 +329,13 @@ func TestSerializeStyled_LabelArrayExplode(t *testing.T) {
 	result := petstore.SerializeStyled("color", []string{"red", "green"}, "path", "array", "", "label", true)
 	if result != ".red.green" {
 		t.Errorf("expected '.red.green', got %v", result)
+	}
+}
+
+func TestSerializeStyled_LabelNil(t *testing.T) {
+	result := petstore.SerializeStyled("color", nil, "path", "string", "", "label", true)
+	if result != "" {
+		t.Errorf("expected empty string for nil label value, got %v", result)
 	}
 }
 

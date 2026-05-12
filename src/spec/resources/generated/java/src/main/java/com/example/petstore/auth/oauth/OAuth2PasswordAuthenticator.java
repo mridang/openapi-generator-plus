@@ -99,13 +99,21 @@ public class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
   @Override
   public Map<String, String> getAuthHeaders() {
     Map<String, String> params = new HashMap<>();
-    params.put("grant_type", "password");
-    params.put("client_id", clientId);
-    params.put("client_secret", clientSecret);
-    params.put("username", username);
-    params.put("password", password);
-    if (!scopes.isEmpty()) {
-      params.put("scope", String.join(" ", scopes));
+    String currentRefreshToken = tokenManager.getRefreshToken();
+    if (currentRefreshToken != null) {
+      params.put("grant_type", "refresh_token");
+      params.put("refresh_token", currentRefreshToken);
+      params.put("client_id", clientId);
+      params.put("client_secret", clientSecret);
+    } else {
+      params.put("grant_type", "password");
+      params.put("client_id", clientId);
+      params.put("client_secret", clientSecret);
+      params.put("username", username);
+      params.put("password", password);
+      if (!scopes.isEmpty()) {
+        params.put("scope", String.join(" ", scopes));
+      }
     }
     String token = tokenManager.getAccessToken(refreshUrl, params);
     return Collections.singletonMap("Authorization", "Bearer " + token);

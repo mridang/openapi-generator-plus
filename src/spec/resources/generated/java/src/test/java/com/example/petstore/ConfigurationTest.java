@@ -126,6 +126,19 @@ class ConfigurationTest {
   }
 
   @Test
+  void invalidEnumValueThrows() {
+    ServerConfiguration server =
+        new ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            Map.of("env", new ServerVariable("api", null, List.of("api", "staging"))));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> Configuration.builder().server(server, Map.of("env", "invalid")).build());
+  }
+
+  @Test
   void builderBaseUrlOverridesServer() {
     ServerConfiguration server = new ServerConfiguration("https://api.example.com", null, Map.of());
 

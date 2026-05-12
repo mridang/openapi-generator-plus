@@ -48,5 +48,19 @@ defmodule PetstoreClient.TraceContextUtilTest do
       result = PetstoreClient.TraceContextUtil.inject_trace_context(headers)
       assert result["X-Request-ID"] == "req-12345"
     end
+
+    test "preserves all existing headers" do
+      headers = %{
+        "Authorization" => "Bearer token",
+        "Content-Type" => "application/json",
+        "X-Request-ID" => "abc-123"
+      }
+
+      result = PetstoreClient.TraceContextUtil.inject_trace_context(headers)
+      assert map_size(result) == 3
+      assert result["Authorization"] == "Bearer token"
+      assert result["Content-Type"] == "application/json"
+      assert result["X-Request-ID"] == "abc-123"
+    end
   end
 end

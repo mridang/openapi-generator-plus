@@ -22,8 +22,14 @@ fn unwrap_multi(val: Option<SerializedValue>) -> Vec<String> {
 // -- serialize_value by location --
 
 #[test]
-fn test_serialize_value_query_string() {
-    let result = value_serializer::serialize_value(Some("hello"), "query", "string", "");
+fn test_serialize_value_path_null() {
+    let result = value_serializer::serialize_value(None::<&str>, "path", "string", "");
+    assert_eq!(result.unwrap(), "");
+}
+
+#[test]
+fn test_serialize_value_path_string_as_is() {
+    let result = value_serializer::serialize_value(Some("hello"), "path", "string", "");
     assert_eq!(result.unwrap(), "hello");
 }
 
@@ -34,15 +40,57 @@ fn test_serialize_value_path_string() {
 }
 
 #[test]
-fn test_serialize_value_header_string() {
-    let result = value_serializer::serialize_value(Some("hello"), "header", "string", "");
+fn test_serialize_value_path_string_slash() {
+    let result = value_serializer::serialize_value(Some("a/b"), "path", "string", "");
+    assert_eq!(result.unwrap(), "a%2Fb");
+}
+
+#[test]
+fn test_serialize_value_path_integer() {
+    let result = value_serializer::serialize_value(Some("42"), "path", "integer", "");
+    assert_eq!(result.unwrap(), "42");
+}
+
+#[test]
+fn test_serialize_value_path_boolean_true() {
+    let result = value_serializer::serialize_value(Some("true"), "path", "boolean", "");
+    assert_eq!(result.unwrap(), "true");
+}
+
+#[test]
+fn test_serialize_value_path_boolean_false() {
+    let result = value_serializer::serialize_value(Some("false"), "path", "boolean", "");
+    assert_eq!(result.unwrap(), "false");
+}
+
+#[test]
+fn test_serialize_value_query_null() {
+    let result = value_serializer::serialize_value(None::<&str>, "query", "string", "");
+    assert!(result.is_none());
+}
+
+#[test]
+fn test_serialize_value_query_string() {
+    let result = value_serializer::serialize_value(Some("hello"), "query", "string", "");
     assert_eq!(result.unwrap(), "hello");
 }
 
 #[test]
-fn test_serialize_value_cookie_string() {
-    let result = value_serializer::serialize_value(Some("hello"), "cookie", "string", "");
-    assert_eq!(result.unwrap(), "hello");
+fn test_serialize_value_query_integer() {
+    let result = value_serializer::serialize_value(Some("42"), "query", "integer", "");
+    assert_eq!(result.unwrap(), "42");
+}
+
+#[test]
+fn test_serialize_value_query_boolean_true() {
+    let result = value_serializer::serialize_value(Some("true"), "query", "boolean", "");
+    assert_eq!(result.unwrap(), "true");
+}
+
+#[test]
+fn test_serialize_value_query_boolean_false() {
+    let result = value_serializer::serialize_value(Some("false"), "query", "boolean", "");
+    assert_eq!(result.unwrap(), "false");
 }
 
 #[test]
@@ -53,10 +101,153 @@ fn test_serialize_value_query_array_csv() {
 }
 
 #[test]
+fn test_serialize_value_query_array_ssv() {
+    let items: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
+    let result = value_serializer::serialize_array_value(&items, "query", "ssv");
+    assert_eq!(unwrap_single(result), "a b c");
+}
+
+#[test]
+fn test_serialize_value_query_array_tsv() {
+    let items: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
+    let result = value_serializer::serialize_array_value(&items, "query", "tsv");
+    assert_eq!(unwrap_single(result), "a\tb\tc");
+}
+
+#[test]
+fn test_serialize_value_query_array_pipes() {
+    let items: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
+    let result = value_serializer::serialize_array_value(&items, "query", "pipes");
+    assert_eq!(unwrap_single(result), "a|b|c");
+}
+
+#[test]
+fn test_serialize_value_query_array_multi() {
+    let items: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
+    let result = value_serializer::serialize_array_value(&items, "query", "multi");
+    assert_eq!(unwrap_multi(result), vec!["a", "b", "c"]);
+}
+
+#[test]
+fn test_serialize_value_query_array_empty_csv() {
+    let items: Vec<String> = vec![];
+    let result = value_serializer::serialize_array_value(&items, "query", "csv");
+    assert_eq!(unwrap_single(result), "");
+}
+
+#[test]
+fn test_serialize_value_query_array_empty_multi() {
+    let items: Vec<String> = vec![];
+    let result = value_serializer::serialize_array_value(&items, "query", "multi");
+    assert_eq!(unwrap_multi(result), Vec::<String>::new());
+}
+
+#[test]
+fn test_serialize_value_query_array_single_element() {
+    let items: Vec<String> = vec!["a".into()];
+    let result = value_serializer::serialize_array_value(&items, "query", "csv");
+    assert_eq!(unwrap_single(result), "a");
+}
+
+#[test]
+fn test_serialize_value_query_array_integers() {
+    let items: Vec<String> = vec!["1".into(), "2".into(), "3".into()];
+    let result = value_serializer::serialize_array_value(&items, "query", "csv");
+    assert_eq!(unwrap_single(result), "1,2,3");
+}
+
+#[test]
+fn test_serialize_value_query_array_booleans() {
+    let items: Vec<String> = vec!["true".into(), "false".into()];
+    let result = value_serializer::serialize_array_value(&items, "query", "csv");
+    assert_eq!(unwrap_single(result), "true,false");
+}
+
+#[test]
+fn test_serialize_value_header_null() {
+    let result = value_serializer::serialize_value(None::<&str>, "header", "string", "");
+    assert_eq!(result.unwrap(), "");
+}
+
+#[test]
+fn test_serialize_value_header_string() {
+    let result = value_serializer::serialize_value(Some("hello"), "header", "string", "");
+    assert_eq!(result.unwrap(), "hello");
+}
+
+#[test]
+fn test_serialize_value_header_integer() {
+    let result = value_serializer::serialize_value(Some("42"), "header", "integer", "");
+    assert_eq!(result.unwrap(), "42");
+}
+
+#[test]
+fn test_serialize_value_header_boolean_true() {
+    let result = value_serializer::serialize_value(Some("true"), "header", "boolean", "");
+    assert_eq!(result.unwrap(), "true");
+}
+
+#[test]
 fn test_serialize_value_header_array() {
     let items: Vec<String> = vec!["a".into(), "b".into(), "c".into()];
     let result = value_serializer::serialize_array_value(&items, "header", "");
     assert_eq!(unwrap_single(result), "a,b,c");
+}
+
+#[test]
+fn test_serialize_value_header_array_empty() {
+    let items: Vec<String> = vec![];
+    let result = value_serializer::serialize_array_value(&items, "header", "");
+    assert_eq!(unwrap_single(result), "");
+}
+
+#[test]
+fn test_serialize_value_header_array_integers() {
+    let items: Vec<String> = vec!["1".into(), "2".into(), "3".into()];
+    let result = value_serializer::serialize_array_value(&items, "header", "");
+    assert_eq!(unwrap_single(result), "1,2,3");
+}
+
+#[test]
+fn test_serialize_value_cookie_null() {
+    let result = value_serializer::serialize_value(None::<&str>, "cookie", "string", "");
+    assert_eq!(result.unwrap(), "");
+}
+
+#[test]
+fn test_serialize_value_cookie_string() {
+    let result = value_serializer::serialize_value(Some("hello"), "cookie", "string", "");
+    assert_eq!(result.unwrap(), "hello");
+}
+
+#[test]
+fn test_serialize_value_form_null() {
+    let result = value_serializer::serialize_value(None::<&str>, "form", "string", "");
+    assert_eq!(result.unwrap(), "");
+}
+
+#[test]
+fn test_serialize_value_form_string() {
+    let result = value_serializer::serialize_value(Some("hello"), "form", "string", "");
+    assert_eq!(result.unwrap(), "hello");
+}
+
+#[test]
+fn test_serialize_value_form_integer() {
+    let result = value_serializer::serialize_value(Some("42"), "form", "integer", "");
+    assert_eq!(result.unwrap(), "42");
+}
+
+#[test]
+fn test_serialize_value_form_boolean_true() {
+    let result = value_serializer::serialize_value(Some("true"), "form", "boolean", "");
+    assert_eq!(result.unwrap(), "true");
+}
+
+#[test]
+fn test_serialize_value_form_boolean_false() {
+    let result = value_serializer::serialize_value(Some("false"), "form", "boolean", "");
+    assert_eq!(result.unwrap(), "false");
 }
 
 // -- serialize_styled: matrix --
@@ -87,6 +278,14 @@ fn test_serialize_styled_matrix_array_explode() {
     assert_eq!(unwrap_single(result), ";color=red;color=green;color=blue");
 }
 
+#[test]
+fn test_serialize_styled_matrix_null() {
+    let result = value_serializer::serialize_styled(
+        "color", None::<&str>, None, "path", "string", "", "matrix", true,
+    );
+    assert_eq!(unwrap_single(result), "");
+}
+
 // -- serialize_styled: label --
 
 #[test]
@@ -115,7 +314,23 @@ fn test_serialize_styled_label_array_explode() {
     assert_eq!(unwrap_single(result), ".red.green");
 }
 
+#[test]
+fn test_serialize_styled_label_null() {
+    let result = value_serializer::serialize_styled(
+        "color", None::<&str>, None, "path", "string", "", "label", true,
+    );
+    assert_eq!(unwrap_single(result), "");
+}
+
 // -- serialize_styled: simple --
+
+#[test]
+fn test_serialize_styled_simple_null() {
+    let result = value_serializer::serialize_styled(
+        "id", None::<&str>, None, "path", "string", "", "simple", true,
+    );
+    assert_eq!(unwrap_single(result), "");
+}
 
 #[test]
 fn test_serialize_styled_simple_scalar() {
@@ -160,6 +375,14 @@ fn test_serialize_styled_form_array_explode() {
         "color", None, Some(&items), "query", "array", "", "form", true,
     );
     assert_eq!(unwrap_multi(result), vec!["red", "green"]);
+}
+
+#[test]
+fn test_serialize_styled_form_null_query() {
+    let result = value_serializer::serialize_styled(
+        "color", None::<&str>, None, "query", "string", "", "form", true,
+    );
+    assert!(result.is_none());
 }
 
 // -- serialize_styled: spaceDelimited --

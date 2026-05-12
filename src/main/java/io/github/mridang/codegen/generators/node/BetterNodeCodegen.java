@@ -384,48 +384,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                             "test/client.test.mustache",
                             "test",
                             "client.test.ts"));
-            if (hasAnyOAuth2 || hasOpenIdConnect) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/oauth2-token-manager.test.mustache",
-                                "test",
-                                "oauth2-token-manager.test.ts"));
-            }
-            if (hasOAuth2AuthorizationCode) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/oauth2-auth-code-authenticator.test.mustache",
-                                "test",
-                                "oauth2-auth-code-authenticator.test.ts"));
-            }
-            if (hasOAuth2Implicit) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/oauth2-implicit-authenticator.test.mustache",
-                                "test",
-                                "oauth2-implicit-authenticator.test.ts"));
-            }
-            if (hasOAuth2ClientCredentials) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/oauth2-client-credentials-authenticator.test.mustache",
-                                "test",
-                                "oauth2-client-credentials-authenticator.test.ts"));
-            }
-            if (hasOAuth2Password) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/oauth2-password-authenticator.test.mustache",
-                                "test",
-                                "oauth2-password-authenticator.test.ts"));
-            }
-            if (hasOpenIdConnect) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/openid-connect-authenticator.test.mustache",
-                                "test",
-                                "openid-connect-authenticator.test.ts"));
-            }
         }
     }
 
@@ -783,6 +741,51 @@ public class BetterNodeCodegen extends AbstractBetterCodegen {
                             "auth/oauth/openid-connect-authenticator.mustache",
                             oauthFolder,
                             "openid-connect-authenticator.ts"));
+        }
+
+        if (generateTests) {
+            if (hasAnyOAuth2 || hasOpenIdConnect) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/oauth2-token-manager.test.mustache",
+                                "test",
+                                "oauth2-token-manager.test.ts"));
+            }
+            if (hasOAuth2AuthorizationCode) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/oauth2-auth-code-authenticator.test.mustache",
+                                "test",
+                                "oauth2-auth-code-authenticator.test.ts"));
+            }
+            if (hasOAuth2Implicit) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/oauth2-implicit-authenticator.test.mustache",
+                                "test",
+                                "oauth2-implicit-authenticator.test.ts"));
+            }
+            if (hasOAuth2ClientCredentials) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/oauth2-client-credentials-authenticator.test.mustache",
+                                "test",
+                                "oauth2-client-credentials-authenticator.test.ts"));
+            }
+            if (hasOAuth2Password) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/oauth2-password-authenticator.test.mustache",
+                                "test",
+                                "oauth2-password-authenticator.test.ts"));
+            }
+            if (hasOpenIdConnect) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/openid-connect-authenticator.test.mustache",
+                                "test",
+                                "openid-connect-authenticator.test.ts"));
+            }
         }
     }
 

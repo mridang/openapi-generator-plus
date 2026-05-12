@@ -120,7 +120,8 @@ class OAuth2PasswordAuthenticatorTest {
         // Second call should use refresh_token grant since token is expired
         auth.getAuthHeaders()
 
-        assertTrue(client.lastBody!!.contains("grant_type=refresh_token") || client.lastBody!!.contains("grant_type=password"))
+        assertTrue(client.lastBody!!.contains("grant_type=refresh_token"))
+        assertTrue(client.lastBody!!.contains("refresh_token=ref1"))
     }
 
     @Test

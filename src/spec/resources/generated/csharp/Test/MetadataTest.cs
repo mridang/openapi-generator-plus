@@ -17,6 +17,26 @@ public class MetadataTest
     private readonly ObjectSerializer _serializer = new();
 
     [Fact]
+    public void SerializesEmptyMetadata()
+    {
+        var metadata = new Metadata();
+
+        var json = _serializer.Serialize(metadata);
+
+        Assert.NotNull(json);
+    }
+
+    [Fact]
+    public void DeserializesEmptyObject()
+    {
+        var json = "{}";
+
+        var metadata = _serializer.Deserialize<Metadata>(json);
+
+        Assert.NotNull(metadata);
+    }
+
+    [Fact]
     public void DeserializesAdditionalStringProperties()
     {
         var json = "{\"createdAt\":\"2024-01-01T00:00:00Z\",\"customField\":\"hello\"}";

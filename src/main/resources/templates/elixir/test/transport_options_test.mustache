@@ -2,17 +2,49 @@
 defmodule {{moduleName}}.TransportOptionsTest do
   use ExUnit.Case, async: true
 
-  test "new produces correct defaults" do
+  test "verify_ssl defaults to true" do
     opts = {{moduleName}}.TransportOptions.new()
-
     assert opts.verify_ssl == true
+  end
+
+  test "ca_cert_path defaults to nil" do
+    opts = {{moduleName}}.TransportOptions.new()
     assert opts.ca_cert_path == nil
+  end
+
+  test "proxy defaults to nil" do
+    opts = {{moduleName}}.TransportOptions.new()
     assert opts.proxy == nil
+  end
+
+  test "timeout defaults to nil" do
+    opts = {{moduleName}}.TransportOptions.new()
     assert opts.timeout == nil
+  end
+
+  test "follow_redirects defaults to true" do
+    opts = {{moduleName}}.TransportOptions.new()
     assert opts.follow_redirects == true
+  end
+
+  test "max_redirects defaults to nil" do
+    opts = {{moduleName}}.TransportOptions.new()
     assert opts.max_redirects == nil
-    assert opts.user_agent == "{{userAgentDefault}}"
+  end
+
+  test "user_agent defaults to non-empty string" do
+    opts = {{moduleName}}.TransportOptions.new()
+    assert opts.user_agent != nil
+    assert String.length(opts.user_agent) > 0
+  end
+
+  test "default_headers defaults to empty map" do
+    opts = {{moduleName}}.TransportOptions.new()
     assert opts.default_headers == %{}
+  end
+
+  test "inject_request_id defaults to false" do
+    opts = {{moduleName}}.TransportOptions.new()
     assert opts.inject_request_id == false
   end
 

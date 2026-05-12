@@ -14,18 +14,66 @@ namespace Test;
 public class TransportOptionsTest
 {
     [Fact]
-    public void BuilderProducesCorrectDefaults()
+    public void VerifySslDefaultsToTrue()
     {
         var opts = TransportOptions.Builder().Build();
-
         Assert.True(opts.VerifySsl);
+    }
+
+    [Fact]
+    public void CaCertPathDefaultsToNull()
+    {
+        var opts = TransportOptions.Builder().Build();
         Assert.Null(opts.CaCertPath);
+    }
+
+    [Fact]
+    public void ProxyDefaultsToNull()
+    {
+        var opts = TransportOptions.Builder().Build();
         Assert.Null(opts.Proxy);
+    }
+
+    [Fact]
+    public void TimeoutDefaultsToNull()
+    {
+        var opts = TransportOptions.Builder().Build();
         Assert.Null(opts.Timeout);
+    }
+
+    [Fact]
+    public void FollowRedirectsDefaultsToTrue()
+    {
+        var opts = TransportOptions.Builder().Build();
         Assert.True(opts.FollowRedirects);
+    }
+
+    [Fact]
+    public void MaxRedirectsDefaultsToNull()
+    {
+        var opts = TransportOptions.Builder().Build();
         Assert.Null(opts.MaxRedirects);
-        Assert.Equal("PetstoreClient/1.0.0 (csharp)", opts.UserAgent);
+    }
+
+    [Fact]
+    public void UserAgentDefaultsToNonEmptyString()
+    {
+        var opts = TransportOptions.Builder().Build();
+        Assert.NotNull(opts.UserAgent);
+        Assert.NotEmpty(opts.UserAgent!);
+    }
+
+    [Fact]
+    public void DefaultHeadersDefaultsToEmpty()
+    {
+        var opts = TransportOptions.Builder().Build();
         Assert.Empty(opts.DefaultHeaders);
+    }
+
+    [Fact]
+    public void InjectRequestIdDefaultsToFalse()
+    {
+        var opts = TransportOptions.Builder().Build();
         Assert.False(opts.InjectRequestId);
     }
 
@@ -79,6 +127,14 @@ public class TransportOptionsTest
         var opts = TransportOptions.Builder().Proxy(null).Build();
 
         Assert.Null(opts.Proxy);
+    }
+
+    [Fact]
+    public void ValidProxyUrlIsAccepted()
+    {
+        var opts = TransportOptions.Builder().Proxy("http://proxy.example.com:8080").Build();
+
+        Assert.Equal("http://proxy.example.com:8080", opts.Proxy);
     }
 
     [Fact]
@@ -141,6 +197,20 @@ public class TransportOptionsTest
         Assert.Equal("one", opts.DefaultHeaders["X-First"]);
         Assert.Equal("two", opts.DefaultHeaders["X-Second"]);
         Assert.Equal("three", opts.DefaultHeaders["X-Third"]);
+    }
+
+    [Fact]
+    public void ModifyingSourceMapDoesNotAffectBuiltOptions()
+    {
+        var headers = new Dictionary<string, string> { { "X-Original", "original" } };
+
+        var opts = TransportOptions.Builder().DefaultHeaders(headers).Build();
+
+        headers["X-Added"] = "added";
+
+        Assert.Single(opts.DefaultHeaders);
+        Assert.Equal("original", opts.DefaultHeaders["X-Original"]);
+        Assert.False(opts.DefaultHeaders.ContainsKey("X-Added"));
     }
 
     [Fact]

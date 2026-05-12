@@ -168,3 +168,71 @@ fn test_configuration_default_headers_copy_isolation() {
         "modifying returned headers should not affect the configuration"
     );
 }
+
+#[test]
+fn test_configuration_builder_accumulates_multiple_headers() {
+    let config = ConfigurationBuilder::new()
+        .default_header("X-First", "one")
+        .default_header("X-Second", "two")
+        .build();
+
+    let headers = config.default_headers();
+    assert_eq!(headers.len(), 2);
+    assert_eq!(headers.get("X-First").unwrap(), "one");
+    assert_eq!(headers.get("X-Second").unwrap(), "two");
+}
+
+#[test]
+fn test_configuration_builder_merges_single_and_bulk_headers() {
+    let mut extra = HashMap::new();
+    extra.insert("X-Second".to_string(), "two".to_string());
+
+    let config = ConfigurationBuilder::new()
+        .default_header("X-First", "one")
+        .default_headers(extra)
+        .default_header("X-Third", "three")
+        .build();
+
+    let headers = config.default_headers();
+    assert_eq!(headers.len(), 3);
+    assert_eq!(headers.get("X-First").unwrap(), "one");
+    assert_eq!(headers.get("X-Second").unwrap(), "two");
+    assert_eq!(headers.get("X-Third").unwrap(), "three");
+}
+
+#[test]
+fn test_configuration_invalid_server_variable_enum_value_returns_error() {
+    let mut variables = HashMap::new();
+    variables.insert(
+        "env".to_string(),
+        ServerVariable {
+            default_value: "api".to_string(),
+            description: String::new(),
+            enum_values: vec!["api".to_string(), "staging".to_string()],
+        },
+    );
+
+    let server = ServerConfiguration {
+        url_template: "https://{env}.example.com".to_string(),
+        description: "Test server".to_string(),
+        variables,
+    };
+
+    let mut overrides = HashMap::new();
+    overrides.insert("env".to_string(), "invalid".to_string());
+
+    let result = ConfigurationBuilder::new().server(&server, &overrides);
+    assert!(result.is_err(), "expected error for invalid enum value");
+}
+
+#[test]
+fn test_configuration_builder_produces_independent_instances() {
+    let first = ConfigurationBuilder::new()
+        .base_url("https://first.example.com")
+        .build();
+    let second = ConfigurationBuilder::new()
+        .base_url("https://second.example.com")
+        .build();
+
+    assert_ne!(first.base_url(), second.base_url());
+}

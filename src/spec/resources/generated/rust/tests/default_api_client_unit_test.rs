@@ -56,7 +56,10 @@ fn start_request_id_capture_server(n_requests: usize) -> (String, Arc<Mutex<Vec<
             let text = String::from_utf8_lossy(&buf[..n_read]);
             for line in text.lines() {
                 if line.to_lowercase().starts_with("x-request-id:") {
-                    captured_clone.lock().unwrap().push(line[13..].trim().to_string());
+                    captured_clone
+                        .lock()
+                        .unwrap()
+                        .push(line[13..].trim().to_string());
                 }
             }
             let response = "HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n";

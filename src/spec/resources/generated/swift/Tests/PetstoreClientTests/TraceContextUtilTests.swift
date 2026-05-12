@@ -30,14 +30,19 @@ final class TraceContextUtilTests: XCTestCase {
     TraceContextUtil.injectTraceContext(headers: &headers)
   }
 
-  func testInjectTraceContextDoesNotInjectWithoutTracing() {
+  func testInjectTraceContextDoesNotInjectTraceparentWithoutTracing() {
     var headers: [String: String] = [:]
 
     TraceContextUtil.injectTraceContext(headers: &headers)
 
-    // Without a tracing library configured, traceparent and tracestate should not
-    // be injected
     XCTAssertNil(headers["traceparent"])
+  }
+
+  func testInjectTraceContextDoesNotInjectTracestateWithoutTracing() {
+    var headers: [String: String] = [:]
+
+    TraceContextUtil.injectTraceContext(headers: &headers)
+
     XCTAssertNil(headers["tracestate"])
   }
 

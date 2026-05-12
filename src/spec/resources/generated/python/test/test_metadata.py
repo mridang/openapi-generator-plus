@@ -3,6 +3,17 @@ from petstore_client.object_serializer import ObjectSerializer
 
 
 class TestMetadataTypedAdditionalProperties:
+    def test_serialize_empty_metadata(self) -> None:
+        from petstore_client.models import Metadata
+
+        metadata = Metadata()
+        result = ObjectSerializer().serialize(metadata)
+        assert result is not None
+
+    def test_deserialize_empty_object(self) -> None:
+        metadata = ObjectSerializer().deserialize('{}', 'Metadata')
+        assert metadata is not None
+
     def test_deserializes_known_properties(self) -> None:
         json_str = '{"createdAt":"2024-01-01T00:00:00Z"}'
         metadata = ObjectSerializer().deserialize(json_str, 'Metadata')

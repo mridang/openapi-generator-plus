@@ -3,6 +3,19 @@ defmodule {{moduleName}}.Models.MetadataTest do
   use ExUnit.Case, async: true
 
   describe "typed additional properties" do
+    test "serializes empty metadata" do
+      metadata = %{{moduleName}}.Models.Metadata{}
+      json = {{moduleName}}.ObjectSerializer.serialize(metadata)
+
+      assert json != nil
+    end
+
+    test "deserializes empty object" do
+      metadata = {{moduleName}}.ObjectSerializer.deserialize("{}", "Metadata")
+
+      assert metadata != nil
+    end
+
     test "deserializes additional string properties" do
       json = ~s({"createdAt":"2024-01-01T00:00:00+0000","customField":"hello"})
       metadata = {{moduleName}}.ObjectSerializer.deserialize(json, "Metadata")

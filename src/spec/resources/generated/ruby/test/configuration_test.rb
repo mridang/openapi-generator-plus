@@ -129,6 +129,24 @@ describe PetstoreClient::Configuration do
     _(config.base_url).must_equal('https://staging.example.com/api/v2')
   end
 
+  it 'invalid enum value raises' do
+    server = PetstoreClient::ServerConfiguration.new(
+      url_template: 'https://{env}.example.com',
+      variables: {
+        'env' => PetstoreClient::ServerVariable.new(
+          default_value: 'api',
+          enum_values: %w[api staging]
+        )
+      }
+    )
+
+    _(proc {
+      PetstoreClient::Configuration.builder
+        .server(server, { 'env' => 'invalid' })
+        .build
+    }).must_raise(ArgumentError)
+  end
+
   it 'base_url overrides server' do
     server = PetstoreClient::ServerConfiguration.new(
       url_template: 'https://api.example.com'

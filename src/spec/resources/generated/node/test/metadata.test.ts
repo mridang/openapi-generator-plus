@@ -9,6 +9,17 @@ import { ObjectSerializer } from '../src/object-serializer.js';
 import { Metadata } from '../src/models/index.js';
 
 describe('Metadata model (typed additionalProperties)', () => {
+  test('serializes empty metadata', () => {
+    const metadata = new Metadata();
+    const json = ObjectSerializer.serialize(metadata);
+    expect(json).toBeDefined();
+  });
+
+  test('deserializes empty object', () => {
+    const metadata = ObjectSerializer.deserialize({}, Metadata);
+    expect(metadata).toBeDefined();
+  });
+
   test('deserializes additional string properties', () => {
     const json = {
       createdAt: '2024-01-01T00:00:00Z',

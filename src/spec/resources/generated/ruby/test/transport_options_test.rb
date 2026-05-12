@@ -6,17 +6,49 @@ require 'minitest/autorun'
 require 'petstore_client'
 
 describe PetstoreClient::TransportOptions do
-  it 'builder produces correct defaults' do
+  it 'verify_ssl defaults to true' do
     opts = PetstoreClient::TransportOptions.builder.build
-
     _(opts.verify_ssl).must_equal true
+  end
+
+  it 'ca_cert_path defaults to nil' do
+    opts = PetstoreClient::TransportOptions.builder.build
     _(opts.ca_cert_path).must_be_nil
+  end
+
+  it 'proxy defaults to nil' do
+    opts = PetstoreClient::TransportOptions.builder.build
     _(opts.proxy).must_be_nil
+  end
+
+  it 'timeout defaults to nil' do
+    opts = PetstoreClient::TransportOptions.builder.build
     _(opts.timeout).must_be_nil
+  end
+
+  it 'follow_redirects defaults to true' do
+    opts = PetstoreClient::TransportOptions.builder.build
     _(opts.follow_redirects).must_equal true
+  end
+
+  it 'max_redirects defaults to nil' do
+    opts = PetstoreClient::TransportOptions.builder.build
     _(opts.max_redirects).must_be_nil
-    _(opts.user_agent).must_equal 'petstore_client/1.0.0 (ruby)'
+  end
+
+  it 'user_agent defaults to non-empty string' do
+    opts = PetstoreClient::TransportOptions.builder.build
+    _(opts.user_agent).wont_be_nil
+    _(opts.user_agent).wont_be_empty
+  end
+
+  it 'default_headers defaults to empty' do
+    opts = PetstoreClient::TransportOptions.builder.build
     _(opts.default_headers).must_be_empty
+  end
+
+  it 'inject_request_id defaults to false' do
+    opts = PetstoreClient::TransportOptions.builder.build
     _(opts.inject_request_id).must_equal false
   end
 

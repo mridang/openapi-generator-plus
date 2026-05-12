@@ -10,17 +10,48 @@ import 'package:test/test.dart';
 
 void main() {
   group('TransportOptions', () {
-    test('defaults', () {
+    test('verifySSL defaults to true', () {
       final opts = TransportOptionsBuilder().build();
-
       expect(opts.verifySSL, isTrue);
+    });
+
+    test('caCertPath defaults to null', () {
+      final opts = TransportOptionsBuilder().build();
       expect(opts.caCertPath, isNull);
+    });
+
+    test('proxy defaults to null', () {
+      final opts = TransportOptionsBuilder().build();
       expect(opts.proxy, isNull);
+    });
+
+    test('timeout defaults to null', () {
+      final opts = TransportOptionsBuilder().build();
       expect(opts.timeout, isNull);
+    });
+
+    test('followRedirects defaults to true', () {
+      final opts = TransportOptionsBuilder().build();
       expect(opts.followRedirects, isTrue);
+    });
+
+    test('maxRedirects defaults to null', () {
+      final opts = TransportOptionsBuilder().build();
       expect(opts.maxRedirects, isNull);
+    });
+
+    test('userAgent defaults to non-empty string', () {
+      final opts = TransportOptionsBuilder().build();
       expect(opts.userAgent, isNotEmpty);
+    });
+
+    test('defaultHeaders defaults to empty', () {
+      final opts = TransportOptionsBuilder().build();
       expect(opts.defaultHeaders, isEmpty);
+    });
+
+    test('injectRequestId defaults to false', () {
+      final opts = TransportOptionsBuilder().build();
       expect(opts.injectRequestId, isFalse);
     });
 

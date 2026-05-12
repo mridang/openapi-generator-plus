@@ -238,6 +238,10 @@ describe('ValueSerializer', () => {
         'blue'
       ]);
     });
+
+    test('null returns null for query location', () => {
+      expect(ValueSerializer.serializeStyled('color', null, 'query', 'string', null, 'form', true)).toBeNull();
+    });
   });
 
   describe('serializeStyled - simple style backward compatibility', () => {
@@ -251,6 +255,10 @@ describe('ValueSerializer', () => {
       );
     });
 
+    test('null returns empty string', () => {
+      expect(ValueSerializer.serializeStyled('id', null, 'path', 'string', null, 'simple', true)).toBe('');
+    });
+
     test('scalar URL-encodes path value', () => {
       expect(ValueSerializer.serializeStyled('id', 'hello world', 'path', 'string', null, 'simple', false)).toBe(
         'hello%20world'
@@ -261,6 +269,33 @@ describe('ValueSerializer', () => {
   describe('serializeStyled - null style falls back to location default', () => {
     test('path with null style behaves like simple', () => {
       expect(ValueSerializer.serializeStyled('id', '5', 'path', 'string', null, null, false)).toBe('5');
+    });
+
+    test('empty style falls back to location default', () => {
+      expect(ValueSerializer.serializeStyled('id', '5', 'path', 'string', null, '', false)).toBe('5');
+    });
+  });
+
+  describe('cookie location', () => {
+    test('string returns as-is', () => {
+      expect(ValueSerializer.serialize('hello', 'cookie', 'string', null)).toBe('hello');
+    });
+
+    test('null returns empty string', () => {
+      expect(ValueSerializer.serialize(null, 'cookie', 'string', null)).toBe('');
+    });
+  });
+
+  describe('serializeDeepObject', () => {
+    test('basic map returns bracketed keys', () => {
+      const result = ValueSerializer.serializeDeepObject('filter', { color: 'blue', size: 'large' });
+      expect(result['filter[color]']).toBe('blue');
+      expect(result['filter[size]']).toBe('large');
+    });
+
+    test('null returns empty object', () => {
+      const result = ValueSerializer.serializeDeepObject('filter', null);
+      expect(result).toEqual({});
     });
   });
 

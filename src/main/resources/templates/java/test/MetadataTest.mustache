@@ -15,6 +15,24 @@ class MetadataTest {
     private final ObjectSerializer serializer = new ObjectSerializer();
 
     @Test
+    void testSerializeEmptyMetadata() {
+        Metadata metadata = new Metadata();
+
+        String json = serializer.serialize(metadata);
+
+        assertThat(json).isNotNull();
+    }
+
+    @Test
+    void testDeserializeEmptyObject() {
+        String json = "{}";
+
+        Metadata metadata = serializer.deserialize(json, METADATA_TYPE);
+
+        assertThat(metadata).isNotNull();
+    }
+
+    @Test
     void testDeserializesAdditionalStringProperties() {
         String json = "{\"createdAt\":\"2024-01-01T00:00:00Z\",\"customField\":\"hello\"}";
         Metadata metadata = Objects.requireNonNull(serializer.deserialize(json, METADATA_TYPE));

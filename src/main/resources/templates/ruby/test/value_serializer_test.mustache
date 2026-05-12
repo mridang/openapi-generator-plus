@@ -136,6 +136,16 @@ describe {{moduleName}}::ValueSerializer do
     end
   end
 
+  describe 'cookie location' do
+    it 'string returns as-is' do
+      _({{moduleName}}::ValueSerializer.serialize('hello', :cookie, 'string')).must_equal('hello')
+    end
+
+    it 'null returns empty string' do
+      _({{moduleName}}::ValueSerializer.serialize(nil, :cookie, 'string')).must_equal('')
+    end
+  end
+
   describe 'form location' do
     it 'null returns empty string' do
       _({{moduleName}}::ValueSerializer.serialize(nil, :form, 'string')).must_equal('')
@@ -271,6 +281,11 @@ describe {{moduleName}}::ValueSerializer do
         )
         _(result).must_equal(['blue'])
       end
+
+      it 'null returns nil for query location' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('color', nil, :query, 'string', nil, 'form', true)
+        _(result).must_be_nil
+      end
     end
 
     describe 'simple style backward compatibility' do
@@ -286,6 +301,11 @@ describe {{moduleName}}::ValueSerializer do
         _(result).must_equal('3,4,5')
       end
 
+      it 'null returns empty string' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('id', nil, :path, 'string', nil, 'simple', true)
+        _(result).must_equal('')
+      end
+
       it 'scalar does not URL-encode' do
         result = {{moduleName}}::ValueSerializer.serialize_styled(
           'id', 'hello world', :path, 'string', nil, 'simple', false
@@ -299,6 +319,24 @@ describe {{moduleName}}::ValueSerializer do
         result = {{moduleName}}::ValueSerializer.serialize_styled('id', '5', :path, 'string', nil, nil, false)
         _(result).must_equal('5')
       end
+
+      it 'empty style falls back to location default' do
+        result = {{moduleName}}::ValueSerializer.serialize_styled('id', '5', :path, 'string', nil, '', false)
+        _(result).must_equal('5')
+      end
+    end
+  end
+
+  describe 'serialize_deep_object' do
+    it 'basic map returns bracketed keys' do
+      result = {{moduleName}}::ValueSerializer.serialize_deep_object('filter', { 'color' => 'blue', 'size' => 'large' })
+      _(result['filter[color]']).must_equal('blue')
+      _(result['filter[size]']).must_equal('large')
+    end
+
+    it 'null returns empty hash' do
+      result = {{moduleName}}::ValueSerializer.serialize_deep_object('filter', nil)
+      _(result).must_equal({})
     end
   end
 end

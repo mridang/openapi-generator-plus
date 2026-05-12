@@ -150,7 +150,7 @@ public class DefaultApiClientUnitTest
             "ok",
             multiValueHeaders: new Dictionary<string, IEnumerable<string>>
             {
-                { "X-Custom-Value", ["val1", "val2"] }
+                { "X-Custom-Value", ["val1", "val2"] },
             }
         );
         var httpClient = new HttpClient(handler);

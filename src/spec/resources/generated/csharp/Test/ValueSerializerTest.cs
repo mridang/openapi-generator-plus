@@ -445,6 +445,20 @@ public class ValueSerializerTest
         );
     }
 
+    // -- cookie location --
+
+    [Fact]
+    public void CookieStringReturnsAsIs()
+    {
+        Assert.Equal("hello", ValueSerializer.Serialize("hello", "cookie", "string", null));
+    }
+
+    [Fact]
+    public void CookieNullReturnsEmptyString()
+    {
+        Assert.Equal("", ValueSerializer.Serialize(null, "cookie", "string", null));
+    }
+
     // -- serializeStyled: form style with explode --
 
     [Fact]
@@ -503,6 +517,14 @@ public class ValueSerializerTest
         Assert.Equal(new List<string> { "blue" }, result);
     }
 
+    [Fact]
+    public void FormStyleNullReturnsNullForQuery()
+    {
+        Assert.Null(
+            ValueSerializer.SerializeStyled("color", null, "query", "string", null, "form", true)
+        );
+    }
+
     // -- serializeStyled: simple style backward compatibility --
 
     [Fact]
@@ -532,6 +554,15 @@ public class ValueSerializerTest
     }
 
     [Fact]
+    public void SimpleStyleNullReturnsEmptyString()
+    {
+        Assert.Equal(
+            "",
+            ValueSerializer.SerializeStyled("id", null, "path", "string", null, "simple", true)
+        );
+    }
+
+    [Fact]
     public void SimpleStyleScalarDoesNotUrlEncodePath()
     {
         Assert.Equal(
@@ -557,5 +588,34 @@ public class ValueSerializerTest
             "5",
             ValueSerializer.SerializeStyled("id", "5", "path", "string", null, null, false)
         );
+    }
+
+    [Fact]
+    public void EmptyStyleFallsBackToLocationDefault()
+    {
+        Assert.Equal(
+            "5",
+            ValueSerializer.SerializeStyled("id", "5", "path", "string", null, "", false)
+        );
+    }
+
+    // -- SerializeDeepObject --
+
+    [Fact]
+    public void DeepObjectBasicMapReturnsBracketedKeys()
+    {
+        var result = ValueSerializer.SerializeDeepObject(
+            "filter",
+            new Dictionary<string, object?> { { "color", "blue" }, { "size", "large" } }
+        );
+        Assert.Equal("blue", result["filter[color]"]);
+        Assert.Equal("large", result["filter[size]"]);
+    }
+
+    [Fact]
+    public void DeepObjectNullReturnsEmptyDictionary()
+    {
+        var result = ValueSerializer.SerializeDeepObject("filter", null);
+        Assert.Empty(result);
     }
 }

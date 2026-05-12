@@ -222,12 +222,12 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
 
         foreach (KeyValuePair<string, IEnumerable<string>> header in response.Headers)
         {
-            responseHeaders[header.Key] = string.Join(",", header.Value);
+            responseHeaders[header.Key] = string.Join(", ", header.Value);
         }
 
         foreach (KeyValuePair<string, IEnumerable<string>> header in response.Content.Headers)
         {
-            responseHeaders[header.Key] = string.Join(",", header.Value);
+            responseHeaders[header.Key] = string.Join(", ", header.Value);
         }
 
         return new ApiResponse((int)response.StatusCode, responseBody, responseHeaders);

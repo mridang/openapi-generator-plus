@@ -97,6 +97,14 @@ class TestValueSerializerHeader:
         assert ValueSerializer.serialize([1, 2, 3], 'header', 'array') == '1,2,3'
 
 
+class TestValueSerializerCookie:
+    def test_string_returns_as_is(self) -> None:
+        assert ValueSerializer.serialize('hello', 'cookie', 'string') == 'hello'
+
+    def test_null_returns_empty_string(self) -> None:
+        assert ValueSerializer.serialize(None, 'cookie', 'string') == ''
+
+
 class TestValueSerializerForm:
     def test_null_returns_empty_string(self) -> None:
         assert ValueSerializer.serialize(None, 'form', 'string') == ''
@@ -204,6 +212,9 @@ class TestFormStyleWithExplode:
     def test_single_element_array_with_explode_true_returns_list(self) -> None:
         assert ValueSerializer.serialize_styled('color', ['blue'], 'query', 'array', None, 'form', True) == ['blue']
 
+    def test_null_returns_none_for_query(self) -> None:
+        assert ValueSerializer.serialize_styled('color', None, 'query', 'string', None, 'form', True) is None
+
 
 class TestSimpleStyleBackwardCompatibility:
     def test_scalar_returns_stringified_value(self) -> None:
@@ -213,6 +224,9 @@ class TestSimpleStyleBackwardCompatibility:
         assert (
             ValueSerializer.serialize_styled('id', ['3', '4', '5'], 'path', 'array', None, 'simple', False) == '3,4,5'
         )
+
+    def test_null_returns_empty_string(self) -> None:
+        assert ValueSerializer.serialize_styled('id', None, 'path', 'string', None, 'simple', True) == ''
 
     def test_scalar_does_not_url_encode(self) -> None:
         assert (
@@ -224,3 +238,17 @@ class TestSimpleStyleBackwardCompatibility:
 class TestNullStyleFallback:
     def test_path_with_null_style_behaves_like_simple(self) -> None:
         assert ValueSerializer.serialize_styled('id', '5', 'path', 'string', None, None, False) == '5'
+
+    def test_empty_style_falls_back(self) -> None:
+        assert ValueSerializer.serialize_styled('id', '5', 'path', 'string', None, '', False) == '5'
+
+
+class TestDeepObjectSerialization:
+    def test_basic_map_returns_bracketed_keys(self) -> None:
+        result = ValueSerializer.serialize_deep_object('filter', {'color': 'blue', 'size': 'large'})
+        assert result['filter[color]'] == 'blue'
+        assert result['filter[size]'] == 'large'
+
+    def test_null_returns_empty_dict(self) -> None:
+        result = ValueSerializer.serialize_deep_object('filter', None)
+        assert result == {}

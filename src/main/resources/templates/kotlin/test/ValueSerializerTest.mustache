@@ -72,6 +72,42 @@ class ValueSerializerTest {
         fun arrayJoinsWithPipeForPipes() {
             assertEquals("a|b|c", ValueSerializer.serialize(listOf("a", "b", "c"), "query", "array", "pipes"))
         }
+
+        @Test
+        @DisplayName("array joins with comma for csv")
+        fun arrayJoinsWithCommaForCsv() {
+            assertEquals("a,b,c", ValueSerializer.serialize(listOf("a", "b", "c"), "query", "array", "csv"))
+        }
+
+        @Test
+        @DisplayName("empty array returns empty string for csv")
+        fun emptyArrayReturnsEmptyStringForCsv() {
+            assertEquals("", ValueSerializer.serialize(emptyList<String>(), "query", "array", null))
+        }
+
+        @Test
+        @DisplayName("empty array returns empty list for multi")
+        fun emptyArrayReturnsEmptyListForMulti() {
+            assertEquals(emptyList<String>(), ValueSerializer.serialize(emptyList<String>(), "query", "array", "multi"))
+        }
+
+        @Test
+        @DisplayName("single-element array returns single value")
+        fun singleElementArrayReturnsSingleValue() {
+            assertEquals("a", ValueSerializer.serialize(listOf("a"), "query", "array", null))
+        }
+
+        @Test
+        @DisplayName("array of integers stringifies elements")
+        fun arrayOfIntegersStringifiesElements() {
+            assertEquals("1,2,3", ValueSerializer.serialize(listOf(1, 2, 3), "query", "array", null))
+        }
+
+        @Test
+        @DisplayName("array of booleans stringifies elements")
+        fun arrayOfBooleansStringifiesElements() {
+            assertEquals("true,false", ValueSerializer.serialize(listOf(true, false), "query", "array", null))
+        }
     }
 
     @Nested
@@ -82,6 +118,12 @@ class ValueSerializerTest {
         @DisplayName("string returns URL-encoded value")
         fun stringReturnsUrlEncodedValue() {
             assertEquals("hello%20world", ValueSerializer.serialize("hello world", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("string with slash is URL-encoded")
+        fun stringWithSlashIsUrlEncoded() {
+            assertEquals("a%2Fb", ValueSerializer.serialize("a/b", "path", "string", null))
         }
 
         @Test
@@ -138,6 +180,24 @@ class ValueSerializerTest {
         }
 
         @Test
+        @DisplayName("integer returns string")
+        fun integerReturnsString() {
+            assertEquals("42", ValueSerializer.serialize(42, "header", "integer", null))
+        }
+
+        @Test
+        @DisplayName("boolean true returns true")
+        fun booleanTrueReturnsTrue() {
+            assertEquals("true", ValueSerializer.serialize(true, "header", "boolean", null))
+        }
+
+        @Test
+        @DisplayName("empty array joins to empty string")
+        fun emptyArrayJoinsToEmptyString() {
+            assertEquals("", ValueSerializer.serialize(emptyList<String>(), "header", "array", null))
+        }
+
+        @Test
         @DisplayName("array of integers stringifies and joins")
         fun arrayOfIntegersStringifiesAndJoins() {
             assertEquals("1,2,3", ValueSerializer.serialize(listOf(1, 2, 3), "header", "array", null))
@@ -158,6 +218,41 @@ class ValueSerializerTest {
         @DisplayName("null returns empty string")
         fun nullReturnsEmptyString() {
             assertEquals("", ValueSerializer.serialize(null, "cookie", "string", null))
+        }
+    }
+
+    @Nested
+    @DisplayName("serialize - form location")
+    inner class FormSerializeTests {
+
+        @Test
+        @DisplayName("null returns empty string")
+        fun nullReturnsEmptyString() {
+            assertEquals("", ValueSerializer.serialize(null, "form", "string", null))
+        }
+
+        @Test
+        @DisplayName("string returns as-is")
+        fun stringReturnsAsIs() {
+            assertEquals("hello", ValueSerializer.serialize("hello", "form", "string", null))
+        }
+
+        @Test
+        @DisplayName("integer returns string")
+        fun integerReturnsString() {
+            assertEquals("42", ValueSerializer.serialize(42, "form", "integer", null))
+        }
+
+        @Test
+        @DisplayName("boolean true returns true")
+        fun booleanTrueReturnsTrue() {
+            assertEquals("true", ValueSerializer.serialize(true, "form", "boolean", null))
+        }
+
+        @Test
+        @DisplayName("boolean false returns false")
+        fun booleanFalseReturnsFalse() {
+            assertEquals("false", ValueSerializer.serialize(false, "form", "boolean", null))
         }
     }
 
@@ -211,6 +306,12 @@ class ValueSerializerTest {
         fun arrayExplodeTrueJoinsWithDot() {
             assertEquals(".blue.black", ValueSerializer.serializeStyled("color", listOf("blue", "black"), "path", "array", null, "label", true))
         }
+
+        @Test
+        @DisplayName("null returns empty string")
+        fun nullReturnsEmptyString() {
+            assertEquals("", ValueSerializer.serializeStyled("color", null, "path", "string", null, "label", true))
+        }
     }
 
     @Nested
@@ -245,12 +346,6 @@ class ValueSerializerTest {
     @Nested
     @DisplayName("serializeStyled - form style")
     inner class FormStyleTests {
-
-        @Test
-        @DisplayName("scalar returns stringified value")
-        fun scalarReturnsStringifiedValue() {
-            assertEquals("blue", ValueSerializer.serializeStyled("color", "blue", "query", "string", null, "form", true))
-        }
 
         @Test
         @DisplayName("array with explode true returns list")

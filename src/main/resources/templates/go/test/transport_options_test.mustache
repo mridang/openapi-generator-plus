@@ -7,33 +7,64 @@ import (
 	"{{packageName}}/pkg"
 )
 
-func TestTransportOptions_Defaults(t *testing.T) {
+func TestTransportOptions_VerifySSLDefaultsToTrue(t *testing.T) {
 	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
-
 	if !opts.VerifySSL() {
 		t.Error("expected VerifySSL to be true by default")
 	}
+}
+
+func TestTransportOptions_CACertPathDefaultsToEmpty(t *testing.T) {
+	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
 	if opts.CACertPath() != "" {
 		t.Errorf("expected empty CACertPath, got %q", opts.CACertPath())
 	}
+}
+
+func TestTransportOptions_ProxyDefaultsToNil(t *testing.T) {
+	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
 	if opts.Proxy() != nil {
 		t.Error("expected nil Proxy by default")
 	}
+}
+
+func TestTransportOptions_TimeoutDefaultsToNil(t *testing.T) {
+	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
 	if opts.Timeout() != nil {
 		t.Error("expected nil timeout by default")
 	}
+}
+
+func TestTransportOptions_FollowRedirectsDefaultsToTrue(t *testing.T) {
+	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
 	if !opts.FollowRedirects() {
 		t.Error("expected FollowRedirects to be true by default")
 	}
+}
+
+func TestTransportOptions_MaxRedirectsDefaultsToNil(t *testing.T) {
+	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
 	if opts.MaxRedirects() != nil {
 		t.Error("expected MaxRedirects nil by default")
 	}
+}
+
+func TestTransportOptions_UserAgentDefaultsToNonEmpty(t *testing.T) {
+	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
 	if opts.UserAgent() == "" {
 		t.Error("expected non-empty default UserAgent")
 	}
+}
+
+func TestTransportOptions_DefaultHeadersDefaultsToEmpty(t *testing.T) {
+	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
 	if len(opts.DefaultHeaders()) != 0 {
 		t.Errorf("expected empty default headers, got %v", opts.DefaultHeaders())
 	}
+}
+
+func TestTransportOptions_InjectRequestIDDefaultsToFalse(t *testing.T) {
+	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
 	if opts.InjectRequestID() {
 		t.Error("expected InjectRequestID to be false by default")
 	}

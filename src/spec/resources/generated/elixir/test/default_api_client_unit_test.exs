@@ -45,11 +45,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
   end
 
   test "default headers transport option is stored" do
-    transport =
-      PetstoreClient.TransportOptions.new(
-        default_headers: %{"X-Custom" => "custom-value"}
-      )
-
+    transport = PetstoreClient.TransportOptions.new(default_headers: %{"X-Custom" => "custom-value"})
     client = PetstoreClient.DefaultApiClient.new(transport)
     assert client.transport_options.default_headers["X-Custom"] == "custom-value"
   end

@@ -11,6 +11,14 @@ import 'package:test/test.dart';
 
 void main() {
   group('Metadata model', () {
+    test('serialize empty metadata', () {
+      final obj = <String, dynamic>{};
+
+      final json = jsonEncode(obj);
+
+      expect(json, isNotEmpty);
+    });
+
     test('deserialize from JSON', () {
       const jsonData = '{"createdAt":"2024-01-15T10:30:00+00:00"}';
 

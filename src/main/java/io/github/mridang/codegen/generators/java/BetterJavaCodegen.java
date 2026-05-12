@@ -418,50 +418,6 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "ComposedSchemaTest.java"));
             supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
 
-            final String testAuthOauthFolder =
-                    Path.of(testFolder, "auth", "oauth").toString();
-            if (hasAnyOAuth2 || hasOpenIdConnect) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/OAuth2TokenManagerTest.mustache",
-                                testAuthOauthFolder,
-                                "OAuth2TokenManagerTest.java"));
-            }
-            if (hasOAuth2AuthorizationCode) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/OAuth2AuthCodeAuthenticatorTest.mustache",
-                                testAuthOauthFolder,
-                                "OAuth2AuthCodeAuthenticatorTest.java"));
-            }
-            if (hasOAuth2Implicit) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/OAuth2ImplicitAuthenticatorTest.mustache",
-                                testAuthOauthFolder,
-                                "OAuth2ImplicitAuthenticatorTest.java"));
-            }
-            if (hasOAuth2ClientCredentials) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/OAuth2ClientCredentialsAuthenticatorTest.mustache",
-                                testAuthOauthFolder,
-                                "OAuth2ClientCredentialsAuthenticatorTest.java"));
-            }
-            if (hasOAuth2Password) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/OAuth2PasswordAuthenticatorTest.mustache",
-                                testAuthOauthFolder,
-                                "OAuth2PasswordAuthenticatorTest.java"));
-            }
-            if (hasOpenIdConnect) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/OpenIdConnectAuthenticatorTest.mustache",
-                                testAuthOauthFolder,
-                                "OpenIdConnectAuthenticatorTest.java"));
-            }
         }
     }
 
@@ -743,6 +699,55 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "auth/oauth/openid_connect_authenticator.mustache",
                             oauthFolder,
                             "OpenIdConnectAuthenticator.java"));
+        }
+
+        if (generateTests) {
+            final String testFolder =
+                    Path.of("src", "test", "java", invokerPackage.replace(".", "/")).toString();
+            final String testAuthOauthFolder =
+                    Path.of(testFolder, "auth", "oauth").toString();
+            if (hasAnyOAuth2 || hasOpenIdConnect) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/OAuth2TokenManagerTest.mustache",
+                                testAuthOauthFolder,
+                                "OAuth2TokenManagerTest.java"));
+            }
+            if (hasOAuth2AuthorizationCode) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/OAuth2AuthCodeAuthenticatorTest.mustache",
+                                testAuthOauthFolder,
+                                "OAuth2AuthCodeAuthenticatorTest.java"));
+            }
+            if (hasOAuth2Implicit) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/OAuth2ImplicitAuthenticatorTest.mustache",
+                                testAuthOauthFolder,
+                                "OAuth2ImplicitAuthenticatorTest.java"));
+            }
+            if (hasOAuth2ClientCredentials) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/OAuth2ClientCredentialsAuthenticatorTest.mustache",
+                                testAuthOauthFolder,
+                                "OAuth2ClientCredentialsAuthenticatorTest.java"));
+            }
+            if (hasOAuth2Password) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/OAuth2PasswordAuthenticatorTest.mustache",
+                                testAuthOauthFolder,
+                                "OAuth2PasswordAuthenticatorTest.java"));
+            }
+            if (hasOpenIdConnect) {
+                supportingFiles.add(
+                        new SupportingFile(
+                                "test/OpenIdConnectAuthenticatorTest.mustache",
+                                testAuthOauthFolder,
+                                "OpenIdConnectAuthenticatorTest.java"));
+            }
         }
     }
 

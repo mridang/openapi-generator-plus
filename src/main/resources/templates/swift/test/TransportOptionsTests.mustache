@@ -4,17 +4,48 @@ import XCTest
 
 final class TransportOptionsTests: XCTestCase {
 
-    func testDefaults() {
+    func testVerifySSLDefaultsToTrue() {
         let opts = TransportOptionsBuilder().build()
-
         XCTAssertTrue(opts.verifySSL)
+    }
+
+    func testCaCertPathDefaultsToNil() {
+        let opts = TransportOptionsBuilder().build()
         XCTAssertNil(opts.caCertPath)
+    }
+
+    func testProxyDefaultsToNil() {
+        let opts = TransportOptionsBuilder().build()
         XCTAssertNil(opts.proxy)
+    }
+
+    func testTimeoutDefaultsToNil() {
+        let opts = TransportOptionsBuilder().build()
         XCTAssertNil(opts.timeout)
+    }
+
+    func testFollowRedirectsDefaultsToTrue() {
+        let opts = TransportOptionsBuilder().build()
         XCTAssertTrue(opts.followRedirects)
+    }
+
+    func testMaxRedirectsDefaultsToNil() {
+        let opts = TransportOptionsBuilder().build()
         XCTAssertNil(opts.maxRedirects)
+    }
+
+    func testUserAgentDefaultsToNonEmpty() {
+        let opts = TransportOptionsBuilder().build()
         XCTAssertFalse(opts.userAgent.isEmpty)
+    }
+
+    func testDefaultHeadersDefaultsToEmpty() {
+        let opts = TransportOptionsBuilder().build()
         XCTAssertTrue(opts.defaultHeaders.isEmpty)
+    }
+
+    func testInjectRequestIDDefaultsToFalse() {
+        let opts = TransportOptionsBuilder().build()
         XCTAssertFalse(opts.injectRequestID)
     }
 

@@ -120,5 +120,57 @@ void main() {
       final original = config.defaultHeaders;
       expect(original.containsKey('X-Mutated'), isFalse);
     });
+
+    test('builder accumulates multiple headers', () {
+      final config = ConfigurationBuilder()
+          .defaultHeader('X-First', 'one')
+          .defaultHeader('X-Second', 'two')
+          .build();
+
+      final headers = config.defaultHeaders;
+      expect(headers.length, equals(2));
+      expect(headers['X-First'], equals('one'));
+      expect(headers['X-Second'], equals('two'));
+    });
+
+    test('builder merges single and bulk headers', () {
+      final config = ConfigurationBuilder()
+          .defaultHeader('X-First', 'one')
+          .defaultHeaders({'X-Second': 'two'})
+          .defaultHeader('X-Third', 'three')
+          .build();
+
+      final headers = config.defaultHeaders;
+      expect(headers.length, equals(3));
+      expect(headers['X-First'], equals('one'));
+      expect(headers['X-Second'], equals('two'));
+      expect(headers['X-Third'], equals('three'));
+    });
+
+    test('invalid server variable enum value throws', () {
+      const server = ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: {
+          'env': ServerVariable(
+            defaultValue: 'api',
+            enumValues: ['api', 'staging'],
+          ),
+        },
+      );
+
+      expect(
+        () => ConfigurationBuilder().server(server, {'env': 'invalid'}).build(),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('builder produces independent instances', () {
+      final builder = ConfigurationBuilder().baseUrl('https://example.com');
+      final first = builder.build();
+      final second = builder.build();
+
+      expect(first.baseUrl, equals(second.baseUrl));
+      expect(identical(first, second), isFalse);
+    });
   });
 }

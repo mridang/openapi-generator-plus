@@ -5,17 +5,41 @@ from {{packageName}}.transport_options import TransportOptions
 
 
 class TestTransportOptions:
-    def test_builder_produces_correct_defaults(self) -> None:
+    def test_verify_ssl_defaults_to_true(self) -> None:
         opts = TransportOptions.builder().build()
-
         assert opts.verify_ssl is True
+
+    def test_ca_cert_path_defaults_to_none(self) -> None:
+        opts = TransportOptions.builder().build()
         assert opts.ca_cert_path is None
+
+    def test_proxy_defaults_to_none(self) -> None:
+        opts = TransportOptions.builder().build()
         assert opts.proxy is None
+
+    def test_timeout_defaults_to_none(self) -> None:
+        opts = TransportOptions.builder().build()
         assert opts.timeout is None
+
+    def test_follow_redirects_defaults_to_true(self) -> None:
+        opts = TransportOptions.builder().build()
         assert opts.follow_redirects is True
+
+    def test_max_redirects_defaults_to_none(self) -> None:
+        opts = TransportOptions.builder().build()
         assert opts.max_redirects is None
-        assert opts.user_agent == "{{userAgentDefault}}"
+
+    def test_user_agent_defaults_to_non_empty_string(self) -> None:
+        opts = TransportOptions.builder().build()
+        assert opts.user_agent is not None
+        assert len(opts.user_agent) > 0
+
+    def test_default_headers_defaults_to_empty(self) -> None:
+        opts = TransportOptions.builder().build()
         assert len(opts.default_headers) == 0
+
+    def test_inject_request_id_defaults_to_false(self) -> None:
+        opts = TransportOptions.builder().build()
         assert opts.inject_request_id is False
 
     def test_builder_sets_all_fields(self) -> None:

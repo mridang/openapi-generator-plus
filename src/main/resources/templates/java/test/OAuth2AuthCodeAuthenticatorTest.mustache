@@ -62,6 +62,7 @@ class OAuth2AuthCodeAuthenticatorTest {
         auth.exchangeCode("auth-code-123");
 
         String body = capturedBody.get();
+        assertNotNull(body);
         assertTrue(body.contains("grant_type=authorization_code"));
         assertTrue(body.contains("code=auth-code-123"));
         assertTrue(body.contains("client_id=my-client-id"));
@@ -92,6 +93,7 @@ class OAuth2AuthCodeAuthenticatorTest {
         Map<String, String> headers = auth.getAuthHeaders();
 
         String body = capturedBody.get();
+        assertNotNull(body);
         assertTrue(body.contains("grant_type=refresh_token"));
         assertTrue(body.contains("refresh_token=rt"));
         assertEquals("Bearer at2", headers.get("Authorization"));

@@ -36,18 +36,27 @@ open class OAuth2PasswordAuthenticator(
     override fun getHost(): String = host
 
     override fun getAuthHeaders(): Map<String, String> {
+        val currentRefreshToken = tokenManager.getRefreshToken()
         val params =
-            mutableMapOf(
-                "grant_type" to "password",
-                "client_id" to clientId,
-                "client_secret" to clientSecret,
-                "username" to username,
-                "password" to password,
-            )
-        if (scopes.isNotEmpty()) {
-            params["scope"] = scopes.joinToString(" ")
-        }
-        val token = tokenManager.getAccessToken(tokenUrl, params)
+            if (currentRefreshToken != null) {
+                mutableMapOf(
+                    "grant_type" to "refresh_token",
+                    "refresh_token" to currentRefreshToken,
+                    "client_id" to clientId,
+                    "client_secret" to clientSecret,
+                )
+            } else {
+                mutableMapOf(
+                    "grant_type" to "password",
+                    "client_id" to clientId,
+                    "client_secret" to clientSecret,
+                    "username" to username,
+                    "password" to password,
+                ).also { p ->
+                    if (scopes.isNotEmpty()) p["scope"] = scopes.joinToString(" ")
+                }
+            }
+        val token = tokenManager.getAccessToken(refreshUrl ?: tokenUrl, params)
         return mapOf("Authorization" to "Bearer $token")
     }
 }

@@ -34,16 +34,21 @@ func TestInjectTraceContext_DoesNotPanicWithEmptyHeaders(t *testing.T) {
 	petstore.InjectTraceContext(headers)
 }
 
-func TestInjectTraceContext_DoesNotInjectWithoutOTel(t *testing.T) {
+func TestInjectTraceContext_DoesNotInjectTraceparentWithoutOTel(t *testing.T) {
 	headers := make(map[string]string)
 
 	petstore.InjectTraceContext(headers)
 
-	// Without OpenTelemetry configured, traceparent and tracestate should not
-	// be injected
 	if _, ok := headers["traceparent"]; ok {
 		t.Error("expected no traceparent header without OpenTelemetry")
 	}
+}
+
+func TestInjectTraceContext_DoesNotInjectTracestateWithoutOTel(t *testing.T) {
+	headers := make(map[string]string)
+
+	petstore.InjectTraceContext(headers)
+
 	if _, ok := headers["tracestate"]; ok {
 		t.Error("expected no tracestate header without OpenTelemetry")
 	}

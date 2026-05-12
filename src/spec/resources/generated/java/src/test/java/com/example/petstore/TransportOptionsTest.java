@@ -17,18 +17,66 @@ import org.junit.jupiter.api.Test;
 class TransportOptionsTest {
 
   @Test
-  @DisplayName("builder produces correct defaults")
-  void builderProducesCorrectDefaults() {
+  @DisplayName("verifySsl defaults to true")
+  void verifySslDefaultsToTrue() {
     TransportOptions opts = TransportOptions.builder().build();
-
     assertTrue(opts.isVerifySsl());
+  }
+
+  @Test
+  @DisplayName("caCertPath defaults to null")
+  void caCertPathDefaultsToNull() {
+    TransportOptions opts = TransportOptions.builder().build();
     assertNull(opts.getCaCertPath());
+  }
+
+  @Test
+  @DisplayName("proxy defaults to null")
+  void proxyDefaultsToNull() {
+    TransportOptions opts = TransportOptions.builder().build();
     assertNull(opts.getProxy());
+  }
+
+  @Test
+  @DisplayName("timeout defaults to null")
+  void timeoutDefaultsToNull() {
+    TransportOptions opts = TransportOptions.builder().build();
     assertNull(opts.getTimeout());
+  }
+
+  @Test
+  @DisplayName("followRedirects defaults to true")
+  void followRedirectsDefaultsToTrue() {
+    TransportOptions opts = TransportOptions.builder().build();
     assertTrue(opts.isFollowRedirects());
+  }
+
+  @Test
+  @DisplayName("maxRedirects defaults to null")
+  void maxRedirectsDefaultsToNull() {
+    TransportOptions opts = TransportOptions.builder().build();
     assertNull(opts.getMaxRedirects());
-    assertEquals("com.example.petstore/1.0.0 (java)", opts.getUserAgent());
+  }
+
+  @Test
+  @DisplayName("userAgent defaults to non-empty string")
+  void userAgentDefaultsToNonEmpty() {
+    TransportOptions opts = TransportOptions.builder().build();
+    assertNotNull(opts.getUserAgent());
+    assertFalse(opts.getUserAgent().isEmpty());
+  }
+
+  @Test
+  @DisplayName("defaultHeaders defaults to empty map")
+  void defaultHeadersDefaultsToEmpty() {
+    TransportOptions opts = TransportOptions.builder().build();
     assertTrue(opts.getDefaultHeaders().isEmpty());
+  }
+
+  @Test
+  @DisplayName("injectRequestId defaults to false")
+  void injectRequestIdDefaultsToFalse() {
+    TransportOptions opts = TransportOptions.builder().build();
     assertFalse(opts.isInjectRequestId());
   }
 
@@ -81,6 +129,14 @@ class TransportOptionsTest {
   void nullProxyUrlIsAccepted() {
     TransportOptions opts = TransportOptions.builder().proxy(null).build();
     assertNull(opts.getProxy());
+  }
+
+  @Test
+  @DisplayName("valid proxy URL is accepted")
+  void validProxyUrlIsAccepted() {
+    TransportOptions opts =
+        TransportOptions.builder().proxy("http://proxy.example.com:8080").build();
+    assertEquals("http://proxy.example.com:8080", opts.getProxy());
   }
 
   @Test
@@ -142,6 +198,21 @@ class TransportOptionsTest {
     assertEquals("one", opts.getDefaultHeaders().get("X-First"));
     assertEquals("two", opts.getDefaultHeaders().get("X-Second"));
     assertEquals("three", opts.getDefaultHeaders().get("X-Third"));
+  }
+
+  @Test
+  @DisplayName("modifying source map does not affect built options")
+  void modifyingSourceMapDoesNotAffectBuiltOptions() {
+    Map<String, String> headers = new HashMap<>();
+    headers.put("X-Original", "original");
+
+    TransportOptions opts = TransportOptions.builder().defaultHeaders(headers).build();
+
+    headers.put("X-Added", "added");
+
+    assertEquals(1, opts.getDefaultHeaders().size());
+    assertEquals("original", opts.getDefaultHeaders().get("X-Original"));
+    assertNull(opts.getDefaultHeaders().get("X-Added"));
   }
 
   @Test

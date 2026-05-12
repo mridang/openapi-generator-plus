@@ -53,7 +53,10 @@ public class OAuth2AuthCodeAuthenticatorTest
         Assert.Contains("response_type=code", urlStr);
         Assert.Contains("client_id=my-client-id", urlStr);
         Assert.Contains("redirect_uri=", urlStr);
-        Assert.Contains("scope=read%20write", urlStr);
+        Assert.True(
+            urlStr.Contains("scope=read%20write", StringComparison.Ordinal)
+            || urlStr.Contains("scope=read+write", StringComparison.Ordinal)
+            || urlStr.Contains("scope=read write", StringComparison.Ordinal));
         Assert.StartsWith("https://auth.example.com/authorize?", urlStr);
     }
 

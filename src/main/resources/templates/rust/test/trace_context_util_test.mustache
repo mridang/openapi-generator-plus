@@ -25,17 +25,23 @@ fn test_inject_trace_context_does_not_panic_with_empty_headers() {
 }
 
 #[test]
-fn test_inject_trace_context_does_not_inject_without_otel() {
+fn test_inject_trace_context_does_not_inject_traceparent_without_otel() {
     let mut headers = HashMap::new();
 
     trace_context_util::inject_trace_context(&mut headers);
 
-    // Without OpenTelemetry configured, traceparent and tracestate should not
-    // be injected
     assert!(
         !headers.contains_key("traceparent"),
         "expected no traceparent header without OpenTelemetry"
     );
+}
+
+#[test]
+fn test_inject_trace_context_does_not_inject_tracestate_without_otel() {
+    let mut headers = HashMap::new();
+
+    trace_context_util::inject_trace_context(&mut headers);
+
     assert!(
         !headers.contains_key("tracestate"),
         "expected no tracestate header without OpenTelemetry"

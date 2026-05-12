@@ -109,7 +109,7 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
    * @param state CSRF state parameter
    * @return the authorization URL
    */
-  public String buildAuthorizationUrl(String state) {
+  public String buildAuthorizationUrl(@Nullable String state) {
     return getDelegate().buildAuthorizationUrl(state);
   }
 

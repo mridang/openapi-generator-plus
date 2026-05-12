@@ -22,14 +22,19 @@ void main() {
       TraceContextUtil.injectTraceContext(headers);
     });
 
-    test('does not inject without tracing configured', () {
+    test('does not inject traceparent without tracing configured', () {
       final headers = <String, String>{};
 
       TraceContextUtil.injectTraceContext(headers);
 
-      // Without tracing configured, traceparent and tracestate should not
-      // be injected
       expect(headers.containsKey('traceparent'), isFalse);
+    });
+
+    test('does not inject tracestate without tracing configured', () {
+      final headers = <String, String>{};
+
+      TraceContextUtil.injectTraceContext(headers);
+
       expect(headers.containsKey('tracestate'), isFalse);
     });
 

@@ -2,6 +2,19 @@ defmodule PetstoreClient.Models.MetadataTest do
   use ExUnit.Case, async: true
 
   describe "typed additional properties" do
+    test "serializes empty metadata" do
+      metadata = %PetstoreClient.Models.Metadata{}
+      json = PetstoreClient.ObjectSerializer.serialize(metadata)
+
+      assert json != nil
+    end
+
+    test "deserializes empty object" do
+      metadata = PetstoreClient.ObjectSerializer.deserialize("{}", "Metadata")
+
+      assert metadata != nil
+    end
+
     test "deserializes additional string properties" do
       json = ~s({"createdAt":"2024-01-01T00:00:00+0000","customField":"hello"})
       metadata = PetstoreClient.ObjectSerializer.deserialize(json, "Metadata")

@@ -107,6 +107,14 @@ describe('Configuration', () => {
     expect(config.baseUrl).toBe('https://staging.example.com/api/v2');
   });
 
+  test('invalid enum value throws', () => {
+    const server = new ServerConfiguration('https://{env}.example.com', null, {
+      env: new ServerVariable('api', null, ['api', 'staging'])
+    });
+
+    expect(() => Configuration.builder().server(server, { env: 'invalid' }).build()).toThrow();
+  });
+
   test('baseUrl overrides server', () => {
     const server = new ServerConfiguration('https://api.example.com', null, {});
 

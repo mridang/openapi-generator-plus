@@ -75,7 +75,9 @@ public sealed class OAuth2TokenManager
         string body = string.Join(
             "&",
             parameters.Select(p =>
-                Uri.EscapeDataString(p.Key) + "=" + Uri.EscapeDataString(p.Value)
+                Uri.EscapeDataString(p.Key)
+                + "="
+                + Uri.EscapeDataString(p.Value).Replace("%20", "+", StringComparison.Ordinal)
             )
         );
 
@@ -90,7 +92,7 @@ public sealed class OAuth2TokenManager
 
         if (response.StatusCode is < 200 or >= 300)
         {
-            throw new InvalidOperationException(
+            throw new HttpRequestException(
                 $"Token request failed with status {response.StatusCode}: {response.Body}"
             );
         }
@@ -113,5 +115,6 @@ public sealed class OAuth2TokenManager
         }
     }
 
-    internal string? RefreshToken { get; private set; }
+    /// <summary>Gets the refresh token returned by the token endpoint, if any.</summary>
+    public string? RefreshToken { get; private set; }
 }

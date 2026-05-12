@@ -6,40 +6,84 @@ final class ValueSerializerTests: XCTestCase {
 
     // MARK: - SerializeValue by location
 
-    func testSerializeValueQueryString() {
-        let result = ValueSerializer.serializeValue("hello", location: "query", schemaType: "string", collectionFormat: "")
+    func testSerializeValuePathNull() {
+        let result = ValueSerializer.serializeValue(nil, location: "path", schemaType: "string", collectionFormat: "")
+        XCTAssertEqual(result as? String, "")
+    }
+
+    func testSerializeValuePathStringAsIs() {
+        let result = ValueSerializer.serializeValue("hello", location: "path", schemaType: "string", collectionFormat: "")
         XCTAssertEqual(result as? String, "hello")
     }
 
     func testSerializeValuePathString() {
         let result = ValueSerializer.serializeValue("hello world", location: "path", schemaType: "string", collectionFormat: "")
-        let str = result as? String ?? ""
-        XCTAssertTrue(str.contains("hello"))
+        XCTAssertEqual(result as? String, "hello%20world")
     }
 
-    func testSerializeValueHeaderString() {
-        let result = ValueSerializer.serializeValue("hello", location: "header", schemaType: "string", collectionFormat: "")
-        XCTAssertEqual(result as? String, "hello")
+    func testSerializeValuePathStringSlash() {
+        let result = ValueSerializer.serializeValue("a/b", location: "path", schemaType: "string", collectionFormat: "")
+        XCTAssertEqual(result as? String, "a%2Fb")
     }
 
-    func testSerializeValueCookieString() {
-        let result = ValueSerializer.serializeValue("hello", location: "cookie", schemaType: "string", collectionFormat: "")
-        XCTAssertEqual(result as? String, "hello")
+    func testSerializeValuePathInteger() {
+        let result = ValueSerializer.serializeValue(42, location: "path", schemaType: "integer", collectionFormat: "")
+        XCTAssertEqual(result as? String, "42")
     }
 
-    func testSerializeValueNilQuery() {
+    func testSerializeValuePathBooleanTrue() {
+        let result = ValueSerializer.serializeValue(true, location: "path", schemaType: "boolean", collectionFormat: "")
+        XCTAssertEqual(result as? String, "true")
+    }
+
+    func testSerializeValuePathBooleanFalse() {
+        let result = ValueSerializer.serializeValue(false, location: "path", schemaType: "boolean", collectionFormat: "")
+        XCTAssertEqual(result as? String, "false")
+    }
+
+    func testSerializeValueQueryNull() {
         let result = ValueSerializer.serializeValue(nil, location: "query", schemaType: "string", collectionFormat: "")
         XCTAssertNil(result)
     }
 
-    func testSerializeValueNilPath() {
-        let result = ValueSerializer.serializeValue(nil, location: "path", schemaType: "string", collectionFormat: "")
-        XCTAssertEqual(result as? String, "")
+    func testSerializeValueQueryString() {
+        let result = ValueSerializer.serializeValue("hello", location: "query", schemaType: "string", collectionFormat: "")
+        XCTAssertEqual(result as? String, "hello")
+    }
+
+    func testSerializeValueQueryInteger() {
+        let result = ValueSerializer.serializeValue(42, location: "query", schemaType: "integer", collectionFormat: "")
+        XCTAssertEqual(result as? String, "42")
+    }
+
+    func testSerializeValueQueryBooleanTrue() {
+        let result = ValueSerializer.serializeValue(true, location: "query", schemaType: "boolean", collectionFormat: "")
+        XCTAssertEqual(result as? String, "true")
+    }
+
+    func testSerializeValueQueryBooleanFalse() {
+        let result = ValueSerializer.serializeValue(false, location: "query", schemaType: "boolean", collectionFormat: "")
+        XCTAssertEqual(result as? String, "false")
     }
 
     func testSerializeValueQueryArray() {
         let result = ValueSerializer.serializeValue(["a", "b", "c"], location: "query", schemaType: "array", collectionFormat: "csv")
         XCTAssertEqual(result as? String, "a,b,c")
+    }
+
+    func testSerializeValueQueryArraySsv() {
+        let result = ValueSerializer.serializeValue(["a", "b", "c"], location: "query", schemaType: "array", collectionFormat: "ssv")
+        XCTAssertEqual(result as? String, "a b c")
+    }
+
+    func testSerializeValueQueryArrayTsv() {
+        let result = ValueSerializer.serializeValue(["a", "b", "c"], location: "query", schemaType: "array", collectionFormat: "tsv")
+        XCTAssertEqual(result as? String, "a\tb\tc")
+    }
+
+    func testSerializeValueQueryArrayPipes() {
+        let result = ValueSerializer.serializeValue(["a", "b", "c"], location: "query", schemaType: "array", collectionFormat: "pipes")
+        XCTAssertEqual(result as? String, "a|b|c")
     }
 
     func testSerializeValueQueryArrayMulti() {
@@ -48,9 +92,100 @@ final class ValueSerializerTests: XCTestCase {
         XCTAssertEqual(items, ["a", "b"])
     }
 
+    func testSerializeValueQueryArrayEmptyCsv() {
+        let result = ValueSerializer.serializeValue([] as [String], location: "query", schemaType: "array", collectionFormat: "csv")
+        XCTAssertEqual(result as? String, "")
+    }
+
+    func testSerializeValueQueryArrayEmptyMulti() {
+        let result = ValueSerializer.serializeValue([] as [String], location: "query", schemaType: "array", collectionFormat: "multi")
+        let items = result as? [String]
+        XCTAssertEqual(items, [])
+    }
+
+    func testSerializeValueQueryArraySingleElement() {
+        let result = ValueSerializer.serializeValue(["a"], location: "query", schemaType: "array", collectionFormat: "csv")
+        XCTAssertEqual(result as? String, "a")
+    }
+
+    func testSerializeValueQueryArrayIntegers() {
+        let result = ValueSerializer.serializeValue([1, 2, 3], location: "query", schemaType: "array", collectionFormat: "csv")
+        XCTAssertEqual(result as? String, "1,2,3")
+    }
+
+    func testSerializeValueQueryArrayBooleans() {
+        let result = ValueSerializer.serializeValue([true, false], location: "query", schemaType: "array", collectionFormat: "csv")
+        XCTAssertEqual(result as? String, "true,false")
+    }
+
+    func testSerializeValueHeaderNull() {
+        let result = ValueSerializer.serializeValue(nil, location: "header", schemaType: "string", collectionFormat: "")
+        XCTAssertEqual(result as? String, "")
+    }
+
+    func testSerializeValueHeaderString() {
+        let result = ValueSerializer.serializeValue("hello", location: "header", schemaType: "string", collectionFormat: "")
+        XCTAssertEqual(result as? String, "hello")
+    }
+
+    func testSerializeValueHeaderInteger() {
+        let result = ValueSerializer.serializeValue(42, location: "header", schemaType: "integer", collectionFormat: "")
+        XCTAssertEqual(result as? String, "42")
+    }
+
+    func testSerializeValueHeaderBooleanTrue() {
+        let result = ValueSerializer.serializeValue(true, location: "header", schemaType: "boolean", collectionFormat: "")
+        XCTAssertEqual(result as? String, "true")
+    }
+
     func testSerializeValueHeaderArray() {
         let result = ValueSerializer.serializeValue(["a", "b", "c"], location: "header", schemaType: "array", collectionFormat: "")
         XCTAssertEqual(result as? String, "a,b,c")
+    }
+
+    func testSerializeValueHeaderArrayEmpty() {
+        let result = ValueSerializer.serializeValue([] as [String], location: "header", schemaType: "array", collectionFormat: "")
+        XCTAssertEqual(result as? String, "")
+    }
+
+    func testSerializeValueHeaderArrayIntegers() {
+        let result = ValueSerializer.serializeValue([1, 2, 3], location: "header", schemaType: "array", collectionFormat: "")
+        XCTAssertEqual(result as? String, "1,2,3")
+    }
+
+    func testSerializeValueCookieNull() {
+        let result = ValueSerializer.serializeValue(nil, location: "cookie", schemaType: "string", collectionFormat: "")
+        XCTAssertEqual(result as? String, "")
+    }
+
+    func testSerializeValueCookieString() {
+        let result = ValueSerializer.serializeValue("hello", location: "cookie", schemaType: "string", collectionFormat: "")
+        XCTAssertEqual(result as? String, "hello")
+    }
+
+    func testSerializeValueFormNull() {
+        let result = ValueSerializer.serializeValue(nil, location: "form", schemaType: "string", collectionFormat: "")
+        XCTAssertEqual(result as? String, "")
+    }
+
+    func testSerializeValueFormString() {
+        let result = ValueSerializer.serializeValue("hello", location: "form", schemaType: "string", collectionFormat: "")
+        XCTAssertEqual(result as? String, "hello")
+    }
+
+    func testSerializeValueFormInteger() {
+        let result = ValueSerializer.serializeValue(42, location: "form", schemaType: "integer", collectionFormat: "")
+        XCTAssertEqual(result as? String, "42")
+    }
+
+    func testSerializeValueFormBooleanTrue() {
+        let result = ValueSerializer.serializeValue(true, location: "form", schemaType: "boolean", collectionFormat: "")
+        XCTAssertEqual(result as? String, "true")
+    }
+
+    func testSerializeValueFormBooleanFalse() {
+        let result = ValueSerializer.serializeValue(false, location: "form", schemaType: "boolean", collectionFormat: "")
+        XCTAssertEqual(result as? String, "false")
     }
 
     // MARK: - SerializeStyled: matrix
@@ -90,6 +225,11 @@ final class ValueSerializerTests: XCTestCase {
     func testSerializeStyledLabelArrayExplode() {
         let result = ValueSerializer.serializeStyled("color", value: ["red", "green"], location: "path", schemaType: "array", collectionFormat: "", style: "label", explode: true)
         XCTAssertEqual(result as? String, ".red.green")
+    }
+
+    func testSerializeStyledLabelNil() {
+        let result = ValueSerializer.serializeStyled("color", value: nil, location: "path", schemaType: "string", collectionFormat: "", style: "label", explode: true)
+        XCTAssertEqual(result as? String, "")
     }
 
     // MARK: - SerializeStyled: simple

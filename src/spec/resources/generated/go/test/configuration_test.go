@@ -69,6 +69,46 @@ func TestConfiguration_BuilderSetsMultipleDefaultHeaders(t *testing.T) {
 	}
 }
 
+func TestConfiguration_BuilderAccumulatesMultipleHeaders(t *testing.T) {
+	config := petstore.NewConfigurationBuilder().
+		DefaultHeader("X-First", "one").
+		DefaultHeader("X-Second", "two").
+		Build()
+
+	headers := config.DefaultHeaders()
+	if len(headers) != 2 {
+		t.Errorf("expected 2 headers, got %d", len(headers))
+	}
+	if headers["X-First"] != "one" {
+		t.Errorf("expected X-First='one', got %q", headers["X-First"])
+	}
+	if headers["X-Second"] != "two" {
+		t.Errorf("expected X-Second='two', got %q", headers["X-Second"])
+	}
+}
+
+func TestConfiguration_BuilderMergesSingleAndBulkHeaders(t *testing.T) {
+	config := petstore.NewConfigurationBuilder().
+		DefaultHeader("X-First", "one").
+		DefaultHeaders(map[string]string{"X-Second": "two"}).
+		DefaultHeader("X-Third", "three").
+		Build()
+
+	headers := config.DefaultHeaders()
+	if len(headers) != 3 {
+		t.Errorf("expected 3 headers, got %d", len(headers))
+	}
+	if headers["X-First"] != "one" {
+		t.Errorf("expected X-First='one', got %q", headers["X-First"])
+	}
+	if headers["X-Second"] != "two" {
+		t.Errorf("expected X-Second='two', got %q", headers["X-Second"])
+	}
+	if headers["X-Third"] != "three" {
+		t.Errorf("expected X-Third='three', got %q", headers["X-Third"])
+	}
+}
+
 func TestConfiguration_BuilderChaining(t *testing.T) {
 	config := petstore.NewConfigurationBuilder().
 		BaseURL("https://api.example.com").
@@ -163,5 +203,36 @@ func TestConfiguration_DefaultHeadersCopyIsolation(t *testing.T) {
 	original := config.DefaultHeaders()
 	if _, found := original["X-Mutated"]; found {
 		t.Error("modifying returned headers should not affect the configuration")
+	}
+}
+
+func TestConfiguration_InvalidServerVariableEnumValueReturnsError(t *testing.T) {
+	server := &petstore.ServerConfiguration{
+		URLTemplate: "https://{env}.example.com",
+		Variables: map[string]petstore.ServerVariable{
+			"env": {
+				DefaultValue: "api",
+				EnumValues:   []string{"api", "staging"},
+			},
+		},
+	}
+
+	_, err := petstore.NewConfigurationBuilder().
+		Server(server, map[string]string{"env": "invalid"})
+	if err == nil {
+		t.Error("expected error for invalid enum value, got nil")
+	}
+}
+
+func TestConfiguration_BuilderProducesIndependentInstances(t *testing.T) {
+	builder := petstore.NewConfigurationBuilder().BaseURL("https://example.com")
+	first := builder.Build()
+	second := builder.Build()
+
+	if first.BaseURL() != second.BaseURL() {
+		t.Errorf("expected same base URL, got %q and %q", first.BaseURL(), second.BaseURL())
+	}
+	if first == second {
+		t.Error("expected Build() to produce independent instances")
 	}
 }

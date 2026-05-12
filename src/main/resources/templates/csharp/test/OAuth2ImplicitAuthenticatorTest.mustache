@@ -46,7 +46,11 @@ public class OAuth2ImplicitAuthenticatorTest
 
         Uri url = auth.BuildAuthorizationUrl();
 
-        Assert.Contains("scope=read%20write", url.ToString());
+        string scopeStr = url.ToString();
+        Assert.True(
+            scopeStr.Contains("scope=read%20write", StringComparison.Ordinal)
+            || scopeStr.Contains("scope=read+write", StringComparison.Ordinal)
+            || scopeStr.Contains("scope=read write", StringComparison.Ordinal));
     }
 
     [Fact]

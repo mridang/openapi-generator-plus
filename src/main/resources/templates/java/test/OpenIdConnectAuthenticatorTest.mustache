@@ -86,6 +86,7 @@ class OpenIdConnectAuthenticatorTest {
         auth.exchangeCode("oidc-code");
 
         String body = capturedBody.get();
+        assertNotNull(body);
         assertTrue(body.contains("grant_type=authorization_code"));
         assertTrue(body.contains("code=oidc-code"));
     }

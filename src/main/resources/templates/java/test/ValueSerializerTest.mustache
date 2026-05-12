@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -245,6 +246,23 @@ class ValueSerializerTest {
     }
 
     @Nested
+    @DisplayName("cookie location")
+    class CookieTests {
+
+        @Test
+        @DisplayName("string returns as-is")
+        void stringReturnsAsIs() {
+            assertEquals("hello", ValueSerializer.serialize("hello", "cookie", "string", null));
+        }
+
+        @Test
+        @DisplayName("null returns empty string")
+        void nullReturnsEmptyString() {
+            assertEquals("", ValueSerializer.serialize(null, "cookie", "string", null));
+        }
+    }
+
+    @Nested
     @DisplayName("matrix style")
     class MatrixStyleTests {
 
@@ -363,6 +381,12 @@ class ValueSerializerTest {
         void singleElementArrayExplodeTrueReturnsList() {
             assertEquals(List.of("blue"), ValueSerializer.serializeStyled("color", List.of("blue"), "query", "array", null, "form", true));
         }
+
+        @Test
+        @DisplayName("null returns null for query location")
+        void nullReturnsNullForQuery() {
+            assertNull(ValueSerializer.serializeStyled("color", null, "query", "string", null, "form", true));
+        }
     }
 
     @Nested
@@ -382,6 +406,12 @@ class ValueSerializerTest {
         }
 
         @Test
+        @DisplayName("null returns empty string")
+        void nullReturnsEmptyString() {
+            assertEquals("", ValueSerializer.serializeStyled("id", null, "path", "string", null, "simple", true));
+        }
+
+        @Test
         @DisplayName("scalar does not URL-encode path value")
         void scalarDoesNotUrlEncodePath() {
             assertEquals("hello world", ValueSerializer.serializeStyled("id", "hello world", "path", "string", null, "simple", false));
@@ -396,6 +426,32 @@ class ValueSerializerTest {
         @DisplayName("path with null style behaves like simple")
         void pathWithNullStyleBehavesLikeSimple() {
             assertEquals("5", ValueSerializer.serializeStyled("id", "5", "path", "string", null, null, false));
+        }
+
+        @Test
+        @DisplayName("empty style falls back to location-based serialization")
+        void emptyStyleFallsBack() {
+            assertEquals("5", ValueSerializer.serializeStyled("id", "5", "path", "string", null, "", false));
+        }
+    }
+
+    @Nested
+    @DisplayName("deepObject serialization")
+    class DeepObjectTests {
+
+        @Test
+        @DisplayName("basic map returns bracketed keys")
+        void basicMapReturnsBracketedKeys() {
+            var result = ValueSerializer.serializeDeepObject("filter", Map.of("color", "blue", "size", "large"));
+            assertEquals("blue", result.get("filter[color]"));
+            assertEquals("large", result.get("filter[size]"));
+        }
+
+        @Test
+        @DisplayName("null returns empty map")
+        void nullReturnsEmptyMap() {
+            var result = ValueSerializer.serializeDeepObject("filter", null);
+            assertTrue(result.isEmpty());
         }
     }
 }

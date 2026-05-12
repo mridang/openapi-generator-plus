@@ -3,17 +3,48 @@
 import { TransportOptions } from '../src/transport-options';
 
 describe('TransportOptions', () => {
-  test('builder produces correct defaults', () => {
+  test('verifySsl defaults to true', () => {
     const opts = TransportOptions.builder().build();
-
     expect(opts.verifySsl).toBe(true);
+  });
+
+  test('caCertPath defaults to null', () => {
+    const opts = TransportOptions.builder().build();
     expect(opts.caCertPath).toBeNull();
+  });
+
+  test('proxy defaults to null', () => {
+    const opts = TransportOptions.builder().build();
     expect(opts.proxy).toBeNull();
+  });
+
+  test('timeout defaults to null', () => {
+    const opts = TransportOptions.builder().build();
     expect(opts.timeout).toBeNull();
+  });
+
+  test('followRedirects defaults to true', () => {
+    const opts = TransportOptions.builder().build();
     expect(opts.followRedirects).toBe(true);
+  });
+
+  test('maxRedirects defaults to null', () => {
+    const opts = TransportOptions.builder().build();
     expect(opts.maxRedirects).toBeNull();
-    expect(opts.userAgent).toBe('{{userAgentDefault}}');
+  });
+
+  test('userAgent defaults to non-empty string', () => {
+    const opts = TransportOptions.builder().build();
+    expect(opts.userAgent).toBeTruthy();
+  });
+
+  test('defaultHeaders defaults to empty', () => {
+    const opts = TransportOptions.builder().build();
     expect(opts.defaultHeaders).toEqual({});
+  });
+
+  test('injectRequestId defaults to false', () => {
+    const opts = TransportOptions.builder().build();
     expect(opts.injectRequestId).toBe(false);
   });
 

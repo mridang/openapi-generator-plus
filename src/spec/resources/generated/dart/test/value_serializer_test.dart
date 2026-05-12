@@ -12,8 +12,13 @@ void main() {
   group('ValueSerializer', () {
     // serializeValue by location
 
-    test('serializeValue query string', () {
-      final result = serializeValue('hello', 'query', 'string', '');
+    test('serializeValue path null', () {
+      final result = serializeValue(null, 'path', 'string', '');
+      expect(result, equals(''));
+    });
+
+    test('serializeValue path string as-is', () {
+      final result = serializeValue('hello', 'path', 'string', '');
       expect(result, equals('hello'));
     });
 
@@ -22,29 +27,69 @@ void main() {
       expect(result, equals('hello%20world'));
     });
 
-    test('serializeValue header string', () {
-      final result = serializeValue('hello', 'header', 'string', '');
-      expect(result, equals('hello'));
+    test('serializeValue path string slash', () {
+      final result = serializeValue('a/b', 'path', 'string', '');
+      expect(result, equals('a%2Fb'));
     });
 
-    test('serializeValue cookie string', () {
-      final result = serializeValue('hello', 'cookie', 'string', '');
-      expect(result, equals('hello'));
+    test('serializeValue path integer', () {
+      final result = serializeValue(42, 'path', 'integer', '');
+      expect(result, equals('42'));
     });
 
-    test('serializeValue nil query', () {
+    test('serializeValue path boolean true', () {
+      final result = serializeValue(true, 'path', 'boolean', '');
+      expect(result, equals('true'));
+    });
+
+    test('serializeValue path boolean false', () {
+      final result = serializeValue(false, 'path', 'boolean', '');
+      expect(result, equals('false'));
+    });
+
+    test('serializeValue query null', () {
       final result = serializeValue(null, 'query', 'string', '');
       expect(result, isNull);
     });
 
-    test('serializeValue nil path', () {
-      final result = serializeValue(null, 'path', 'string', '');
-      expect(result, equals(''));
+    test('serializeValue query string', () {
+      final result = serializeValue('hello', 'query', 'string', '');
+      expect(result, equals('hello'));
+    });
+
+    test('serializeValue query integer', () {
+      final result = serializeValue(42, 'query', 'integer', '');
+      expect(result, equals('42'));
+    });
+
+    test('serializeValue query boolean true', () {
+      final result = serializeValue(true, 'query', 'boolean', '');
+      expect(result, equals('true'));
+    });
+
+    test('serializeValue query boolean false', () {
+      final result = serializeValue(false, 'query', 'boolean', '');
+      expect(result, equals('false'));
     });
 
     test('serializeValue query array', () {
       final result = serializeValue(['a', 'b', 'c'], 'query', 'array', 'csv');
       expect(result, equals('a,b,c'));
+    });
+
+    test('serializeValue query array ssv', () {
+      final result = serializeValue(['a', 'b', 'c'], 'query', 'array', 'ssv');
+      expect(result, equals('a b c'));
+    });
+
+    test('serializeValue query array tsv', () {
+      final result = serializeValue(['a', 'b', 'c'], 'query', 'array', 'tsv');
+      expect(result, equals('a\tb\tc'));
+    });
+
+    test('serializeValue query array pipes', () {
+      final result = serializeValue(['a', 'b', 'c'], 'query', 'array', 'pipes');
+      expect(result, equals('a|b|c'));
     });
 
     test('serializeValue query array multi', () {
@@ -54,9 +99,101 @@ void main() {
       expect(items, equals(['a', 'b']));
     });
 
+    test('serializeValue query array empty csv', () {
+      final result = serializeValue([], 'query', 'array', 'csv');
+      expect(result, equals(''));
+    });
+
+    test('serializeValue query array empty multi', () {
+      final result = serializeValue([], 'query', 'array', 'multi');
+      expect(result, isA<List<String>>());
+      final items = result as List<String>;
+      expect(items, isEmpty);
+    });
+
+    test('serializeValue query array single element', () {
+      final result = serializeValue(['a'], 'query', 'array', 'csv');
+      expect(result, equals('a'));
+    });
+
+    test('serializeValue query array integers', () {
+      final result = serializeValue([1, 2, 3], 'query', 'array', 'csv');
+      expect(result, equals('1,2,3'));
+    });
+
+    test('serializeValue query array booleans', () {
+      final result = serializeValue([true, false], 'query', 'array', 'csv');
+      expect(result, equals('true,false'));
+    });
+
+    test('serializeValue header null', () {
+      final result = serializeValue(null, 'header', 'string', '');
+      expect(result, equals(''));
+    });
+
+    test('serializeValue header string', () {
+      final result = serializeValue('hello', 'header', 'string', '');
+      expect(result, equals('hello'));
+    });
+
+    test('serializeValue header integer', () {
+      final result = serializeValue(42, 'header', 'integer', '');
+      expect(result, equals('42'));
+    });
+
+    test('serializeValue header boolean true', () {
+      final result = serializeValue(true, 'header', 'boolean', '');
+      expect(result, equals('true'));
+    });
+
     test('serializeValue header array', () {
       final result = serializeValue(['a', 'b', 'c'], 'header', 'array', '');
       expect(result, equals('a,b,c'));
+    });
+
+    test('serializeValue header array empty', () {
+      final result = serializeValue([], 'header', 'array', '');
+      expect(result, equals(''));
+    });
+
+    test('serializeValue header array integers', () {
+      final result = serializeValue([1, 2, 3], 'header', 'array', '');
+      expect(result, equals('1,2,3'));
+    });
+
+    test('serializeValue cookie null', () {
+      final result = serializeValue(null, 'cookie', 'string', '');
+      expect(result, equals(''));
+    });
+
+    test('serializeValue cookie string', () {
+      final result = serializeValue('hello', 'cookie', 'string', '');
+      expect(result, equals('hello'));
+    });
+
+    test('serializeValue form null', () {
+      final result = serializeValue(null, 'form', 'string', '');
+      expect(result, equals(''));
+    });
+
+    test('serializeValue form string', () {
+      final result = serializeValue('hello', 'form', 'string', '');
+      expect(result, equals('hello'));
+    });
+
+    test('serializeValue form integer', () {
+      final result = serializeValue(42, 'form', 'integer', '');
+      expect(result, equals('42'));
+    });
+
+    test('serializeValue form boolean true', () {
+      final result = serializeValue(true, 'form', 'boolean', '');
+      expect(result, equals('true'));
+    });
+
+    test('serializeValue form boolean false', () {
+      final result = serializeValue(false, 'form', 'boolean', '');
+      expect(result, equals('false'));
     });
 
     // SerializeStyled: matrix
@@ -103,6 +240,12 @@ void main() {
       final result = serializeStyled(
           'color', ['red', 'green'], 'path', 'array', '', 'label', true);
       expect(result, equals('.red.green'));
+    });
+
+    test('serializeStyled label nil', () {
+      final result =
+          serializeStyled('color', null, 'path', 'string', '', 'label', true);
+      expect(result, equals(''));
     });
 
     // SerializeStyled: simple

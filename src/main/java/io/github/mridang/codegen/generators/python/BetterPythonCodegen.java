@@ -393,48 +393,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
                             "test/test_client.mustache",
                             "test",
                             "test_client.py"));
-            if (hasAnyOAuth2 || hasOpenIdConnect) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/test_oauth2_token_manager.mustache",
-                                "test",
-                                "test_oauth2_token_manager.py"));
-            }
-            if (hasOAuth2AuthorizationCode) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/test_oauth2_auth_code_authenticator.mustache",
-                                "test",
-                                "test_oauth2_auth_code_authenticator.py"));
-            }
-            if (hasOAuth2Implicit) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/test_oauth2_implicit_authenticator.mustache",
-                                "test",
-                                "test_oauth2_implicit_authenticator.py"));
-            }
-            if (hasOAuth2ClientCredentials) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/test_oauth2_client_credentials_authenticator.mustache",
-                                "test",
-                                "test_oauth2_client_credentials_authenticator.py"));
-            }
-            if (hasOAuth2Password) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/test_oauth2_password_authenticator.mustache",
-                                "test",
-                                "test_oauth2_password_authenticator.py"));
-            }
-            if (hasOpenIdConnect) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/test_openid_connect_authenticator.mustache",
-                                "test",
-                                "test_openid_connect_authenticator.py"));
-            }
         }
     }
 
@@ -702,6 +660,27 @@ public class BetterPythonCodegen extends AbstractBetterCodegen {
         }
         if (hasOpenIdConnect) {
             supportingFiles.add(new SupportingFile("auth/oauth/openid_connect_authenticator.mustache", oauthPath, "openid_connect_authenticator.py"));
+        }
+
+        if (generateTests) {
+            if (hasAnyOAuth2 || hasOpenIdConnect) {
+                supportingFiles.add(new SupportingFile("test/test_oauth2_token_manager.mustache", "test", "test_oauth2_token_manager.py"));
+            }
+            if (hasOAuth2AuthorizationCode) {
+                supportingFiles.add(new SupportingFile("test/test_oauth2_auth_code_authenticator.mustache", "test", "test_oauth2_auth_code_authenticator.py"));
+            }
+            if (hasOAuth2Implicit) {
+                supportingFiles.add(new SupportingFile("test/test_oauth2_implicit_authenticator.mustache", "test", "test_oauth2_implicit_authenticator.py"));
+            }
+            if (hasOAuth2ClientCredentials) {
+                supportingFiles.add(new SupportingFile("test/test_oauth2_client_credentials_authenticator.mustache", "test", "test_oauth2_client_credentials_authenticator.py"));
+            }
+            if (hasOAuth2Password) {
+                supportingFiles.add(new SupportingFile("test/test_oauth2_password_authenticator.mustache", "test", "test_oauth2_password_authenticator.py"));
+            }
+            if (hasOpenIdConnect) {
+                supportingFiles.add(new SupportingFile("test/test_openid_connect_authenticator.mustache", "test", "test_openid_connect_authenticator.py"));
+            }
         }
     }
 

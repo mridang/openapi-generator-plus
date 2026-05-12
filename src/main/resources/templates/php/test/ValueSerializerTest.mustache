@@ -167,6 +167,18 @@ class ValueSerializerTest extends TestCase
         $this->assertSame('1,2,3', ValueSerializer::serialize([1, 2, 3], 'header', 'array'));
     }
 
+    // -- cookie location --
+
+    public function testCookieStringReturnsAsIs(): void
+    {
+        $this->assertSame('hello', ValueSerializer::serialize('hello', 'cookie', 'string'));
+    }
+
+    public function testCookieNullReturnsEmptyString(): void
+    {
+        $this->assertSame('', ValueSerializer::serialize(null, 'cookie', 'string'));
+    }
+
     // -- form location --
 
     public function testFormNullReturnsEmptyString(): void
@@ -284,6 +296,11 @@ class ValueSerializerTest extends TestCase
         $this->assertSame(['blue'], ValueSerializer::serializeStyled('color', ['blue'], 'query', 'array', null, 'form', true));
     }
 
+    public function testFormStyleNullReturnsNullForQuery(): void
+    {
+        $this->assertNull(ValueSerializer::serializeStyled('color', null, 'query', 'string', null, 'form', true));
+    }
+
     // -- serializeStyled: simple style backward compatibility --
 
     public function testSimpleScalarReturnsStringifiedValue(): void
@@ -296,6 +313,11 @@ class ValueSerializerTest extends TestCase
         $this->assertSame('3,4,5', ValueSerializer::serializeStyled('id', ['3', '4', '5'], 'path', 'array', null, 'simple', false));
     }
 
+    public function testSimpleNullReturnsEmptyString(): void
+    {
+        $this->assertSame('', ValueSerializer::serializeStyled('id', null, 'path', 'string', null, 'simple', true));
+    }
+
     public function testSimpleScalarDoesNotUrlEncode(): void
     {
         $this->assertSame('hello world', ValueSerializer::serializeStyled('id', 'hello world', 'path', 'string', null, 'simple', false));
@@ -306,5 +328,25 @@ class ValueSerializerTest extends TestCase
     public function testNullStyleBehavesLikeSimpleForPath(): void
     {
         $this->assertSame('5', ValueSerializer::serializeStyled('id', '5', 'path', 'string', null, null, false));
+    }
+
+    public function testEmptyStyleFallsBack(): void
+    {
+        $this->assertSame('5', ValueSerializer::serializeStyled('id', '5', 'path', 'string', null, '', false));
+    }
+
+    // -- serializeDeepObject --
+
+    public function testDeepObjectBasicMapReturnsBracketedKeys(): void
+    {
+        $result = ValueSerializer::serializeDeepObject('filter', ['color' => 'blue', 'size' => 'large']);
+        $this->assertSame('blue', $result['filter[color]']);
+        $this->assertSame('large', $result['filter[size]']);
+    }
+
+    public function testDeepObjectNullReturnsEmptyArray(): void
+    {
+        $result = ValueSerializer::serializeDeepObject('filter', null);
+        $this->assertSame([], $result);
     }
 }

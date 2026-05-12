@@ -5,17 +5,56 @@ use std::collections::HashMap;
 use {{packageName}}::*;
 
 #[test]
-fn test_transport_options_defaults() {
+fn test_transport_options_verify_ssl_defaults_to_true() {
     let opts = TransportOptionsBuilder::new().build();
-
     assert!(opts.verify_ssl(), "expected verify_ssl to be true by default");
+}
+
+#[test]
+fn test_transport_options_ca_cert_path_defaults_to_none() {
+    let opts = TransportOptionsBuilder::new().build();
     assert!(opts.ca_cert_path().is_none(), "expected no CA cert path by default");
+}
+
+#[test]
+fn test_transport_options_proxy_defaults_to_none() {
+    let opts = TransportOptionsBuilder::new().build();
     assert!(opts.proxy().is_none(), "expected no proxy by default");
+}
+
+#[test]
+fn test_transport_options_timeout_defaults_to_none() {
+    let opts = TransportOptionsBuilder::new().build();
     assert!(opts.timeout().is_none(), "expected no timeout by default");
+}
+
+#[test]
+fn test_transport_options_follow_redirects_defaults_to_true() {
+    let opts = TransportOptionsBuilder::new().build();
     assert!(opts.follow_redirects(), "expected follow_redirects to be true by default");
+}
+
+#[test]
+fn test_transport_options_max_redirects_defaults_to_none() {
+    let opts = TransportOptionsBuilder::new().build();
     assert!(opts.max_redirects().is_none(), "expected no max_redirects by default");
+}
+
+#[test]
+fn test_transport_options_user_agent_defaults_to_non_empty() {
+    let opts = TransportOptionsBuilder::new().build();
     assert!(!opts.user_agent().is_empty(), "expected non-empty default user agent");
+}
+
+#[test]
+fn test_transport_options_default_headers_defaults_to_empty() {
+    let opts = TransportOptionsBuilder::new().build();
     assert!(opts.default_headers().is_empty(), "expected empty default headers");
+}
+
+#[test]
+fn test_transport_options_inject_request_id_defaults_to_false() {
+    let opts = TransportOptionsBuilder::new().build();
     assert!(!opts.inject_request_id(), "expected inject_request_id to be false by default");
 }
 
@@ -88,6 +127,19 @@ fn test_transport_options_empty_proxy_is_accepted() {
         .build();
 
     assert!(opts.proxy().is_none(), "expected no proxy for empty string");
+}
+
+#[test]
+fn test_transport_options_valid_proxy_url_is_accepted() {
+    let opts = TransportOptionsBuilder::new()
+        .proxy("http://proxy.example.com:8080")
+        .build();
+
+    assert_eq!(
+        opts.proxy(),
+        Some("http://proxy.example.com:8080"),
+        "expected valid proxy URL to be stored"
+    );
 }
 
 #[test]
