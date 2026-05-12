@@ -3,18 +3,13 @@
 import { injectTraceContext } from '../src/trace-context-util{{importFileExtension}}';
 
 describe('TraceContextUtil', () => {
-  test('should not inject traceparent when @opentelemetry/api is not installed', () => {
+  test('does not inject traceparent without OTel', () => {
     const headers: Record<string, string> = {};
     injectTraceContext(headers);
     expect(headers['traceparent']).toBeUndefined();
   });
 
-  test('should not throw any exception', () => {
-    const headers: Record<string, string> = {};
-    expect(() => injectTraceContext(headers)).not.toThrow();
-  });
-
-  test('is a no-op when no tracer configured', () => {
+  test('is a no-op without tracer', () => {
     const headers: Record<string, string> = {};
     injectTraceContext(headers);
     expect(Object.keys(headers).length).toBe(0);

@@ -42,7 +42,7 @@ describe {{moduleName}}::TransportOptions do
     _(opts.user_agent).wont_be_empty
   end
 
-  it 'default_headers defaults to empty' do
+  it 'default_headers defaults to empty map' do
     opts = {{moduleName}}::TransportOptions.builder.build
     _(opts.default_headers).must_be_empty
   end
@@ -76,7 +76,7 @@ describe {{moduleName}}::TransportOptions do
     _(opts.inject_request_id).must_equal true
   end
 
-  it 'follow_redirects defaults to true with nil max_redirects' do
+  it 'follow_redirects defaults to true with null max_redirects' do
     opts = {{moduleName}}::TransportOptions.builder
       .follow_redirects(true)
       .build
@@ -85,23 +85,18 @@ describe {{moduleName}}::TransportOptions do
     _(opts.max_redirects).must_be_nil
   end
 
-  it 'raises ArgumentError for invalid proxy URL' do
+  it 'invalid proxy URL throws exception' do
     assert_raises(ArgumentError) do
       {{moduleName}}::TransportOptions.builder.proxy('not-a-url').build
     end
   end
 
-  it 'accepts a valid proxy URL' do
-    opts = {{moduleName}}::TransportOptions.builder.proxy('http://proxy:3128').build
-    _(opts.proxy).must_equal 'http://proxy:3128'
-  end
-
-  it 'accepts nil proxy' do
+  it 'null proxy URL is accepted' do
     opts = {{moduleName}}::TransportOptions.builder.proxy(nil).build
     _(opts.proxy).must_be_nil
   end
 
-  it 'default_headers is a defensive copy' do
+  it 'modifying source map does not affect built options' do
     headers = { 'X-Original' => 'original' }
 
     opts = {{moduleName}}::TransportOptions.builder

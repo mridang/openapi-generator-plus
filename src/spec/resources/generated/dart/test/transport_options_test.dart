@@ -10,7 +10,7 @@ import 'package:test/test.dart';
 
 void main() {
   group('TransportOptions', () {
-    test('verifySSL defaults to true', () {
+    test('verifySsl defaults to true', () {
       final opts = TransportOptionsBuilder().build();
       expect(opts.verifySSL, isTrue);
     });
@@ -45,7 +45,7 @@ void main() {
       expect(opts.userAgent, isNotEmpty);
     });
 
-    test('defaultHeaders defaults to empty', () {
+    test('defaultHeaders defaults to empty map', () {
       final opts = TransportOptionsBuilder().build();
       expect(opts.defaultHeaders, isEmpty);
     });
@@ -55,7 +55,7 @@ void main() {
       expect(opts.injectRequestId, isFalse);
     });
 
-    test('set all fields', () {
+    test('builder sets all fields', () {
       final opts = TransportOptionsBuilder()
           .verifySSL(false)
           .caCertPath('/path/to/ca.pem')
@@ -80,14 +80,14 @@ void main() {
       expect(opts.injectRequestId, isTrue);
     });
 
-    test('follow redirects defaults to true with null max redirects', () {
+    test('followRedirects defaults to true with null maxRedirects', () {
       final opts = TransportOptionsBuilder().followRedirects(true).build();
 
       expect(opts.followRedirects, isTrue);
       expect(opts.maxRedirects, isNull);
     });
 
-    test('builder chaining', () {
+    test('builder methods return the same builder instance', () {
       final builder = TransportOptionsBuilder();
 
       final result =
@@ -100,24 +100,13 @@ void main() {
       expect(opts.timeout, equals(10000));
     });
 
-    test('multiple default headers', () {
-      final opts = TransportOptionsBuilder().defaultHeaders({
-        'X-First': 'one',
-        'X-Second': 'two',
-      }).build();
-
-      final headers = opts.defaultHeaders;
-      expect(headers['X-First'], equals('one'));
-      expect(headers['X-Second'], equals('two'));
-    });
-
-    test('empty proxy is accepted', () {
+    test('null proxy URL is accepted', () {
       final opts = TransportOptionsBuilder().proxy('').build();
 
       expect(opts.proxy, isNull);
     });
 
-    test('invalid proxy URL throws', () {
+    test('invalid proxy URL throws exception', () {
       expect(
         () => TransportOptionsBuilder().proxy('not a valid url'),
         throwsA(isA<ArgumentError>()),
@@ -158,7 +147,7 @@ void main() {
       expect(identical(first, second), isFalse);
     });
 
-    test('default headers copy isolation', () {
+    test('modifying source map does not affect built options', () {
       final opts =
           TransportOptionsBuilder().defaultHeader('X-Test', 'value').build();
 

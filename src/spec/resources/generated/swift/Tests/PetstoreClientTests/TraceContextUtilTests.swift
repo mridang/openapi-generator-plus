@@ -11,7 +11,7 @@ import XCTest
 
 final class TraceContextUtilTests: XCTestCase {
 
-  func testInjectTraceContextNoOpWhenNoTracer() {
+  func testInjectTraceContextNoOpWithoutTracer() {
     var headers: [String: String] = [
       "X-Existing": "value"
     ]
@@ -23,7 +23,7 @@ final class TraceContextUtilTests: XCTestCase {
     XCTAssertEqual(headers["X-Existing"], "value")
   }
 
-  func testInjectTraceContextDoesNotPanicWithEmptyHeaders() {
+  func testInjectTraceContextEmptyHeadersDoNotCauseException() {
     var headers: [String: String] = [:]
 
     // Should not crash with empty headers dictionary
@@ -46,7 +46,7 @@ final class TraceContextUtilTests: XCTestCase {
     XCTAssertNil(headers["tracestate"])
   }
 
-  func testInjectTraceContextPreservesExistingHeaders() {
+  func testInjectTraceContextPreservesAllExistingHeaders() {
     var headers: [String: String] = [
       "Authorization": "Bearer token",
       "Content-Type": "application/json",

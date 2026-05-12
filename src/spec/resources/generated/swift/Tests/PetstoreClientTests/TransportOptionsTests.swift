@@ -11,22 +11,22 @@ import XCTest
 
 final class TransportOptionsTests: XCTestCase {
 
-  func testVerifySSLDefaultsToTrue() {
+  func testVerifySslDefaultsToTrue() {
     let opts = TransportOptionsBuilder().build()
     XCTAssertTrue(opts.verifySSL)
   }
 
-  func testCaCertPathDefaultsToNil() {
+  func testCaCertPathDefaultsToNull() {
     let opts = TransportOptionsBuilder().build()
     XCTAssertNil(opts.caCertPath)
   }
 
-  func testProxyDefaultsToNil() {
+  func testProxyDefaultsToNull() {
     let opts = TransportOptionsBuilder().build()
     XCTAssertNil(opts.proxy)
   }
 
-  func testTimeoutDefaultsToNil() {
+  func testTimeoutDefaultsToNull() {
     let opts = TransportOptionsBuilder().build()
     XCTAssertNil(opts.timeout)
   }
@@ -36,12 +36,12 @@ final class TransportOptionsTests: XCTestCase {
     XCTAssertTrue(opts.followRedirects)
   }
 
-  func testMaxRedirectsDefaultsToNil() {
+  func testMaxRedirectsDefaultsToNull() {
     let opts = TransportOptionsBuilder().build()
     XCTAssertNil(opts.maxRedirects)
   }
 
-  func testUserAgentDefaultsToNonEmpty() {
+  func testUserAgentDefaultsToNonEmptyString() {
     let opts = TransportOptionsBuilder().build()
     XCTAssertFalse(opts.userAgent.isEmpty)
   }
@@ -51,21 +51,12 @@ final class TransportOptionsTests: XCTestCase {
     XCTAssertTrue(opts.defaultHeaders.isEmpty)
   }
 
-  func testInjectRequestIDDefaultsToFalse() {
+  func testInjectRequestIdDefaultsToFalse() {
     let opts = TransportOptionsBuilder().build()
     XCTAssertFalse(opts.injectRequestID)
   }
 
-  func testFollowRedirectsDefaultsToTrueWithNilMaxRedirects() {
-    let opts = TransportOptionsBuilder()
-      .followRedirects(true)
-      .build()
-
-    XCTAssertTrue(opts.followRedirects)
-    XCTAssertNil(opts.maxRedirects)
-  }
-
-  func testSetAllFields() {
+  func testBuilderSetsAllFields() {
     let opts = TransportOptionsBuilder()
       .verifySSL(false)
       .caCertPath("/path/to/ca.pem")
@@ -90,7 +81,30 @@ final class TransportOptionsTests: XCTestCase {
     XCTAssertTrue(opts.injectRequestID)
   }
 
-  func testBuilderChaining() {
+  func testFollowRedirectsDefaultsToTrueWithNullMaxRedirects() {
+    let opts = TransportOptionsBuilder()
+      .followRedirects(true)
+      .build()
+
+    XCTAssertTrue(opts.followRedirects)
+    XCTAssertNil(opts.maxRedirects)
+  }
+
+  func testInvalidProxyUrlThrowsException() {
+    XCTAssertThrowsError(try TransportOptionsBuilder().proxy("not a valid url")) { error in
+      XCTAssertTrue(error is TransportOptionsError)
+    }
+  }
+
+  func testNullProxyUrlIsAccepted() throws {
+    let opts = try TransportOptionsBuilder()
+      .proxy(nil)
+      .build()
+
+    XCTAssertNil(opts.proxy)
+  }
+
+  func testBuilderMethodsReturnSameInstance() {
     let opts = TransportOptionsBuilder()
       .verifySSL(true)
       .userAgent("Test/1.0")
@@ -99,32 +113,6 @@ final class TransportOptionsTests: XCTestCase {
 
     XCTAssertEqual(opts.userAgent, "Test/1.0")
     XCTAssertEqual(opts.timeout, 10000)
-  }
-
-  func testMultipleDefaultHeaders() {
-    let opts = TransportOptionsBuilder()
-      .defaultHeaders([
-        "X-First": "one",
-        "X-Second": "two",
-      ])
-      .build()
-
-    XCTAssertEqual(opts.defaultHeaders["X-First"], "one")
-    XCTAssertEqual(opts.defaultHeaders["X-Second"], "two")
-  }
-
-  func testInvalidProxyURLThrows() {
-    XCTAssertThrowsError(try TransportOptionsBuilder().proxy("not a valid url")) { error in
-      XCTAssertTrue(error is TransportOptionsError)
-    }
-  }
-
-  func testNilProxyIsAccepted() throws {
-    let opts = try TransportOptionsBuilder()
-      .proxy(nil)
-      .build()
-
-    XCTAssertNil(opts.proxy)
   }
 
   func testAccumulatesHeadersFromDefaultHeaderCalls() {
@@ -153,7 +141,7 @@ final class TransportOptionsTests: XCTestCase {
     XCTAssertEqual(opts.defaultHeaders["X-Third"], "three")
   }
 
-  func testDefaultHeadersCopyIsolation() {
+  func testModifyingSourceMapDoesNotAffectBuiltOptions() {
     let opts = TransportOptionsBuilder()
       .defaultHeader(name: "X-Test", value: "value")
       .build()

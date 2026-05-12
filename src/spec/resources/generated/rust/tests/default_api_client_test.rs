@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use petstore::*;
 
 #[tokio::test]
-async fn test_default_api_client_tls_verification_disabled() {
+async fn test_default_api_client_makes_https_request_with_verify_ssl_false() {
     let wiremock_url = testcontainers_helper::wiremock_https_url();
     let transport = TransportOptionsBuilder::new().verify_ssl(false).build();
     let client = DefaultApiClient::new(Some(transport));
@@ -27,7 +27,7 @@ async fn test_default_api_client_tls_verification_disabled() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_custom_ca_bundle() {
+async fn test_default_api_client_makes_https_request_with_custom_ca_cert() {
     let wiremock_url = testcontainers_helper::wiremock_https_url();
     let ca_cert = testcontainers_helper::ca_cert_path();
     let transport = TransportOptionsBuilder::new()
@@ -46,7 +46,7 @@ async fn test_default_api_client_custom_ca_bundle() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_http_proxy() {
+async fn test_default_api_client_makes_http_request_through_proxy() {
     let wiremock_url = testcontainers_helper::wiremock_internal_http_url();
     let proxy = testcontainers_helper::proxy_url();
     let transport = TransportOptionsBuilder::new().proxy(proxy).build();
@@ -62,7 +62,7 @@ async fn test_default_api_client_http_proxy() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_http_proxy_with_tls() {
+async fn test_default_api_client_makes_https_request_through_proxy_with_verify_ssl_false() {
     let wiremock_url = testcontainers_helper::wiremock_internal_https_url();
     let proxy = testcontainers_helper::proxy_url();
     let transport = TransportOptionsBuilder::new()
@@ -81,7 +81,7 @@ async fn test_default_api_client_http_proxy_with_tls() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_request_timeout() {
+async fn test_default_api_client_times_out_on_slow_endpoint() {
     let wiremock_url = testcontainers_helper::wiremock_http_url();
     let transport = TransportOptionsBuilder::new().timeout(1000).build();
     let client = DefaultApiClient::new(Some(transport));
@@ -94,7 +94,7 @@ async fn test_default_api_client_request_timeout() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_user_agent_header() {
+async fn test_default_api_client_injects_custom_user_agent_header() {
     let wiremock_url = testcontainers_helper::wiremock_http_url();
     let transport = TransportOptionsBuilder::new()
         .user_agent("MyApp/1.0")
@@ -117,7 +117,7 @@ async fn test_default_api_client_user_agent_header() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_request_id_injection() {
+async fn test_default_api_client_injects_request_id_header() {
     let wiremock_url = testcontainers_helper::wiremock_http_url();
     let transport = TransportOptionsBuilder::new()
         .inject_request_id(true)
@@ -140,7 +140,7 @@ async fn test_default_api_client_request_id_injection() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_request_id_unique() {
+async fn test_default_api_client_generates_unique_request_ids() {
     let wiremock_url = testcontainers_helper::wiremock_http_url();
     let transport = TransportOptionsBuilder::new()
         .inject_request_id(true)
@@ -174,7 +174,7 @@ async fn test_default_api_client_request_id_unique() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_default_headers() {
+async fn test_default_api_client_includes_transport_default_headers() {
     let wiremock_url = testcontainers_helper::wiremock_http_url();
     let transport = TransportOptionsBuilder::new()
         .default_header("X-Custom", "custom-value")
@@ -196,7 +196,7 @@ async fn test_default_api_client_default_headers() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_caller_headers_override_defaults() {
+async fn test_default_api_client_caller_headers_override_transport_defaults() {
     let wiremock_url = testcontainers_helper::wiremock_http_url();
     let transport = TransportOptionsBuilder::new()
         .default_header("Accept", "text/plain")
@@ -219,7 +219,7 @@ async fn test_default_api_client_caller_headers_override_defaults() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_follow_redirects_enabled() {
+async fn test_default_api_client_follows_redirects_when_enabled() {
     let wiremock_url = testcontainers_helper::wiremock_http_url();
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
@@ -241,7 +241,7 @@ async fn test_default_api_client_follow_redirects_enabled() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_follow_redirects_disabled() {
+async fn test_default_api_client_returns_redirect_when_disabled() {
     let wiremock_url = testcontainers_helper::wiremock_http_url();
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(false)
@@ -262,7 +262,7 @@ async fn test_default_api_client_follow_redirects_disabled() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_max_redirects() {
+async fn test_default_api_client_respects_max_redirects_limit() {
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
         .max_redirects(Some(5))
@@ -278,7 +278,7 @@ async fn test_default_api_client_max_redirects() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_multipart_body() {
+async fn test_default_api_client_sends_multipart_form_data() {
     let wiremock_url = testcontainers_helper::wiremock_http_url();
     let form_data = serde_json::json!({
         "description": "A test file",
@@ -299,7 +299,7 @@ async fn test_default_api_client_multipart_body() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_compression_gzip() {
+async fn test_default_api_client_decompresses_gzip_response() {
     let client = DefaultApiClient::new(None);
     let mut headers = HashMap::new();
     headers.insert("Accept-Encoding".to_string(), "gzip".to_string());
@@ -317,7 +317,7 @@ async fn test_default_api_client_compression_gzip() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_compression_brotli() {
+async fn test_default_api_client_decompresses_brotli_response() {
     let client = DefaultApiClient::new(None);
     let mut headers = HashMap::new();
     headers.insert("Accept-Encoding".to_string(), "br".to_string());
@@ -335,7 +335,7 @@ async fn test_default_api_client_compression_brotli() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_compression_zstd() {
+async fn test_default_api_client_decompresses_zstd_response() {
     let client = DefaultApiClient::new(None);
     let mut headers = HashMap::new();
     headers.insert("Accept-Encoding".to_string(), "zstd".to_string());

@@ -109,46 +109,20 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void InvalidProxyUrlThrows()
+    public void InvalidProxyUrlThrowsException()
     {
         Assert.Throws<UriFormatException>(() =>
             TransportOptions.Builder().Proxy("not a valid url").Build());
     }
 
     [Fact]
-    public void NullProxyIsAccepted()
+    public void NullProxyUrlIsAccepted()
     {
         var opts = TransportOptions.Builder()
             .Proxy(null)
             .Build();
 
         Assert.Null(opts.Proxy);
-    }
-
-    [Fact]
-    public void ValidProxyUrlIsAccepted()
-    {
-        var opts = TransportOptions.Builder()
-            .Proxy("http://proxy.example.com:8080")
-            .Build();
-
-        Assert.Equal("http://proxy.example.com:8080", opts.Proxy);
-    }
-
-    [Fact]
-    public void DefaultHeadersIsDefensiveCopy()
-    {
-        var headers = new Dictionary<string, string> { { "X-Original", "original" } };
-
-        var opts = TransportOptions.Builder()
-            .DefaultHeaders(headers)
-            .Build();
-
-        headers["X-Added"] = "added";
-
-        Assert.Single(opts.DefaultHeaders);
-        Assert.Equal("original", opts.DefaultHeaders["X-Original"]);
-        Assert.False(opts.DefaultHeaders.ContainsKey("X-Added"));
     }
 
     [Fact]

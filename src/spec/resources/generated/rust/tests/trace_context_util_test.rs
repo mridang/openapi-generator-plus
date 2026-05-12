@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use petstore::trace_context_util;
 
 #[test]
-fn test_inject_trace_context_no_op_when_no_tracer() {
+fn test_inject_trace_context_no_op_without_tracer() {
     let mut headers = HashMap::new();
     headers.insert("X-Existing".to_string(), "value".to_string());
 
@@ -22,7 +22,7 @@ fn test_inject_trace_context_no_op_when_no_tracer() {
 }
 
 #[test]
-fn test_inject_trace_context_does_not_panic_with_empty_headers() {
+fn test_inject_trace_context_empty_headers_do_not_cause_exception() {
     let mut headers = HashMap::new();
 
     // Should not panic with empty headers map
@@ -54,7 +54,7 @@ fn test_inject_trace_context_does_not_inject_tracestate_without_otel() {
 }
 
 #[test]
-fn test_inject_trace_context_preserves_existing_headers() {
+fn test_inject_trace_context_preserves_all_existing_headers() {
     let mut headers = HashMap::new();
     headers.insert("Authorization".to_string(), "Bearer token".to_string());
     headers.insert("Content-Type".to_string(), "application/json".to_string());

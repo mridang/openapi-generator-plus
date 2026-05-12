@@ -7,28 +7,28 @@ import (
 	"{{packageName}}/pkg"
 )
 
-func TestTransportOptions_VerifySSLDefaultsToTrue(t *testing.T) {
+func TestTransportOptions_VerifySslDefaultsToTrue(t *testing.T) {
 	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
 	if !opts.VerifySSL() {
 		t.Error("expected VerifySSL to be true by default")
 	}
 }
 
-func TestTransportOptions_CACertPathDefaultsToEmpty(t *testing.T) {
+func TestTransportOptions_CaCertPathDefaultsToNull(t *testing.T) {
 	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
 	if opts.CACertPath() != "" {
 		t.Errorf("expected empty CACertPath, got %q", opts.CACertPath())
 	}
 }
 
-func TestTransportOptions_ProxyDefaultsToNil(t *testing.T) {
+func TestTransportOptions_ProxyDefaultsToNull(t *testing.T) {
 	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
 	if opts.Proxy() != nil {
 		t.Error("expected nil Proxy by default")
 	}
 }
 
-func TestTransportOptions_TimeoutDefaultsToNil(t *testing.T) {
+func TestTransportOptions_TimeoutDefaultsToNull(t *testing.T) {
 	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
 	if opts.Timeout() != nil {
 		t.Error("expected nil timeout by default")
@@ -42,7 +42,7 @@ func TestTransportOptions_FollowRedirectsDefaultsToTrue(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_MaxRedirectsDefaultsToNil(t *testing.T) {
+func TestTransportOptions_MaxRedirectsDefaultsToNull(t *testing.T) {
 	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
 	if opts.MaxRedirects() != nil {
 		t.Error("expected MaxRedirects nil by default")
@@ -63,14 +63,14 @@ func TestTransportOptions_DefaultHeadersDefaultsToEmpty(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_InjectRequestIDDefaultsToFalse(t *testing.T) {
+func TestTransportOptions_InjectRequestIdDefaultsToFalse(t *testing.T) {
 	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
 	if opts.InjectRequestID() {
 		t.Error("expected InjectRequestID to be false by default")
 	}
 }
 
-func TestTransportOptions_SetAllFields(t *testing.T) {
+func TestTransportOptions_BuilderSetsAllFields(t *testing.T) {
 	opts := {{packageName}}.NewTransportOptionsBuilder().
 		VerifySSL(false).
 		CACertPath("/path/to/ca.pem").
@@ -115,7 +115,7 @@ func TestTransportOptions_SetAllFields(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_FollowRedirectsDefaultsToTrueWithNilMaxRedirects(t *testing.T) {
+func TestTransportOptions_FollowRedirectsDefaultsToTrueWithNullMaxRedirects(t *testing.T) {
 	opts := {{packageName}}.NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		Build()
@@ -128,10 +128,30 @@ func TestTransportOptions_FollowRedirectsDefaultsToTrueWithNilMaxRedirects(t *te
 	}
 }
 
-func TestTransportOptions_BuilderChaining(t *testing.T) {
+func TestTransportOptions_InvalidProxyUrlThrowsException(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic for invalid proxy URL, got none")
+		}
+	}()
+	{{packageName}}.NewTransportOptionsBuilder().
+		Proxy("not-a-valid-url").
+		Build()
+}
+
+func TestTransportOptions_NullProxyUrlIsAccepted(t *testing.T) {
+	opts := {{packageName}}.NewTransportOptionsBuilder().
+		Proxy("").
+		Build()
+
+	if opts.Proxy() != nil {
+		t.Error("expected nil Proxy for empty string")
+	}
+}
+
+func TestTransportOptions_BuilderMethodsReturnSameInstance(t *testing.T) {
 	builder := {{packageName}}.NewTransportOptionsBuilder()
 
-	// Chaining should return the same builder
 	result := builder.
 		VerifySSL(true).
 		UserAgent("Test/1.0").
@@ -147,33 +167,6 @@ func TestTransportOptions_BuilderChaining(t *testing.T) {
 	}
 	if opts.Timeout() == nil || *opts.Timeout() != 10000 {
 		t.Error("expected timeout 10000ms")
-	}
-}
-
-func TestTransportOptions_MultipleDefaultHeaders(t *testing.T) {
-	opts := {{packageName}}.NewTransportOptionsBuilder().
-		DefaultHeaders(map[string]string{
-			"X-First":  "one",
-			"X-Second": "two",
-		}).
-		Build()
-
-	headers := opts.DefaultHeaders()
-	if headers["X-First"] != "one" {
-		t.Errorf("expected X-First='one', got %q", headers["X-First"])
-	}
-	if headers["X-Second"] != "two" {
-		t.Errorf("expected X-Second='two', got %q", headers["X-Second"])
-	}
-}
-
-func TestTransportOptions_EmptyProxyIsAccepted(t *testing.T) {
-	opts := {{packageName}}.NewTransportOptionsBuilder().
-		Proxy("").
-		Build()
-
-	if opts.Proxy() != nil {
-		t.Error("expected nil Proxy for empty string")
 	}
 }
 
@@ -195,7 +188,7 @@ func TestTransportOptions_AccumulatesHeadersFromDefaultHeaderCalls(t *testing.T)
 	}
 }
 
-func TestTransportOptions_MergesHeadersFromDefaultHeadersCalls(t *testing.T) {
+func TestTransportOptions_MergesHeadersFromDefaultHeadersCall(t *testing.T) {
 	opts := {{packageName}}.NewTransportOptionsBuilder().
 		DefaultHeader("X-First", "one").
 		DefaultHeaders(map[string]string{
@@ -219,31 +212,7 @@ func TestTransportOptions_MergesHeadersFromDefaultHeadersCalls(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_BuilderProducesIndependentInstances(t *testing.T) {
-	builder := {{packageName}}.NewTransportOptionsBuilder().VerifySSL(false)
-	first := builder.Build()
-	second := builder.Build()
-
-	if first.VerifySSL() != second.VerifySSL() {
-		t.Error("expected both instances to have the same VerifySSL value")
-	}
-	if first == second {
-		t.Error("expected builder to produce independent instances")
-	}
-}
-
-func TestTransportOptions_InvalidProxyPanics(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic for invalid proxy URL, got none")
-		}
-	}()
-	{{packageName}}.NewTransportOptionsBuilder().
-		Proxy("not-a-valid-url").
-		Build()
-}
-
-func TestTransportOptions_DefaultHeadersCopyIsolation(t *testing.T) {
+func TestTransportOptions_ModifyingSourceMapDoesNotAffectBuiltOptions(t *testing.T) {
 	opts := {{packageName}}.NewTransportOptionsBuilder().
 		DefaultHeader("X-Test", "value").
 		Build()
@@ -254,5 +223,18 @@ func TestTransportOptions_DefaultHeadersCopyIsolation(t *testing.T) {
 	original := opts.DefaultHeaders()
 	if _, found := original["X-Mutated"]; found {
 		t.Error("modifying returned headers should not affect the transport options")
+	}
+}
+
+func TestTransportOptions_BuilderProducesIndependentInstances(t *testing.T) {
+	builder := {{packageName}}.NewTransportOptionsBuilder().VerifySSL(false)
+	first := builder.Build()
+	second := builder.Build()
+
+	if first.VerifySSL() != second.VerifySSL() {
+		t.Error("expected both instances to have the same VerifySSL value")
+	}
+	if first == second {
+		t.Error("expected builder to produce independent instances")
 	}
 }

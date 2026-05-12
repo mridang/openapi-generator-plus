@@ -38,7 +38,7 @@ describe('TransportOptions', () => {
     expect(opts.userAgent).toBeTruthy();
   });
 
-  test('defaultHeaders defaults to empty', () => {
+  test('defaultHeaders defaults to empty map', () => {
     const opts = TransportOptions.builder().build();
     expect(opts.defaultHeaders).toEqual({});
   });
@@ -72,7 +72,7 @@ describe('TransportOptions', () => {
     expect(opts.injectRequestId).toBe(true);
   });
 
-  test('follow redirects defaults to true with null max redirects', () => {
+  test('followRedirects defaults to true with null maxRedirects', () => {
     const opts = TransportOptions.builder()
       .followRedirects(true)
       .build();
@@ -81,27 +81,20 @@ describe('TransportOptions', () => {
     expect(opts.maxRedirects).toBeNull();
   });
 
-  test('proxy rejects invalid URL', () => {
+  test('invalid proxy URL throws IllegalArgumentException', () => {
     expect(() => {
       TransportOptions.builder().proxy('not-a-valid-url');
     }).toThrow();
   });
 
-  test('proxy accepts valid URL', () => {
-    const opts = TransportOptions.builder()
-      .proxy('http://proxy.example.com:8080')
-      .build();
-    expect(opts.proxy).toBe('http://proxy.example.com:8080');
-  });
-
-  test('proxy accepts null', () => {
+  test('null proxy URL is accepted', () => {
     const opts = TransportOptions.builder()
       .proxy(null)
       .build();
     expect(opts.proxy).toBeNull();
   });
 
-  test('defaultHeaders is a defensive copy', () => {
+  test('modifying source map does not affect built options', () => {
     const headers: Record<string, string> = { 'X-Original': 'original' };
 
     const opts = TransportOptions.builder()

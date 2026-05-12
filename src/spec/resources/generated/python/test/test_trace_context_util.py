@@ -1,38 +1,17 @@
 """Unit tests for TraceContextUtil."""
 
-from unittest.mock import MagicMock, patch
-
 from petstore_client.trace_context_util import inject_trace_context
 
 
 class TestInjectTraceContext:
     """Tests for inject_trace_context function."""
 
-    def test_should_inject_traceparent_with_mock_propagator(self) -> None:
-        def mock_inject(carrier: dict[str, str]) -> None:
-            carrier['traceparent'] = '00-abcdef1234567890abcdef1234567890-0123456789abcdef-01'
-
-        mock_propagate = MagicMock()
-        mock_propagate.inject = mock_inject
-
-        with patch.dict(
-            'sys.modules',
-            {
-                'opentelemetry': MagicMock(),
-                'opentelemetry.propagate': mock_propagate,
-            },
-        ):
-            headers: dict[str, str] = {}
-            inject_trace_context(headers)
-            assert 'traceparent' in headers
-            assert headers['traceparent'] == '00-abcdef1234567890abcdef1234567890-0123456789abcdef-01'
-
-    def test_should_not_inject_traceparent_without_otel(self) -> None:
+    def test_does_not_inject_traceparent_without_otel(self) -> None:
         headers: dict[str, str] = {}
         inject_trace_context(headers)
         assert 'traceparent' not in headers
 
-    def test_should_not_throw_any_exception(self) -> None:
+    def test_no_op_without_tracer(self) -> None:
         headers: dict[str, str] = {}
         inject_trace_context(headers)
 

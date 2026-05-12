@@ -141,7 +141,7 @@ describe PetstoreClient::DefaultApiClient do
   end
 
   describe 'X-Request-ID injection' do
-    it 'injects X-Request-ID header with UUID format' do
+    it 'injects request ID header' do
       wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
 
       transport = PetstoreClient::TransportOptions.builder
@@ -158,7 +158,7 @@ describe PetstoreClient::DefaultApiClient do
       _(request_id).must_match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
     end
 
-    it 'generates unique X-Request-ID per request' do
+    it 'generates unique request IDs' do
       wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
 
       transport = PetstoreClient::TransportOptions.builder
@@ -193,7 +193,7 @@ describe PetstoreClient::DefaultApiClient do
       _(json['x-custom']).must_equal('custom-value')
     end
 
-    it 'caller headers override transport default headers' do
+    it 'caller headers override transport defaults' do
       wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
 
       transport = PetstoreClient::TransportOptions.builder
@@ -227,7 +227,7 @@ describe PetstoreClient::DefaultApiClient do
       _(response.body).must_include('success')
     end
 
-    it 'returns redirect response when disabled' do
+    it 'returns redirect when disabled' do
       wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
 
       transport = PetstoreClient::TransportOptions.builder
@@ -242,7 +242,7 @@ describe PetstoreClient::DefaultApiClient do
   end
 
   describe 'max redirects' do
-    it 'respects max_redirects limit' do
+    it 'respects max redirects limit' do
       transport = PetstoreClient::TransportOptions.builder
                                                   .follow_redirects(true)
                                                   .max_redirects(5)

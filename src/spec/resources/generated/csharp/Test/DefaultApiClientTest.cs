@@ -188,7 +188,7 @@ public class DefaultApiClientTest
     // -- X-Request-ID injection --
 
     [Fact]
-    public async Task InjectsRequestIdHeaderWithUuidFormat()
+    public async Task InjectsRequestIdHeader()
     {
         var transport = TransportOptions.Builder().InjectRequestId(true).Build();
 
@@ -211,7 +211,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task GeneratesUniqueRequestIdPerRequest()
+    public async Task GeneratesUniqueRequestIds()
     {
         var transport = TransportOptions.Builder().InjectRequestId(true).Build();
 

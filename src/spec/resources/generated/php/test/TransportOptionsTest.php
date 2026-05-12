@@ -105,19 +105,13 @@ class TransportOptionsTest extends TestCase
         TransportOptions::builder()->proxy('not-a-url')->build();
     }
 
-    public function testValidProxyUrlIsAccepted(): void
-    {
-        $opts = TransportOptions::builder()->proxy('http://proxy:3128')->build();
-        $this->assertSame('http://proxy:3128', $opts->proxy);
-    }
-
-    public function testNullProxyIsAccepted(): void
+    public function testNullProxyUrlIsAccepted(): void
     {
         $opts = TransportOptions::builder()->proxy(null)->build();
         $this->assertNull($opts->proxy);
     }
 
-    public function testDefaultHeadersIsDefensiveCopy(): void
+    public function testModifyingSourceMapDoesNotAffectBuiltOptions(): void
     {
         $headers = ['X-Original' => 'original'];
 

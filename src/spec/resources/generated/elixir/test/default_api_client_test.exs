@@ -1,7 +1,7 @@
 defmodule PetstoreClient.DefaultApiClientIntegrationTest do
   use ExUnit.Case, async: false
 
-  test "TLS verification disabled makes HTTPS request with verify_ssl=false" do
+  test "makes HTTPS request with verify_ssl=false" do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTPS_URL")
 
     transport = PetstoreClient.TransportOptions.new(verify_ssl: false)
@@ -12,7 +12,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert String.contains?(response.body, "success")
   end
 
-  test "custom CA bundle makes HTTPS request with custom CA cert" do
+  test "makes HTTPS request with custom CA cert" do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTPS_URL")
     ca_cert_path = System.fetch_env!("CA_CERT_PATH")
 
@@ -29,7 +29,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert String.contains?(response.body, "success")
   end
 
-  test "HTTP proxy makes HTTP request through proxy" do
+  test "makes HTTP request through proxy" do
     wiremock_url = System.fetch_env!("WIREMOCK_INTERNAL_HTTP_URL")
     proxy_url = System.fetch_env!("PROXY_URL")
 
@@ -41,7 +41,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert String.contains?(response.body, "success")
   end
 
-  test "HTTP proxy with TLS makes HTTPS request through proxy with verify_ssl=false" do
+  test "makes HTTPS request through proxy with verify_ssl=false" do
     wiremock_url = System.fetch_env!("WIREMOCK_INTERNAL_HTTPS_URL")
     proxy_url = System.fetch_env!("PROXY_URL")
 
@@ -53,7 +53,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert String.contains?(response.body, "success")
   end
 
-  test "request timeout times out on slow endpoint" do
+  test "times out on slow endpoint" do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(timeout: 1)
@@ -67,7 +67,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     end
   end
 
-  test "User-Agent header injection" do
+  test "injects custom user-agent header" do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(user_agent: "MyApp/1.0")
@@ -79,7 +79,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert json["user-agent"] == "MyApp/1.0"
   end
 
-  test "X-Request-ID injection with UUID format" do
+  test "injects request ID header" do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(inject_request_id: true)
@@ -93,7 +93,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert Regex.match?(~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/, request_id)
   end
 
-  test "X-Request-ID generates unique values per request" do
+  test "generates unique request IDs" do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(inject_request_id: true)
@@ -108,7 +108,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert request_id1 != request_id2
   end
 
-  test "default headers includes transport-level default headers" do
+  test "includes transport-level default headers" do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(default_headers: %{"X-Custom" => "custom-value"})
@@ -121,7 +121,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert json["x-custom"] == "custom-value"
   end
 
-  test "caller headers override transport default headers" do
+  test "caller headers override transport defaults" do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(default_headers: %{"Accept" => "text/plain"})
@@ -142,7 +142,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert json["accept"] == "application/json"
   end
 
-  test "redirect handling follows redirects when enabled" do
+  test "follows redirects when enabled" do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(follow_redirects: true)
@@ -153,7 +153,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert String.contains?(response.body, "success")
   end
 
-  test "redirect handling returns redirect response when disabled" do
+  test "returns redirect when disabled" do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(follow_redirects: false)
@@ -163,7 +163,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert response.status_code == 302
   end
 
-  test "max redirects respects limit" do
+  test "respects max redirects limit" do
     transport =
       PetstoreClient.TransportOptions.new(
         follow_redirects: true,
@@ -175,7 +175,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert transport.max_redirects == 5
   end
 
-  test "multipart body sends multipart form data" do
+  test "sends multipart form data" do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
 
     client = PetstoreClient.DefaultApiClient.new()

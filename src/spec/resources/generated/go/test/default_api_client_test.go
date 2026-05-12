@@ -15,7 +15,7 @@ import (
 	"testing"
 )
 
-func TestDefaultApiClient_TlsVerificationDisabled(t *testing.T) {
+func TestDefaultApiClient_MakesHttpsRequestWithVerifySslFalse(t *testing.T) {
 	transport := petstore.NewTransportOptionsBuilder().VerifySSL(false).Build()
 	client := petstore.NewDefaultApiClient(transport)
 	resp, err := client.SendRequest("GET", wiremockHTTPSURL+"/api/test", map[string]string{}, nil)
@@ -30,7 +30,7 @@ func TestDefaultApiClient_TlsVerificationDisabled(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_CustomCaBundle(t *testing.T) {
+func TestDefaultApiClient_MakesHttpsRequestWithCustomCaCert(t *testing.T) {
 	transport := petstore.NewTransportOptionsBuilder().
 		VerifySSL(true).
 		CACertPath(caCertPath).
@@ -48,7 +48,7 @@ func TestDefaultApiClient_CustomCaBundle(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_HttpProxy(t *testing.T) {
+func TestDefaultApiClient_MakesHttpRequestThroughProxy(t *testing.T) {
 	transport := petstore.NewTransportOptionsBuilder().
 		Proxy(proxyURL).
 		Build()
@@ -65,7 +65,7 @@ func TestDefaultApiClient_HttpProxy(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_HttpProxyWithTls(t *testing.T) {
+func TestDefaultApiClient_MakesHttpsRequestThroughProxyWithVerifySslFalse(t *testing.T) {
 	transport := petstore.NewTransportOptionsBuilder().
 		Proxy(proxyURL).
 		VerifySSL(false).
@@ -83,7 +83,7 @@ func TestDefaultApiClient_HttpProxyWithTls(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_RequestTimeout(t *testing.T) {
+func TestDefaultApiClient_TimesOutOnSlowEndpoint(t *testing.T) {
 	transport := petstore.NewTransportOptionsBuilder().
 		Timeout(1000).
 		Build()
@@ -94,7 +94,7 @@ func TestDefaultApiClient_RequestTimeout(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_Integration_UserAgentHeader(t *testing.T) {
+func TestDefaultApiClient_InjectsCustomUserAgentHeader(t *testing.T) {
 	transport := petstore.NewTransportOptionsBuilder().
 		UserAgent("MyApp/1.0").
 		Build()
@@ -115,7 +115,7 @@ func TestDefaultApiClient_Integration_UserAgentHeader(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_RequestIdInjection(t *testing.T) {
+func TestDefaultApiClient_InjectsRequestIdHeader(t *testing.T) {
 	transport := petstore.NewTransportOptionsBuilder().
 		InjectRequestID(true).
 		Build()
@@ -138,7 +138,7 @@ func TestDefaultApiClient_RequestIdInjection(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_RequestIdUnique(t *testing.T) {
+func TestDefaultApiClient_GeneratesUniqueRequestIds(t *testing.T) {
 	transport := petstore.NewTransportOptionsBuilder().
 		InjectRequestID(true).
 		Build()
@@ -163,7 +163,7 @@ func TestDefaultApiClient_RequestIdUnique(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_Integration_DefaultHeaders(t *testing.T) {
+func TestDefaultApiClient_IncludesTransportDefaultHeaders(t *testing.T) {
 	transport := petstore.NewTransportOptionsBuilder().
 		DefaultHeader("X-Custom", "custom-value").
 		Build()
@@ -179,7 +179,7 @@ func TestDefaultApiClient_Integration_DefaultHeaders(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_Integration_CallerHeadersOverrideDefaults(t *testing.T) {
+func TestDefaultApiClient_CallerHeadersOverrideTransportDefaults(t *testing.T) {
 	transport := petstore.NewTransportOptionsBuilder().
 		DefaultHeader("Accept", "text/plain").
 		Build()
@@ -196,7 +196,7 @@ func TestDefaultApiClient_Integration_CallerHeadersOverrideDefaults(t *testing.T
 	}
 }
 
-func TestDefaultApiClient_FollowRedirectsEnabled(t *testing.T) {
+func TestDefaultApiClient_FollowsRedirectsWhenEnabled(t *testing.T) {
 	transport := petstore.NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		Build()
@@ -213,7 +213,7 @@ func TestDefaultApiClient_FollowRedirectsEnabled(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_FollowRedirectsDisabled(t *testing.T) {
+func TestDefaultApiClient_ReturnsRedirectWhenDisabled(t *testing.T) {
 	transport := petstore.NewTransportOptionsBuilder().
 		FollowRedirects(false).
 		Build()
@@ -227,7 +227,7 @@ func TestDefaultApiClient_FollowRedirectsDisabled(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_MaxRedirects(t *testing.T) {
+func TestDefaultApiClient_RespectsMaxRedirectsLimit(t *testing.T) {
 	transport := petstore.NewTransportOptionsBuilder().
 		FollowRedirects(true).
 		MaxRedirects(5).
@@ -241,7 +241,7 @@ func TestDefaultApiClient_MaxRedirects(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_MultipartBody(t *testing.T) {
+func TestDefaultApiClient_SendsMultipartFormData(t *testing.T) {
 	/* Multipart body construction is now handled by base_api.buildMultipartBody,
 	 * so we test via SendRequest with pre-built multipart bytes. */
 	client := petstore.NewDefaultApiClient(nil)
@@ -258,7 +258,7 @@ func TestDefaultApiClient_MultipartBody(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_CompressionGzip(t *testing.T) {
+func TestDefaultApiClient_DecompressesGzipResponse(t *testing.T) {
 	client := petstore.NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("GET", "https://jsonplaceholder.typicode.com/posts/1",
 		map[string]string{"Accept-Encoding": "gzip"}, nil)
@@ -273,7 +273,7 @@ func TestDefaultApiClient_CompressionGzip(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_CompressionBrotli(t *testing.T) {
+func TestDefaultApiClient_DecompressesBrotliResponse(t *testing.T) {
 	client := petstore.NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("GET", "https://jsonplaceholder.typicode.com/posts/1",
 		map[string]string{"Accept-Encoding": "br"}, nil)
@@ -288,7 +288,7 @@ func TestDefaultApiClient_CompressionBrotli(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_CompressionZstd(t *testing.T) {
+func TestDefaultApiClient_DecompressesZstdResponse(t *testing.T) {
 	client := petstore.NewDefaultApiClient(nil)
 	resp, err := client.SendRequest("GET", "https://jsonplaceholder.typicode.com/posts/1",
 		map[string]string{"Accept-Encoding": "zstd"}, nil)

@@ -138,7 +138,7 @@ describe('DefaultApiClient', () => {
   });
 
   describe('X-Request-ID injection', () => {
-    test('injects X-Request-ID header with UUID format', async () => {
+    test('injects request ID header', async () => {
       const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
 
       const transport = TransportOptions.builder().injectRequestId(true).build();
@@ -153,7 +153,7 @@ describe('DefaultApiClient', () => {
       expect(requestId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
     });
 
-    test('generates unique X-Request-ID per request', async () => {
+    test('generates unique request IDs', async () => {
       const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
 
       const transport = TransportOptions.builder().injectRequestId(true).build();
@@ -184,7 +184,7 @@ describe('DefaultApiClient', () => {
       expect(json['x-custom']).toBe('custom-value');
     });
 
-    test('caller headers override transport default headers', async () => {
+    test('caller headers override transport defaults', async () => {
       const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
 
       const transport = TransportOptions.builder().defaultHeader('Accept', 'text/plain').build();
@@ -216,7 +216,7 @@ describe('DefaultApiClient', () => {
       expect(response.body).toContain('success');
     });
 
-    test('returns redirect response when disabled', async () => {
+    test('returns redirect when disabled', async () => {
       const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
 
       const transport = TransportOptions.builder().followRedirects(false).build();
@@ -229,7 +229,7 @@ describe('DefaultApiClient', () => {
   });
 
   describe('max redirects', () => {
-    test('respects maxRedirects limit', () => {
+    test('respects max redirects limit', () => {
       const transport = TransportOptions.builder().followRedirects(true).maxRedirects(5).build();
 
       const client = new DefaultApiClient(transport);

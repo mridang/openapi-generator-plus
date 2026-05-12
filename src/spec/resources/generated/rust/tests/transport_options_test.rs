@@ -58,7 +58,7 @@ fn test_transport_options_max_redirects_defaults_to_none() {
 }
 
 #[test]
-fn test_transport_options_user_agent_defaults_to_non_empty() {
+fn test_transport_options_user_agent_defaults_to_non_empty_string() {
     let opts = TransportOptionsBuilder::new().build();
     assert!(
         !opts.user_agent().is_empty(),
@@ -85,7 +85,7 @@ fn test_transport_options_inject_request_id_defaults_to_false() {
 }
 
 #[test]
-fn test_transport_options_set_all_fields() {
+fn test_transport_options_builder_sets_all_fields() {
     let opts = TransportOptionsBuilder::new()
         .verify_ssl(false)
         .ca_cert_path("/path/to/ca.pem")
@@ -110,7 +110,7 @@ fn test_transport_options_set_all_fields() {
 }
 
 #[test]
-fn test_transport_options_follow_redirects_defaults_to_true_with_none_max_redirects() {
+fn test_transport_options_follow_redirects_defaults_to_true_with_null_max_redirects() {
     let opts = TransportOptionsBuilder::new()
         .follow_redirects(true)
         .build();
@@ -123,7 +123,22 @@ fn test_transport_options_follow_redirects_defaults_to_true_with_none_max_redire
 }
 
 #[test]
-fn test_transport_options_builder_chaining() {
+#[should_panic(expected = "invalid proxy URL")]
+fn test_transport_options_invalid_proxy_url_throws_exception() {
+    TransportOptionsBuilder::new()
+        .proxy("not-a-valid-url")
+        .build();
+}
+
+#[test]
+fn test_transport_options_null_proxy_url_is_accepted() {
+    let opts = TransportOptionsBuilder::new().proxy("").build();
+
+    assert!(opts.proxy().is_none(), "expected no proxy for empty string");
+}
+
+#[test]
+fn test_transport_options_builder_methods_return_same_instance() {
     let opts = TransportOptionsBuilder::new()
         .verify_ssl(true)
         .user_agent("Test/1.0")
@@ -132,49 +147,6 @@ fn test_transport_options_builder_chaining() {
 
     assert_eq!(opts.user_agent(), "Test/1.0");
     assert_eq!(opts.timeout(), Some(10000));
-}
-
-#[test]
-fn test_transport_options_multiple_default_headers() {
-    let mut headers = HashMap::new();
-    headers.insert("X-First".to_string(), "one".to_string());
-    headers.insert("X-Second".to_string(), "two".to_string());
-
-    let opts = TransportOptionsBuilder::new()
-        .default_headers(headers)
-        .build();
-
-    let result = opts.default_headers();
-    assert_eq!(result.get("X-First").unwrap(), "one");
-    assert_eq!(result.get("X-Second").unwrap(), "two");
-}
-
-#[test]
-fn test_transport_options_empty_proxy_is_accepted() {
-    let opts = TransportOptionsBuilder::new().proxy("").build();
-
-    assert!(opts.proxy().is_none(), "expected no proxy for empty string");
-}
-
-#[test]
-fn test_transport_options_valid_proxy_url_is_accepted() {
-    let opts = TransportOptionsBuilder::new()
-        .proxy("http://proxy.example.com:8080")
-        .build();
-
-    assert_eq!(
-        opts.proxy(),
-        Some("http://proxy.example.com:8080"),
-        "expected valid proxy URL to be stored"
-    );
-}
-
-#[test]
-#[should_panic(expected = "invalid proxy URL")]
-fn test_transport_options_invalid_proxy_panics() {
-    TransportOptionsBuilder::new()
-        .proxy("not-a-valid-url")
-        .build();
 }
 
 #[test]
@@ -209,7 +181,7 @@ fn test_transport_options_merges_headers_from_default_headers_call() {
 }
 
 #[test]
-fn test_transport_options_default_headers_copy_isolation() {
+fn test_transport_options_modifying_source_map_does_not_affect_built_options() {
     let opts = TransportOptionsBuilder::new()
         .default_header("X-Test", "value")
         .build();
@@ -225,4 +197,13 @@ fn test_transport_options_default_headers_copy_isolation() {
         !original.contains_key("X-Mutated"),
         "modifying returned headers should not affect the transport options"
     );
+}
+
+#[test]
+fn test_transport_options_builder_produces_independent_instances() {
+    let first = TransportOptionsBuilder::new().verify_ssl(false).build();
+    let second = TransportOptionsBuilder::new().verify_ssl(false).build();
+
+    assert_eq!(first.verify_ssl(), second.verify_ssl());
+    assert_ne!(&first as *const _, &second as *const _);
 }

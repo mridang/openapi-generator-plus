@@ -13,7 +13,7 @@ import (
 	petstore "petstore/pkg"
 )
 
-func TestInjectTraceContext_NoOpWhenNoTracer(t *testing.T) {
+func TestInjectTraceContext_NoOpWithoutTracer(t *testing.T) {
 	headers := map[string]string{
 		"X-Existing": "value",
 	}
@@ -27,7 +27,7 @@ func TestInjectTraceContext_NoOpWhenNoTracer(t *testing.T) {
 	}
 }
 
-func TestInjectTraceContext_DoesNotPanicWithEmptyHeaders(t *testing.T) {
+func TestInjectTraceContext_EmptyHeadersDoNotCauseException(t *testing.T) {
 	headers := make(map[string]string)
 
 	// Should not panic with empty headers map
@@ -54,7 +54,7 @@ func TestInjectTraceContext_DoesNotInjectTracestateWithoutOTel(t *testing.T) {
 	}
 }
 
-func TestInjectTraceContext_PreservesExistingHeaders(t *testing.T) {
+func TestInjectTraceContext_PreservesAllExistingHeaders(t *testing.T) {
 	headers := map[string]string{
 		"Authorization": "Bearer token",
 		"Content-Type":  "application/json",

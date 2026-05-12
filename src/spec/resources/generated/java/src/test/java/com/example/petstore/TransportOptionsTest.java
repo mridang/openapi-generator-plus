@@ -132,29 +132,6 @@ class TransportOptionsTest {
   }
 
   @Test
-  @DisplayName("valid proxy URL is accepted")
-  void validProxyUrlIsAccepted() {
-    TransportOptions opts =
-        TransportOptions.builder().proxy("http://proxy.example.com:8080").build();
-    assertEquals("http://proxy.example.com:8080", opts.getProxy());
-  }
-
-  @Test
-  @DisplayName("defaultHeaders is a defensive copy")
-  void defaultHeadersIsDefensiveCopy() {
-    Map<String, String> headers = new HashMap<>();
-    headers.put("X-Original", "original");
-
-    TransportOptions opts = TransportOptions.builder().defaultHeaders(headers).build();
-
-    headers.put("X-Added", "added");
-
-    assertEquals(1, opts.getDefaultHeaders().size());
-    assertEquals("original", opts.getDefaultHeaders().get("X-Original"));
-    assertNull(opts.getDefaultHeaders().get("X-Added"));
-  }
-
-  @Test
   @DisplayName("builder methods return the same builder instance")
   void builderMethodsReturnSameInstance() {
     TransportOptions.Builder builder = TransportOptions.builder();

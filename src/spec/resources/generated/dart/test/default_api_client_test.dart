@@ -22,7 +22,7 @@ void main() {
   });
 
   group('DefaultApiClient', () {
-    test('TLS verification disabled', () async {
+    test('makes HTTPS request with verifySsl=false', () async {
       final transport = TransportOptionsBuilder().verifySSL(false).build();
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
@@ -35,7 +35,7 @@ void main() {
       expect(resp.body, contains('success'));
     });
 
-    test('custom CA bundle', () async {
+    test('makes HTTPS request with custom CA cert', () async {
       final transport = TransportOptionsBuilder()
           .verifySSL(true)
           .caCertPath(caCertPath)
@@ -51,7 +51,7 @@ void main() {
       expect(resp.body, contains('success'));
     });
 
-    test('HTTP proxy', () async {
+    test('makes HTTP request through proxy', () async {
       final transport = TransportOptionsBuilder().proxy(proxyUrl).build();
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
@@ -64,7 +64,7 @@ void main() {
       expect(resp.body, contains('success'));
     });
 
-    test('HTTP proxy with TLS', () async {
+    test('makes HTTPS request through proxy with verifySsl=false', () async {
       final transport =
           TransportOptionsBuilder().proxy(proxyUrl).verifySSL(false).build();
       final client = DefaultApiClient(transportOptions: transport);
@@ -78,7 +78,7 @@ void main() {
       expect(resp.body, contains('success'));
     });
 
-    test('request timeout', () async {
+    test('times out on slow endpoint', () async {
       final transport = TransportOptionsBuilder().timeout(1000).build();
       final client = DefaultApiClient(transportOptions: transport);
       expect(
@@ -92,7 +92,7 @@ void main() {
       );
     });
 
-    test('user-agent header', () async {
+    test('injects custom User-Agent header', () async {
       final transport =
           TransportOptionsBuilder().userAgent('MyApp/1.0').build();
       final client = DefaultApiClient(transportOptions: transport);
@@ -107,7 +107,7 @@ void main() {
       expect(parsed['user-agent'], equals('MyApp/1.0'));
     });
 
-    test('request ID injection', () async {
+    test('injects request ID header', () async {
       final transport = TransportOptionsBuilder().injectRequestId(true).build();
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
@@ -125,7 +125,7 @@ void main() {
       expect(uuidPattern.hasMatch(requestId!), isTrue);
     });
 
-    test('request ID unique per request', () async {
+    test('generates unique request IDs', () async {
       final transport = TransportOptionsBuilder().injectRequestId(true).build();
       final client = DefaultApiClient(transportOptions: transport);
 
@@ -148,7 +148,7 @@ void main() {
       expect(parsed1['x-request-id'], isNot(equals(parsed2['x-request-id'])));
     });
 
-    test('default headers', () async {
+    test('includes transport-level default headers', () async {
       final transport = TransportOptionsBuilder()
           .defaultHeader('X-Custom', 'custom-value')
           .build();
@@ -163,7 +163,7 @@ void main() {
       expect(parsed['x-custom'], equals('custom-value'));
     });
 
-    test('caller headers override defaults', () async {
+    test('caller headers override transport defaults', () async {
       final transport = TransportOptionsBuilder()
           .defaultHeader('Accept', 'text/plain')
           .build();
@@ -179,7 +179,7 @@ void main() {
       expect(parsed['accept'], equals('application/json'));
     });
 
-    test('followRedirects enabled follows redirect', () async {
+    test('follows redirects when enabled', () async {
       final transport = TransportOptionsBuilder().followRedirects(true).build();
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
@@ -192,7 +192,7 @@ void main() {
       expect(resp.body, contains('success'));
     });
 
-    test('followRedirects disabled returns redirect status', () async {
+    test('returns redirect when disabled', () async {
       final transport =
           TransportOptionsBuilder().followRedirects(false).build();
       final client = DefaultApiClient(transportOptions: transport);
@@ -205,7 +205,7 @@ void main() {
       expect(resp.statusCode, equals(302));
     });
 
-    test('maxRedirects limits redirect hops', () async {
+    test('respects max redirects limit', () async {
       final transport = TransportOptionsBuilder()
           .followRedirects(true)
           .maxRedirects(2)
@@ -215,7 +215,7 @@ void main() {
       expect(client, isNotNull);
     });
 
-    test('multipart body', () async {
+    test('sends multipart form data', () async {
       final client = DefaultApiClient();
       final headers = {
         'Content-Type': 'multipart/form-data; boundary=test-boundary',

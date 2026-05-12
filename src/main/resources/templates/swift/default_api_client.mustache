@@ -32,6 +32,14 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         self.sessionDelegate = delegate
     }
 
+    /// Internal initializer for testing, allowing injection of a custom URLSession.
+    internal init(transportOptions: TransportOptions? = nil, session: URLSession) {
+        let opts = transportOptions ?? TransportOptionsBuilder().build()
+        self.transportOptions = opts
+        self.session = session
+        self.sessionDelegate = nil
+    }
+
     /// Sends an HTTP request with transport-level settings applied.
     ///
     /// Merges headers according to the priority order documented on the class,

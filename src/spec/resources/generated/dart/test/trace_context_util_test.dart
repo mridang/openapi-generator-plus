@@ -10,7 +10,7 @@ import 'package:test/test.dart';
 
 void main() {
   group('TraceContextUtil', () {
-    test('no-op when no tracer', () {
+    test('is a no-op without tracer', () {
       final headers = {'X-Existing': 'value'};
 
       // InjectTraceContext should be a no-op when no tracing is configured.
@@ -20,14 +20,14 @@ void main() {
       expect(headers['X-Existing'], equals('value'));
     });
 
-    test('does not panic with empty headers', () {
+    test('empty headers do not cause exception', () {
       final headers = <String, String>{};
 
       // Should not throw with empty headers map
       TraceContextUtil.injectTraceContext(headers);
     });
 
-    test('does not inject traceparent without tracing configured', () {
+    test('does not inject traceparent without OTel', () {
       final headers = <String, String>{};
 
       TraceContextUtil.injectTraceContext(headers);
@@ -35,7 +35,7 @@ void main() {
       expect(headers.containsKey('traceparent'), isFalse);
     });
 
-    test('does not inject tracestate without tracing configured', () {
+    test('does not inject tracestate without OTel', () {
       final headers = <String, String>{};
 
       TraceContextUtil.injectTraceContext(headers);
@@ -43,7 +43,7 @@ void main() {
       expect(headers.containsKey('tracestate'), isFalse);
     });
 
-    test('preserves existing headers', () {
+    test('preserves all existing headers', () {
       final headers = {
         'Authorization': 'Bearer token',
         'Content-Type': 'application/json',

@@ -172,7 +172,7 @@ class DefaultApiClientTest extends TestCase
 
     // -- X-Request-ID injection --
 
-    public function testInjectsRequestIdHeaderWithUuidFormat(): void
+    public function testInjectsRequestIdHeader(): void
     {
         $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
 
@@ -194,7 +194,7 @@ class DefaultApiClientTest extends TestCase
         );
     }
 
-    public function testGeneratesUniqueRequestIdPerRequest(): void
+    public function testGeneratesUniqueRequestIds(): void
     {
         $wiremockUrl = getenv('WIREMOCK_HTTP_URL') ?: '';
 
