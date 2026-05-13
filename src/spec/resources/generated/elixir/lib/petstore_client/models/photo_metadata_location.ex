@@ -13,8 +13,10 @@ defmodule PetstoreClient.Models.PhotoMetadataLocation do
           lng: float() | nil
         }
 
-  defstruct lat: nil,
-            lng: nil
+  defstruct [
+    :lat,
+    :lng
+  ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
   @spec attribute_map() :: %{atom() => String.t()}

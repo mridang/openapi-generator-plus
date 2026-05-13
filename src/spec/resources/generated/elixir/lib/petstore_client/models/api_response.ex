@@ -14,9 +14,11 @@ defmodule PetstoreClient.Models.ApiResponse do
           message: String.t() | nil
         }
 
-  defstruct code: nil,
-            type: nil,
-            message: nil
+  defstruct [
+    :code,
+    :type,
+    :message
+  ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
   @spec attribute_map() :: %{atom() => String.t()}

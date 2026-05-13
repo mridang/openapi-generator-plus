@@ -19,12 +19,14 @@ defmodule PetstoreClient.Models.Pet do
 
   @enforce_keys [:name]
   @enforce_keys [:photo_urls]
-  defstruct id: nil,
-            name: nil,
-            category: nil,
-            photo_urls: nil,
-            tags: nil,
-            status: nil
+  defstruct [
+    :id,
+    :name,
+    :category,
+    :photo_urls,
+    :tags,
+    :status
+  ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
   @spec attribute_map() :: %{atom() => String.t()}

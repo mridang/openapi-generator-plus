@@ -14,8 +14,10 @@ defmodule PetstoreClient.Models.Tag do
           name: String.t() | nil
         }
 
-  defstruct id: nil,
-            name: nil
+  defstruct [
+    :id,
+    :name
+  ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
   @spec attribute_map() :: %{atom() => String.t()}

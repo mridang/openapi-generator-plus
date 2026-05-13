@@ -9,11 +9,11 @@ defmodule PetstoreClient.Models.SetPetAvatarThumbnailRequest do
   @moduledoc "Union type for SetPetAvatarThumbnailRequest (oneOf)."
 
   @doc "List of types defined in oneOf (OpenAPI v3)."
-  @spec openapi_one_of() :: [String.t()]
+  @spec openapi_one_of() :: [atom()]
   def openapi_one_of do
     [
-      "[binary()]",
-      "binary()"
+      :"[binary()]",
+      :"binary()"
     ]
   end
 
@@ -21,16 +21,16 @@ defmodule PetstoreClient.Models.SetPetAvatarThumbnailRequest do
   @spec build(term()) :: term()
   def build(data) do
     Enum.reduce_while(openapi_one_of(), nil, fn type_name, _acc ->
-      if type_name == "AnyType" do
+      if type_name == :AnyType do
         {:cont, nil}
       else
         try do
-          result = PetstoreClient.ObjectSerializer.convert_to_type(data, type_name)
+          result = PetstoreClient.ObjectSerializer.convert_to_type(data, to_string(type_name))
           {:halt, result}
         rescue
           _ -> {:cont, nil}
         end
       end
-    end) || if("AnyType" in openapi_one_of(), do: data, else: nil)
+    end) || if(:AnyType in openapi_one_of(), do: data, else: nil)
   end
 end

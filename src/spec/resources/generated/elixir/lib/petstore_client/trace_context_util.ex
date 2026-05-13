@@ -28,14 +28,14 @@ defmodule PetstoreClient.TraceContextUtil do
   @spec inject_trace_context(%{optional(String.t()) => String.t()}) ::
           %{optional(String.t()) => String.t()}
   def inject_trace_context(headers) do
-    if Code.ensure_loaded?(:opentelemetry) do
+    if Code.ensure_loaded?(:otel_propagator_text_map) do
       try do
-        :otel_propagator_text_map.inject(
+        apply(:otel_propagator_text_map, :inject, [
           headers,
           fn headers, key, value ->
             Map.put(headers, key, value)
           end
-        )
+        ])
       rescue
         _ -> headers
       end

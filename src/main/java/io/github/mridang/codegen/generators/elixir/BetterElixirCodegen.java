@@ -244,6 +244,13 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
 
         supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
         supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
+
+        final String apiDir = Path.of(libDir, "api").toString();
+        final String modelsDir = Path.of(libDir, "models").toString();
+        supportingFiles.add(
+                new SupportingFile("api_module.mustache", apiDir, "api_module.ex"));
+        supportingFiles.add(
+                new SupportingFile("models_module.mustache", modelsDir, "models_module.ex"));
         supportingFiles.add(
                 new SupportingFile("configuration.mustache", libDir, "configuration.ex"));
         supportingFiles.add(
@@ -512,6 +519,10 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             for (final CodegenProperty prop : model.requiredVars) {
                 fixEnumDefaultValue(prop);
             }
+            // Elixir requires keyword list entries (fields with defaults) to come
+            // after bare atom entries (fields without defaults) in defstruct.
+            model.vars.sort(
+                    java.util.Comparator.comparing(p -> p.defaultValue != null ? 1 : 0));
         }
         return result;
     }

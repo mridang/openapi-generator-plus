@@ -48,13 +48,27 @@ wiremock_config =
     "--key-manager-password", "changeit",
     "--verbose"
   ])
-  |> Testcontainers.Container.with_network(network_name)
-  |> Testcontainers.Container.with_hostname("wiremock")
   |> Testcontainers.Container.with_waiting_strategy(
     Testcontainers.LogWaitStrategy.new(~r/port:/, 120_000)
   )
 
 {:ok, wiremock} = Testcontainers.start_container(wiremock_config)
+
+# Connect WireMock to the shared proxy network with an alias so that Squid can
+# reach it by hostname via Docker's embedded DNS.
+{docker_api_conn, _, _} = Testcontainers.Connection.get_connection()
+
+{:ok, _} =
+  DockerEngineAPI.Api.Network.network_connect(
+    docker_api_conn,
+    network_name,
+    %DockerEngineAPI.Model.NetworkConnectRequest{
+      Container: wiremock.container_id,
+      EndpointConfig: %DockerEngineAPI.Model.EndpointSettings{
+        Aliases: ["wiremock"]
+      }
+    }
+  )
 
 wiremock_host = System.get_env("TESTCONTAINERS_HOST_OVERRIDE") || Testcontainers.get_host()
 wiremock_http_port = Testcontainers.Container.mapped_port(wiremock, 8080)

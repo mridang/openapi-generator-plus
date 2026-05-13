@@ -297,17 +297,11 @@ defmodule PetstoreClient.Api.BaseApi do
 
   defp serialize_body(body, "application/octet-stream"), do: body
 
+  defp serialize_body(body, "image/" <> _), do: body
+
   defp serialize_body(body, "text/plain"), do: to_string(body)
 
   defp serialize_body(body, "application/x-www-form-urlencoded"), do: URI.encode_query(body)
-
-  defp serialize_body(body, content_type) when is_binary(content_type) do
-    if String.starts_with?(content_type, "image/") do
-      body
-    else
-      PetstoreClient.ObjectSerializer.serialize(body)
-    end
-  end
 
   defp serialize_body(body, _content_type), do: PetstoreClient.ObjectSerializer.serialize(body)
 end

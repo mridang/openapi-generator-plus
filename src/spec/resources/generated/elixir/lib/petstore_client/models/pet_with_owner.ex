@@ -22,14 +22,16 @@ defmodule PetstoreClient.Models.PetWithOwner do
   @enforce_keys [:name]
   @enforce_keys [:photo_urls]
   @enforce_keys [:owner_name]
-  defstruct id: nil,
-            name: nil,
-            category: nil,
-            photo_urls: nil,
-            tags: nil,
-            status: nil,
-            owner_name: nil,
-            owner_email: nil
+  defstruct [
+    :id,
+    :name,
+    :category,
+    :photo_urls,
+    :tags,
+    :status,
+    :owner_name,
+    :owner_email
+  ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
   @spec attribute_map() :: %{atom() => String.t()}

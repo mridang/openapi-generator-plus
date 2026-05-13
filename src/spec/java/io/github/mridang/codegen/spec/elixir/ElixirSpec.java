@@ -1,12 +1,13 @@
 package io.github.mridang.codegen.spec.elixir;
 
+import io.github.mridang.codegen.spec.DockerImageSpec;
 import io.github.mridang.codegen.spec.LanguageSpec;
 import java.util.List;
 import org.junit.jupiter.api.Tag;
 import org.testcontainers.utility.DockerImageName;
 
 @Tag("elixir")
-interface ElixirSpec extends LanguageSpec {
+interface ElixirSpec extends LanguageSpec, DockerImageSpec {
 
   @Override
   default String getGeneratorName() {
@@ -19,7 +20,12 @@ interface ElixirSpec extends LanguageSpec {
   }
 
   @Override
+  default String getDockerImage() {
+    return "elixir:1.18";
+  }
+
+  @Override
   default List<String> getSetupCommands() {
-    return List.of("mix deps.get");
+    return List.of("mix local.hex --force && mix local.rebar --force", "mix deps.get");
   }
 }

@@ -15,10 +15,12 @@ defmodule PetstoreClient.Models.PhotoMetadata do
           location: PhotoMetadataLocation | nil
         }
 
-  defstruct caption: nil,
-            is_primary: nil,
-            taken_at: nil,
-            location: nil
+  defstruct [
+    :caption,
+    :is_primary,
+    :taken_at,
+    :location
+  ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
   @spec attribute_map() :: %{atom() => String.t()}

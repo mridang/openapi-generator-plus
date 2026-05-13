@@ -15,8 +15,10 @@ defmodule PetstoreClient.Models.WetFood do
 
   @enforce_keys [:food_type]
   @enforce_keys [:volume_ml]
-  defstruct food_type: nil,
-            volume_ml: nil
+  defstruct [
+    :food_type,
+    :volume_ml
+  ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
   @spec attribute_map() :: %{atom() => String.t()}

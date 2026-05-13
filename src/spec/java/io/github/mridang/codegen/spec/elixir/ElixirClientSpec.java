@@ -14,10 +14,7 @@ public class ElixirClientSpec extends AbstractClientSpec implements ElixirSpec {
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {
-            "mkdir -p .out/reports",
-            "mix test"
-        };
+        return new String[] {"mkdir -p .out/reports", "mix test"};
     }
 
     @Override

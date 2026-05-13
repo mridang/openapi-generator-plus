@@ -12,7 +12,9 @@ defmodule PetstoreClient.Models.Metadata do
           created_at: String.t() | nil
         }
 
-  defstruct created_at: nil
+  defstruct [
+    :created_at
+  ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
   @spec attribute_map() :: %{atom() => String.t()}

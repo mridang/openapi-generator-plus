@@ -14,8 +14,10 @@ defmodule PetstoreClient.Models.Medication do
         }
 
   @enforce_keys [:drug_name]
-  defstruct drug_name: nil,
-            dosage: nil
+  defstruct [
+    :drug_name,
+    :dosage
+  ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
   @spec attribute_map() :: %{atom() => String.t()}

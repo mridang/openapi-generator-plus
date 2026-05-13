@@ -15,10 +15,12 @@ defmodule PetstoreClient.Models.Photo do
           url: String.t() | nil
         }
 
-  defstruct id: nil,
-            caption: nil,
-            is_primary: nil,
-            url: nil
+  defstruct [
+    :id,
+    :caption,
+    :is_primary,
+    :url
+  ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
   @spec attribute_map() :: %{atom() => String.t()}

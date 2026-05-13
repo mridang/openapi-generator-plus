@@ -14,8 +14,10 @@ defmodule PetstoreClient.Models.Surgery do
         }
 
   @enforce_keys [:procedure_name]
-  defstruct procedure_name: nil,
-            duration_minutes: nil
+  defstruct [
+    :procedure_name,
+    :duration_minutes
+  ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
   @spec attribute_map() :: %{atom() => String.t()}

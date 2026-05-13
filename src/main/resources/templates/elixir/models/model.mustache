@@ -35,11 +35,11 @@ defmodule {{moduleName}}.Models.{{classname}} do
   {{#oneOf}}
   {{#-first}}
   @doc "List of types defined in oneOf (OpenAPI v3)."
-  @spec openapi_one_of() :: [String.t()]
+  @spec openapi_one_of() :: [atom()]
   def openapi_one_of do
     [
   {{/-first}}
-      "{{.}}"{{^-last}},{{/-last}}
+      :"{{.}}"{{^-last}},{{/-last}}
   {{#-last}}
     ]
   end
@@ -56,7 +56,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
   def openapi_discriminator_mapping do
     %{
   {{/-first}}
-      "{{{mappingName}}}" => "{{modelName}}"{{^-last}},{{/-last}}
+      "{{{mappingName}}}" => :{{modelName}}{{^-last}},{{/-last}}
   {{#-last}}
     }
   end
@@ -73,17 +73,17 @@ defmodule {{moduleName}}.Models.{{classname}} do
   {{/discriminator}}
   {{^discriminator}}
     Enum.reduce_while(openapi_one_of(), nil, fn type_name, _acc ->
-      if type_name == "AnyType" do
+      if type_name == :AnyType do
         {:cont, nil}
       else
         try do
-          result = {{moduleName}}.ObjectSerializer.convert_to_type(data, type_name)
+          result = {{moduleName}}.ObjectSerializer.convert_to_type(data, to_string(type_name))
           {:halt, result}
         rescue
           _ -> {:cont, nil}
         end
       end
-    end) || if("AnyType" in openapi_one_of(), do: data, else: nil)
+    end) || if(:AnyType in openapi_one_of(), do: data, else: nil)
   {{/discriminator}}
   end
 
@@ -174,7 +174,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
     {{name}}: {{{defaultValue}}}{{^-last}},{{/-last}}
 {{/defaultValue}}
 {{^defaultValue}}
-    {{name}}: nil{{^-last}},{{/-last}}
+    :{{name}}{{^-last}},{{/-last}}
 {{/defaultValue}}
   {{/vars}}
   ]

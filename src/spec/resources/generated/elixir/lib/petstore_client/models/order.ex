@@ -13,16 +13,18 @@ defmodule PetstoreClient.Models.Order do
           pet_id: integer() | nil,
           quantity: integer() | nil,
           ship_date: String.t() | nil,
-          status: String.t() | nil,
-          complete: boolean() | nil
+          complete: boolean() | nil,
+          status: String.t() | nil
         }
 
-  defstruct id: nil,
-            pet_id: nil,
-            quantity: nil,
-            ship_date: nil,
-            status: "placed",
-            complete: nil
+  defstruct [
+    :id,
+    :pet_id,
+    :quantity,
+    :ship_date,
+    :complete,
+    status: "placed"
+  ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
   @spec attribute_map() :: %{atom() => String.t()}
@@ -32,8 +34,8 @@ defmodule PetstoreClient.Models.Order do
       pet_id: "petId",
       quantity: "quantity",
       ship_date: "shipDate",
-      status: "status",
-      complete: "complete"
+      complete: "complete",
+      status: "status"
     }
   end
 
@@ -51,8 +53,8 @@ defmodule PetstoreClient.Models.Order do
       pet_id: "integer()",
       quantity: "integer()",
       ship_date: "String.t()",
-      status: "String.t()",
-      complete: "boolean()"
+      complete: "boolean()",
+      status: "String.t()"
     }
   end
 end

@@ -15,8 +15,10 @@ defmodule PetstoreClient.Models.SetPetAvatarRequest do
 
   @enforce_keys [:data]
   @enforce_keys [:mime_type]
-  defstruct data: nil,
-            mime_type: nil
+  defstruct [
+    :data,
+    :mime_type
+  ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
   @spec attribute_map() :: %{atom() => String.t()}

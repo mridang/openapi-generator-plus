@@ -9,11 +9,11 @@ defmodule PetstoreClient.Models.PetFood do
   @moduledoc "Food for pets, discriminated by foodType"
 
   @doc "List of types defined in oneOf (OpenAPI v3)."
-  @spec openapi_one_of() :: [String.t()]
+  @spec openapi_one_of() :: [atom()]
   def openapi_one_of do
     [
-      "DryFood",
-      "WetFood"
+      :DryFood,
+      :WetFood
     ]
   end
 
@@ -23,8 +23,8 @@ defmodule PetstoreClient.Models.PetFood do
   @doc "Discriminator mapping."
   def openapi_discriminator_mapping do
     %{
-      "dry" => "DryFood",
-      "wet" => "WetFood"
+      "dry" => :DryFood,
+      "wet" => :WetFood
     }
   end
 

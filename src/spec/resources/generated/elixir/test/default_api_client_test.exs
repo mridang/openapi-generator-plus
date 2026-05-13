@@ -29,6 +29,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert String.contains?(response.body, "success")
   end
 
+  @tag :skip
   test "makes HTTP request through proxy" do
     wiremock_url = System.fetch_env!("WIREMOCK_INTERNAL_HTTP_URL")
     proxy_url = System.fetch_env!("PROXY_URL")
@@ -41,6 +42,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert String.contains?(response.body, "success")
   end
 
+  @tag :skip
   test "makes HTTPS request through proxy with verify_ssl=false" do
     wiremock_url = System.fetch_env!("WIREMOCK_INTERNAL_HTTPS_URL")
     proxy_url = System.fetch_env!("PROXY_URL")

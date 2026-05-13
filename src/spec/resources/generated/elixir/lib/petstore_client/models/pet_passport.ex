@@ -15,10 +15,12 @@ defmodule PetstoreClient.Models.PetPassport do
           issued_at: String.t() | nil
         }
 
-  defstruct pet: nil,
-            thumbnail: nil,
-            scans: nil,
-            issued_at: nil
+  defstruct [
+    :pet,
+    :thumbnail,
+    :scans,
+    :issued_at
+  ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
   @spec attribute_map() :: %{atom() => String.t()}
