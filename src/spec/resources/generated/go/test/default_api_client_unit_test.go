@@ -39,7 +39,7 @@ func TestDefaultApiClient_InjectsCustomUserAgent(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_InjectsDefaultUserAgent(t *testing.T) {
+func TestDefaultApiClient_InjectsDefaultUserAgentWhenNotExplicitlySet(t *testing.T) {
 	var receivedUA string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedUA = r.Header.Get("User-Agent")
@@ -124,7 +124,7 @@ func TestDefaultApiClient_DoesNotOverrideCallerRequestId(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_IncludesTransportDefaultHeaders(t *testing.T) {
+func TestDefaultApiClient_TransportDefaultHeadersAreForwarded(t *testing.T) {
 	var receivedCustom string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		receivedCustom = r.Header.Get("X-Default")
@@ -169,7 +169,7 @@ func TestDefaultApiClient_CallerHeadersOverrideDefaults(t *testing.T) {
 	}
 }
 
-func TestDefaultApiClient_GeneratesUniqueRequestIds(t *testing.T) {
+func TestDefaultApiClient_RequestIdsAreUnique(t *testing.T) {
 	var ids []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ids = append(ids, r.Header.Get("X-Request-ID"))
