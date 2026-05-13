@@ -23,7 +23,7 @@ func createImplicitAuthenticator() *oauth.OAuth2ImplicitAuthenticator {
 	)
 }
 
-func TestOAuth2Implicit_BuildsUrlWithResponseTypeToken(t *testing.T) {
+func TestOAuth2Implicit_BuildsAuthorizationUrlWithResponseTypeToken(t *testing.T) {
 	auth := createImplicitAuthenticator()
 
 	url := auth.BuildAuthorizationURL("")
@@ -36,7 +36,7 @@ func TestOAuth2Implicit_BuildsUrlWithResponseTypeToken(t *testing.T) {
 	}
 }
 
-func TestOAuth2Implicit_BuildsUrlWithClientId(t *testing.T) {
+func TestOAuth2Implicit_BuildsAuthorizationUrlWithClientId(t *testing.T) {
 	auth := createImplicitAuthenticator()
 
 	url := auth.BuildAuthorizationURL("")
@@ -46,7 +46,7 @@ func TestOAuth2Implicit_BuildsUrlWithClientId(t *testing.T) {
 	}
 }
 
-func TestOAuth2Implicit_BuildsUrlWithScopes(t *testing.T) {
+func TestOAuth2Implicit_BuildsAuthorizationUrlWithScopes(t *testing.T) {
 	auth := createImplicitAuthenticator()
 
 	url := auth.BuildAuthorizationURL("")
@@ -56,7 +56,7 @@ func TestOAuth2Implicit_BuildsUrlWithScopes(t *testing.T) {
 	}
 }
 
-func TestOAuth2Implicit_BuildsUrlWithState(t *testing.T) {
+func TestOAuth2Implicit_BuildsAuthorizationUrlWithState(t *testing.T) {
 	auth := createImplicitAuthenticator()
 
 	url := auth.BuildAuthorizationURL("my-state")
@@ -77,7 +77,7 @@ func TestOAuth2Implicit_GetAuthHeadersReturnsBearerAfterSetAccessToken(t *testin
 	}
 }
 
-func TestOAuth2Implicit_PanicsWhenAccessTokenNotSet(t *testing.T) {
+func TestOAuth2Implicit_ThrowsWhenAccessTokenNotSet(t *testing.T) {
 	auth := createImplicitAuthenticator()
 
 	defer func() {
@@ -89,7 +89,7 @@ func TestOAuth2Implicit_PanicsWhenAccessTokenNotSet(t *testing.T) {
 	auth.AuthHeaders()
 }
 
-func TestOAuth2Implicit_HostReturnsConfiguredHost(t *testing.T) {
+func TestOAuth2Implicit_GetHostReturnsConfiguredHost(t *testing.T) {
 	auth := createImplicitAuthenticator()
 
 	if auth.Host() != "https://api.example.com" {

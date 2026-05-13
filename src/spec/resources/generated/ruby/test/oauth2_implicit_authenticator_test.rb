@@ -23,40 +23,40 @@ describe PetstoreClient::Auth::OAuth::OAuth2ImplicitAuthenticator do
     )
   end
 
-  it 'builds authorization URL with response_type=token' do
+  it 'builds authorization URL with response type token' do
     url = auth.build_authorization_url
     _(url).must_include 'https://auth.example.com/authorize?'
     _(url).must_include 'response_type=token'
   end
 
-  it 'includes client_id in authorization URL' do
+  it 'builds authorization URL with client id' do
     url = auth.build_authorization_url
     _(url).must_include 'client_id=my_client_id'
   end
 
-  it 'includes scopes in authorization URL' do
+  it 'builds authorization URL with scopes' do
     url = auth.build_authorization_url
     _(url).must_include 'scope=read+write'
   end
 
-  it 'includes state parameter when provided' do
+  it 'builds authorization URL with state' do
     url = auth.build_authorization_url('csrf_state_456')
     _(url).must_include 'state=csrf_state_456'
   end
 
-  it 'returns Bearer auth header after setting access_token' do
+  it 'getAuthHeaders returns Bearer after setAccessToken' do
     auth.access_token = 'implicit_tok_abc'
     headers = auth.auth_headers
     _(headers['Authorization']).must_equal 'Bearer implicit_tok_abc'
   end
 
-  it 'raises error if access_token is not set' do
+  it 'throws when access token not set' do
     assert_raises(RuntimeError) do
       auth.auth_headers
     end
   end
 
-  it 'returns host' do
+  it 'getHost returns configured host' do
     _(auth.host).must_equal 'https://api.example.com'
   end
 end

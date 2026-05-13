@@ -107,7 +107,7 @@ void main() {
       expect(parsed['user-agent'], equals('MyApp/1.0'));
     });
 
-    test('injects request ID header', () async {
+    test('injects X-Request-ID header with UUID format', () async {
       final transport = TransportOptionsBuilder().injectRequestId(true).build();
       final client = DefaultApiClient(transportOptions: transport);
       final resp = await client.sendRequest(
@@ -125,7 +125,7 @@ void main() {
       expect(uuidPattern.hasMatch(requestId!), isTrue);
     });
 
-    test('generates unique request IDs', () async {
+    test('generates unique X-Request-ID per request', () async {
       final transport = TransportOptionsBuilder().injectRequestId(true).build();
       final client = DefaultApiClient(transportOptions: transport);
 
@@ -163,7 +163,7 @@ void main() {
       expect(parsed['x-custom'], equals('custom-value'));
     });
 
-    test('caller headers override transport defaults', () async {
+    test('caller headers override transport default headers', () async {
       final transport = TransportOptionsBuilder()
           .defaultHeader('Accept', 'text/plain')
           .build();
@@ -192,7 +192,7 @@ void main() {
       expect(resp.body, contains('success'));
     });
 
-    test('returns redirect when disabled', () async {
+    test('returns redirect response when disabled', () async {
       final transport =
           TransportOptionsBuilder().followRedirects(false).build();
       final client = DefaultApiClient(transportOptions: transport);
@@ -205,7 +205,7 @@ void main() {
       expect(resp.statusCode, equals(302));
     });
 
-    test('respects max redirects limit', () async {
+    test('respects maxRedirects limit', () async {
       final transport = TransportOptionsBuilder()
           .followRedirects(true)
           .maxRedirects(2)

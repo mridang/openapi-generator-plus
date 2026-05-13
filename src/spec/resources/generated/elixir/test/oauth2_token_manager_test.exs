@@ -127,7 +127,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert token == "manual-token"
     end
 
-    test "raises when no ApiClient injected" do
+    test "throws when no ApiClient injected" do
       {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
 
       assert_raise RuntimeError, fn ->
@@ -139,7 +139,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       end
     end
 
-    test "raises when token request fails" do
+    test "throws when token request fails" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiResponse{

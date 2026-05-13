@@ -155,7 +155,7 @@ async fn test_includes_refresh_token_on_refresh() {
 
 #[test]
 #[should_panic(expected = "must call exchange_code")]
-fn test_panics_before_exchange_code_called() {
+fn test_throws_before_exchange_code_called() {
     let auth = create_authenticator();
     auth.auth_headers();
 }

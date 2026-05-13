@@ -28,7 +28,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void sendsGrantTypeClientCredentials() {
+  void sendsClientCredentialsGrantType() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -47,7 +47,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void sendsClientIdAndClientSecret() {
+  void sendsClientIdAndSecret() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -67,7 +67,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void sendsScopesInRequestBody() {
+  void sendsScopes() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {

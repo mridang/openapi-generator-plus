@@ -49,7 +49,7 @@ OAuth2PasswordAuthenticator _createAuthenticator() {
 
 void main() {
   group('OAuth2PasswordAuthenticator', () {
-    test('sends grant_type=password', () async {
+    test('sends password grant type', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok1","expires_in":3600}');
 
@@ -75,7 +75,7 @@ void main() {
       expect(client.lastBody!, contains('password=testpass'));
     });
 
-    test('sends client_id and client_secret', () async {
+    test('sends client id and secret', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok1","expires_in":3600}');
 
@@ -88,7 +88,7 @@ void main() {
       expect(client.lastBody!, contains('client_secret=my-client-secret'));
     });
 
-    test('returns Bearer Authorization header', () async {
+    test('returns authorization bearer header', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok-pwd","expires_in":3600}');
 
@@ -100,7 +100,7 @@ void main() {
       expect(headers['Authorization'], equals('Bearer tok-pwd'));
     });
 
-    test('uses refresh_token on subsequent calls', () async {
+    test('uses refresh token on subsequent calls', () async {
       final client = _FakeApiClient();
       client.enqueue(
           '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}');

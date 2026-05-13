@@ -14,13 +14,13 @@ describe('OAuth2ImplicitAuthenticator', () => {
     );
   });
 
-  test('builds correct authorization URL with response_type=token', () => {
+  test('builds authorization URL with response type token', () => {
     const url = authenticator.buildAuthorizationUrl();
     expect(url).toContain('https://auth.example.com/authorize?');
     expect(url).toContain('response_type=token');
   });
 
-  test('includes client_id in URL', () => {
+  test('builds authorization URL with client id', () => {
     const url = authenticator.buildAuthorizationUrl();
     expect(url).toContain('client_id=my-client-id');
   });
@@ -35,7 +35,7 @@ describe('OAuth2ImplicitAuthenticator', () => {
     expect(url).toContain('state=my-state');
   });
 
-  test('setAccessToken then getAuthHeaders returns Bearer', () => {
+  test('getAuthHeaders returns Bearer after setAccessToken', () => {
     authenticator.setAccessToken('implicit-tok');
 
     const headers = authenticator.getAuthHeaders();

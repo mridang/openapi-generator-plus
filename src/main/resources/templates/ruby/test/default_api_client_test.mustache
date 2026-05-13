@@ -75,41 +75,6 @@ describe {{moduleName}}::DefaultApiClient do
     end
   end
 
-  describe 'HTTP compression' do
-    it 'decompresses gzip response' do
-      client = {{moduleName}}::DefaultApiClient.new
-      response = client.send_request(
-        :GET, 'https://jsonplaceholder.typicode.com/posts/1',
-        { 'Accept-Encoding' => 'gzip' }, nil
-      )
-
-      _(response.status_code).must_equal(200)
-      _(response.body).must_include('userId')
-    end
-
-    it 'decompresses brotli response' do
-      client = {{moduleName}}::DefaultApiClient.new
-      response = client.send_request(
-        :GET, 'https://jsonplaceholder.typicode.com/posts/1',
-        { 'Accept-Encoding' => 'br' }, nil
-      )
-
-      _(response.status_code).must_equal(200)
-      _(response.body).must_include('userId')
-    end
-
-    it 'decompresses zstd response' do
-      client = {{moduleName}}::DefaultApiClient.new
-      response = client.send_request(
-        :GET, 'https://jsonplaceholder.typicode.com/posts/1',
-        { 'Accept-Encoding' => 'zstd' }, nil
-      )
-
-      _(response.status_code).must_equal(200)
-      _(response.body).must_include('userId')
-    end
-  end
-
   describe 'request timeout' do
     it 'times out on slow endpoint' do
       wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
@@ -141,7 +106,7 @@ describe {{moduleName}}::DefaultApiClient do
   end
 
   describe 'X-Request-ID injection' do
-    it 'injects request ID header' do
+    it 'injects X-Request-ID header with UUID format' do
       wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
 
       transport = {{moduleName}}::TransportOptions.builder
@@ -158,7 +123,7 @@ describe {{moduleName}}::DefaultApiClient do
       _(request_id).must_match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
     end
 
-    it 'generates unique request IDs' do
+    it 'generates unique X-Request-ID per request' do
       wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
 
       transport = {{moduleName}}::TransportOptions.builder
@@ -193,7 +158,7 @@ describe {{moduleName}}::DefaultApiClient do
       _(json['x-custom']).must_equal('custom-value')
     end
 
-    it 'caller headers override transport defaults' do
+    it 'caller headers override transport default headers' do
       wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
 
       transport = {{moduleName}}::TransportOptions.builder
@@ -227,7 +192,7 @@ describe {{moduleName}}::DefaultApiClient do
       _(response.body).must_include('success')
     end
 
-    it 'returns redirect when disabled' do
+    it 'returns redirect response when disabled' do
       wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
 
       transport = {{moduleName}}::TransportOptions.builder
@@ -242,7 +207,7 @@ describe {{moduleName}}::DefaultApiClient do
   end
 
   describe 'max redirects' do
-    it 'respects max redirects limit' do
+    it 'respects max_redirects limit' do
       transport = {{moduleName}}::TransportOptions.builder
         .follow_redirects(true)
         .max_redirects(5)
@@ -263,6 +228,41 @@ describe {{moduleName}}::DefaultApiClient do
       response = client.send_request(:POST, "#{wiremock_url}/api/test", {}, form_data)
 
       _(response).wont_be_nil
+    end
+  end
+
+  describe 'HTTP compression' do
+    it 'decompresses gzip response' do
+      client = {{moduleName}}::DefaultApiClient.new
+      response = client.send_request(
+        :GET, 'https://jsonplaceholder.typicode.com/posts/1',
+        { 'Accept-Encoding' => 'gzip' }, nil
+      )
+
+      _(response.status_code).must_equal(200)
+      _(response.body).must_include('userId')
+    end
+
+    it 'decompresses brotli response' do
+      client = {{moduleName}}::DefaultApiClient.new
+      response = client.send_request(
+        :GET, 'https://jsonplaceholder.typicode.com/posts/1',
+        { 'Accept-Encoding' => 'br' }, nil
+      )
+
+      _(response.status_code).must_equal(200)
+      _(response.body).must_include('userId')
+    end
+
+    it 'decompresses zstd response' do
+      client = {{moduleName}}::DefaultApiClient.new
+      response = client.send_request(
+        :GET, 'https://jsonplaceholder.typicode.com/posts/1',
+        { 'Accept-Encoding' => 'zstd' }, nil
+      )
+
+      _(response.status_code).must_equal(200)
+      _(response.body).must_include('userId')
     end
   end
 end

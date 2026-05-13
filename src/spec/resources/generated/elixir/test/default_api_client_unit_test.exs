@@ -241,7 +241,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert headers["user-agent"] == "MyApp/1.0"
   end
 
-  test "injects default User-Agent header" do
+  test "injects default User-Agent when not explicitly set" do
     {base_url, _port} = start_header_capture_server()
     client = PetstoreClient.DefaultApiClient.new()
     PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/test", %{}, nil)

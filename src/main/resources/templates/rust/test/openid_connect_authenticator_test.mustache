@@ -178,7 +178,7 @@ async fn test_get_auth_headers_returns_bearer_after_exchange() {
 }
 
 #[test]
-fn test_panics_when_no_api_client_injected() {
+fn test_throws_when_no_api_client_injected() {
     let auth = create_authenticator();
 
     let result = auth.build_authorization_url("");

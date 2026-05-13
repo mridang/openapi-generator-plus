@@ -32,7 +32,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
   end
 
   describe "OAuth2ClientCredentialsAuthenticator" do
-    test "sends grant_type=client_credentials" do
+    test "sends client credentials grant type" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiResponse{
@@ -50,7 +50,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
       assert String.contains?(last_body, "grant_type=client_credentials")
     end
 
-    test "sends client_id and client_secret" do
+    test "sends client id and secret" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiResponse{
@@ -87,7 +87,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
       assert String.contains?(last_body, "scope=read+write") or String.contains?(last_body, "scope=read%20write")
     end
 
-    test "returns Bearer Authorization header" do
+    test "returns authorization bearer header" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiResponse{
@@ -104,7 +104,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
       assert headers["Authorization"] == "Bearer tok-abc"
     end
 
-    test "sends request to correct token URL" do
+    test "sends request to token URL" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiResponse{

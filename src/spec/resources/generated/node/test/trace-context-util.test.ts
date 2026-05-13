@@ -8,12 +8,6 @@
 import { injectTraceContext } from '../src/trace-context-util.js';
 
 describe('TraceContextUtil', () => {
-  test('does not inject traceparent without OTel', () => {
-    const headers: Record<string, string> = {};
-    injectTraceContext(headers);
-    expect(headers['traceparent']).toBeUndefined();
-  });
-
   test('is a no-op without tracer', () => {
     const headers: Record<string, string> = {};
     injectTraceContext(headers);
@@ -24,6 +18,12 @@ describe('TraceContextUtil', () => {
     const headers: Record<string, string> = {};
     expect(() => injectTraceContext(headers)).not.toThrow();
     expect(Object.keys(headers).length).toBe(0);
+  });
+
+  test('does not inject traceparent without OTel', () => {
+    const headers: Record<string, string> = {};
+    injectTraceContext(headers);
+    expect(headers['traceparent']).toBeUndefined();
   });
 
   test('does not inject tracestate without OTel', () => {

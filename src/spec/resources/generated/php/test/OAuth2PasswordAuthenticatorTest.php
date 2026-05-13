@@ -70,7 +70,7 @@ class OAuth2PasswordAuthenticatorTest extends TestCase
         $this->assertStringContainsString('password=testpass', $request['body'] ?? '');
     }
 
-    public function testSendsClientIdAndClientSecret(): void
+    public function testSendsClientIdAndSecret(): void
     {
         $client = new MockTokenApiClient();
         $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
@@ -155,7 +155,7 @@ class OAuth2PasswordAuthenticatorTest extends TestCase
         $this->assertStringContainsString('refresh_token=refresh-1', $request['body'] ?? '');
     }
 
-    public function testReturnsHost(): void
+    public function testGetHostReturnsConfiguredHost(): void
     {
         $authenticator = new OAuth2PasswordAuthenticator(
             'https://api.example.com',

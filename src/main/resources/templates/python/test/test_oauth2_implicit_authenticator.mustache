@@ -54,7 +54,7 @@ class TestOAuth2ImplicitAuthenticator:
 
         assert params['state'] == ['my-state']
 
-    def test_set_access_token_returns_bearer_header(self) -> None:
+    def test_get_auth_headers_returns_bearer_after_set_access_token(self) -> None:
         auth = _create_authenticator()
         auth.set_access_token('implicit-tok')
 

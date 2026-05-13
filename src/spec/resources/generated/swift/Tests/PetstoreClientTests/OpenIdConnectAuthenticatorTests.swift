@@ -52,7 +52,7 @@ final class OpenIdConnectAuthenticatorTests: XCTestCase {
 
   // MARK: - Tests
 
-  func testBuildsAuthorizationURLFromDiscovery() async throws {
+  func testBuildsAuthorizationUrlFromDiscovery() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: Self.discoveryJSON))
 

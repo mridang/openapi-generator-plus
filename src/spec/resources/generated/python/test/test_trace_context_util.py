@@ -6,11 +6,6 @@ from petstore_client.trace_context_util import inject_trace_context
 class TestInjectTraceContext:
     """Tests for inject_trace_context function."""
 
-    def test_does_not_inject_traceparent_without_otel(self) -> None:
-        headers: dict[str, str] = {}
-        inject_trace_context(headers)
-        assert 'traceparent' not in headers
-
     def test_no_op_without_tracer(self) -> None:
         headers: dict[str, str] = {}
         inject_trace_context(headers)
@@ -19,6 +14,11 @@ class TestInjectTraceContext:
         headers: dict[str, str] = {}
         inject_trace_context(headers)
         assert len(headers) == 0
+
+    def test_does_not_inject_traceparent_without_otel(self) -> None:
+        headers: dict[str, str] = {}
+        inject_trace_context(headers)
+        assert 'traceparent' not in headers
 
     def test_does_not_inject_tracestate_without_otel(self) -> None:
         headers: dict[str, str] = {}

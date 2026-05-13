@@ -74,7 +74,7 @@ public class OAuth2ImplicitAuthenticatorTest
     }
 
     [Fact]
-    public void GetAuthHeadersReturnsBearer()
+    public void GetAuthHeadersReturnsBearerAfterSetAccessToken()
     {
         var auth = CreateAuthenticator();
         auth.SetAccessToken("implicit-tok");

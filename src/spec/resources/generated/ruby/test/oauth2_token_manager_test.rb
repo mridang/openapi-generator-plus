@@ -36,7 +36,7 @@ class FakeTokenClient
 end
 
 describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
-  it 'fetches and returns an access token' do
+  it 'extracts access token from response' do
     client = FakeTokenClient.new([
                                    { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
                                  ])
@@ -47,7 +47,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
     _(token).must_equal 'tok_abc'
   end
 
-  it 'stores the refresh token from the response' do
+  it 'stores refresh token' do
     client = FakeTokenClient.new([
                                    { status: 200,
                                      body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz',
@@ -89,14 +89,25 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
     _(client.call_count).must_equal 2
   end
 
-  it 'raises an error when api_client is not set' do
+  it 'setAccessToken bypasses endpoint' do
+    client = FakeTokenClient.new([])
+    manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+    manager.access_token = 'manual-token'
+
+    token = manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
+    _(token).must_equal 'manual-token'
+    _(client.call_count).must_equal 0
+  end
+
+  it 'throws when no ApiClient injected' do
     manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
     assert_raises(RuntimeError) do
       manager.get_access_token('https://auth.example.com/token', {})
     end
   end
 
-  it 'raises an error when token request fails' do
+  it 'throws when token request fails' do
     client = FakeTokenClient.new([
                                    { status: 401, body: { 'error' => 'invalid_client' } }
                                  ])

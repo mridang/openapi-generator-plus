@@ -55,7 +55,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert String.contains?(url, "state=csrf-state-123")
     end
 
-    test "exchanges code with correct grant_type" do
+    test "exchanges code with correct grant type" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiResponse{
@@ -76,7 +76,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert String.contains?(last_body, "client_secret=my-client-secret")
     end
 
-    test "includes refresh_token on refresh" do
+    test "includes refresh token on refresh" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiResponse{
@@ -101,7 +101,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert headers["Authorization"] == "Bearer tok2"
     end
 
-    test "raises before exchange_code called" do
+    test "throws before exchange code called" do
       auth = create_authenticator()
 
       assert_raise RuntimeError, fn ->

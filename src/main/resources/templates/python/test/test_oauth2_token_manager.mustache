@@ -27,7 +27,7 @@ class TestOAuth2TokenManager:
 
         assert token == 'my_access_token'
 
-    def test_stores_refresh_token_from_response(self) -> None:
+    def test_stores_refresh_token(self) -> None:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiResponse(
@@ -69,7 +69,7 @@ class TestOAuth2TokenManager:
         assert second == 'tok1'
         assert mock_client.send_request.call_count == 1
 
-    def test_detects_token_expiry_and_refetches(self) -> None:
+    def test_refetches_token_when_expired(self) -> None:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
 
@@ -127,7 +127,7 @@ class TestOAuth2TokenManager:
         except RuntimeError:
             pass
 
-    def test_raises_error_when_token_request_fails(self) -> None:
+    def test_throws_when_token_request_fails(self) -> None:
         manager = OAuth2TokenManager()
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiResponse(

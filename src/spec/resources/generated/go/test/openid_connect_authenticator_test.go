@@ -163,7 +163,7 @@ func TestOpenIdConnect_GetAuthHeadersReturnsBearerAfterExchange(t *testing.T) {
 	}
 }
 
-func TestOpenIdConnect_ErrorsWhenNoApiClientInjected(t *testing.T) {
+func TestOpenIdConnect_ThrowsWhenNoApiClientInjected(t *testing.T) {
 	authObj := createOpenIdConnectAuthenticator()
 
 	_, err := authObj.BuildAuthorizationURL("")
@@ -172,7 +172,7 @@ func TestOpenIdConnect_ErrorsWhenNoApiClientInjected(t *testing.T) {
 	}
 }
 
-func TestOpenIdConnect_HostReturnsConfiguredHost(t *testing.T) {
+func TestOpenIdConnect_GetHostReturnsConfiguredHost(t *testing.T) {
 	authObj := createOpenIdConnectAuthenticator()
 
 	if authObj.Host() != "https://api.example.com" {

@@ -39,7 +39,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void storesRefreshTokenFromResponse() {
+  void storesRefreshToken() {
     OAuth2TokenManager manager = new OAuth2TokenManager();
     manager.setApiClient(
         fakeClient("{\"access_token\":\"at\",\"refresh_token\":\"rt\",\"expires_in\":3600}"));
@@ -75,7 +75,7 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void detectsTokenExpiryAndRefetches() {
+  void refetchesTokenWhenExpired() {
     var responses =
         new Object() {
           int call = 0;

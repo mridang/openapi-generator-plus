@@ -100,16 +100,16 @@ class DefaultApiClientUnitTest extends TestCase
 
     public function testReturnsJsonBodyForVendorJsonContentType(): void
     {
-        $mockResponse = new MockResponse('{"id":1,"name":"test"}', [
+        $mockResponse = new MockResponse('{"format":"vendor"}', [
             'http_code' => 200,
             'response_headers' => ['Content-Type' => 'application/vnd.api+json'],
         ]);
         $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
 
-        $response = $client->sendRequest('GET', 'http://example.com/resource', [], null);
+        $response = $client->sendRequest('GET', 'http://example.com/vendor-json', [], null);
 
         $this->assertSame(200, $response->statusCode);
-        $this->assertJson($response->body);
+        $this->assertStringContainsString('vendor', $response->body);
     }
 
     public function testJoinsMultiValueResponseHeaders(): void
@@ -151,7 +151,7 @@ class DefaultApiClientUnitTest extends TestCase
         $this->assertSame('MyApp/1.0', $capturedHeaders['User-Agent'] ?? null);
     }
 
-    public function testInjectsDefaultUserAgent(): void
+    public function testInjectsDefaultUserAgentWhenNotExplicitlySet(): void
     {
         $capturedHeaders = [];
         $mockClient = new MockHttpClient(

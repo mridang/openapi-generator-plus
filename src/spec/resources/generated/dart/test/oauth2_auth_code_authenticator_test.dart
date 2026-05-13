@@ -69,7 +69,7 @@ void main() {
       expect(url, contains('state=csrf-state-123'));
     });
 
-    test('exchanges code with correct grant_type', () async {
+    test('exchanges code with correct grant type', () async {
       final client = _FakeApiClient();
       client.enqueue(
           '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}');
@@ -86,7 +86,7 @@ void main() {
       expect(client.lastBody!, contains('client_secret=my-client-secret'));
     });
 
-    test('includes refresh_token on refresh', () async {
+    test('includes refresh token on refresh', () async {
       final client = _FakeApiClient();
       client.enqueue(
           '{"access_token":"tok1","refresh_token":"ref1","expires_in":1}');
@@ -104,7 +104,7 @@ void main() {
       expect(headers['Authorization'], equals('Bearer tok2'));
     });
 
-    test('throws before exchangeCode() called', () {
+    test('throws before exchange code called', () {
       final auth = _createAuthenticator();
 
       expect(

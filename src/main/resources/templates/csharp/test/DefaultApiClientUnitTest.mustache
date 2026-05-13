@@ -177,7 +177,7 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task InjectsDefaultUserAgent()
+    public async Task InjectsDefaultUserAgentWhenNotExplicitlySet()
     {
         string? capturedUserAgent = null;
         var handler = new CapturingHandler(req =>

@@ -94,48 +94,6 @@ describe('DefaultApiClient', () => {
     });
   });
 
-  describe('HTTP compression', () => {
-    test('decompresses gzip response', async () => {
-      const client = new DefaultApiClient();
-      const response = await client.sendRequest(
-        'GET',
-        'https://jsonplaceholder.typicode.com/posts/1',
-        { 'Accept-Encoding': 'gzip' },
-        null
-      );
-
-      expect(response.statusCode).toBe(200);
-      expect(response.body).toContain('userId');
-    });
-
-    test('decompresses brotli response', async () => {
-      const client = new DefaultApiClient();
-      const response = await client.sendRequest(
-        'GET',
-        'https://jsonplaceholder.typicode.com/posts/1',
-        { 'Accept-Encoding': 'br' },
-        null
-      );
-
-      expect(response.statusCode).toBe(200);
-      expect(response.body).toContain('userId');
-    });
-
-    const zstdAvailable = typeof zlib.zstdDecompress === 'function';
-    (zstdAvailable ? test : test.skip)('decompresses zstd response', async () => {
-      const client = new DefaultApiClient();
-      const response = await client.sendRequest(
-        'GET',
-        'https://jsonplaceholder.typicode.com/posts/1',
-        { 'Accept-Encoding': 'zstd' },
-        null
-      );
-
-      expect(response.statusCode).toBe(200);
-      expect(response.body).toContain('userId');
-    });
-  });
-
   describe('request timeout', () => {
     test('times out on slow endpoint', async () => {
       const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
@@ -174,7 +132,7 @@ describe('DefaultApiClient', () => {
   });
 
   describe('X-Request-ID injection', () => {
-    test('injects request ID header', async () => {
+    test('injects X-Request-ID header with UUID format', async () => {
       const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
 
       const transport = TransportOptions.builder()
@@ -198,7 +156,7 @@ describe('DefaultApiClient', () => {
       );
     });
 
-    test('generates unique request IDs', async () => {
+    test('generates unique X-Request-ID per request', async () => {
       const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
 
       const transport = TransportOptions.builder()
@@ -248,7 +206,7 @@ describe('DefaultApiClient', () => {
       expect(json['x-custom']).toBe('custom-value');
     });
 
-    test('caller headers override transport defaults', async () => {
+    test('caller headers override transport default headers', async () => {
       const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
 
       const transport = TransportOptions.builder()
@@ -289,7 +247,7 @@ describe('DefaultApiClient', () => {
       expect(response.body).toContain('success');
     });
 
-    test('returns redirect when disabled', async () => {
+    test('returns redirect response when disabled', async () => {
       const wiremockUrl = process.env['WIREMOCK_HTTP_URL']!;
 
       const transport = TransportOptions.builder()
@@ -309,7 +267,7 @@ describe('DefaultApiClient', () => {
   });
 
   describe('max redirects', () => {
-    test('respects max redirects limit', () => {
+    test('respects maxRedirects limit', () => {
       const transport = TransportOptions.builder()
         .followRedirects(true)
         .maxRedirects(5)
@@ -335,6 +293,48 @@ describe('DefaultApiClient', () => {
       );
 
       expect(response).toBeDefined();
+    });
+  });
+
+  describe('HTTP compression', () => {
+    test('decompresses gzip response', async () => {
+      const client = new DefaultApiClient();
+      const response = await client.sendRequest(
+        'GET',
+        'https://jsonplaceholder.typicode.com/posts/1',
+        { 'Accept-Encoding': 'gzip' },
+        null
+      );
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain('userId');
+    });
+
+    test('decompresses brotli response', async () => {
+      const client = new DefaultApiClient();
+      const response = await client.sendRequest(
+        'GET',
+        'https://jsonplaceholder.typicode.com/posts/1',
+        { 'Accept-Encoding': 'br' },
+        null
+      );
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain('userId');
+    });
+
+    const zstdAvailable = typeof zlib.zstdDecompress === 'function';
+    (zstdAvailable ? test : test.skip)('decompresses zstd response', async () => {
+      const client = new DefaultApiClient();
+      const response = await client.sendRequest(
+        'GET',
+        'https://jsonplaceholder.typicode.com/posts/1',
+        { 'Accept-Encoding': 'zstd' },
+        null
+      );
+
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain('userId');
     });
   });
 });

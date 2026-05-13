@@ -111,23 +111,6 @@ class TransportOptionsTest extends TestCase
         $this->assertNull($opts->proxy);
     }
 
-    public function testModifyingSourceMapDoesNotAffectBuiltOptions(): void
-    {
-        $headers = ['X-Original' => 'original'];
-
-        $opts = TransportOptions::builder()
-            ->defaultHeaders($headers)
-            ->build();
-
-        // PHP arrays are value types, so modifying $headers after build
-        // cannot affect the built object. Verify the object has the original value.
-        $headers['X-Added'] = 'added';
-
-        $this->assertCount(1, $opts->defaultHeaders);
-        $this->assertSame('original', $opts->defaultHeaders['X-Original']);
-        $this->assertArrayNotHasKey('X-Added', $opts->defaultHeaders);
-    }
-
     public function testBuilderMethodsReturnSameInstance(): void
     {
         $builder = TransportOptions::builder();
@@ -167,6 +150,23 @@ class TransportOptionsTest extends TestCase
         $this->assertSame('one', $opts->defaultHeaders['X-First']);
         $this->assertSame('two', $opts->defaultHeaders['X-Second']);
         $this->assertSame('three', $opts->defaultHeaders['X-Third']);
+    }
+
+    public function testModifyingSourceMapDoesNotAffectBuiltOptions(): void
+    {
+        $headers = ['X-Original' => 'original'];
+
+        $opts = TransportOptions::builder()
+            ->defaultHeaders($headers)
+            ->build();
+
+        // PHP arrays are value types, so modifying $headers after build
+        // cannot affect the built object. Verify the object has the original value.
+        $headers['X-Added'] = 'added';
+
+        $this->assertCount(1, $opts->defaultHeaders);
+        $this->assertSame('original', $opts->defaultHeaders['X-Original']);
+        $this->assertArrayNotHasKey('X-Added', $opts->defaultHeaders);
     }
 
     public function testBuilderProducesIndependentInstances(): void

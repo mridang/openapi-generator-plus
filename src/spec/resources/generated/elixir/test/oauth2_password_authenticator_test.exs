@@ -34,7 +34,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
   end
 
   describe "OAuth2PasswordAuthenticator" do
-    test "sends grant_type=password" do
+    test "sends password grant type" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiResponse{
@@ -71,7 +71,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       assert String.contains?(last_body, "password=testpass")
     end
 
-    test "sends client_id and client_secret" do
+    test "sends client id and secret" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiResponse{
@@ -90,7 +90,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       assert String.contains?(last_body, "client_secret=my-client-secret")
     end
 
-    test "returns Bearer Authorization header" do
+    test "returns authorization bearer header" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiResponse{
@@ -107,7 +107,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       assert headers["Authorization"] == "Bearer tok-pwd"
     end
 
-    test "uses refresh_token on subsequent calls" do
+    test "uses refresh token on subsequent calls" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiResponse{

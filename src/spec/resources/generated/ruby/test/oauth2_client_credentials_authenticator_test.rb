@@ -42,37 +42,33 @@ describe PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     a
   end
 
-  it 'sends grant_type=client_credentials' do
+  it 'sends client credentials grant type' do
     auth.auth_headers
     _(client.last_body).must_include 'grant_type=client_credentials'
   end
 
-  it 'sends client_id in token request' do
+  it 'sends client id and secret' do
     auth.auth_headers
     _(client.last_body).must_include 'client_id=my_client_id'
-  end
-
-  it 'sends client_secret in token request' do
-    auth.auth_headers
     _(client.last_body).must_include 'client_secret=my_client_secret'
   end
 
-  it 'sends scope in token request' do
+  it 'sends scopes' do
     auth.auth_headers
     _(client.last_body).must_include 'scope=read+write'
   end
 
-  it 'returns Bearer auth header with access token' do
+  it 'returns authorization bearer header' do
     headers = auth.auth_headers
     _(headers['Authorization']).must_equal 'Bearer cc_tok_abc'
   end
 
-  it 'sends token request to the correct URL' do
+  it 'sends request to token URL' do
     auth.auth_headers
     _(client.last_url).must_equal 'https://auth.example.com/token'
   end
 
-  it 'returns host' do
+  it 'getHost returns configured host' do
     _(auth.host).must_equal 'https://api.example.com'
   end
 end

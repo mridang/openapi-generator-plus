@@ -87,6 +87,19 @@ void main() {
       expect(opts.maxRedirects, isNull);
     });
 
+    test('invalid proxy URL throws exception', () {
+      expect(
+        () => TransportOptionsBuilder().proxy('not a valid url'),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('null proxy URL is accepted', () {
+      final opts = TransportOptionsBuilder().proxy('').build();
+
+      expect(opts.proxy, isNull);
+    });
+
     test('builder methods return the same builder instance', () {
       final builder = TransportOptionsBuilder();
 
@@ -98,19 +111,6 @@ void main() {
       final opts = result.build();
       expect(opts.userAgent, equals('Test/1.0'));
       expect(opts.timeout, equals(10000));
-    });
-
-    test('null proxy URL is accepted', () {
-      final opts = TransportOptionsBuilder().proxy('').build();
-
-      expect(opts.proxy, isNull);
-    });
-
-    test('invalid proxy URL throws exception', () {
-      expect(
-        () => TransportOptionsBuilder().proxy('not a valid url'),
-        throwsA(isA<ArgumentError>()),
-      );
     });
 
     test('accumulates headers from defaultHeader calls', () {
@@ -138,15 +138,6 @@ void main() {
       expect(opts.defaultHeaders['X-Third'], equals('three'));
     });
 
-    test('builder produces independent instances', () {
-      final builder = TransportOptionsBuilder().verifySSL(false);
-      final first = builder.build();
-      final second = builder.build();
-
-      expect(first.verifySSL, equals(second.verifySSL));
-      expect(identical(first, second), isFalse);
-    });
-
     test('modifying source map does not affect built options', () {
       final opts =
           TransportOptionsBuilder().defaultHeader('X-Test', 'value').build();
@@ -156,6 +147,15 @@ void main() {
 
       final original = opts.defaultHeaders;
       expect(original.containsKey('X-Mutated'), isFalse);
+    });
+
+    test('builder produces independent instances', () {
+      final builder = TransportOptionsBuilder().verifySSL(false);
+      final first = builder.build();
+      final second = builder.build();
+
+      expect(first.verifySSL, equals(second.verifySSL));
+      expect(identical(first, second), isFalse);
     });
   });
 }

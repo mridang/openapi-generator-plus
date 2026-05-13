@@ -26,7 +26,7 @@ def _create_authenticator() -> OAuth2AuthorizationCodeAuthenticator:
 
 
 class TestOAuth2AuthorizationCodeAuthenticator:
-    def test_builds_correct_authorization_url(self) -> None:
+    def test_builds_authorization_url_with_required_params(self) -> None:
         auth = _create_authenticator()
 
         url = auth.build_authorization_url()
@@ -50,7 +50,7 @@ class TestOAuth2AuthorizationCodeAuthenticator:
 
         assert params['state'] == ['csrf-state-123']
 
-    def test_exchanges_authorization_code_for_tokens(self) -> None:
+    def test_exchanges_code_with_correct_grant_type(self) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
         mock_client.send_request.return_value = ApiResponse(
@@ -78,7 +78,7 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         assert 'client_id=my_client_id' in body
         assert 'client_secret=my_secret' in body
 
-    def test_includes_refresh_token_when_refreshing(self) -> None:
+    def test_includes_refresh_token_on_refresh(self) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
         # First call: exchange_code returns a refresh token with immediate expiry
@@ -115,7 +115,7 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         assert 'grant_type=refresh_token' in body
         assert headers['Authorization'] == 'Bearer access_2'
 
-    def test_throws_when_calling_get_auth_headers_before_exchange(self) -> None:
+    def test_throws_before_exchange_code_called(self) -> None:
         auth = _create_authenticator()
 
         try:

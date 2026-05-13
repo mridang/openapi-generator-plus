@@ -52,7 +52,7 @@ class OAuth2AuthCodeAuthenticatorTest {
   }
 
   @Test
-  void exchangesAuthorizationCodeForTokens() {
+  void exchangesCodeWithCorrectGrantType() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {
@@ -77,7 +77,7 @@ class OAuth2AuthCodeAuthenticatorTest {
   }
 
   @Test
-  void includesRefreshTokenWhenRefreshing() {
+  void includesRefreshTokenOnRefresh() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     var calls =
         new Object() {
@@ -110,7 +110,7 @@ class OAuth2AuthCodeAuthenticatorTest {
   }
 
   @Test
-  void throwsWhenCallingGetAuthHeadersBeforeExchange() {
+  void throwsBeforeExchangeCodeCalled() {
     OAuth2AuthorizationCodeAuthenticator auth = createAuthenticator();
 
     assertThrows(IllegalStateException.class, () -> auth.getAuthHeaders());

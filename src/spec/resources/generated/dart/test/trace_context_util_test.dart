@@ -43,20 +43,6 @@ void main() {
       expect(headers.containsKey('tracestate'), isFalse);
     });
 
-    test('preserves all existing headers', () {
-      final headers = {
-        'Authorization': 'Bearer token',
-        'Content-Type': 'application/json',
-        'X-Request-ID': 'abc-123',
-      };
-
-      TraceContextUtil.injectTraceContext(headers);
-
-      expect(headers['Authorization'], equals('Bearer token'));
-      expect(headers['Content-Type'], equals('application/json'));
-      expect(headers['X-Request-ID'], equals('abc-123'));
-    });
-
     test('preserves Authorization header', () {
       final headers = {'Authorization': 'Bearer token123'};
 
@@ -79,6 +65,20 @@ void main() {
       TraceContextUtil.injectTraceContext(headers);
 
       expect(headers['X-Request-ID'], equals('req-12345'));
+    });
+
+    test('preserves all existing headers', () {
+      final headers = {
+        'Authorization': 'Bearer token',
+        'Content-Type': 'application/json',
+        'X-Request-ID': 'abc-123',
+      };
+
+      TraceContextUtil.injectTraceContext(headers);
+
+      expect(headers['Authorization'], equals('Bearer token'));
+      expect(headers['Content-Type'], equals('application/json'));
+      expect(headers['X-Request-ID'], equals('abc-123'));
     });
   });
 }

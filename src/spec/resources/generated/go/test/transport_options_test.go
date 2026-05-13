@@ -54,7 +54,7 @@ func TestTransportOptions_MaxRedirectsDefaultsToNull(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_UserAgentDefaultsToNonEmpty(t *testing.T) {
+func TestTransportOptions_UserAgentDefaultsToNonEmptyString(t *testing.T) {
 	opts := petstore.NewTransportOptionsBuilder().Build()
 	if opts.UserAgent() == "" {
 		t.Error("expected non-empty default UserAgent")

@@ -47,7 +47,7 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert opts.inject_request_id == false
   end
 
-  test "sets all fields" do
+  test "builder sets all fields" do
     opts =
       PetstoreClient.TransportOptions.new(
         verify_ssl: false,
@@ -90,6 +90,13 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert opts.proxy == nil
   end
 
+  test "builder methods return the same builder instance" do
+    # Elixir uses struct-based API; verify that repeated new() calls behave consistently
+    opts1 = PetstoreClient.TransportOptions.new(verify_ssl: true)
+    opts2 = PetstoreClient.TransportOptions.new(verify_ssl: true)
+    assert opts1 == opts2
+  end
+
   test "accumulates headers from default_header calls" do
     opts = PetstoreClient.TransportOptions.new(default_headers: %{"X-First" => "one", "X-Second" => "two"})
 
@@ -119,7 +126,7 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert opts.default_headers["X-Original"] == "original"
   end
 
-  test "produces independent instances" do
+  test "builder produces independent instances" do
     opts1 = PetstoreClient.TransportOptions.new(verify_ssl: false)
     opts2 = PetstoreClient.TransportOptions.new(verify_ssl: false)
 

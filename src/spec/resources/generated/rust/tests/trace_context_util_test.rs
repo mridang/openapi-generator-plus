@@ -54,20 +54,6 @@ fn test_inject_trace_context_does_not_inject_tracestate_without_otel() {
 }
 
 #[test]
-fn test_inject_trace_context_preserves_all_existing_headers() {
-    let mut headers = HashMap::new();
-    headers.insert("Authorization".to_string(), "Bearer token".to_string());
-    headers.insert("Content-Type".to_string(), "application/json".to_string());
-    headers.insert("X-Request-ID".to_string(), "abc-123".to_string());
-
-    trace_context_util::inject_trace_context(&mut headers);
-
-    assert_eq!(headers.get("Authorization").unwrap(), "Bearer token");
-    assert_eq!(headers.get("Content-Type").unwrap(), "application/json");
-    assert_eq!(headers.get("X-Request-ID").unwrap(), "abc-123");
-}
-
-#[test]
 fn test_inject_trace_context_preserves_authorization_header() {
     let mut headers = HashMap::new();
     headers.insert("Authorization".to_string(), "Bearer token123".to_string());
@@ -95,4 +81,18 @@ fn test_inject_trace_context_preserves_x_request_id_header() {
     trace_context_util::inject_trace_context(&mut headers);
 
     assert_eq!(headers.get("X-Request-ID").unwrap(), "req-12345");
+}
+
+#[test]
+fn test_inject_trace_context_preserves_all_existing_headers() {
+    let mut headers = HashMap::new();
+    headers.insert("Authorization".to_string(), "Bearer token".to_string());
+    headers.insert("Content-Type".to_string(), "application/json".to_string());
+    headers.insert("X-Request-ID".to_string(), "abc-123".to_string());
+
+    trace_context_util::inject_trace_context(&mut headers);
+
+    assert_eq!(headers.get("Authorization").unwrap(), "Bearer token");
+    assert_eq!(headers.get("Content-Type").unwrap(), "application/json");
+    assert_eq!(headers.get("X-Request-ID").unwrap(), "abc-123");
 }

@@ -81,18 +81,6 @@ class TestTransportOptions:
         opts = TransportOptions.builder().proxy(None).build()
         assert opts.proxy is None
 
-    def test_modifying_source_map_does_not_affect_built_options(self) -> None:
-        headers = {"X-Original": "original"}
-
-        opts = TransportOptions.builder().default_headers(headers).build()
-
-        headers["X-Added"] = "added"
-
-        assert len(opts.default_headers) == 1
-        assert opts.default_headers["X-Original"] == "original"
-        assert "X-Added" not in opts.default_headers
-        assert isinstance(opts.default_headers, MappingProxyType)
-
     def test_builder_methods_return_same_instance(self) -> None:
         builder = TransportOptions.builder()
 
@@ -131,6 +119,18 @@ class TestTransportOptions:
         assert opts.default_headers["X-First"] == "one"
         assert opts.default_headers["X-Second"] == "two"
         assert opts.default_headers["X-Third"] == "three"
+
+    def test_modifying_source_map_does_not_affect_built_options(self) -> None:
+        headers = {"X-Original": "original"}
+
+        opts = TransportOptions.builder().default_headers(headers).build()
+
+        headers["X-Added"] = "added"
+
+        assert len(opts.default_headers) == 1
+        assert opts.default_headers["X-Original"] == "original"
+        assert "X-Added" not in opts.default_headers
+        assert isinstance(opts.default_headers, MappingProxyType)
 
     def test_builder_produces_independent_instances(self) -> None:
         builder = TransportOptions.builder().verify_ssl(False)

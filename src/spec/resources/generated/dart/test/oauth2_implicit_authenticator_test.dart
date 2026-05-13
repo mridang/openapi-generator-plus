@@ -19,7 +19,7 @@ OAuth2ImplicitAuthenticator _createAuthenticator() {
 
 void main() {
   group('OAuth2ImplicitAuthenticator', () {
-    test('builds URL with response_type=token', () {
+    test('builds authorization URL with response type token', () {
       final auth = _createAuthenticator();
 
       final url = auth.buildAuthorizationUrl();
@@ -28,7 +28,7 @@ void main() {
       expect(url, startsWith('https://auth.example.com/authorize?'));
     });
 
-    test('builds URL with client_id', () {
+    test('builds authorization URL with client id', () {
       final auth = _createAuthenticator();
 
       final url = auth.buildAuthorizationUrl();
@@ -36,7 +36,7 @@ void main() {
       expect(url, contains('client_id=my-client-id'));
     });
 
-    test('builds URL with scopes', () {
+    test('builds authorization URL with scopes', () {
       final auth = _createAuthenticator();
 
       final url = auth.buildAuthorizationUrl();
@@ -44,7 +44,7 @@ void main() {
       expect(url, contains('scope=read+write'));
     });
 
-    test('builds URL with state', () {
+    test('builds authorization URL with state', () {
       final auth = _createAuthenticator();
 
       final url = auth.buildAuthorizationUrl('my-state');

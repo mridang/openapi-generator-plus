@@ -194,7 +194,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void injectsDefaultUserAgent() throws Exception {
+  void injectsDefaultUserAgentWhenNotExplicitlySet() throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     ApiResponse response = client.sendRequest("GET", baseUrl + "/echo-headers", Map.of(), null);
     assertEquals(200, response.statusCode());

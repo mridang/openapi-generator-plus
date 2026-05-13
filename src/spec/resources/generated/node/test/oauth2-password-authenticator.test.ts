@@ -57,7 +57,7 @@ describe('OAuth2PasswordAuthenticator', () => {
     authenticator.setApiClient(mockClient);
   });
 
-  test('sends grant_type=password', async () => {
+  test('sends password grant type', async () => {
     await authenticator.getAuthHeadersAsync();
 
     const body = mockClient.lastBody as string;
@@ -74,7 +74,7 @@ describe('OAuth2PasswordAuthenticator', () => {
     expect(params.get('password')).toBe('testpass');
   });
 
-  test('sends client_id and client_secret', async () => {
+  test('sends client id and secret', async () => {
     await authenticator.getAuthHeadersAsync();
 
     const body = mockClient.lastBody as string;
@@ -83,7 +83,7 @@ describe('OAuth2PasswordAuthenticator', () => {
     expect(params.get('client_secret')).toBe('my-client-secret');
   });
 
-  test('returns Bearer Authorization header', async () => {
+  test('returns authorization bearer header', async () => {
     mockClient.responseBody = JSON.stringify({
       access_token: 'tok-pwd',
       expires_in: 3600
@@ -94,7 +94,7 @@ describe('OAuth2PasswordAuthenticator', () => {
     expect(headers['Authorization']).toBe('Bearer tok-pwd');
   });
 
-  test('uses refresh_token on subsequent calls when token expires', async () => {
+  test('uses refresh token on subsequent calls', async () => {
     mockClient.responseBody = JSON.stringify({
       access_token: 'tok1',
       refresh_token: 'ref1',

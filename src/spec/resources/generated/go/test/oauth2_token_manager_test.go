@@ -176,7 +176,7 @@ func TestOAuth2TokenManager_SetAccessTokenBypassesEndpoint(t *testing.T) {
 	}
 }
 
-func TestOAuth2TokenManager_ErrorsWhenNoApiClientInjected(t *testing.T) {
+func TestOAuth2TokenManager_ThrowsWhenNoApiClientInjected(t *testing.T) {
 	manager := oauth.NewOAuth2TokenManager()
 
 	_, err := manager.GetAccessToken("https://auth.example.com/token", map[string]string{
@@ -187,7 +187,7 @@ func TestOAuth2TokenManager_ErrorsWhenNoApiClientInjected(t *testing.T) {
 	}
 }
 
-func TestOAuth2TokenManager_ErrorsWhenTokenRequestFails(t *testing.T) {
+func TestOAuth2TokenManager_ThrowsWhenTokenRequestFails(t *testing.T) {
 	client := newFakeTokenClient(fakeResponse{
 		body:       `{"error":"invalid_client"}`,
 		statusCode: 401,

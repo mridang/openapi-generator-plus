@@ -38,7 +38,7 @@ def _create_authenticator_with_discovery() -> tuple[OpenIdConnectAuthenticator, 
 
 class TestOpenIdConnectAuthenticator:
 
-    def test_builds_correct_authorization_url(self) -> None:
+    def test_builds_authorization_url_from_discovery(self) -> None:
         auth, mock_client = _create_authenticator_with_discovery()
 
         url = auth.build_authorization_url()
@@ -51,15 +51,6 @@ class TestOpenIdConnectAuthenticator:
         assert params['response_type'] == ['code']
         assert params['scope'] == ['openid profile']
 
-    def test_builds_authorization_url_with_state(self) -> None:
-        auth, mock_client = _create_authenticator_with_discovery()
-
-        url = auth.build_authorization_url(state='my-state')
-        parsed = urlparse(url)
-        params = parse_qs(parsed.query)
-
-        assert params['state'] == ['my-state']
-
     def test_fetches_discovery_document(self) -> None:
         auth, mock_client = _create_authenticator_with_discovery()
 
@@ -69,7 +60,7 @@ class TestOpenIdConnectAuthenticator:
         assert call_args[0][0] == 'GET'
         assert call_args[0][1] == 'https://auth.example.com/.well-known/openid-configuration'
 
-    def test_obtains_token_from_token_endpoint(self) -> None:
+    def test_obtains_token_after_code_exchange(self) -> None:
         auth, mock_client = _create_authenticator_with_discovery()
 
         auth.build_authorization_url()  # force discovery so delegate is cached

@@ -91,7 +91,7 @@ async fn test_default_api_client_injects_custom_user_agent() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_injects_default_user_agent() {
+async fn test_default_api_client_injects_default_user_agent_when_not_explicitly_set() {
     let base_url = start_echo_server();
 
     let client = DefaultApiClient::new(None);

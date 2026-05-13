@@ -139,7 +139,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       assert headers["Authorization"] == "Bearer oidc-tok"
     end
 
-    test "raises when no ApiClient injected" do
+    test "throws when no ApiClient injected" do
       auth = create_authenticator()
 
       assert_raise RuntimeError, fn ->

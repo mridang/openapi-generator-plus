@@ -48,7 +48,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     )
   end
 
-  it 'builds authorization URL with required parameters' do
+  it 'builds authorization URL with required params' do
     url = auth.build_authorization_url
     _(url).must_include 'https://auth.example.com/authorize?'
     _(url).must_include 'response_type=code'
@@ -57,12 +57,12 @@ describe PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(url).must_include 'scope=read+write'
   end
 
-  it 'includes state parameter when provided' do
+  it 'builds authorization URL with state' do
     url = auth.build_authorization_url('csrf_state_123')
     _(url).must_include 'state=csrf_state_123'
   end
 
-  it 'exchanges code with grant_type=authorization_code' do
+  it 'exchanges code with correct grant type' do
     client = FakeAuthCodeClient.new([
                                       { status: 200,
                                         body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz',
@@ -77,7 +77,7 @@ describe PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(client.last_body).must_include 'client_secret=my_client_secret'
   end
 
-  it 'includes refresh_token on subsequent auth_headers calls' do
+  it 'includes refresh token on refresh' do
     client = FakeAuthCodeClient.new([
                                       { status: 200,
                                         body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz',
@@ -92,13 +92,13 @@ describe PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(client.last_body).must_include 'refresh_token=ref_xyz'
   end
 
-  it 'raises error if auth_headers called before exchange_code' do
+  it 'throws before exchange code called' do
     assert_raises(RuntimeError) do
       auth.auth_headers
     end
   end
 
-  it 'returns host' do
+  it 'getHost returns configured host' do
     _(auth.host).must_equal 'https://api.example.com'
   end
 end

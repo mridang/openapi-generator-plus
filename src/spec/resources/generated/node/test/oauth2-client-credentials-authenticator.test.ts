@@ -55,7 +55,7 @@ describe('OAuth2ClientCredentialsAuthenticator', () => {
     authenticator.setApiClient(mockClient);
   });
 
-  test('sends grant_type=client_credentials', async () => {
+  test('sends client credentials grant type', async () => {
     await authenticator.getAuthHeadersAsync();
 
     const body = mockClient.lastBody as string;
@@ -63,7 +63,7 @@ describe('OAuth2ClientCredentialsAuthenticator', () => {
     expect(params.get('grant_type')).toBe('client_credentials');
   });
 
-  test('sends client_id and client_secret', async () => {
+  test('sends client id and secret', async () => {
     await authenticator.getAuthHeadersAsync();
 
     const body = mockClient.lastBody as string;
@@ -72,7 +72,7 @@ describe('OAuth2ClientCredentialsAuthenticator', () => {
     expect(params.get('client_secret')).toBe('my-client-secret');
   });
 
-  test('sends scopes in request body', async () => {
+  test('sends scopes', async () => {
     await authenticator.getAuthHeadersAsync();
 
     const body = mockClient.lastBody as string;
@@ -80,7 +80,7 @@ describe('OAuth2ClientCredentialsAuthenticator', () => {
     expect(params.get('scope')).toBe('read write');
   });
 
-  test('returns Bearer Authorization header', async () => {
+  test('returns authorization bearer header', async () => {
     mockClient.responseBody = JSON.stringify({
       access_token: 'tok-abc',
       expires_in: 3600
@@ -91,7 +91,7 @@ describe('OAuth2ClientCredentialsAuthenticator', () => {
     expect(headers['Authorization']).toBe('Bearer tok-abc');
   });
 
-  test('sends request to correct token URL', async () => {
+  test('sends request to token URL', async () => {
     await authenticator.getAuthHeadersAsync();
 
     expect(mockClient.lastUrl).toBe('https://auth.example.com/token');

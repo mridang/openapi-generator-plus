@@ -60,7 +60,7 @@ class TransportOptionsTest {
 
   @Test
   @DisplayName("userAgent defaults to non-empty string")
-  void userAgentDefaultsToNonEmpty() {
+  void userAgentDefaultsToNonEmptyString() {
     TransportOptions opts = TransportOptions.builder().build();
     assertNotNull(opts.getUserAgent());
     assertFalse(opts.getUserAgent().isEmpty());

@@ -60,7 +60,7 @@ describe('OAuth2TokenManager', () => {
     expect(token).toBe('my-access-token');
   });
 
-  test('stores refresh token from response', async () => {
+  test('stores refresh token', async () => {
     mockClient.responseBody = JSON.stringify({
       access_token: 'access-123',
       refresh_token: 'refresh-456',
@@ -93,7 +93,7 @@ describe('OAuth2TokenManager', () => {
     expect(mockClient.callCount).toBe(1);
   });
 
-  test('detects token expiry and refetches', async () => {
+  test('refetches token when expired', async () => {
     mockClient.responseBody = JSON.stringify({
       access_token: 'token-1',
       expires_in: 1

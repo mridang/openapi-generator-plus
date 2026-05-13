@@ -149,7 +149,7 @@ func TestOAuth2AuthCode_IncludesRefreshTokenOnRefresh(t *testing.T) {
 	}
 }
 
-func TestOAuth2AuthCode_PanicsBeforeExchangeCodeCalled(t *testing.T) {
+func TestOAuth2AuthCode_ThrowsBeforeExchangeCodeCalled(t *testing.T) {
 	authObj := createAuthCodeAuthenticator()
 
 	defer func() {
@@ -161,7 +161,7 @@ func TestOAuth2AuthCode_PanicsBeforeExchangeCodeCalled(t *testing.T) {
 	authObj.AuthHeaders()
 }
 
-func TestOAuth2AuthCode_HostReturnsConfiguredHost(t *testing.T) {
+func TestOAuth2AuthCode_GetHostReturnsConfiguredHost(t *testing.T) {
 	authObj := createAuthCodeAuthenticator()
 
 	if authObj.Host() != "https://api.example.com" {

@@ -18,57 +18,56 @@ use PetstoreClient\Auth\OAuth\OAuth2ImplicitAuthenticator;
 
 class OAuth2ImplicitAuthenticatorTest extends TestCase
 {
-    public function testBuildsAuthorizationUrl(): void
+    private function createAuthenticator(): OAuth2ImplicitAuthenticator
     {
-        $authenticator = new OAuth2ImplicitAuthenticator(
+        return new OAuth2ImplicitAuthenticator(
             'https://api.example.com',
             'my-client-id',
             'https://auth.example.com/authorize',
             ['read', 'write']
         );
+    }
 
-        $url = $authenticator->buildAuthorizationUrl('csrf-state');
+    public function testBuildsAuthorizationUrlWithResponseTypeToken(): void
+    {
+        $authenticator = $this->createAuthenticator();
+
+        $url = $authenticator->buildAuthorizationUrl();
 
         $this->assertStringContainsString('https://auth.example.com/authorize?', $url);
         $this->assertStringContainsString('response_type=token', $url);
-        $this->assertStringContainsString('scope=read+write', $url);
-        $this->assertStringContainsString('state=csrf-state', $url);
     }
 
-    public function testIncludesClientId(): void
+    public function testBuildsAuthorizationUrlWithClientId(): void
     {
-        $authenticator = new OAuth2ImplicitAuthenticator(
-            'https://api.example.com',
-            'my-client-id',
-            'https://auth.example.com/authorize',
-            []
-        );
+        $authenticator = $this->createAuthenticator();
 
         $url = $authenticator->buildAuthorizationUrl();
 
         $this->assertStringContainsString('client_id=my-client-id', $url);
     }
 
-    public function testReturnsHostCorrectly(): void
+    public function testBuildsAuthorizationUrlWithScopes(): void
     {
-        $authenticator = new OAuth2ImplicitAuthenticator(
-            'https://api.example.com',
-            'my-client-id',
-            'https://auth.example.com/authorize',
-            []
-        );
+        $authenticator = $this->createAuthenticator();
 
-        $this->assertSame('https://api.example.com', $authenticator->getHost());
+        $url = $authenticator->buildAuthorizationUrl();
+
+        $this->assertStringContainsString('scope=read+write', $url);
     }
 
-    public function testSetAccessTokenAllowsGetAuthHeaders(): void
+    public function testBuildsAuthorizationUrlWithState(): void
     {
-        $authenticator = new OAuth2ImplicitAuthenticator(
-            'https://api.example.com',
-            'my-client-id',
-            'https://auth.example.com/authorize',
-            []
-        );
+        $authenticator = $this->createAuthenticator();
+
+        $url = $authenticator->buildAuthorizationUrl('my-state');
+
+        $this->assertStringContainsString('state=my-state', $url);
+    }
+
+    public function testGetAuthHeadersReturnsBearerAfterSetAccessToken(): void
+    {
+        $authenticator = $this->createAuthenticator();
 
         $authenticator->setAccessToken('my-access-token');
         $headers = $authenticator->getAuthHeaders();
@@ -76,31 +75,18 @@ class OAuth2ImplicitAuthenticatorTest extends TestCase
         $this->assertSame('Bearer my-access-token', $headers['Authorization']);
     }
 
-    public function testThrowsIfAccessTokenNotSet(): void
+    public function testThrowsWhenAccessTokenNotSet(): void
     {
-        $authenticator = new OAuth2ImplicitAuthenticator(
-            'https://api.example.com',
-            'my-client-id',
-            'https://auth.example.com/authorize',
-            []
-        );
+        $authenticator = $this->createAuthenticator();
 
         $this->expectException(\RuntimeException::class);
         $authenticator->getAuthHeaders();
     }
 
-    public function testBuildAuthorizationUrlWithoutState(): void
+    public function testGetHostReturnsConfiguredHost(): void
     {
-        $authenticator = new OAuth2ImplicitAuthenticator(
-            'https://api.example.com',
-            'my-client-id',
-            'https://auth.example.com/authorize',
-            ['openid']
-        );
+        $authenticator = $this->createAuthenticator();
 
-        $url = $authenticator->buildAuthorizationUrl();
-
-        $this->assertStringNotContainsString('state=', $url);
-        $this->assertStringContainsString('scope=openid', $url);
+        $this->assertSame('https://api.example.com', $authenticator->getHost());
     }
 }

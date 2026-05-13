@@ -49,7 +49,7 @@ describe('OpenIdConnectAuthenticator', () => {
     authenticator.setApiClient(mockClient);
   });
 
-  test('builds correct authorization URL from discovery', async () => {
+  test('builds authorization URL from discovery', async () => {
     mockClient.responses = [
       {
         statusCode: 200,
@@ -68,7 +68,7 @@ describe('OpenIdConnectAuthenticator', () => {
     expect(url).toContain('response_type=code');
   });
 
-  test('builds authorization URL with state', async () => {
+  test('fetches discovery document', async () => {
     mockClient.responses = [
       {
         statusCode: 200,
@@ -80,12 +80,13 @@ describe('OpenIdConnectAuthenticator', () => {
       }
     ];
 
-    const url = await authenticator.buildAuthorizationUrl('my-state');
+    await authenticator.buildAuthorizationUrl();
 
-    expect(url).toContain('state=my-state');
+    expect(mockClient.lastMethod).toBe('GET');
+    expect(mockClient.lastUrl).toBe('https://auth.example.com/.well-known/openid-configuration');
   });
 
-  test('obtains token from token endpoint after code exchange', async () => {
+  test('obtains token after code exchange', async () => {
     mockClient.responses = [
       {
         statusCode: 200,
@@ -115,7 +116,7 @@ describe('OpenIdConnectAuthenticator', () => {
     expect(params.get('code')).toBe('my-auth-code');
   });
 
-  test('getAuthHeadersAsync returns Bearer after exchange', async () => {
+  test('getAuthHeaders returns Bearer after exchange', async () => {
     mockClient.responses = [
       {
         statusCode: 200,

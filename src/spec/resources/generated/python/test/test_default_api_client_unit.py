@@ -113,7 +113,7 @@ class TestDefaultApiClientUnit:
         body = json.loads(response.body)
         assert body['headers'].get('User-Agent') == 'TestAgent/1.0'
 
-    def test_injects_default_user_agent(self) -> None:
+    def test_injects_default_user_agent_when_not_explicitly_set(self) -> None:
         client = DefaultApiClient()
         response = client.send_request('GET', f'{self.base_url}/echo', {}, None)
         assert response.status_code == 200
@@ -146,7 +146,7 @@ class TestDefaultApiClientUnit:
         body = json.loads(response.body)
         assert body['headers'].get('X-Custom-Transport') == 'transport-value'
 
-    def test_caller_headers_override_transport_defaults(self) -> None:
+    def test_caller_headers_override_defaults(self) -> None:
         transport = TransportOptions.builder().default_header('X-Override', 'transport').build()
         client = DefaultApiClient(transport)
         response = client.send_request('GET', f'{self.base_url}/echo', {'X-Override': 'caller'}, None)

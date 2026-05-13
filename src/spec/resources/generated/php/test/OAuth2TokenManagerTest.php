@@ -44,7 +44,7 @@ class OAuth2TokenManagerTest extends TestCase
         $this->assertSame('refresh1', $manager->getRefreshToken());
     }
 
-    public function testExtractsAccessToken(): void
+    public function testExtractsAccessTokenFromResponse(): void
     {
         $client = new MockTokenApiClient();
         $client->enqueueResponse($this->makeTokenResponse('my-access-token', 3600));
@@ -91,7 +91,7 @@ class OAuth2TokenManagerTest extends TestCase
         $this->assertCount(2, $client->capturedRequests);
     }
 
-    public function testManuallySetAccessTokenIsReturned(): void
+    public function testSetAccessTokenBypassesEndpoint(): void
     {
         $client = new MockTokenApiClient();
 
@@ -105,7 +105,7 @@ class OAuth2TokenManagerTest extends TestCase
         $this->assertCount(0, $client->capturedRequests);
     }
 
-    public function testThrowsWhenApiClientNotInjected(): void
+    public function testThrowsWhenNoApiClientInjected(): void
     {
         $manager = new OAuth2TokenManager();
 

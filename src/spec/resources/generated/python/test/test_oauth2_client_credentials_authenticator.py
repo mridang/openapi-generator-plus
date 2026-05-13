@@ -40,7 +40,7 @@ def _create_authenticator_with_mock() -> tuple[OAuth2ClientCredentialsAuthentica
 
 
 class TestOAuth2ClientCredentialsAuthenticator:
-    def test_sends_grant_type_client_credentials(self) -> None:
+    def test_sends_client_credentials_grant_type(self) -> None:
         auth, mock_client = _create_authenticator_with_mock()
 
         auth.get_auth_headers()
@@ -49,7 +49,7 @@ class TestOAuth2ClientCredentialsAuthenticator:
         body = call_args[0][3]
         assert 'grant_type=client_credentials' in body
 
-    def test_sends_client_id_and_client_secret(self) -> None:
+    def test_sends_client_id_and_secret(self) -> None:
         auth, mock_client = _create_authenticator_with_mock()
 
         auth.get_auth_headers()
@@ -59,7 +59,7 @@ class TestOAuth2ClientCredentialsAuthenticator:
         assert 'client_id=my_client_id' in body
         assert 'client_secret=my_client_secret' in body
 
-    def test_sends_scopes_in_request_body(self) -> None:
+    def test_sends_scopes(self) -> None:
         auth, mock_client = _create_authenticator_with_mock()
 
         auth.get_auth_headers()

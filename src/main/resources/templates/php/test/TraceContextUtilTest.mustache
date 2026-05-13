@@ -9,16 +9,6 @@ use {{invokerPackage}}\TraceContextUtil;
 
 class TraceContextUtilTest extends TestCase
 {
-    /**
-     * Test that injectTraceContext does not inject traceparent when OTel is not installed.
-     */
-    public function testDoesNotInjectTraceparentWithoutOTel(): void
-    {
-        $headers = [];
-        TraceContextUtil::injectTraceContext($headers);
-        $this->assertArrayNotHasKey('traceparent', $headers);
-    }
-
     public function testNoOpWithoutTracer(): void
     {
         $headers = [];
@@ -31,6 +21,16 @@ class TraceContextUtilTest extends TestCase
         $headers = [];
         TraceContextUtil::injectTraceContext($headers);
         $this->assertEmpty($headers);
+    }
+
+    /**
+     * Test that injectTraceContext does not inject traceparent when OTel is not installed.
+     */
+    public function testDoesNotInjectTraceparentWithoutOTel(): void
+    {
+        $headers = [];
+        TraceContextUtil::injectTraceContext($headers);
+        $this->assertArrayNotHasKey('traceparent', $headers);
     }
 
     public function testDoesNotInjectTracestateWithoutOTel(): void

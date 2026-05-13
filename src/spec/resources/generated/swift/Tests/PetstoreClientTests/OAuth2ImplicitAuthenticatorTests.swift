@@ -22,7 +22,7 @@ final class OAuth2ImplicitAuthenticatorTests: XCTestCase {
 
   // MARK: - Tests
 
-  func testBuildsURLWithResponseTypeToken() {
+  func testBuildsAuthorizationUrlWithResponseTypeToken() {
     let auth = createAuthenticator()
 
     let url = auth.buildAuthorizationURL()
@@ -31,7 +31,7 @@ final class OAuth2ImplicitAuthenticatorTests: XCTestCase {
     XCTAssertTrue(url.hasPrefix("https://auth.example.com/authorize?"))
   }
 
-  func testBuildsURLWithClientId() {
+  func testBuildsAuthorizationUrlWithClientId() {
     let auth = createAuthenticator()
 
     let url = auth.buildAuthorizationURL()
@@ -39,7 +39,7 @@ final class OAuth2ImplicitAuthenticatorTests: XCTestCase {
     XCTAssertTrue(url.contains("client_id=my-client-id"))
   }
 
-  func testBuildsURLWithScopes() {
+  func testBuildsAuthorizationUrlWithScopes() {
     let auth = createAuthenticator()
 
     let url = auth.buildAuthorizationURL()
@@ -47,7 +47,7 @@ final class OAuth2ImplicitAuthenticatorTests: XCTestCase {
     XCTAssertTrue(url.contains("scope=read%20write"))
   }
 
-  func testBuildsURLWithState() {
+  func testBuildsAuthorizationUrlWithState() {
     let auth = createAuthenticator()
 
     let url = auth.buildAuthorizationURL(state: "my-state")

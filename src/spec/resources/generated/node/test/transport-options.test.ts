@@ -84,7 +84,7 @@ describe('TransportOptions', () => {
     expect(opts.maxRedirects).toBeNull();
   });
 
-  test('invalid proxy URL throws IllegalArgumentException', () => {
+  test('invalid proxy URL throws exception', () => {
     expect(() => {
       TransportOptions.builder().proxy('not-a-valid-url');
     }).toThrow();
@@ -93,18 +93,6 @@ describe('TransportOptions', () => {
   test('null proxy URL is accepted', () => {
     const opts = TransportOptions.builder().proxy(null).build();
     expect(opts.proxy).toBeNull();
-  });
-
-  test('modifying source map does not affect built options', () => {
-    const headers: Record<string, string> = { 'X-Original': 'original' };
-
-    const opts = TransportOptions.builder().defaultHeaders(headers).build();
-
-    headers['X-Added'] = 'added';
-
-    expect(Object.keys(opts.defaultHeaders)).toHaveLength(1);
-    expect(opts.defaultHeaders['X-Original']).toBe('original');
-    expect(opts.defaultHeaders['X-Added']).toBeUndefined();
   });
 
   test('builder methods return the same builder instance', () => {
@@ -140,6 +128,18 @@ describe('TransportOptions', () => {
     expect(opts.defaultHeaders['X-First']).toBe('one');
     expect(opts.defaultHeaders['X-Second']).toBe('two');
     expect(opts.defaultHeaders['X-Third']).toBe('three');
+  });
+
+  test('modifying source map does not affect built options', () => {
+    const headers: Record<string, string> = { 'X-Original': 'original' };
+
+    const opts = TransportOptions.builder().defaultHeaders(headers).build();
+
+    headers['X-Added'] = 'added';
+
+    expect(Object.keys(opts.defaultHeaders)).toHaveLength(1);
+    expect(opts.defaultHeaders['X-Original']).toBe('original');
+    expect(opts.defaultHeaders['X-Added']).toBeUndefined();
   });
 
   test('builder produces independent instances', () => {

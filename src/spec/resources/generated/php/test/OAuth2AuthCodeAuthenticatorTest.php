@@ -36,7 +36,7 @@ class OAuth2AuthCodeAuthenticatorTest extends TestCase
         return $client;
     }
 
-    public function testBuildsAuthorizationUrl(): void
+    public function testBuildsAuthorizationUrlWithRequiredParams(): void
     {
         $authenticator = new OAuth2AuthorizationCodeAuthenticator(
             'https://api.example.com',
@@ -58,7 +58,7 @@ class OAuth2AuthCodeAuthenticatorTest extends TestCase
         $this->assertStringContainsString('state=csrf-state', $url);
     }
 
-    public function testExchangeCodeSendsAuthorizationCodeGrant(): void
+    public function testExchangesCodeWithCorrectGrantType(): void
     {
         $client = $this->createMockClient();
         $authenticator = new OAuth2AuthorizationCodeAuthenticator(
@@ -120,7 +120,7 @@ class OAuth2AuthCodeAuthenticatorTest extends TestCase
         $this->assertSame('Bearer access2', $headers['Authorization']);
     }
 
-    public function testThrowsIfExchangeCodeNotCalled(): void
+    public function testThrowsBeforeExchangeCodeCalled(): void
     {
         $client = $this->createMockClient();
         $authenticator = new OAuth2AuthorizationCodeAuthenticator(

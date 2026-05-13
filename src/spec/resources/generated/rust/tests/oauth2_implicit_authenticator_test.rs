@@ -20,7 +20,7 @@ fn create_authenticator() -> OAuth2ImplicitAuthenticator {
 }
 
 #[test]
-fn test_builds_url_with_response_type_token() {
+fn test_builds_authorization_url_with_response_type_token() {
     let auth = create_authenticator();
 
     let url = auth.build_authorization_url("");
@@ -30,7 +30,7 @@ fn test_builds_url_with_response_type_token() {
 }
 
 #[test]
-fn test_builds_url_with_client_id() {
+fn test_builds_authorization_url_with_client_id() {
     let auth = create_authenticator();
 
     let url = auth.build_authorization_url("");
@@ -39,7 +39,7 @@ fn test_builds_url_with_client_id() {
 }
 
 #[test]
-fn test_builds_url_with_scopes() {
+fn test_builds_authorization_url_with_scopes() {
     let auth = create_authenticator();
 
     let url = auth.build_authorization_url("");
@@ -49,7 +49,7 @@ fn test_builds_url_with_scopes() {
 }
 
 #[test]
-fn test_builds_url_with_state() {
+fn test_builds_authorization_url_with_state() {
     let auth = create_authenticator();
 
     let url = auth.build_authorization_url("my-state");
@@ -69,7 +69,7 @@ fn test_get_auth_headers_returns_bearer_after_set_access_token() {
 
 #[test]
 #[should_panic(expected = "must set access token")]
-fn test_panics_when_access_token_not_set() {
+fn test_throws_when_access_token_not_set() {
     let auth = create_authenticator();
     auth.auth_headers();
 }

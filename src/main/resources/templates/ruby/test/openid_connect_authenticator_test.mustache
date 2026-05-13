@@ -42,7 +42,7 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
     { status: 200, body: { 'access_token' => 'oidc_tok', 'refresh_token' => 'oidc_ref', 'expires_in' => 3600 } }
   end
 
-  it 'fetches discovery document and builds authorization URL' do
+  it 'builds authorization URL from discovery' do
     client = FakeOidcClient.new([discovery_response])
     auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
@@ -62,7 +62,7 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
     _(url).must_include 'scope=openid+profile'
   end
 
-  it 'sends discovery request to the openid_connect_url' do
+  it 'fetches discovery document' do
     client = FakeOidcClient.new([discovery_response])
     auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
@@ -79,7 +79,7 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
     _(client.requests.first[:method]).must_equal :get
   end
 
-  it 'exchanges code using discovered token endpoint' do
+  it 'obtains token after code exchange' do
     client = FakeOidcClient.new([discovery_response, token_response])
     auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
@@ -98,7 +98,24 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
     _(token_request[:body]).must_include 'code=oidc_code_123'
   end
 
-  it 'raises error when api_client is not set' do
+  it 'getAuthHeaders returns Bearer after exchange' do
+    client = FakeOidcClient.new([discovery_response, token_response])
+    auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id',
+      'my_client_secret',
+      'https://app.example.com/callback',
+      %w[openid]
+    )
+    auth.api_client = client
+
+    auth.exchange_code('oidc_code_123')
+    headers = auth.auth_headers
+    _(headers['Authorization']).must_equal 'Bearer oidc_tok'
+  end
+
+  it 'throws when no ApiClient injected' do
     auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
       'https://auth.example.com/.well-known/openid-configuration',
@@ -113,7 +130,7 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
     end
   end
 
-  it 'returns host' do
+  it 'getHost returns configured host' do
     auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
       'https://api.example.com',
       'https://auth.example.com/.well-known/openid-configuration',

@@ -53,7 +53,7 @@ describe('OAuth2AuthorizationCodeAuthenticator', () => {
     authenticator.setApiClient(mockClient);
   });
 
-  test('builds correct authorization URL with client_id, redirect_uri, scopes', () => {
+  test('builds authorization URL with required params', () => {
     const url = authenticator.buildAuthorizationUrl();
     expect(url).toContain('https://auth.example.com/authorize?');
     expect(url).toContain('client_id=my-client-id');
@@ -67,7 +67,7 @@ describe('OAuth2AuthorizationCodeAuthenticator', () => {
     expect(url).toContain('state=csrf-state-123');
   });
 
-  test('exchanges authorization code for tokens (sends correct grant_type)', async () => {
+  test('exchanges code with correct grant type', async () => {
     mockClient.responseBody = JSON.stringify({
       access_token: 'access-token-123',
       refresh_token: 'refresh-token-456',
@@ -86,7 +86,7 @@ describe('OAuth2AuthorizationCodeAuthenticator', () => {
     expect(params.get('client_secret')).toBe('my-client-secret');
   });
 
-  test('includes refresh_token when refreshing', async () => {
+  test('includes refresh token on refresh', async () => {
     mockClient.responseBody = JSON.stringify({
       access_token: 'access-token-123',
       refresh_token: 'refresh-token-456',
@@ -114,7 +114,7 @@ describe('OAuth2AuthorizationCodeAuthenticator', () => {
     expect(headers['Authorization']).toBe('Bearer access-token-789');
   });
 
-  test('throws when calling getAuthHeadersAsync before exchangeCode', async () => {
+  test('throws before exchange code called', async () => {
     await expect(authenticator.getAuthHeadersAsync()).rejects.toThrow();
   });
 

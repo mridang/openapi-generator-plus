@@ -125,7 +125,7 @@ public class OAuth2AuthCodeAuthenticatorTest
     }
 
     [Fact]
-    public void ThrowsWhenCallingGetAuthHeadersBeforeExchange()
+    public void ThrowsBeforeExchangeCodeCalled()
     {
         var auth = CreateAuthenticator();
 

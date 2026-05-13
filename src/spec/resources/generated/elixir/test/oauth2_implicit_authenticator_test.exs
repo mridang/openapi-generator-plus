@@ -11,7 +11,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
   end
 
   describe "OAuth2ImplicitAuthenticator" do
-    test "builds URL with response_type=token" do
+    test "builds authorization URL with response type token" do
       auth = create_authenticator()
 
       url = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth)
@@ -20,7 +20,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       assert String.contains?(url, "response_type=token")
     end
 
-    test "builds URL with client_id" do
+    test "builds authorization URL with client id" do
       auth = create_authenticator()
 
       url = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth)
@@ -28,7 +28,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       assert String.contains?(url, "client_id=my-client-id")
     end
 
-    test "builds URL with scopes" do
+    test "builds authorization URL with scopes" do
       auth = create_authenticator()
 
       url = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth)
@@ -36,7 +36,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       assert String.contains?(url, "scope=read+write") or String.contains?(url, "scope=read%20write")
     end
 
-    test "builds URL with state" do
+    test "builds authorization URL with state" do
       auth = create_authenticator()
 
       url = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth, "my-state")
@@ -53,7 +53,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       assert headers["Authorization"] == "Bearer implicit-tok"
     end
 
-    test "raises when access token not set" do
+    test "throws when access token not set" do
       auth = create_authenticator()
 
       assert_raise RuntimeError, fn ->

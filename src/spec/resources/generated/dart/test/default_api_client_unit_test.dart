@@ -39,7 +39,7 @@ void main() {
       }
     });
 
-    test('injects default User-Agent header', () async {
+    test('injects default User-Agent when not explicitly set', () async {
       String? receivedUA;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {

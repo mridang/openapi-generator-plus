@@ -144,7 +144,7 @@ describe('DefaultApiClient unit', () => {
     expect(body['user-agent']).toBe('MyApp/1.0');
   });
 
-  it('injects default User-Agent header', async () => {
+  it('injects default User-Agent when not explicitly set', async () => {
     const client = new DefaultApiClient();
     const response = await client.sendRequest('GET', `${baseUrl}/echo-headers`, {}, null);
     expect(response.statusCode).toBe(200);

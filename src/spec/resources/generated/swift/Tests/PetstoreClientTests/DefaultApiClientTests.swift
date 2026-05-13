@@ -71,39 +71,6 @@ final class DefaultApiClientTests: XCTestCase {
     XCTAssertEqual(resp.statusCode, 200)
   }
 
-  func testDecompressesGzipResponse() async throws {
-    let client = makeClient { _ in
-      return (self.jsonBody(), 200, ["Content-Type": "application/json"])
-    }
-    let resp = try await client.sendRequest(
-      method: "GET", url: "https://example.com",
-      headers: ["Accept-Encoding": "gzip"], body: nil)
-    XCTAssertEqual(resp.statusCode, 200)
-    XCTAssertTrue(resp.body.contains("userId"))
-  }
-
-  func testDecompressesBrotliResponse() async throws {
-    let client = makeClient { _ in
-      return (self.jsonBody(), 200, ["Content-Type": "application/json"])
-    }
-    let resp = try await client.sendRequest(
-      method: "GET", url: "https://example.com",
-      headers: ["Accept-Encoding": "br"], body: nil)
-    XCTAssertEqual(resp.statusCode, 200)
-    XCTAssertTrue(resp.body.contains("userId"))
-  }
-
-  func testDecompressesZstdResponse() async throws {
-    let client = makeClient { _ in
-      return (self.jsonBody(), 200, ["Content-Type": "application/json"])
-    }
-    let resp = try await client.sendRequest(
-      method: "GET", url: "https://example.com",
-      headers: ["Accept-Encoding": "zstd"], body: nil)
-    XCTAssertEqual(resp.statusCode, 200)
-    XCTAssertTrue(resp.body.contains("userId"))
-  }
-
   func testTimesOutOnSlowEndpoint() async throws {
     let transport = TransportOptionsBuilder().timeout(1).build()
     let client = makeClient(transport: transport) { _ in
@@ -157,7 +124,7 @@ final class DefaultApiClientTests: XCTestCase {
     XCTAssertNotEqual(ids[0], ids[1])
   }
 
-  func testIncludesTransportLevelDefaultHeaders() async throws {
+  func testIncludesTransportDefaultHeaders() async throws {
     let transport = TransportOptionsBuilder()
       .defaultHeader(name: "X-Custom", value: "value123")
       .build()
@@ -226,6 +193,39 @@ final class DefaultApiClientTests: XCTestCase {
       headers: [:], body: formFields)
     XCTAssertTrue(capturedContentType?.hasPrefix("multipart/form-data") ?? false)
     XCTAssertTrue(capturedBody?.contains("Content-Disposition: form-data") ?? false)
+  }
+
+  func testDecompressesGzipResponse() async throws {
+    let client = makeClient { _ in
+      return (self.jsonBody(), 200, ["Content-Type": "application/json"])
+    }
+    let resp = try await client.sendRequest(
+      method: "GET", url: "https://example.com",
+      headers: ["Accept-Encoding": "gzip"], body: nil)
+    XCTAssertEqual(resp.statusCode, 200)
+    XCTAssertTrue(resp.body.contains("userId"))
+  }
+
+  func testDecompressesBrotliResponse() async throws {
+    let client = makeClient { _ in
+      return (self.jsonBody(), 200, ["Content-Type": "application/json"])
+    }
+    let resp = try await client.sendRequest(
+      method: "GET", url: "https://example.com",
+      headers: ["Accept-Encoding": "br"], body: nil)
+    XCTAssertEqual(resp.statusCode, 200)
+    XCTAssertTrue(resp.body.contains("userId"))
+  }
+
+  func testDecompressesZstdResponse() async throws {
+    let client = makeClient { _ in
+      return (self.jsonBody(), 200, ["Content-Type": "application/json"])
+    }
+    let resp = try await client.sendRequest(
+      method: "GET", url: "https://example.com",
+      headers: ["Accept-Encoding": "zstd"], body: nil)
+    XCTAssertEqual(resp.statusCode, 200)
+    XCTAssertTrue(resp.body.contains("userId"))
   }
 }
 

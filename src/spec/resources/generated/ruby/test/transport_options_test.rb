@@ -96,21 +96,6 @@ describe PetstoreClient::TransportOptions do
     _(opts.proxy).must_be_nil
   end
 
-  it 'modifying source map does not affect built options' do
-    headers = { 'X-Original' => 'original' }
-
-    opts = PetstoreClient::TransportOptions.builder
-                                           .default_headers(headers)
-                                           .build
-
-    headers['X-Added'] = 'added'
-
-    _(opts.default_headers.size).must_equal 1
-    _(opts.default_headers['X-Original']).must_equal 'original'
-    _(opts.default_headers.key?('X-Added')).must_equal false
-    _(opts.default_headers).must_be :frozen?
-  end
-
   it 'builder methods return the same builder instance' do
     builder = PetstoreClient::TransportOptions.builder
 
@@ -147,6 +132,21 @@ describe PetstoreClient::TransportOptions do
     _(opts.default_headers['X-First']).must_equal 'one'
     _(opts.default_headers['X-Second']).must_equal 'two'
     _(opts.default_headers['X-Third']).must_equal 'three'
+  end
+
+  it 'modifying source map does not affect built options' do
+    headers = { 'X-Original' => 'original' }
+
+    opts = PetstoreClient::TransportOptions.builder
+                                           .default_headers(headers)
+                                           .build
+
+    headers['X-Added'] = 'added'
+
+    _(opts.default_headers.size).must_equal 1
+    _(opts.default_headers['X-Original']).must_equal 'original'
+    _(opts.default_headers.key?('X-Added')).must_equal false
+    _(opts.default_headers).must_be :frozen?
   end
 
   it 'builder produces independent instances' do

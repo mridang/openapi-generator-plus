@@ -105,7 +105,7 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
-    public async Task GetAuthHeadersReturnsBearer()
+    public async Task GetAuthHeadersReturnsBearerAfterExchange()
     {
         var client = new FakeApiClient();
         // Discovery document

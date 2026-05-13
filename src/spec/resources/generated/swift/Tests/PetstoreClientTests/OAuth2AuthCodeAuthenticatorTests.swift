@@ -49,7 +49,7 @@ final class OAuth2AuthCodeAuthenticatorTests: XCTestCase {
 
   // MARK: - Tests
 
-  func testBuildsAuthorizationURLWithRequiredParams() {
+  func testBuildsAuthorizationUrlWithRequiredParams() {
     let auth = createAuthenticator()
 
     let url = auth.buildAuthorizationURL()
@@ -61,7 +61,7 @@ final class OAuth2AuthCodeAuthenticatorTests: XCTestCase {
     XCTAssertTrue(url.hasPrefix("https://auth.example.com/authorize?"))
   }
 
-  func testBuildsAuthorizationURLWithState() {
+  func testBuildsAuthorizationUrlWithState() {
     let auth = createAuthenticator()
 
     let url = auth.buildAuthorizationURL(state: "csrf-state-123")

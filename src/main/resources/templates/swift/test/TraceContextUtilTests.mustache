@@ -23,7 +23,7 @@ final class TraceContextUtilTests: XCTestCase {
         TraceContextUtil.injectTraceContext(headers: &headers)
     }
 
-    func testInjectTraceContextDoesNotInjectTraceparentWithoutTracing() {
+    func testInjectTraceContextDoesNotInjectTraceparentWithoutOTel() {
         var headers: [String: String] = [:]
 
         TraceContextUtil.injectTraceContext(headers: &headers)
@@ -31,26 +31,12 @@ final class TraceContextUtilTests: XCTestCase {
         XCTAssertNil(headers["traceparent"])
     }
 
-    func testInjectTraceContextDoesNotInjectTracestateWithoutTracing() {
+    func testInjectTraceContextDoesNotInjectTracestateWithoutOTel() {
         var headers: [String: String] = [:]
 
         TraceContextUtil.injectTraceContext(headers: &headers)
 
         XCTAssertNil(headers["tracestate"])
-    }
-
-    func testInjectTraceContextPreservesAllExistingHeaders() {
-        var headers: [String: String] = [
-            "Authorization": "Bearer token",
-            "Content-Type": "application/json",
-            "X-Request-ID": "abc-123"
-        ]
-
-        TraceContextUtil.injectTraceContext(headers: &headers)
-
-        XCTAssertEqual(headers["Authorization"], "Bearer token")
-        XCTAssertEqual(headers["Content-Type"], "application/json")
-        XCTAssertEqual(headers["X-Request-ID"], "abc-123")
     }
 
     func testInjectTraceContextPreservesAuthorizationHeader() {
@@ -75,5 +61,19 @@ final class TraceContextUtilTests: XCTestCase {
         TraceContextUtil.injectTraceContext(headers: &headers)
 
         XCTAssertEqual(headers["X-Request-ID"], "req-12345")
+    }
+
+    func testInjectTraceContextPreservesAllExistingHeaders() {
+        var headers: [String: String] = [
+            "Authorization": "Bearer token",
+            "Content-Type": "application/json",
+            "X-Request-ID": "abc-123"
+        ]
+
+        TraceContextUtil.injectTraceContext(headers: &headers)
+
+        XCTAssertEqual(headers["Authorization"], "Bearer token")
+        XCTAssertEqual(headers["Content-Type"], "application/json")
+        XCTAssertEqual(headers["X-Request-ID"], "abc-123")
     }
 }

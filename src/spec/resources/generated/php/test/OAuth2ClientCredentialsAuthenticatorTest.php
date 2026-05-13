@@ -44,7 +44,7 @@ class OAuth2ClientCredentialsAuthenticatorTest extends TestCase
         $this->assertStringContainsString('grant_type=client_credentials', $request['body'] ?? '');
     }
 
-    public function testSendsClientIdAndClientSecret(): void
+    public function testSendsClientIdAndSecret(): void
     {
         $client = new MockTokenApiClient();
         $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
@@ -68,7 +68,7 @@ class OAuth2ClientCredentialsAuthenticatorTest extends TestCase
         $this->assertStringContainsString('client_secret=my-client-secret', $request['body'] ?? '');
     }
 
-    public function testIncludesScopesWhenProvided(): void
+    public function testSendsScopes(): void
     {
         $client = new MockTokenApiClient();
         $client->enqueueResponse(new ApiResponse(200, (string) json_encode([
@@ -91,7 +91,7 @@ class OAuth2ClientCredentialsAuthenticatorTest extends TestCase
         $this->assertStringContainsString('scope=read+write', $request['body'] ?? '');
     }
 
-    public function testReturnsHost(): void
+    public function testGetHostReturnsConfiguredHost(): void
     {
         $authenticator = new OAuth2ClientCredentialsAuthenticator(
             'https://api.example.com',
@@ -104,7 +104,7 @@ class OAuth2ClientCredentialsAuthenticatorTest extends TestCase
         $this->assertSame('https://api.example.com', $authenticator->getHost());
     }
 
-    public function testCachesTokenOnSubsequentCalls(): void
+    public function testReturnsAuthorizationBearerHeader(): void
     {
         $client = new MockTokenApiClient();
         $client->enqueueResponse(new ApiResponse(200, (string) json_encode([

@@ -30,7 +30,7 @@ class OAuth2PasswordAuthenticatorTest {
   }
 
   @Test
-  void sendsGrantTypePassword() {
+  void sendsPasswordGrantType() {
     AtomicReference<String> capturedBody = new AtomicReference<>();
     ApiClient client =
         (method, url, headers, body) -> {

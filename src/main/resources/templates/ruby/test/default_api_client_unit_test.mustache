@@ -140,7 +140,7 @@ describe {{moduleName}}::DefaultApiClient do
     stubs.verify_stubbed_calls
   end
 
-  it 'injects default User-Agent header' do
+  it 'injects default User-Agent when not explicitly set' do
     captured_ua = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/test') do |env|

@@ -67,7 +67,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     end
   end
 
-  test "injects custom user-agent header" do
+  test "injects custom User-Agent header" do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(user_agent: "MyApp/1.0")
@@ -79,7 +79,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert json["user-agent"] == "MyApp/1.0"
   end
 
-  test "injects request ID header" do
+  test "injects X-Request-ID header with UUID format" do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(inject_request_id: true)
@@ -93,7 +93,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert Regex.match?(~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/, request_id)
   end
 
-  test "generates unique request IDs" do
+  test "generates unique X-Request-ID per request" do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(inject_request_id: true)
@@ -121,7 +121,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert json["x-custom"] == "custom-value"
   end
 
-  test "caller headers override transport defaults" do
+  test "caller headers override transport default headers" do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(default_headers: %{"Accept" => "text/plain"})
@@ -153,7 +153,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert String.contains?(response.body, "success")
   end
 
-  test "returns redirect when disabled" do
+  test "returns redirect response when disabled" do
     wiremock_url = System.fetch_env!("WIREMOCK_HTTP_URL")
 
     transport = PetstoreClient.TransportOptions.new(follow_redirects: false)
@@ -163,7 +163,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
     assert response.status_code == 302
   end
 
-  test "respects max redirects limit" do
+  test "respects max_redirects limit" do
     transport =
       PetstoreClient.TransportOptions.new(
         follow_redirects: true,

@@ -62,7 +62,7 @@ class OpenIdConnectAuthenticatorTest extends TestCase
         $this->assertStringContainsString('scope=openid+profile', $url);
     }
 
-    public function testObtainsTokenViaDiscoveredEndpoint(): void
+    public function testObtainsTokenAfterCodeExchange(): void
     {
         $client = new MockTokenApiClient();
         // Discovery document
@@ -97,7 +97,7 @@ class OpenIdConnectAuthenticatorTest extends TestCase
         $this->assertStringContainsString('code=oidc-code-123', $tokenRequest['body'] ?? '');
     }
 
-    public function testGetAuthHeadersReturnsBearerAfterCodeExchange(): void
+    public function testGetAuthHeadersReturnsBearerAfterExchange(): void
     {
         $client = new MockTokenApiClient();
         // Discovery document
@@ -127,7 +127,7 @@ class OpenIdConnectAuthenticatorTest extends TestCase
         $this->assertSame('Bearer oidc-tok', $headers['Authorization']);
     }
 
-    public function testCachesDiscoveryDocument(): void
+    public function testFetchesDiscoveryDocument(): void
     {
         $client = new MockTokenApiClient();
         // Only one discovery response needed
@@ -154,7 +154,7 @@ class OpenIdConnectAuthenticatorTest extends TestCase
         $this->assertCount(1, $discoveryRequests);
     }
 
-    public function testThrowsWhenApiClientNotInjected(): void
+    public function testThrowsWhenNoApiClientInjected(): void
     {
         $authenticator = new OpenIdConnectAuthenticator(
             'https://api.example.com',
@@ -169,7 +169,7 @@ class OpenIdConnectAuthenticatorTest extends TestCase
         $authenticator->buildAuthorizationUrl();
     }
 
-    public function testReturnsHost(): void
+    public function testGetHostReturnsConfiguredHost(): void
     {
         $authenticator = new OpenIdConnectAuthenticator(
             'https://api.example.com',

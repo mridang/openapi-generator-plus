@@ -159,7 +159,7 @@ async fn test_set_access_token_bypasses_endpoint() {
 
 #[tokio::test(flavor = "multi_thread")]
 #[should_panic(expected = "ApiClient has not been injected")]
-async fn test_panics_when_no_api_client_injected() {
+async fn test_throws_when_no_api_client_injected() {
     let manager = OAuth2TokenManager::new();
 
     let mut params = HashMap::new();
@@ -171,7 +171,7 @@ async fn test_panics_when_no_api_client_injected() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_errors_when_token_request_fails() {
+async fn test_throws_when_token_request_fails() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(r#"{"error":"invalid_client"}"#, 401);
 

@@ -47,7 +47,7 @@ OAuth2ClientCredentialsAuthenticator _createAuthenticator() {
 
 void main() {
   group('OAuth2ClientCredentialsAuthenticator', () {
-    test('sends grant_type=client_credentials', () async {
+    test('sends client credentials grant type', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok1","expires_in":3600}');
 
@@ -60,7 +60,7 @@ void main() {
       expect(client.lastBody!, contains('grant_type=client_credentials'));
     });
 
-    test('sends client_id and client_secret', () async {
+    test('sends client id and secret', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok1","expires_in":3600}');
 
@@ -86,7 +86,7 @@ void main() {
       expect(client.lastBody!, contains('write'));
     });
 
-    test('returns Bearer Authorization header', () async {
+    test('returns authorization bearer header', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok-abc","expires_in":3600}');
 
@@ -98,7 +98,7 @@ void main() {
       expect(headers['Authorization'], equals('Bearer tok-abc'));
     });
 
-    test('sends request to correct token URL', () async {
+    test('sends request to token URL', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok1","expires_in":3600}');
 
