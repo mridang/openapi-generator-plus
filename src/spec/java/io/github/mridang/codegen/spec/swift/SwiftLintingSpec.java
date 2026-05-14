@@ -14,7 +14,7 @@ public class SwiftLintingSpec extends AbstractIntegrationSpec implements SwiftSp
 
     @Override
     protected String[] getBuildCommands() {
-        return new String[] {"swift build --build-system swiftbuild"};
+        return new String[] {"swift build"};
     }
 
     @Test
