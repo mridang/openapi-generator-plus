@@ -12,7 +12,7 @@ public final class MachineAuthClientCredentialsAuthenticator: OAuth2ClientCreden
 {
   public init(host: String, clientId: String, clientSecret: String) {
     super.init(
-      host: host, clientId: clientId, clientSecret: clientSecret,
-      tokenUrl: "https://auth.example.com/oauth/token", scopes: ["pets:read", "pets:write"])
+      host: host, clientID: clientId, clientSecret: clientSecret,
+      tokenURL: "https://auth.example.com/oauth/token", scopes: ["pets:read", "pets:write"])
   }
 }

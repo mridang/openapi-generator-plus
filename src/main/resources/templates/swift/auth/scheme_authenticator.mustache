@@ -5,7 +5,7 @@ import {{{.}}}
 {{/imports}}
 
 public final class {{className}}: {{baseClass}}, @unchecked Sendable {
-    public init({{{constructorSignature}}}) {
+    {{#needsOverride}}override {{/needsOverride}}public init({{{constructorSignature}}}) {
         super.init({{{superCall}}})
     }
 }

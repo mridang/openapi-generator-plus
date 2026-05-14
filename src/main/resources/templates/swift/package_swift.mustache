@@ -5,16 +5,16 @@ import PackageDescription
 let package = Package(
     name: "{{packageName}}",
     platforms: [
-        .macOS(.v13),
-        .iOS(.v16),
-        .tvOS(.v16),
-        .watchOS(.v9)
+        .macOS(.v14)
     ],
     products: [
         .library(
             name: "{{packageName}}",
             targets: ["{{packageName}}"]
         )
+    ],
+    dependencies: [
+        .package(url: "https://github.com/mridang/testcontainers-swift", from: "1.0.5")
     ],
     targets: [
         .target(
@@ -23,8 +23,13 @@ let package = Package(
         ),
         .testTarget(
             name: "{{packageName}}Tests",
-            dependencies: ["{{packageName}}"],
-            path: "Tests"
+            dependencies: [
+                "{{packageName}}",
+                .product(name: "TestcontainersCore", package: "testcontainers-swift")
+            ],
+            path: "Tests",
+            exclude: ["Fixtures", "Spec"]
         )
-    ]
+    ],
+    swiftLanguageModes: [.v5]
 )

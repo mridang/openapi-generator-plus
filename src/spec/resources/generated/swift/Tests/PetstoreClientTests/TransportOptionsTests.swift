@@ -43,7 +43,7 @@ final class TransportOptionsTests: XCTestCase {
 
   func testUserAgentDefaultsToNonEmptyString() {
     let opts = TransportOptionsBuilder().build()
-    XCTAssertFalse(opts.userAgent.isEmpty)
+    XCTAssertFalse(opts.userAgent?.isEmpty ?? true)
   }
 
   func testDefaultHeadersDefaultsToEmpty() {
@@ -56,8 +56,8 @@ final class TransportOptionsTests: XCTestCase {
     XCTAssertFalse(opts.injectRequestID)
   }
 
-  func testBuilderSetsAllFields() {
-    let opts = TransportOptionsBuilder()
+  func testBuilderSetsAllFields() throws {
+    let opts = try TransportOptionsBuilder()
       .verifySSL(false)
       .caCertPath("/path/to/ca.pem")
       .proxy("http://proxy.example.com:8080")

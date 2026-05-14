@@ -13,9 +13,8 @@ public final class LegacyAuthPasswordAuthenticator: OAuth2PasswordAuthenticator,
     host: String, clientId: String, clientSecret: String, username: String, password: String
   ) {
     super.init(
-      host: host, clientId: clientId, clientSecret: clientSecret,
-      tokenUrl: "https://auth.example.com/oauth/token",
-      refreshUrl: "https://auth.example.com/oauth/refresh", username: username, password: password,
-      scopes: ["read"])
+      host: host, clientID: clientId, clientSecret: clientSecret,
+      tokenURL: "https://auth.example.com/oauth/token", username: username, password: password,
+      scopes: ["read"], refreshURL: "https://auth.example.com/oauth/refresh")
   }
 }

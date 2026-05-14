@@ -36,7 +36,7 @@ final class ClientTests: XCTestCase {
   func testApiGroupsAreAccessible() {
     let client = Client(authenticator: authenticator)
 
-    XCTAssertNotNil(client.petApi)
-    XCTAssertNotNil(client.storeApi)
+    XCTAssertNotNil(client.pet)
+    XCTAssertNotNil(client.store)
   }
 }

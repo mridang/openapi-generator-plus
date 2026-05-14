@@ -30,7 +30,7 @@ open class BaseApi {
     }
 
     /// Dispatches an API request and returns the raw response.
-    func invokeAPI(_ params: InvokeAPIParams) async throws -> ApiResponse {
+    func invokeAPI(_ params: InvokeAPIParams) async throws -> HttpResponse {
         var requestURL = params.path
         if !requestURL.hasPrefix("http://") && !requestURL.hasPrefix("https://") {
             requestURL = config.baseURL + params.path
@@ -251,7 +251,7 @@ open class BaseApi {
         }
     }
 
-    static func throwAPIError(_ response: ApiResponse) -> ApiError {
+    static func throwAPIError(_ response: HttpResponse) -> ApiError {
         let code = response.statusCode
         let msg = "API returned status code \(code)"
         let body = response.body

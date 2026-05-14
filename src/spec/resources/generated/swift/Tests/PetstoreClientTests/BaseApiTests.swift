@@ -46,13 +46,13 @@ final class BaseApiTests: XCTestCase {
     var responseHeaders: [String: String] = ["Content-Type": "application/json"]
 
     func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
-      async throws -> ApiResponse
+      async throws -> HttpResponse
     {
       lastMethod = method
       lastURL = url
       lastHeaders = headers
-      lastBody = body
-      return ApiResponse(
+      lastBody = body as? Data
+      return HttpResponse(
         statusCode: responseStatusCode,
         body: responseBody,
         headers: responseHeaders
@@ -354,7 +354,7 @@ final class BaseApiTests: XCTestCase {
     let api = PetApi(apiClient: mockClient, config: config)
 
     let pet = Pet(name: "TestPet", photoUrls: [])
-    _ = try? await api.addPet(pet: pet)
+    _ = try? await api.addPet(auth: MockAuth(), pet: pet)
     XCTAssertNotNil(mockClient.lastBody, "Expected body to be captured")
     if let body = mockClient.lastBody {
       let bodyStr = String(data: body, encoding: .utf8) ?? ""
@@ -365,7 +365,7 @@ final class BaseApiTests: XCTestCase {
   func testSerializeBodyTextPlain() {
     let result = try? BaseApi.serializeBody("hello world", contentType: "text/plain")
     XCTAssertNotNil(result)
-    if let data = result! {
+    if let data = result {
       let str = String(data: data, encoding: .utf8)
       XCTAssertEqual(str, "hello world")
     }
@@ -380,8 +380,7 @@ final class BaseApiTests: XCTestCase {
 
   func testSerializeBodyNil() {
     let result = try? BaseApi.serializeBody(nil, contentType: "application/json")
-    XCTAssertNotNil(result)  // Result is not nil, the inner value is nil
-    XCTAssertNil(result!)
+    XCTAssertNil(result)  // nil body serializes to nil
   }
 
   func testSerializeBodyFormUrlencoded() {
@@ -390,7 +389,7 @@ final class BaseApiTests: XCTestCase {
     let result = try? BaseApi.serializeBody(
       jsonData, contentType: "application/x-www-form-urlencoded")
     XCTAssertNotNil(result)
-    if let data = result! {
+    if let data = result {
       let str = String(data: data, encoding: .utf8)
       XCTAssertNotNil(str)
       XCTAssertTrue(str!.contains("name=alice"))
@@ -541,18 +540,19 @@ final class BaseApiTests: XCTestCase {
 
   func testExpandsArrayQueryParams() async throws {
     let mockClient = MockApiClient()
-    mockClient.responseBody = "[]"
+    mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
 
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
 
-    _ = try? await api.findPetsByTags(tags: ["a", "b"])
+    let opts = GetPetTagOptions(colors: ["red", "blue"])
+    _ = try? await api.getPetTag(petId: 1, tagName: "tag1", options: opts)
     XCTAssertTrue(
-      mockClient.lastURL.contains("tags=a"),
-      "expected URL to contain tags=a, got: \(mockClient.lastURL)")
+      mockClient.lastURL.contains("colors=red"),
+      "expected URL to contain colors=red, got: \(mockClient.lastURL)")
     XCTAssertTrue(
-      mockClient.lastURL.contains("tags=b"),
-      "expected URL to contain tags=b, got: \(mockClient.lastURL)")
+      mockClient.lastURL.contains("colors=blue"),
+      "expected URL to contain colors=blue, got: \(mockClient.lastURL)")
   }
 
   func testSerializesBooleanQueryParams() async throws {

@@ -8,7 +8,7 @@
 import Foundation
 
 public final class PetStoreBearerAuthenticator: BearerAuthenticator, @unchecked Sendable {
-  public init(host: String, token: String) {
+  override public init(host: String, token: String) {
     super.init(host: host, token: token)
   }
 }

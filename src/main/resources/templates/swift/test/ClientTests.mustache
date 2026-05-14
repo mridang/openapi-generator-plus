@@ -32,7 +32,7 @@ final class ClientTests: XCTestCase {
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
-        XCTAssertNotNil(client.{{#lambda.camelcase}}{{classname}}{{/lambda.camelcase}})
+        XCTAssertNotNil(client.{{clientPropertyName}})
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}

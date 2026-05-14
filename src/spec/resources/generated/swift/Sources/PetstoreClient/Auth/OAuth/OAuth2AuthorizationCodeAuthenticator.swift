@@ -18,7 +18,7 @@ import Foundation
 ///  2. Redirect the user to that URL
 ///  3. After the callback, call ``exchangeCode(_:)`` with the auth code
 ///  4. Use the authenticator normally -- tokens are managed automatically
-public final class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareAuthenticator,
+public class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareAuthenticator,
   @unchecked Sendable
 {
   private let _host: String

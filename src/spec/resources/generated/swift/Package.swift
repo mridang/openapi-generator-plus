@@ -5,16 +5,16 @@ import PackageDescription
 let package = Package(
     name: "PetstoreClient",
     platforms: [
-        .macOS(.v13),
-        .iOS(.v16),
-        .tvOS(.v16),
-        .watchOS(.v9)
+        .macOS(.v14)
     ],
     products: [
         .library(
             name: "PetstoreClient",
             targets: ["PetstoreClient"]
         )
+    ],
+    dependencies: [
+        .package(url: "https://github.com/mridang/testcontainers-swift", from: "1.0.5")
     ],
     targets: [
         .target(
@@ -23,8 +23,13 @@ let package = Package(
         ),
         .testTarget(
             name: "PetstoreClientTests",
-            dependencies: ["PetstoreClient"],
-            path: "Tests"
+            dependencies: [
+                "PetstoreClient",
+                .product(name: "TestcontainersCore", package: "testcontainers-swift")
+            ],
+            path: "Tests",
+            exclude: ["Fixtures", "Spec"]
         )
-    ]
+    ],
+    swiftLanguageModes: [.v5]
 )

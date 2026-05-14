@@ -10,7 +10,7 @@ import Foundation
 public final class SsoAuthAuthenticator: OpenIdConnectAuthenticator, @unchecked Sendable {
   public init(host: String, clientId: String, clientSecret: String, redirectUri: String) {
     super.init(
-      host: host, discoveryUrl: "https://auth.example.com/.well-known/openid-configuration",
-      clientId: clientId, clientSecret: clientSecret, redirectUri: redirectUri, scopes: [])
+      host: host, openIDConnectURL: "https://auth.example.com/.well-known/openid-configuration",
+      clientID: clientId, clientSecret: clientSecret, redirectURI: redirectUri, scopes: [])
   }
 }

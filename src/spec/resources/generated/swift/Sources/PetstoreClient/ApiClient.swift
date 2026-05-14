@@ -18,8 +18,8 @@ public protocol ApiClient: Sendable {
   ///   - headers: Caller-provided headers
   ///   - body: Request body as `Data`, `[String: Any]` for multipart
   ///     form data, or `nil`
-  /// - Returns: An ``ApiResponse`` with status code, body, and headers.
+  /// - Returns: An ``HttpResponse`` with status code, body, and headers.
   /// - Throws: An error if the request fails at the transport level.
   func sendRequest(method: String, url: String, headers: [String: String], body: Any?) async throws
-    -> ApiResponse
+    -> HttpResponse
 }

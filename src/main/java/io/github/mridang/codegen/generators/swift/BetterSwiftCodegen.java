@@ -312,7 +312,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                 new SupportingFile(
                         "trace_context_util.mustache", srcDir, "TraceContextUtil.swift"));
         supportingFiles.add(
-                new SupportingFile("api_response.mustache", srcDir, "ApiResponse.swift"));
+                new SupportingFile("api_response.mustache", srcDir, "HTTPApiResponse.swift"));
         supportingFiles.add(
                 new SupportingFile("api_result.mustache", srcDir, "ApiResult.swift"));
         supportingFiles.add(
@@ -341,6 +341,11 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         if (generateTests) {
             final String testDir = Path.of("Tests", packageName + "Tests").toString();
             supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/TestContainersHelper.mustache",
+                            testDir,
+                            "TestContainersHelper.swift"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/api/PetApiTests.mustache", testDir, "PetApiTests.swift"));
@@ -655,13 +660,15 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                 return renderSwiftSchemeAuth(schemeName, className + "Authenticator",
                         "BasicAuthenticator", List.of(),
                         "host: String, username: String, password: String",
-                        "host: host, username: username, password: password");
+                        "host: host, username: username, password: password",
+                        true);
             }
             if ("bearer".equalsIgnoreCase(scheme.getScheme())) {
                 return renderSwiftSchemeAuth(schemeName, className + "Authenticator",
                         "BearerAuthenticator", List.of(),
                         "host: String, token: String",
-                        "host: host, token: token");
+                        "host: host, token: token",
+                        true);
             }
         } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
             final String location =
@@ -671,7 +678,8 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                     "ApiKeyAuthenticator", List.of(),
                     "host: String, apiKey: String",
                     "host: host, keyParamName: \"" + paramName + "\", apiKey: apiKey, "
-                            + "location: " + location);
+                            + "location: " + location,
+                    false);
         } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
                 && scheme.getFlows() != null) {
             return generateSwiftOAuthClass(schemeName, className, scheme);
@@ -680,8 +688,9 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             return renderSwiftSchemeAuth(schemeName, className + "Authenticator",
                     "OpenIdConnectAuthenticator", List.of(),
                     "host: String, clientId: String, clientSecret: String, redirectUri: String",
-                    "host: host, discoveryUrl: \"" + url + "\", clientId: clientId, "
-                            + "clientSecret: clientSecret, redirectUri: redirectUri, scopes: []");
+                    "host: host, openIDConnectURL: \"" + url + "\", clientID: clientId, "
+                            + "clientSecret: clientSecret, redirectURI: redirectUri, scopes: []",
+                    false);
         }
         LOGGER.warn("Unsupported security scheme type: {}", scheme.getType());
         return "";
@@ -697,39 +706,45 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                     className + "ClientCredentialsAuthenticator",
                     "OAuth2ClientCredentialsAuthenticator", List.of(),
                     "host: String, clientId: String, clientSecret: String",
-                    "host: host, clientId: clientId, clientSecret: clientSecret, "
-                            + "tokenUrl: \"" + tokenUrl + "\", scopes: " + scopes);
+                    "host: host, clientID: clientId, clientSecret: clientSecret, "
+                            + "tokenURL: \"" + tokenUrl + "\", scopes: " + scopes,
+                    false);
         }
         if (scheme.getFlows().getPassword() != null) {
             final var flow = scheme.getFlows().getPassword();
             final String tokenUrl = flow.getTokenUrl();
             final String refreshUrl = flow.getRefreshUrl();
-            final String refreshUrlArg = refreshUrl != null ? "\"" + refreshUrl + "\"" : "nil";
             final String scopes = formatSwiftScopes(flow.getScopes());
+            final String refreshArg = refreshUrl != null
+                    ? ", refreshURL: \"" + refreshUrl + "\""
+                    : "";
             return renderSwiftSchemeAuth(schemeName,
                     className + "PasswordAuthenticator",
                     "OAuth2PasswordAuthenticator", List.of(),
                     "host: String, clientId: String, clientSecret: String, "
                             + "username: String, password: String",
-                    "host: host, clientId: clientId, clientSecret: clientSecret, "
-                            + "tokenUrl: \"" + tokenUrl + "\", refreshUrl: " + refreshUrlArg + ", "
-                            + "username: username, password: password, scopes: " + scopes);
+                    "host: host, clientID: clientId, clientSecret: clientSecret, "
+                            + "tokenURL: \"" + tokenUrl + "\", username: username, "
+                            + "password: password, scopes: " + scopes + refreshArg,
+                    false);
         }
         if (scheme.getFlows().getAuthorizationCode() != null) {
             final var flow = scheme.getFlows().getAuthorizationCode();
             final String authUrl = flow.getAuthorizationUrl();
             final String tokenUrl = flow.getTokenUrl();
             final String refreshUrl = flow.getRefreshUrl();
-            final String refreshUrlArg = refreshUrl != null ? "\"" + refreshUrl + "\"" : "nil";
             final String scopes = formatSwiftScopes(flow.getScopes());
+            final String refreshArg = refreshUrl != null
+                    ? ", refreshURL: \"" + refreshUrl + "\""
+                    : "";
             return renderSwiftSchemeAuth(schemeName,
                     className + "AuthorizationCodeAuthenticator",
                     "OAuth2AuthorizationCodeAuthenticator", List.of(),
                     "host: String, clientId: String, clientSecret: String, redirectUri: String",
-                    "host: host, clientId: clientId, clientSecret: clientSecret, "
-                            + "authorizationUrl: \"" + authUrl + "\", tokenUrl: \"" + tokenUrl + "\", "
-                            + "redirectUri: redirectUri, scopes: " + scopes + ", "
-                            + "refreshUrl: " + refreshUrlArg);
+                    "host: host, clientID: clientId, clientSecret: clientSecret, "
+                            + "authorizationURL: \"" + authUrl + "\", tokenURL: \"" + tokenUrl + "\", "
+                            + "redirectURI: redirectUri, scopes: " + scopes + refreshArg,
+                    false);
         }
         if (scheme.getFlows().getImplicit() != null) {
             final var flow = scheme.getFlows().getImplicit();
@@ -739,8 +754,9 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                     className + "ImplicitAuthenticator",
                     "OAuth2ImplicitAuthenticator", List.of(),
                     "host: String, clientId: String",
-                    "host: host, clientId: clientId, authorizationUrl: \""
-                            + authUrl + "\", scopes: " + scopes);
+                    "host: host, clientID: clientId, authorizationURL: \""
+                            + authUrl + "\", scopes: " + scopes,
+                    false);
         }
         LOGGER.warn("Unsupported OAuth2 flow for scheme: {}", className);
         return "";
@@ -755,7 +771,8 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
     }
 
     private String renderSwiftSchemeAuth(String schemeName, String className, String baseClass,
-            List<String> imports, String constructorSignature, String superCall) {
+            List<String> imports, String constructorSignature, String superCall,
+            boolean needsOverride) {
         final Map<String, Object> context = new HashMap<>();
         context.put("schemeName", schemeName);
         context.put("className", className);
@@ -763,6 +780,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         context.put("imports", imports);
         context.put("constructorSignature", constructorSignature);
         context.put("superCall", superCall);
+        context.put("needsOverride", needsOverride);
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", context);
     }
 

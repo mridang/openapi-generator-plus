@@ -8,7 +8,7 @@
 import Foundation
 
 /// BearerAuthenticator provides HTTP Bearer token authentication.
-public final class BearerAuthenticator: BaseAuthenticator, @unchecked Sendable {
+public class BearerAuthenticator: BaseAuthenticator, @unchecked Sendable {
   private let _host: String
   private let token: String
 

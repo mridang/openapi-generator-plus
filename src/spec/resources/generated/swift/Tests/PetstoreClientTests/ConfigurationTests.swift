@@ -61,7 +61,7 @@ final class ConfigurationTests: XCTestCase {
     XCTAssertEqual(config.defaultHeaders["Authorization"], "Bearer token")
   }
 
-  func testServerURLResolution() {
+  func testServerURLResolution() throws {
     let server = ServerConfiguration(
       urlTemplate: "https://{env}.example.com/api/{version}",
       description: "Test server",
@@ -77,14 +77,14 @@ final class ConfigurationTests: XCTestCase {
       ]
     )
 
-    let config = ConfigurationBuilder()
+    let config = try ConfigurationBuilder()
       .server(server, variables: ["env": "staging"])
       .build()
 
     XCTAssertEqual(config.baseURL, "https://staging.example.com/api/v3")
   }
 
-  func testServerURLResolutionWithDefaults() {
+  func testServerURLResolutionWithDefaults() throws {
     let server = ServerConfiguration(
       urlTemplate: "https://{env}.example.com/api/{version}",
       description: "Test server",
@@ -100,7 +100,7 @@ final class ConfigurationTests: XCTestCase {
       ]
     )
 
-    let config = ConfigurationBuilder()
+    let config = try ConfigurationBuilder()
       .server(server)
       .build()
 

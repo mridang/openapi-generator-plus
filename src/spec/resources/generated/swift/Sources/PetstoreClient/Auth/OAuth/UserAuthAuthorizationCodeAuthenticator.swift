@@ -12,9 +12,9 @@ public final class UserAuthAuthorizationCodeAuthenticator: OAuth2AuthorizationCo
 {
   public init(host: String, clientId: String, clientSecret: String, redirectUri: String) {
     super.init(
-      host: host, clientId: clientId, clientSecret: clientSecret,
-      authorizationUrl: "https://auth.example.com/authorize",
-      tokenUrl: "https://auth.example.com/oauth/token", redirectUri: redirectUri,
-      scopes: ["pets:read", "pets:write"], refreshUrl: "https://auth.example.com/oauth/refresh")
+      host: host, clientID: clientId, clientSecret: clientSecret,
+      authorizationURL: "https://auth.example.com/authorize",
+      tokenURL: "https://auth.example.com/oauth/token", redirectURI: redirectUri,
+      scopes: ["pets:read", "pets:write"], refreshURL: "https://auth.example.com/oauth/refresh")
   }
 }

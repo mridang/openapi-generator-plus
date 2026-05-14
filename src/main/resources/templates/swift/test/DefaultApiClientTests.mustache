@@ -1,4 +1,5 @@
 {{>api_info}}
+#if !os(Linux)
 import XCTest
 @testable import {{packageName}}
 
@@ -255,3 +256,4 @@ private final class StubURLProtocol: URLProtocol {
 
     override func stopLoading() {}
 }
+#endif

@@ -26,58 +26,60 @@ public final class OAuth2TokenManager: @unchecked Sendable {
 
   /// Injects the shared ``ApiClient`` for making token requests.
   public func setApiClient(_ client: ApiClient) {
-    lock.lock()
-    defer { lock.unlock() }
-    self.apiClient = client
+    lock.withLock {
+      self.apiClient = client
+    }
   }
 
   /// Returns the current refresh token, if any.
   public var refreshToken: String {
-    lock.lock()
-    defer { lock.unlock() }
-    return _refreshToken
+    lock.withLock {
+      return _refreshToken
+    }
   }
 
   /// Returns a valid access token, fetching or refreshing as necessary.
   ///
   /// This method is synchronized to prevent concurrent token requests.
   public func getAccessToken(tokenURL: String, params: [String: String]) async throws -> String {
-    lock.lock()
-    if !accessToken.isEmpty && Date() < tokenExpiry {
-      let token = accessToken
-      lock.unlock()
-      return token
+    let cached: String? = lock.withLock {
+      if !accessToken.isEmpty && Date() < tokenExpiry {
+        return accessToken
+      }
+      return nil
     }
-    lock.unlock()
+    if let cached = cached {
+      return cached
+    }
 
     try await fetchToken(tokenURL: tokenURL, params: params)
 
-    lock.lock()
-    defer { lock.unlock() }
-    return accessToken
+    return lock.withLock {
+      return accessToken
+    }
   }
 
   /// Manually sets an access token, bypassing the token endpoint.
   public func setAccessToken(_ token: String) {
-    lock.lock()
-    defer { lock.unlock() }
-    self.accessToken = token
-    self.tokenExpiry = .distantFuture
+    lock.withLock {
+      self.accessToken = token
+      self.tokenExpiry = .distantFuture
+    }
   }
 
   private func fetchToken(tokenURL: String, params: [String: String]) async throws {
-    lock.lock()
-    guard let client = apiClient else {
-      lock.unlock()
-      throw NSError(
-        domain: "OAuth2TokenManager", code: -1,
-        userInfo: [
-          NSLocalizedDescriptionKey: "ApiClient has not been injected. "
-            + "Ensure the Client constructor calls setApiClient "
-            + "on HttpAwareAuthenticator before making API requests"
-        ])
+    let client: ApiClient = try lock.withLock {
+      guard let client = apiClient else {
+        throw NSError(
+          domain: "OAuth2TokenManager", code: -1,
+          userInfo: [
+            NSLocalizedDescriptionKey: "ApiClient has not been injected. "
+              + "Ensure the Client constructor calls setApiClient "
+              + "on HttpAwareAuthenticator before making API requests"
+          ])
+      }
+      return client
     }
-    lock.unlock()
 
     let body = params.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
     let bodyData = body.data(using: .utf8)
@@ -106,17 +108,17 @@ public final class OAuth2TokenManager: @unchecked Sendable {
 
     let parsed = try JSONDecoder().decode(TokenResponse.self, from: data)
 
-    lock.lock()
-    defer { lock.unlock() }
-    self.accessToken = parsed.access_token
-    if let refreshToken = parsed.refresh_token, !refreshToken.isEmpty {
-      self._refreshToken = refreshToken
-    }
-    if let expiresIn = parsed.expires_in {
-      if expiresIn > 30 {
-        self.tokenExpiry = Date().addingTimeInterval(TimeInterval(expiresIn - 30))
-      } else {
-        self.tokenExpiry = Date()
+    lock.withLock {
+      self.accessToken = parsed.access_token
+      if let refreshToken = parsed.refresh_token, !refreshToken.isEmpty {
+        self._refreshToken = refreshToken
+      }
+      if let expiresIn = parsed.expires_in {
+        if expiresIn > 30 {
+          self.tokenExpiry = Date().addingTimeInterval(TimeInterval(expiresIn - 30))
+        } else {
+          self.tokenExpiry = Date()
+        }
       }
     }
   }

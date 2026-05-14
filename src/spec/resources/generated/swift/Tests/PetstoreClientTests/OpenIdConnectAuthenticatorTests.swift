@@ -14,25 +14,25 @@ final class OpenIdConnectAuthenticatorTests: XCTestCase {
   // MARK: - Mock ApiClient
 
   private final class MockApiClient: ApiClient, @unchecked Sendable {
-    var responses: [ApiResponse] = []
+    var responses: [HttpResponse] = []
     var lastMethod: String = ""
     var lastURL: String = ""
     var lastHeaders: [String: String] = [:]
     var lastBody: Data? = nil
 
     func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
-      async throws -> ApiResponse
+      async throws -> HttpResponse
     {
       lastMethod = method
       lastURL = url
       lastHeaders = headers
-      lastBody = body
+      lastBody = body as? Data
       return responses.removeFirst()
     }
   }
 
-  private func makeResponse(body: String, statusCode: Int = 200) -> ApiResponse {
-    return ApiResponse(statusCode: statusCode, body: body, headers: [:])
+  private func makeResponse(body: String, statusCode: Int = 200) -> HttpResponse {
+    return HttpResponse(statusCode: statusCode, body: body, headers: [:])
   }
 
   private func createAuthenticator() -> OpenIdConnectAuthenticator {
@@ -52,7 +52,7 @@ final class OpenIdConnectAuthenticatorTests: XCTestCase {
 
   // MARK: - Tests
 
-  func testBuildsAuthorizationUrlFromDiscovery() async throws {
+  func testBuildsAuthorizationURLFromDiscovery() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: Self.discoveryJSON))
 

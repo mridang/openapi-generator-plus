@@ -12,7 +12,7 @@ public final class BrowserAuthImplicitAuthenticator: OAuth2ImplicitAuthenticator
 {
   public init(host: String, clientId: String) {
     super.init(
-      host: host, clientId: clientId, authorizationUrl: "https://auth.example.com/authorize",
+      host: host, clientID: clientId, authorizationURL: "https://auth.example.com/authorize",
       scopes: ["read"])
   }
 }

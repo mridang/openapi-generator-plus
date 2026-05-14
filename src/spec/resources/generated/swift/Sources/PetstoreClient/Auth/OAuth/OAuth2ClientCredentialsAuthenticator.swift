@@ -12,7 +12,7 @@ import Foundation
 /// Conforms to ``HttpAwareAuthenticator`` so that token exchange requests use the
 /// shared ``ApiClient`` with the same transport configuration (proxy, TLS, timeouts)
 /// as regular API calls.
-public final class OAuth2ClientCredentialsAuthenticator: BaseAuthenticator, HttpAwareAuthenticator,
+public class OAuth2ClientCredentialsAuthenticator: BaseAuthenticator, HttpAwareAuthenticator,
   @unchecked Sendable
 {
   private let _host: String

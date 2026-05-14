@@ -12,7 +12,7 @@ import Foundation
 ///  2. Redirect the user to that URL
 ///  3. Extract the access token from the fragment and call ``setAccessToken(_:)``
 ///  4. Use the authenticator normally
-public final class OAuth2ImplicitAuthenticator: BaseAuthenticator, HttpAwareAuthenticator, @unchecked Sendable {
+public class OAuth2ImplicitAuthenticator: BaseAuthenticator, HttpAwareAuthenticator, @unchecked Sendable {
     private let _host: String
     private let clientID: String
     private let authorizationURL: String

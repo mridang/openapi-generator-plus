@@ -15,7 +15,7 @@ import Foundation
 /// Conforms to ``HttpAwareAuthenticator`` so that both the discovery request and
 /// subsequent token exchange requests use the shared ``ApiClient`` with the same
 /// transport configuration (proxy, TLS, timeouts) as regular API calls.
-public final class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticator, @unchecked
+public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticator, @unchecked
   Sendable
 {
   private let _host: String
@@ -53,9 +53,9 @@ public final class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthe
 
   /// Injects the shared ``ApiClient`` for making discovery and token requests.
   public func setApiClient(_ client: ApiClient) {
-    lock.lock()
-    defer { lock.unlock() }
-    self.apiClient = client
+    lock.withLock {
+      self.apiClient = client
+    }
   }
 
   /// Builds the authorization URL using the discovered authorization endpoint.
@@ -87,23 +87,25 @@ public final class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthe
   /// Lazily resolves the delegate by fetching the OIDC discovery document
   /// using the injected ``ApiClient``.
   private func resolveDelegate() async throws -> OAuth2AuthorizationCodeAuthenticator {
-    lock.lock()
-    if let existing = delegate {
-      lock.unlock()
+    let existing: OAuth2AuthorizationCodeAuthenticator? = lock.withLock {
+      return delegate
+    }
+    if let existing = existing {
       return existing
     }
 
-    guard let client = apiClient else {
-      lock.unlock()
-      throw NSError(
-        domain: "OpenIdConnectAuthenticator", code: -1,
-        userInfo: [
-          NSLocalizedDescriptionKey: "ApiClient has not been injected. "
-            + "Ensure the Client constructor calls setApiClient "
-            + "on HttpAwareAuthenticator before making API requests"
-        ])
+    let client: ApiClient = try lock.withLock {
+      guard let client = apiClient else {
+        throw NSError(
+          domain: "OpenIdConnectAuthenticator", code: -1,
+          userInfo: [
+            NSLocalizedDescriptionKey: "ApiClient has not been injected. "
+              + "Ensure the Client constructor calls setApiClient "
+              + "on HttpAwareAuthenticator before making API requests"
+          ])
+      }
+      return client
     }
-    lock.unlock()
 
     let headers = ["Accept": "application/json"]
     let response = try await client.sendRequest(
@@ -131,9 +133,9 @@ public final class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthe
     )
     newDelegate.setApiClient(client)
 
-    lock.lock()
-    defer { lock.unlock() }
-    self.delegate = newDelegate
+    lock.withLock {
+      self.delegate = newDelegate
+    }
     return newDelegate
   }
 }
