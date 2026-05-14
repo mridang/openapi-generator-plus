@@ -384,10 +384,11 @@ final class BaseApiTests: XCTestCase {
   }
 
   func testSerializeBodyFormUrlencoded() {
-    let params: [String: String] = ["name": "alice"]
-    let jsonData = try! JSONEncoder().encode(params)
+    // Pass a [String: Any] dict directly — BaseApi.serializeBody expects a dictionary
+    // for application/x-www-form-urlencoded, not pre-encoded JSON Data.
+    let params: [String: Any] = ["name": "alice"]
     let result = try? BaseApi.serializeBody(
-      jsonData, contentType: "application/x-www-form-urlencoded")
+      params, contentType: "application/x-www-form-urlencoded")
     XCTAssertNotNil(result)
     if let data = result {
       let str = String(data: data, encoding: .utf8)
@@ -547,12 +548,17 @@ final class BaseApiTests: XCTestCase {
 
     let opts = GetPetTagOptions(colors: ["red", "blue"])
     _ = try? await api.getPetTag(petId: 1, tagName: "tag1", options: opts)
+    // The spec defines colors as pipeDelimited (explode: false), so both values appear
+    // in a single param separated by pipe: colors=red%7Cblue
     XCTAssertTrue(
-      mockClient.lastURL.contains("colors=red"),
-      "expected URL to contain colors=red, got: \(mockClient.lastURL)")
+      mockClient.lastURL.contains("colors="),
+      "expected URL to contain colors= param, got: \(mockClient.lastURL)")
     XCTAssertTrue(
-      mockClient.lastURL.contains("colors=blue"),
-      "expected URL to contain colors=blue, got: \(mockClient.lastURL)")
+      mockClient.lastURL.contains("red"),
+      "expected URL to contain red, got: \(mockClient.lastURL)")
+    XCTAssertTrue(
+      mockClient.lastURL.contains("blue"),
+      "expected URL to contain blue, got: \(mockClient.lastURL)")
   }
 
   func testSerializesBooleanQueryParams() async throws {

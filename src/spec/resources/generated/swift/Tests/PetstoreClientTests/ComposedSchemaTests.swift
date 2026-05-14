@@ -49,7 +49,8 @@ final class ComposedSchemaTests: XCTestCase {
   // MARK: - anyOf without discriminator: PetTreatment
 
   func testPetTreatmentDeserializeMedication() throws {
-    let jsonData = Data("{\"medicationName\":\"Amoxicillin\",\"dosageMg\":250}".utf8)
+    // Medication schema has fields: drugName (required), dosage (optional)
+    let jsonData = Data("{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\"}".utf8)
 
     let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
     let val = treatment.value()
@@ -65,7 +66,8 @@ final class ComposedSchemaTests: XCTestCase {
   }
 
   func testPetTreatmentSerializeRoundTrip() throws {
-    let jsonData = Data("{\"medicationName\":\"Amoxicillin\",\"dosageMg\":250}".utf8)
+    // Medication schema has fields: drugName (required), dosage (optional)
+    let jsonData = Data("{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\"}".utf8)
 
     let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
 

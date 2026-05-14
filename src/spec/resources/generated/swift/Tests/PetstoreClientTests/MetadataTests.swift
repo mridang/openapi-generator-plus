@@ -22,16 +22,17 @@ final class MetadataTests: XCTestCase {
   }
 
   func testDeserializeFromJSON() throws {
+    // Use ObjectSerializer.deserialize which has the correct ISO-8601 date strategy
     let jsonData = Data("{\"createdAt\":\"2024-01-15T10:30:00+00:00\"}".utf8)
 
-    let metadata = try JSONDecoder().decode(Metadata.self, from: jsonData)
+    let metadata = try ObjectSerializer.deserialize(jsonData, as: Metadata.self)
     XCTAssertNotNil(metadata)
   }
 
   func testDeserializeEmptyObject() throws {
     let jsonData = Data("{}".utf8)
 
-    let metadata = try JSONDecoder().decode(Metadata.self, from: jsonData)
+    let metadata = try ObjectSerializer.deserialize(jsonData, as: Metadata.self)
     XCTAssertNotNil(metadata)
   }
 
@@ -43,16 +44,16 @@ final class MetadataTests: XCTestCase {
       "{\"createdAt\":\"2024-01-15T10:30:00+00:00\",\"customField\":\"customValue\",\"count\":42}"
         .utf8)
 
-    let decoder = JSONDecoder()
-    // Unknown keys should be silently ignored by default in Swift Codable
-    let metadata = try decoder.decode(Metadata.self, from: jsonData)
+    // Use ObjectSerializer which silently ignores unknown keys via AnyCodable
+    let metadata = try ObjectSerializer.deserialize(jsonData, as: Metadata.self)
     XCTAssertNotNil(metadata)
   }
 
   func testRoundTrip() throws {
+    // Use ObjectSerializer for consistent date encoding/decoding
     let jsonData = Data("{\"createdAt\":\"2024-01-15T10:30:00+00:00\"}".utf8)
 
-    let metadata = try JSONDecoder().decode(Metadata.self, from: jsonData)
+    let metadata = try ObjectSerializer.deserialize(jsonData, as: Metadata.self)
 
     let data = try JSONEncoder().encode(metadata)
     XCTAssertFalse(data.isEmpty)

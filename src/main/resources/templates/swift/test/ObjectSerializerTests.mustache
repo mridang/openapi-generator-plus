@@ -183,7 +183,7 @@ final class ObjectSerializerTests: XCTestCase {
     func testStringifyDate() {
         let date = Date(timeIntervalSince1970: 1705315800)
         let result = ObjectSerializer.stringify(date)
-        XCTAssertEqual(result, "2024-01-15T10:30:00+00:00")
+        XCTAssertEqual(result, "2024-01-15T10:50:00+00:00")
     }
 
     func testStringifyNil() {
