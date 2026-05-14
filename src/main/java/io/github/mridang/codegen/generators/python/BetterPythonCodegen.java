@@ -708,14 +708,23 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
     }
 
+    /**
+     * Maps base-class names whose snake_case derivation would be wrong (OAuth2* → o_auth2_*,
+     * OpenIdConnect* → open_id_connect_*) to the actual module filenames used in the templates.
+     */
+    private static final Map<String, String> PYTHON_MODULE_LOOKUP = Map.of(
+            "OAuth2TokenManager",                     "oauth2_token_manager",
+            "OAuth2ClientCredentialsAuthenticator",   "oauth2_client_credentials_authenticator",
+            "OAuth2PasswordAuthenticator",            "oauth2_password_authenticator",
+            "OAuth2AuthorizationCodeAuthenticator",   "oauth2_auth_code_authenticator",
+            "OAuth2ImplicitAuthenticator",            "oauth2_implicit_authenticator",
+            "OpenIdConnectAuthenticator",             "openid_connect_authenticator"
+    );
+
     private static List<Map<String, String>> buildPythonImports(SchemeAuthSpec spec) {
         final String bc = spec.baseClass();
-        // oauth2_auth_code_authenticator.py has a shortened name that doesn't match
-        // the full PascalCase class name converted to snake_case directly.
-        final String moduleFile =
-                "OAuth2AuthorizationCodeAuthenticator".equals(bc)
-                        ? ".oauth2_auth_code_authenticator"
-                        : "." + NamingConvention.SNAKE_CASE.apply(bc);
+        final String stem = PYTHON_MODULE_LOOKUP.getOrDefault(bc, NamingConvention.SNAKE_CASE.apply(bc));
+        final String moduleFile = "." + stem;
         final List<Map<String, String>> imports = new ArrayList<>();
         final Map<String, String> imp = new HashMap<>();
         imp.put("module", moduleFile);
