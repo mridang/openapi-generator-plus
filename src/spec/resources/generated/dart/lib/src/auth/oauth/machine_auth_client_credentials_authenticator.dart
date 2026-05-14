@@ -15,6 +15,6 @@ class MachineAuthClientCredentialsAuthenticator
     required super.clientSecret,
   }) : super(
           tokenUrl: 'https://auth.example.com/oauth/token',
-          scopes: ['pets:read', 'pets:write'],
+          scopes: ['pets:write', 'pets:read'],
         );
 }

@@ -9,6 +9,6 @@ import { OAuth2ClientCredentialsAuthenticator } from './oauth2-client-credential
 
 export class MachineAuthClientCredentialsAuthenticator extends OAuth2ClientCredentialsAuthenticator {
   constructor(host: string, clientId: string, clientSecret: string) {
-    super(host, clientId, clientSecret, 'https://auth.example.com/oauth/token', ['pets:read', 'pets:write']);
+    super(host, clientId, clientSecret, 'https://auth.example.com/oauth/token', ['pets:write', 'pets:read']);
   }
 }

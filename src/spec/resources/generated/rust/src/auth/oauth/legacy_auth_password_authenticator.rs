@@ -7,7 +7,7 @@ pub struct LegacyAuthPasswordAuthenticator(OAuth2PasswordAuthenticator);
 impl LegacyAuthPasswordAuthenticator {
     /// Creates a new `LegacyAuthPasswordAuthenticator`.
     pub fn new(host: &str, client_id: &str, client_secret: &str, username: &str, password: &str) -> Self {
-        Self(OAuth2PasswordAuthenticator::new(host, client_id, client_secret, "https://auth.example.com/oauth/token", Some("https://auth.example.com/oauth/refresh"), username, password, &[]))
+        Self(OAuth2PasswordAuthenticator::new(host, client_id, client_secret, "https://auth.example.com/oauth/token", username, password, vec![], "https://auth.example.com/oauth/refresh"))
     }
 }
 

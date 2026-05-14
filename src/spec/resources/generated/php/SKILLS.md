@@ -58,7 +58,6 @@ $authenticator = new OAuth2ClientCredentialsAuthenticator(
 $client = new Client($authenticator);
 ```
 
-
 ## Error Handling
 
 All API errors extend `ApiError`. The exception hierarchy is:

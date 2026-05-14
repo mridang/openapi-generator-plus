@@ -56,7 +56,6 @@ let authenticator = OAuth2ClientCredentialsAuthenticator(
 let client = Client(authenticator: authenticator)
 ```
 
-
 ## Error Handling
 
 All API errors conform to the `Error` protocol. The error hierarchy is:

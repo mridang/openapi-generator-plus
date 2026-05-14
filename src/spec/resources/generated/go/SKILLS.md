@@ -51,7 +51,6 @@ authenticator := oauth.NewOAuth2ClientCredentialsAuthenticator(
 client := petstore.NewClient(authenticator, nil)
 ```
 
-
 ## Error Handling
 
 All API errors implement the error interface. The error hierarchy is:

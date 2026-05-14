@@ -60,7 +60,6 @@ let authenticator = OAuth2ClientCredentialsAuthenticator::new(
 let client = Client::new(Box::new(authenticator), None);
 ```
 
-
 ## Error Handling
 
 All API errors are represented by the `ApiError` enum. The error hierarchy is:

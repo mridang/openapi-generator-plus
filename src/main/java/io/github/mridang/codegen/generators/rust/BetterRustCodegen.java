@@ -1,10 +1,12 @@
 package io.github.mridang.codegen.generators.rust;
 
 import com.samskivert.mustache.Mustache;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
+import io.github.mridang.codegen.generators.BarrelFileEmitter;
 import io.github.mridang.codegen.generators.NamingConvention;
 import io.swagger.v3.oas.models.media.Schema;
-import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -17,7 +19,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -43,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * inside Docker to enforce canonical Rust formatting.
  */
 @SuppressWarnings("unused")
-public class BetterRustCodegen extends AbstractBetterCodegen {
+public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFileEmitter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterRustCodegen.class);
 
@@ -536,241 +537,115 @@ public class BetterRustCodegen extends AbstractBetterCodegen {
         }
     }
 
-    /**
-     * Registers supporting files for each authentication scheme
-     * present in the OpenAPI spec. Auth files go in the
-     * {@code src/auth/} subdirectory with OAuth files in
-     * {@code src/auth/oauth/}.
-     */
+    /** {@inheritDoc} */
+    @Override
+    protected boolean emitsBaseAuthenticator() {
+        return false;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getAuthDir() {
+        return "src/auth";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getOAuthDir() {
+        return "src/auth/oauth";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String toAuthFilename(String stem) {
+        return stem + ".rs";
+    }
+
+    /** {@inheritDoc} */
     @Override
     protected void registerAuthSupportingFiles() {
-        supportingFiles.add(
-                new SupportingFile(
-                        "auth/http_aware_authenticator.mustache",
-                        "src/auth",
-                        "http_aware_authenticator.rs"));
-        supportingFiles.add(
-                new SupportingFile("auth/mod.mustache", "src/auth", "mod.rs"));
-
-        if (hasBasicAuth) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/basic_authenticator.mustache",
-                            "src/auth",
-                            "basic_authenticator.rs"));
-        }
-        if (hasBearerAuth) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/bearer_authenticator.mustache",
-                            "src/auth",
-                            "bearer_authenticator.rs"));
-        }
-        if (hasApiKeyAuth) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/api_key_location.mustache",
-                            "src/auth",
-                            "api_key_location.rs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/api_key_authenticator.mustache",
-                            "src/auth",
-                            "api_key_authenticator.rs"));
-        }
+        super.registerAuthSupportingFiles();
+        // Rust needs explicit mod.rs files for each auth directory.
+        supportingFiles.add(new SupportingFile("auth/mod.mustache", getAuthDir(), "mod.rs"));
         if (hasAnyOAuth2 || hasOpenIdConnect) {
             supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_token_manager.mustache",
-                            "src/auth/oauth",
-                            "oauth2_token_manager.rs"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/mod.mustache", "src/auth/oauth", "mod.rs"));
-        }
-        if (hasOAuth2ClientCredentials) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_client_credentials_authenticator.mustache",
-                            "src/auth/oauth",
-                            "oauth2_client_credentials_authenticator.rs"));
-        }
-        if (hasOAuth2Password) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_password_authenticator.mustache",
-                            "src/auth/oauth",
-                            "oauth2_password_authenticator.rs"));
-        }
-        if (hasOAuth2AuthorizationCode) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_auth_code_authenticator.mustache",
-                            "src/auth/oauth",
-                            "oauth2_auth_code_authenticator.rs"));
-        }
-        if (hasOAuth2Implicit) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_implicit_authenticator.mustache",
-                            "src/auth/oauth",
-                            "oauth2_implicit_authenticator.rs"));
-        }
-        if (hasOpenIdConnect) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/openid_connect_authenticator.mustache",
-                            "src/auth/oauth",
-                            "openid_connect_authenticator.rs"));
-        }
-
-        if (openAPI.getComponents() == null
-                || openAPI.getComponents().getSecuritySchemes() == null) {
-            return;
-        }
-
-        for (final Map.Entry<String, SecurityScheme> entry :
-                openAPI.getComponents().getSecuritySchemes().entrySet()) {
-            final String schemeName = entry.getKey();
-            final SecurityScheme scheme = entry.getValue();
-            final String className = NamingConvention.PASCAL_CASE.apply(schemeName);
-            final String code = generateRustAuthClass(schemeName, className, scheme);
-            if (!code.isEmpty()) {
-                final boolean isOAuth =
-                        scheme.getType() == SecurityScheme.Type.OAUTH2
-                                || scheme.getType() == SecurityScheme.Type.OPENIDCONNECT;
-                final String folder = isOAuth ? "src/auth/oauth" : "src/auth";
-                final String suffix = getOAuthSuffix(scheme);
-                final String fileName =
-                        NamingConvention.SNAKE_CASE.apply(className + suffix + "Authenticator")
-                                + ".rs";
-                final String filePath =
-                        Path.of(outputFolder, folder, fileName).toString();
-                writeFile(filePath, code);
-                postProcessFile(Path.of(filePath).toFile(), "source");
-            }
+                    new SupportingFile("auth/oauth/mod.mustache", getOAuthDir(), "mod.rs"));
         }
     }
 
-    private String getOAuthSuffix(SecurityScheme scheme) {
-        if (scheme.getType() != SecurityScheme.Type.OAUTH2 || scheme.getFlows() == null) {
+    /** {@inheritDoc} */
+    @Override
+    @SuppressWarnings("StringConcatenationMissingWhitespace")
+    @SuppressFBWarnings(
+            value = "IMPROPER_UNICODE",
+            justification = "Comparing with ASCII-only scheme values")
+    protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
+        final List<Map<String, String>> constructorParams;
+        final List<String> superArgs;
+
+        if ("BasicAuthenticator".equals(spec.baseClass())) {
+            constructorParams = List.of(p("host", "&str"), p("username", "&str"), p("password", "&str"));
+            superArgs = List.of("host", "username", "password");
+        } else if ("BearerAuthenticator".equals(spec.baseClass())) {
+            constructorParams = List.of(p("host", "&str"), p("token", "&str"));
+            superArgs = List.of("host", "token");
+        } else if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
+            final String loc = "ApiKeyLocation::" + NamingConvention.PASCAL_CASE.apply(
+                    spec.keyIn() != null
+                            ? spec.keyIn().toLowerCase(java.util.Locale.ROOT)
+                            : "header");
+            constructorParams = List.of(p("host", "&str"), p("api_key", "&str"));
+            superArgs = List.of("host", "\"" + spec.keyParamName() + "\"", "api_key", loc);
+        } else if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
+            constructorParams =
+                    List.of(p("host", "&str"), p("client_id", "&str"), p("client_secret", "&str"));
+            superArgs =
+                    List.of("host", "client_id", "client_secret",
+                            "\"" + spec.tokenUrl() + "\"", "vec![]");
+        } else if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
+            // refresh_url is &str — empty string means "fall back to token_url"
+            final String refreshArg =
+                    spec.refreshUrl() != null ? "\"" + spec.refreshUrl() + "\"" : "\"\"";
+            constructorParams =
+                    List.of(p("host", "&str"), p("client_id", "&str"), p("client_secret", "&str"),
+                            p("username", "&str"), p("password", "&str"));
+            // Signature: (host, client_id, client_secret, token_url, username, password, scopes, refresh_url)
+            superArgs =
+                    List.of("host", "client_id", "client_secret",
+                            "\"" + spec.tokenUrl() + "\"",
+                            "username", "password", "vec![]", refreshArg);
+        } else if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
+            // refresh_url is &str — empty string means "fall back to token_url"
+            final String refreshArg =
+                    spec.refreshUrl() != null ? "\"" + spec.refreshUrl() + "\"" : "\"\"";
+            constructorParams =
+                    List.of(p("host", "&str"), p("client_id", "&str"), p("client_secret", "&str"),
+                            p("redirect_uri", "&str"));
+            // Signature: (host, client_id, client_secret, authorization_url, token_url, redirect_uri, scopes, refresh_url)
+            superArgs =
+                    List.of("host", "client_id", "client_secret",
+                            "\"" + spec.authorizationUrl() + "\"", "\"" + spec.tokenUrl() + "\"",
+                            "redirect_uri", "vec![]", refreshArg);
+        } else if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
+            constructorParams = List.of(p("host", "&str"), p("client_id", "&str"));
+            superArgs =
+                    List.of("host", "client_id", "\"" + spec.authorizationUrl() + "\"", "vec![]");
+        } else if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
+            constructorParams =
+                    List.of(p("host", "&str"), p("client_id", "&str"), p("client_secret", "&str"),
+                            p("redirect_uri", "&str"));
+            superArgs =
+                    List.of("host", "\"" + spec.openIdConnectUrl() + "\"",
+                            "client_id", "client_secret", "redirect_uri", "vec![]");
+        } else {
+            LOGGER.warn("Unsupported scheme base class: {}", spec.baseClass());
             return "";
         }
-        return Optional.ofNullable(scheme.getFlows().getClientCredentials())
-                .map(f -> "ClientCredentials")
-                .or(() -> Optional.ofNullable(scheme.getFlows().getPassword()).map(f -> "Password"))
-                .or(() ->
-                        Optional.ofNullable(scheme.getFlows().getAuthorizationCode())
-                                .map(f -> "AuthorizationCode"))
-                .or(() -> Optional.ofNullable(scheme.getFlows().getImplicit()).map(f -> "Implicit"))
-                .orElse("");
-    }
 
-    @SuppressWarnings("StringConcatenationMissingWhitespace")
-    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
-            value = "IMPROPER_UNICODE",
-            justification = "Comparing with ASCII-only constants")
-    private String generateRustAuthClass(
-            String schemeName, String className, SecurityScheme scheme) {
-        if (scheme.getType() == SecurityScheme.Type.HTTP) {
-            if ("basic".equalsIgnoreCase(scheme.getScheme())) {
-                return renderSchemeAuth("auth", className + "Authenticator",
-                        "BasicAuthenticator", List.of(),
-                        List.of(p("host", "&str"), p("username", "&str"),
-                                p("password", "&str")),
-                        List.of("host", "username", "password"));
-            }
-            if ("bearer".equalsIgnoreCase(scheme.getScheme())) {
-                return renderSchemeAuth("auth", className + "Authenticator",
-                        "BearerAuthenticator", List.of(),
-                        List.of(p("host", "&str"), p("token", "&str")),
-                        List.of("host", "token"));
-            }
-        } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
-            final String location =
-                    "ApiKeyLocation::"
-                            + NamingConvention.PASCAL_CASE.apply(scheme.getIn().toString());
-            final String paramName = scheme.getName();
-            return renderSchemeAuth("auth", className + "Authenticator",
-                    "ApiKeyAuthenticator", List.of(),
-                    List.of(p("host", "&str"), p("api_key", "&str")),
-                    List.of("host", "\"" + paramName + "\"", "api_key",
-                            location));
-        } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
-                && scheme.getFlows() != null) {
-            return generateRustOAuthClass(className, scheme);
-        } else if (scheme.getType() == SecurityScheme.Type.OPENIDCONNECT) {
-            final String url = scheme.getOpenIdConnectUrl();
-            return renderSchemeAuth("auth::oauth", className + "Authenticator",
-                    "OpenIdConnectAuthenticator",
-                    List.of(),
-                    List.of(p("host", "&str"), p("client_id", "&str"),
-                            p("client_secret", "&str"), p("redirect_uri", "&str")),
-                    List.of("host", "\"" + url + "\"", "client_id", "client_secret",
-                            "redirect_uri", "&[]"));
-        }
-        LOGGER.warn("Unsupported security scheme type: {}", scheme.getType());
-        return "";
-    }
-
-    private String generateRustOAuthClass(
-            String className, SecurityScheme scheme) {
-        if (scheme.getFlows().getClientCredentials() != null) {
-            final var flow = scheme.getFlows().getClientCredentials();
-            final String tokenUrl = flow.getTokenUrl();
-            return renderSchemeAuth("auth::oauth",
-                    className + "ClientCredentialsAuthenticator",
-                    "OAuth2ClientCredentialsAuthenticator",
-                    List.of(),
-                    List.of(p("host", "&str"), p("client_id", "&str"),
-                            p("client_secret", "&str")),
-                    List.of("host", "client_id", "client_secret",
-                            "\"" + tokenUrl + "\"", "&[]"));
-        }
-        if (scheme.getFlows().getPassword() != null) {
-            final var flow = scheme.getFlows().getPassword();
-            final String tokenUrl = flow.getTokenUrl();
-            final String refreshUrl = flow.getRefreshUrl();
-            final String refreshUrlArg = refreshUrl != null ? "Some(\"" + refreshUrl + "\")" : "None";
-            return renderSchemeAuth("auth::oauth",
-                    className + "PasswordAuthenticator",
-                    "OAuth2PasswordAuthenticator",
-                    List.of(),
-                    List.of(p("host", "&str"), p("client_id", "&str"),
-                            p("client_secret", "&str"), p("username", "&str"),
-                            p("password", "&str")),
-                    List.of("host", "client_id", "client_secret",
-                            "\"" + tokenUrl + "\"", refreshUrlArg,
-                            "username", "password", "&[]"));
-        }
-        if (scheme.getFlows().getAuthorizationCode() != null) {
-            final var flow = scheme.getFlows().getAuthorizationCode();
-            final String authUrl = flow.getAuthorizationUrl();
-            final String tokenUrl = flow.getTokenUrl();
-            final String refreshUrl = flow.getRefreshUrl();
-            final String refreshUrlArg = refreshUrl != null ? "Some(\"" + refreshUrl + "\")" : "None";
-            return renderSchemeAuth("auth::oauth",
-                    className + "AuthorizationCodeAuthenticator",
-                    "OAuth2AuthorizationCodeAuthenticator",
-                    List.of(),
-                    List.of(p("host", "&str"), p("client_id", "&str"),
-                            p("client_secret", "&str"), p("redirect_uri", "&str")),
-                    List.of("host", "client_id", "client_secret",
-                            "\"" + authUrl + "\"", "\"" + tokenUrl + "\"",
-                            "redirect_uri", "&[]", refreshUrlArg));
-        }
-        if (scheme.getFlows().getImplicit() != null) {
-            final var flow = scheme.getFlows().getImplicit();
-            final String authUrl = flow.getAuthorizationUrl();
-            return renderSchemeAuth("auth::oauth",
-                    className + "ImplicitAuthenticator",
-                    "OAuth2ImplicitAuthenticator",
-                    List.of(),
-                    List.of(p("host", "&str"), p("client_id", "&str")),
-                    List.of("host", "client_id", "\"" + authUrl + "\"", "&[]"));
-        }
-        LOGGER.warn("Unsupported OAuth2 flow for scheme: {}", className);
-        return "";
+        final Map<String, Object> ctx = baseSchemeContext(spec);
+        ctx.put("constructorParams", constructorParams);
+        ctx.put("superArgs", superArgs);
+        return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
     }
 
     private static Map<String, String> p(String name, String type) {
@@ -778,19 +653,6 @@ public class BetterRustCodegen extends AbstractBetterCodegen {
         param.put("name", name);
         param.put("type", type);
         return param;
-    }
-
-    private String renderSchemeAuth(String pkg, String className, String baseClass,
-            List<String> imports, List<Map<String, String>> constructorParams,
-            List<String> superArgs) {
-        final Map<String, Object> context = new HashMap<>();
-        context.put("package", pkg);
-        context.put("className", className);
-        context.put("baseClass", baseClass);
-        context.put("imports", imports);
-        context.put("constructorParams", constructorParams);
-        context.put("superArgs", superArgs);
-        return renderOptionsTemplate("auth/scheme_authenticator.mustache", context);
     }
 
     /**
@@ -836,52 +698,6 @@ public class BetterRustCodegen extends AbstractBetterCodegen {
         }
     }
 
-    /**
-     * Collapses runs of two or more consecutive blank lines
-     * in generated {@code .rs} files into a single blank line.
-     */
-    @Override
-    public void postProcessFile(File file, String fileType) {
-        if (file == null) {
-            return;
-        }
-        final String name = file.getName();
-        if (!name.endsWith(".rs")) {
-            return;
-        }
-        cleanupRustFile(file);
-    }
-
-    /**
-     * Collapses consecutive blank lines in a Rust source file
-     * to maintain clean formatting before cargo fmt runs.
-     */
-    private static void cleanupRustFile(File file) {
-        try {
-            final List<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
-            final List<String> result = new ArrayList<>(lines.size());
-            boolean prevBlank = false;
-            boolean changed = false;
-
-            for (final String line : lines) {
-                final boolean blank = line.trim().isEmpty();
-                if (blank && prevBlank) {
-                    changed = true;
-                    continue;
-                }
-                result.add(line);
-                prevBlank = blank;
-            }
-
-            if (changed) {
-                Files.write(file.toPath(), result, StandardCharsets.UTF_8);
-            }
-        } catch (IOException e) {
-            LOGGER.debug(
-                    "Failed to clean up Rust file {}: {}", file.getName(), e.getMessage());
-        }
-    }
-
     /** {@inheritDoc} */
     @Override
     protected String generateOptionsFileContent(
@@ -913,27 +729,25 @@ public class BetterRustCodegen extends AbstractBetterCodegen {
         return Path.of(getOutputDir(), "src", "api", "options", fileName + ".rs").toString();
     }
 
-    /**
-     * Writes the {@code mod.rs} barrel file for the Options
-     * module, declaring all generated options structs as public
-     * submodules with re-exports.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected void writeOptionsBarrelFiles(List<Map<String, String>> optionsFiles) {
+    public void emitBarrelFiles(List<Map<String, String>> optionsFiles) {
         if (optionsFiles.isEmpty()) {
             return;
         }
-        final StringBuilder sb = new StringBuilder();
+        final List<Map<String, String>> exports = new ArrayList<>();
         for (final Map<String, String> meta : optionsFiles) {
-            final String className =
-                    Objects.requireNonNull(meta.get("optionsClassName"));
-            final String modName = NamingConvention.SNAKE_CASE.apply(className);
-            sb.append("mod ").append(modName).append(";\n");
-            sb.append("pub use ").append(modName).append("::*;\n");
+            final String className = Objects.requireNonNull(meta.get("optionsClassName"));
+            final Map<String, String> e = new HashMap<>();
+            e.put("modName", NamingConvention.SNAKE_CASE.apply(className));
+            exports.add(e);
         }
+        final Map<String, Object> ctx = new HashMap<>();
+        ctx.put("exports", exports);
+        final String content = renderOptionsTemplate("api/options_mod.mustache", ctx);
         final String modPath =
                 Path.of(getOutputDir(), "src", "api", "options", "mod.rs").toString();
-        writeFile(modPath, sb.toString());
+        writeFile(modPath, content);
     }
 
     /**

@@ -7,7 +7,7 @@ pub struct UserAuthAuthorizationCodeAuthenticator(OAuth2AuthorizationCodeAuthent
 impl UserAuthAuthorizationCodeAuthenticator {
     /// Creates a new `UserAuthAuthorizationCodeAuthenticator`.
     pub fn new(host: &str, client_id: &str, client_secret: &str, redirect_uri: &str) -> Self {
-        Self(OAuth2AuthorizationCodeAuthenticator::new(host, client_id, client_secret, "https://auth.example.com/authorize", "https://auth.example.com/oauth/token", redirect_uri, &[], Some("https://auth.example.com/oauth/refresh")))
+        Self(OAuth2AuthorizationCodeAuthenticator::new(host, client_id, client_secret, "https://auth.example.com/authorize", "https://auth.example.com/oauth/token", redirect_uri, vec![], "https://auth.example.com/oauth/refresh"))
     }
 }
 

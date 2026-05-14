@@ -1,10 +1,11 @@
 package io.github.mridang.codegen.generators.dart;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
+import io.github.mridang.codegen.generators.BarrelFileEmitter;
 import io.github.mridang.codegen.generators.NamingConvention;
 import io.swagger.v3.oas.models.media.Schema;
-import io.swagger.v3.oas.models.security.SecurityScheme;
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -16,7 +17,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenModel;
@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
  * Dart formatting.
  */
 @SuppressWarnings("unused")
-public class BetterDartCodegen extends AbstractBetterCodegen {
+public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFileEmitter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterDartCodegen.class);
 
@@ -640,315 +640,133 @@ public class BetterDartCodegen extends AbstractBetterCodegen {
         }
     }
 
-    /**
-     * Registers supporting files for each authentication scheme
-     * present in the OpenAPI spec. Auth files go in
-     * lib/src/auth/.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected void registerAuthSupportingFiles() {
-        final String srcDir = Path.of("lib", "src").toString();
-        final String authDir = Path.of(srcDir, "auth").toString();
-        final String oauthDir = Path.of(authDir, "oauth").toString();
-
-        supportingFiles.add(
-                new SupportingFile(
-                        "auth/base_authenticator.mustache",
-                        authDir,
-                        "base_authenticator.dart"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "auth/http_aware_authenticator.mustache",
-                        authDir,
-                        "http_aware_authenticator.dart"));
-
-        if (hasBasicAuth) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/basic_authenticator.mustache",
-                            authDir,
-                            "basic_authenticator.dart"));
-        }
-        if (hasBearerAuth) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/bearer_authenticator.mustache",
-                            authDir,
-                            "bearer_authenticator.dart"));
-        }
-        if (hasApiKeyAuth) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/api_key_location.mustache",
-                            authDir,
-                            "api_key_location.dart"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/api_key_authenticator.mustache",
-                            authDir,
-                            "api_key_authenticator.dart"));
-        }
-        if (hasAnyOAuth2 || hasOpenIdConnect) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_token_manager.mustache",
-                            oauthDir,
-                            "oauth2_token_manager.dart"));
-        }
-        if (hasOAuth2ClientCredentials) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_client_credentials_authenticator.mustache",
-                            oauthDir,
-                            "oauth2_client_credentials_authenticator.dart"));
-        }
-        if (hasOAuth2Password) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_password_authenticator.mustache",
-                            oauthDir,
-                            "oauth2_password_authenticator.dart"));
-        }
-        if (hasOAuth2AuthorizationCode) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_auth_code_authenticator.mustache",
-                            oauthDir,
-                            "oauth2_auth_code_authenticator.dart"));
-        }
-        if (hasOAuth2Implicit) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_implicit_authenticator.mustache",
-                            oauthDir,
-                            "oauth2_implicit_authenticator.dart"));
-        }
-        if (hasOpenIdConnect) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/openid_connect_authenticator.mustache",
-                            oauthDir,
-                            "openid_connect_authenticator.dart"));
-        }
-
-        if (openAPI.getComponents() == null
-                || openAPI.getComponents().getSecuritySchemes() == null) {
-            return;
-        }
-
-        for (final Map.Entry<String, SecurityScheme> entry :
-                openAPI.getComponents().getSecuritySchemes().entrySet()) {
-            final String schemeName = entry.getKey();
-            final SecurityScheme scheme = entry.getValue();
-            final String className = NamingConvention.PASCAL_CASE.apply(schemeName);
-            final String code = generateDartAuthClass(schemeName, className, scheme);
-            if (!code.isEmpty()) {
-                final boolean isOAuth =
-                        scheme.getType() == SecurityScheme.Type.OAUTH2
-                                || scheme.getType() == SecurityScheme.Type.OPENIDCONNECT;
-                final String folder = isOAuth ? oauthDir : authDir;
-                final String suffix = getDartOAuthSuffix(scheme);
-                final String fileName =
-                        NamingConvention.SNAKE_CASE.apply(className + suffix + "Authenticator")
-                                + ".dart";
-                final String filePath =
-                        Path.of(outputFolder, folder, fileName).toString();
-                writeFile(filePath, code);
-                postProcessFile(Path.of(filePath).toFile(), "source");
-            }
-        }
+    protected String getAuthDir() {
+        return Path.of("lib", "src", "auth").toString();
     }
 
-    private String getDartOAuthSuffix(SecurityScheme scheme) {
-        if (scheme.getType() != SecurityScheme.Type.OAUTH2 || scheme.getFlows() == null) {
-            return "";
-        }
-        return Optional.ofNullable(scheme.getFlows().getClientCredentials())
-                .map(f -> "ClientCredentials")
-                .or(() -> Optional.ofNullable(scheme.getFlows().getPassword()).map(f -> "Password"))
-                .or(() ->
-                        Optional.ofNullable(scheme.getFlows().getAuthorizationCode())
-                                .map(f -> "AuthorizationCode"))
-                .or(() -> Optional.ofNullable(scheme.getFlows().getImplicit()).map(f -> "Implicit"))
-                .orElse("");
+    /** {@inheritDoc} */
+    @Override
+    protected String getOAuthDir() {
+        return Path.of(getAuthDir(), "oauth").toString();
     }
 
+    /** {@inheritDoc} */
+    @Override
+    protected String toAuthFilename(String stem) {
+        return stem + ".dart";
+    }
+
+    /** {@inheritDoc} */
+    @Override
     @SuppressWarnings("StringConcatenationMissingWhitespace")
-    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
+    @SuppressFBWarnings(
             value = "IMPROPER_UNICODE",
-            justification = "Comparing with ASCII-only constants")
-    private String generateDartAuthClass(
-            String schemeName, String className, SecurityScheme scheme) {
-        if (scheme.getType() == SecurityScheme.Type.HTTP) {
-            if ("basic".equalsIgnoreCase(scheme.getScheme())) {
-                return renderDartSchemeAuth(className + "Authenticator",
-                        "BasicAuthenticator",
-                        List.of("basic_authenticator.dart"),
-                        "required String host, required String username, required String password",
-                        "host: host, username: username, password: password");
-            }
-            if ("bearer".equalsIgnoreCase(scheme.getScheme())) {
-                return renderDartSchemeAuth(className + "Authenticator",
-                        "BearerAuthenticator",
-                        List.of("bearer_authenticator.dart"),
-                        "required String host, required String token",
-                        "host: host, token: token");
-            }
-        } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
-            final String location =
-                    NamingConvention.CAMEL_CASE.apply(scheme.getIn().toString());
-            final String paramName = scheme.getName();
-            return renderDartSchemeAuth(className + "Authenticator",
-                    "ApiKeyAuthenticator",
-                    List.of("api_key_authenticator.dart", "api_key_location.dart"),
-                    "required String host, required String apiKey",
-                    "host: host, keyParamName: '" + paramName + "', apiKey: apiKey, "
-                            + "location: ApiKeyLocation." + location);
-        } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
-                && scheme.getFlows() != null) {
-            return generateDartOAuthClass(className, scheme);
-        } else if (scheme.getType() == SecurityScheme.Type.OPENIDCONNECT) {
-            final String url = scheme.getOpenIdConnectUrl();
-            return renderDartSchemeAuth(className + "Authenticator",
-                    "OpenIdConnectAuthenticator",
-                    List.of("openid_connect_authenticator.dart"),
-                    "required String host, required String clientId, "
-                            + "required String clientSecret, required String redirectUri",
-                    "host: host, openIdConnectUrl: '" + url + "', clientId: clientId, "
-                            + "clientSecret: clientSecret, redirectUri: redirectUri, "
-                            + "scopes: []");
-        }
-        LOGGER.warn("Unsupported security scheme type: {}", scheme.getType());
-        return "";
-    }
+            justification = "Comparing with ASCII-only scheme values")
+    protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
+        final String scopes = formatDartScopes(spec.scopes());
+        final List<String> imports;
+        final String constructorSig;
+        final String superCall;
 
-    private String generateDartOAuthClass(
-            String className, SecurityScheme scheme) {
-        if (scheme.getFlows().getClientCredentials() != null) {
-            final var flow = scheme.getFlows().getClientCredentials();
-            final String tokenUrl = flow.getTokenUrl();
-            final String scopes = formatDartScopes(flow.getScopes());
-            return renderDartSchemeAuth(
-                    className + "ClientCredentialsAuthenticator",
-                    "OAuth2ClientCredentialsAuthenticator",
-                    List.of("oauth2_client_credentials_authenticator.dart"),
-                    "required String host, required String clientId, "
-                            + "required String clientSecret",
-                    "host: host, clientId: clientId, clientSecret: clientSecret, "
-                            + "tokenUrl: '" + tokenUrl + "', scopes: " + scopes);
-        }
-        if (scheme.getFlows().getPassword() != null) {
-            final var flow = scheme.getFlows().getPassword();
-            final String tokenUrl = flow.getTokenUrl();
-            final String refreshUrl = flow.getRefreshUrl();
-            final String refreshUrlArg = refreshUrl != null ? "'" + refreshUrl + "'" : "null";
-            final String scopes = formatDartScopes(flow.getScopes());
-            return renderDartSchemeAuth(
-                    className + "PasswordAuthenticator",
-                    "OAuth2PasswordAuthenticator",
-                    List.of("oauth2_password_authenticator.dart"),
+        if ("BasicAuthenticator".equals(spec.baseClass())) {
+            imports = List.of("basic_authenticator.dart");
+            constructorSig =
+                    "required String host, required String username, required String password";
+            superCall = "host: host, username: username, password: password";
+        } else if ("BearerAuthenticator".equals(spec.baseClass())) {
+            imports = List.of("bearer_authenticator.dart");
+            constructorSig = "required String host, required String token";
+            superCall = "host: host, token: token";
+        } else if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
+            final String loc = NamingConvention.CAMEL_CASE.apply(
+                    spec.keyIn() != null
+                            ? spec.keyIn().toLowerCase(java.util.Locale.ROOT)
+                            : "header");
+            imports = List.of("api_key_authenticator.dart", "api_key_location.dart");
+            constructorSig = "required String host, required String apiKey";
+            superCall =
+                    "host: host, keyParamName: '"
+                            + spec.keyParamName()
+                            + "', apiKey: apiKey, location: ApiKeyLocation."
+                            + loc;
+        } else if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
+            imports = List.of("oauth2_client_credentials_authenticator.dart");
+            constructorSig =
+                    "required String host, required String clientId, required String clientSecret";
+            superCall =
+                    "host: host, clientId: clientId, clientSecret: clientSecret, tokenUrl: '"
+                            + spec.tokenUrl()
+                            + "', scopes: "
+                            + scopes;
+        } else if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg =
+                    spec.refreshUrl() != null ? "'" + spec.refreshUrl() + "'" : "null";
+            imports = List.of("oauth2_password_authenticator.dart");
+            constructorSig =
                     "required String host, required String clientId, "
                             + "required String clientSecret, required String username, "
-                            + "required String password",
-                    "host: host, clientId: clientId, clientSecret: clientSecret, "
-                            + "tokenUrl: '" + tokenUrl + "', refreshUrl: " + refreshUrlArg + ", "
-                            + "username: username, password: password, scopes: " + scopes);
-        }
-        if (scheme.getFlows().getAuthorizationCode() != null) {
-            final var flow = scheme.getFlows().getAuthorizationCode();
-            final String authUrl = flow.getAuthorizationUrl();
-            final String tokenUrl = flow.getTokenUrl();
-            final String refreshUrl = flow.getRefreshUrl();
-            final String refreshUrlArg = refreshUrl != null ? "'" + refreshUrl + "'" : "null";
-            final String scopes = formatDartScopes(flow.getScopes());
-            return renderDartSchemeAuth(
-                    className + "AuthorizationCodeAuthenticator",
-                    "OAuth2AuthorizationCodeAuthenticator",
-                    List.of("oauth2_auth_code_authenticator.dart"),
+                            + "required String password";
+            superCall =
+                    "host: host, clientId: clientId, clientSecret: clientSecret, tokenUrl: '"
+                            + spec.tokenUrl()
+                            + "', refreshUrl: "
+                            + refreshArg
+                            + ", username: username, password: password, scopes: "
+                            + scopes;
+        } else if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg =
+                    spec.refreshUrl() != null ? "'" + spec.refreshUrl() + "'" : "null";
+            imports = List.of("oauth2_auth_code_authenticator.dart");
+            constructorSig =
                     "required String host, required String clientId, "
-                            + "required String clientSecret, required String redirectUri",
+                            + "required String clientSecret, required String redirectUri";
+            superCall =
                     "host: host, clientId: clientId, clientSecret: clientSecret, "
-                            + "authorizationUrl: '" + authUrl + "', tokenUrl: '" + tokenUrl + "', "
-                            + "redirectUri: redirectUri, scopes: " + scopes + ", "
-                            + "refreshUrl: " + refreshUrlArg);
-        }
-        if (scheme.getFlows().getImplicit() != null) {
-            final var flow = scheme.getFlows().getImplicit();
-            final String authUrl = flow.getAuthorizationUrl();
-            final String scopes = formatDartScopes(flow.getScopes());
-            return renderDartSchemeAuth(
-                    className + "ImplicitAuthenticator",
-                    "OAuth2ImplicitAuthenticator",
-                    List.of("oauth2_implicit_authenticator.dart"),
-                    "required String host, required String clientId",
+                            + "authorizationUrl: '"
+                            + spec.authorizationUrl()
+                            + "', tokenUrl: '"
+                            + spec.tokenUrl()
+                            + "', redirectUri: redirectUri, scopes: "
+                            + scopes
+                            + ", refreshUrl: "
+                            + refreshArg;
+        } else if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
+            imports = List.of("oauth2_implicit_authenticator.dart");
+            constructorSig = "required String host, required String clientId";
+            superCall =
                     "host: host, clientId: clientId, authorizationUrl: '"
-                            + authUrl + "', scopes: " + scopes);
+                            + spec.authorizationUrl()
+                            + "', scopes: "
+                            + scopes;
+        } else if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
+            imports = List.of("openid_connect_authenticator.dart");
+            constructorSig =
+                    "required String host, required String clientId, "
+                            + "required String clientSecret, required String redirectUri";
+            superCall =
+                    "host: host, openIdConnectUrl: '"
+                            + spec.openIdConnectUrl()
+                            + "', clientId: clientId, clientSecret: clientSecret, "
+                            + "redirectUri: redirectUri, scopes: []";
+        } else {
+            LOGGER.warn("Unsupported scheme base class: {}", spec.baseClass());
+            return "";
         }
-        LOGGER.warn("Unsupported OAuth2 flow for scheme: {}", className);
-        return "";
+
+        final Map<String, Object> ctx = baseSchemeContext(spec);
+        ctx.put("imports", imports);
+        ctx.put("constructorSignature", constructorSig);
+        ctx.put("superCall", superCall);
+        return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
     }
 
-    @SuppressWarnings("SameParameterValue")
     private static String formatDartScopes(@Nullable Map<String, String> scopes) {
         if (scopes == null || scopes.isEmpty()) {
             return "[]";
         }
         return "['" + String.join("', '", scopes.keySet()) + "']";
-    }
-
-    private String renderDartSchemeAuth(String className, String baseClass,
-            List<String> imports, String constructorSignature, String superCall) {
-        final Map<String, Object> context = new HashMap<>();
-        context.put("className", className);
-        context.put("baseClass", baseClass);
-        context.put("imports", imports);
-        context.put("constructorSignature", constructorSignature);
-        context.put("superCall", superCall);
-        return renderOptionsTemplate("auth/scheme_authenticator.mustache", context);
-    }
-
-    /**
-     * Collapses runs of two or more consecutive blank lines
-     * in generated {@code .dart} files into a single blank line.
-     */
-    @Override
-    public void postProcessFile(File file, String fileType) {
-        if (file == null) {
-            return;
-        }
-        if (!file.getName().endsWith(".dart")) {
-            return;
-        }
-        cleanupDartFile(file);
-    }
-
-    /**
-     * Collapses consecutive blank lines in a Dart source file.
-     */
-    private static void cleanupDartFile(File file) {
-        try {
-            final List<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
-            final List<String> result = new ArrayList<>(lines.size());
-            boolean prevBlank = false;
-            boolean changed = false;
-
-            for (final String line : lines) {
-                final boolean blank = line.trim().isEmpty();
-                if (blank && prevBlank) {
-                    changed = true;
-                    continue;
-                }
-                result.add(line);
-                prevBlank = blank;
-            }
-
-            if (changed) {
-                Files.write(file.toPath(), result, StandardCharsets.UTF_8);
-            }
-        } catch (IOException e) {
-            LOGGER.debug(
-                    "Failed to clean up Dart file {}: {}", file.getName(), e.getMessage());
-        }
     }
 
     /** {@inheritDoc} */
@@ -998,32 +816,30 @@ public class BetterDartCodegen extends AbstractBetterCodegen {
                 .toString();
     }
 
-    /** Appends options class exports to the barrel file. */
+    /** {@inheritDoc} */
     @Override
-    protected void writeOptionsBarrelFiles(List<Map<String, String>> optionsFiles) {
+    public void emitBarrelFiles(List<Map<String, String>> optionsFiles) {
         if (optionsFiles.isEmpty()) {
             return;
         }
-        final Path barrelPath =
-                Path.of(getOutputDir(), "lib", packageName + ".dart");
+        final List<Map<String, String>> exports = new ArrayList<>();
+        for (final Map<String, String> meta : optionsFiles) {
+            final String className = Objects.requireNonNull(meta.get("optionsClassName"));
+            final Map<String, String> e = new HashMap<>();
+            e.put("fileName", NamingConvention.SNAKE_CASE.apply(className));
+            exports.add(e);
+        }
+        final Map<String, Object> ctx = new HashMap<>();
+        ctx.put("exports", exports);
+        final String content = renderOptionsTemplate("api/options_barrel.mustache", ctx);
+        final Path barrelPath = Path.of(getOutputDir(), "lib", packageName + ".dart");
         try {
-            final StringBuilder sb = new StringBuilder();
-            for (final Map<String, String> meta : optionsFiles) {
-                final String className = meta.get("optionsClassName");
-                if (className == null) {
-                    continue;
-                }
-                final String fileName = NamingConvention.SNAKE_CASE.apply(className);
-                sb.append("export 'src/api/options/")
-                        .append(fileName)
-                        .append(".dart';\n");
-            }
             Files.writeString(
                     barrelPath,
-                    Files.readString(barrelPath) + sb,
+                    Files.readString(barrelPath, StandardCharsets.UTF_8) + content,
                     StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            LOGGER.warn("Failed to append options exports to barrel: {}", e.getMessage());
+        } catch (IOException ex) {
+            LOGGER.warn("Failed to append options exports to barrel: {}", ex.getMessage());
         }
     }
 }

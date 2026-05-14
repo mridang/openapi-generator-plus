@@ -7,7 +7,7 @@ pub struct BrowserAuthImplicitAuthenticator(OAuth2ImplicitAuthenticator);
 impl BrowserAuthImplicitAuthenticator {
     /// Creates a new `BrowserAuthImplicitAuthenticator`.
     pub fn new(host: &str, client_id: &str) -> Self {
-        Self(OAuth2ImplicitAuthenticator::new(host, client_id, "https://auth.example.com/authorize", &[]))
+        Self(OAuth2ImplicitAuthenticator::new(host, client_id, "https://auth.example.com/authorize", vec![]))
     }
 }
 

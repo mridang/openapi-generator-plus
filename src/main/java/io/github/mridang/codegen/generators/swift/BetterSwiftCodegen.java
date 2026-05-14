@@ -1,13 +1,10 @@
 package io.github.mridang.codegen.generators.swift;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.NamingConvention;
+import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
 import io.swagger.v3.oas.models.media.Schema;
-import io.swagger.v3.oas.models.security.SecurityScheme;
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -16,7 +13,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenModel;
@@ -518,251 +514,47 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         }
     }
 
-    /**
-     * Registers supporting files for each authentication scheme
-     * present in the OpenAPI spec. Auth files go in
-     * Sources/{packageName}/Auth/.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected void registerAuthSupportingFiles() {
-        final String srcDir = Path.of("Sources", packageName).toString();
-        final String authDir = Path.of(srcDir, "Auth").toString();
-        final String oauthDir = Path.of(authDir, "OAuth").toString();
-
-        supportingFiles.add(
-                new SupportingFile(
-                        "auth/base_authenticator.mustache",
-                        authDir,
-                        "BaseAuthenticator.swift"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "auth/http_aware_authenticator.mustache",
-                        authDir,
-                        "HttpAwareAuthenticator.swift"));
-
-        if (hasBasicAuth) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/basic_authenticator.mustache",
-                            authDir,
-                            "BasicAuthenticator.swift"));
-        }
-        if (hasBearerAuth) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/bearer_authenticator.mustache",
-                            authDir,
-                            "BearerAuthenticator.swift"));
-        }
-        if (hasApiKeyAuth) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/api_key_location.mustache",
-                            authDir,
-                            "ApiKeyLocation.swift"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/api_key_authenticator.mustache",
-                            authDir,
-                            "ApiKeyAuthenticator.swift"));
-        }
-        if (hasAnyOAuth2 || hasOpenIdConnect) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_token_manager.mustache",
-                            oauthDir,
-                            "OAuth2TokenManager.swift"));
-        }
-        if (hasOAuth2ClientCredentials) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_client_credentials_authenticator.mustache",
-                            oauthDir,
-                            "OAuth2ClientCredentialsAuthenticator.swift"));
-        }
-        if (hasOAuth2Password) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_password_authenticator.mustache",
-                            oauthDir,
-                            "OAuth2PasswordAuthenticator.swift"));
-        }
-        if (hasOAuth2AuthorizationCode) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_auth_code_authenticator.mustache",
-                            oauthDir,
-                            "OAuth2AuthorizationCodeAuthenticator.swift"));
-        }
-        if (hasOAuth2Implicit) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_implicit_authenticator.mustache",
-                            oauthDir,
-                            "OAuth2ImplicitAuthenticator.swift"));
-        }
-        if (hasOpenIdConnect) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/openid_connect_authenticator.mustache",
-                            oauthDir,
-                            "OpenIdConnectAuthenticator.swift"));
-        }
-
-        if (openAPI.getComponents() == null
-                || openAPI.getComponents().getSecuritySchemes() == null) {
-            return;
-        }
-
-        for (final Map.Entry<String, SecurityScheme> entry :
-                openAPI.getComponents().getSecuritySchemes().entrySet()) {
-            final String schemeName = entry.getKey();
-            final SecurityScheme scheme = entry.getValue();
-            final String className = NamingConvention.PASCAL_CASE.apply(schemeName);
-            final String code = generateSwiftAuthClass(schemeName, className, scheme);
-            if (!code.isEmpty()) {
-                final boolean isOAuth =
-                        scheme.getType() == SecurityScheme.Type.OAUTH2
-                                || scheme.getType() == SecurityScheme.Type.OPENIDCONNECT;
-                final String folder = isOAuth ? oauthDir : authDir;
-                final String suffix = getSwiftOAuthSuffix(scheme);
-                final String fileName = className + suffix + "Authenticator.swift";
-                final String filePath =
-                        Path.of(outputFolder, folder, fileName).toString();
-                writeFile(filePath, code);
-                postProcessFile(Path.of(filePath).toFile(), "source");
-            }
-        }
+    protected String getAuthDir() {
+        return Path.of("Sources", packageName, "Auth").toString();
     }
 
-    private String getSwiftOAuthSuffix(SecurityScheme scheme) {
-        if (scheme.getType() != SecurityScheme.Type.OAUTH2 || scheme.getFlows() == null) {
-            return "";
-        }
-        return Optional.ofNullable(scheme.getFlows().getClientCredentials())
-                .map(f -> "ClientCredentials")
-                .or(() -> Optional.ofNullable(scheme.getFlows().getPassword()).map(f -> "Password"))
-                .or(() ->
-                        Optional.ofNullable(scheme.getFlows().getAuthorizationCode())
-                                .map(f -> "AuthorizationCode"))
-                .or(() -> Optional.ofNullable(scheme.getFlows().getImplicit()).map(f -> "Implicit"))
-                .orElse("");
+    /** {@inheritDoc} */
+    @Override
+    protected String getOAuthDir() {
+        return Path.of(getAuthDir(), "OAuth").toString();
     }
 
-    @SuppressWarnings("StringConcatenationMissingWhitespace")
-    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
-            value = "IMPROPER_UNICODE",
-            justification = "Comparing with ASCII-only constants")
-    private String generateSwiftAuthClass(
-            String schemeName, String className, SecurityScheme scheme) {
-        if (scheme.getType() == SecurityScheme.Type.HTTP) {
-            if ("basic".equalsIgnoreCase(scheme.getScheme())) {
-                return renderSwiftSchemeAuth(schemeName, className + "Authenticator",
-                        "BasicAuthenticator", List.of(),
-                        "host: String, username: String, password: String",
-                        "host: host, username: username, password: password",
-                        true);
-            }
-            if ("bearer".equalsIgnoreCase(scheme.getScheme())) {
-                return renderSwiftSchemeAuth(schemeName, className + "Authenticator",
-                        "BearerAuthenticator", List.of(),
-                        "host: String, token: String",
-                        "host: host, token: token",
-                        true);
-            }
-        } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
-            final String location =
-                    "." + NamingConvention.CAMEL_CASE.apply(scheme.getIn().toString());
-            final String paramName = scheme.getName();
-            return renderSwiftSchemeAuth(schemeName, className + "Authenticator",
-                    "ApiKeyAuthenticator", List.of(),
-                    "host: String, apiKey: String",
-                    "host: host, keyParamName: \"" + paramName + "\", apiKey: apiKey, "
-                            + "location: " + location,
-                    false);
-        } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
-                && scheme.getFlows() != null) {
-            return generateSwiftOAuthClass(schemeName, className, scheme);
-        } else if (scheme.getType() == SecurityScheme.Type.OPENIDCONNECT) {
-            final String url = scheme.getOpenIdConnectUrl();
-            return renderSwiftSchemeAuth(schemeName, className + "Authenticator",
-                    "OpenIdConnectAuthenticator", List.of(),
-                    "host: String, clientId: String, clientSecret: String, redirectUri: String",
-                    "host: host, openIDConnectURL: \"" + url + "\", clientID: clientId, "
-                            + "clientSecret: clientSecret, redirectURI: redirectUri, scopes: []",
-                    false);
-        }
-        LOGGER.warn("Unsupported security scheme type: {}", scheme.getType());
-        return "";
+    /** {@inheritDoc} */
+    @Override
+    protected String toAuthFilename(String stem) {
+        return pascalAuthFilename(stem, ".swift");
     }
 
-    private String generateSwiftOAuthClass(
-            String schemeName, String className, SecurityScheme scheme) {
-        if (scheme.getFlows().getClientCredentials() != null) {
-            final var flow = scheme.getFlows().getClientCredentials();
-            final String tokenUrl = flow.getTokenUrl();
-            final String scopes = formatSwiftScopes(flow.getScopes());
-            return renderSwiftSchemeAuth(schemeName,
-                    className + "ClientCredentialsAuthenticator",
-                    "OAuth2ClientCredentialsAuthenticator", List.of(),
-                    "host: String, clientId: String, clientSecret: String",
-                    "host: host, clientID: clientId, clientSecret: clientSecret, "
-                            + "tokenURL: \"" + tokenUrl + "\", scopes: " + scopes,
-                    false);
-        }
-        if (scheme.getFlows().getPassword() != null) {
-            final var flow = scheme.getFlows().getPassword();
-            final String tokenUrl = flow.getTokenUrl();
-            final String refreshUrl = flow.getRefreshUrl();
-            final String scopes = formatSwiftScopes(flow.getScopes());
-            final String refreshArg = refreshUrl != null
-                    ? ", refreshURL: \"" + refreshUrl + "\""
-                    : "";
-            return renderSwiftSchemeAuth(schemeName,
-                    className + "PasswordAuthenticator",
-                    "OAuth2PasswordAuthenticator", List.of(),
-                    "host: String, clientId: String, clientSecret: String, "
-                            + "username: String, password: String",
-                    "host: host, clientID: clientId, clientSecret: clientSecret, "
-                            + "tokenURL: \"" + tokenUrl + "\", username: username, "
-                            + "password: password, scopes: " + scopes + refreshArg,
-                    false);
-        }
-        if (scheme.getFlows().getAuthorizationCode() != null) {
-            final var flow = scheme.getFlows().getAuthorizationCode();
-            final String authUrl = flow.getAuthorizationUrl();
-            final String tokenUrl = flow.getTokenUrl();
-            final String refreshUrl = flow.getRefreshUrl();
-            final String scopes = formatSwiftScopes(flow.getScopes());
-            final String refreshArg = refreshUrl != null
-                    ? ", refreshURL: \"" + refreshUrl + "\""
-                    : "";
-            return renderSwiftSchemeAuth(schemeName,
-                    className + "AuthorizationCodeAuthenticator",
-                    "OAuth2AuthorizationCodeAuthenticator", List.of(),
-                    "host: String, clientId: String, clientSecret: String, redirectUri: String",
-                    "host: host, clientID: clientId, clientSecret: clientSecret, "
-                            + "authorizationURL: \"" + authUrl + "\", tokenURL: \"" + tokenUrl + "\", "
-                            + "redirectURI: redirectUri, scopes: " + scopes + refreshArg,
-                    false);
-        }
-        if (scheme.getFlows().getImplicit() != null) {
-            final var flow = scheme.getFlows().getImplicit();
-            final String authUrl = flow.getAuthorizationUrl();
-            final String scopes = formatSwiftScopes(flow.getScopes());
-            return renderSwiftSchemeAuth(schemeName,
-                    className + "ImplicitAuthenticator",
-                    "OAuth2ImplicitAuthenticator", List.of(),
-                    "host: String, clientId: String",
-                    "host: host, clientID: clientId, authorizationURL: \""
-                            + authUrl + "\", scopes: " + scopes,
-                    false);
-        }
-        LOGGER.warn("Unsupported OAuth2 flow for scheme: {}", className);
-        return "";
+    /** {@inheritDoc} */
+    @Override
+    protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
+        final Map<String, Object> ctx = baseSchemeContext(spec);
+        ctx.put("imports", List.of());
+        final boolean needsOverride =
+                "BasicAuthenticator".equals(spec.baseClass())
+                        || "BearerAuthenticator".equals(spec.baseClass());
+        ctx.put("needsOverride", needsOverride);
+        ctx.put("constructorSignature", buildSwiftConstructorSignature(spec));
+        ctx.put("superCall", buildSwiftSuperCall(spec));
+        return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
     }
 
-    @SuppressWarnings("SameParameterValue")
+    private static String buildSwiftConstructorSignature(SchemeAuthSpec spec) {
+        final StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < spec.paramNames().size(); i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(spec.paramNames().get(i)).append(": String");
+        }
+        return sb.toString();
+    }
+
     private static String formatSwiftScopes(@Nullable Map<String, String> scopes) {
         if (scopes == null || scopes.isEmpty()) {
             return "[]";
@@ -770,64 +562,53 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         return "[\"" + String.join("\", \"", scopes.keySet()) + "\"]";
     }
 
-    private String renderSwiftSchemeAuth(String schemeName, String className, String baseClass,
-            List<String> imports, String constructorSignature, String superCall,
-            boolean needsOverride) {
-        final Map<String, Object> context = new HashMap<>();
-        context.put("schemeName", schemeName);
-        context.put("className", className);
-        context.put("baseClass", baseClass);
-        context.put("imports", imports);
-        context.put("constructorSignature", constructorSignature);
-        context.put("superCall", superCall);
-        context.put("needsOverride", needsOverride);
-        return renderOptionsTemplate("auth/scheme_authenticator.mustache", context);
-    }
-
-    /**
-     * Collapses runs of two or more consecutive blank lines
-     * in generated {@code .swift} files into a single blank line.
-     */
-    @Override
-    public void postProcessFile(File file, String fileType) {
-        if (file == null) {
-            return;
+    @SuppressFBWarnings(value = "IMPROPER_UNICODE",
+            justification = "keyIn values are ASCII-only OpenAPI location strings (header/query/cookie)"
+                    + " — toLowerCase(Locale.ROOT) is intentional and safe here")
+    private static String buildSwiftSuperCall(SchemeAuthSpec spec) {
+        if ("BasicAuthenticator".equals(spec.baseClass())) {
+            return "host: host, username: username, password: password";
         }
-        final String name = file.getName();
-        if (!name.endsWith(".swift")) {
-            return;
+        if ("BearerAuthenticator".equals(spec.baseClass())) {
+            return "host: host, token: token";
         }
-        cleanupSwiftFile(file);
-    }
-
-    /**
-     * Collapses consecutive blank lines in a Swift source file
-     * to maintain clean formatting before swift-format runs.
-     */
-    private static void cleanupSwiftFile(File file) {
-        try {
-            final List<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
-            final List<String> result = new ArrayList<>(lines.size());
-            boolean prevBlank = false;
-            boolean changed = false;
-
-            for (final String line : lines) {
-                final boolean blank = line.trim().isEmpty();
-                if (blank && prevBlank) {
-                    changed = true;
-                    continue;
-                }
-                result.add(line);
-                prevBlank = blank;
-            }
-
-            if (changed) {
-                Files.write(file.toPath(), result, StandardCharsets.UTF_8);
-            }
-        } catch (IOException e) {
-            LOGGER.debug(
-                    "Failed to clean up Swift file {}: {}", file.getName(), e.getMessage());
+        if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
+            final String location = "." + NamingConvention.CAMEL_CASE.apply(
+                    spec.keyIn() != null ? spec.keyIn().toLowerCase(java.util.Locale.ROOT) : "header");
+            return "host: host, keyParamName: \"" + spec.keyParamName()
+                    + "\", apiKey: apiKey, location: " + location;
         }
+        if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
+            return "host: host, clientID: clientId, clientSecret: clientSecret, tokenURL: \""
+                    + spec.tokenUrl() + "\", scopes: "
+                    + formatSwiftScopes(spec.scopes());
+        }
+        if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? ", refreshURL: \"" + spec.refreshUrl() + "\"" : "";
+            return "host: host, clientID: clientId, clientSecret: clientSecret, tokenURL: \""
+                    + spec.tokenUrl() + "\", username: username, password: password, scopes: "
+                    + formatSwiftScopes(spec.scopes()) + refreshArg;
+        }
+        if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? ", refreshURL: \"" + spec.refreshUrl() + "\"" : "";
+            return "host: host, clientID: clientId, clientSecret: clientSecret, authorizationURL: \""
+                    + spec.authorizationUrl() + "\", tokenURL: \"" + spec.tokenUrl()
+                    + "\", redirectURI: redirectUri, scopes: "
+                    + formatSwiftScopes(spec.scopes()) + refreshArg;
+        }
+        if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
+            return "host: host, clientID: clientId, authorizationURL: \""
+                    + spec.authorizationUrl() + "\", scopes: "
+                    + formatSwiftScopes(spec.scopes());
+        }
+        if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
+            return "host: host, openIDConnectURL: \"" + spec.openIdConnectUrl()
+                    + "\", clientID: clientId, clientSecret: clientSecret, redirectURI: redirectUri"
+                    + ", scopes: []";
+        }
+        return "";
     }
 
     /** {@inheritDoc} */

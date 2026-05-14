@@ -58,7 +58,6 @@ authenticator = PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.n
 client = PetstoreClient.Client.new(authenticator)
 ```
 
-
 ## Error Handling
 
 All API errors are represented as exception structs. The error hierarchy is:

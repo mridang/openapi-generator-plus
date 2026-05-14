@@ -18,7 +18,7 @@ module PetstoreClient
             client_id,
             client_secret,
             'https://auth.example.com/oauth/token',
-            ['pets:read', 'pets:write']
+            ['pets:write', 'pets:read']
           )
         end
       end

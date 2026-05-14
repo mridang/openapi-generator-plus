@@ -7,7 +7,7 @@ pub struct MachineAuthClientCredentialsAuthenticator(OAuth2ClientCredentialsAuth
 impl MachineAuthClientCredentialsAuthenticator {
     /// Creates a new `MachineAuthClientCredentialsAuthenticator`.
     pub fn new(host: &str, client_id: &str, client_secret: &str) -> Self {
-        Self(OAuth2ClientCredentialsAuthenticator::new(host, client_id, client_secret, "https://auth.example.com/oauth/token", &[]))
+        Self(OAuth2ClientCredentialsAuthenticator::new(host, client_id, client_secret, "https://auth.example.com/oauth/token", vec![]))
     }
 }
 

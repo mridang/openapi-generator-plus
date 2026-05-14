@@ -56,7 +56,6 @@ authenticator = OAuth2ClientCredentialsAuthenticator(
 client = Client(authenticator)
 ```
 
-
 ## Error Handling
 
 All API errors extend `ApiError`. The exception hierarchy is:

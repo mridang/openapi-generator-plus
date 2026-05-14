@@ -5,5 +5,5 @@ class MachineAuthClientCredentialsAuthenticator : OAuth2ClientCredentialsAuthent
         host: String,
         clientId: String,
         clientSecret: String,
-    ) : super(host, clientId, clientSecret, "https://auth.example.com/oauth/token", listOf("pets:read", "pets:write"))
+    ) : super(host, clientId, clientSecret, "https://auth.example.com/oauth/token", listOf("pets:write", "pets:read"))
 }

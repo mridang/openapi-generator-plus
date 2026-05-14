@@ -47,7 +47,6 @@ abstract class GetExternalPetInfoServer
     abstract public function getUrl(): string;
 }
 
-
 final class GetExternalPetInfoServerServer0 extends GetExternalPetInfoServer
 {
     public function getUrl(): string
@@ -64,15 +63,12 @@ abstract class GetMultiServerPetInfoServer
     abstract public function getUrl(): string;
 }
 
-
-
 enum GetMultiServerPetInfoServerRegion: string
 {
     case US = 'us';
     case EU = 'eu';
     case AP = 'ap';
 }
-
 
 /**
  * Primary
@@ -112,7 +108,6 @@ abstract class GetPetByIdServer
     abstract public function getUrl(): string;
 }
 
-
 /**
  * CDN-backed read endpoint for pet details
  */
@@ -132,20 +127,17 @@ abstract class GetStagingPetInfoServer
     abstract public function getUrl(): string;
 }
 
-
 enum GetStagingPetInfoServerEnvironment: string
 {
     case STAGING = 'staging';
     case SANDBOX = 'sandbox';
 }
 
-
 enum GetStagingPetInfoServerVersion: string
 {
     case V2 = 'v2';
     case V3 = 'v3';
 }
-
 
 /**
  * Staging server

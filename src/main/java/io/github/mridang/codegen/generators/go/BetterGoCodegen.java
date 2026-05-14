@@ -1,9 +1,10 @@
 package io.github.mridang.codegen.generators.go;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.NamingConvention;
+import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
 import io.swagger.v3.oas.models.media.Schema;
-import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -16,7 +17,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import com.samskivert.mustache.Mustache;
@@ -651,313 +651,45 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Registers supporting files for each authentication scheme
-     * present in the OpenAPI spec. Concrete auth implementations
-     * go to {@code auth/} and {@code auth/oauth/} sub-packages.
-     * The Authenticator and HttpAwareAuthenticator interfaces
-     * remain in the root package to avoid circular imports.
-     */
-    @Override
-    protected void registerAuthSupportingFiles() {
-        supportingFiles.add(
-                new SupportingFile(
-                        "auth/base_authenticator.mustache",
-                        "pkg/auth",
-                        "base_authenticator.go"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "auth/http_aware_authenticator.mustache",
-                        "pkg/auth",
-                        "http_aware_authenticator.go"));
-
-        if (hasBasicAuth) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/basic_authenticator.mustache",
-                            "pkg/auth",
-                            "basic_authenticator.go"));
-        }
-        if (hasBearerAuth) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/bearer_authenticator.mustache",
-                            "pkg/auth",
-                            "bearer_authenticator.go"));
-        }
-        if (hasApiKeyAuth) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/api_key_location.mustache",
-                            "pkg/auth",
-                            "api_key_location.go"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/api_key_authenticator.mustache",
-                            "pkg/auth",
-                            "api_key_authenticator.go"));
-        }
-        if (hasAnyOAuth2 || hasOpenIdConnect) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_token_manager.mustache",
-                            "pkg/auth/oauth",
-                            "oauth2_token_manager.go"));
-        }
-        if (hasOAuth2ClientCredentials) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_client_credentials_authenticator.mustache",
-                            "pkg/auth/oauth",
-                            "oauth2_client_credentials_authenticator.go"));
-        }
-        if (hasOAuth2Password) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_password_authenticator.mustache",
-                            "pkg/auth/oauth",
-                            "oauth2_password_authenticator.go"));
-        }
-        if (hasOAuth2AuthorizationCode) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_auth_code_authenticator.mustache",
-                            "pkg/auth/oauth",
-                            "oauth2_auth_code_authenticator.go"));
-        }
-        if (hasOAuth2Implicit) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_implicit_authenticator.mustache",
-                            "pkg/auth/oauth",
-                            "oauth2_implicit_authenticator.go"));
-        }
-        if (hasOpenIdConnect) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/openid_connect_authenticator.mustache",
-                            "pkg/auth/oauth",
-                            "openid_connect_authenticator.go"));
-        }
-
-        if (openAPI.getComponents() == null
-                || openAPI.getComponents().getSecuritySchemes() == null) {
-            return;
-        }
-
-        for (final Map.Entry<String, SecurityScheme> entry :
-                openAPI.getComponents().getSecuritySchemes().entrySet()) {
-            final String schemeName = entry.getKey();
-            final SecurityScheme scheme = entry.getValue();
-            final String className = NamingConvention.PASCAL_CASE.apply(schemeName);
-            final String code = generateGoAuthClass(schemeName, className, scheme);
-            if (!code.isEmpty()) {
-                final boolean isOAuth =
-                        scheme.getType() == SecurityScheme.Type.OAUTH2
-                                || scheme.getType() == SecurityScheme.Type.OPENIDCONNECT;
-                final String folder = isOAuth ? "pkg/auth/oauth" : "pkg/auth";
-                final String suffix = getOAuthSuffix(scheme);
-                final String fileName =
-                        NamingConvention.SNAKE_CASE.apply(className + suffix + "Authenticator")
-                                + ".go";
-                final String filePath =
-                        Path.of(outputFolder, folder, fileName).toString();
-                writeFile(filePath, code);
-                postProcessFile(Path.of(filePath).toFile(), "source");
-            }
-        }
-    }
-
-    private String getOAuthSuffix(SecurityScheme scheme) {
-        if (scheme.getType() != SecurityScheme.Type.OAUTH2 || scheme.getFlows() == null) {
-            return "";
-        }
-        return Optional.ofNullable(scheme.getFlows().getClientCredentials())
-                .map(f -> "ClientCredentials")
-                .or(() -> Optional.ofNullable(scheme.getFlows().getPassword()).map(f -> "Password"))
-                .or(() ->
-                        Optional.ofNullable(scheme.getFlows().getAuthorizationCode())
-                                .map(f -> "AuthorizationCode"))
-                .or(() -> Optional.ofNullable(scheme.getFlows().getImplicit()).map(f -> "Implicit"))
-                .orElse("");
-    }
-
-    @SuppressWarnings("StringConcatenationMissingWhitespace")
-    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
-            value = "IMPROPER_UNICODE",
-            justification = "Comparing with ASCII-only constants")
-    private String generateGoAuthClass(
-            String schemeName, String className, SecurityScheme scheme) {
-        if (scheme.getType() == SecurityScheme.Type.HTTP) {
-            if ("basic".equalsIgnoreCase(scheme.getScheme())) {
-                return renderSchemeAuth("auth", className + "Authenticator",
-                        "BasicAuthenticator", List.of(),
-                        List.of(p("host", "string"), p("username", "string"),
-                                p("password", "string")),
-                        List.of("host", "username", "password"));
-            }
-            if ("bearer".equalsIgnoreCase(scheme.getScheme())) {
-                return renderSchemeAuth("auth", className + "Authenticator",
-                        "BearerAuthenticator", List.of(),
-                        List.of(p("host", "string"), p("token", "string")),
-                        List.of("host", "token"));
-            }
-        } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
-            final String location =
-                    "ApiKeyLocation"
-                            + NamingConvention.PASCAL_CASE.apply(scheme.getIn().toString());
-            final String paramName = scheme.getName();
-            return renderSchemeAuth("auth", className + "Authenticator",
-                    "ApiKeyAuthenticator", List.of(),
-                    List.of(p("host", "string"), p("apiKey", "string")),
-                    List.of("host", "\"" + paramName + "\"", "apiKey",
-                            location));
-        } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
-                && scheme.getFlows() != null) {
-            return generateGoOAuthClass(className, scheme);
-        } else if (scheme.getType() == SecurityScheme.Type.OPENIDCONNECT) {
-            final String url = scheme.getOpenIdConnectUrl();
-            return renderSchemeAuth("oauth", className + "Authenticator",
-                    "OpenIdConnectAuthenticator",
-                    List.of(),
-                    List.of(p("host", "string"), p("clientId", "string"),
-                            p("clientSecret", "string"), p("redirectUri", "string")),
-                    List.of("host", "\"" + url + "\"", "clientId", "clientSecret",
-                            "redirectUri", "nil"));
-        }
-        LOGGER.warn("Unsupported security scheme type: {}", scheme.getType());
-        return "";
-    }
-
-    private String generateGoOAuthClass(
-            String className, SecurityScheme scheme) {
-        if (scheme.getFlows().getClientCredentials() != null) {
-            final var flow = scheme.getFlows().getClientCredentials();
-            final String tokenUrl = flow.getTokenUrl();
-            return renderSchemeAuth("oauth",
-                    className + "ClientCredentialsAuthenticator",
-                    "OAuth2ClientCredentialsAuthenticator",
-                    List.of(),
-                    List.of(p("host", "string"), p("clientId", "string"),
-                            p("clientSecret", "string")),
-                    List.of("host", "clientId", "clientSecret",
-                            "\"" + tokenUrl + "\"", "nil"));
-        }
-        if (scheme.getFlows().getPassword() != null) {
-            final var flow = scheme.getFlows().getPassword();
-            final String tokenUrl = flow.getTokenUrl();
-            final String refreshUrl = flow.getRefreshUrl();
-            final String refreshUrlArg = refreshUrl != null ? "\"" + refreshUrl + "\"" : "\"\"";
-            return renderSchemeAuth("oauth",
-                    className + "PasswordAuthenticator",
-                    "OAuth2PasswordAuthenticator",
-                    List.of(),
-                    List.of(p("host", "string"), p("clientId", "string"),
-                            p("clientSecret", "string"), p("username", "string"),
-                            p("password", "string")),
-                    List.of("host", "clientId", "clientSecret",
-                            "\"" + tokenUrl + "\"",
-                            "username", "password", "nil", refreshUrlArg));
-        }
-        if (scheme.getFlows().getAuthorizationCode() != null) {
-            final var flow = scheme.getFlows().getAuthorizationCode();
-            final String authUrl = flow.getAuthorizationUrl();
-            final String tokenUrl = flow.getTokenUrl();
-            final String refreshUrl = flow.getRefreshUrl();
-            final String refreshUrlArg = refreshUrl != null ? "\"" + refreshUrl + "\"" : "\"\"";
-            return renderSchemeAuth("oauth",
-                    className + "AuthorizationCodeAuthenticator",
-                    "OAuth2AuthorizationCodeAuthenticator",
-                    List.of(),
-                    List.of(p("host", "string"), p("clientId", "string"),
-                            p("clientSecret", "string"), p("redirectUri", "string")),
-                    List.of("host", "clientId", "clientSecret",
-                            "\"" + authUrl + "\"", "\"" + tokenUrl + "\"",
-                            "redirectUri", "nil", refreshUrlArg));
-        }
-        if (scheme.getFlows().getImplicit() != null) {
-            final var flow = scheme.getFlows().getImplicit();
-            final String authUrl = flow.getAuthorizationUrl();
-            return renderSchemeAuth("oauth",
-                    className + "ImplicitAuthenticator",
-                    "OAuth2ImplicitAuthenticator",
-                    List.of(),
-                    List.of(p("host", "string"), p("clientId", "string")),
-                    List.of("host", "clientId", "\"" + authUrl + "\"", "nil"));
-        }
-        LOGGER.warn("Unsupported OAuth2 flow for scheme: {}", className);
-        return "";
-    }
-
-    private static Map<String, String> p(String name, String type) {
-        final Map<String, String> param = new HashMap<>();
-        param.put("name", name);
-        param.put("type", type);
-        return param;
-    }
-
-    private String renderSchemeAuth(String pkg, String className, String baseClass,
-            List<String> imports, List<Map<String, String>> constructorParams,
-            List<String> superArgs) {
-        final Map<String, Object> context = new HashMap<>();
-        context.put("package", pkg);
-        context.put("className", className);
-        context.put("baseClass", baseClass);
-        context.put("imports", imports);
-        context.put("constructorParams", constructorParams);
-        context.put("superArgs", superArgs);
-        return renderOptionsTemplate("auth/scheme_authenticator.mustache", context);
-    }
-
-    /**
-     * Collapses runs of two or more consecutive blank lines
-     * in generated {@code .go} files into a single blank line,
-     * and removes trailing commas from function signatures.
+     * Calls the base post-processor (blank-line collapse) then removes
+     * trailing commas before closing parentheses in function signatures
+     * (an artefact of Mustache template generation).
      */
     @Override
     public void postProcessFile(File file, String fileType) {
-        if (file == null) {
+        super.postProcessFile(file, fileType);
+        if (file == null || !file.exists()) {
             return;
         }
         final String name = file.getName();
         if (!name.endsWith(".go")) {
             return;
         }
-        cleanupGoFile(file);
+        removeGoTrailingCommas(file);
     }
 
     /**
-     * Collapses consecutive blank lines and removes trailing
-     * commas before closing parentheses in function signatures
-     * (an artefact of Mustache template generation).
+     * Removes trailing commas before closing parentheses in Go
+     * function signatures (an artefact of Mustache template generation).
      */
-    private static void cleanupGoFile(File file) {
+    private static void removeGoTrailingCommas(File file) {
         try {
             final List<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
             final List<String> result = new ArrayList<>(lines.size());
-            boolean prevBlank = false;
             boolean changed = false;
-
             for (final String line : lines) {
                 String cleaned = line;
                 if (cleaned.contains(", )")) {
                     cleaned = cleaned.replace(", )", ")");
                     changed = true;
                 }
-                final boolean blank = cleaned.trim().isEmpty();
-                if (blank && prevBlank) {
-                    changed = true;
-                    continue;
-                }
                 result.add(cleaned);
-                prevBlank = blank;
             }
-
             if (changed) {
                 Files.write(file.toPath(), result, StandardCharsets.UTF_8);
             }
         } catch (IOException e) {
-            LOGGER.debug(
-                    "Failed to clean up Go file {}: {}", file.getName(), e.getMessage());
+            LOGGER.debug("Failed to clean up Go file {}: {}", file.getName(), e.getMessage());
         }
     }
 
@@ -1013,5 +745,84 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     protected String getOptionsFilePath(String operationId, String optionsClassName) {
         final String fileName = NamingConvention.SNAKE_CASE.apply(optionsClassName);
         return Path.of(getOutputDir(), "pkg", "options", fileName + ".go").toString();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getAuthDir() {
+        return "pkg/auth";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getOAuthDir() {
+        return "pkg/auth/oauth";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String toAuthFilename(String stem) {
+        return stem + ".go";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
+        final Map<String, Object> ctx = baseSchemeContext(spec);
+        ctx.put("package", spec.isOAuth() ? "oauth" : "auth");
+        ctx.put("imports", List.of());
+        final List<Map<String, String>> constructorParams = new ArrayList<>();
+        for (final String name : spec.paramNames()) {
+            final Map<String, String> param = new HashMap<>();
+            param.put("name", name);
+            param.put("type", "string");
+            constructorParams.add(param);
+        }
+        ctx.put("constructorParams", constructorParams);
+        ctx.put("superArgs", buildGoSuperArgs(spec));
+        return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
+    }
+
+    @SuppressFBWarnings(value = "IMPROPER_UNICODE",
+            justification = "keyIn values are ASCII-only OpenAPI location strings (header/query/cookie)"
+                    + " — toLowerCase(Locale.ROOT) is intentional and safe here")
+    private List<String> buildGoSuperArgs(SchemeAuthSpec spec) {
+        if ("BasicAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "username", "password");
+        }
+        if ("BearerAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "token");
+        }
+        if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "\"" + spec.keyParamName() + "\"", "apiKey",
+                    "ApiKeyLocation" + NamingConvention.PASCAL_CASE.apply(spec.keyIn() != null ? spec.keyIn().toLowerCase(java.util.Locale.ROOT) : "header"));
+        }
+        if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "clientId", "clientSecret",
+                    "\"" + spec.tokenUrl() + "\"", "nil");
+        }
+        if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "\"" + spec.refreshUrl() + "\"" : "\"\"";
+            return List.of("host", "clientId", "clientSecret",
+                    "\"" + spec.tokenUrl() + "\"",
+                    "username", "password", "nil", refreshArg);
+        }
+        if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "\"" + spec.refreshUrl() + "\"" : "\"\"";
+            return List.of("host", "clientId", "clientSecret",
+                    "\"" + spec.authorizationUrl() + "\"", "\"" + spec.tokenUrl() + "\"",
+                    "redirectUri", "nil", refreshArg);
+        }
+        if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "clientId",
+                    "\"" + spec.authorizationUrl() + "\"", "nil");
+        }
+        if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "\"" + spec.openIdConnectUrl() + "\"",
+                    "clientId", "clientSecret", "redirectUri", "nil");
+        }
+        return List.of();
     }
 }

@@ -20,7 +20,7 @@ module PetstoreClient
             'https://auth.example.com/authorize',
             'https://auth.example.com/oauth/token',
             redirect_uri,
-            ['pets:read', 'pets:write'],
+            ['pets:write', 'pets:read'],
             refresh_url: 'https://auth.example.com/oauth/refresh'
           )
         end

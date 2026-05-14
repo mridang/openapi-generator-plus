@@ -72,7 +72,6 @@ final authenticator = OAuth2ClientCredentialsAuthenticator(
 final client = Client(authenticator: authenticator);
 ```
 
-
 ## Error Handling
 
 All API errors extend `ApiError`. The error hierarchy is:

@@ -69,7 +69,6 @@ var authenticator = new OAuth2ClientCredentialsAuthenticator(
 var client = new Client(authenticator);
 ```
 
-
 ## Error Handling
 
 All API errors extend `ApiError`. The error hierarchy is:

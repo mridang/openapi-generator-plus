@@ -7,7 +7,7 @@ pub struct SsoAuthAuthenticator(OpenIdConnectAuthenticator);
 impl SsoAuthAuthenticator {
     /// Creates a new `SsoAuthAuthenticator`.
     pub fn new(host: &str, client_id: &str, client_secret: &str, redirect_uri: &str) -> Self {
-        Self(OpenIdConnectAuthenticator::new(host, "https://auth.example.com/.well-known/openid-configuration", client_id, client_secret, redirect_uri, &[]))
+        Self(OpenIdConnectAuthenticator::new(host, "https://auth.example.com/.well-known/openid-configuration", client_id, client_secret, redirect_uri, vec![]))
     }
 }
 

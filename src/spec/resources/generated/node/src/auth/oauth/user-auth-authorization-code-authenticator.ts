@@ -16,7 +16,7 @@ export class UserAuthAuthorizationCodeAuthenticator extends OAuth2AuthorizationC
       'https://auth.example.com/authorize',
       'https://auth.example.com/oauth/token',
       redirectUri,
-      ['pets:read', 'pets:write'],
+      ['pets:write', 'pets:read'],
       'https://auth.example.com/oauth/refresh'
     );
   }

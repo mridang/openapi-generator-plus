@@ -28,7 +28,7 @@ final class MachineAuthClientCredentialsAuthenticator extends OAuth2ClientCreden
             $clientId,
             $clientSecret,
             'https://auth.example.com/oauth/token',
-            ['pets:read', 'pets:write']
+            ['pets:write', 'pets:read']
         );
     }
 }

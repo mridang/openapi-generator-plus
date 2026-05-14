@@ -15,6 +15,6 @@ public final class UserAuthAuthorizationCodeAuthenticator: OAuth2AuthorizationCo
       host: host, clientID: clientId, clientSecret: clientSecret,
       authorizationURL: "https://auth.example.com/authorize",
       tokenURL: "https://auth.example.com/oauth/token", redirectURI: redirectUri,
-      scopes: ["pets:read", "pets:write"], refreshURL: "https://auth.example.com/oauth/refresh")
+      scopes: ["pets:write", "pets:read"], refreshURL: "https://auth.example.com/oauth/refresh")
   }
 }

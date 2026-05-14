@@ -35,6 +35,7 @@ import java.util.EnumSet;
 import java.util.stream.Collectors;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
+import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.CodegenSecurity;
@@ -535,22 +536,363 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                         || hasOAuth2Implicit;
     }
 
-    /**
-     * Conditionally registers base auth class supporting files
-     * based on which security scheme types are present.
-     * Subclasses use the boolean flags set by
-     * {@link #detectSecuritySchemes} to decide which auth
-     * template files to emit.
-     */
-    protected abstract void registerAuthSupportingFiles();
+    // =========================================================================
+    // Auth directory / filename contracts — implemented by each language
+    // =========================================================================
 
     /**
-     * Generates per-scheme concrete authenticator classes
-     * programmatically. The default implementation is a no-op;
-     * only Java overrides this with real logic.
+     * Returns the relative path (from the output root) of the auth source
+     * directory for this language; e.g. {@code "src/main/java/com/example/auth"}.
+     */
+    protected abstract String getAuthDir();
+
+    /**
+     * Returns the relative path (from the output root) of the OAuth2/OIDC
+     * sub-directory; e.g. {@code "src/main/java/com/example/auth/oauth"}.
+     */
+    protected abstract String getOAuthDir();
+
+    /**
+     * Converts a well-known snake_case file stem (e.g. {@code "basic_authenticator"})
+     * to the full language-specific filename including extension
+     * (e.g. {@code "BasicAuthenticator.java"}, {@code "basic_authenticator.py"}).
+     *
+     * <p>PascalCase languages should use {@link #pascalAuthFilename} to
+     * handle the OAuth2 / OpenId naming quirks correctly.
+     */
+    protected abstract String toAuthFilename(String stem);
+
+    private static final Map<String, String> PASCAL_STEM_LOOKUP = buildPascalStemLookup();
+
+    @SuppressFBWarnings(value = "HARD_CODE_PASSWORD",
+            justification = "Not a credential: map values are generated source-class names that"
+                    + " happen to contain 'Password'; they are not hardcoded secrets")
+    private static Map<String, String> buildPascalStemLookup() {
+        final Map<String, String> m = new HashMap<>();
+        m.put("oauth2_token_manager", "OAuth2TokenManager");
+        m.put("oauth2_client_credentials_authenticator", "OAuth2ClientCredentialsAuthenticator");
+        m.put("oauth2_password_authenticator", "OAuth2PasswordAuthenticator");
+        m.put("oauth2_auth_code_authenticator", "OAuth2AuthorizationCodeAuthenticator");
+        m.put("oauth2_implicit_authenticator", "OAuth2ImplicitAuthenticator");
+        m.put("openid_connect_authenticator", "OpenIdConnectAuthenticator");
+        return Collections.unmodifiableMap(m);
+    }
+
+    /**
+     * Converts a snake_case stem to a PascalCase filename with the given
+     * extension, using a lookup table for names that
+     * {@link NamingConvention#PASCAL_CASE} does not capitalise correctly
+     * (specifically OAuth2* and OpenIdConnect*).
+     * Call this from {@link #toAuthFilename} in PascalCase languages.
+     */
+    protected final String pascalAuthFilename(String stem, String extension) {
+        return PASCAL_STEM_LOOKUP.getOrDefault(stem, NamingConvention.PASCAL_CASE.apply(stem))
+                + extension;
+    }
+
+    /**
+     * Returns {@code true} if this language should emit a
+     * {@code base_authenticator} supporting file. Python registers it in
+     * {@code processOpts} instead; Rust uses a {@code mod.rs} approach.
+     * The default is {@code true}.
+     */
+    protected boolean emitsBaseAuthenticator() {
+        return true;
+    }
+
+    /**
+     * Returns the snake_case stem used to derive the
+     * HttpAwareAuthenticator filename. Override in C# to return
+     * {@code "i_http_aware_authenticator"} (which becomes
+     * {@code "IHttpAwareAuthenticator.cs"} after {@link #toAuthFilename}).
+     */
+    protected String httpAwareAuthenticatorStem() {
+        return "http_aware_authenticator";
+    }
+
+    // =========================================================================
+    // registerAuthSupportingFiles — base implementation (non-abstract)
+    // =========================================================================
+
+    /**
+     * Registers the language-specific auth supporting files (base class,
+     * HTTP-aware interface, and the concrete authenticator classes enabled by
+     * the security-scheme flags set in {@link #detectSecuritySchemes}).
+     *
+     * <p>Subclasses that need additional files (e.g. test OAuth helpers, Rust
+     * mod.rs) should call {@code super.registerAuthSupportingFiles()} and then
+     * add their extras. Subclasses that have no additional files (Ruby, Go,
+     * Kotlin, Swift, Dart, Elixir) can skip the override entirely.
+     */
+    protected void registerAuthSupportingFiles() {
+        if (emitsBaseAuthenticator()) {
+            supportingFiles.add(new SupportingFile(
+                    "auth/base_authenticator.mustache",
+                    getAuthDir(),
+                    toAuthFilename("base_authenticator")));
+        }
+        supportingFiles.add(new SupportingFile(
+                "auth/http_aware_authenticator.mustache",
+                getAuthDir(),
+                toAuthFilename(httpAwareAuthenticatorStem())));
+        if (hasBasicAuth) {
+            supportingFiles.add(new SupportingFile(
+                    "auth/basic_authenticator.mustache",
+                    getAuthDir(),
+                    toAuthFilename("basic_authenticator")));
+        }
+        if (hasBearerAuth) {
+            supportingFiles.add(new SupportingFile(
+                    "auth/bearer_authenticator.mustache",
+                    getAuthDir(),
+                    toAuthFilename("bearer_authenticator")));
+        }
+        if (hasApiKeyAuth) {
+            supportingFiles.add(new SupportingFile(
+                    "auth/api_key_location.mustache",
+                    getAuthDir(),
+                    toAuthFilename("api_key_location")));
+            supportingFiles.add(new SupportingFile(
+                    "auth/api_key_authenticator.mustache",
+                    getAuthDir(),
+                    toAuthFilename("api_key_authenticator")));
+        }
+        if (hasAnyOAuth2 || hasOpenIdConnect) {
+            supportingFiles.add(new SupportingFile(
+                    "auth/oauth/oauth2_token_manager.mustache",
+                    getOAuthDir(),
+                    toAuthFilename("oauth2_token_manager")));
+        }
+        if (hasOAuth2ClientCredentials) {
+            supportingFiles.add(new SupportingFile(
+                    "auth/oauth/oauth2_client_credentials_authenticator.mustache",
+                    getOAuthDir(),
+                    toAuthFilename("oauth2_client_credentials_authenticator")));
+        }
+        if (hasOAuth2Password) {
+            supportingFiles.add(new SupportingFile(
+                    "auth/oauth/oauth2_password_authenticator.mustache",
+                    getOAuthDir(),
+                    toAuthFilename("oauth2_password_authenticator")));
+        }
+        if (hasOAuth2AuthorizationCode) {
+            supportingFiles.add(new SupportingFile(
+                    "auth/oauth/oauth2_auth_code_authenticator.mustache",
+                    getOAuthDir(),
+                    toAuthFilename("oauth2_auth_code_authenticator")));
+        }
+        if (hasOAuth2Implicit) {
+            supportingFiles.add(new SupportingFile(
+                    "auth/oauth/oauth2_implicit_authenticator.mustache",
+                    getOAuthDir(),
+                    toAuthFilename("oauth2_implicit_authenticator")));
+        }
+        if (hasOpenIdConnect) {
+            supportingFiles.add(new SupportingFile(
+                    "auth/oauth/openid_connect_authenticator.mustache",
+                    getOAuthDir(),
+                    toAuthFilename("openid_connect_authenticator")));
+        }
+    }
+
+    // =========================================================================
+    // SchemeAuthSpec — language-agnostic descriptor for a single security scheme
+    // =========================================================================
+
+    /**
+     * Language-agnostic descriptor for a single OpenAPI security scheme.
+     * Built once by {@link #buildSchemeAuthSpec} and passed to the
+     * language-specific {@link #renderSchemeAuthenticator} to produce source.
+     */
+    public static final class SchemeAuthSpec {
+        private final String schemeName;
+        private final String schemeClass;
+        private final String oauthSuffix;
+        private final String baseClass;
+        private final boolean isOAuth;
+        private final List<String> paramNames;
+        @Nullable private final String keyParamName;
+        @Nullable private final String keyIn;
+        @Nullable private final String tokenUrl;
+        @Nullable private final String authorizationUrl;
+        @Nullable private final String refreshUrl;
+        @Nullable private final String openIdConnectUrl;
+        @Nullable private final Map<String, String> scopes;
+
+        public SchemeAuthSpec(String schemeName, String schemeClass, String oauthSuffix,
+                String baseClass, boolean isOAuth, List<String> paramNames,
+                @Nullable String keyParamName, @Nullable String keyIn,
+                @Nullable String tokenUrl, @Nullable String authorizationUrl,
+                @Nullable String refreshUrl, @Nullable String openIdConnectUrl,
+                @Nullable Map<String, String> scopes) {
+            this.schemeName = schemeName;
+            this.schemeClass = schemeClass;
+            this.oauthSuffix = oauthSuffix;
+            this.baseClass = baseClass;
+            this.isOAuth = isOAuth;
+            this.paramNames = List.copyOf(paramNames);
+            this.keyParamName = keyParamName;
+            this.keyIn = keyIn;
+            this.tokenUrl = tokenUrl;
+            this.authorizationUrl = authorizationUrl;
+            this.refreshUrl = refreshUrl;
+            this.openIdConnectUrl = openIdConnectUrl;
+            this.scopes = scopes != null ? Collections.unmodifiableMap(new HashMap<>(scopes)) : null;
+        }
+
+        public String schemeName() { return schemeName; }
+        public String schemeClass() { return schemeClass; }
+        public String oauthSuffix() { return oauthSuffix; }
+        public String baseClass() { return baseClass; }
+        public boolean isOAuth() { return isOAuth; }
+        public List<String> paramNames() { return paramNames; }
+        @Nullable public String keyParamName() { return keyParamName; }
+        @Nullable public String keyIn() { return keyIn; }
+        @Nullable public String tokenUrl() { return tokenUrl; }
+        @Nullable public String authorizationUrl() { return authorizationUrl; }
+        @Nullable public String refreshUrl() { return refreshUrl; }
+        @Nullable public String openIdConnectUrl() { return openIdConnectUrl; }
+        @Nullable public Map<String, String> scopes() { return scopes; }
+    }
+
+    /**
+     * Builds a {@link SchemeAuthSpec} from a raw OpenAPI security scheme entry.
+     * Returns {@code null} for unsupported / unrecognised scheme types.
+     */
+    @Nullable
+    @SuppressFBWarnings(value = "IMPROPER_UNICODE",
+            justification = "Comparing with ASCII-only HTTP scheme constants (basic/bearer)")
+    protected SchemeAuthSpec buildSchemeAuthSpec(String schemeName, SecurityScheme scheme) {
+        final String cls = NamingConvention.PASCAL_CASE.apply(schemeName);
+        if (scheme.getType() == SecurityScheme.Type.HTTP) {
+            if ("basic".equalsIgnoreCase(scheme.getScheme())) {
+                return new SchemeAuthSpec(schemeName, cls, "", "BasicAuthenticator", false,
+                        List.of("host", "username", "password"),
+                        null, null, null, null, null, null, null);
+            }
+            if ("bearer".equalsIgnoreCase(scheme.getScheme())) {
+                return new SchemeAuthSpec(schemeName, cls, "", "BearerAuthenticator", false,
+                        List.of("host", "token"),
+                        null, null, null, null, null, null, null);
+            }
+        } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
+            final String location =
+                    NamingConvention.UPPER_SNAKE_CASE.apply(scheme.getIn().toString());
+            return new SchemeAuthSpec(schemeName, cls, "", "ApiKeyAuthenticator", false,
+                    List.of("host", "apiKey"),
+                    scheme.getName(), location, null, null, null, null, null);
+        } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
+                && scheme.getFlows() != null) {
+            return buildOAuthSpec(schemeName, cls, scheme);
+        } else if (scheme.getType() == SecurityScheme.Type.OPENIDCONNECT) {
+            return new SchemeAuthSpec(schemeName, cls, "", "OpenIdConnectAuthenticator", true,
+                    List.of("host", "clientId", "clientSecret", "redirectUri"),
+                    null, null, null, null, null, scheme.getOpenIdConnectUrl(), null);
+        }
+        LOGGER.warn("Unsupported security scheme type: {}", scheme.getType());
+        return null;
+    }
+
+    @Nullable
+    private SchemeAuthSpec buildOAuthSpec(
+            String schemeName, String cls, SecurityScheme scheme) {
+        if (scheme.getFlows().getClientCredentials() != null) {
+            final var flow = scheme.getFlows().getClientCredentials();
+            return new SchemeAuthSpec(schemeName, cls, "ClientCredentials",
+                    "OAuth2ClientCredentialsAuthenticator", true,
+                    List.of("host", "clientId", "clientSecret"),
+                    null, null, flow.getTokenUrl(), null, null, null, flow.getScopes());
+        }
+        if (scheme.getFlows().getPassword() != null) {
+            final var flow = scheme.getFlows().getPassword();
+            return new SchemeAuthSpec(schemeName, cls, "Password",
+                    "OAuth2PasswordAuthenticator", true,
+                    List.of("host", "clientId", "clientSecret", "username", "password"),
+                    null, null, flow.getTokenUrl(), null, flow.getRefreshUrl(), null,
+                    flow.getScopes());
+        }
+        if (scheme.getFlows().getAuthorizationCode() != null) {
+            final var flow = scheme.getFlows().getAuthorizationCode();
+            return new SchemeAuthSpec(schemeName, cls, "AuthorizationCode",
+                    "OAuth2AuthorizationCodeAuthenticator", true,
+                    List.of("host", "clientId", "clientSecret", "redirectUri"),
+                    null, null, flow.getTokenUrl(), flow.getAuthorizationUrl(),
+                    flow.getRefreshUrl(), null, flow.getScopes());
+        }
+        if (scheme.getFlows().getImplicit() != null) {
+            final var flow = scheme.getFlows().getImplicit();
+            return new SchemeAuthSpec(schemeName, cls, "Implicit",
+                    "OAuth2ImplicitAuthenticator", true,
+                    List.of("host", "clientId"),
+                    null, null, null, flow.getAuthorizationUrl(), null, null,
+                    flow.getScopes());
+        }
+        LOGGER.warn("Unsupported OAuth2 flow for scheme: {}", schemeName);
+        return null;
+    }
+
+    // =========================================================================
+    // generatePerSchemeAuthenticators — lifted to base
+    // =========================================================================
+
+    /**
+     * Generates a concrete per-scheme authenticator source file for every
+     * security scheme defined in the OpenAPI spec. Subclasses provide the
+     * language-specific rendering via {@link #renderSchemeAuthenticator}.
      */
     protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
+        if (openAPI.getComponents() == null
+                || openAPI.getComponents().getSecuritySchemes() == null) {
+            return;
+        }
+        for (final Map.Entry<String, SecurityScheme> entry :
+                openAPI.getComponents().getSecuritySchemes().entrySet()) {
+            final SchemeAuthSpec spec = buildSchemeAuthSpec(entry.getKey(), entry.getValue());
+            if (spec == null) continue;
+            final String code = renderSchemeAuthenticator(spec);
+            if (code == null || code.isBlank()) continue;
+            final String dir = spec.isOAuth() ? getOAuthDir() : getAuthDir();
+            final String stem = NamingConvention.SNAKE_CASE.apply(
+                    spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
+            final String filename = toAuthFilename(stem);
+            final String filePath = Path.of(outputFolder, dir, filename).toString();
+            writeFile(filePath, code);
+            postProcessFile(Path.of(filePath).toFile(), "source");
+            postWriteSchemeAuthenticator(spec, filePath);
+        }
+    }
+
+    /**
+     * Renders language-specific source for a single security scheme.
+     * The default no-op means no per-scheme file is generated; each
+     * language subclass overrides to produce its own content.
+     */
+    protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
+        return "";
+    }
+
+    /**
+     * Called after the main per-scheme authenticator file has been written.
+     * Ruby uses this to write the companion {@code .rbs} type-signature file.
+     * Default is a no-op.
+     */
+    protected void postWriteSchemeAuthenticator(SchemeAuthSpec spec, String writtenPath) {
         // no-op by default
+    }
+
+    /**
+     * Returns a base context map seeded with all additional properties and
+     * the common scheme-descriptor fields. Language overrides of
+     * {@link #renderSchemeAuthenticator} typically start from this and add
+     * language-specific entries.
+     */
+    protected Map<String, Object> baseSchemeContext(SchemeAuthSpec spec) {
+        final Map<String, Object> ctx = new HashMap<>(additionalProperties);
+        ctx.put("schemeName", spec.schemeName());
+        ctx.put("className", spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
+        ctx.put("baseClass", spec.baseClass());
+        ctx.put("isOAuth", spec.isOAuth());
+        return ctx;
     }
 
     /**
@@ -1541,12 +1883,14 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
-     * Writes barrel/index files for the accumulated Options
-     * classes. Subclasses override to produce language-idiomatic
-     * barrel exports. Default is a no-op.
+     * Writes barrel/index files for the accumulated Options classes.
+     * Delegates to {@link BarrelFileEmitter#emitBarrelFiles} when this
+     * codegen implements that interface; otherwise a no-op.
      */
     protected void writeOptionsBarrelFiles(List<Map<String, String>> optionsFiles) {
-        // no-op by default
+        if (this instanceof BarrelFileEmitter) {
+            ((BarrelFileEmitter) this).emitBarrelFiles(optionsFiles);
+        }
     }
 
     /**
@@ -1568,6 +1912,43 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             writeOptionsBarrelFiles(accumulatedOptionsFiles);
         }
         runFormatterInDocker(getFormatterDockerImage(), getFormatterCommands());
+    }
+
+    /**
+     * Post-processes a single generated file. Unconditionally collapses
+     * runs of two or more consecutive blank lines into one — a cosmetic
+     * artefact of cascading Mustache section guards — before invoking
+     * any language-specific cleanup in subclass overrides.
+     *
+     * <p>Subclasses that override this method <em>must</em> call
+     * {@code super.postProcessFile(file, fileType)} first so that the
+     * blank-line normalisation runs before language-specific formatting.
+     */
+    @Override
+    public void postProcessFile(File file, String fileType) {
+        super.postProcessFile(file, fileType);
+        if (file == null || !file.exists()) return;
+        try {
+            final List<String> lines =
+                    Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
+            final List<String> result = new ArrayList<>(lines.size());
+            boolean prevBlank = false;
+            boolean changed = false;
+            for (final String line : lines) {
+                final boolean blank = line.isBlank();
+                if (blank && prevBlank) {
+                    changed = true;
+                    continue;
+                }
+                result.add(line);
+                prevBlank = blank;
+            }
+            if (changed) {
+                Files.write(file.toPath(), result, StandardCharsets.UTF_8);
+            }
+        } catch (IOException e) {
+            LOGGER.warn("Failed to collapse blank lines in {}", file, e);
+        }
     }
 
     /**

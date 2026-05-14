@@ -69,7 +69,6 @@ val authenticator = OAuth2ClientCredentialsAuthenticator(
 val client = Client(authenticator)
 ```
 
-
 ## Error Handling
 
 All API errors extend `ApiError`. The error hierarchy is:

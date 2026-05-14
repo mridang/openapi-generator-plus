@@ -4,9 +4,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.NamingConvention;
-import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.media.Schema;
-import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -621,47 +619,12 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Registers supporting files for each authentication
-     * scheme type present in the OpenAPI spec. Files are
-     * placed under the Auth subdirectory within the invoker
-     * package path.
+     * Registers base auth supporting files and, when test generation
+     * is enabled, the PHP OAuth test class files.
      */
     @Override
     protected void registerAuthSupportingFiles() {
-        final String invokerFolder = toSrcPath(invokerPackage);
-        final String authFolder = Path.of(invokerFolder, "Auth").toString();
-        final String oauthFolder = Path.of(authFolder, "OAuth").toString();
-
-        supportingFiles.add(new SupportingFile("auth/base_authenticator.mustache", authFolder, "BaseAuthenticator.php"));
-        supportingFiles.add(new SupportingFile("auth/http_aware_authenticator.mustache", authFolder, "HttpAwareAuthenticator.php"));
-        if (hasBasicAuth) {
-            supportingFiles.add(new SupportingFile("auth/basic_authenticator.mustache", authFolder, "BasicAuthenticator.php"));
-        }
-        if (hasBearerAuth) {
-            supportingFiles.add(new SupportingFile("auth/bearer_authenticator.mustache", authFolder, "BearerAuthenticator.php"));
-        }
-        if (hasApiKeyAuth) {
-            supportingFiles.add(new SupportingFile("auth/api_key_authenticator.mustache", authFolder, "ApiKeyAuthenticator.php"));
-            supportingFiles.add(new SupportingFile("auth/api_key_location.mustache", authFolder, "ApiKeyLocation.php"));
-        }
-        if (hasAnyOAuth2 || hasOpenIdConnect) {
-            supportingFiles.add(new SupportingFile("auth/oauth/oauth2_token_manager.mustache", oauthFolder, "OAuth2TokenManager.php"));
-        }
-        if (hasOAuth2ClientCredentials) {
-            supportingFiles.add(new SupportingFile("auth/oauth/oauth2_client_credentials_authenticator.mustache", oauthFolder, "OAuth2ClientCredentialsAuthenticator.php"));
-        }
-        if (hasOAuth2Password) {
-            supportingFiles.add(new SupportingFile("auth/oauth/oauth2_password_authenticator.mustache", oauthFolder, "OAuth2PasswordAuthenticator.php"));
-        }
-        if (hasOAuth2AuthorizationCode) {
-            supportingFiles.add(new SupportingFile("auth/oauth/oauth2_auth_code_authenticator.mustache", oauthFolder, "OAuth2AuthorizationCodeAuthenticator.php"));
-        }
-        if (hasOAuth2Implicit) {
-            supportingFiles.add(new SupportingFile("auth/oauth/oauth2_implicit_authenticator.mustache", oauthFolder, "OAuth2ImplicitAuthenticator.php"));
-        }
-        if (hasOpenIdConnect) {
-            supportingFiles.add(new SupportingFile("auth/oauth/openid_connect_authenticator.mustache", oauthFolder, "OpenIdConnectAuthenticator.php"));
-        }
+        super.registerAuthSupportingFiles();
 
         if (generateTests) {
             if (hasAnyOAuth2 || hasOpenIdConnect) {
@@ -688,165 +651,47 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
 
     /** {@inheritDoc} */
     @Override
-    @SuppressWarnings("StringConcatenationMissingWhitespace")
-    protected void generatePerSchemeAuthenticators(OpenAPI openAPI) {
-        if (openAPI.getComponents() == null
-                || openAPI.getComponents().getSecuritySchemes() == null) {
-            return;
-        }
-
-        final String invokerFolder = toSrcPath(invokerPackage);
-        final String authFolder = Path.of(invokerFolder, "Auth").toString();
-        final String oauthFolder = Path.of(authFolder, "OAuth").toString();
-
-        for (final Map.Entry<String, SecurityScheme> entry :
-                openAPI.getComponents().getSecuritySchemes().entrySet()) {
-            final String schemeName = entry.getKey();
-            final SecurityScheme scheme = entry.getValue();
-            final String className = NamingConvention.PASCAL_CASE.apply(schemeName);
-            final String code = generatePhpAuthClass(schemeName, className, scheme);
-            if (!code.isEmpty()) {
-                final boolean isOAuth =
-                        scheme.getType() == SecurityScheme.Type.OAUTH2
-                                || scheme.getType() == SecurityScheme.Type.OPENIDCONNECT;
-                final String folder = isOAuth ? oauthFolder : authFolder;
-                final String suffix = getPhpOAuthSuffix(scheme);
-                final String fileName = className + suffix + "Authenticator.php";
-                final String filePath =
-                        Path.of(outputFolder, folder, fileName).toString();
-                writeFile(filePath, code);
-                postProcessFile(Path.of(filePath).toFile(), "source");
-            }
-        }
+    protected String getAuthDir() {
+        return Path.of(toSrcPath(invokerPackage), "Auth").toString();
     }
 
-    private String getPhpOAuthSuffix(SecurityScheme scheme) {
-        if (scheme.getType() != SecurityScheme.Type.OAUTH2 || scheme.getFlows() == null) {
-            return "";
-        }
-        return Optional.ofNullable(scheme.getFlows().getClientCredentials())
-                .map(f -> "ClientCredentials")
-                .or(() -> Optional.ofNullable(scheme.getFlows().getPassword()).map(f -> "Password"))
-                .or(() ->
-                        Optional.ofNullable(scheme.getFlows().getAuthorizationCode())
-                                .map(f -> "AuthorizationCode"))
-                .or(() -> Optional.ofNullable(scheme.getFlows().getImplicit()).map(f -> "Implicit"))
-                .orElse("");
+    /** {@inheritDoc} */
+    @Override
+    protected String getOAuthDir() {
+        return Path.of(getAuthDir(), "OAuth").toString();
     }
 
-    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
-            value = "IMPROPER_UNICODE",
-            justification = "Comparing with ASCII-only constants")
-    private String generatePhpAuthClass(
-            String schemeName, String className, SecurityScheme scheme) {
-        final String authPkg = invokerPackage + "\\Auth";
-        final String oauthPkg = authPkg + "\\OAuth";
-        if (scheme.getType() == SecurityScheme.Type.HTTP) {
-            if ("basic".equalsIgnoreCase(scheme.getScheme())) {
-                return renderPhpSchemeAuth(authPkg, className + "Authenticator",
-                        "BasicAuthenticator", List.of(),
-                        List.of(p("host", "string"), p("username", "string"),
-                                p("password", "string")),
-                        List.of("$host", "$username", "$password"));
-            }
-            if ("bearer".equalsIgnoreCase(scheme.getScheme())) {
-                return renderPhpSchemeAuth(authPkg, className + "Authenticator",
-                        "BearerAuthenticator", List.of(),
-                        List.of(p("host", "string"), p("token", "string")),
-                        List.of("$host", "$token"));
-            }
-        } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
-            final String location =
-                    NamingConvention.UPPER_SNAKE_CASE.apply(scheme.getIn().toString());
-            final String paramName = scheme.getName();
-            return renderPhpSchemeAuth(authPkg, className + "Authenticator",
-                    "ApiKeyAuthenticator", List.of(),
-                    List.of(p("host", "string"), p("apiKey", "string")),
-                    List.of("$host", "'" + paramName + "'", "$apiKey",
-                            "ApiKeyLocation::" + location));
-        } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
-                && scheme.getFlows() != null) {
-            return generatePhpOAuthClass(className, scheme);
-        } else if (scheme.getType() == SecurityScheme.Type.OPENIDCONNECT) {
-            final String url = scheme.getOpenIdConnectUrl();
-            return renderPhpSchemeAuth(oauthPkg, className + "Authenticator",
-                    "OpenIdConnectAuthenticator",
-                    List.of(),
-                    List.of(p("host", "string"), p("clientId", "string"),
-                            p("clientSecret", "string"), p("redirectUri", "string")),
-                    List.of("$host", "'" + url + "'", "$clientId", "$clientSecret",
-                            "$redirectUri", "[]"));
-        }
-        LOGGER.warn("Unsupported security scheme type: {}", scheme.getType());
-        return "";
+    /** {@inheritDoc} */
+    @Override
+    protected String toAuthFilename(String stem) {
+        return pascalAuthFilename(stem, ".php");
     }
 
-    private String generatePhpOAuthClass(String className, SecurityScheme scheme) {
-        final String authPkg = invokerPackage + "\\Auth";
-        final String oauthPkg = authPkg + "\\OAuth";
-        if (scheme.getFlows().getClientCredentials() != null) {
-            final var flow = scheme.getFlows().getClientCredentials();
-            final String tokenUrl = flow.getTokenUrl();
-            final String scopes = formatPhpScopes(flow.getScopes());
-            return renderPhpSchemeAuth(oauthPkg,
-                    className + "ClientCredentialsAuthenticator",
-                    "OAuth2ClientCredentialsAuthenticator",
-                    List.of(),
-                    List.of(p("host", "string"), p("clientId", "string"),
-                            p("clientSecret", "string")),
-                    List.of("$host", "$clientId", "$clientSecret",
-                            "'" + tokenUrl + "'", scopes));
+    /**
+     * Renders a per-scheme authenticator PHP source file using
+     * the scheme_authenticator.mustache template.
+     */
+    @Override
+    protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
+        final Map<String, Object> ctx = baseSchemeContext(spec);
+        ctx.put("package", spec.isOAuth()
+                ? invokerPackage + "\\Auth\\OAuth"
+                : invokerPackage + "\\Auth");
+        ctx.put("imports", List.of());
+        final List<Map<String, String>> constructorParams = new ArrayList<>();
+        for (final String name : spec.paramNames()) {
+            final Map<String, String> param = new HashMap<>();
+            param.put("name", name);
+            param.put("type", "string");
+            constructorParams.add(param);
         }
-        if (scheme.getFlows().getPassword() != null) {
-            final var flow = scheme.getFlows().getPassword();
-            final String tokenUrl = flow.getTokenUrl();
-            final String refreshUrl = flow.getRefreshUrl();
-            final String refreshUrlArg = refreshUrl != null ? "'" + refreshUrl + "'" : "null";
-            final String scopes = formatPhpScopes(flow.getScopes());
-            return renderPhpSchemeAuth(oauthPkg,
-                    className + "PasswordAuthenticator",
-                    "OAuth2PasswordAuthenticator",
-                    List.of(),
-                    List.of(p("host", "string"), p("clientId", "string"),
-                            p("clientSecret", "string"), p("username", "string"),
-                            p("password", "string")),
-                    List.of("$host", "$clientId", "$clientSecret",
-                            "'" + tokenUrl + "'",
-                            "$username", "$password", scopes, refreshUrlArg));
-        }
-        if (scheme.getFlows().getAuthorizationCode() != null) {
-            final var flow = scheme.getFlows().getAuthorizationCode();
-            final String authUrl = flow.getAuthorizationUrl();
-            final String tokenUrl = flow.getTokenUrl();
-            final String refreshUrl = flow.getRefreshUrl();
-            final String refreshUrlArg = refreshUrl != null ? "'" + refreshUrl + "'" : "null";
-            final String scopes = formatPhpScopes(flow.getScopes());
-            return renderPhpSchemeAuth(oauthPkg,
-                    className + "AuthorizationCodeAuthenticator",
-                    "OAuth2AuthorizationCodeAuthenticator",
-                    List.of(),
-                    List.of(p("host", "string"), p("clientId", "string"),
-                            p("clientSecret", "string"), p("redirectUri", "string")),
-                    List.of("$host", "$clientId", "$clientSecret",
-                            "'" + authUrl + "'", "'" + tokenUrl + "'",
-                            "$redirectUri", scopes, refreshUrlArg));
-        }
-        if (scheme.getFlows().getImplicit() != null) {
-            final var flow = scheme.getFlows().getImplicit();
-            final String authUrl = flow.getAuthorizationUrl();
-            final String scopes = formatPhpScopes(flow.getScopes());
-            return renderPhpSchemeAuth(oauthPkg,
-                    className + "ImplicitAuthenticator",
-                    "OAuth2ImplicitAuthenticator",
-                    List.of(),
-                    List.of(p("host", "string"), p("clientId", "string")),
-                    List.of("$host", "$clientId", "'" + authUrl + "'", scopes));
-        }
-        LOGGER.warn("Unsupported OAuth2 flow for scheme: {}", className);
-        return "";
+        ctx.put("constructorParams", constructorParams);
+        final List<String> superArgs = buildPhpSuperArgs(spec);
+        ctx.put("superArgs", superArgs);
+        ctx.put("hasCustomConstructor", !isPassthroughConstructor(constructorParams, superArgs));
+        return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
     }
 
-    @SuppressWarnings("SameParameterValue")
     private static String formatPhpScopes(@Nullable Map<String, String> scopes) {
         if (scopes == null || scopes.isEmpty()) {
             return "[]";
@@ -854,25 +699,48 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         return "['" + String.join("', '", scopes.keySet()) + "']";
     }
 
-    private static Map<String, String> p(String name, String type) {
-        final Map<String, String> param = new HashMap<>();
-        param.put("name", name);
-        param.put("type", type);
-        return param;
-    }
-
-    private String renderPhpSchemeAuth(String pkg, String className, String baseClass,
-            List<String> imports, List<Map<String, String>> constructorParams,
-            List<String> superArgs) {
-        final Map<String, Object> context = new HashMap<>();
-        context.put("package", pkg);
-        context.put("className", className);
-        context.put("baseClass", baseClass);
-        context.put("imports", imports);
-        context.put("constructorParams", constructorParams);
-        context.put("superArgs", superArgs);
-        context.put("hasCustomConstructor", !isPassthroughConstructor(constructorParams, superArgs));
-        return renderOptionsTemplate("auth/scheme_authenticator.mustache", context);
+    private List<String> buildPhpSuperArgs(SchemeAuthSpec spec) {
+        if ("BasicAuthenticator".equals(spec.baseClass())) {
+            return List.of("$host", "$username", "$password");
+        }
+        if ("BearerAuthenticator".equals(spec.baseClass())) {
+            return List.of("$host", "$token");
+        }
+        if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
+            return List.of("$host", "'" + spec.keyParamName() + "'", "$apiKey",
+                    "ApiKeyLocation::" + spec.keyIn());
+        }
+        if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
+            final String scopes = formatPhpScopes(spec.scopes());
+            return List.of("$host", "$clientId", "$clientSecret",
+                    "'" + spec.tokenUrl() + "'", scopes);
+        }
+        if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "'" + spec.refreshUrl() + "'" : "null";
+            final String scopes = formatPhpScopes(spec.scopes());
+            return List.of("$host", "$clientId", "$clientSecret",
+                    "'" + spec.tokenUrl() + "'",
+                    "$username", "$password", scopes, refreshArg);
+        }
+        if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "'" + spec.refreshUrl() + "'" : "null";
+            final String scopes = formatPhpScopes(spec.scopes());
+            return List.of("$host", "$clientId", "$clientSecret",
+                    "'" + spec.authorizationUrl() + "'", "'" + spec.tokenUrl() + "'",
+                    "$redirectUri", scopes, refreshArg);
+        }
+        if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
+            final String scopes = formatPhpScopes(spec.scopes());
+            return List.of("$host", "$clientId",
+                    "'" + spec.authorizationUrl() + "'", scopes);
+        }
+        if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
+            return List.of("$host", "'" + spec.openIdConnectUrl() + "'",
+                    "$clientId", "$clientSecret", "$redirectUri", "[]");
+        }
+        return List.of();
     }
 
     private static boolean isPassthroughConstructor(

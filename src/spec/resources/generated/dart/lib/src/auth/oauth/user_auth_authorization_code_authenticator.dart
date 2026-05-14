@@ -17,7 +17,7 @@ class UserAuthAuthorizationCodeAuthenticator
   }) : super(
           authorizationUrl: 'https://auth.example.com/authorize',
           tokenUrl: 'https://auth.example.com/oauth/token',
-          scopes: ['pets:read', 'pets:write'],
+          scopes: ['pets:write', 'pets:read'],
           refreshUrl: 'https://auth.example.com/oauth/refresh',
         );
 }

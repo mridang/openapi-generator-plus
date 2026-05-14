@@ -21,6 +21,6 @@ public final class UserAuthAuthorizationCodeAuthenticator
         "https://auth.example.com/oauth/token",
         "https://auth.example.com/oauth/refresh",
         redirectUri,
-        List.of("pets:read", "pets:write"));
+        List.of("pets:write", "pets:read"));
   }
 }

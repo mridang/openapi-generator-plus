@@ -13,7 +13,7 @@ class UserAuthAuthorizationCodeAuthenticator : OAuth2AuthorizationCodeAuthentica
         "https://auth.example.com/authorize",
         "https://auth.example.com/oauth/token",
         redirectUri,
-        listOf("pets:read", "pets:write"),
+        listOf("pets:write", "pets:read"),
         "https://auth.example.com/oauth/refresh",
     )
 }

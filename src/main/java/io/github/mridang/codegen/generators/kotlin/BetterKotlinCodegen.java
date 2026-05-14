@@ -2,8 +2,8 @@ package io.github.mridang.codegen.generators.kotlin;
 
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.NamingConvention;
+import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
 import io.swagger.v3.oas.models.media.Schema;
-import io.swagger.v3.oas.models.security.SecurityScheme;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -12,7 +12,6 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenModel;
@@ -534,276 +533,91 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         return objs;
     }
 
-    /**
-     * Registers base auth supporting files based on which
-     * security scheme types are present in the OpenAPI spec.
-     * Only the auth classes actually needed by the spec are
-     * emitted to keep the generated client minimal.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected void registerAuthSupportingFiles() {
-        final String invokerFolder =
-                Path.of(sourceFolder, invokerPackage.replace(".", "/")).toString();
-        final String authFolder = Path.of(invokerFolder, "auth").toString();
-        final String oauthFolder = Path.of(authFolder, "oauth").toString();
-
-        supportingFiles.add(
-                new SupportingFile(
-                        "auth/base_authenticator.mustache",
-                        authFolder,
-                        "BaseAuthenticator.kt"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "auth/http_aware_authenticator.mustache",
-                        authFolder,
-                        "HttpAwareAuthenticator.kt"));
-
-        if (hasBasicAuth) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/basic_authenticator.mustache",
-                            authFolder,
-                            "BasicAuthenticator.kt"));
-        }
-        if (hasBearerAuth) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/bearer_authenticator.mustache",
-                            authFolder,
-                            "BearerAuthenticator.kt"));
-        }
-        if (hasApiKeyAuth) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/api_key_authenticator.mustache",
-                            authFolder,
-                            "ApiKeyAuthenticator.kt"));
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/api_key_location.mustache",
-                            authFolder,
-                            "ApiKeyLocation.kt"));
-        }
-        if (hasAnyOAuth2 || hasOpenIdConnect) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_token_manager.mustache",
-                            oauthFolder,
-                            "OAuth2TokenManager.kt"));
-        }
-        if (hasOAuth2ClientCredentials) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_client_credentials_authenticator.mustache",
-                            oauthFolder,
-                            "OAuth2ClientCredentialsAuthenticator.kt"));
-        }
-        if (hasOAuth2Password) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_password_authenticator.mustache",
-                            oauthFolder,
-                            "OAuth2PasswordAuthenticator.kt"));
-        }
-        if (hasOAuth2AuthorizationCode) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_auth_code_authenticator.mustache",
-                            oauthFolder,
-                            "OAuth2AuthorizationCodeAuthenticator.kt"));
-        }
-        if (hasOAuth2Implicit) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/oauth2_implicit_authenticator.mustache",
-                            oauthFolder,
-                            "OAuth2ImplicitAuthenticator.kt"));
-        }
-        if (hasOpenIdConnect) {
-            supportingFiles.add(
-                    new SupportingFile(
-                            "auth/oauth/openid_connect_authenticator.mustache",
-                            oauthFolder,
-                            "OpenIdConnectAuthenticator.kt"));
-        }
-
-        if (openAPI.getComponents() == null
-                || openAPI.getComponents().getSecuritySchemes() == null) {
-            return;
-        }
-
-        for (final Map.Entry<String, SecurityScheme> entry :
-                openAPI.getComponents().getSecuritySchemes().entrySet()) {
-            final String schemeName = entry.getKey();
-            final SecurityScheme scheme = entry.getValue();
-            final String className = NamingConvention.PASCAL_CASE.apply(schemeName);
-            final String code = generateKotlinAuthClass(schemeName, className, scheme);
-            if (!code.isEmpty()) {
-                final boolean isOAuth =
-                        scheme.getType() == SecurityScheme.Type.OAUTH2
-                                || scheme.getType() == SecurityScheme.Type.OPENIDCONNECT;
-                final String folder = isOAuth ? oauthFolder : authFolder;
-                final String suffix = getOAuthSuffix(scheme);
-                final String fileName = className + suffix + "Authenticator.kt";
-                final String filePath =
-                        Path.of(outputFolder, folder, fileName).toString();
-                writeFile(filePath, code);
-                postProcessFile(Path.of(filePath).toFile(), "source");
-            }
-        }
+    protected String getAuthDir() {
+        return Path.of(sourceFolder, invokerPackage.replace(".", "/"), "auth").toString();
     }
 
-    private String getOAuthSuffix(SecurityScheme scheme) {
-        if (scheme.getType() != SecurityScheme.Type.OAUTH2 || scheme.getFlows() == null) {
-            return "";
-        }
-        return Optional.ofNullable(scheme.getFlows().getClientCredentials())
-                .map(f -> "ClientCredentials")
-                .or(() -> Optional.ofNullable(scheme.getFlows().getPassword()).map(f -> "Password"))
-                .or(() ->
-                        Optional.ofNullable(scheme.getFlows().getAuthorizationCode())
-                                .map(f -> "AuthorizationCode"))
-                .or(() -> Optional.ofNullable(scheme.getFlows().getImplicit()).map(f -> "Implicit"))
-                .orElse("");
+    /** {@inheritDoc} */
+    @Override
+    protected String getOAuthDir() {
+        return Path.of(getAuthDir(), "oauth").toString();
     }
 
-    @SuppressWarnings("StringConcatenationMissingWhitespace")
-    @edu.umd.cs.findbugs.annotations.SuppressFBWarnings(
-            value = "IMPROPER_UNICODE",
-            justification = "Comparing with ASCII-only constants")
-    private String generateKotlinAuthClass(
-            String schemeName, String className, SecurityScheme scheme) {
-        final String pkg = invokerPackage;
-        if (scheme.getType() == SecurityScheme.Type.HTTP) {
-            if ("basic".equalsIgnoreCase(scheme.getScheme())) {
-                return renderSchemeAuth(pkg + ".auth", className + "Authenticator",
-                        "BasicAuthenticator", List.of(),
-                        List.of(p("host", "String"), p("username", "String"),
-                                p("password", "String")),
-                        List.of("host", "username", "password"));
-            }
-            if ("bearer".equalsIgnoreCase(scheme.getScheme())) {
-                return renderSchemeAuth(pkg + ".auth", className + "Authenticator",
-                        "BearerAuthenticator", List.of(),
-                        List.of(p("host", "String"), p("token", "String")),
-                        List.of("host", "token"));
-            }
-        } else if (scheme.getType() == SecurityScheme.Type.APIKEY) {
-            final String location =
-                    NamingConvention.UPPER_SNAKE_CASE.apply(scheme.getIn().toString());
-            final String paramName = scheme.getName();
-            return renderSchemeAuth(pkg + ".auth", className + "Authenticator",
-                    "ApiKeyAuthenticator", List.of(),
-                    List.of(p("host", "String"), p("apiKey", "String")),
-                    List.of("host", "\"" + paramName + "\"", "apiKey",
-                            "ApiKeyLocation." + location));
-        } else if (scheme.getType() == SecurityScheme.Type.OAUTH2
-                && scheme.getFlows() != null) {
-            return generateKotlinOAuthClass(className, scheme, pkg);
-        } else if (scheme.getType() == SecurityScheme.Type.OPENIDCONNECT) {
-            final String url = scheme.getOpenIdConnectUrl();
-            return renderSchemeAuth(pkg + ".auth.oauth", className + "Authenticator",
-                    "OpenIdConnectAuthenticator",
-                    List.of(pkg + ".auth.Authenticator"),
-                    List.of(p("host", "String"), p("clientId", "String"),
-                            p("clientSecret", "String"), p("redirectUri", "String")),
-                    List.of("host", "\"" + url + "\"", "clientId", "clientSecret",
-                            "redirectUri", "listOf()"));
-        }
-        LOGGER.warn("Unsupported security scheme type: {}", scheme.getType());
-        return "";
+    /** {@inheritDoc} */
+    @Override
+    protected String toAuthFilename(String stem) {
+        return pascalAuthFilename(stem, ".kt");
     }
 
-    private String generateKotlinOAuthClass(
-            String className, SecurityScheme scheme, String pkg) {
-        if (scheme.getFlows().getClientCredentials() != null) {
-            final var flow = scheme.getFlows().getClientCredentials();
-            final String tokenUrl = flow.getTokenUrl();
-            final String scopes = formatScopes(flow.getScopes());
-            return renderSchemeAuth(pkg + ".auth.oauth",
-                    className + "ClientCredentialsAuthenticator",
-                    "OAuth2ClientCredentialsAuthenticator",
-                    List.of(pkg + ".auth.Authenticator"),
-                    List.of(p("host", "String"), p("clientId", "String"),
-                            p("clientSecret", "String")),
-                    List.of("host", "clientId", "clientSecret",
-                            "\"" + tokenUrl + "\"", scopes));
+    /** {@inheritDoc} */
+    @Override
+    protected String renderSchemeAuthenticator(SchemeAuthSpec spec) {
+        final Map<String, Object> ctx = baseSchemeContext(spec);
+        final String pkg = invokerPackage + (spec.isOAuth() ? ".auth.oauth" : ".auth");
+        ctx.put("package", pkg);
+        final List<String> imports = spec.isOAuth()
+                ? List.of(invokerPackage + ".auth.Authenticator")
+                : List.of();
+        ctx.put("imports", imports);
+        final List<Map<String, String>> constructorParams = new ArrayList<>();
+        for (final String name : spec.paramNames()) {
+            final Map<String, String> param = new HashMap<>();
+            param.put("name", name);
+            param.put("type", "String");
+            constructorParams.add(param);
         }
-        if (scheme.getFlows().getPassword() != null) {
-            final var flow = scheme.getFlows().getPassword();
-            final String tokenUrl = flow.getTokenUrl();
-            final String refreshUrl = flow.getRefreshUrl();
-            final String refreshUrlArg = refreshUrl != null ? "\"" + refreshUrl + "\"" : "null";
-            final String scopes = formatScopes(flow.getScopes());
-            return renderSchemeAuth(pkg + ".auth.oauth",
-                    className + "PasswordAuthenticator",
-                    "OAuth2PasswordAuthenticator",
-                    List.of(pkg + ".auth.Authenticator"),
-                    List.of(p("host", "String"), p("clientId", "String"),
-                            p("clientSecret", "String"), p("username", "String"),
-                            p("password", "String")),
-                    List.of("host", "clientId", "clientSecret",
-                            "\"" + tokenUrl + "\"", refreshUrlArg,
-                            "username", "password", scopes));
-        }
-        if (scheme.getFlows().getAuthorizationCode() != null) {
-            final var flow = scheme.getFlows().getAuthorizationCode();
-            final String authUrl = flow.getAuthorizationUrl();
-            final String tokenUrl = flow.getTokenUrl();
-            final String refreshUrl = flow.getRefreshUrl();
-            final String refreshUrlArg = refreshUrl != null ? "\"" + refreshUrl + "\"" : "null";
-            final String scopes = formatScopes(flow.getScopes());
-            return renderSchemeAuth(pkg + ".auth.oauth",
-                    className + "AuthorizationCodeAuthenticator",
-                    "OAuth2AuthorizationCodeAuthenticator",
-                    List.of(pkg + ".auth.Authenticator"),
-                    List.of(p("host", "String"), p("clientId", "String"),
-                            p("clientSecret", "String"), p("redirectUri", "String")),
-                    List.of("host", "clientId", "clientSecret",
-                            "\"" + authUrl + "\"", "\"" + tokenUrl + "\"",
-                            "redirectUri", scopes, refreshUrlArg));
-        }
-        if (scheme.getFlows().getImplicit() != null) {
-            final var flow = scheme.getFlows().getImplicit();
-            final String authUrl = flow.getAuthorizationUrl();
-            final String scopes = formatScopes(flow.getScopes());
-            return renderSchemeAuth(pkg + ".auth.oauth",
-                    className + "ImplicitAuthenticator",
-                    "OAuth2ImplicitAuthenticator",
-                    List.of(pkg + ".auth.Authenticator"),
-                    List.of(p("host", "String"), p("clientId", "String")),
-                    List.of("host", "clientId", "\"" + authUrl + "\"", scopes));
-        }
-        LOGGER.warn("Unsupported OAuth2 flow for scheme: {}", className);
-        return "";
+        ctx.put("constructorParams", constructorParams);
+        ctx.put("superArgs", buildKotlinSuperArgs(spec));
+        return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
     }
 
-    @SuppressWarnings("SameParameterValue")
-    private static String formatScopes(@Nullable Map<String, String> scopes) {
+    private String formatKotlinScopes(@Nullable Map<String, String> scopes) {
         if (scopes == null || scopes.isEmpty()) {
             return "listOf()";
         }
         return "listOf(\"" + String.join("\", \"", scopes.keySet()) + "\")";
     }
 
-    private static Map<String, String> p(String name, String type) {
-        final Map<String, String> param = new HashMap<>();
-        param.put("name", name);
-        param.put("type", type);
-        return param;
-    }
-
-    private String renderSchemeAuth(String pkg, String className, String baseClass,
-            List<String> imports, List<Map<String, String>> constructorParams,
-            List<String> superArgs) {
-        final Map<String, Object> context = new HashMap<>();
-        context.put("package", pkg);
-        context.put("className", className);
-        context.put("baseClass", baseClass);
-        context.put("imports", imports);
-        context.put("constructorParams", constructorParams);
-        context.put("superArgs", superArgs);
-        return renderOptionsTemplate("auth/scheme_authenticator.mustache", context);
+    private List<String> buildKotlinSuperArgs(SchemeAuthSpec spec) {
+        if ("BasicAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "username", "password");
+        }
+        if ("BearerAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "token");
+        }
+        if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "\"" + spec.keyParamName() + "\"", "apiKey",
+                    "ApiKeyLocation." + spec.keyIn());
+        }
+        if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "clientId", "clientSecret",
+                    "\"" + spec.tokenUrl() + "\"", formatKotlinScopes(spec.scopes()));
+        }
+        if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "\"" + spec.refreshUrl() + "\""  : "null";
+            return List.of("host", "clientId", "clientSecret",
+                    "\"" + spec.tokenUrl() + "\"", refreshArg,
+                    "username", "password", formatKotlinScopes(spec.scopes()));
+        }
+        if ("OAuth2AuthorizationCodeAuthenticator".equals(spec.baseClass())) {
+            final String refreshArg = spec.refreshUrl() != null
+                    ? "\"" + spec.refreshUrl() + "\"" : "null";
+            return List.of("host", "clientId", "clientSecret",
+                    "\"" + spec.authorizationUrl() + "\"", "\"" + spec.tokenUrl() + "\"",
+                    "redirectUri", formatKotlinScopes(spec.scopes()), refreshArg);
+        }
+        if ("OAuth2ImplicitAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "clientId",
+                    "\"" + spec.authorizationUrl() + "\"", formatKotlinScopes(spec.scopes()));
+        }
+        if ("OpenIdConnectAuthenticator".equals(spec.baseClass())) {
+            return List.of("host", "\"" + spec.openIdConnectUrl() + "\"",
+                    "clientId", "clientSecret", "redirectUri", "listOf()");
+        }
+        return List.of();
     }
 
     /** {@inheritDoc} */
