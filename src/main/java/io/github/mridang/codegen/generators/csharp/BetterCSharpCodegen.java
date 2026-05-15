@@ -16,14 +16,10 @@ import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
-import org.openapitools.codegen.CodegenDiscriminator;
-import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
-import org.openapitools.codegen.model.ModelMap;
-import org.openapitools.codegen.model.ModelsMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -386,37 +382,6 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Sets the parent of discriminator subtypes so that
-     * System.Text.Json polymorphic deserialization works
-     * correctly with {@code [JsonDerivedType]}.
-     */
-    @Override
-    public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
-        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
-        for (final ModelsMap modelsMap : result.values()) {
-            for (final ModelMap modelMap : modelsMap.getModels()) {
-                final CodegenModel model = modelMap.getModel();
-                if (model.discriminator != null && !model.oneOf.isEmpty()) {
-                    for (final CodegenDiscriminator.MappedModel mapped :
-                            model.discriminator.getMappedModels()) {
-                        final ModelsMap childModels = result.get(mapped.getModelName());
-                        if (childModels != null) {
-                            for (final ModelMap cm : childModels.getModels()) {
-                                final CodegenModel child = cm.getModel();
-                                if (child.parent == null) {
-                                    child.parent = model.classname;
-                                    child.parentSchema = model.classname;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return result;
-    }
-
-    /**
      * Returns the output directory for model source files by
      * combining the output folder, source folder, package name,
      * and model package converted to a directory path.
@@ -436,6 +401,18 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     public String apiFileFolder() {
         return Path.of(outputFolder, sourceFolder, packageName.replace(".", "/"), apiPackage)
                 .toString();
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getArrayTypeTemplate() {
+        return "%1$s<%2$s>";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getMapTypeTemplate() {
+        return "%1$s<%2$s, %3$s>";
     }
 
     /**
@@ -462,6 +439,42 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
 
     /** {@inheritDoc} */
     @Override
+    protected String getSourceFolder() {
+        return sourceFolder;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean setsDiscriminatorParent() {
+        return true;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getMapDefaultValueType() {
+        return "object";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getNullLiteral() {
+        return "null";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getTrueLiteral() {
+        return "true";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFalseLiteral() {
+        return "false";
+    }
+
+    /** {@inheritDoc} */
+    @Override
     protected Set<String> getNumericDataTypes() {
         return Set.of(
                 "int", "uint", "long", "ulong", "short", "ushort",
@@ -474,21 +487,9 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         return '"';
     }
 
-    /**
-     * Overrides the base class because C# needs special character
-     * escaping ({@code \\n}, {@code \\t}, {@code \\r}, unescaped
-     * {@code "}) for string enum values. Cannot be standardized
-     * because other languages don't need this escaping.
-     */
+    /** {@inheritDoc} */
     @Override
-    public String toEnumValue(String value, String datatype) {
-        if (datatype.startsWith("int")
-                || datatype.startsWith("uint")
-                || datatype.startsWith("long")
-                || datatype.startsWith("ulong")
-                || datatype.startsWith("byte")) {
-            return value;
-        }
+    protected String escapeEnumStringValue(String value) {
         return value.replace("\n", "\\n")
                 .replace("\t", "\\t")
                 .replace("\r", "\\r")
