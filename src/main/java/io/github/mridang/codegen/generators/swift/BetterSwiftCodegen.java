@@ -17,6 +17,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.CodegenProperty;
@@ -188,22 +189,16 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         return '"';
     }
 
-    /**
-     * Formats an array type declaration using Swift Array syntax.
-     * Returns {@code [innerType]}.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected String formatArrayType(String containerType, String innerType) {
-        return "[" + innerType + "]";
+    protected String getArrayTypeTemplate() {
+        return "[%2$s]";
     }
 
-    /**
-     * Formats a map type declaration using Swift Dictionary syntax.
-     * Returns {@code [String: valueType]}.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected String formatMapType(String containerType, String keyType, String valueType) {
-        return "[" + keyType + ": " + valueType + "]";
+    protected String getMapTypeTemplate() {
+        return "[%2$s: %3$s]";
     }
 
     /**
@@ -480,12 +475,36 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
 
     /** {@inheritDoc} */
     @Override
-    protected void fixEnumDefaultValue(CodegenProperty prop) {
+    protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
         if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
             final String enumValue = prop.defaultValue.substring(
                     prop.defaultValue.lastIndexOf('.') + 1);
             prop.defaultValue = "\"" + enumValue.toLowerCase(Locale.ROOT) + "\"";
         }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getNullLiteral() {
+        return "nil";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getTrueLiteral() {
+        return "true";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFalseLiteral() {
+        return "false";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSourceFolder() {
+        return "Sources";
     }
 
     /** {@inheritDoc} */
