@@ -202,6 +202,42 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
 
     /** {@inheritDoc} */
     @Override
+    protected String getArrayTypeTemplate() {
+        return "%1$s<%2$s>";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getMapTypeTemplate() {
+        return "%1$s<%2$s, %3$s>";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getNullLiteral() {
+        return "null";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getTrueLiteral() {
+        return "true";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFalseLiteral() {
+        return "false";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSourceFolder() {
+        return "src/main/kotlin";
+    }
+
+    /** {@inheritDoc} */
+    @Override
     protected char getQuoteChar() {
         return '"';
     }
@@ -470,26 +506,6 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Returns the output directory for model source files by
-     * combining the output folder, source folder, and model
-     * package converted to a directory path.
-     */
-    @Override
-    public String modelFileFolder() {
-        return Path.of(outputFolder, sourceFolder, modelPackage().replace('.', '/')).toString();
-    }
-
-    /**
-     * Returns the output directory for API source files by
-     * combining the output folder, source folder, and API
-     * package converted to a directory path.
-     */
-    @Override
-    public String apiFileFolder() {
-        return Path.of(outputFolder, sourceFolder, apiPackage().replace('.', '/')).toString();
-    }
-
-    /**
      * Returns the default value expression for a schema type.
      * Arrays default to empty mutableListOf or mutableSetOf;
      * maps default to empty mutableMapOf. All other types
@@ -515,12 +531,6 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
     @Override
     protected String getAuthDir() {
         return Path.of(sourceFolder, invokerPackage.replace(".", "/"), "auth").toString();
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getOAuthDir() {
-        return Path.of(getAuthDir(), "oauth").toString();
     }
 
     /** {@inheritDoc} */
