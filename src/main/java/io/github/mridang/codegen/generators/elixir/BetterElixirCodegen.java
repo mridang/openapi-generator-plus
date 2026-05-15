@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -23,8 +22,6 @@ import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
-import org.openapitools.codegen.model.ModelMap;
-import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -184,22 +181,16 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         return '"';
     }
 
-    /**
-     * Formats an array type declaration using Elixir list syntax.
-     * Returns {@code [innerType]}.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected String formatArrayType(String containerType, String innerType) {
-        return "[" + innerType + "]";
+    protected String getArrayTypeTemplate() {
+        return "[%2$s]";
     }
 
-    /**
-     * Formats a map type declaration using Elixir map syntax.
-     * Returns {@code %{String.t() => valueType}}.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected String formatMapType(String containerType, String keyType, String valueType) {
-        return "%{" + keyType + " => " + valueType + "}";
+    protected String getMapTypeTemplate() {
+        return "%%{%2$s => %3$s}";
     }
 
     /**
@@ -495,29 +486,44 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         return null;
     }
 
-    /**
-     * Sorts model vars so that fields with defaults (keyword list entries) come
-     * after fields without (bare atom entries) — required by Elixir's defstruct.
-     */
+    /** {@inheritDoc} */
     @Override
-    public ModelsMap postProcessModels(ModelsMap objs) {
-        final ModelsMap result = super.postProcessModels(objs);
-        for (final ModelMap modelMap : result.getModels()) {
-            final CodegenModel model = modelMap.getModel();
-            model.vars.sort(
-                    Comparator.comparing(p -> p.defaultValue != null ? 1 : 0));
-        }
-        return result;
+    protected boolean sortVarsByDefaultValue() {
+        return true;
     }
 
     /** {@inheritDoc} */
     @Override
-    protected void fixEnumDefaultValue(CodegenProperty prop) {
+    protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
         if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
             final String enumValue = prop.defaultValue.substring(
                     prop.defaultValue.lastIndexOf('.') + 1);
             prop.defaultValue = "\"" + enumValue.toLowerCase(Locale.ROOT) + "\"";
         }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getNullLiteral() {
+        return "nil";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getTrueLiteral() {
+        return "true";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFalseLiteral() {
+        return "false";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSourceFolder() {
+        return "lib";
     }
 
     /** {@inheritDoc} */
