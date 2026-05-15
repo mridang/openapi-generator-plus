@@ -53,8 +53,6 @@ class ObjectSerializer:
         'object': object,
     }
 
-    _DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S%z'
-
     def __init__(self) -> None:
         pass
 
@@ -101,7 +99,9 @@ class ObjectSerializer:
             return base64.b64encode(obj).decode('ascii')
         elif isinstance(obj, cls._PRIMITIVE_TYPES):
             return obj
-        elif isinstance(obj, (datetime.datetime, datetime.date)):
+        elif isinstance(obj, datetime.datetime):
+            return obj.isoformat(timespec='seconds')
+        elif isinstance(obj, datetime.date):
             return obj.isoformat()
         elif isinstance(obj, decimal.Decimal):
             return str(obj)
@@ -232,7 +232,7 @@ class ObjectSerializer:
         if isinstance(value, Enum):
             return str(value.value)
         if isinstance(value, datetime.datetime):
-            return value.isoformat()
+            return value.isoformat(timespec='seconds')
         if isinstance(value, datetime.date):
             return value.isoformat()
         return str(value)

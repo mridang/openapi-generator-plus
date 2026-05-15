@@ -101,25 +101,27 @@ public static class ValueSerializer
             items = [.. list.Cast<object>().Select(ObjectSerializer.Stringify)];
         }
 
+        Func<string, string> enc = s => location == "path" ? Uri.EscapeDataString(s) : s;
+
         switch (style)
         {
             case "matrix":
                 if (items != null)
                 {
                     return explode
-                        ? string.Join("", items.Select(i => ";" + paramName + "=" + i))
-                        : ";" + paramName + "=" + string.Join(",", items);
+                        ? string.Join("", items.Select(i => ";" + paramName + "=" + enc(i)))
+                        : ";" + paramName + "=" + string.Join(",", items.Select(enc));
                 }
-                return ";" + paramName + "=" + ObjectSerializer.Stringify(value);
+                return ";" + paramName + "=" + enc(ObjectSerializer.Stringify(value));
 
             case "label":
                 if (items != null)
                 {
                     return explode
-                        ? "." + string.Join(".", items)
-                        : "." + string.Join(",", items);
+                        ? "." + string.Join(".", items.Select(enc))
+                        : "." + string.Join(",", items.Select(enc));
                 }
-                return "." + ObjectSerializer.Stringify(value);
+                return "." + enc(ObjectSerializer.Stringify(value));
 
             case "form":
                 if (items != null)
@@ -131,17 +133,17 @@ public static class ValueSerializer
                 return ObjectSerializer.Stringify(value);
 
             case "spaceDelimited":
-                return items != null ? string.Join(" ", items) : ObjectSerializer.Stringify(value);
+                return items != null ? string.Join(" ", items.Select(enc)) : enc(ObjectSerializer.Stringify(value));
 
             case "pipeDelimited":
-                return items != null ? string.Join("|", items) : ObjectSerializer.Stringify(value);
+                return items != null ? string.Join("|", items.Select(enc)) : enc(ObjectSerializer.Stringify(value));
 
             case "simple":
                 if (items != null)
                 {
-                    return string.Join(",", items);
+                    return string.Join(",", items.Select(enc));
                 }
-                return ObjectSerializer.Stringify(value);
+                return enc(ObjectSerializer.Stringify(value));
 
             default:
                 return Serialize(value, location, schemaType, collectionFormat);

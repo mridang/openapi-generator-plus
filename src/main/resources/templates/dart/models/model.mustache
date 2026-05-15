@@ -145,7 +145,7 @@ class {{classname}} {
       {{name}}: DateTime.parse(json['{{baseName}}'] as String),
 {{/isDateTime}}
 {{#isDate}}
-      {{name}}: DateTime.parse(json['{{baseName}}'] as String),
+      {{name}}: json['{{baseName}}'] as String,
 {{/isDate}}
 {{^isDateTime}}{{^isDate}}
       {{name}}: json['{{baseName}}'] as {{{dataType}}},
@@ -186,7 +186,7 @@ class {{classname}} {
       {{name}}: json['{{baseName}}'] != null ? DateTime.parse(json['{{baseName}}'] as String) : null,
 {{/isDateTime}}
 {{#isDate}}
-      {{name}}: json['{{baseName}}'] != null ? DateTime.parse(json['{{baseName}}'] as String) : null,
+      {{name}}: json['{{baseName}}'] as String?,
 {{/isDate}}
 {{^isDateTime}}{{^isDate}}
 {{#defaultValue}}
@@ -251,7 +251,7 @@ class {{classname}} {
     json['{{baseName}}'] = {{name}}.toIso8601String();
 {{/isDateTime}}
 {{#isDate}}
-    json['{{baseName}}'] = {{name}}.toIso8601String();
+    json['{{baseName}}'] = {{name}};
 {{/isDate}}
 {{^isDateTime}}{{^isDate}}
     json['{{baseName}}'] = {{name}};
@@ -300,7 +300,7 @@ class {{classname}} {
       json['{{baseName}}'] = {{name}}?.toIso8601String();
 {{/isDateTime}}
 {{#isDate}}
-      json['{{baseName}}'] = {{name}}?.toIso8601String();
+      json['{{baseName}}'] = {{name}};
 {{/isDate}}
 {{^isDateTime}}{{^isDate}}
       json['{{baseName}}'] = {{name}};

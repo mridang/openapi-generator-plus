@@ -43,5 +43,4 @@ defmodule PetstoreClient.Models.WetFood do
       volume_ml: "integer()"
     }
   end
-
 end

@@ -75,7 +75,11 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       merged["X-Request-ID"] = UUID().uuidString
     }
     if merged["Accept-Encoding"] == nil {
-      merged["Accept-Encoding"] = "gzip, deflate, br"
+      #if os(Linux)
+        merged["Accept-Encoding"] = "gzip, deflate"
+      #else
+        merged["Accept-Encoding"] = "gzip, deflate, br"
+      #endif
     }
 
     var request = URLRequest(url: requestURL)

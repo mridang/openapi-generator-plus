@@ -88,7 +88,7 @@ class ObjectSerializer(
         return when (value) {
             is Boolean -> if (value) "true" else "false"
             is LocalDate -> DateTimeFormatter.ISO_LOCAL_DATE.format(value)
-            is TemporalAccessor -> DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(value)
+            is TemporalAccessor -> DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx").format(value)
             else -> value.toString()
         }
     }
@@ -167,7 +167,7 @@ class ObjectSerializer(
             override fun serialize(
                 encoder: Encoder,
                 value: OffsetDateTime,
-            ) = encoder.encodeString(DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(value))
+            ) = encoder.encodeString(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx").format(value))
 
             override fun deserialize(decoder: Decoder): OffsetDateTime =
                 OffsetDateTime.parse(decoder.decodeString(), DateTimeFormatter.ISO_OFFSET_DATE_TIME)

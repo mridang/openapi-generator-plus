@@ -1,0 +1,10 @@
+# Build artifacts
+/_build/
+/deps/
+
+# Coverage output
+/cover/
+/.out/
+
+# Crash dumps
+erl_crash.dump

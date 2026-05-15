@@ -73,10 +73,17 @@ public class ObjectSerializer
                 System.Globalization.CultureInfo.InvariantCulture
             ),
             DateTimeOffset dto => dto.ToString(
-                "o",
+                "yyyy-MM-dd'T'HH:mm:sszzz",
                 System.Globalization.CultureInfo.InvariantCulture
             ),
-            DateTime dt => dt.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+            DateTime dt => new DateTimeOffset(
+                dt.Kind == DateTimeKind.Unspecified
+                    ? DateTime.SpecifyKind(dt, DateTimeKind.Utc)
+                    : dt
+            ).ToString(
+                "yyyy-MM-dd'T'HH:mm:sszzz",
+                System.Globalization.CultureInfo.InvariantCulture
+            ),
             _ => value.ToString() ?? "",
         };
     }

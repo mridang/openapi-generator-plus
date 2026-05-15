@@ -147,6 +147,8 @@ class DefaultApiClient implements ApiClient {
           : await pendingResponse;
     } on SocketException catch (e) {
       throw ApiError(statusCode: 0, message: e.message);
+    } on HandshakeException catch (e) {
+      throw ApiError(statusCode: 0, message: e.message);
     } on HttpException catch (e) {
       throw ApiError(statusCode: 0, message: e.message);
     } on TimeoutException catch (e) {

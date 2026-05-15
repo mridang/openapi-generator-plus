@@ -42,5 +42,4 @@ defmodule PetstoreClient.Models.Tag do
       name: "String.t()"
     }
   end
-
 end

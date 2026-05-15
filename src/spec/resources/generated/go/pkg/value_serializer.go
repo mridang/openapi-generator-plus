@@ -104,6 +104,13 @@ func SerializeStyled(paramName string, value interface{}, location, schemaType, 
 
 	items, isArray := toStringSlice(value)
 
+	encodeItem := func(s string) string {
+		if location == "path" {
+			return url.PathEscape(s)
+		}
+		return s
+	}
+
 	switch style {
 	case "matrix":
 		if value == nil {
@@ -116,13 +123,17 @@ func SerializeStyled(paramName string, value interface{}, location, schemaType, 
 			if explode {
 				var parts []string
 				for _, v := range items {
-					parts = append(parts, fmt.Sprintf(";%s=%s", paramName, v))
+					parts = append(parts, fmt.Sprintf(";%s=%s", paramName, encodeItem(v)))
 				}
 				return strings.Join(parts, "")
 			}
-			return fmt.Sprintf(";%s=%s", paramName, strings.Join(items, ","))
+			encoded := make([]string, len(items))
+			for i, v := range items {
+				encoded[i] = encodeItem(v)
+			}
+			return fmt.Sprintf(";%s=%s", paramName, strings.Join(encoded, ","))
 		}
-		return fmt.Sprintf(";%s=%s", paramName, Stringify(value))
+		return fmt.Sprintf(";%s=%s", paramName, encodeItem(Stringify(value)))
 
 	case "label":
 		if value == nil {
@@ -132,12 +143,16 @@ func SerializeStyled(paramName string, value interface{}, location, schemaType, 
 			return ""
 		}
 		if isArray {
-			if explode {
-				return "." + strings.Join(items, ".")
+			encoded := make([]string, len(items))
+			for i, v := range items {
+				encoded[i] = encodeItem(v)
 			}
-			return "." + strings.Join(items, ",")
+			if explode {
+				return "." + strings.Join(encoded, ".")
+			}
+			return "." + strings.Join(encoded, ",")
 		}
-		return "." + Stringify(value)
+		return "." + encodeItem(Stringify(value))
 
 	case "spaceDelimited":
 		if value == nil {
@@ -147,9 +162,13 @@ func SerializeStyled(paramName string, value interface{}, location, schemaType, 
 			return ""
 		}
 		if isArray {
-			return strings.Join(items, " ")
+			encoded := make([]string, len(items))
+			for i, v := range items {
+				encoded[i] = encodeItem(v)
+			}
+			return strings.Join(encoded, " ")
 		}
-		return Stringify(value)
+		return encodeItem(Stringify(value))
 
 	case "pipeDelimited":
 		if value == nil {
@@ -159,9 +178,13 @@ func SerializeStyled(paramName string, value interface{}, location, schemaType, 
 			return ""
 		}
 		if isArray {
-			return strings.Join(items, "|")
+			encoded := make([]string, len(items))
+			for i, v := range items {
+				encoded[i] = encodeItem(v)
+			}
+			return strings.Join(encoded, "|")
 		}
-		return Stringify(value)
+		return encodeItem(Stringify(value))
 
 	case "form":
 		if value == nil {
@@ -186,9 +209,13 @@ func SerializeStyled(paramName string, value interface{}, location, schemaType, 
 			return ""
 		}
 		if isArray {
-			return strings.Join(items, ",")
+			encoded := make([]string, len(items))
+			for i, v := range items {
+				encoded[i] = encodeItem(v)
+			}
+			return strings.Join(encoded, ",")
 		}
-		return Stringify(value)
+		return encodeItem(Stringify(value))
 
 	default:
 		return SerializeValue(value, location, schemaType, collectionFormat)

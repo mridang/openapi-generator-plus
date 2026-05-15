@@ -99,7 +99,7 @@ class DefaultApiClient internal constructor(
             responseHeaders[name] = values.joinToString(", ")
         }
 
-        val rawBytes = response.readBytes()
+        val rawBytes = response.bodyAsBytes()
         val contentType = responseHeaders["content-type"] ?: ""
         val responseBody =
             if (isTextContentType(contentType)) {

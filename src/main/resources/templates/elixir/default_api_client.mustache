@@ -80,7 +80,13 @@ defmodule {{moduleName}}.DefaultApiClient do
     {serialized_body, merged} = prepare_body(body, merged)
 
     req_opts = build_req_options(opts, method, url, merged, serialized_body)
-    response = Req.request!(req_opts)
+
+    response =
+      try do
+        Req.request!(req_opts)
+      rescue
+        e -> raise {{moduleName}}.ApiError, message: Exception.message(e), status_code: 0
+      end
 
     headers = normalize_headers(response.headers)
     content_type = Map.get(headers, "content-type") || Map.get(headers, "Content-Type") || ""
@@ -173,6 +179,15 @@ defmodule {{moduleName}}.DefaultApiClient do
 
         true ->
           req_opts
+      end
+
+    req_opts =
+      if opts.timeout do
+        connect_opts = Keyword.get(req_opts, :connect_options, [])
+        connect_opts = Keyword.put(connect_opts, :timeout, opts.timeout)
+        Keyword.put(req_opts, :connect_options, connect_opts)
+      else
+        req_opts
       end
 
     req_opts

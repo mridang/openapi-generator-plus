@@ -198,9 +198,7 @@ public final class DefaultApiClient implements ApiClient {
             builder.timeout(Duration.ofMillis(transportOptions.getTimeout()));
         }
 
-        if (!mergedHeaders.containsKey("Accept-Encoding")) {
-            builder.header("Accept-Encoding", getSupportedEncodings());
-        }
+        mergedHeaders.putIfAbsent("Accept-Encoding", getSupportedEncodings());
 
         for (Map.Entry<String, String> header : mergedHeaders.entrySet()) {
             builder.header(header.getKey(), header.getValue());

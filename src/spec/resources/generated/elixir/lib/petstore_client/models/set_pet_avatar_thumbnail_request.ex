@@ -33,5 +33,4 @@ defmodule PetstoreClient.Models.SetPetAvatarThumbnailRequest do
       end
     end) || if(:AnyType in openapi_one_of(), do: data, else: nil)
   end
-
 end

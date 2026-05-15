@@ -68,7 +68,7 @@ class ObjectSerializer
             return $data;
         }
 
-        if ($data instanceof \DateTime) {
+        if ($data instanceof \DateTimeInterface) {
             return $data->format(self::DATE_TIME_FORMAT);
         }
 
@@ -109,7 +109,7 @@ class ObjectSerializer
             return '';
         }
 
-        if ($value instanceof \DateTime) {
+        if ($value instanceof \DateTimeInterface) {
             return $value->format(self::DATE_TIME_FORMAT);
         }
 
@@ -123,6 +123,10 @@ class ObjectSerializer
 
         if (is_int($value) || is_float($value)) {
             return (string) $value;
+        }
+
+        if ($value instanceof \BackedEnum) {
+            return (string) $value->value;
         }
 
         $encoded = json_encode($value);

@@ -1,0 +1,268 @@
+# frozen_string_literal: true
+
+# rubocop:disable Metrics/BlockLength, Lint/MissingCopEnableDirective
+
+require 'minitest/autorun'
+require 'json'
+require 'petstore_client'
+
+describe PetstoreClient::DefaultApiClient do
+  def stub_connection(stubs)
+    Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
+  end
+
+  it 'sends GET request and returns response' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/echo') { [200, { 'content-type' => 'application/json' }, '{"method":"GET"}'] }
+    end
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/echo', {}, nil)
+      _(response.status_code).must_equal 200
+      body = JSON.parse(response.body)
+      _(body['method']).must_equal 'GET'
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'sends POST with JSON body' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/echo') { [200, {}, '{"method":"POST","body":"{key}"}'] }
+    end
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      headers = { 'Content-Type' => 'application/json' }
+      response = client.send_request('POST', 'http://localhost/echo', headers, '{"key":"value"}')
+      _(response.status_code).must_equal 200
+      _(response.body).must_include 'POST'
+      _(response.body).must_include 'key'
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'returns response headers' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/echo') { [200, { 'x-test-header' => 'test-value' }, 'ok'] }
+    end
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/echo', {}, nil)
+      _(response.headers['x-test-header']).must_equal 'test-value'
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'returns non-2xx status code' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/not-found') { [404, {}, 'not found'] }
+    end
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/not-found', {}, nil)
+      _(response.status_code).must_equal 404
+      _(response.body).must_equal 'not found'
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'sends PUT request' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.put('/echo') { [200, {}, '{"method":"PUT"}'] }
+    end
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('PUT', 'http://localhost/echo', {}, 'update')
+      _(response.status_code).must_equal 200
+      _(response.body).must_include 'PUT'
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'sends DELETE request' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.delete('/echo') { [200, {}, '{"method":"DELETE"}'] }
+    end
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('DELETE', 'http://localhost/echo', {}, nil)
+      _(response.status_code).must_equal 200
+      _(response.body).must_include 'DELETE'
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'returns JSON body for vendor JSON content type' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/vendor-json') do
+        [200, { 'content-type' => 'application/vnd.api+json' }, '{"format":"vendor"}']
+      end
+    end
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/vendor-json', {}, nil)
+      _(response.status_code).must_equal 200
+      body = JSON.parse(response.body)
+      _(body['format']).must_equal 'vendor'
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'joins multi-value response headers' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/multi-header') do
+        [200, { 'x-custom-value' => 'val1, val2' }, 'ok']
+      end
+    end
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/multi-header', {}, nil)
+      _(response.status_code).must_equal 200
+      _(response.headers['x-custom-value']).must_include 'val1'
+      _(response.headers['x-custom-value']).must_include 'val2'
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'injects custom User-Agent header' do
+    captured_ua = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/test') do |env|
+        captured_ua = env.request_headers['User-Agent']
+        [200, {}, '{}']
+      end
+    end
+    transport = PetstoreClient::TransportOptions.builder.user_agent('MyApp/1.0').build
+    client = PetstoreClient::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/test', {}, nil)
+    end
+    _(captured_ua).must_equal 'MyApp/1.0'
+    stubs.verify_stubbed_calls
+  end
+
+  it 'injects default User-Agent when not explicitly set' do
+    captured_ua = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/test') do |env|
+        captured_ua = env.request_headers['User-Agent']
+        [200, {}, '{}']
+      end
+    end
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/test', {}, nil)
+    end
+    _(captured_ua).wont_be_nil
+    _(captured_ua).wont_be_empty
+    stubs.verify_stubbed_calls
+  end
+
+  it 'injects X-Request-ID when enabled' do
+    captured_id = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/test') do |env|
+        captured_id = env.request_headers['X-Request-ID']
+        [200, {}, '{}']
+      end
+    end
+    transport = PetstoreClient::TransportOptions.builder.inject_request_id(true).build
+    client = PetstoreClient::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/test', {}, nil)
+    end
+    _(captured_id).wont_be_nil
+    _(captured_id).must_match(/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/)
+    stubs.verify_stubbed_calls
+  end
+
+  it 'does not inject X-Request-ID when disabled' do
+    captured_headers = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/test') do |env|
+        captured_headers = env.request_headers
+        [200, {}, '{}']
+      end
+    end
+    transport = PetstoreClient::TransportOptions.builder.inject_request_id(false).build
+    client = PetstoreClient::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/test', {}, nil)
+    end
+    _(captured_headers).wont_be_nil
+    _(captured_headers.key?('X-Request-ID')).must_equal false
+    stubs.verify_stubbed_calls
+  end
+
+  it 'does not override caller-provided X-Request-ID' do
+    captured_id = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/test') do |env|
+        captured_id = env.request_headers['X-Request-ID']
+        [200, {}, '{}']
+      end
+    end
+    transport = PetstoreClient::TransportOptions.builder.inject_request_id(true).build
+    client = PetstoreClient::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/test', { 'X-Request-ID' => 'caller-id' }, nil)
+    end
+    _(captured_id).must_equal 'caller-id'
+    stubs.verify_stubbed_calls
+  end
+
+  it 'generates unique X-Request-ID per request' do
+    captured_ids = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/test') do |env|
+        captured_ids << env.request_headers['X-Request-ID']
+        [200, {}, '{}']
+      end
+      stub.get('/test') do |env|
+        captured_ids << env.request_headers['X-Request-ID']
+        [200, {}, '{}']
+      end
+    end
+    transport = PetstoreClient::TransportOptions.builder.inject_request_id(true).build
+    client = PetstoreClient::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/test', {}, nil)
+      client.send_request('GET', 'http://localhost/test', {}, nil)
+    end
+    _(captured_ids.length).must_equal 2
+    _(captured_ids[0]).wont_equal captured_ids[1]
+  end
+
+  it 'includes transport-level default headers' do
+    captured_value = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/test') do |env|
+        captured_value = env.request_headers['X-Custom']
+        [200, {}, '{}']
+      end
+    end
+    transport = PetstoreClient::TransportOptions.builder.default_header('X-Custom', 'custom-value').build
+    client = PetstoreClient::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/test', {}, nil)
+    end
+    _(captured_value).must_equal 'custom-value'
+    stubs.verify_stubbed_calls
+  end
+
+  it 'caller headers override transport default headers' do
+    captured_accept = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/test') do |env|
+        captured_accept = env.request_headers['Accept']
+        [200, {}, '{}']
+      end
+    end
+    transport = PetstoreClient::TransportOptions.builder.default_header('Accept', 'text/plain').build
+    client = PetstoreClient::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/test', { 'Accept' => 'application/json' }, nil)
+    end
+    _(captured_accept).must_equal 'application/json'
+    stubs.verify_stubbed_calls
+  end
+end

@@ -84,6 +84,13 @@ public enum ValueSerializer {
     let items = toStringArray(value)
     let isArray = items != nil
 
+    let encodeIfPath: (String) -> String = { s in
+      guard location == "path" else { return s }
+      var allowed = CharacterSet.alphanumerics
+      allowed.insert(charactersIn: "-._~")
+      return s.addingPercentEncoding(withAllowedCharacters: allowed) ?? s
+    }
+
     switch style {
     case "matrix":
       guard let value = value else {
@@ -91,11 +98,11 @@ public enum ValueSerializer {
       }
       if let items = items {
         if explode {
-          return items.map { ";\(paramName)=\($0)" }.joined()
+          return items.map { ";\(paramName)=\(encodeIfPath($0))" }.joined()
         }
-        return ";\(paramName)=\(items.joined(separator: ","))"
+        return ";\(paramName)=\(items.map(encodeIfPath).joined(separator: ","))"
       }
-      return ";\(paramName)=\(ObjectSerializer.stringify(value))"
+      return ";\(paramName)=\(encodeIfPath(ObjectSerializer.stringify(value)))"
 
     case "label":
       guard let value = value else {
@@ -103,29 +110,29 @@ public enum ValueSerializer {
       }
       if let items = items {
         if explode {
-          return "." + items.joined(separator: ".")
+          return "." + items.map(encodeIfPath).joined(separator: ".")
         }
-        return "." + items.joined(separator: ",")
+        return "." + items.map(encodeIfPath).joined(separator: ",")
       }
-      return "." + ObjectSerializer.stringify(value)
+      return "." + encodeIfPath(ObjectSerializer.stringify(value))
 
     case "spaceDelimited":
       guard let value = value else {
         return location == "query" ? nil : "" as Any
       }
       if let items = items {
-        return items.joined(separator: " ")
+        return items.map(encodeIfPath).joined(separator: " ")
       }
-      return ObjectSerializer.stringify(value)
+      return encodeIfPath(ObjectSerializer.stringify(value))
 
     case "pipeDelimited":
       guard let value = value else {
         return location == "query" ? nil : "" as Any
       }
       if let items = items {
-        return items.joined(separator: "|")
+        return items.map(encodeIfPath).joined(separator: "|")
       }
-      return ObjectSerializer.stringify(value)
+      return encodeIfPath(ObjectSerializer.stringify(value))
 
     case "form":
       guard let value = value else {
@@ -144,9 +151,9 @@ public enum ValueSerializer {
         return location == "query" ? nil : "" as Any
       }
       if let items = items {
-        return items.joined(separator: ",")
+        return items.map(encodeIfPath).joined(separator: ",")
       }
-      return ObjectSerializer.stringify(value)
+      return encodeIfPath(ObjectSerializer.stringify(value))
 
     default:
       return serializeValue(

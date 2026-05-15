@@ -49,5 +49,4 @@ defmodule PetstoreClient.Models.PetPassport do
       issued_at: "String.t()"
     }
   end
-
 end

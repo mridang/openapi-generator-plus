@@ -127,7 +127,16 @@ public final class ObjectSerializer {
             return DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx").format(t);
         }
         if (value instanceof Date d) {
-            return new StdDateFormat().format(d);
+            return new StdDateFormat().withColonInTimeZone(true).format(d);
+        }
+        if (value instanceof Enum<?> e) {
+            try {
+                java.lang.reflect.Method m = e.getClass().getMethod("getValue");
+                return String.valueOf(m.invoke(e));
+            } catch (ReflectiveOperationException ignored) {
+                // fall through to name()
+            }
+            return e.name();
         }
         return String.valueOf(value);
     }
