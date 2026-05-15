@@ -10,7 +10,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -494,40 +496,27 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Fixes enum default values that the base class sets to
-     * Java-style enum references (e.g. "StatusEnum.Placed").
-     * For Elixir, enum fields should use a string literal.
+     * Sorts model vars so that fields with defaults (keyword list entries) come
+     * after fields without (bare atom entries) — required by Elixir's defstruct.
      */
     @Override
     public ModelsMap postProcessModels(ModelsMap objs) {
         final ModelsMap result = super.postProcessModels(objs);
         for (final ModelMap modelMap : result.getModels()) {
             final CodegenModel model = modelMap.getModel();
-            for (final CodegenProperty prop : model.vars) {
-                fixEnumDefaultValue(prop);
-            }
-            for (final CodegenProperty prop : model.allVars) {
-                fixEnumDefaultValue(prop);
-            }
-            for (final CodegenProperty prop : model.optionalVars) {
-                fixEnumDefaultValue(prop);
-            }
-            for (final CodegenProperty prop : model.requiredVars) {
-                fixEnumDefaultValue(prop);
-            }
-            // Elixir requires keyword list entries (fields with defaults) to come
-            // after bare atom entries (fields without defaults) in defstruct.
             model.vars.sort(
-                    java.util.Comparator.comparing(p -> p.defaultValue != null ? 1 : 0));
+                    Comparator.comparing(p -> p.defaultValue != null ? 1 : 0));
         }
         return result;
     }
 
-    private void fixEnumDefaultValue(CodegenProperty prop) {
+    /** {@inheritDoc} */
+    @Override
+    protected void fixEnumDefaultValue(CodegenProperty prop) {
         if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
             final String enumValue = prop.defaultValue.substring(
                     prop.defaultValue.lastIndexOf('.') + 1);
-            prop.defaultValue = "\"" + enumValue.toLowerCase(java.util.Locale.ROOT) + "\"";
+            prop.defaultValue = "\"" + enumValue.toLowerCase(Locale.ROOT) + "\"";
         }
     }
 
@@ -613,7 +602,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         }
         if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "\"" + spec.keyParamName() + "\"", "api_key",
-                    ":" + (spec.keyIn() != null ? spec.keyIn().toLowerCase(java.util.Locale.ROOT) : "header"));
+                    ":" + (spec.keyIn() != null ? spec.keyIn().toLowerCase(Locale.ROOT) : "header"));
         }
         if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "client_id", "client_secret",

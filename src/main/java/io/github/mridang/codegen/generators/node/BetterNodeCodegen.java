@@ -721,10 +721,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
      */
     @Override
     public void postProcessFile(File file, String fileType) {
+        super.postProcessFile(file, fileType);
         if (file == null || !file.getName().endsWith(".ts")) {
             return;
         }
-        super.postProcessFile(file, fileType);
         try {
             final List<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
             final List<String> result = new ArrayList<>(lines.size());

@@ -9,7 +9,6 @@ import io.github.mridang.codegen.generators.NamingConvention;
 import io.swagger.v3.oas.models.media.Schema;
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -17,6 +16,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -502,38 +502,14 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         return null;
     }
 
-    /**
-     * Fixes enum default values that the base class sets to
-     * Java-style enum references (e.g. "StatusEnum.Placed").
-     * For Rust, enum fields typed as String should use a
-     * String literal default.
-     */
+    /** {@inheritDoc} */
     @Override
-    public ModelsMap postProcessModels(ModelsMap objs) {
-        final ModelsMap result = super.postProcessModels(objs);
-        for (final ModelMap modelMap : result.getModels()) {
-            final CodegenModel model = modelMap.getModel();
-            for (final CodegenProperty prop : model.vars) {
-                fixEnumDefaultValue(prop);
-            }
-            for (final CodegenProperty prop : model.allVars) {
-                fixEnumDefaultValue(prop);
-            }
-            for (final CodegenProperty prop : model.optionalVars) {
-                fixEnumDefaultValue(prop);
-            }
-            for (final CodegenProperty prop : model.requiredVars) {
-                fixEnumDefaultValue(prop);
-            }
-        }
-        return result;
-    }
-
-    private void fixEnumDefaultValue(CodegenProperty prop) {
+    protected void fixEnumDefaultValue(CodegenProperty prop) {
         if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
             final String enumValue = prop.defaultValue.substring(
                     prop.defaultValue.lastIndexOf('.') + 1);
-            prop.defaultValue = "String::from(\"" + enumValue.toLowerCase(java.util.Locale.ROOT) + "\")";
+            prop.defaultValue =
+                    "String::from(\"" + enumValue.toLowerCase(Locale.ROOT) + "\")";
         }
     }
 
@@ -592,7 +568,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         } else if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
             final String loc = "ApiKeyLocation::" + NamingConvention.PASCAL_CASE.apply(
                     spec.keyIn() != null
-                            ? spec.keyIn().toLowerCase(java.util.Locale.ROOT)
+                            ? spec.keyIn().toLowerCase(Locale.ROOT)
                             : "header");
             constructorParams = List.of(p("host", "&str"), p("api_key", "&str"));
             superArgs = List.of("host", "\"" + spec.keyParamName() + "\"", "api_key", loc);
@@ -767,14 +743,14 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
      * Scans a directory for {@code .rs} files (excluding
      * {@code mod.rs}) and writes a {@code mod.rs} that declares
      * and re-exports all discovered modules. For the API
-     * directory, also includes the base_api and options modules.
+     * directory, also includes the options module.
      */
     private void writeModFile(Path dir) {
         if (!Files.isDirectory(dir)) {
             return;
         }
         try (Stream<Path> entries = Files.list(dir)) {
-            final List<String> modules =
+            final List<Map<String, String>> modules =
                     entries.filter(p -> p.toString().endsWith(".rs"))
                             .map(Path::getFileName)
                             .filter(Objects::nonNull)
@@ -782,20 +758,16 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                             .filter(name -> !name.equals("mod.rs"))
                             .map(name -> name.replace(".rs", ""))
                             .sorted()
+                            .map(name -> Map.of("name", name))
                             .collect(Collectors.toList());
 
-            final StringBuilder sb = new StringBuilder();
-            sb.append("#![allow(unused_imports)]\n\n");
-            for (final String mod : modules) {
-                sb.append("mod ").append(mod).append(";\n");
-                sb.append("pub use ").append(mod).append("::*;\n");
-            }
+            final Map<String, Object> ctx = new HashMap<>();
+            ctx.put("modules", modules);
+            ctx.put("hasOptions",
+                    dir.endsWith("api") && Files.isDirectory(dir.resolve("options")));
 
-            if (dir.endsWith("api") && Files.isDirectory(dir.resolve("options"))) {
-                sb.append("pub mod options;\n");
-            }
-
-            writeFile(dir.resolve("mod.rs").toString(), sb.toString());
+            writeFile(dir.resolve("mod.rs").toString(),
+                    renderOptionsTemplate("module_index.mustache", ctx));
         } catch (IOException e) {
             LOGGER.warn("Failed to write mod.rs in {}: {}", dir, e.getMessage());
         }

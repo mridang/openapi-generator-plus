@@ -14,7 +14,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -347,7 +349,10 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                         Path.of(srcDir, "api").toString(),
                         "base_api.dart"));
         supportingFiles.add(
-                new SupportingFile("authenticator.mustache", Path.of(srcDir, "auth").toString(), "authenticator.dart"));
+                new SupportingFile(
+                        "authenticator.mustache",
+                        Path.of(srcDir, "auth").toString(),
+                        "authenticator.dart"));
 
         final String clientClassName =
                 Objects.requireNonNull((String) additionalProperties.get("clientClassName"));
@@ -512,29 +517,14 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
     }
 
     /**
-     * Fixes enum default values that the base class sets to
-     * Java-style enum references (e.g. "StatusEnum.Placed").
-     * For Dart, enum fields typed as String should use a
-     * Dart string literal default.
+     * Clears primitive-typed enum flags, builds dart import metadata,
+     * and filters primitive types from oneOf/anyOf sets.
      */
     @Override
     public ModelsMap postProcessModels(ModelsMap objs) {
         final ModelsMap result = super.postProcessModels(objs);
         for (final ModelMap modelMap : result.getModels()) {
             final CodegenModel model = modelMap.getModel();
-            for (final CodegenProperty prop : model.vars) {
-                fixEnumDefaultValue(prop);
-            }
-            for (final CodegenProperty prop : model.allVars) {
-                fixEnumDefaultValue(prop);
-            }
-            for (final CodegenProperty prop : model.optionalVars) {
-                fixEnumDefaultValue(prop);
-            }
-            for (final CodegenProperty prop : model.requiredVars) {
-                fixEnumDefaultValue(prop);
-            }
-
             for (final CodegenProperty prop : model.vars) {
                 clearEnumOnPrimitives(prop);
             }
@@ -561,7 +551,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             modelMap.put("dartImports", dartImports);
             modelMap.put("hasDartImports", !dartImports.isEmpty());
 
-            final Set<String> filteredOneOf = new java.util.LinkedHashSet<>();
+            final Set<String> filteredOneOf = new LinkedHashSet<>();
             for (final String typeName : model.oneOf) {
                 if (!languageSpecificPrimitives.contains(typeName)
                         && !typeName.startsWith("List<")
@@ -572,7 +562,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             }
             model.oneOf = filteredOneOf;
 
-            final Set<String> filteredAnyOf = new java.util.LinkedHashSet<>();
+            final Set<String> filteredAnyOf = new LinkedHashSet<>();
             for (final String typeName : model.anyOf) {
                 if (!languageSpecificPrimitives.contains(typeName)
                         && !typeName.startsWith("List<")
@@ -632,11 +622,13 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         }
     }
 
-    private void fixEnumDefaultValue(CodegenProperty prop) {
+    /** {@inheritDoc} */
+    @Override
+    protected void fixEnumDefaultValue(CodegenProperty prop) {
         if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
             final String enumValue = prop.defaultValue.substring(
                     prop.defaultValue.lastIndexOf('.') + 1);
-            prop.defaultValue = "'" + enumValue.toLowerCase(java.util.Locale.ROOT) + "'";
+            prop.defaultValue = "'" + enumValue.toLowerCase(Locale.ROOT) + "'";
         }
     }
 
@@ -682,7 +674,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         } else if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
             final String loc = NamingConvention.CAMEL_CASE.apply(
                     spec.keyIn() != null
-                            ? spec.keyIn().toLowerCase(java.util.Locale.ROOT)
+                            ? spec.keyIn().toLowerCase(Locale.ROOT)
                             : "header");
             imports = List.of("api_key_authenticator.dart", "api_key_location.dart");
             constructorSig = "required String host, required String apiKey";

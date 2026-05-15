@@ -14,14 +14,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
-import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
-import org.openapitools.codegen.model.ModelMap;
-import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -514,25 +511,6 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         return null;
     }
 
-    /**
-     * Adds kotlinx.serialization annotation imports for
-     * model properties. Ensures Serializable, SerialName,
-     * and Contextual are imported as needed.
-     */
-    @Override
-    public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
-        super.postProcessModelProperty(model, property);
-    }
-
-    /**
-     * Adds kotlinx.serialization imports to enum models.
-     */
-    @Override
-    public ModelsMap postProcessModelsEnum(ModelsMap objs) {
-        objs = super.postProcessModelsEnum(objs);
-        return objs;
-    }
-
     /** {@inheritDoc} */
     @Override
     protected String getAuthDir() {
@@ -573,7 +551,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
     }
 
-    private String formatKotlinScopes(@Nullable Map<String, String> scopes) {
+    private static String formatKotlinScopes(@Nullable Map<String, String> scopes) {
         if (scopes == null || scopes.isEmpty()) {
             return "listOf()";
         }
@@ -597,7 +575,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         }
         if ("OAuth2PasswordAuthenticator".equals(spec.baseClass())) {
             final String refreshArg = spec.refreshUrl() != null
-                    ? "\"" + spec.refreshUrl() + "\""  : "null";
+                    ? "\"" + spec.refreshUrl() + "\"" : "null";
             return List.of("host", "clientId", "clientSecret",
                     "\"" + spec.tokenUrl() + "\"", refreshArg,
                     "username", "password", formatKotlinScopes(spec.scopes()));

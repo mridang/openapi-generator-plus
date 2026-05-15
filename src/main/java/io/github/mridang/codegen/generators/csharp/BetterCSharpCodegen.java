@@ -11,14 +11,19 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenDiscriminator;
+import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -386,22 +391,18 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
      * correctly with {@code [JsonDerivedType]}.
      */
     @Override
-    public java.util.Map<String, org.openapitools.codegen.model.ModelsMap> postProcessAllModels(
-            java.util.Map<String, org.openapitools.codegen.model.ModelsMap> objs) {
-        final java.util.Map<String, org.openapitools.codegen.model.ModelsMap> result =
-                super.postProcessAllModels(objs);
-        for (final org.openapitools.codegen.model.ModelsMap modelsMap : result.values()) {
-            for (final org.openapitools.codegen.model.ModelMap modelMap : modelsMap.getModels()) {
-                final org.openapitools.codegen.CodegenModel model = modelMap.getModel();
+    public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
+        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        for (final ModelsMap modelsMap : result.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                final CodegenModel model = modelMap.getModel();
                 if (model.discriminator != null && !model.oneOf.isEmpty()) {
-                    for (final org.openapitools.codegen.CodegenDiscriminator.MappedModel mapped :
+                    for (final CodegenDiscriminator.MappedModel mapped :
                             model.discriminator.getMappedModels()) {
-                        final org.openapitools.codegen.model.ModelsMap childModels =
-                                result.get(mapped.getModelName());
+                        final ModelsMap childModels = result.get(mapped.getModelName());
                         if (childModels != null) {
-                            for (final org.openapitools.codegen.model.ModelMap cm :
-                                    childModels.getModels()) {
-                                final org.openapitools.codegen.CodegenModel child = cm.getModel();
+                            for (final ModelMap cm : childModels.getModels()) {
+                                final CodegenModel child = cm.getModel();
                                 if (child.parent == null) {
                                     child.parent = model.classname;
                                     child.parentSchema = model.classname;
@@ -592,7 +593,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         } else if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
             final String loc = NamingConvention.PASCAL_CASE.apply(
                     spec.keyIn() != null
-                            ? spec.keyIn().toLowerCase(java.util.Locale.ROOT)
+                            ? spec.keyIn().toLowerCase(Locale.ROOT)
                             : "header");
             constructorSig = "string host, string apiKey";
             superCall =

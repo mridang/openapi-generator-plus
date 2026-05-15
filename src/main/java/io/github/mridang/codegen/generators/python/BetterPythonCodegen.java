@@ -819,8 +819,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         return "[\"" + String.join("\", \"", scopes.keySet()) + "\"]";
     }
 
-
-
     /**
      * Overrides the base class to fix Mustache whitespace
      * artifacts in Python f-string braces ({@code { 'x' }}

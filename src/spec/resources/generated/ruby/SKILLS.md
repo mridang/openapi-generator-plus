@@ -56,7 +56,6 @@ authenticator = PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticato
 client = PetstoreClient::Client.new(authenticator)
 ```
 
-
 ## Error Handling
 
 All API errors inherit from `ApiError`. The error hierarchy is:

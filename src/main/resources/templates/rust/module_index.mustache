@@ -1,0 +1,7 @@
+#![allow(unused_imports)]
+
+{{#modules}}mod {{name}};
+pub use {{name}}::*;
+{{/modules}}
+{{#hasOptions}}pub mod options;
+{{/hasOptions}}

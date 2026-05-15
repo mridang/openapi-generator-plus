@@ -60,13 +60,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Abstract base for all six language code generators (Ruby,
- * Python, PHP, Java, Node/TypeScript, and C#). Centralizes
- * shared concerns that every generated client needs: security
- * scheme detection across all OpenAPI auth types, global and
- * per-operation server configuration extraction, reserved-word
- * loading from classpath resources, and post-processing hooks
- * for operations, models, and enum values.
+ * Abstract base for all twelve language code generators (Ruby,
+ * Python, PHP, Java, Node/TypeScript, C#, Swift, Go, Kotlin,
+ * Dart, Elixir, and Rust). Centralizes shared concerns that
+ * every generated client needs: security scheme detection
+ * across all OpenAPI auth types, global and per-operation
+ * server configuration extraction, reserved-word loading from
+ * classpath resources, and post-processing hooks for
+ * operations, models, and enum values.
  *
  * <p>Subclasses declare their conventions by implementing the
  * abstract accessor methods ({@link #getVarCasing},
@@ -1081,12 +1082,32 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             stripPrimitiveParent(model);
             for (final var prop : model.vars) {
                 sanitizeByteArrayExample(prop);
+                fixEnumDefaultValue(prop);
             }
             for (final var prop : model.allVars) {
                 sanitizeByteArrayExample(prop);
+                fixEnumDefaultValue(prop);
+            }
+            for (final var prop : model.optionalVars) {
+                fixEnumDefaultValue(prop);
+            }
+            for (final var prop : model.requiredVars) {
+                fixEnumDefaultValue(prop);
             }
         }
         return result;
+    }
+
+    /**
+     * Fixes a property's default value when the base class has set it to a
+     * Java-style enum reference (e.g. {@code "StatusEnum.Placed"}). Subclasses
+     * override this to convert it to the language-appropriate string literal.
+     * The default implementation is a no-op.
+     *
+     * @param prop the property whose {@code defaultValue} may need rewriting
+     */
+    protected void fixEnumDefaultValue(CodegenProperty prop) {
+        // no-op by default; subclasses override with language-specific literal format
     }
 
     /**

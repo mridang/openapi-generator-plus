@@ -19,14 +19,17 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.Map;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.utils.ModelUtils;
@@ -569,6 +572,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
      */
     @Override
     public void postProcessFile(File file, String fileType) {
+        super.postProcessFile(file, fileType);
         if (file == null) {
             return;
         }
@@ -578,9 +582,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         if (!isRb && !isRbs) {
             return;
         }
-
-        super.postProcessFile(file, fileType);
-
         if (isRbs) {
             moveRbsToSigDir(file);
         }
@@ -890,8 +891,8 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     private String qualifyRbsModelType(String rbsType, CodegenParameter p) {
         if (p.baseType != null && !languageSpecificPrimitives.contains(p.baseType)
                 && !rbsType.contains("Models::")) {
-            return rbsType.replaceAll("\\b" + java.util.regex.Pattern.quote(p.baseType) + "\\b",
-                    "Models::" + p.baseType);
+            return rbsType.replaceAll(
+                    "\\b" + Pattern.quote(p.baseType) + "\\b", "Models::" + p.baseType);
         }
         return rbsType;
     }
@@ -975,24 +976,13 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         meta.put("requirePath", modulePath + "/api/options/" + fileName);
     }
 
+    /** {@inheritDoc} */
     @Override
-    public Map<String, org.openapitools.codegen.model.ModelsMap> postProcessAllModels(
-            Map<String, org.openapitools.codegen.model.ModelsMap> objs) {
-        final Map<String, org.openapitools.codegen.model.ModelsMap> result =
-                super.postProcessAllModels(objs);
-        for (final org.openapitools.codegen.model.ModelsMap modelsMap : result.values()) {
-            for (final org.openapitools.codegen.model.ModelMap modelMap : modelsMap.getModels()) {
-                final org.openapitools.codegen.CodegenModel model = modelMap.getModel();
-                for (final org.openapitools.codegen.CodegenProperty prop : model.vars) {
-                    if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
-                        final String enumValue = prop.defaultValue.substring(
-                                prop.defaultValue.lastIndexOf('.') + 1);
-                        prop.defaultValue =
-                                "'" + enumValue.toLowerCase(java.util.Locale.ROOT) + "'";
-                    }
-                }
-            }
+    protected void fixEnumDefaultValue(CodegenProperty prop) {
+        if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
+            final String enumValue =
+                    prop.defaultValue.substring(prop.defaultValue.lastIndexOf('.') + 1);
+            prop.defaultValue = "'" + enumValue.toLowerCase(Locale.ROOT) + "'";
         }
-        return result;
     }
 }

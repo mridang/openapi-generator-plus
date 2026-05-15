@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -543,30 +544,14 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     }
 
     /**
-     * Fixes enum default values that the base class sets to
-     * Java-style enum references (e.g. "StatusEnum.Placed").
-     * For Go, enum fields are typed as string, so the default
-     * must be a Go string literal (e.g. "\"placed\"").
+     * Sets {@code hasTimeImport} on models that use {@code time.Time},
+     * and {@code hasFmtImport} on oneOf/anyOf models that use {@code fmt.Errorf}.
      */
     @Override
     public ModelsMap postProcessModels(ModelsMap objs) {
         final ModelsMap result = super.postProcessModels(objs);
         for (final ModelMap modelMap : result.getModels()) {
             final CodegenModel model = modelMap.getModel();
-            for (final CodegenProperty prop : model.vars) {
-                fixEnumDefaultValue(prop);
-            }
-            for (final CodegenProperty prop : model.allVars) {
-                fixEnumDefaultValue(prop);
-            }
-            for (final CodegenProperty prop : model.optionalVars) {
-                fixEnumDefaultValue(prop);
-            }
-            for (final CodegenProperty prop : model.requiredVars) {
-                fixEnumDefaultValue(prop);
-            }
-
-            // Check if any property uses time.Time and set a flag for the template
             boolean needsTimeImport = false;
             for (final CodegenProperty prop : model.vars) {
                 if (prop.dataType != null && prop.dataType.contains("time.Time")) {
@@ -578,13 +563,21 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 modelMap.put("hasTimeImport", true);
                 result.put("hasTimeImport", true);
             }
-
-            // oneOf/anyOf models use fmt.Errorf
             if (!model.oneOf.isEmpty() || !model.anyOf.isEmpty()) {
                 result.put("hasFmtImport", true);
             }
         }
         return result;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected void fixEnumDefaultValue(CodegenProperty prop) {
+        if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
+            final String enumValue = prop.defaultValue.substring(
+                    prop.defaultValue.lastIndexOf('.') + 1);
+            prop.defaultValue = "\"" + enumValue.toLowerCase(Locale.ROOT) + "\"";
+        }
     }
 
     /**
@@ -639,15 +632,6 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             }
         }
         return objs;
-    }
-
-    private void fixEnumDefaultValue(CodegenProperty prop) {
-        if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
-            // Extract the enum value name and convert to a Go string literal
-            final String enumValue = prop.defaultValue.substring(
-                    prop.defaultValue.lastIndexOf('.') + 1);
-            prop.defaultValue = "\"" + enumValue.toLowerCase(java.util.Locale.ROOT) + "\"";
-        }
     }
 
     /**
@@ -795,7 +779,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         }
         if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "\"" + spec.keyParamName() + "\"", "apiKey",
-                    "ApiKeyLocation" + NamingConvention.PASCAL_CASE.apply(spec.keyIn() != null ? spec.keyIn().toLowerCase(java.util.Locale.ROOT) : "header"));
+                    "ApiKeyLocation" + NamingConvention.PASCAL_CASE.apply(spec.keyIn() != null ? spec.keyIn().toLowerCase(Locale.ROOT) : "header"));
         }
         if ("OAuth2ClientCredentialsAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "clientId", "clientSecret",

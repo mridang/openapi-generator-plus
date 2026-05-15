@@ -11,18 +11,17 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
-import org.openapitools.codegen.model.ModelMap;
-import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -479,38 +478,13 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         return null;
     }
 
-    /**
-     * Fixes enum default values that the base class sets to
-     * Java-style enum references (e.g. "StatusEnum.Placed").
-     * For Swift, enum fields typed as String should use a
-     * Swift string literal default.
-     */
+    /** {@inheritDoc} */
     @Override
-    public ModelsMap postProcessModels(ModelsMap objs) {
-        final ModelsMap result = super.postProcessModels(objs);
-        for (final ModelMap modelMap : result.getModels()) {
-            final CodegenModel model = modelMap.getModel();
-            for (final CodegenProperty prop : model.vars) {
-                fixEnumDefaultValue(prop);
-            }
-            for (final CodegenProperty prop : model.allVars) {
-                fixEnumDefaultValue(prop);
-            }
-            for (final CodegenProperty prop : model.optionalVars) {
-                fixEnumDefaultValue(prop);
-            }
-            for (final CodegenProperty prop : model.requiredVars) {
-                fixEnumDefaultValue(prop);
-            }
-        }
-        return result;
-    }
-
-    private void fixEnumDefaultValue(CodegenProperty prop) {
+    protected void fixEnumDefaultValue(CodegenProperty prop) {
         if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
             final String enumValue = prop.defaultValue.substring(
                     prop.defaultValue.lastIndexOf('.') + 1);
-            prop.defaultValue = "\"" + enumValue.toLowerCase(java.util.Locale.ROOT) + "\"";
+            prop.defaultValue = "\"" + enumValue.toLowerCase(Locale.ROOT) + "\"";
         }
     }
 
@@ -547,12 +521,9 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
     }
 
     private static String buildSwiftConstructorSignature(SchemeAuthSpec spec) {
-        final StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < spec.paramNames().size(); i++) {
-            if (i > 0) sb.append(", ");
-            sb.append(spec.paramNames().get(i)).append(": String");
-        }
-        return sb.toString();
+        return spec.paramNames().stream()
+                .map(name -> name + ": String")
+                .collect(Collectors.joining(", "));
     }
 
     private static String formatSwiftScopes(@Nullable Map<String, String> scopes) {
@@ -574,7 +545,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         }
         if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
             final String location = "." + NamingConvention.CAMEL_CASE.apply(
-                    spec.keyIn() != null ? spec.keyIn().toLowerCase(java.util.Locale.ROOT) : "header");
+                    spec.keyIn() != null ? spec.keyIn().toLowerCase(Locale.ROOT) : "header");
             return "host: host, keyParamName: \"" + spec.keyParamName()
                     + "\", apiKey: apiKey, location: " + location;
         }

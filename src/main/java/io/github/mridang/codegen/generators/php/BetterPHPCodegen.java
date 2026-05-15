@@ -10,16 +10,21 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
+import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -428,7 +433,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         if (packagePath.startsWith("/")) {
             packagePath = packagePath.substring(1);
         }
-        if (SRC_BASE_PATH != null && !SRC_BASE_PATH.isEmpty()) {
+        if (!SRC_BASE_PATH.isEmpty()) {
             final String base = SRC_BASE_PATH.replaceAll("[\\\\/]$", "");
             if (packagePath.isEmpty()) {
                 return base;
@@ -792,7 +797,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         }
 
         // Collect model type imports
-        final Set<String> modelTypes = new java.util.LinkedHashSet<>();
+        final Set<String> modelTypes = new LinkedHashSet<>();
         for (final CodegenParameter p : optionsParams) {
             if (!p.isArray && !p.isMap && !p.isPrimitiveType && p.baseType != null
                     && !languageSpecificPrimitives.contains(p.baseType)) {
@@ -858,17 +863,15 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     }
 
     @Override
-    public Map<String, org.openapitools.codegen.model.ModelsMap> postProcessAllModels(
-            Map<String, org.openapitools.codegen.model.ModelsMap> objs) {
-        final Map<String, org.openapitools.codegen.model.ModelsMap> result =
-                super.postProcessAllModels(objs);
-        for (final org.openapitools.codegen.model.ModelsMap modelsMap : result.values()) {
-            for (final org.openapitools.codegen.model.ModelMap modelMap : modelsMap.getModels()) {
-                final org.openapitools.codegen.CodegenModel model = modelMap.getModel();
-                final List<List<org.openapitools.codegen.CodegenProperty>> allPropLists =
+    public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
+        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        for (final ModelsMap modelsMap : result.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                final CodegenModel model = modelMap.getModel();
+                final List<List<CodegenProperty>> allPropLists =
                         List.of(model.vars, model.optionalVars, model.requiredVars);
-                for (final List<org.openapitools.codegen.CodegenProperty> propList : allPropLists) {
-                    for (final org.openapitools.codegen.CodegenProperty prop : propList) {
+                for (final List<CodegenProperty> propList : allPropLists) {
+                    for (final CodegenProperty prop : propList) {
                         if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
                             // Fix enum defaults: "StatusEnum . PLACED" → "OrderStatusEnum::PLACED"
                             final String[] parts = prop.defaultValue.split("\\s*\\.\\s*", 2);
