@@ -54,16 +54,16 @@ describe PetstoreClient::TransportOptions do
 
   it 'builder sets all fields' do
     opts = PetstoreClient::TransportOptions.builder
-                                           .verify_ssl(false)
-                                           .ca_cert_path('/path/to/ca.pem')
-                                           .proxy('http://proxy:8080')
-                                           .timeout(5000)
-                                           .follow_redirects(false)
-                                           .max_redirects(3)
-                                           .user_agent('TestAgent/1.0')
-                                           .default_header('X-Custom', 'value')
-                                           .inject_request_id(true)
-                                           .build
+      .verify_ssl(false)
+      .ca_cert_path('/path/to/ca.pem')
+      .proxy('http://proxy:8080')
+      .timeout(5000)
+      .follow_redirects(false)
+      .max_redirects(3)
+      .user_agent('TestAgent/1.0')
+      .default_header('X-Custom', 'value')
+      .inject_request_id(true)
+      .build
 
     _(opts.verify_ssl).must_equal false
     _(opts.ca_cert_path).must_equal '/path/to/ca.pem'
@@ -78,8 +78,8 @@ describe PetstoreClient::TransportOptions do
 
   it 'follow_redirects defaults to true with null max_redirects' do
     opts = PetstoreClient::TransportOptions.builder
-                                           .follow_redirects(true)
-                                           .build
+      .follow_redirects(true)
+      .build
 
     _(opts.follow_redirects).must_equal true
     _(opts.max_redirects).must_be_nil
@@ -113,9 +113,9 @@ describe PetstoreClient::TransportOptions do
 
   it 'accumulates headers from default_header calls' do
     opts = PetstoreClient::TransportOptions.builder
-                                           .default_header('X-First', 'one')
-                                           .default_header('X-Second', 'two')
-                                           .build
+      .default_header('X-First', 'one')
+      .default_header('X-Second', 'two')
+      .build
 
     _(opts.default_headers.size).must_equal 2
     _(opts.default_headers['X-First']).must_equal 'one'
@@ -124,9 +124,9 @@ describe PetstoreClient::TransportOptions do
 
   it 'merges headers from default_headers call' do
     opts = PetstoreClient::TransportOptions.builder
-                                           .default_header('X-First', 'one')
-                                           .default_headers({ 'X-Second' => 'two', 'X-Third' => 'three' })
-                                           .build
+      .default_header('X-First', 'one')
+      .default_headers({ 'X-Second' => 'two', 'X-Third' => 'three' })
+      .build
 
     _(opts.default_headers.size).must_equal 3
     _(opts.default_headers['X-First']).must_equal 'one'
@@ -138,8 +138,8 @@ describe PetstoreClient::TransportOptions do
     headers = { 'X-Original' => 'original' }
 
     opts = PetstoreClient::TransportOptions.builder
-                                           .default_headers(headers)
-                                           .build
+      .default_headers(headers)
+      .build
 
     headers['X-Added'] = 'added'
 

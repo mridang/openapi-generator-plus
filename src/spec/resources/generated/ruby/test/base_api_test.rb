@@ -10,13 +10,13 @@ class TestableApi < PetstoreClient::Api::BaseApi
   def call(method, path, query_params, header_params, body,
            accepts, content_type, return_type, auth = nil)
     invoke_api(method, path, query_params, header_params, body,
-               accepts, content_type, return_type, auth)
+      accepts, content_type, return_type, auth)
   end
 
   def call_for_result(method, path, query_params, header_params, body,
                       accepts, content_type, return_type, auth = nil)
     invoke_api_for_result(method, path, query_params, header_params, body,
-                          accepts, content_type, return_type, auth)
+      accepts, content_type, return_type, auth)
   end
 end
 
@@ -80,7 +80,7 @@ describe PetstoreClient::Api::BaseApi do
     it "raises #{error_class} for status #{status}" do
       err = assert_raises(error_class) do
         api.call('GET', "/api/error/#{status}", {}, {}, nil,
-                 ['application/json'], 'application/json', nil)
+          ['application/json'], 'application/json', nil)
       end
       _(err.status_code).must_equal status
       _(err.response_body).wont_be_nil
@@ -93,7 +93,7 @@ describe PetstoreClient::Api::BaseApi do
   it 'parses JSON error body' do
     err = assert_raises(PetstoreClient::Errors::BadRequestError) do
       api.call('GET', '/api/error/400', {}, {}, nil,
-               ['application/json'], 'application/json', nil)
+        ['application/json'], 'application/json', nil)
     end
     _(err.error_body).wont_be_nil
   end
@@ -103,7 +103,7 @@ describe PetstoreClient::Api::BaseApi do
   it 'NotFoundError is a kind of ClientError and ApiError' do
     err = assert_raises(PetstoreClient::Errors::NotFoundError) do
       api.call('GET', '/api/error/404', {}, {}, nil,
-               ['application/json'], 'application/json', nil)
+        ['application/json'], 'application/json', nil)
     end
     assert_kind_of PetstoreClient::Errors::ClientError, err
     assert_kind_of PetstoreClient::ApiError, err
@@ -112,7 +112,7 @@ describe PetstoreClient::Api::BaseApi do
   it 'InternalServerError is a kind of ServerError and ApiError' do
     err = assert_raises(PetstoreClient::Errors::InternalServerError) do
       api.call('GET', '/api/error/500', {}, {}, nil,
-               ['application/json'], 'application/json', nil)
+        ['application/json'], 'application/json', nil)
     end
     assert_kind_of PetstoreClient::Errors::ServerError, err
     assert_kind_of PetstoreClient::ApiError, err
@@ -122,21 +122,21 @@ describe PetstoreClient::Api::BaseApi do
 
   it 'deserializes JSON response' do
     result = api.call('GET', '/api/test', {}, {}, nil,
-                      ['application/json'], 'application/json', 'Object')
+      ['application/json'], 'application/json', 'Object')
     _(result).wont_be_nil
     _(result[:message]).must_equal 'success'
   end
 
   it 'returns raw string for non-JSON response' do
     result = api.call('GET', '/api/text', {}, {}, nil,
-                      ['text/plain'], 'application/json', 'String')
+      ['text/plain'], 'application/json', 'String')
     _(result).wont_be_nil
     _(result).must_include 'hello plain text'
   end
 
   it 'returns nil when return_type is nil' do
     result = api.call('GET', '/api/test', {}, {}, nil,
-                      ['application/json'], 'application/json', nil)
+      ['application/json'], 'application/json', nil)
     assert_nil result
   end
 
@@ -144,13 +144,13 @@ describe PetstoreClient::Api::BaseApi do
 
   it 'appends query params to URL' do
     result = api.call('GET', '/api/test', { 'foo' => 'bar' }, {}, nil,
-                      ['application/json'], 'application/json', nil)
+      ['application/json'], 'application/json', nil)
     assert_nil result
   end
 
   it 'includes empty value param in query string when value is empty string' do
     result = api.call('GET', '/api/test', { 'filter' => '' }, {}, nil,
-                      ['application/json'], 'application/json', nil)
+      ['application/json'], 'application/json', nil)
     assert_nil result
   end
 
@@ -159,7 +159,7 @@ describe PetstoreClient::Api::BaseApi do
   it 'forwards auth headers' do
     auth = TestAuthenticator.new(headers: { 'X-Custom' => 'auth-value' })
     result = api.call('GET', '/api/echo-headers', {}, {}, nil,
-                      ['application/json'], 'application/json', 'Object', auth)
+      ['application/json'], 'application/json', 'Object', auth)
     _(result).wont_be_nil
     _(result[:'x-custom']).must_equal 'auth-value'
   end
@@ -167,51 +167,51 @@ describe PetstoreClient::Api::BaseApi do
   it 'sets Cookie header from auth cookies' do
     auth = TestAuthenticator.new(cookies: { 'session' => 'abc123' })
     api.call('GET', '/api/test', {}, {}, nil,
-             ['application/json'], 'application/json', nil, auth)
+      ['application/json'], 'application/json', nil, auth)
   end
 
   # ── Body serialization ──
 
   it 'serializes JSON body for POST' do
     result = api.call('POST', '/api/echo-body', {}, {}, { 'key' => 'value' },
-                      ['application/json'], 'application/json', 'Object')
+      ['application/json'], 'application/json', 'Object')
     _(result).wont_be_nil
     _(result[:key]).must_equal 'value'
   end
 
   it 'sends no body when body is nil' do
     api.call('GET', '/api/test', {}, {}, nil,
-             ['application/json'], 'application/json', nil)
+      ['application/json'], 'application/json', nil)
   end
 
   # ── Server variable overrides via Configuration ──
 
   it 'server variable overrides resolve in base URL' do
     config = PetstoreClient::Configuration.builder
-                                          .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'staging')
-                                          .build
+      .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'staging')
+      .build
     _(config.base_url).must_equal('https://staging.example.com/api/v3')
   end
 
   it 'default server variables produce correct base URL' do
     config = PetstoreClient::Configuration.builder
-                                          .server(PetstoreClient::Servers::SERVER_1)
-                                          .build
+      .server(PetstoreClient::Servers::SERVER_1)
+      .build
     _(config.base_url).must_equal('https://api.example.com/api/v3')
   end
 
   it 'invalid enum value raises ArgumentError' do
     assert_raises(ArgumentError) do
       PetstoreClient::Configuration.builder
-                                   .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'invalid')
-                                   .build
+        .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'invalid')
+        .build
     end
   end
 
   it 'API request uses resolved server URL' do
     config = PetstoreClient::Configuration.builder
-                                          .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'staging')
-                                          .build
+      .server(PetstoreClient::Servers::SERVER_1, 'environment' => 'staging')
+      .build
     _(config.base_url).must_equal('https://staging.example.com/api/v3')
   end
 
@@ -227,7 +227,7 @@ describe PetstoreClient::Api::BaseApi do
       # Response deserialization may fail; we only care about the captured URL
     end
     _(client.captured_url).wont_include 'status=',
-                                        "Expected no status param when options is nil, got: #{client.captured_url}"
+      "Expected no status param when options is nil, got: #{client.captured_url}"
   end
 
   it 'allow_empty_value param included when value is nil in options' do
@@ -250,7 +250,7 @@ describe PetstoreClient::Api::BaseApi do
     api = PetstoreClient::Api::PetApi.new(client, config)
     begin
       opts = PetstoreClient::Api::Options::FindPetsByStatusOptions
-             .new(status: '')
+        .new(status: '')
       api.find_pets_by_status(opts)
     rescue StandardError
       # Response deserialization may fail; we only care about the captured URL
@@ -267,7 +267,7 @@ describe PetstoreClient::Api::BaseApi do
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
     test_api.call('GET', '/test', { 'tags' => %w[a b] }, {}, nil,
-                  ['application/json'], 'application/json', nil)
+      ['application/json'], 'application/json', nil)
     _(client.captured_url).must_include 'tags=a&tags=b'
   end
 
@@ -276,7 +276,7 @@ describe PetstoreClient::Api::BaseApi do
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
     test_api.call('GET', '/test', { 'active' => true }, {}, nil,
-                  ['application/json'], 'application/json', nil)
+      ['application/json'], 'application/json', nil)
     _(client.captured_url).must_include 'active=true'
   end
 
@@ -285,7 +285,7 @@ describe PetstoreClient::Api::BaseApi do
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
     test_api.call('GET', '/test', { 'limit' => 10 }, {}, nil,
-                  ['application/json'], 'application/json', nil)
+      ['application/json'], 'application/json', nil)
     _(client.captured_url).must_include 'limit=10'
     _(client.captured_url).wont_include 'limit=10.0'
   end
@@ -295,7 +295,7 @@ describe PetstoreClient::Api::BaseApi do
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
     test_api.call('GET', '/test', {}, {}, nil,
-                  ['application/json'], 'application/json', nil)
+      ['application/json'], 'application/json', nil)
     _(client.captured_url).wont_include '?'
   end
 
@@ -306,7 +306,7 @@ describe PetstoreClient::Api::BaseApi do
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
     test_api.call('POST', '/test', {}, {}, 'hello world',
-                  ['application/json'], 'text/plain', nil)
+      ['application/json'], 'text/plain', nil)
     _(client.captured_body).wont_be_nil
     _(client.captured_body.to_s).must_include 'hello world'
   end
@@ -316,7 +316,7 @@ describe PetstoreClient::Api::BaseApi do
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
     test_api.call('POST', '/test', {}, {}, { 'name' => 'alice' },
-                  ['application/json'], 'application/x-www-form-urlencoded', nil)
+      ['application/json'], 'application/x-www-form-urlencoded', nil)
     _(client.captured_body).wont_be_nil
     _(client.captured_body.to_s).must_include 'name=alice'
   end
@@ -326,7 +326,7 @@ describe PetstoreClient::Api::BaseApi do
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
     test_api.call('POST', '/test', {}, {}, "\x01\x02\x03".b,
-                  ['application/json'], 'application/octet-stream', nil)
+      ['application/json'], 'application/octet-stream', nil)
     _(client.captured_body).wont_be_nil
   end
 
@@ -340,20 +340,23 @@ describe PetstoreClient::Api::BaseApi do
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
     result = test_api.call('GET', '/test', {}, {}, nil,
-                           ['text/plain'], 'application/json', 'String')
+      ['text/plain'], 'application/json', 'String')
     _(result).must_equal 'hello'
   end
 
   it 'deserializes vendor JSON MIME types like application/problem+json' do
     client = CapturingApiClient.new
     def client.send_request(_method, _url, _headers, _body)
-      PetstoreClient::ApiResponse.new(status_code: 200, body: '{"title":"Not Found"}',
-                                      headers: { 'Content-Type' => 'application/problem+json' })
+      PetstoreClient::ApiResponse.new(
+        status_code: 200,
+        body: '{"title":"Not Found"}',
+        headers: { 'Content-Type' => 'application/problem+json' }
+      )
     end
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
     result = test_api.call('GET', '/test', {}, {}, nil,
-                           ['application/json'], 'application/json', 'Object')
+      ['application/json'], 'application/json', 'Object')
     _(result).wont_be_nil
     _(result[:title]).must_equal 'Not Found'
   end
@@ -365,7 +368,7 @@ describe PetstoreClient::Api::BaseApi do
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
     test_api.call('GET', '/test', {}, {}, nil,
-                  ['application/json'], '', nil)
+      ['application/json'], '', nil)
     _(client.captured_headers['Content-Type']).must_equal 'application/json'
   end
 
@@ -374,7 +377,7 @@ describe PetstoreClient::Api::BaseApi do
     config = PetstoreClient::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
     test_api.call('GET', '/test', {}, {}, nil,
-                  ['application/json'], 'application/json', nil)
+      ['application/json'], 'application/json', nil)
     assert client.captured_headers.key?('Accept'), 'Expected Accept header'
     assert client.captured_headers.key?('Content-Type'), 'Expected Content-Type header'
   end

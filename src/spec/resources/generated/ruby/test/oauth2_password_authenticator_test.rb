@@ -37,8 +37,8 @@ end
 describe PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator do
   it 'sends password grant type' do
     client = FakePasswordClient.new([
-                                      { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
-                                    ])
+      { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
+    ])
     auth = PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
@@ -56,8 +56,8 @@ describe PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator do
 
   it 'sends username and password' do
     client = FakePasswordClient.new([
-                                      { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
-                                    ])
+      { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
+    ])
     auth = PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
@@ -76,8 +76,8 @@ describe PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator do
 
   it 'sends client id and secret' do
     client = FakePasswordClient.new([
-                                      { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
-                                    ])
+      { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
+    ])
     auth = PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
@@ -96,8 +96,8 @@ describe PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator do
 
   it 'returns authorization bearer header' do
     client = FakePasswordClient.new([
-                                      { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
-                                    ])
+      { status: 200, body: { 'access_token' => 'pw_tok', 'expires_in' => 3600 } }
+    ])
     auth = PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
@@ -115,12 +115,9 @@ describe PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator do
 
   it 'uses refresh token on subsequent calls' do
     client = FakePasswordClient.new([
-                                      { status: 200,
-                                        body: { 'access_token' => 'pw_tok', 'refresh_token' => 'ref_tok',
-                                                'expires_in' => -1 } },
-                                      { status: 200,
-                                        body: { 'access_token' => 'pw_tok_refreshed', 'expires_in' => 3600 } }
-                                    ])
+      { status: 200, body: { 'access_token' => 'pw_tok', 'refresh_token' => 'ref_tok', 'expires_in' => -1 } },
+      { status: 200, body: { 'access_token' => 'pw_tok_refreshed', 'expires_in' => 3600 } }
+    ])
     auth = PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator.new(
       'https://api.example.com',
       'my_client_id',

@@ -11,8 +11,8 @@ describe PetstoreClient::DefaultApiClient do
       wiremock_url = ENV.fetch('WIREMOCK_HTTPS_URL')
 
       transport = PetstoreClient::TransportOptions.builder
-                                                  .verify_ssl(false)
-                                                  .build
+        .verify_ssl(false)
+        .build
 
       client = PetstoreClient::DefaultApiClient.new(transport)
       response = client.send_request(:GET, "#{wiremock_url}/api/test", {}, nil)
@@ -28,9 +28,9 @@ describe PetstoreClient::DefaultApiClient do
       ca_cert_path = ENV.fetch('CA_CERT_PATH')
 
       transport = PetstoreClient::TransportOptions.builder
-                                                  .verify_ssl(true)
-                                                  .ca_cert_path(ca_cert_path)
-                                                  .build
+        .verify_ssl(true)
+        .ca_cert_path(ca_cert_path)
+        .build
 
       client = PetstoreClient::DefaultApiClient.new(transport)
       response = client.send_request(:GET, "#{wiremock_url}/api/test", {}, nil)
@@ -46,8 +46,8 @@ describe PetstoreClient::DefaultApiClient do
       proxy_url = ENV.fetch('PROXY_URL')
 
       transport = PetstoreClient::TransportOptions.builder
-                                                  .proxy(proxy_url)
-                                                  .build
+        .proxy(proxy_url)
+        .build
 
       client = PetstoreClient::DefaultApiClient.new(transport)
       response = client.send_request(:GET, "#{wiremock_url}/api/test", {}, nil)
@@ -63,9 +63,9 @@ describe PetstoreClient::DefaultApiClient do
       proxy_url = ENV.fetch('PROXY_URL')
 
       transport = PetstoreClient::TransportOptions.builder
-                                                  .proxy(proxy_url)
-                                                  .verify_ssl(false)
-                                                  .build
+        .proxy(proxy_url)
+        .verify_ssl(false)
+        .build
 
       client = PetstoreClient::DefaultApiClient.new(transport)
       response = client.send_request(:GET, "#{wiremock_url}/api/test", {}, nil)
@@ -80,8 +80,8 @@ describe PetstoreClient::DefaultApiClient do
       wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
 
       transport = PetstoreClient::TransportOptions.builder
-                                                  .timeout(1)
-                                                  .build
+        .timeout(1)
+        .build
 
       client = PetstoreClient::DefaultApiClient.new(transport)
       _ { client.send_request(:GET, "#{wiremock_url}/api/slow", {}, nil) }.must_raise StandardError
@@ -93,8 +93,8 @@ describe PetstoreClient::DefaultApiClient do
       wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
 
       transport = PetstoreClient::TransportOptions.builder
-                                                  .user_agent('MyApp/1.0')
-                                                  .build
+        .user_agent('MyApp/1.0')
+        .build
 
       client = PetstoreClient::DefaultApiClient.new(transport)
       response = client.send_request(:GET, "#{wiremock_url}/api/echo-headers", {}, nil)
@@ -110,8 +110,8 @@ describe PetstoreClient::DefaultApiClient do
       wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
 
       transport = PetstoreClient::TransportOptions.builder
-                                                  .inject_request_id(true)
-                                                  .build
+        .inject_request_id(true)
+        .build
 
       client = PetstoreClient::DefaultApiClient.new(transport)
       response = client.send_request(:GET, "#{wiremock_url}/api/echo-headers", {}, nil)
@@ -127,8 +127,8 @@ describe PetstoreClient::DefaultApiClient do
       wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
 
       transport = PetstoreClient::TransportOptions.builder
-                                                  .inject_request_id(true)
-                                                  .build
+        .inject_request_id(true)
+        .build
 
       client = PetstoreClient::DefaultApiClient.new(transport)
 
@@ -147,8 +147,8 @@ describe PetstoreClient::DefaultApiClient do
       wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
 
       transport = PetstoreClient::TransportOptions.builder
-                                                  .default_header('X-Custom', 'custom-value')
-                                                  .build
+        .default_header('X-Custom', 'custom-value')
+        .build
 
       client = PetstoreClient::DefaultApiClient.new(transport)
       response = client.send_request(:GET, "#{wiremock_url}/api/echo-headers", {}, nil)
@@ -162,8 +162,8 @@ describe PetstoreClient::DefaultApiClient do
       wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
 
       transport = PetstoreClient::TransportOptions.builder
-                                                  .default_header('Accept', 'text/plain')
-                                                  .build
+        .default_header('Accept', 'text/plain')
+        .build
 
       client = PetstoreClient::DefaultApiClient.new(transport)
       response = client.send_request(
@@ -182,8 +182,8 @@ describe PetstoreClient::DefaultApiClient do
       wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
 
       transport = PetstoreClient::TransportOptions.builder
-                                                  .follow_redirects(true)
-                                                  .build
+        .follow_redirects(true)
+        .build
 
       client = PetstoreClient::DefaultApiClient.new(transport)
       response = client.send_request(:GET, "#{wiremock_url}/api/redirect", {}, nil)
@@ -196,8 +196,8 @@ describe PetstoreClient::DefaultApiClient do
       wiremock_url = ENV.fetch('WIREMOCK_HTTP_URL')
 
       transport = PetstoreClient::TransportOptions.builder
-                                                  .follow_redirects(false)
-                                                  .build
+        .follow_redirects(false)
+        .build
 
       client = PetstoreClient::DefaultApiClient.new(transport)
       response = client.send_request(:GET, "#{wiremock_url}/api/redirect", {}, nil)
@@ -209,9 +209,9 @@ describe PetstoreClient::DefaultApiClient do
   describe 'max redirects' do
     it 'respects max_redirects limit' do
       transport = PetstoreClient::TransportOptions.builder
-                                                  .follow_redirects(true)
-                                                  .max_redirects(5)
-                                                  .build
+        .follow_redirects(true)
+        .max_redirects(5)
+        .build
 
       client = PetstoreClient::DefaultApiClient.new(transport)
       _(client).wont_be_nil

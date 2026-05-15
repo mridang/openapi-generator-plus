@@ -46,8 +46,8 @@ module PetstoreClient
       authenticator.api_client = api_client if authenticator.is_a?(Auth::HttpAwareAuthenticator)
 
       config = Configuration.builder
-                            .base_url(authenticator.host)
-                            .build
+        .base_url(authenticator.host)
+        .build
       @pet = Api::PetApi.new(api_client, config, authenticator)
       @store = Api::StoreApi.new(api_client, config, authenticator)
     end

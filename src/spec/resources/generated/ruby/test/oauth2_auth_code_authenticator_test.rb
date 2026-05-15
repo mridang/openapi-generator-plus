@@ -64,10 +64,8 @@ describe PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
 
   it 'exchanges code with correct grant type' do
     client = FakeAuthCodeClient.new([
-                                      { status: 200,
-                                        body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz',
-                                                'expires_in' => 3600 } }
-                                    ])
+      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => 3600 } }
+    ])
     auth.api_client = client
 
     auth.exchange_code('auth_code_123')
@@ -79,11 +77,9 @@ describe PetstoreClient::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
 
   it 'includes refresh token on refresh' do
     client = FakeAuthCodeClient.new([
-                                      { status: 200,
-                                        body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz',
-                                                'expires_in' => -1 } },
-                                      { status: 200, body: { 'access_token' => 'tok_refreshed', 'expires_in' => 3600 } }
-                                    ])
+      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => -1 } },
+      { status: 200, body: { 'access_token' => 'tok_refreshed', 'expires_in' => 3600 } }
+    ])
     auth.api_client = client
 
     auth.exchange_code('auth_code_123')

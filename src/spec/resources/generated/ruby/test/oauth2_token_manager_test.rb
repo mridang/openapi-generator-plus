@@ -38,8 +38,8 @@ end
 describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
   it 'extracts access token from response' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
+    ])
     manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -49,10 +49,8 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
 
   it 'stores refresh token' do
     client = FakeTokenClient.new([
-                                   { status: 200,
-                                     body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz',
-                                             'expires_in' => 3600 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => 3600 } }
+    ])
     manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -62,8 +60,8 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
 
   it 'returns cached token when not expired' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
+    ])
     manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -75,9 +73,9 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
 
   it 'refetches token when expired' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'tok_first', 'expires_in' => -1 } },
-                                   { status: 200, body: { 'access_token' => 'tok_second', 'expires_in' => 3600 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'tok_first', 'expires_in' => -1 } },
+      { status: 200, body: { 'access_token' => 'tok_second', 'expires_in' => 3600 } }
+    ])
     manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -109,8 +107,8 @@ describe PetstoreClient::Auth::OAuth::OAuth2TokenManager do
 
   it 'throws when token request fails' do
     client = FakeTokenClient.new([
-                                   { status: 401, body: { 'error' => 'invalid_client' } }
-                                 ])
+      { status: 401, body: { 'error' => 'invalid_client' } }
+    ])
     manager = PetstoreClient::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
