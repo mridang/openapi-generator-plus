@@ -1,14 +1,11 @@
 package io.github.mridang.codegen.generators.go;
 
+import com.samskivert.mustache.Mustache;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.NamingConvention;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
 import io.swagger.v3.oas.models.media.Schema;
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -19,17 +16,14 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
-import com.samskivert.mustache.Mustache;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
-import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.SupportingFile;
-import org.openapitools.codegen.model.ModelMap;
-import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -140,22 +134,10 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         return "spec";
     }
 
-    /**
-     * Converts a property name to PascalCase without reserved-word
-     * escaping. Go keywords are all lowercase, so PascalCase names
-     * never conflict. The inherited case-insensitive
-     * {@code isReservedWord} would incorrectly escape names like
-     * {@code Type} (from {@code type}) to {@code _Type}, producing
-     * unexported fields. This override skips that check entirely.
-     */
+    /** {@inheritDoc} */
     @Override
-    public String toVarName(String name) {
-        name = sanitizeName(name);
-        name = applyVarNameCasing(name);
-        if (name.matches("^\\d.*")) {
-            name = escapeReservedWord(name);
-        }
-        return name;
+    protected boolean shouldEscapeReservedVarName(String name) {
+        return false;
     }
 
     /** {@inheritDoc} */
@@ -231,23 +213,40 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         return '"';
     }
 
-    /**
-     * Formats an array type declaration using Go slice syntax.
-     * Returns {@code []innerType} instead of the generic
-     * angle-bracket form.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected String formatArrayType(String containerType, String innerType) {
-        return "[]" + innerType;
+    protected String getNullLiteral() {
+        return "nil";
     }
 
-    /**
-     * Formats a map type declaration using Go map syntax.
-     * Returns {@code map[string]valueType}.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected String formatMapType(String containerType, String keyType, String valueType) {
-        return "map[string]" + valueType;
+    protected String getTrueLiteral() {
+        return "true";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFalseLiteral() {
+        return "false";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getArrayTypeTemplate() {
+        return "[]%2$s";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getMapTypeTemplate() {
+        return "map[%2$s]%3$s";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSourceFolder() {
+        return "pkg";
     }
 
     /**
@@ -543,36 +542,21 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         return null;
     }
 
-    /**
-     * Sets {@code hasTimeImport} on models that use {@code time.Time},
-     * and {@code hasFmtImport} on oneOf/anyOf models that use {@code fmt.Errorf}.
-     */
+    /** {@inheritDoc} */
     @Override
-    public ModelsMap postProcessModels(ModelsMap objs) {
-        final ModelsMap result = super.postProcessModels(objs);
-        for (final ModelMap modelMap : result.getModels()) {
-            final CodegenModel model = modelMap.getModel();
-            boolean needsTimeImport = false;
-            for (final CodegenProperty prop : model.vars) {
-                if (prop.dataType != null && prop.dataType.contains("time.Time")) {
-                    needsTimeImport = true;
-                    break;
-                }
-            }
-            if (needsTimeImport) {
-                modelMap.put("hasTimeImport", true);
-                result.put("hasTimeImport", true);
-            }
-            if (!model.oneOf.isEmpty() || !model.anyOf.isEmpty()) {
-                result.put("hasFmtImport", true);
-            }
-        }
-        return result;
+    protected Map<String, String> getTypeSubstringContextFlags() {
+        return Map.of("time.Time", "hasTimeImport");
     }
 
     /** {@inheritDoc} */
     @Override
-    protected void fixEnumDefaultValue(CodegenProperty prop) {
+    protected String getOneOfAnyOfContextFlag() {
+        return "hasFmtImport";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
         if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
             final String enumValue = prop.defaultValue.substring(
                     prop.defaultValue.lastIndexOf('.') + 1);
@@ -580,101 +564,37 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         }
     }
 
-    /**
-     * Detects whether any operation in the tag uses os.File (file
-     * parameters or file return types) and sets a hasOsImport flag
-     * so the API template can conditionally include the "os" import.
-     */
+    /** {@inheritDoc} */
     @Override
-    @SuppressWarnings("unchecked")
-    public OperationsMap postProcessOperationsWithModels(
-            OperationsMap objs, List<ModelMap> allModels) {
-        objs = super.postProcessOperationsWithModels(objs, allModels);
-        final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
-        if (operations != null) {
-            final List<CodegenOperation> ops =
-                    (List<CodegenOperation>) operations.get("operation");
-            if (ops != null) {
-                boolean hasOsImport = false;
-                boolean hasJsonImport = false;
-                boolean hasStringsImport = false;
-                for (final CodegenOperation op : ops) {
-                    if (op.returnType != null && op.returnType.contains("os.File")) {
-                        hasOsImport = true;
-                    }
-                    if (op.servers != null && !op.servers.isEmpty()) {
-                        hasStringsImport = true;
-                    }
-                    for (final CodegenParameter p : op.allParams) {
-                        if (p.isFile || (p.dataType != null && p.dataType.contains("os.File"))) {
-                            hasOsImport = true;
-                        }
-                        if (p.isQueryParam
-                                && !p.isDeepObject
-                                && p.getContent() != null
-                                && !p.getContent().isEmpty()) {
-                            hasJsonImport = true;
-                        }
-                        if (p.isCookieParam) {
-                            hasStringsImport = true;
-                        }
-                    }
-                }
-                if (hasOsImport) {
-                    objs.put("hasOsImport", true);
-                }
-                if (hasJsonImport) {
-                    objs.put("hasJsonImport", true);
-                }
-                if (hasStringsImport) {
-                    objs.put("hasStringsImport", true);
-                }
-            }
-        }
-        return objs;
+    protected Map<String, String> getOperationTypeSubstringContextFlags() {
+        return Map.of("os.File", "hasOsImport");
     }
 
-    /**
-     * Calls the base post-processor (blank-line collapse) then removes
-     * trailing commas before closing parentheses in function signatures
-     * (an artefact of Mustache template generation).
-     */
+    /** {@inheritDoc} */
     @Override
-    public void postProcessFile(File file, String fileType) {
-        super.postProcessFile(file, fileType);
-        if (file == null || !file.exists()) {
-            return;
-        }
-        final String name = file.getName();
-        if (!name.endsWith(".go")) {
-            return;
-        }
-        removeGoTrailingCommas(file);
+    protected String getServersContextFlag() {
+        return "hasStringsImport";
     }
 
-    /**
-     * Removes trailing commas before closing parentheses in Go
-     * function signatures (an artefact of Mustache template generation).
-     */
-    private static void removeGoTrailingCommas(File file) {
-        try {
-            final List<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
-            final List<String> result = new ArrayList<>(lines.size());
-            boolean changed = false;
-            for (final String line : lines) {
-                String cleaned = line;
-                if (cleaned.contains(", )")) {
-                    cleaned = cleaned.replace(", )", ")");
-                    changed = true;
-                }
-                result.add(cleaned);
-            }
-            if (changed) {
-                Files.write(file.toPath(), result, StandardCharsets.UTF_8);
-            }
-        } catch (IOException e) {
-            LOGGER.debug("Failed to clean up Go file {}: {}", file.getName(), e.getMessage());
-        }
+    /** {@inheritDoc} */
+    @Override
+    protected String getCookieParamContextFlag() {
+        return "hasStringsImport";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getQueryContentContextFlag() {
+        return "hasJsonImport";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected List<FileContentFixup> getFileContentFixups() {
+        return List.of(new FileContentFixup(
+                ".go",
+                Pattern.compile(", \\)"),
+                ")"));
     }
 
     /** {@inheritDoc} */
