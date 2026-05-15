@@ -72,7 +72,7 @@ defmodule {{moduleName}}.DefaultApiClient do
 
     merged =
       if !Map.has_key?(merged, "Accept-Encoding") do
-        Map.put(merged, "Accept-Encoding", "gzip, deflate")
+        Map.put(merged, "Accept-Encoding", "gzip, deflate, br")
       else
         merged
       end
@@ -82,10 +82,21 @@ defmodule {{moduleName}}.DefaultApiClient do
     req_opts = build_req_options(opts, method, url, merged, serialized_body)
     response = Req.request!(req_opts)
 
+    headers = normalize_headers(response.headers)
+    content_type = Map.get(headers, "content-type") || Map.get(headers, "Content-Type") || ""
+    body_binary = response.body || ""
+
+    response_body =
+      if is_text_content_type(content_type) do
+        body_binary
+      else
+        Base.encode64(body_binary)
+      end
+
     %{{moduleName}}.ApiResponse{
       status_code: response.status,
-      body: response.body,
-      headers: normalize_headers(response.headers)
+      body: response_body,
+      headers: headers
     }
   end
 
@@ -220,6 +231,24 @@ defmodule {{moduleName}}.DefaultApiClient do
 
       Map.put(acc, key, value)
     end)
+  end
+
+  defp is_text_content_type(content_type) do
+    media_type =
+      content_type
+      |> String.split(";")
+      |> List.first()
+      |> String.trim()
+      |> String.downcase()
+
+    cond do
+      media_type == "" -> true
+      String.starts_with?(media_type, "text/") -> true
+      media_type in ["application/json", "application/xml", "application/javascript"] -> true
+      String.ends_with?(media_type, "+json") -> true
+      String.ends_with?(media_type, "+xml") -> true
+      true -> false
+    end
   end
 
   defp generate_uuid do

@@ -6,6 +6,7 @@ require 'faraday'
 require 'faraday/follow_redirects'
 require 'json'
 require 'securerandom'
+require 'base64'
 require 'stringio'
 require 'zlib'
 begin
@@ -32,7 +33,7 @@ module {{moduleName}}
   # 2. Caller-provided headers (from BaseApi -- includes config defaults, auth, operation headers)
   # 3. {TransportOptions#user_agent} -- injected if not already set
   # 4. {TransportOptions#inject_request_id} -- injected if not already set
-  class DefaultApiClient < ApiClient
+  class DefaultApiClient < ApiClient # rubocop:disable Metrics/ClassLength
     # Create a client with default transport settings.
     #
     # Equivalent to +DefaultApiClient.new(TransportOptions.builder.build)+.
@@ -77,11 +78,17 @@ module {{moduleName}}
       rescue Faraday::ConnectionFailed, Faraday::TimeoutError, Faraday::SSLError => e
         raise ApiError, e.message
       end
+      content_type = response.headers['content-type'].to_s
       decoded_body = decompress_body(response.body, response.headers['content-encoding'])
+      response_body = if text_content_type?(content_type)
+                        decoded_body.to_s
+                      else
+                        Base64.strict_encode64(decoded_body.to_s)
+                      end
 
       ApiResponse.new(
         status_code: response.status,
-        body: decoded_body,
+        body: response_body,
         headers: response.headers.to_h
       )
     end
@@ -96,6 +103,16 @@ module {{moduleName}}
     end
 
     private
+
+    def text_content_type?(content_type)
+      media_type = content_type.split(';').first.to_s.strip.downcase
+      return true if media_type.empty?
+      return true if media_type.start_with?('text/')
+
+      %w[application/json application/xml application/javascript].include?(media_type) ||
+        media_type.end_with?('+json') ||
+        media_type.end_with?('+xml')
+    end
 
     # rubocop:disable Metrics/CyclomaticComplexity,Metrics/MethodLength
     def decompress_body(body, encoding)

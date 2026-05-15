@@ -22,7 +22,7 @@ defmodule PetstoreClient.Models.PetTreatment do
   def build(data) do
     candidates =
       openapi_any_of()
-      |> Enum.reject(&(&1 == "AnyType"))
+      |> Enum.reject(& &1 == "AnyType")
       |> Enum.map(fn type_name ->
         fn d -> PetstoreClient.ObjectSerializer.convert_to_type(d, type_name) end
       end)

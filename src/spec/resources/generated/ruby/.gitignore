@@ -1,9 +1,0 @@
-# Bundle dependencies
-/vendor/
-Gemfile.lock
-
-# Tool caches
-.rubocop/
-
-# Coverage output
-.out/

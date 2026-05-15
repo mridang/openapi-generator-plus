@@ -1,6 +1,7 @@
 {{>api_info}}
 
 from typing import Any, Dict, Optional
+import base64
 import gzip
 import uuid
 import zlib
@@ -37,6 +38,20 @@ def _supported_encodings() -> str:
     if _zstandard is not None:
         encodings.append('zstd')
     return ', '.join(encodings)
+
+
+def _is_text_content_type(content_type: str) -> bool:
+    """Return True if the content type represents text that can be decoded as UTF-8."""
+    media_type = content_type.split(';')[0].strip().lower()
+    if not media_type:
+        return True
+    if media_type.startswith('text/'):
+        return True
+    return media_type in (
+        'application/json',
+        'application/xml',
+        'application/javascript',
+    ) or media_type.endswith('+json') or media_type.endswith('+xml')
 
 
 class DefaultApiClient:
@@ -163,7 +178,15 @@ class DefaultApiClient:
         raw_data = response.read()
         content_encoding = (response.headers.get('content-encoding') or '').lower()
         decompressed = self._decompress_body(raw_data, content_encoding)
-        response_body = decompressed.decode('utf-8') if decompressed else ''
+        content_type = response.headers.get('content-type') or ''
+        if decompressed:
+            response_body = (
+                decompressed.decode('utf-8')
+                if _is_text_content_type(content_type)
+                else base64.b64encode(decompressed).decode('ascii')
+            )
+        else:
+            response_body = ''
         response_headers = dict(response.headers) if response.headers else {}
 
         return ApiResponse(status_code=response.status, body=response_body, headers=response_headers)

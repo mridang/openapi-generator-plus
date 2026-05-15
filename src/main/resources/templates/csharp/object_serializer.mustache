@@ -64,8 +64,8 @@ public class ObjectSerializer
             null => "",
             bool b => b ? "true" : "false",
             DateOnly d => d.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture),
-            DateTimeOffset dto => dto.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
-            DateTime dt => dt.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+            DateTimeOffset dto => dto.ToString("yyyy-MM-dd'T'HH:mm:sszzz", System.Globalization.CultureInfo.InvariantCulture),
+            DateTime dt => new DateTimeOffset(dt).ToString("yyyy-MM-dd'T'HH:mm:sszzz", System.Globalization.CultureInfo.InvariantCulture),
             _ => value.ToString() ?? "",
         };
     }

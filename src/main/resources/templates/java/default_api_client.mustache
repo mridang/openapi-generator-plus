@@ -21,6 +21,7 @@ import java.security.KeyStore;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -251,8 +252,13 @@ public final class DefaultApiClient implements ApiClient {
 
             String contentEncoding = response.headers()
                     .firstValue("content-encoding").orElse("identity");
+            String contentType = response.headers()
+                    .firstValue("content-type").orElse("");
             byte[] bodyBytes = response.body() != null ? response.body() : new byte[0];
-            String responseBody = decompressBody(bodyBytes, contentEncoding);
+            byte[] decompressedBytes = decompressBody(bodyBytes, contentEncoding);
+            String responseBody = isTextContentType(contentType)
+                    ? new String(decompressedBytes, StandardCharsets.UTF_8)
+                    : Base64.getEncoder().encodeToString(decompressedBytes);
 
             return new ApiResponse(
                     response.statusCode(),
@@ -271,6 +277,22 @@ public final class DefaultApiClient implements ApiClient {
                 || statusCode == 307 || statusCode == 308;
     }
 
+    private static boolean isTextContentType(String contentType) {
+        int semi = contentType.indexOf(';');
+        String mediaType = (semi >= 0 ? contentType.substring(0, semi) : contentType).trim().toLowerCase(Locale.ROOT);
+        if (mediaType.isEmpty()) {
+            return true;
+        }
+        if (mediaType.startsWith("text/")) {
+            return true;
+        }
+        return mediaType.equals("application/json")
+                || mediaType.equals("application/xml")
+                || mediaType.equals("application/javascript")
+                || mediaType.endsWith("+json")
+                || mediaType.endsWith("+xml");
+    }
+
     /**
      * Decompress response body bytes based on the Content-Encoding header value.
      *
@@ -280,31 +302,29 @@ public final class DefaultApiClient implements ApiClient {
      *
      * @param data     the raw response bytes
      * @param encoding the Content-Encoding header value
-     * @return the decompressed body as a UTF-8 string
+     * @return the decompressed body bytes
      */
-    private static String decompressBody(byte[] data, String encoding) throws IOException {
+    private static byte[] decompressBody(byte[] data, String encoding) throws IOException {
         if (data.length == 0) {
-            return "";
+            return new byte[0];
         }
-        byte[] decompressed =
-                switch (encoding.toLowerCase(Locale.ROOT)) {
-                    case "gzip", "x-gzip" -> {
-                        try (GZIPInputStream gis =
-                                new GZIPInputStream(new ByteArrayInputStream(data))) {
-                            yield gis.readAllBytes();
-                        }
-                    }
-                    case "deflate" -> {
-                        try (InflaterInputStream iis =
-                                new InflaterInputStream(new ByteArrayInputStream(data))) {
-                            yield iis.readAllBytes();
-                        }
-                    }
-                    case "br" -> decompressBrotli(data);
-                    case "zstd" -> decompressZstd(data);
-                    default -> data;
-                };
-        return new String(decompressed, StandardCharsets.UTF_8);
+        return switch (encoding.toLowerCase(Locale.ROOT)) {
+            case "gzip", "x-gzip" -> {
+                try (GZIPInputStream gis =
+                        new GZIPInputStream(new ByteArrayInputStream(data))) {
+                    yield gis.readAllBytes();
+                }
+            }
+            case "deflate" -> {
+                try (InflaterInputStream iis =
+                        new InflaterInputStream(new ByteArrayInputStream(data))) {
+                    yield iis.readAllBytes();
+                }
+            }
+            case "br" -> decompressBrotli(data);
+            case "zstd" -> decompressZstd(data);
+            default -> data;
+        };
     }
 
     private static byte[] decompressBrotli(byte[] data) throws IOException {

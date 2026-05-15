@@ -182,6 +182,10 @@ class DefaultApiClient implements ApiClient
             );
             $contentEncoding = $rawHeaders['content-encoding'][0] ?? '';
             $responseBody = $this->decompressBody($responseBody, $contentEncoding);
+            $contentType = $rawHeaders['content-type'][0] ?? '';
+            if (!$this->isTextContentType($contentType)) {
+                $responseBody = base64_encode($responseBody);
+            }
 
             return new ApiResponse(
                 statusCode: $response->getStatusCode(),
@@ -195,6 +199,31 @@ class DefaultApiClient implements ApiClient
                 $e
             );
         }
+    }
+
+    /**
+     * Determines whether the given content type represents text content
+     * that is safe to decode as a UTF-8 string.
+     *
+     * @param string $contentType the Content-Type header value
+     * @return bool true for text-like content types, false otherwise
+     */
+    private function isTextContentType(string $contentType): bool
+    {
+        $mediaType = strtolower(trim(explode(';', $contentType)[0]));
+        if ($mediaType === '') {
+            return true;
+        }
+        if (str_starts_with($mediaType, 'text/')) {
+            return true;
+        }
+        return in_array($mediaType, [
+            'application/json',
+            'application/xml',
+            'application/javascript',
+        ], true)
+            || str_ends_with($mediaType, '+json')
+            || str_ends_with($mediaType, '+xml');
     }
 
     /**

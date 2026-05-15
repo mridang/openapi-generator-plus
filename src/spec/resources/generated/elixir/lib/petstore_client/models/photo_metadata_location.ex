@@ -41,4 +41,5 @@ defmodule PetstoreClient.Models.PhotoMetadataLocation do
       lng: "float()"
     }
   end
+
 end

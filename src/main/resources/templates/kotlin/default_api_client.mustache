@@ -73,6 +73,9 @@ class DefaultApiClient internal constructor(
         if (transportOptions.injectRequestId && "X-Request-ID" !in mergedHeaders) {
             mergedHeaders["X-Request-ID"] = generateRequestId()
         }
+        if ("Accept-Encoding" !in mergedHeaders) {
+            mergedHeaders["Accept-Encoding"] = "gzip, deflate"
+        }
 
         val response =
             try {
@@ -92,9 +95,16 @@ class DefaultApiClient internal constructor(
             responseHeaders[name] = values.joinToString(", ")
         }
 
+        val rawBytes = response.bodyAsBytes()
+        val contentType = responseHeaders["content-type"] ?: ""
+        val responseBody = if (isTextContentType(contentType)) {
+            rawBytes.toString(Charsets.UTF_8)
+        } else {
+            java.util.Base64.getEncoder().encodeToString(rawBytes)
+        }
         return ApiResponse(
             statusCode = response.status.value,
-            body = response.bodyAsText(),
+            body = responseBody,
             headers = responseHeaders,
         )
     }
@@ -155,7 +165,23 @@ class DefaultApiClient internal constructor(
                     },
                 )
             null -> {}
-            else -> append(fieldName, value.toString())
+            else -> {
+                val json = try {
+                    kotlinx.serialization.json.Json.encodeToString(
+                        kotlinx.serialization.serializer(value::class.java),
+                        value,
+                    )
+                } catch (_: Exception) {
+                    value.toString()
+                }
+                append(
+                    fieldName,
+                    json,
+                    io.ktor.http.Headers.build {
+                        append(io.ktor.http.HttpHeaders.ContentType, io.ktor.http.ContentType.Application.Json.toString())
+                    },
+                )
+            }
         }
     }
 }
@@ -172,6 +198,18 @@ internal fun generateRequestId(): String {
         "${hex(b[6])}${hex(b[7])}-" +
         "${hex(b[8])}${hex(b[9])}-" +
         "${hex(b[10])}${hex(b[11])}${hex(b[12])}${hex(b[13])}${hex(b[14])}${hex(b[15])}"
+}
+
+/** Returns true if the content type represents text that can be decoded as UTF-8. */
+internal fun isTextContentType(contentType: String): Boolean {
+    val mediaType = contentType.split(';').first().trim().lowercase()
+    if (mediaType.isEmpty()) return true
+    if (mediaType.startsWith("text/")) return true
+    return mediaType == "application/json" ||
+        mediaType == "application/xml" ||
+        mediaType == "application/javascript" ||
+        mediaType.endsWith("+json") ||
+        mediaType.endsWith("+xml")
 }
 
 /** Platform-specific [HttpClient] factory; configured with engine, TLS, proxy, and common plugins. */

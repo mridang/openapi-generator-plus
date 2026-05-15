@@ -13,6 +13,7 @@ import (
 	"compress/zlib"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -124,9 +125,17 @@ func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]st
 		respHeaders[k] = resp.Header.Get(k)
 	}
 
+	contentType := resp.Header.Get("Content-Type")
+	var responseBody string
+	if isTextContentType(contentType) {
+		responseBody = string(respBody)
+	} else {
+		responseBody = base64.StdEncoding.EncodeToString(respBody)
+	}
+
 	return &HttpResponse{
 		StatusCode: resp.StatusCode,
-		Body:       string(respBody),
+		Body:       responseBody,
 		Headers:    respHeaders,
 	}, nil
 }
@@ -214,6 +223,22 @@ func decompressBody(resp *http.Response) ([]byte, error) {
 	default:
 		return io.ReadAll(resp.Body)
 	}
+}
+
+func isTextContentType(contentType string) bool {
+	parts := strings.SplitN(contentType, ";", 2)
+	mediaType := strings.ToLower(strings.TrimSpace(parts[0]))
+	if mediaType == "" {
+		return true
+	}
+	if strings.HasPrefix(mediaType, "text/") {
+		return true
+	}
+	return mediaType == "application/json" ||
+		mediaType == "application/xml" ||
+		mediaType == "application/javascript" ||
+		strings.HasSuffix(mediaType, "+json") ||
+		strings.HasSuffix(mediaType, "+xml")
 }
 
 // buildTransportMultipartBody constructs a multipart/form-data request body from

@@ -227,6 +227,8 @@ class ObjectSerializer:
             return ''
         if isinstance(value, bool):
             return 'true' if value else 'false'
+        if isinstance(value, Enum):
+            return str(value.value)
         if isinstance(value, datetime.datetime):
             return value.isoformat()
         if isinstance(value, datetime.date):

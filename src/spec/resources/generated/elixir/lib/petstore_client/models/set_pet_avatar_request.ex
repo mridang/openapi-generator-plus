@@ -43,4 +43,5 @@ defmodule PetstoreClient.Models.SetPetAvatarRequest do
       mime_type: "String.t()"
     }
   end
+
 end

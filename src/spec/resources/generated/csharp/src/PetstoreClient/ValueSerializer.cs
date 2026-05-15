@@ -147,12 +147,14 @@ public static class ValueSerializer
                 return items != null ? string.Join("|", items) : ObjectSerializer.Stringify(value);
 
             case "simple":
-            default:
                 if (items != null)
                 {
                     return string.Join(",", items);
                 }
                 return ObjectSerializer.Stringify(value);
+
+            default:
+                return Serialize(value, location, schemaType, collectionFormat);
         }
     }
 
