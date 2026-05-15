@@ -23,8 +23,10 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -32,7 +34,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.EnumSet;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.openapitools.codegen.CodegenDiscriminator;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.SupportingFile;
@@ -549,9 +553,13 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
     /**
      * Returns the relative path (from the output root) of the OAuth2/OIDC
-     * sub-directory; e.g. {@code "src/main/java/com/example/auth/oauth"}.
+     * sub-directory. The default implementation appends {@code "oauth"} to
+     * {@link #getAuthDir()}; languages with a different OAuth directory
+     * (e.g. Swift's {@code "OAuth"}) override this method.
      */
-    protected abstract String getOAuthDir();
+    protected String getOAuthDir() {
+        return Path.of(getAuthDir(), "oauth").toString();
+    }
 
     /**
      * Converts a well-known snake_case file stem (e.g. {@code "basic_authenticator"})
@@ -1008,6 +1016,59 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
+     * Returns the output directory for model source files,
+     * constructed from the output root, {@link #getSourceFolder()},
+     * and the model package (dots replaced by path separators).
+     * Languages with a significantly different directory structure
+     * (Go, Dart, Elixir, Rust, Swift, PHP, C#) override this
+     * method directly and still declare {@link #getSourceFolder()}
+     * for completeness.
+     */
+    @Override
+    public String modelFileFolder() {
+        return Path.of(outputFolder, getSourceFolder(),
+                modelPackage.replace('.', '/')).toString();
+    }
+
+    /**
+     * Returns the output directory for API source files,
+     * constructed from the output root, {@link #getSourceFolder()},
+     * and the API package (dots replaced by path separators).
+     * Languages that need a different structure override this method.
+     */
+    @Override
+    public String apiFileFolder() {
+        return Path.of(outputFolder, getSourceFolder(),
+                apiPackage.replace('.', '/')).toString();
+    }
+
+    /**
+     * Returns the default value expression for a schema, handling
+     * the boolean case using {@link #getTrueLiteral()} and
+     * {@link #getFalseLiteral()}. Language subclasses override
+     * this method to add handling for strings, arrays, maps, and
+     * enums, calling {@code super} for the boolean/null cases.
+     *
+     * @param schema the OpenAPI schema
+     * @return the default value expression, or {@code null} if
+     *         there is no default
+     */
+    @Nullable
+    @SuppressWarnings("rawtypes")
+    @Override
+    public String toDefaultValue(Schema schema) {
+        if (schema == null) {
+            return null;
+        }
+        final Schema resolved = ModelUtils.getReferencedSchema(this.openAPI, schema);
+        if (ModelUtils.isBooleanSchema(resolved) && resolved.getDefault() != null) {
+            return Boolean.parseBoolean(resolved.getDefault().toString())
+                    ? getTrueLiteral() : getFalseLiteral();
+        }
+        return null;
+    }
+
+    /**
      * Produces the full type declaration for a schema,
      * including generic type parameters for arrays and maps.
      * Delegates to {@link #formatArrayType} and
@@ -1031,23 +1092,33 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
-     * Formats an array type declaration with the given
-     * container and inner type. Override in subclasses for
-     * language-specific array syntax (e.g. {@code List[str]}
-     * in Python vs {@code Array<String>} in TypeScript).
+     * Formats an array type declaration with the given container
+     * and inner type using the template returned by
+     * {@link #getArrayTypeTemplate()}. The template uses
+     * {@code %1$s} for the container and {@code %2$s} for the
+     * inner type. This method is {@code final}; override
+     * {@link #getArrayTypeTemplate()} instead.
      */
-    protected String formatArrayType(String containerType, String innerType) {
-        return containerType + "<" + innerType + ">";
+    @SuppressFBWarnings(
+            value = "FORMAT_STRING_MANIPULATION",
+            justification = "Format string is a hardcoded subclass declaration, not user input")
+    protected final String formatArrayType(String containerType, String innerType) {
+        return String.format(getArrayTypeTemplate(), containerType, innerType);
     }
 
     /**
      * Formats a map type declaration with the given container,
-     * key, and value types. Override in subclasses for
-     * language-specific map syntax (e.g. {@code Dict[str, Any]}
-     * in Python vs {@code Hash} in Ruby).
+     * key, and value types using the template returned by
+     * {@link #getMapTypeTemplate()}. The template uses
+     * {@code %1$s} for the container, {@code %2$s} for the key
+     * type, and {@code %3$s} for the value type. This method is
+     * {@code final}; override {@link #getMapTypeTemplate()} instead.
      */
-    protected String formatMapType(String containerType, String keyType, String valueType) {
-        return containerType + "<" + keyType + ", " + valueType + ">";
+    @SuppressFBWarnings(
+            value = "FORMAT_STRING_MANIPULATION",
+            justification = "Format string is a hardcoded subclass declaration, not user input")
+    protected final String formatMapType(String containerType, String keyType, String valueType) {
+        return String.format(getMapTypeTemplate(), containerType, keyType, valueType);
     }
 
     /**
@@ -1070,9 +1141,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
     /**
      * Post-processes generated models to strip primitive parents,
-     * apply enum naming conventions, and sanitize byte-array
-     * example values that would otherwise render as Java memory
-     * addresses in generated documentation.
+     * apply enum naming conventions, sanitize byte-array example
+     * values, and run all declarative post-processing hooks
+     * (sorting, enum-on-primitive clearing, oneOf/anyOf filtering,
+     * import-context building, type-decorator detection, and
+     * type-substring context flag setting).
      */
     @Override
     public ModelsMap postProcessModels(ModelsMap objs) {
@@ -1080,19 +1153,95 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         for (final ModelMap modelMap : result.getModels()) {
             final CodegenModel model = modelMap.getModel();
             stripPrimitiveParent(model);
-            for (final var prop : model.vars) {
+            for (final CodegenProperty prop : model.vars) {
                 sanitizeByteArrayExample(prop);
-                fixEnumDefaultValue(prop);
+                fixEnumDefaultValue(prop, model);
             }
-            for (final var prop : model.allVars) {
+            for (final CodegenProperty prop : model.allVars) {
                 sanitizeByteArrayExample(prop);
-                fixEnumDefaultValue(prop);
+                fixEnumDefaultValue(prop, model);
             }
-            for (final var prop : model.optionalVars) {
-                fixEnumDefaultValue(prop);
+            for (final CodegenProperty prop : model.optionalVars) {
+                fixEnumDefaultValue(prop, model);
             }
-            for (final var prop : model.requiredVars) {
-                fixEnumDefaultValue(prop);
+            for (final CodegenProperty prop : model.requiredVars) {
+                fixEnumDefaultValue(prop, model);
+            }
+
+            // Gap 10: Sort vars by default value (Elixir defstruct ordering)
+            if (sortVarsByDefaultValue()) {
+                model.vars.sort(Comparator.comparing(p -> p.defaultValue != null ? 1 : 0));
+            }
+
+            // Gap 11: Clear enum flags on primitive-typed properties (Dart)
+            if (clearsEnumOnPrimitives()) {
+                for (final CodegenProperty prop : model.vars) {
+                    clearEnumOnPrimitiveProp(prop);
+                }
+                for (final CodegenProperty prop : model.allVars) {
+                    clearEnumOnPrimitiveProp(prop);
+                }
+                for (final CodegenProperty prop : model.optionalVars) {
+                    clearEnumOnPrimitiveProp(prop);
+                }
+                for (final CodegenProperty prop : model.requiredVars) {
+                    clearEnumOnPrimitiveProp(prop);
+                }
+            }
+
+            // Gap 11: Filter primitive type names from oneOf/anyOf (Dart)
+            if (filtersOneOfAnyOfPrimitives()) {
+                model.oneOf = filterNonPrimitiveTypeNames(model.oneOf);
+                model.anyOf = filterNonPrimitiveTypeNames(model.anyOf);
+            }
+
+            // Gap 12: Build model import context list (Node → tsImports, Dart → dartImports)
+            final String importContextKey = getModelImportContextKey();
+            if (importContextKey != null) {
+                final List<Map<String, String>> importList = new ArrayList<>();
+                for (final String importName : model.imports) {
+                    if (!languageSpecificPrimitives.contains(importName)
+                            && !typeMapping.containsValue(importName)) {
+                        final Map<String, String> entry = new HashMap<>();
+                        entry.put("classname", importName);
+                        entry.put("filename", toModelFilename(importName));
+                        importList.add(entry);
+                    }
+                }
+                modelMap.put(importContextKey, importList);
+                final String hasKey = "has"
+                        + Character.toUpperCase(importContextKey.charAt(0))
+                        + importContextKey.substring(1);
+                modelMap.put(hasKey, !importList.isEmpty());
+            }
+
+            // Gap 13: Type decorator flag (Node/TypeScript @Type() decorators)
+            modelMap.put("hasTypeDecorator",
+                    model.vars.stream().anyMatch(this::needsTypeDecorator));
+
+            // Gap 14: Type-substring context flags (Go → hasTimeImport from "time.Time")
+            for (final Map.Entry<String, String> entry :
+                    getTypeSubstringContextFlags().entrySet()) {
+                final String typeSubstring = entry.getKey();
+                final String flagName = entry.getValue();
+                boolean found = false;
+                for (final CodegenProperty prop : model.vars) {
+                    if (prop.dataType != null && prop.dataType.contains(typeSubstring)) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) {
+                    modelMap.put(flagName, true);
+                    result.put(flagName, true);
+                }
+            }
+
+            // Gap 14: oneOf/anyOf context flag (Go → hasFmtImport)
+            final String oneOfAnyOfFlag = getOneOfAnyOfContextFlag();
+            if (oneOfAnyOfFlag != null
+                    && (!model.oneOf.isEmpty() || !model.anyOf.isEmpty())) {
+                result.put(oneOfAnyOfFlag, true);
             }
         }
         return result;
@@ -1102,30 +1251,59 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * Fixes a property's default value when the base class has set it to a
      * Java-style enum reference (e.g. {@code "StatusEnum.Placed"}). Subclasses
      * override this to convert it to the language-appropriate string literal.
+     * The {@code model} parameter gives access to {@code model.classname} so
+     * languages like Python can prefix the class name correctly.
      * The default implementation is a no-op.
      *
-     * @param prop the property whose {@code defaultValue} may need rewriting
+     * @param prop  the property whose {@code defaultValue} may need rewriting
+     * @param model the enclosing model (provides {@code classname})
      */
-    protected void fixEnumDefaultValue(CodegenProperty prop) {
+    protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
         // no-op by default; subclasses override with language-specific literal format
     }
 
     /**
      * Post-processes a model property to handle unique-item
-     * arrays by replacing the array container type with the
-     * set type returned by {@link #getUniqueItemsSetType()}.
-     * Subclasses that need additional property processing
-     * (e.g. Jackson imports in Java) should call super.
+     * arrays, add declarative import lists (Gap 15), and
+     * optionally sanitize example values (Gap 16). Subclasses
+     * that need additional processing should call super.
      */
     @Override
     public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
         super.postProcessModelProperty(model, property);
+
+        // Unique-item array → set type replacement (existing)
         final String setType = getUniqueItemsSetType();
         if (setType != null && property.isArray && property.getUniqueItems()) {
             final String pattern = getArrayContainerPattern();
             property.datatypeWithEnum =
                     property.datatypeWithEnum.replaceFirst(pattern, setType);
             property.dataType = property.dataType.replaceFirst(pattern, setType);
+        }
+
+        // Gap 15: Declarative model property import lists (Java Jackson annotations)
+        if (!model.isEnum) {
+            model.imports.addAll(getUniversalModelPropertyImports());
+            if (property.isEnum) {
+                model.imports.addAll(getEnumPropertyImports());
+            }
+            if (property.isContainer) {
+                if (property.isArray) {
+                    if (property.getUniqueItems()) {
+                        model.imports.addAll(getUniqueArrayPropertyImports());
+                    } else {
+                        model.imports.addAll(getArrayPropertyImports());
+                    }
+                }
+                if (property.isMap) {
+                    model.imports.addAll(getMapPropertyImports());
+                }
+            }
+        }
+
+        // Gap 16: Example value sanitization (Python)
+        if (sanitizesExampleValues()) {
+            sanitizePropertyExampleValue(property);
         }
     }
 
@@ -1158,12 +1336,16 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
     /**
      * Converts a schema name to a PascalCase model class name.
-     * Sanitizes the input first to remove characters that are
-     * invalid in identifiers, then checks for reserved-word
-     * collisions and digit-leading names.
+     * First calls {@link #preSanitizeModelName} to allow
+     * language-specific pre-cleaning (e.g. PHP strips illegal
+     * characters), then sanitizes, checks for reserved-word
+     * collisions and digit-leading names, applies PascalCase,
+     * and finally calls {@link #postProcessModelName} (e.g.
+     * Node/TypeScript adds "Model" prefix for primitives).
      */
     @Override
     public String toModelName(String name) {
+        name = preSanitizeModelName(name);
         name = sanitizeName(name);
         if (isReservedWord(name)) {
             name = "model_" + name;
@@ -1171,20 +1353,23 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (name.matches("^\\d.*")) {
             name = "model_" + name;
         }
-        return NamingConvention.PASCAL_CASE.apply(name);
+        return postProcessModelName(NamingConvention.PASCAL_CASE.apply(name));
     }
 
     /**
      * Converts a property name to a language-appropriate
      * variable name by sanitizing it, applying subclass
      * casing rules, and escaping if it collides with a
-     * reserved word or starts with a digit.
+     * reserved word or starts with a digit. Whether a cased
+     * name triggers reserved-word escaping is controlled by
+     * {@link #shouldEscapeReservedVarName} (default:
+     * {@link #isReservedWord}; Go and Node return {@code false}).
      */
     @Override
     public String toVarName(String name) {
         name = sanitizeName(name);
         name = applyVarNameCasing(name);
-        if (isReservedWord(name) || name.matches("^\\d.*")) {
+        if (shouldEscapeReservedVarName(name) || name.matches("^\\d.*")) {
             name = escapeReservedWord(name);
         }
         return name;
@@ -1304,23 +1489,29 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     /**
      * Converts a raw enum value to its language representation.
      * Numeric enums are returned as-is to preserve their type;
-     * string enums are quoted via {@link #quoteEnumValue}.
+     * string enums are first passed through
+     * {@link #escapeEnumStringValue} (for control-character
+     * escaping, e.g. in C#) and then wrapped via
+     * {@link #quoteEnumValue}.
      */
     @Override
     public String toEnumValue(String value, String datatype) {
         if (isNumericEnumDatatype(datatype)) {
             return value;
         }
-        return quoteEnumValue(value);
+        return quoteEnumValue(escapeEnumStringValue(value));
     }
 
     /**
      * Converts a raw enum value to a language-appropriate
      * constant name using {@link #getEnumCasing()}. Returns
      * {@link #getEmptyEnumVarName()} for blank values, prefixes
-     * numeric values with "NUMBER_", and sanitizes special
-     * characters. Subclasses with different enum naming (e.g.
-     * Python's quoted values) should override this method.
+     * numeric values with "NUMBER_", checks
+     * {@link #getSymbolName} for symbol-to-word mappings (e.g.
+     * {@code "+"} → {@code "PLUS"}), and applies reserved-word
+     * escaping after casing. Subclasses that need further
+     * customization (e.g. Node's {@code enumNameMapping}) should
+     * override and call super for the fallback.
      */
     @Override
     public String toEnumVarName(String value, String datatype) {
@@ -1333,6 +1524,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                             .replaceAll("\\+", "PLUS_")
                             .replaceAll("\\.", "_DOT_");
         }
+        // Symbol lookup: maps "+" → "plus", etc.
+        final String symbol = getSymbolName(value);
+        if (symbol != null) {
+            return getEnumCasing().apply(symbol);
+        }
         final String sanitized = sanitizeName(value);
         final String cased = getEnumCasing().apply(sanitized);
         final String cleaned =
@@ -1340,7 +1536,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (cleaned.matches("\\d.*")) {
             return "_" + cleaned;
         }
-        return cleaned;
+        // Reserved-word escape after casing
+        return isReservedWord(cleaned) ? escapeReservedWord(cleaned) : cleaned;
     }
 
     /**
@@ -1350,6 +1547,466 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * strings.
      */
     protected abstract Set<String> getNumericDataTypes();
+
+    // =========================================================================
+    // Gap 2 — Array / map type template declarations
+    // =========================================================================
+
+    /**
+     * Returns a {@link String#format} template for array types.
+     * {@code %1$s} is the container type, {@code %2$s} is the
+     * inner element type. Examples:
+     * <ul>
+     *   <li>Java / C# / Kotlin: {@code "%1$s<%2$s>"}</li>
+     *   <li>Go: {@code "[]%2$s"}</li>
+     *   <li>Swift / Elixir: {@code "[%2$s]"}</li>
+     *   <li>Rust: {@code "Vec<%2$s>"}</li>
+     *   <li>Dart: {@code "List<%2$s>"}</li>
+     * </ul>
+     */
+    protected abstract String getArrayTypeTemplate();
+
+    /**
+     * Returns a {@link String#format} template for map types.
+     * {@code %1$s} is the container, {@code %2$s} the key type,
+     * {@code %3$s} the value type. Examples:
+     * <ul>
+     *   <li>Java / C# / Kotlin: {@code "%1$s<%2$s, %3$s>"}</li>
+     *   <li>Go: {@code "map[%2$s]%3$s"}</li>
+     *   <li>Swift: {@code "[%2$s: %3$s]"}</li>
+     *   <li>Elixir: {@code "%%{%2$s => %3$s}"}</li>
+     *   <li>Rust: {@code "std::collections::HashMap<%2$s, %3$s>"}</li>
+     * </ul>
+     */
+    protected abstract String getMapTypeTemplate();
+
+    // =========================================================================
+    // Gap 7 — Null / boolean literal declarations
+    // =========================================================================
+
+    /**
+     * Returns the language-specific null literal, used in
+     * {@link #toDefaultValue} for schemas with no default.
+     * Examples: {@code "null"} (Java), {@code "None"} (Python),
+     * {@code "nil"} (Go / Ruby / Swift), {@code "Nothing"} (Kotlin).
+     */
+    protected abstract String getNullLiteral();
+
+    /**
+     * Returns the language-specific true literal.
+     * Examples: {@code "true"} (most languages), {@code "True"} (Python).
+     */
+    protected abstract String getTrueLiteral();
+
+    /**
+     * Returns the language-specific false literal.
+     * Examples: {@code "false"} (most languages), {@code "False"} (Python).
+     */
+    protected abstract String getFalseLiteral();
+
+    // =========================================================================
+    // Gap 8 — Source folder declaration
+    // =========================================================================
+
+    /**
+     * Returns the source folder path component between the output
+     * root and the package path. Used by the default
+     * {@link #modelFileFolder()} and {@link #apiFileFolder()}
+     * implementations. Examples: {@code "src/main/java"} (Java),
+     * {@code "src/main/kotlin"} (Kotlin), {@code "src"} (C# configurable).
+     * Languages with non-standard folder structures (Go, Dart, Elixir,
+     * Rust, Swift, PHP) override {@code modelFileFolder()} and
+     * {@code apiFileFolder()} directly and still declare this for
+     * completeness.
+     */
+    protected abstract String getSourceFolder();
+
+    // =========================================================================
+    // Gap 3 — toModelName pipeline hooks
+    // =========================================================================
+
+    /**
+     * Called at the start of {@link #toModelName} before
+     * {@link #sanitizeName}. Override in PHP to strip
+     * PHP-illegal characters ({@code ]}, {@code $}) before
+     * sanitization.
+     *
+     * @param name the raw schema name
+     * @return the pre-sanitized name (default: unchanged)
+     */
+    protected String preSanitizeModelName(String name) {
+        return name;
+    }
+
+    /**
+     * Called at the end of {@link #toModelName} after PascalCase
+     * casing has been applied. Override in Node/TypeScript to
+     * prefix {@code "Model"} when the name collides with a
+     * TypeScript primitive.
+     *
+     * @param name the PascalCase model name
+     * @return the final model name (default: unchanged)
+     */
+    protected String postProcessModelName(String name) {
+        return name;
+    }
+
+    // =========================================================================
+    // Gap 4 — toVarName reserved-word hook
+    // =========================================================================
+
+    /**
+     * Returns {@code true} when the given (cased, sanitized)
+     * variable name should be escaped with {@link #escapeReservedWord}.
+     * The default delegates to {@link #isReservedWord}. Override
+     * in Go and Node to return {@code false} so PascalCase fields
+     * and identity-cased names are never escaped.
+     *
+     * @param name the cased, sanitized variable name
+     * @return whether to apply reserved-word escaping
+     */
+    protected boolean shouldEscapeReservedVarName(String name) {
+        return isReservedWord(name);
+    }
+
+    // =========================================================================
+    // Gap 6 — toEnumValue escaping hook
+    // =========================================================================
+
+    /**
+     * Escapes control characters and special sequences in a string
+     * enum value before quoting. The default is a no-op. Override
+     * in C# to escape {@code \n}, {@code \t}, {@code \r}, and
+     * unescaped {@code "}.
+     *
+     * @param value the raw enum value string
+     * @return the escaped value (default: unchanged)
+     */
+    protected String escapeEnumStringValue(String value) {
+        return value;
+    }
+
+    // =========================================================================
+    // Gap 10 — postProcessModels sort flag
+    // =========================================================================
+
+    /**
+     * Returns {@code true} if model vars should be sorted so that
+     * properties without a default come first. Required by
+     * Elixir's {@code defstruct} positional-argument ordering.
+     * Default is {@code false}.
+     */
+    protected boolean sortVarsByDefaultValue() {
+        return false;
+    }
+
+    // =========================================================================
+    // Gap 11 — postProcessModels primitive-enum / oneOf-anyOf flags
+    // =========================================================================
+
+    /**
+     * Returns {@code true} if enum flags should be cleared for
+     * primitive-typed properties after model processing. Dart cannot
+     * represent inline enums on primitives. Default is {@code false}.
+     */
+    protected boolean clearsEnumOnPrimitives() {
+        return false;
+    }
+
+    /**
+     * Clears the {@code isEnum} flag on a property whose data type
+     * is a language primitive or mapped type. Called when
+     * {@link #clearsEnumOnPrimitives()} returns {@code true}.
+     */
+    private void clearEnumOnPrimitiveProp(CodegenProperty prop) {
+        if (prop.isEnum
+                && (languageSpecificPrimitives.contains(prop.dataType)
+                        || typeMapping.containsValue(prop.dataType))) {
+            prop.isEnum = false;
+        }
+    }
+
+    /**
+     * Returns {@code true} if primitive type names should be
+     * removed from {@code model.oneOf} and {@code model.anyOf}
+     * after model processing. Required by Dart because primitive
+     * types cannot appear as oneOf/anyOf variants in generated
+     * code. Default is {@code false}.
+     */
+    protected boolean filtersOneOfAnyOfPrimitives() {
+        return false;
+    }
+
+    /**
+     * Filters a set of type names, keeping only those that are
+     * not language primitives, not mapped types, and not
+     * collection wrappers ({@code List<}, {@code Map<}, {@code Set<}).
+     */
+    private Set<String> filterNonPrimitiveTypeNames(Set<String> typeNames) {
+        final Set<String> result = new LinkedHashSet<>();
+        for (final String typeName : typeNames) {
+            if (!languageSpecificPrimitives.contains(typeName)
+                    && !typeMapping.containsValue(typeName)
+                    && !typeName.startsWith("List<")
+                    && !typeName.startsWith("Map<")
+                    && !typeName.startsWith("Set<")) {
+                result.add(typeName);
+            }
+        }
+        return result;
+    }
+
+    // =========================================================================
+    // Gap 12 — Model import context key
+    // =========================================================================
+
+    /**
+     * Returns the template context key under which to store the
+     * filtered, enriched model import list. Return {@code null}
+     * (the default) to skip building the list. Node returns
+     * {@code "tsImports"}; Dart returns {@code "dartImports"}.
+     * The base class also populates {@code "has<Key>"} (e.g.
+     * {@code "hasTsImports"}).
+     */
+    @Nullable
+    protected String getModelImportContextKey() {
+        return null;
+    }
+
+    // =========================================================================
+    // Gap 13 — Type decorator flag
+    // =========================================================================
+
+    /**
+     * Returns {@code true} if the given property requires a
+     * runtime type decorator for correct deserialization. Used
+     * by Node/TypeScript to decide whether to emit
+     * {@code @Type()} decorators. Default is {@code false}.
+     *
+     * @param prop the property to test
+     * @return whether the property needs a type decorator
+     */
+    protected boolean needsTypeDecorator(CodegenProperty prop) {
+        return false;
+    }
+
+    // =========================================================================
+    // Gap 14 — Type-substring context flags
+    // =========================================================================
+
+    /**
+     * Returns a map from type-name substring to context flag
+     * name. For each entry, if any property's {@code dataType}
+     * contains the substring, the corresponding flag is set to
+     * {@code true} in the model map (and the models map). Used
+     * by Go to set {@code hasTimeImport} when a model uses
+     * {@code time.Time}. Default is an empty map.
+     */
+    protected Map<String, String> getTypeSubstringContextFlags() {
+        return Map.of();
+    }
+
+    /**
+     * Returns the template context flag name to set when a model
+     * has non-empty {@code oneOf} or {@code anyOf} variants, or
+     * {@code null} to skip this check. Used by Go to set
+     * {@code hasFmtImport}. Default is {@code null}.
+     */
+    @Nullable
+    protected String getOneOfAnyOfContextFlag() {
+        return null;
+    }
+
+    // =========================================================================
+    // Gap 15 — Model property import declarations
+    // =========================================================================
+
+    /**
+     * Returns a list of imports added to every non-enum model for
+     * every property. Used by Java for universal Jackson
+     * annotations ({@code JsonProperty}, {@code JsonInclude},
+     * {@code JsonTypeName}). Default is empty.
+     */
+    protected List<String> getUniversalModelPropertyImports() {
+        return List.of();
+    }
+
+    /**
+     * Returns a list of imports added when a property is an enum.
+     * Used by Java for {@code JsonValue} and {@code JsonCreator}.
+     * Default is empty.
+     */
+    protected List<String> getEnumPropertyImports() {
+        return List.of();
+    }
+
+    /**
+     * Returns a list of imports added when a property is a
+     * non-unique array. Used by Java for {@code ArrayList} and
+     * {@code Arrays}. Default is empty.
+     */
+    protected List<String> getArrayPropertyImports() {
+        return List.of();
+    }
+
+    /**
+     * Returns a list of imports added when a property is a
+     * unique-item array (set). Used by Java for
+     * {@code LinkedHashSet}. Default is empty.
+     */
+    protected List<String> getUniqueArrayPropertyImports() {
+        return List.of();
+    }
+
+    /**
+     * Returns a list of imports added when a property is a map.
+     * Used by Java for {@code HashMap}. Default is empty.
+     */
+    protected List<String> getMapPropertyImports() {
+        return List.of();
+    }
+
+    // =========================================================================
+    // Gap 16 — Example value sanitization flag
+    // =========================================================================
+
+    /**
+     * Returns {@code true} if property example values should be
+     * sanitized to valid language syntax. Python needs this to
+     * strip Java null literals and byte-array strings, and to
+     * quote bare strings. Default is {@code false}.
+     */
+    protected boolean sanitizesExampleValues() {
+        return false;
+    }
+
+    /**
+     * Sanitizes a property's example value for languages that
+     * cannot render Java-style example strings. Strips Java null
+     * literals and byte-array toString artefacts; wraps bare
+     * strings in single quotes with proper escaping.
+     */
+    private static void sanitizePropertyExampleValue(CodegenProperty property) {
+        if (property.example == null) {
+            return;
+        }
+        if ("null".equals(property.example) || property.example.startsWith("[B@")) {
+            property.example = null;
+        } else if (property.isString
+                && !property.example.startsWith("'")
+                && !property.example.startsWith("\"")) {
+            property.example = "'" + property.example.replace("'", "\\'") + "'";
+        }
+    }
+
+    // =========================================================================
+    // Gap 17 — File content fixup declarations
+    // =========================================================================
+
+    /**
+     * Describes a regex-based post-processing fixup applied to
+     * generated files that match a given extension.
+     */
+    public static final class FileContentFixup {
+        private final String extension;
+        private final Pattern pattern;
+        private final String replacement;
+
+        /**
+         * @param extension   the file extension to match (e.g. {@code ".go"}, {@code ".py"})
+         * @param pattern     the compiled regex {@link Pattern} to find
+         * @param replacement the replacement string (supports backreferences)
+         */
+        public FileContentFixup(String extension, Pattern pattern, String replacement) {
+            this.extension = extension;
+            this.pattern = pattern;
+            this.replacement = replacement;
+        }
+
+        /** Returns the file extension this fixup applies to. */
+        public String extension() { return extension; }
+
+        /** Returns the regex pattern to search for. */
+        public Pattern pattern() { return pattern; }
+
+        /** Returns the replacement string. */
+        public String replacement() { return replacement; }
+    }
+
+    /**
+     * Returns the list of {@link FileContentFixup}s to apply
+     * during {@link #postProcessFile}. Default is empty. Go
+     * declares a fixup to remove trailing commas from
+     * {@code .go} files; Python declares one to fix f-string
+     * brace whitespace in {@code .py} files.
+     */
+    protected List<FileContentFixup> getFileContentFixups() {
+        return List.of();
+    }
+
+    // =========================================================================
+    // Gap 18 — Operation import filter flag
+    // =========================================================================
+
+    /**
+     * Returns {@code true} if primitive and mapped-type imports
+     * should be removed from the operation import list during
+     * {@link #postProcessOperationsWithModels}. Used by Dart.
+     * Default is {@code false}.
+     */
+    protected boolean filtersOperationImports() {
+        return false;
+    }
+
+    // =========================================================================
+    // Gap 19 — Operation type-substring context flags
+    // =========================================================================
+
+    /**
+     * Returns a map from type-name substring to context flag name.
+     * For each entry, if any operation's {@code returnType} or any
+     * parameter's {@code dataType} contains the substring, the
+     * corresponding flag is set to {@code true} on the operations
+     * map. Go uses this to set {@code hasOsImport} from
+     * {@code "os.File"}. Default is empty.
+     */
+    protected Map<String, String> getOperationTypeSubstringContextFlags() {
+        return Map.of();
+    }
+
+    /**
+     * Returns the context flag name to set when any operation has
+     * a non-empty per-operation servers list, or {@code null} to
+     * skip this check. Go returns {@code "hasStringsImport"}.
+     * Default is {@code null}.
+     */
+    @Nullable
+    protected String getServersContextFlag() {
+        return null;
+    }
+
+    /**
+     * Returns the context flag name to set when any cookie
+     * parameter exists in any operation, or {@code null} to skip.
+     * Go returns {@code "hasStringsImport"}.
+     * Default is {@code null}.
+     */
+    @Nullable
+    protected String getCookieParamContextFlag() {
+        return null;
+    }
+
+    /**
+     * Returns the context flag name to set when any query
+     * parameter uses content-type negotiation (non-deep-object
+     * query param with a {@code content} map), or {@code null}
+     * to skip. Go returns {@code "hasJsonImport"}.
+     * Default is {@code null}.
+     */
+    @Nullable
+    protected String getQueryContentContextFlag() {
+        return null;
+    }
 
     /**
      * Returns whether the given datatype is numeric based on
@@ -1442,7 +2099,133 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             }
         }
         cleanupBadImports(objs);
+
+        // Gap 18: Filter primitive/mapped-type imports (Dart)
+        if (filtersOperationImports()) {
+            @SuppressWarnings("unchecked")
+            final List<Map<String, String>> filteredImports =
+                    (List<Map<String, String>>) objs.get("imports");
+            if (filteredImports != null) {
+                filteredImports.removeIf(imp -> {
+                    final String importName = imp.getOrDefault("import", "");
+                    final String className =
+                            importName.contains(".")
+                                    ? importName.substring(importName.lastIndexOf('.') + 1)
+                                    : importName;
+                    return languageSpecificPrimitives.contains(className)
+                            || typeMapping.containsValue(className)
+                            || className.startsWith("List<")
+                            || className.equals("List")
+                            || className.startsWith("Map<")
+                            || className.equals("Map")
+                            || className.startsWith("Set<")
+                            || className.equals("Set");
+                });
+            }
+        }
+
+        // Gap 19: Operation type-substring / server / cookie / query-content flags (Go)
+        applyOperationContextFlags(objs);
+
         return objs;
+    }
+
+    /**
+     * Applies the declarative operation context flags declared by
+     * {@link #getOperationTypeSubstringContextFlags()},
+     * {@link #getServersContextFlag()},
+     * {@link #getCookieParamContextFlag()}, and
+     * {@link #getQueryContentContextFlag()} to the operations map.
+     */
+    @SuppressWarnings("unchecked")
+    private void applyOperationContextFlags(OperationsMap objs) {
+        final Map<String, String> typeFlags = getOperationTypeSubstringContextFlags();
+        final String serversFlag = getServersContextFlag();
+        final String cookieFlag = getCookieParamContextFlag();
+        final String queryContentFlag = getQueryContentContextFlag();
+
+        if (typeFlags.isEmpty()
+                && serversFlag == null
+                && cookieFlag == null
+                && queryContentFlag == null) {
+            return; // nothing to compute
+        }
+
+        final Map<String, Object> opsMap = (Map<String, Object>) objs.get("operations");
+        if (opsMap == null) {
+            return;
+        }
+        final List<CodegenOperation> ops =
+                (List<CodegenOperation>) opsMap.get("operation");
+        if (ops == null) {
+            return;
+        }
+
+        // Track which type-substring flags have been set
+        final Map<String, Boolean> typeFlagState = new HashMap<>();
+        for (final String flagName : typeFlags.values()) {
+            typeFlagState.put(flagName, false);
+        }
+        boolean serversSet = false;
+        boolean cookieSet = false;
+        boolean queryContentSet = false;
+
+        for (final CodegenOperation op : ops) {
+            // Type-substring check on returnType
+            if (!typeFlags.isEmpty() && op.returnType != null) {
+                for (final Map.Entry<String, String> entry : typeFlags.entrySet()) {
+                    if (!typeFlagState.getOrDefault(entry.getValue(), false)
+                            && op.returnType.contains(entry.getKey())) {
+                        typeFlagState.put(entry.getValue(), true);
+                    }
+                }
+            }
+            // Per-operation servers flag
+            if (!serversSet && serversFlag != null
+                    && op.servers != null && !op.servers.isEmpty()) {
+                serversSet = true;
+            }
+            // Per-parameter checks
+            if (op.allParams != null) {
+                for (final CodegenParameter p : op.allParams) {
+                    // Type-substring check on parameter dataType
+                    if (!typeFlags.isEmpty() && p.dataType != null) {
+                        for (final Map.Entry<String, String> entry : typeFlags.entrySet()) {
+                            if (!typeFlagState.getOrDefault(entry.getValue(), false)
+                                    && p.dataType.contains(entry.getKey())) {
+                                typeFlagState.put(entry.getValue(), true);
+                            }
+                        }
+                    }
+                    // Cookie param flag
+                    if (!cookieSet && cookieFlag != null && p.isCookieParam) {
+                        cookieSet = true;
+                    }
+                    // Query content-type negotiation flag
+                    if (!queryContentSet && queryContentFlag != null
+                            && p.isQueryParam && !p.isDeepObject
+                            && p.getContent() != null && !p.getContent().isEmpty()) {
+                        queryContentSet = true;
+                    }
+                }
+            }
+        }
+
+        // Write flags to objs
+        for (final Map.Entry<String, Boolean> entry : typeFlagState.entrySet()) {
+            if (entry.getValue()) {
+                objs.put(entry.getKey(), true);
+            }
+        }
+        if (serversSet) {
+            objs.put(serversFlag, true);
+        }
+        if (cookieSet) {
+            objs.put(cookieFlag, true);
+        }
+        if (queryContentSet) {
+            objs.put(queryContentFlag, true);
+        }
     }
 
     /**
@@ -1936,19 +2719,25 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
-     * Post-processes a single generated file. Unconditionally collapses
-     * runs of two or more consecutive blank lines into one — a cosmetic
-     * artefact of cascading Mustache section guards — before invoking
-     * any language-specific cleanup in subclass overrides.
+     * Post-processes a single generated file. First collapses runs of
+     * two or more consecutive blank lines into one (a cosmetic artefact
+     * of cascading Mustache section guards). Then applies any
+     * {@link FileContentFixup}s declared by {@link #getFileContentFixups()}
+     * to matching file extensions (Gap 17).
      *
      * <p>Subclasses that override this method <em>must</em> call
      * {@code super.postProcessFile(file, fileType)} first so that the
-     * blank-line normalisation runs before language-specific formatting.
+     * blank-line normalisation and fixups run before any additional
+     * language-specific formatting.
      */
     @Override
     public void postProcessFile(File file, String fileType) {
         super.postProcessFile(file, fileType);
-        if (file == null || !file.exists()) return;
+        if (file == null || !file.exists()) {
+            return;
+        }
+
+        // Pass 1: Blank-line collapse (always applied)
         try {
             final List<String> lines =
                     Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
@@ -1969,6 +2758,90 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             }
         } catch (IOException e) {
             LOGGER.warn("Failed to collapse blank lines in {}", file, e);
+        }
+
+        // Pass 2: FileContentFixup regex replacements (Gap 17)
+        final String name = file.getName();
+        for (final FileContentFixup fixup : getFileContentFixups()) {
+            if (!name.endsWith(fixup.extension())) {
+                continue;
+            }
+            try {
+                final String content =
+                        Files.readString(file.toPath(), StandardCharsets.UTF_8);
+                final String fixed =
+                        fixup.pattern().matcher(content).replaceAll(fixup.replacement());
+                if (!fixed.equals(content)) {
+                    Files.write(file.toPath(), fixed.getBytes(StandardCharsets.UTF_8));
+                }
+            } catch (IOException e) {
+                LOGGER.warn("Failed to apply content fixup to {}: {}", file, e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Opt-in flag for the discriminator-parent wiring logic in
+     * {@link #postProcessAllModels}. Languages that rely on
+     * discriminator-based inheritance (Java, C#) override this to
+     * return {@code true}. Languages whose templates are not
+     * designed for discriminator inheritance (Python, Ruby, etc.)
+     * leave this at the default {@code false} to avoid generating
+     * invalid subclass declarations without corresponding imports.
+     */
+    protected boolean setsDiscriminatorParent() {
+        return false;
+    }
+
+    /**
+     * Wires discriminator-to-subtype parent links so that
+     * polymorphic deserialization works correctly. For each model
+     * that has a discriminator and non-empty {@code oneOf} set,
+     * sets {@code child.parent} and {@code child.parentSchema}
+     * on every mapped variant that does not already have a parent.
+     *
+     * <p>Only runs when {@link #setsDiscriminatorParent()} returns
+     * {@code true}. Java and C# override that method; Rust keeps
+     * its own full override of {@code postProcessAllModels} (it
+     * calls {@code super} first, then removes the discriminator
+     * property from child structs — a distinct operation).
+     */
+    @Override
+    public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
+        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        if (setsDiscriminatorParent()) {
+            for (final ModelsMap modelsMap : result.values()) {
+                for (final ModelMap modelMap : modelsMap.getModels()) {
+                    final CodegenModel model = modelMap.getModel();
+                    if (model.discriminator != null && !model.oneOf.isEmpty()) {
+                        for (final CodegenDiscriminator.MappedModel mapped :
+                                model.discriminator.getMappedModels()) {
+                            setParentOnChild(result, mapped.getModelName(), model.classname);
+                        }
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Sets {@code parent} and {@code parentSchema} on a child
+     * model (identified by {@code childName}) to {@code parentName},
+     * but only if the child does not already have a parent.
+     */
+    private static void setParentOnChild(
+            Map<String, ModelsMap> allModels, String childName, String parentName) {
+        final ModelsMap childModels = allModels.get(childName);
+        if (childModels == null) {
+            return;
+        }
+        for (final ModelMap modelMap : childModels.getModels()) {
+            final CodegenModel child = modelMap.getModel();
+            if (child.parent == null) {
+                child.parent = parentName;
+                child.parentSchema = parentName;
+            }
         }
     }
 
