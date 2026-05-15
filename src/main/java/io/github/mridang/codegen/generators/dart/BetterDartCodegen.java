@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -207,22 +206,40 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         return false;
     }
 
-    /**
-     * Formats an array type declaration using Dart List syntax.
-     * Returns {@code List<innerType>}.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected String formatArrayType(String containerType, String innerType) {
-        return "List<" + innerType + ">";
+    protected String getNullLiteral() {
+        return "null";
     }
 
-    /**
-     * Formats a map type declaration using Dart Map syntax.
-     * Returns {@code Map<String, valueType>}.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected String formatMapType(String containerType, String keyType, String valueType) {
-        return "Map<" + keyType + ", " + valueType + ">";
+    protected String getTrueLiteral() {
+        return "true";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFalseLiteral() {
+        return "false";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getArrayTypeTemplate() {
+        return "List<%2$s>";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getMapTypeTemplate() {
+        return "Map<%2$s, %3$s>";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSourceFolder() {
+        return "lib";
     }
 
     /**
@@ -516,27 +533,29 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         return null;
     }
 
+    /** {@inheritDoc} */
+    @Override
+    protected boolean clearsEnumOnPrimitives() {
+        return true;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean filtersOneOfAnyOfPrimitives() {
+        return true;
+    }
+
     /**
-     * Clears primitive-typed enum flags, builds dart import metadata,
-     * and filters primitive types from oneOf/anyOf sets.
+     * Builds dart import metadata for each model.
+     * The dartImports block is kept as an accepted exception because Dart
+     * enriches each import entry with {@code classname} and {@code filename},
+     * which the base class does not handle.
      */
     @Override
     public ModelsMap postProcessModels(ModelsMap objs) {
         final ModelsMap result = super.postProcessModels(objs);
         for (final ModelMap modelMap : result.getModels()) {
             final CodegenModel model = modelMap.getModel();
-            for (final CodegenProperty prop : model.vars) {
-                clearEnumOnPrimitives(prop);
-            }
-            for (final CodegenProperty prop : model.allVars) {
-                clearEnumOnPrimitives(prop);
-            }
-            for (final CodegenProperty prop : model.optionalVars) {
-                clearEnumOnPrimitives(prop);
-            }
-            for (final CodegenProperty prop : model.requiredVars) {
-                clearEnumOnPrimitives(prop);
-            }
 
             final List<Map<String, String>> dartImports = new ArrayList<>();
             for (final String importName : model.imports) {
@@ -550,30 +569,14 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             }
             modelMap.put("dartImports", dartImports);
             modelMap.put("hasDartImports", !dartImports.isEmpty());
-
-            final Set<String> filteredOneOf = new LinkedHashSet<>();
-            for (final String typeName : model.oneOf) {
-                if (!languageSpecificPrimitives.contains(typeName)
-                        && !typeName.startsWith("List<")
-                        && !typeName.startsWith("Map<")
-                        && !typeName.startsWith("Set<")) {
-                    filteredOneOf.add(typeName);
-                }
-            }
-            model.oneOf = filteredOneOf;
-
-            final Set<String> filteredAnyOf = new LinkedHashSet<>();
-            for (final String typeName : model.anyOf) {
-                if (!languageSpecificPrimitives.contains(typeName)
-                        && !typeName.startsWith("List<")
-                        && !typeName.startsWith("Map<")
-                        && !typeName.startsWith("Set<")) {
-                    filteredAnyOf.add(typeName);
-                }
-            }
-            model.anyOf = filteredAnyOf;
         }
         return result;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean filtersOperationImports() {
+        return true;
     }
 
     @SuppressWarnings("unchecked")
@@ -585,21 +588,6 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         final List<Map<String, String>> imports =
                 (List<Map<String, String>>) objs.get("imports");
         if (imports != null) {
-            imports.removeIf(imp -> {
-                final String importName = imp.getOrDefault("import", "");
-                final String className =
-                        importName.contains(".")
-                                ? importName.substring(importName.lastIndexOf('.') + 1)
-                                : importName;
-                return languageSpecificPrimitives.contains(className)
-                        || typeMapping.containsValue(className)
-                        || className.startsWith("List<")
-                        || className.equals("List")
-                        || className.startsWith("Map<")
-                        || className.equals("Map")
-                        || className.startsWith("Set<")
-                        || className.equals("Set");
-            });
             for (final Map<String, String> imp : imports) {
                 if (!imp.containsKey("className") && imp.containsKey("import")) {
                     String className = imp.get("import");
@@ -614,17 +602,9 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         return objs;
     }
 
-    private void clearEnumOnPrimitives(CodegenProperty prop) {
-        if (prop.isEnum
-                && (languageSpecificPrimitives.contains(prop.dataType)
-                        || typeMapping.containsValue(prop.dataType))) {
-            prop.isEnum = false;
-        }
-    }
-
     /** {@inheritDoc} */
     @Override
-    protected void fixEnumDefaultValue(CodegenProperty prop) {
+    protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
         if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
             final String enumValue = prop.defaultValue.substring(
                     prop.defaultValue.lastIndexOf('.') + 1);
@@ -636,12 +616,6 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     protected String getAuthDir() {
         return Path.of("lib", "src", "auth").toString();
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getOAuthDir() {
-        return Path.of(getAuthDir(), "oauth").toString();
     }
 
     /** {@inheritDoc} */
