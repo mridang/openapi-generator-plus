@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
-import org.openapitools.codegen.CodegenDiscriminator;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.GeneratorLanguage;
@@ -196,6 +195,18 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     @Override
     protected String getUniqueItemsSetType() {
         return "LinkedHashSet<";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getArrayTypeTemplate() {
+        return "%1$s<%2$s>";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getMapTypeTemplate() {
+        return "%1$s<%2$s, %3$s>";
     }
 
     /**
@@ -417,24 +428,16 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         }
     }
 
-    /**
-     * Returns the output directory for model source files by
-     * combining the output folder, source folder, and model
-     * package converted to a directory path.
-     */
+    /** {@inheritDoc} */
     @Override
-    public String modelFileFolder() {
-        return Path.of(outputFolder, sourceFolder, modelPackage().replace('.', '/')).toString();
+    protected String getSourceFolder() {
+        return sourceFolder;
     }
 
-    /**
-     * Returns the output directory for API source files by
-     * combining the output folder, source folder, and API
-     * package converted to a directory path.
-     */
+    /** {@inheritDoc} */
     @Override
-    public String apiFileFolder() {
-        return Path.of(outputFolder, sourceFolder, apiPackage().replace('.', '/')).toString();
+    protected boolean setsDiscriminatorParent() {
+        return true;
     }
 
     /**
@@ -483,42 +486,67 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         return '"';
     }
 
+    /** {@inheritDoc} */
+    @Override
+    protected String getNullLiteral() {
+        return "null";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getTrueLiteral() {
+        return "true";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFalseLiteral() {
+        return "false";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected List<String> getUniversalModelPropertyImports() {
+        return List.of("JsonProperty", "JsonInclude", "JsonTypeName");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected List<String> getEnumPropertyImports() {
+        return List.of("JsonValue", "JsonCreator");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected List<String> getArrayPropertyImports() {
+        return List.of("ArrayList", "Arrays");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected List<String> getUniqueArrayPropertyImports() {
+        return List.of("LinkedHashSet");
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected List<String> getMapPropertyImports() {
+        return List.of("HashMap");
+    }
+
     /**
-     * Adds Jackson annotation imports (JsonProperty, JsonInclude,
-     * JsonTypeName, etc.) and collection imports for model
-     * properties. Cannot be standardized because Jackson is
-     * Java-specific and no other language needs these imports.
+     * Replaces the {@code ArrayList} default value with a
+     * {@code LinkedHashSet} for unique-item array properties.
+     * All import additions are handled by the base-class
+     * declaration methods.
      */
     @Override
     public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
         super.postProcessModelProperty(model, property);
-        if (!model.isEnum) {
-            model.imports.add("JsonProperty");
-            model.imports.add("JsonInclude");
-            model.imports.add("JsonTypeName");
-            if (property.isEnum) {
-                model.imports.add("JsonValue");
-                model.imports.add("JsonCreator");
-            }
-            if (property.isContainer) {
-                if (property.isArray) {
-                    if (property.getUniqueItems()) {
-                        property.defaultValue =
-                                property.defaultValue != null
-                                        ? property.defaultValue.replace(
-                                                "new ArrayList<>(",
-                                                "new LinkedHashSet<>(")
-                                        : property.defaultValue;
-                        model.imports.add("LinkedHashSet");
-                    } else {
-                        model.imports.add("ArrayList");
-                        model.imports.add("Arrays");
-                    }
-                }
-                if (property.isMap) {
-                    model.imports.add("HashMap");
-                }
-            }
+        if (!model.isEnum && property.isArray && property.getUniqueItems()
+                && property.defaultValue != null) {
+            property.defaultValue =
+                    property.defaultValue.replace("new ArrayList<>(", "new LinkedHashSet<>(");
         }
     }
 
@@ -565,43 +593,6 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             model.imports.add("JsonCreator");
         }
         return model;
-    }
-
-    /**
-     * Sets the parent of discriminator subtypes so that
-     * Jackson polymorphic deserialization works correctly.
-     * Without this, subtypes referenced in {@code @JsonSubTypes}
-     * would not extend the base class.
-     */
-    @Override
-    public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
-        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
-        for (final ModelsMap modelsMap : result.values()) {
-            for (final ModelMap modelMap : modelsMap.getModels()) {
-                final CodegenModel model = modelMap.getModel();
-                if (model.discriminator != null && !model.oneOf.isEmpty()) {
-                    for (final CodegenDiscriminator.MappedModel mapped : model.discriminator.getMappedModels()) {
-                        setParentOnChild(result, mapped.getModelName(), model.classname);
-                    }
-                }
-            }
-        }
-        return result;
-    }
-
-    private static void setParentOnChild(
-            Map<String, ModelsMap> allModels, String childName, String parentName) {
-        final ModelsMap childModels = allModels.get(childName);
-        if (childModels == null) {
-            return;
-        }
-        for (final ModelMap modelMap : childModels.getModels()) {
-            final CodegenModel child = modelMap.getModel();
-            if (child.parent == null) {
-                child.parent = parentName;
-                child.parentSchema = parentName;
-            }
-        }
     }
 
     /**
@@ -666,12 +657,6 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     @Override
     protected String getAuthDir() {
         return Path.of(sourceFolder, invokerPackage.replace(".", "/"), "auth").toString();
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getOAuthDir() {
-        return Path.of(getAuthDir(), "oauth").toString();
     }
 
     /** {@inheritDoc} */
