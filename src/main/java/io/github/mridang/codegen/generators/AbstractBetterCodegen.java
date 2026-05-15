@@ -1365,16 +1365,18 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
     /**
      * Converts a schema name to a PascalCase model class name.
-     * First calls {@link #preSanitizeModelName} to allow
+     * First applies rules from {@link #getModelNameSanitizationRules} to allow
      * language-specific pre-cleaning (e.g. PHP strips illegal
      * characters), then sanitizes, checks for reserved-word
      * collisions and digit-leading names, applies PascalCase,
-     * and finally calls {@link #postProcessModelName} (e.g.
+     * and finally checks {@link #getModelNameCollisionPrefix} (e.g.
      * Node/TypeScript adds "Model" prefix for primitives).
      */
     @Override
     public String toModelName(String name) {
-        name = preSanitizeModelName(name);
+        for (final String[] rule : getModelNameSanitizationRules()) {
+            name = name.replaceAll(rule[0], rule[1]);
+        }
         name = sanitizeName(name);
         if (isReservedWord(name)) {
             name = "model_" + name;
@@ -1382,7 +1384,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (name.matches("^\\d.*")) {
             name = "model_" + name;
         }
-        return postProcessModelName(NamingConvention.PASCAL_CASE.apply(name));
+        final String cased = NamingConvention.PASCAL_CASE.apply(name);
+        final String collisionPrefix = getModelNameCollisionPrefix();
+        if (!collisionPrefix.isEmpty() && languageSpecificPrimitives.contains(cased)) {
+            return collisionPrefix + cased;
+        }
+        return cased;
     }
 
     /**
@@ -1651,33 +1658,35 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     protected abstract String getSourceFolder();
 
     // =========================================================================
-    // Gap 3 — toModelName pipeline hooks
+    // Gap 3 — toModelName pipeline declarations
     // =========================================================================
 
     /**
-     * Called at the start of {@link #toModelName} before
-     * {@link #sanitizeName}. Override in PHP to strip
-     * PHP-illegal characters ({@code ]}, {@code $}) before
-     * sanitization.
+     * Returns a list of regex-replacement pairs applied to the raw schema name
+     * at the start of {@link #toModelName}, before {@link #sanitizeName} runs.
+     * Each entry is a two-element array: {@code [pattern, replacement]} used
+     * with {@link String#replaceAll}. Default is an empty list (no-op).
      *
-     * @param name the raw schema name
-     * @return the pre-sanitized name (default: unchanged)
+     * <p>PHP declares three rules to strip characters that are illegal in PHP
+     * identifiers ({@code ]}, {@code $}) and replace other non-word,
+     * non-backslash characters with underscores.
+     *
+     * @return ordered list of {@code [pattern, replacement]} pairs
      */
-    protected String preSanitizeModelName(String name) {
-        return name;
+    protected List<String[]> getModelNameSanitizationRules() {
+        return List.of();
     }
 
     /**
-     * Called at the end of {@link #toModelName} after PascalCase
-     * casing has been applied. Override in Node/TypeScript to
-     * prefix {@code "Model"} when the name collides with a
-     * TypeScript primitive.
+     * Returns the prefix to prepend when a PascalCase model name collides with
+     * a value in {@link #languageSpecificPrimitives}. Default is {@code ""} (no
+     * prefix). Node/TypeScript declares {@code "Model"} so that a schema named
+     * {@code string} becomes {@code ModelString}.
      *
-     * @param name the PascalCase model name
-     * @return the final model name (default: unchanged)
+     * @return collision prefix, or empty string for no collision handling
      */
-    protected String postProcessModelName(String name) {
-        return name;
+    protected String getModelNameCollisionPrefix() {
+        return "";
     }
 
     // =========================================================================
@@ -1699,19 +1708,37 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     // =========================================================================
-    // Gap 6 — toEnumValue escaping hook
+    // Gap 6 — toEnumValue escaping declarations
     // =========================================================================
 
     /**
-     * Escapes control characters and special sequences in a string
-     * enum value before quoting. The default is a no-op. Override
-     * in C# to escape {@code \n}, {@code \t}, {@code \r}, and
-     * unescaped {@code "}.
+     * Returns an ordered list of regex-replacement pairs used to escape
+     * special characters in string enum values before quoting. Each entry is a
+     * two-element array: {@code [pattern, replacement]} used with
+     * {@link String#replaceAll}. Default is an empty list (no-op).
+     *
+     * <p>C# declares four rules: escape {@code \n}, {@code \t}, {@code \r},
+     * and unescaped {@code "} so they survive inside a C# string literal.
+     *
+     * @return ordered list of {@code [pattern, replacement]} pairs
+     */
+    protected List<String[]> getEnumStringEscapes() {
+        return List.of();
+    }
+
+    /**
+     * Escapes control characters and special sequences in a string enum value
+     * before quoting. Applies each pair from {@link #getEnumStringEscapes()} in
+     * order via {@link String#replaceAll}. Default is a no-op when no escapes
+     * are declared.
      *
      * @param value the raw enum value string
-     * @return the escaped value (default: unchanged)
+     * @return the escaped value
      */
     protected String escapeEnumStringValue(String value) {
+        for (final String[] escape : getEnumStringEscapes()) {
+            value = value.replaceAll(escape[0], escape[1]);
+        }
         return value;
     }
 
@@ -1807,16 +1834,44 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     // =========================================================================
 
     /**
-     * Returns {@code true} if the given property requires a
-     * runtime type decorator for correct deserialization. Used
-     * by Node/TypeScript to decide whether to emit
-     * {@code @Type()} decorators. Default is {@code false}.
+     * Returns {@code true} if this generator should evaluate type-decorator
+     * requirements on model properties. Default is {@code false}. Node/TypeScript
+     * returns {@code true} because it emits {@code @Type()} decorators on complex
+     * properties to guide the runtime deserializer.
+     *
+     * @return whether type-decorator analysis is active for this language
+     */
+    protected boolean shouldApplyTypeDecorators() {
+        return false;
+    }
+
+    /**
+     * Returns {@code true} if the given property requires a runtime type
+     * decorator for correct deserialization. Only called when
+     * {@link #shouldApplyTypeDecorators()} returns {@code true}. The base
+     * implementation covers the TypeScript/Node case: non-primitive, non-array
+     * complex object types, or arrays whose item type is such a complex type.
      *
      * @param prop the property to test
      * @return whether the property needs a type decorator
      */
     protected boolean needsTypeDecorator(CodegenProperty prop) {
-        return false;
+        if (!shouldApplyTypeDecorators()) {
+            return false;
+        }
+        if (!prop.isPrimitiveType
+                && !prop.isArray
+                && prop.complexType != null
+                && !prop.isEnum
+                && !prop.isFreeFormObject) {
+            return true;
+        }
+        return prop.isArray
+                && prop.items != null
+                && !prop.items.isPrimitiveType
+                && prop.items.complexType != null
+                && !prop.items.isEnum
+                && !prop.items.isFreeFormObject;
     }
 
     // =========================================================================

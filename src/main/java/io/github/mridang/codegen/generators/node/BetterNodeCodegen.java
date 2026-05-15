@@ -25,7 +25,6 @@ import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
-import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
 import org.openapitools.codegen.model.OperationsMap;
@@ -482,11 +481,8 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
 
     /** {@inheritDoc} */
     @Override
-    protected String postProcessModelName(String name) {
-        if (languageSpecificPrimitives.contains(name)) {
-            return "Model" + name;
-        }
-        return name;
+    protected String getModelNameCollisionPrefix() {
+        return "Model";
     }
 
     /** {@inheritDoc} */
@@ -886,20 +882,8 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
 
     /** {@inheritDoc} */
     @Override
-    protected boolean needsTypeDecorator(CodegenProperty prop) {
-        if (!prop.isPrimitiveType
-                && !prop.isArray
-                && prop.complexType != null
-                && !prop.isEnum
-                && !prop.isFreeFormObject) {
-            return true;
-        }
-        return prop.isArray
-                && prop.items != null
-                && !prop.items.isPrimitiveType
-                && prop.items.complexType != null
-                && !prop.items.isEnum
-                && !prop.items.isFreeFormObject;
+    protected boolean shouldApplyTypeDecorators() {
+        return true;
     }
 
 }

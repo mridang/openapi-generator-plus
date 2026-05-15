@@ -537,11 +537,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
 
     /** {@inheritDoc} */
     @Override
-    protected String preSanitizeModelName(String name) {
-        name = name.replaceAll("\\]", "");
-        name = name.replaceAll("[^\\w\\\\]+", "_");
-        name = name.replace("$", "");
-        return name;
+    protected List<String[]> getModelNameSanitizationRules() {
+        return List.of(
+                new String[]{"\\]", ""},
+                new String[]{"[^\\w\\\\]+", "_"},
+                new String[]{"\\$", ""});
     }
 
     /**

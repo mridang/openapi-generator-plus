@@ -489,11 +489,12 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
 
     /** {@inheritDoc} */
     @Override
-    protected String escapeEnumStringValue(String value) {
-        return value.replace("\n", "\\n")
-                .replace("\t", "\\t")
-                .replace("\r", "\\r")
-                .replaceAll("(?<!\\\\)\"", "\\\\\"");
+    protected List<String[]> getEnumStringEscapes() {
+        return List.of(
+                new String[]{"\n", "\\\\n"},
+                new String[]{"\t", "\\\\t"},
+                new String[]{"\r", "\\\\r"},
+                new String[]{"(?<!\\\\)\"", "\\\\\""});
     }
 
     /**
