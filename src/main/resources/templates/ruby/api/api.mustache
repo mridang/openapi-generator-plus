@@ -209,7 +209,7 @@ module {{moduleName}}
         header_params['{{baseName}}'] = {{moduleName}}::ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, :header, '{{{dataType}}}', nil, '{{style}}', {{isExplode}}).to_s unless options.nil? || options.{{paramName}}.nil?
 {{/headerParams}}
 {{#hasCookieParams}}
-        cookie_parts = [] #: Array[String]
+        cookie_parts = [] # : Array[String]
 {{#cookieParams}}
 {{=<% %>=}}
         cookie_parts << "<%baseName%>=#{<%moduleName%>::ValueSerializer.serialize_styled('<%baseName%>', options.<%paramName%>, :cookie, '<%& dataType%>', nil, '<%style%>', <%isExplode%>)}" unless options.nil? || options.<%paramName%>.nil?

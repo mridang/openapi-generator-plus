@@ -347,7 +347,11 @@ describe {{moduleName}}::Api::BaseApi do
   it 'deserializes vendor JSON MIME types like application/problem+json' do
     client = CapturingApiClient.new
     def client.send_request(_method, _url, _headers, _body)
-      {{moduleName}}::ApiResponse.new(status_code: 200, body: '{"title":"Not Found"}', headers: { 'Content-Type' => 'application/problem+json' })
+      {{moduleName}}::ApiResponse.new(
+        status_code: 200,
+        body: '{"title":"Not Found"}',
+        headers: { 'Content-Type' => 'application/problem+json' }
+      )
     end
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
