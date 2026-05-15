@@ -23,13 +23,11 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.GeneratorLanguage;
-import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
-import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
@@ -190,6 +188,42 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     protected String getEmptyEnumVarName() {
         return "Empty";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getArrayTypeTemplate() {
+        return "%1$s<%2$s>";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getMapTypeTemplate() {
+        return "%1$s<%2$s, %3$s>";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getNullLiteral() {
+        return "null";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getTrueLiteral() {
+        return "true";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFalseLiteral() {
+        return "false";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSourceFolder() {
+        return "src";
     }
 
     /**
@@ -440,30 +474,19 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         return null;
     }
 
-    /**
-     * Overrides the base class to preserve original JSON property
-     * names for serialization fidelity. TypeScript models use
-     * the exact property names from the schema. Cannot be
-     * standardized because other languages apply casing.
-     */
+    /** {@inheritDoc} */
     @Override
-    public String toVarName(String name) {
-        return sanitizeName(name);
+    protected boolean shouldEscapeReservedVarName(String name) {
+        return false;
     }
 
-    /**
-     * Overrides the base class to additionally check for
-     * collisions with TypeScript primitives ({@code number},
-     * {@code string}) and prefix with "Model" when a collision
-     * occurs.
-     */
+    /** {@inheritDoc} */
     @Override
-    public String toModelName(String name) {
-        final String result = super.toModelName(name);
-        if (languageSpecificPrimitives.contains(result)) {
-            return "Model" + result;
+    protected String postProcessModelName(String name) {
+        if (languageSpecificPrimitives.contains(name)) {
+            return "Model" + name;
         }
-        return result;
+        return name;
     }
 
     /** {@inheritDoc} */
@@ -478,58 +501,20 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         return '\'';
     }
 
-    /**
-     * Overrides the base class to check {@code enumNameMapping}
-     * first, then resolve symbol names with PascalCase. Cannot
-     * be standardized because the enumNameMapping lookup and
-     * PascalCase casing differ from PHP's handling.
-     */
+    /** {@inheritDoc} */
     @Override
     public String toEnumVarName(String value, String datatype) {
-        return Optional.ofNullable(enumNameMapping.get(value))
-                .orElseGet(
-                        () ->
-                                Optional.ofNullable(getSymbolName(value))
-                                        .map(s -> getEnumCasing().apply(s))
-                                        .orElseGet(() -> super.toEnumVarName(value, datatype)));
+        final String mapped = enumNameMapping.get(value);
+        if (mapped != null) {
+            return mapped;
+        }
+        return super.toEnumVarName(value, datatype);
     }
 
-    /**
-     * Overrides the base class to build TypeScript import
-     * metadata ({@code tsImports}) and determine type decorator
-     * flags for runtime deserialization. Cannot be standardized
-     * because TypeScript's import/decorator system is unique.
-     */
+    /** {@inheritDoc} */
     @Override
-    public ModelsMap postProcessModels(ModelsMap objs) {
-        final ModelsMap result = super.postProcessModels(objs);
-
-        for (final ModelMap modelMap : result.getModels()) {
-            final CodegenModel model = modelMap.getModel();
-
-            final List<Map<String, String>> tsImports = new ArrayList<>();
-            for (final String importName : model.imports) {
-                if (!languageSpecificPrimitives.contains(importName)
-                        && !typeMapping.containsValue(importName)) {
-                    final Map<String, String> tsImport = new HashMap<>();
-                    tsImport.put("classname", importName);
-                    tsImport.put("filename", toModelFilename(importName));
-                    tsImports.add(tsImport);
-                }
-            }
-            modelMap.put("tsImports", tsImports);
-            modelMap.put("hasImports", !tsImports.isEmpty());
-
-            boolean hasTypeDecorator = false;
-            for (final CodegenProperty var : model.vars) {
-                if (needsTypeDecorator(var)) {
-                    hasTypeDecorator = true;
-                    break;
-                }
-            }
-            modelMap.put("hasTypeDecorator", hasTypeDecorator);
-        }
-        return result;
+    protected String getModelImportContextKey() {
+        return "tsImports";
     }
 
     /**
@@ -943,14 +928,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         postProcessFile(Path.of(barrelPath).toFile(), "source");
     }
 
-    /*
-     * Returns whether a model property needs a runtime type
-     * decorator for correct deserialization. Complex types
-     * (non-primitive, non-enum, non-freeform) and arrays of
-     * complex types require type metadata so the serializer
-     * can instantiate the correct class.
-     */
-    private static boolean needsTypeDecorator(CodegenProperty prop) {
+    /** {@inheritDoc} */
+    @Override
+    protected boolean needsTypeDecorator(CodegenProperty prop) {
         if (!prop.isPrimitiveType
                 && !prop.isArray
                 && prop.complexType != null

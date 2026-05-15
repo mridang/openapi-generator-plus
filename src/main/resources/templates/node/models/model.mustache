@@ -2,11 +2,11 @@
 
 {{#models}}
 {{#model}}
-{{#hasImports}}
+{{#hasTsImports}}
 {{#tsImports}}
 import { {{classname}} } from './{{filename}}{{importFileExtension}}';
 {{/tsImports}}
-{{/hasImports}}
+{{/hasTsImports}}
 {{#isEnum}}
 
 /**
