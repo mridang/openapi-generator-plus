@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.CodegenProperty;
@@ -597,12 +598,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
 
     /** {@inheritDoc} */
     @Override
-    protected String getOAuthDir() {
-        return Path.of(getAuthDir(), "oauth").toString();
-    }
-
-    /** {@inheritDoc} */
-    @Override
     protected String toAuthFilename(String stem) {
         return stem + ".rb";
     }
@@ -978,7 +973,43 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
 
     /** {@inheritDoc} */
     @Override
-    protected void fixEnumDefaultValue(CodegenProperty prop) {
+    protected String getArrayTypeTemplate() {
+        return "%1$s<%2$s>";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getMapTypeTemplate() {
+        return "%1$s<%2$s, %3$s>";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getNullLiteral() {
+        return "nil";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getTrueLiteral() {
+        return "true";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFalseLiteral() {
+        return "false";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSourceFolder() {
+        return "lib";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
         if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
             final String enumValue =
                     prop.defaultValue.substring(prop.defaultValue.lastIndexOf('.') + 1);
