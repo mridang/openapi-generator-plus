@@ -6,10 +6,8 @@ import io.github.mridang.codegen.generators.BarrelFileEmitter;
 import io.github.mridang.codegen.generators.NamingConvention;
 import io.swagger.v3.oas.models.media.Schema;
 import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.regex.Pattern;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -414,26 +412,40 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         return Path.of(outputFolder, apiPackage.replace('.', '/')).toString();
     }
 
-    /**
-     * Overrides the base class because Python uses bracket
-     * generics ({@code List[str]}) instead of angle-bracket
-     * syntax ({@code List<String>}). Cannot be standardized
-     * because no other language uses this bracket form.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected String formatArrayType(String containerType, String innerType) {
-        return containerType + "[" + innerType + "]";
+    protected String getArrayTypeTemplate() {
+        return "%1$s[%2$s]";
     }
 
-    /**
-     * Overrides the base class because Python uses bracket
-     * generics ({@code Dict[str, Any]}) instead of angle-bracket
-     * syntax ({@code Dict<String, Object>}). Cannot be
-     * standardized because no other language uses this form.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected String formatMapType(String containerType, String keyType, String valueType) {
-        return containerType + "[" + keyType + ", " + valueType + "]";
+    protected String getMapTypeTemplate() {
+        return "%1$s[%2$s, %3$s]";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getNullLiteral() {
+        return "None";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getTrueLiteral() {
+        return "True";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFalseLiteral() {
+        return "False";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSourceFolder() {
+        return "";
     }
 
     /**
@@ -541,27 +553,20 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     }
 
 
-    /**
-     * Overrides the base class to sanitize example values
-     * that contain Java-specific artifacts (null literals,
-     * byte-array toString output) into valid Python syntax.
-     * Cannot be standardized because other languages don't
-     * have these example format issues.
-     */
+    /** {@inheritDoc} */
     @Override
-    public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
-        super.postProcessModelProperty(model, property);
+    protected boolean sanitizesExampleValues() {
+        return true;
+    }
 
-        // Sanitize example values for valid Python syntax
-        if (property.example != null) {
-            if ("null".equals(property.example) || property.example.startsWith("[B@")) {
-                // Java null literal or byte-array toString — not valid Python
-                property.example = null;
-            } else if (property.isString
-                    && !property.example.startsWith("'")
-                    && !property.example.startsWith("\"")) {
-                property.example = "'" + property.example.replace("'", "\\'") + "'";
-            }
+    /** {@inheritDoc} */
+    @Override
+    protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
+        if (prop.defaultValue != null
+                && prop.defaultValue.contains(".")
+                && !prop.defaultValue.startsWith("'")
+                && !prop.defaultValue.startsWith(model.classname)) {
+            prop.defaultValue = model.classname + prop.defaultValue;
         }
     }
 
@@ -577,19 +582,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         for (final ModelsMap modelsMap : result.values()) {
             for (final ModelMap modelMap : modelsMap.getModels()) {
                 final CodegenModel model = modelMap.getModel();
-
-                // Fix enum default values: the base class sets defaultValue to
-                // "StatusEnum.PLACED" but the template generates the enum class
-                // as "OrderStatusEnum" (classname + enumName). Prefix the model
-                // classname to produce the correct reference.
-                for (final CodegenProperty prop : model.vars) {
-                    if (prop.defaultValue != null
-                            && prop.defaultValue.contains(".")
-                            && !prop.defaultValue.startsWith("'")
-                            && !prop.defaultValue.startsWith(model.classname)) {
-                        prop.defaultValue = model.classname + prop.defaultValue;
-                    }
-                }
 
                 final TreeSet<String> fullImports = new TreeSet<>();
 
@@ -626,12 +618,6 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     @Override
     protected String getAuthDir() {
         return Path.of(packageName.replace('.', File.separatorChar), "auth").toString();
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getOAuthDir() {
-        return Path.of(getAuthDir(), "oauth").toString();
     }
 
     /** {@inheritDoc} */
@@ -819,29 +805,13 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         return "[\"" + String.join("\", \"", scopes.keySet()) + "\"]";
     }
 
-    /**
-     * Overrides the base class to fix Mustache whitespace
-     * artifacts in Python f-string braces ({@code { 'x' }}
-     * becomes {@code {'x'}}). Cannot be standardized because
-     * this is a Python template artifact that doesn't affect
-     * other languages.
-     */
+    /** {@inheritDoc} */
     @Override
-    public void postProcessFile(File file, String fileType) {
-        super.postProcessFile(file, fileType);
-        if (file == null || !file.getName().endsWith(".py")) {
-            return;
-        }
-        try {
-            final String content = Files.readString(file.toPath());
-            // Fix Mustache whitespace in f-string braces: { 'string' } → {'string'}
-            final String trimmed = content.replaceAll("\\{ ('.*?') }", "{$1}");
-            if (!trimmed.equals(content)) {
-                Files.write(file.toPath(), trimmed.getBytes(StandardCharsets.UTF_8));
-            }
-        } catch (IOException e) {
-            LOGGER.warn("Failed to post-process file: {}", file.getAbsolutePath(), e);
-        }
+    protected List<FileContentFixup> getFileContentFixups() {
+        return List.of(new FileContentFixup(
+                ".py",
+                Pattern.compile("\\{ ('.*?') }"),
+                "{$1}"));
     }
 
     /**
