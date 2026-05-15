@@ -23,8 +23,6 @@ import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
-import org.openapitools.codegen.model.ModelMap;
-import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -537,18 +535,13 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         return super.getTypeDeclaration(name);
     }
 
-    /**
-     * Overrides the base class with extra sanitization that
-     * strips brackets, non-word characters, and {@code $} signs
-     * specific to PHP syntax before delegating to the base
-     * class for reserved-word and digit-leading checks.
-     */
+    /** {@inheritDoc} */
     @Override
-    public String toModelName(String name) {
+    protected String preSanitizeModelName(String name) {
         name = name.replaceAll("\\]", "");
         name = name.replaceAll("[^\\w\\\\]+", "_");
         name = name.replace("$", "");
-        return super.toModelName(name);
+        return name;
     }
 
     /**
@@ -580,6 +573,42 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
 
     /** {@inheritDoc} */
     @Override
+    protected String getArrayTypeTemplate() {
+        return "%1$s<%2$s>";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getMapTypeTemplate() {
+        return "%1$s<%2$s, %3$s>";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getNullLiteral() {
+        return "null";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getTrueLiteral() {
+        return "true";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFalseLiteral() {
+        return "false";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSourceFolder() {
+        return "src";
+    }
+
+    /** {@inheritDoc} */
+    @Override
     protected String getOperationIdReservedPrefix() {
         return "call_";
     }
@@ -602,25 +631,13 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         return false;
     }
 
-    /**
-     * Overrides the base class to handle PHP-specific edge
-     * cases: whitespace-only values become {@code SPACE_n},
-     * symbol characters are resolved, and reserved words are
-     * escaped. Cannot be standardized because PHP's edge cases
-     * differ from other languages.
-     */
+    /** {@inheritDoc} */
     @Override
     public String toEnumVarName(String value, String datatype) {
-        if (value.trim().isEmpty() && !value.isEmpty()) {
+        if (!value.isEmpty() && value.trim().isEmpty()) {
             return "SPACE_" + value.length();
         }
-        return Optional.ofNullable(getSymbolName(value))
-                .map(NamingConvention.UPPER_SNAKE_CASE::apply)
-                .orElseGet(
-                        () -> {
-                            final String result = super.toEnumVarName(value, datatype);
-                            return isReservedWord(result) ? escapeReservedWord(result) : result;
-                        });
+        return super.toEnumVarName(value, datatype);
     }
 
     /**
@@ -862,27 +879,15 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         return p.dataType;
     }
 
+    /** {@inheritDoc} */
     @Override
-    public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
-        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
-        for (final ModelsMap modelsMap : result.values()) {
-            for (final ModelMap modelMap : modelsMap.getModels()) {
-                final CodegenModel model = modelMap.getModel();
-                final List<List<CodegenProperty>> allPropLists =
-                        List.of(model.vars, model.optionalVars, model.requiredVars);
-                for (final List<CodegenProperty> propList : allPropLists) {
-                    for (final CodegenProperty prop : propList) {
-                        if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
-                            // Fix enum defaults: "StatusEnum . PLACED" → "OrderStatusEnum::PLACED"
-                            final String[] parts = prop.defaultValue.split("\\s*\\.\\s*", 2);
-                            if (parts.length == 2) {
-                                prop.defaultValue = model.classname + parts[0] + "::" + parts[1];
-                            }
-                        }
-                    }
-                }
+    protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
+        if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
+            // Fix enum defaults: "StatusEnum.PLACED" → "OrderStatusEnum::PLACED"
+            final String[] parts = prop.defaultValue.split("\\s*\\.\\s*", 2);
+            if (parts.length == 2) {
+                prop.defaultValue = model.classname + parts[0] + "::" + parts[1];
             }
         }
-        return result;
     }
 }
