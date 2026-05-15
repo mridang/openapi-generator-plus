@@ -196,22 +196,16 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         return '"';
     }
 
-    /**
-     * Formats an array type declaration using Rust Vec syntax.
-     * Returns {@code Vec<innerType>}.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected String formatArrayType(String containerType, String innerType) {
-        return "Vec<" + innerType + ">";
+    protected String getArrayTypeTemplate() {
+        return "Vec<%2$s>";
     }
 
-    /**
-     * Formats a map type declaration using Rust HashMap syntax.
-     * Returns {@code std::collections::HashMap<String, valueType>}.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected String formatMapType(String containerType, String keyType, String valueType) {
-        return "std::collections::HashMap<" + keyType + ", " + valueType + ">";
+    protected String getMapTypeTemplate() {
+        return "std::collections::HashMap<%2$s, %3$s>";
     }
 
     /**
@@ -504,13 +498,37 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
 
     /** {@inheritDoc} */
     @Override
-    protected void fixEnumDefaultValue(CodegenProperty prop) {
+    protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
         if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
             final String enumValue = prop.defaultValue.substring(
                     prop.defaultValue.lastIndexOf('.') + 1);
             prop.defaultValue =
                     "String::from(\"" + enumValue.toLowerCase(Locale.ROOT) + "\")";
         }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getNullLiteral() {
+        return "None";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getTrueLiteral() {
+        return "true";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getFalseLiteral() {
+        return "false";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getSourceFolder() {
+        return "src";
     }
 
     /** {@inheritDoc} */
