@@ -25,8 +25,6 @@ import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.SupportingFile;
-import org.openapitools.codegen.model.ModelMap;
-import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +41,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterPythonCodegen.class);
 
+    /** Maps Python built-in datatype names to their required import statement. */
     private static final Map<String, String> TYPE_IMPORTS =
             Map.of(
                     "datetime", "from datetime import datetime",
@@ -573,39 +572,20 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     /**
      * Overrides the base class to resolve Python-specific type
      * imports ({@code from datetime import datetime}, etc.).
-     * Cannot be standardized because Python is the only language
-     * that needs per-type import statements.
+     * The base class handles this via {@link #buildsFqnModelImports()} and
+     * {@link #getPropertyTypeImportMap()}.
      */
+
+    /** {@inheritDoc} */
     @Override
-    public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
-        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
-        for (final ModelsMap modelsMap : result.values()) {
-            for (final ModelMap modelMap : modelsMap.getModels()) {
-                final CodegenModel model = modelMap.getModel();
+    protected boolean buildsFqnModelImports() {
+        return true;
+    }
 
-                final TreeSet<String> fullImports = new TreeSet<>();
-
-                for (final CodegenProperty prop : model.allVars) {
-                    addTypeImport(fullImports, prop.dataType);
-                    if (prop.items != null) {
-                        addTypeImport(fullImports, prop.items.dataType);
-                    }
-                }
-
-                for (final String imp : model.imports) {
-                    fullImports.add(
-                            "from "
-                                    + modelPackage
-                                    + "."
-                                    + toModelFilename(imp)
-                                    + " import "
-                                    + imp);
-                }
-                model.imports.clear();
-                model.imports.addAll(fullImports);
-            }
-        }
-        return result;
+    /** {@inheritDoc} */
+    @Override
+    protected Map<String, String> getPropertyTypeImportMap() {
+        return TYPE_IMPORTS;
     }
 
     /** {@inheritDoc} */

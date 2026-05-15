@@ -7,13 +7,10 @@ import com.samskivert.mustache.Mustache;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
 import io.github.mridang.codegen.generators.NamingConvention;
+import io.github.mridang.codegen.generators.WithTypeSignatureSupport;
 import io.swagger.v3.oas.models.media.Schema;
 import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -48,7 +45,7 @@ import org.slf4j.LoggerFactory;
  * invokes RuboCop inside Docker to enforce layout rules.
  */
 @SuppressWarnings("unused")
-public class BetterRubyCodegen extends AbstractBetterCodegen {
+public class BetterRubyCodegen extends AbstractBetterCodegen implements WithTypeSignatureSupport {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterRubyCodegen.class);
 
@@ -568,25 +565,9 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
     /**
      * Overrides the base class to move {@code .rbs} type-signature
      * files from {@code lib/} to {@code sig/} as required by Ruby's
-     * Steep type-checking tooling. Blank-line collapse is handled
-     * by the base class.
+     * Steep type-checking tooling. The base class handles this via
+     * {@link WithTypeSignatureSupport} dispatch.
      */
-    @Override
-    public void postProcessFile(File file, String fileType) {
-        super.postProcessFile(file, fileType);
-        if (file == null) {
-            return;
-        }
-        final String name = file.getName();
-        final boolean isRb = name.endsWith(".rb");
-        final boolean isRbs = name.endsWith(".rbs");
-        if (!isRb && !isRbs) {
-            return;
-        }
-        if (isRbs) {
-            moveRbsToSigDir(file);
-        }
-    }
 
     /** {@inheritDoc} */
     @Override
@@ -621,33 +602,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
         ctx.put("constructorParams", constructorParams);
         ctx.put("superArgs", buildRubySuperArgs(spec));
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
-    }
-
-    /**
-     * Writes the companion {@code .rbs} type-signature file for
-     * a generated authenticator. Called by the base class after
-     * the main {@code .rb} file is written.
-     */
-    @Override
-    protected void postWriteSchemeAuthenticator(SchemeAuthSpec spec, String writtenPath) {
-        final List<Map<String, String>> constructorParams = new ArrayList<>();
-        for (final String name : spec.paramNames()) {
-            final Map<String, String> param = new HashMap<>();
-            param.put("name", NamingConvention.SNAKE_CASE.apply(name));
-            param.put("type", "String");
-            constructorParams.add(param);
-        }
-        final Map<String, Object> rbsCtx = new HashMap<>();
-        rbsCtx.put("moduleName", moduleName);
-        rbsCtx.put("className", spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
-        rbsCtx.put("baseClass", spec.baseClass());
-        rbsCtx.put("isOAuth", spec.isOAuth());
-        rbsCtx.put("constructorParams", constructorParams);
-        final String rbsContent =
-                renderOptionsTemplate("auth/scheme_authenticator_rbs.mustache", rbsCtx);
-        final String rbsPath = writtenPath.replace(".rb", ".rbs");
-        writeFile(rbsPath, rbsContent);
-        postProcessFile(Path.of(rbsPath).toFile(), "source");
     }
 
     private static String formatRubyScopes(@Nullable Map<String, String> scopes) {
@@ -701,31 +655,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen {
                     "client_id", "client_secret", "redirect_uri", "[]");
         }
         return List.of();
-    }
-
-    /**
-     * Moves an {@code .rbs} file from {@code lib/} to {@code sig/}
-     * as required by Ruby's Steep type-checking tooling.
-     */
-    private void moveRbsToSigDir(File file) {
-        final Path filePath = file.toPath();
-        final Path outputDir = Path.of(getOutputDir());
-        final Path relative = outputDir.relativize(filePath);
-        final String relStr = relative.toString();
-
-        if (relStr.startsWith(LIB_FOLDER + File.separator)) {
-            final Path sigPath = outputDir.resolve("sig").resolve(relStr.substring(LIB_FOLDER.length() + 1));
-            final Path sigParent = sigPath.getParent();
-            if (sigParent == null) {
-                return;
-            }
-            try {
-                Files.createDirectories(sigParent);
-                Files.move(filePath, sigPath, StandardCopyOption.REPLACE_EXISTING);
-            } catch (IOException e) {
-                LOGGER.warn("Failed to move RBS file {} to {}: {}", filePath, sigPath, e.getMessage());
-            }
-        }
     }
 
     /**

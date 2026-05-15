@@ -26,13 +26,13 @@ public class PetWithOwner
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum StatusEnum
     {
-        [JsonStringEnumMemberName(""available"")]
+        [JsonStringEnumMemberName("available")]
         Available,
 
-        [JsonStringEnumMemberName(""pending"")]
+        [JsonStringEnumMemberName("pending")]
         Pending,
 
-        [JsonStringEnumMemberName(""sold"")]
+        [JsonStringEnumMemberName("sold")]
         Sold,
     }
 

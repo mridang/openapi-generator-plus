@@ -496,6 +496,20 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 .replaceAll("(?<!\\\\)\"", "\\\\\"");
     }
 
+    /**
+     * C# enum templates supply the surrounding double-quotes themselves
+     * (e.g. {@code [JsonStringEnumMemberName("{{{value}}}")]}).
+     * The base class {@code quoteEnumValue} must therefore be skipped;
+     * only escape control characters.
+     */
+    @Override
+    public String toEnumValue(String value, String datatype) {
+        if (isNumericEnumDatatype(datatype)) {
+            return value;
+        }
+        return escapeEnumStringValue(value);
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String httpAwareAuthenticatorStem() {

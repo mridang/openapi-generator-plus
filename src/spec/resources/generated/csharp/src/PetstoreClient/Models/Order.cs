@@ -23,13 +23,13 @@ public class Order
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum StatusEnum
     {
-        [JsonStringEnumMemberName(""placed"")]
+        [JsonStringEnumMemberName("placed")]
         Placed,
 
-        [JsonStringEnumMemberName(""approved"")]
+        [JsonStringEnumMemberName("approved")]
         Approved,
 
-        [JsonStringEnumMemberName(""delivered"")]
+        [JsonStringEnumMemberName("delivered")]
         Delivered,
     }
 

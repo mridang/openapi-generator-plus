@@ -27,7 +27,6 @@ import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
-import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
@@ -545,32 +544,10 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         return true;
     }
 
-    /**
-     * Builds dart import metadata for each model.
-     * The dartImports block is kept as an accepted exception because Dart
-     * enriches each import entry with {@code classname} and {@code filename},
-     * which the base class does not handle.
-     */
+    /** {@inheritDoc} */
     @Override
-    public ModelsMap postProcessModels(ModelsMap objs) {
-        final ModelsMap result = super.postProcessModels(objs);
-        for (final ModelMap modelMap : result.getModels()) {
-            final CodegenModel model = modelMap.getModel();
-
-            final List<Map<String, String>> dartImports = new ArrayList<>();
-            for (final String importName : model.imports) {
-                if (!languageSpecificPrimitives.contains(importName)
-                        && !typeMapping.containsValue(importName)) {
-                    final Map<String, String> dartImport = new HashMap<>();
-                    dartImport.put("classname", importName);
-                    dartImport.put("filename", toModelFilename(importName));
-                    dartImports.add(dartImport);
-                }
-            }
-            modelMap.put("dartImports", dartImports);
-            modelMap.put("hasDartImports", !dartImports.isEmpty());
-        }
-        return result;
+    protected String getModelImportContextKey() {
+        return "dartImports";
     }
 
     /** {@inheritDoc} */

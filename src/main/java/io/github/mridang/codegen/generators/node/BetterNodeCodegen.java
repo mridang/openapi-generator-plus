@@ -517,6 +517,12 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         return "tsImports";
     }
 
+    /** {@inheritDoc} */
+    @Override
+    protected boolean filtersOptionsOnlyModelImports() {
+        return true;
+    }
+
     /**
      * Overrides the base class to add kebab-case filenames,
      * resolve inline enum parameter types, and clean up
@@ -527,56 +533,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     public OperationsMap postProcessOperationsWithModels(
             OperationsMap objs, List<ModelMap> allModels) {
         objs = super.postProcessOperationsWithModels(objs, allModels);
-
-        // Remove model imports that are only used by Options params
-        @SuppressWarnings("unchecked")
-        final Map<String, Object> operations2 = (Map<String, Object>) objs.get("operations");
-        if (operations2 != null) {
-            @SuppressWarnings("unchecked")
-            final List<CodegenOperation> ops2 =
-                    (List<CodegenOperation>) operations2.get("operation");
-            if (ops2 != null) {
-                final Set<String> optionsOnlyModels = new HashSet<>();
-                final Set<String> nonOptionsModels = new HashSet<>();
-                for (final CodegenOperation op : ops2) {
-                    final List<CodegenParameter> optParams = collectOptionsParams(op);
-                    final Set<String> optParamNames = new HashSet<>();
-                    for (final CodegenParameter p : optParams) {
-                        optParamNames.add(p.paramName);
-                        addModelBaseType(optionsOnlyModels, p);
-                    }
-                    if (op.allParams != null) {
-                        for (final CodegenParameter p : op.allParams) {
-                            if (!optParamNames.contains(p.paramName)) {
-                                addModelBaseType(nonOptionsModels, p);
-                            }
-                        }
-                    }
-                    if (op.returnBaseType != null
-                            && !languageSpecificPrimitives.contains(op.returnBaseType)) {
-                        nonOptionsModels.add(op.returnBaseType);
-                    }
-                }
-                optionsOnlyModels.removeAll(nonOptionsModels);
-                if (!optionsOnlyModels.isEmpty()) {
-                    @SuppressWarnings("unchecked")
-                    final List<Map<String, String>> optImports =
-                            (List<Map<String, String>>) objs.get("imports");
-                    if (optImports != null) {
-                        // The framework inconsistently uses "className" or "classname"
-                        // as the import map key, so we check both.
-                        optImports.removeIf(
-                                imp -> {
-                                    final String cn =
-                                            imp.getOrDefault(
-                                                    "className",
-                                                    imp.getOrDefault("classname", ""));
-                                    return optionsOnlyModels.contains(cn);
-                                });
-                    }
-                }
-            }
-        }
 
         @SuppressWarnings("unchecked")
         final Map<String, Object> operations = (Map<String, Object>) objs.get("operations");
@@ -946,23 +902,4 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 && !prop.items.isFreeFormObject;
     }
 
-    /*
-     * Adds the base type of a parameter (and its items, if it is a
-     * collection) to the given set when the type is not a language
-     * primitive. Used to track which model imports are referenced
-     * by options-only parameters versus non-options parameters.
-     */
-    private void addModelBaseType(Set<String> types, CodegenParameter p) {
-        if (p.baseType != null
-                && !languageSpecificPrimitives.contains(p.baseType)
-                && p.baseType.matches("^[A-Z]\\w*$")) {
-            types.add(p.baseType);
-        }
-        if (p.items != null
-                && p.items.baseType != null
-                && !languageSpecificPrimitives.contains(p.items.baseType)
-                && p.items.baseType.matches("^[A-Z]\\w*$")) {
-            types.add(p.items.baseType);
-        }
-    }
 }

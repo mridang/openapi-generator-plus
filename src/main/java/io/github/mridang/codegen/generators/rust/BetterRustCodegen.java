@@ -655,41 +655,14 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
      * manages the tag field itself, so the inner struct must not
      * declare it as a field. Without this, deserialization fails
      * with "missing field" and serialization produces duplicate
-     * tag fields.
+     * tag fields. The base class handles this via
+     * {@link #removesDiscriminatorPropertyFromChildren()}.
      */
-    @Override
-    public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
-        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
-        for (final ModelsMap modelsMap : result.values()) {
-            for (final ModelMap modelMap : modelsMap.getModels()) {
-                final CodegenModel model = modelMap.getModel();
-                if (model.discriminator != null && !model.oneOf.isEmpty()) {
-                    final String discPropName = model.discriminator.getPropertyBaseName();
-                    for (final CodegenDiscriminator.MappedModel mapped :
-                            model.discriminator.getMappedModels()) {
-                        removeDiscriminatorFromChild(
-                                result, mapped.getModelName(), discPropName);
-                    }
-                }
-            }
-        }
-        return result;
-    }
 
-    private static void removeDiscriminatorFromChild(
-            Map<String, ModelsMap> allModels, String childName, String discPropName) {
-        final ModelsMap childModels = allModels.get(childName);
-        if (childModels == null) {
-            return;
-        }
-        for (final ModelMap modelMap : childModels.getModels()) {
-            final CodegenModel child = modelMap.getModel();
-            child.vars.removeIf(p -> discPropName.equals(p.baseName));
-            child.requiredVars.removeIf(p -> discPropName.equals(p.baseName));
-            child.optionalVars.removeIf(p -> discPropName.equals(p.baseName));
-            child.allVars.removeIf(p -> discPropName.equals(p.baseName));
-            child.readWriteVars.removeIf(p -> discPropName.equals(p.baseName));
-        }
+    /** {@inheritDoc} */
+    @Override
+    protected boolean removesDiscriminatorPropertyFromChildren() {
+        return true;
     }
 
     /** {@inheritDoc} */

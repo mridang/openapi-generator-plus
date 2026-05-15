@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.TreeSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -882,11 +883,39 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
     /**
      * Called after the main per-scheme authenticator file has been written.
-     * Ruby uses this to write the companion {@code .rbs} type-signature file.
-     * Default is a no-op.
+     * When this generator implements {@link WithTypeSignatureSupport}, renders
+     * a companion type-signature file (e.g. {@code .rbs}) using the template
+     * declared by {@link WithTypeSignatureSupport#getAuthenticatorSignatureTemplate()}.
+     * The companion context is built from {@link #baseSchemeContext(SchemeAuthSpec)}
+     * plus a {@code constructorParams} list whose {@code name} entries are
+     * normalised via {@link #toVarName(String)}.
+     * Languages that do not implement {@link WithTypeSignatureSupport} receive
+     * the inherited no-op.
      */
     protected void postWriteSchemeAuthenticator(SchemeAuthSpec spec, String writtenPath) {
-        // no-op by default
+        if (!(this instanceof WithTypeSignatureSupport)) {
+            return;
+        }
+        final WithTypeSignatureSupport ts = (WithTypeSignatureSupport) this;
+        final String template = ts.getAuthenticatorSignatureTemplate();
+        if (template.isEmpty()) {
+            return;
+        }
+        final Map<String, Object> ctx = baseSchemeContext(spec);
+        final List<Map<String, String>> constructorParams = new ArrayList<>();
+        for (final String name : spec.paramNames()) {
+            final Map<String, String> param = new HashMap<>();
+            param.put("name", toVarName(name));
+            param.put("type", "String");
+            constructorParams.add(param);
+        }
+        ctx.put("constructorParams", constructorParams);
+        final int lastDot = writtenPath.lastIndexOf('.');
+        final String companionPath = lastDot >= 0
+                ? writtenPath.substring(0, lastDot) + ts.getSignatureFileExtension()
+                : writtenPath + ts.getSignatureFileExtension();
+        writeFile(companionPath, renderOptionsTemplate(template, ctx));
+        postProcessFile(Path.of(companionPath).toFile(), "source");
     }
 
     /**
@@ -1219,29 +1248,29 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             modelMap.put("hasTypeDecorator",
                     model.vars.stream().anyMatch(this::needsTypeDecorator));
 
-            // Gap 14: Type-substring context flags (Go → hasTimeImport from "time.Time")
-            for (final Map.Entry<String, String> entry :
-                    getTypeSubstringContextFlags().entrySet()) {
-                final String typeSubstring = entry.getKey();
+            // Gap 14: Unified model context flags (Go → hasTimeImport, hasFmtImport)
+            for (final Map.Entry<String, String> entry : getModelContextFlags().entrySet()) {
+                final String key = entry.getKey();
                 final String flagName = entry.getValue();
-                boolean found = false;
-                for (final CodegenProperty prop : model.vars) {
-                    if (prop.dataType != null && prop.dataType.contains(typeSubstring)) {
-                        found = true;
-                        break;
+                if (key.startsWith("type:")) {
+                    final String typeSubstring = key.substring(5);
+                    boolean found = false;
+                    for (final CodegenProperty prop : model.vars) {
+                        if (prop.dataType != null
+                                && prop.dataType.contains(typeSubstring)) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (found) {
+                        modelMap.put(flagName, true);
+                        result.put(flagName, true);
+                    }
+                } else if ("oneOfAnyOf".equals(key)) {
+                    if (!model.oneOf.isEmpty() || !model.anyOf.isEmpty()) {
+                        result.put(flagName, true);
                     }
                 }
-                if (found) {
-                    modelMap.put(flagName, true);
-                    result.put(flagName, true);
-                }
-            }
-
-            // Gap 14: oneOf/anyOf context flag (Go → hasFmtImport)
-            final String oneOfAnyOfFlag = getOneOfAnyOfContextFlag();
-            if (oneOfAnyOfFlag != null
-                    && (!model.oneOf.isEmpty() || !model.anyOf.isEmpty())) {
-                result.put(oneOfAnyOfFlag, true);
             }
         }
         return result;
@@ -1791,30 +1820,27 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     // =========================================================================
-    // Gap 14 — Type-substring context flags
+    // Gap 14 — Unified model context flags
     // =========================================================================
 
     /**
-     * Returns a map from type-name substring to context flag
-     * name. For each entry, if any property's {@code dataType}
-     * contains the substring, the corresponding flag is set to
-     * {@code true} in the model map (and the models map). Used
-     * by Go to set {@code hasTimeImport} when a model uses
-     * {@code time.Time}. Default is an empty map.
+     * Returns a map whose keys describe a condition and whose values are the
+     * template context flag to set when that condition is true. Two key forms
+     * are supported:
+     *
+     * <ul>
+     *   <li>{@code "type:<substr>"} — set the flag if any model property's
+     *       {@code dataType} contains {@code <substr>}. Example: Go uses
+     *       {@code "type:time.Time"} → {@code "hasTimeImport"}.</li>
+     *   <li>{@code "oneOfAnyOf"} — set the flag if the model's {@code oneOf}
+     *       or {@code anyOf} list is non-empty. Example: Go uses
+     *       {@code "oneOfAnyOf"} → {@code "hasFmtImport"}.</li>
+     * </ul>
+     *
+     * Default is an empty map (no flags set).
      */
-    protected Map<String, String> getTypeSubstringContextFlags() {
+    protected Map<String, String> getModelContextFlags() {
         return Map.of();
-    }
-
-    /**
-     * Returns the template context flag name to set when a model
-     * has non-empty {@code oneOf} or {@code anyOf} variants, or
-     * {@code null} to skip this check. Used by Go to set
-     * {@code hasFmtImport}. Default is {@code null}.
-     */
-    @Nullable
-    protected String getOneOfAnyOfContextFlag() {
-        return null;
     }
 
     // =========================================================================
@@ -1959,53 +1985,79 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     // =========================================================================
-    // Gap 19 — Operation type-substring context flags
+    // Gap 19 — Unified operation context flags
+    // =========================================================================
+
+    // =========================================================================
+    // Gap 26 — Options-only model import filter (Node / TypeScript)
     // =========================================================================
 
     /**
-     * Returns a map from type-name substring to context flag name.
-     * For each entry, if any operation's {@code returnType} or any
-     * parameter's {@code dataType} contains the substring, the
-     * corresponding flag is set to {@code true} on the operations
-     * map. Go uses this to set {@code hasOsImport} from
-     * {@code "os.File"}. Default is empty.
+     * Returns {@code true} if model imports that are <em>only</em> referenced
+     * by options-style parameters (query, header, cookie) — and never by
+     * path/body parameters or return types — should be removed from the
+     * operation import list during
+     * {@link #postProcessOperationsWithModels}.
+     *
+     * <p>TypeScript generates an Options class for every operation that has
+     * optional parameters. Models that appear exclusively in that Options class
+     * would produce an unused-import warning in the main API file. This flag
+     * lets the base class remove those imports automatically.
+     *
+     * <p>Only Node currently returns {@code true}. Default is {@code false}.
      */
-    protected Map<String, String> getOperationTypeSubstringContextFlags() {
+    protected boolean filtersOptionsOnlyModelImports() {
+        return false;
+    }
+
+    /**
+     * Adds the base type of a parameter (and its item base type if it is a
+     * collection) to {@code types} when the type is not a language primitive
+     * and looks like a model name (starts with an uppercase letter).
+     *
+     * <p>Used by {@link #postProcessOperationsWithModels} when
+     * {@link #filtersOptionsOnlyModelImports()} is {@code true}.
+     */
+    private void addModelBaseTypeToSet(Set<String> types, CodegenParameter p) {
+        if (p.baseType != null
+                && !languageSpecificPrimitives.contains(p.baseType)
+                && p.baseType.matches("^[A-Z]\\w*$")) {
+            types.add(p.baseType);
+        }
+        if (p.items != null
+                && p.items.baseType != null
+                && !languageSpecificPrimitives.contains(p.items.baseType)
+                && p.items.baseType.matches("^[A-Z]\\w*$")) {
+            types.add(p.items.baseType);
+        }
+    }
+
+    /**
+     * Returns a map whose keys describe a condition and whose values are the
+     * template context flag to set when that condition is true for any
+     * operation in the tag. Four key forms are supported:
+     *
+     * <ul>
+     *   <li>{@code "type:<substr>"} — set the flag if any operation's
+     *       {@code returnType} or any parameter's {@code dataType} contains
+     *       {@code <substr>}. Example: Go uses {@code "type:os.File"} →
+     *       {@code "hasOsImport"}.</li>
+     *   <li>{@code "servers"} — set the flag if any operation has a non-empty
+     *       per-operation servers list. Example: Go uses {@code "servers"} →
+     *       {@code "hasStringsImport"}.</li>
+     *   <li>{@code "cookieParams"} — set the flag if any operation has a cookie
+     *       parameter. Example: Go uses {@code "cookieParams"} →
+     *       {@code "hasStringsImport"}.</li>
+     *   <li>{@code "queryContent"} — set the flag if any non-deep-object query
+     *       parameter uses content-type negotiation (non-empty {@code content}
+     *       map). Example: Go uses {@code "queryContent"} →
+     *       {@code "hasJsonImport"}.</li>
+     * </ul>
+     *
+     * Default is an empty map (no flags set).
+     */
+    protected Map<String, String> getOperationContextFlags() {
         return Map.of();
-    }
-
-    /**
-     * Returns the context flag name to set when any operation has
-     * a non-empty per-operation servers list, or {@code null} to
-     * skip this check. Go returns {@code "hasStringsImport"}.
-     * Default is {@code null}.
-     */
-    @Nullable
-    protected String getServersContextFlag() {
-        return null;
-    }
-
-    /**
-     * Returns the context flag name to set when any cookie
-     * parameter exists in any operation, or {@code null} to skip.
-     * Go returns {@code "hasStringsImport"}.
-     * Default is {@code null}.
-     */
-    @Nullable
-    protected String getCookieParamContextFlag() {
-        return null;
-    }
-
-    /**
-     * Returns the context flag name to set when any query
-     * parameter uses content-type negotiation (non-deep-object
-     * query param with a {@code content} map), or {@code null}
-     * to skip. Go returns {@code "hasJsonImport"}.
-     * Default is {@code null}.
-     */
-    @Nullable
-    protected String getQueryContentContextFlag() {
-        return null;
     }
 
     /**
@@ -2124,6 +2176,54 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             }
         }
 
+        // Gap 26: Remove model imports that appear only in options params (Node)
+        if (filtersOptionsOnlyModelImports()) {
+            @SuppressWarnings("unchecked")
+            final Map<String, Object> opsMapForFilter =
+                    (Map<String, Object>) objs.get("operations");
+            if (opsMapForFilter != null) {
+                @SuppressWarnings("unchecked")
+                final List<CodegenOperation> opsForFilter =
+                        (List<CodegenOperation>) opsMapForFilter.get("operation");
+                if (opsForFilter != null) {
+                    final Set<String> optionsOnlyModels = new HashSet<>();
+                    final Set<String> nonOptionsModels = new HashSet<>();
+                    for (final CodegenOperation op : opsForFilter) {
+                        final List<CodegenParameter> optParams = collectOptionsParams(op);
+                        final Set<String> optParamNames = new HashSet<>();
+                        for (final CodegenParameter p : optParams) {
+                            optParamNames.add(p.paramName);
+                            addModelBaseTypeToSet(optionsOnlyModels, p);
+                        }
+                        if (op.allParams != null) {
+                            for (final CodegenParameter p : op.allParams) {
+                                if (!optParamNames.contains(p.paramName)) {
+                                    addModelBaseTypeToSet(nonOptionsModels, p);
+                                }
+                            }
+                        }
+                        if (op.returnBaseType != null
+                                && !languageSpecificPrimitives.contains(op.returnBaseType)) {
+                            nonOptionsModels.add(op.returnBaseType);
+                        }
+                    }
+                    optionsOnlyModels.removeAll(nonOptionsModels);
+                    if (!optionsOnlyModels.isEmpty()) {
+                        @SuppressWarnings("unchecked")
+                        final List<Map<String, String>> optImports =
+                                (List<Map<String, String>>) objs.get("imports");
+                        if (optImports != null) {
+                            optImports.removeIf(imp -> {
+                                final String cn = imp.getOrDefault(
+                                        "className", imp.getOrDefault("classname", ""));
+                                return optionsOnlyModels.contains(cn);
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
         // Gap 19: Operation type-substring / server / cookie / query-content flags (Go)
         applyOperationContextFlags(objs);
 
@@ -2132,23 +2232,15 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
     /**
      * Applies the declarative operation context flags declared by
-     * {@link #getOperationTypeSubstringContextFlags()},
-     * {@link #getServersContextFlag()},
-     * {@link #getCookieParamContextFlag()}, and
-     * {@link #getQueryContentContextFlag()} to the operations map.
+     * {@link #getOperationContextFlags()} to the operations map.
+     * Supports four key forms: {@code "type:<substr>"}, {@code "servers"},
+     * {@code "cookieParams"}, and {@code "queryContent"}.
      */
     @SuppressWarnings("unchecked")
     private void applyOperationContextFlags(OperationsMap objs) {
-        final Map<String, String> typeFlags = getOperationTypeSubstringContextFlags();
-        final String serversFlag = getServersContextFlag();
-        final String cookieFlag = getCookieParamContextFlag();
-        final String queryContentFlag = getQueryContentContextFlag();
-
-        if (typeFlags.isEmpty()
-                && serversFlag == null
-                && cookieFlag == null
-                && queryContentFlag == null) {
-            return; // nothing to compute
+        final Map<String, String> flags = getOperationContextFlags();
+        if (flags.isEmpty()) {
+            return;
         }
 
         final Map<String, Object> opsMap = (Map<String, Object>) objs.get("operations");
@@ -2161,70 +2253,63 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             return;
         }
 
-        // Track which type-substring flags have been set
-        final Map<String, Boolean> typeFlagState = new HashMap<>();
-        for (final String flagName : typeFlags.values()) {
-            typeFlagState.put(flagName, false);
+        // Track which flags have already been set (avoid redundant writes)
+        final Map<String, Boolean> flagState = new HashMap<>();
+        for (final String flagName : flags.values()) {
+            flagState.put(flagName, false);
         }
-        boolean serversSet = false;
-        boolean cookieSet = false;
-        boolean queryContentSet = false;
 
         for (final CodegenOperation op : ops) {
-            // Type-substring check on returnType
-            if (!typeFlags.isEmpty() && op.returnType != null) {
-                for (final Map.Entry<String, String> entry : typeFlags.entrySet()) {
-                    if (!typeFlagState.getOrDefault(entry.getValue(), false)
-                            && op.returnType.contains(entry.getKey())) {
-                        typeFlagState.put(entry.getValue(), true);
+            for (final Map.Entry<String, String> entry : flags.entrySet()) {
+                final String key = entry.getKey();
+                final String flagName = entry.getValue();
+                if (flagState.getOrDefault(flagName, false)) {
+                    continue; // already set
+                }
+                if (key.startsWith("type:")) {
+                    final String substr = key.substring(5);
+                    if (op.returnType != null && op.returnType.contains(substr)) {
+                        flagState.put(flagName, true);
+                        continue;
+                    }
+                } else if ("servers".equals(key)) {
+                    if (op.servers != null && !op.servers.isEmpty()) {
+                        flagState.put(flagName, true);
+                        continue;
                     }
                 }
-            }
-            // Per-operation servers flag
-            if (!serversSet && serversFlag != null
-                    && op.servers != null && !op.servers.isEmpty()) {
-                serversSet = true;
-            }
-            // Per-parameter checks
-            if (op.allParams != null) {
-                for (final CodegenParameter p : op.allParams) {
-                    // Type-substring check on parameter dataType
-                    if (!typeFlags.isEmpty() && p.dataType != null) {
-                        for (final Map.Entry<String, String> entry : typeFlags.entrySet()) {
-                            if (!typeFlagState.getOrDefault(entry.getValue(), false)
-                                    && p.dataType.contains(entry.getKey())) {
-                                typeFlagState.put(entry.getValue(), true);
+                // Per-parameter checks
+                if (op.allParams != null) {
+                    for (final CodegenParameter p : op.allParams) {
+                        if (flagState.getOrDefault(flagName, false)) {
+                            break;
+                        }
+                        if (key.startsWith("type:")) {
+                            final String substr = key.substring(5);
+                            if (p.dataType != null && p.dataType.contains(substr)) {
+                                flagState.put(flagName, true);
+                            }
+                        } else if ("cookieParams".equals(key)) {
+                            if (p.isCookieParam) {
+                                flagState.put(flagName, true);
+                            }
+                        } else if ("queryContent".equals(key)) {
+                            if (p.isQueryParam && !p.isDeepObject
+                                    && p.getContent() != null
+                                    && !p.getContent().isEmpty()) {
+                                flagState.put(flagName, true);
                             }
                         }
                     }
-                    // Cookie param flag
-                    if (!cookieSet && cookieFlag != null && p.isCookieParam) {
-                        cookieSet = true;
-                    }
-                    // Query content-type negotiation flag
-                    if (!queryContentSet && queryContentFlag != null
-                            && p.isQueryParam && !p.isDeepObject
-                            && p.getContent() != null && !p.getContent().isEmpty()) {
-                        queryContentSet = true;
-                    }
                 }
             }
         }
 
-        // Write flags to objs
-        for (final Map.Entry<String, Boolean> entry : typeFlagState.entrySet()) {
+        // Write set flags to objs
+        for (final Map.Entry<String, Boolean> entry : flagState.entrySet()) {
             if (entry.getValue()) {
                 objs.put(entry.getKey(), true);
             }
-        }
-        if (serversSet) {
-            objs.put(serversFlag, true);
-        }
-        if (cookieSet) {
-            objs.put(cookieFlag, true);
-        }
-        if (queryContentSet) {
-            objs.put(queryContentFlag, true);
         }
     }
 
@@ -2778,7 +2863,48 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 LOGGER.warn("Failed to apply content fixup to {}: {}", file, e.getMessage());
             }
         }
+
+        // Gap 27: Move type-signature files to their target directory
+        if (this instanceof WithTypeSignatureSupport) {
+            final WithTypeSignatureSupport ts = (WithTypeSignatureSupport) this;
+            if (file.getName().endsWith(ts.getSignatureFileExtension())) {
+                moveToSignatureDir(file, ts);
+            }
+        }
     }
+
+    /**
+     * Moves a generated type-signature file from the source directory to the
+     * signature collection directory declared by
+     * {@link WithTypeSignatureSupport#getSignatureDir()}.
+     */
+    private void moveToSignatureDir(File file, WithTypeSignatureSupport ts) {
+        final Path filePath = file.toPath();
+        final Path outputDir = Path.of(getOutputDir());
+        final Path relative = outputDir.relativize(filePath);
+        final String relStr = relative.toString();
+        final String sourcePrefix = ts.getSignatureSourceDir() + File.separator;
+        if (!relStr.startsWith(sourcePrefix)) {
+            return;
+        }
+        final Path sigPath = outputDir.resolve(ts.getSignatureDir())
+                .resolve(relStr.substring(sourcePrefix.length()));
+        final Path sigParent = sigPath.getParent();
+        if (sigParent == null) {
+            return;
+        }
+        try {
+            Files.createDirectories(sigParent);
+            Files.move(filePath, sigPath, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            LOGGER.warn("Failed to move signature file {} to {}: {}",
+                    filePath, sigPath, e.getMessage());
+        }
+    }
+
+    // =========================================================================
+    // Gap 20 + 24 + 25 — postProcessAllModels declarative flags
+    // =========================================================================
 
     /**
      * Opt-in flag for the discriminator-parent wiring logic in
@@ -2794,30 +2920,99 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
-     * Wires discriminator-to-subtype parent links so that
-     * polymorphic deserialization works correctly. For each model
-     * that has a discriminator and non-empty {@code oneOf} set,
-     * sets {@code child.parent} and {@code child.parentSchema}
-     * on every mapped variant that does not already have a parent.
-     *
-     * <p>Only runs when {@link #setsDiscriminatorParent()} returns
-     * {@code true}. Java and C# override that method; Rust keeps
-     * its own full override of {@code postProcessAllModels} (it
-     * calls {@code super} first, then removes the discriminator
-     * property from child structs — a distinct operation).
+     * Opt-in flag for building fully-qualified model import strings
+     * in {@link #postProcessAllModels}. When {@code true}, the base
+     * class replaces each bare model name in {@code model.imports}
+     * with a language-idiomatic FQN import string built from
+     * {@code modelPackage}, {@link #toModelFilename(String)}, and
+     * the class name. Python overrides this to {@code true}.
+     * Default is {@code false}.
+     */
+    protected boolean buildsFqnModelImports() {
+        return false;
+    }
+
+    /**
+     * Returns a map from datatype name to the import statement
+     * needed to use that type in model files. Used by
+     * {@link #postProcessAllModels} when
+     * {@link #buildsFqnModelImports()} is {@code true} to inject
+     * stdlib or third-party imports for built-in types (e.g. Python's
+     * {@code "datetime"} → {@code "from datetime import datetime"}).
+     * Default is an empty map.
+     */
+    protected Map<String, String> getPropertyTypeImportMap() {
+        return Map.of();
+    }
+
+    /**
+     * Opt-in flag to remove the discriminator property from each
+     * child model's field lists in {@link #postProcessAllModels}.
+     * When a polymorphic parent uses a discriminator field, the
+     * generated enum wrapper already manages that tag; the child
+     * struct must not declare it as a plain field. Rust overrides
+     * this to {@code true}. Default is {@code false}.
+     */
+    protected boolean removesDiscriminatorPropertyFromChildren() {
+        return false;
+    }
+
+    /**
+     * Wires discriminator-to-subtype parent links (Gap 20), builds
+     * fully-qualified model imports (Gap 24), and removes the
+     * discriminator property from child struct field lists (Gap 25).
+     * Each step is gated by its own opt-in flag.
      */
     @Override
     public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
         final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
-        if (setsDiscriminatorParent()) {
-            for (final ModelsMap modelsMap : result.values()) {
-                for (final ModelMap modelMap : modelsMap.getModels()) {
-                    final CodegenModel model = modelMap.getModel();
-                    if (model.discriminator != null && !model.oneOf.isEmpty()) {
-                        for (final CodegenDiscriminator.MappedModel mapped :
-                                model.discriminator.getMappedModels()) {
-                            setParentOnChild(result, mapped.getModelName(), model.classname);
+        final Map<String, String> typeImportMap = getPropertyTypeImportMap();
+        for (final ModelsMap modelsMap : result.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                final CodegenModel model = modelMap.getModel();
+
+                // Gap 20: Wire discriminator-based parent links
+                if (setsDiscriminatorParent()
+                        && model.discriminator != null && !model.oneOf.isEmpty()) {
+                    for (final CodegenDiscriminator.MappedModel mapped :
+                            model.discriminator.getMappedModels()) {
+                        setParentOnChild(result, mapped.getModelName(), model.classname);
+                    }
+                }
+
+                // Gap 24: Build fully-qualified model imports (Python)
+                if (buildsFqnModelImports()) {
+                    final TreeSet<String> fullImports = new TreeSet<>();
+                    if (!typeImportMap.isEmpty()) {
+                        for (final CodegenProperty prop : model.allVars) {
+                            final String imp = typeImportMap.get(prop.dataType);
+                            if (imp != null) {
+                                fullImports.add(imp);
+                            }
+                            if (prop.items != null) {
+                                final String itemImp = typeImportMap.get(prop.items.dataType);
+                                if (itemImp != null) {
+                                    fullImports.add(itemImp);
+                                }
+                            }
                         }
+                    }
+                    for (final String imp : model.imports) {
+                        fullImports.add("from " + modelPackage + "."
+                                + toModelFilename(imp) + " import " + imp);
+                    }
+                    model.imports.clear();
+                    model.imports.addAll(fullImports);
+                }
+
+                // Gap 25: Remove discriminator property from child struct fields (Rust)
+                if (removesDiscriminatorPropertyFromChildren()
+                        && model.discriminator != null && !model.oneOf.isEmpty()) {
+                    final String discPropName = model.discriminator.getPropertyBaseName();
+                    for (final CodegenDiscriminator.MappedModel mapped :
+                            model.discriminator.getMappedModels()) {
+                        removeDiscriminatorFromChild(
+                                result, mapped.getModelName(), discPropName);
                     }
                 }
             }
@@ -2842,6 +3037,28 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 child.parent = parentName;
                 child.parentSchema = parentName;
             }
+        }
+    }
+
+    /**
+     * Removes the named discriminator property from all field lists
+     * ({@code vars}, {@code requiredVars}, {@code optionalVars},
+     * {@code allVars}, {@code readWriteVars}) of the child model
+     * identified by {@code childName}.
+     */
+    private static void removeDiscriminatorFromChild(
+            Map<String, ModelsMap> allModels, String childName, String discPropName) {
+        final ModelsMap childModels = allModels.get(childName);
+        if (childModels == null) {
+            return;
+        }
+        for (final ModelMap modelMap : childModels.getModels()) {
+            final CodegenModel child = modelMap.getModel();
+            child.vars.removeIf(p -> discPropName.equals(p.baseName));
+            child.requiredVars.removeIf(p -> discPropName.equals(p.baseName));
+            child.optionalVars.removeIf(p -> discPropName.equals(p.baseName));
+            child.allVars.removeIf(p -> discPropName.equals(p.baseName));
+            child.readWriteVars.removeIf(p -> discPropName.equals(p.baseName));
         }
     }
 

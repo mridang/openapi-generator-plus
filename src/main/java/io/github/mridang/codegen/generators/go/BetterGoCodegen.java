@@ -544,14 +544,10 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
 
     /** {@inheritDoc} */
     @Override
-    protected Map<String, String> getTypeSubstringContextFlags() {
-        return Map.of("time.Time", "hasTimeImport");
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getOneOfAnyOfContextFlag() {
-        return "hasFmtImport";
+    protected Map<String, String> getModelContextFlags() {
+        return Map.of(
+                "type:time.Time", "hasTimeImport",
+                "oneOfAnyOf", "hasFmtImport");
     }
 
     /** {@inheritDoc} */
@@ -566,26 +562,12 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
 
     /** {@inheritDoc} */
     @Override
-    protected Map<String, String> getOperationTypeSubstringContextFlags() {
-        return Map.of("os.File", "hasOsImport");
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getServersContextFlag() {
-        return "hasStringsImport";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getCookieParamContextFlag() {
-        return "hasStringsImport";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getQueryContentContextFlag() {
-        return "hasJsonImport";
+    protected Map<String, String> getOperationContextFlags() {
+        return Map.of(
+                "type:os.File", "hasOsImport",
+                "servers", "hasStringsImport",
+                "cookieParams", "hasStringsImport",
+                "queryContent", "hasJsonImport");
     }
 
     /** {@inheritDoc} */
