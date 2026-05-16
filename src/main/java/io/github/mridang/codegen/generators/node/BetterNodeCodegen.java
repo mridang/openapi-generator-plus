@@ -1,14 +1,11 @@
 package io.github.mridang.codegen.generators.node;
 
 import io.github.mridang.codegen.generators.AbstractBetterCodegen;
+import io.github.mridang.codegen.generators.AbstractBetterCodegen.FileContentFixup;
 import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec;
 import io.github.mridang.codegen.generators.BarrelFileEmitter;
 import io.github.mridang.codegen.generators.NamingConvention;
 import io.swagger.v3.oas.models.media.Schema;
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,6 +17,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.GeneratorLanguage;
@@ -656,42 +654,23 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         return importMap;
     }
 
-    /*
-     * Overrides the base class to strip eslint-disable comments
-     * and trailing blank lines from generated TypeScript files.
-     * Blank-line collapse in the middle of files is handled by
-     * the base class.
+    /**
+     * Pattern matching block-comment lines of the form
+     * {@literal /*} eslint-disable {@literal *}{@literal /} (including the trailing
+     * newline) — a Mustache artefact emitted in every generated TS file that
+     * conflicts with the project's own eslint configuration.
+     */
+    private static final Pattern ESLINT_DISABLE_PATTERN =
+            Pattern.compile("^/\\*\\s*eslint-disable\\s*\\*/\\s*\\R", Pattern.MULTILINE);
+
+    /**
+     * Declares the regex-based fixup for {@code .ts} files: strip eslint-disable
+     * block-comment lines. Trailing-blank-line trimming is handled universally
+     * by the base class.
      */
     @Override
-    public void postProcessFile(File file, String fileType) {
-        super.postProcessFile(file, fileType);
-        if (file == null || !file.getName().endsWith(".ts")) {
-            return;
-        }
-        try {
-            final List<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
-            final List<String> result = new ArrayList<>(lines.size());
-            boolean changed = false;
-
-            for (final String line : lines) {
-                if (line.equals("/* eslint-disable */")) {
-                    changed = true;
-                    continue;
-                }
-                result.add(line);
-            }
-
-            while (!result.isEmpty() && result.get(result.size() - 1).trim().isEmpty()) {
-                result.remove(result.size() - 1);
-                changed = true;
-            }
-
-            if (changed) {
-                Files.write(file.toPath(), result, StandardCharsets.UTF_8);
-            }
-        } catch (IOException e) {
-            LOGGER.debug("Failed to post-process {}: {}", file.getName(), e.getMessage());
-        }
+    protected List<FileContentFixup> getFileContentFixups() {
+        return List.of(new FileContentFixup(".ts", ESLINT_DISABLE_PATTERN, ""));
     }
 
     /** {@inheritDoc} */

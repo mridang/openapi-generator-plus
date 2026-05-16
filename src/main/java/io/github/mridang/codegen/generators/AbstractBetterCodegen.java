@@ -2980,7 +2980,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             return;
         }
 
-        // Pass 1: Blank-line collapse (always applied)
+        // Pass 1: Blank-line collapse + trailing-blank trim (always applied)
         try {
             final List<String> lines =
                     Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
@@ -2995,6 +2995,10 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 }
                 result.add(line);
                 prevBlank = blank;
+            }
+            while (!result.isEmpty() && result.get(result.size() - 1).isBlank()) {
+                result.remove(result.size() - 1);
+                changed = true;
             }
             if (changed) {
                 Files.write(file.toPath(), result, StandardCharsets.UTF_8);

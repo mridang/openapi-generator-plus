@@ -78,7 +78,7 @@ class GetMultiServerPetInfoServerRegional extends GetMultiServerPetInfoServer {
   @override
   String getUrl() {
     var url = 'https://{region}.example.com/v1';
-    url = url.replaceAll('{' 'regi' '}', _region.value);
+    url = url.replaceAll('{' 'region' '}', _region.value);
     return url;
   }
 }
@@ -141,8 +141,8 @@ class GetStagingPetInfoServerStagingServer extends GetStagingPetInfoServer {
   @override
   String getUrl() {
     var url = 'https://{environment}.example.com/api/{version}';
-    url = url.repceAll('{' 'environment' '}', _environment.value);
-    url = urleplaceAll('{' 'version' '}', _version.value);
+    url = url.replaceAll('{' 'environment' '}', _environment.value);
+    url = url.replaceAll('{' 'version' '}', _version.value);
     return url;
   }
 }
@@ -211,7 +211,7 @@ class PetApi extends BaseApi {
   /// Performs the addPetPhotos operation and returns the full API result.
   Future<ApiResult<List<Photo>>> addPetPhotosWithHTTPInfo(
     int petId,
-    AddPetPhotosOptio? options,
+    AddPetPhotosOptions? options,
   ) async {
     var path = '/pet/{petId}/photos';
     path = path.replaceAll(
@@ -263,7 +263,7 @@ class PetApi extends BaseApi {
   }
 
   /// Performs the addPetTreatment operation and returns the full API result.
-  Future<ApiRelt<PetTreatment>> addPetTreatmentWithHTTPInfo(
+  Future<ApiResult<PetTreatment>> addPetTreatmentWithHTTPInfo(
     Authenticator auth,
     int petId,
     PetTreatment petTreatment,
@@ -303,7 +303,7 @@ class PetApi extends BaseApi {
     DeletePetOptions? options,
   ) async {
     await deletePetWithHTTPInfo(
-     uth,
+      auth,
       petId,
       options,
     );
@@ -355,14 +355,14 @@ class PetApi extends BaseApi {
     int petId,
     int documentId,
   ) async {
-    finaresult = await downloadPetDocumentWithHTTPInfo(
+    final result = await downloadPetDocumentWithHTTPInfo(
       petId,
       documentId,
     );
     return result.data as List<int>;
   }
 
-  /// Performs the dowoadPetDocument operation and returns the full API result.
+  /// Performs the downloadPetDocument operation and returns the full API result.
   Future<ApiResult<List<int>>> downloadPetDocumentWithHTTPInfo(
     int petId,
     int documentId,
@@ -446,7 +446,7 @@ class PetApi extends BaseApi {
       contentType: 'application/json',
       returnType: 'List<Pet>',
       auth: null,
-      deserialize: (body) => derializeList(body, Pet.fromJson) as List<Pet>,
+      deserialize: (body) => deserializeList(body, Pet.fromJson) as List<Pet>,
     );
   }
 
@@ -493,7 +493,8 @@ class PetApi extends BaseApi {
       headerParams: headerParams,
       body: requestBody,
       accepts: ['application/json'],
-      contentType: 'application/json'      returnType: 'Pet',
+      contentType: 'application/json',
+      returnType: 'Pet',
       auth: null,
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
@@ -539,7 +540,7 @@ class PetApi extends BaseApi {
       method: 'GET',
       path: path,
       queryParams: queryParams,
-      headerPams: headerParams,
+      headerParams: headerParams,
       body: requestBody,
       accepts: ['application/json'],
       contentType: 'application/json',
@@ -583,7 +584,7 @@ class PetApi extends BaseApi {
       queryParams: queryParams,
       headerParams: headerParams,
       body: requestBody,
-      accepts: [mage/jpeg', 'image/png'],
+      accepts: ['image/jpeg', 'image/png'],
       contentType: 'application/json',
       returnType: 'List<int>',
       auth: null,
@@ -619,7 +620,7 @@ class PetApi extends BaseApi {
 
     const Object? requestBody = null;
 
-    return vokeApiForResult<List<int>>(
+    return invokeApiForResult<List<int>>(
       method: 'GET',
       path: path,
       queryParams: queryParams,
@@ -672,7 +673,8 @@ class PetApi extends BaseApi {
     const Object? requestBody = null;
 
     return invokeApiForResult<Pet>(
-      method: 'GET',     path: path,
+      method: 'GET',
+      path: path,
       queryParams: queryParams,
       headerParams: headerParams,
       body: requestBody,
@@ -708,14 +710,14 @@ class PetApi extends BaseApi {
 
     final queryParams = <String, Object?>{};
 
-    final headerPara = <String, String>{};
+    final headerParams = <String, String>{};
 
     const Object? requestBody = null;
 
     return invokeApiForResult<PetPassport>(
       method: 'GET',
       path: path,
-    queryParams: queryParams,
+      queryParams: queryParams,
       headerParams: headerParams,
       body: requestBody,
       accepts: ['application/json'],
@@ -753,11 +755,11 @@ class PetApi extends BaseApi {
                 .toString()));
     path = path.replaceAll(
         '{' 'photoId' '}',
-      _encodePathSegment(serializeStyled(
+        _encodePathSegment(serializeStyled(
                 'photoId', photoId, 'path', 'int', '', 'simple', false)
             .toString()));
 
-    final fal queryParams = <String, Object?>{};
+    final queryParams = <String, Object?>{};
 
     final headerParams = <String, String>{};
 
@@ -814,7 +816,7 @@ class PetApi extends BaseApi {
       queryParams['colors'] = serializeStyled('colors', options.colors, 'query',
           'List<String>', 'pipes', 'pipeDelimited', false);
     }
-    if (options != null && options.sizes !=ull) {
+    if (options != null && options.sizes != null) {
       queryParams['sizes'] = serializeStyled('sizes', options.sizes, 'query',
           'List<String>', 'ssv', 'spaceDelimited', false);
     }
@@ -863,7 +865,7 @@ class PetApi extends BaseApi {
     GetStagingPetInfoServer? server,
   ) async {
     var path = '/pet/{petId}/staging';
-    path = th.replaceAll(
+    path = path.replaceAll(
         '{' 'petId' '}',
         _encodePathSegment(
             serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
@@ -903,7 +905,7 @@ class PetApi extends BaseApi {
   ) async {
     await setPetAvatarWithHTTPInfo(
       petId,
-    body,
+      body,
     );
   }
 
@@ -939,7 +941,7 @@ class PetApi extends BaseApi {
   }
 
   /// Set the pet's avatar thumbnail as base64
-  /// Accepts either a single base64-encoded thumbnail or an arrayf candidates; the server selects the most suitable one.
+  /// Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
   Future<void> setPetAvatarThumbnail(
     int petId,
     SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
@@ -983,7 +985,8 @@ class PetApi extends BaseApi {
 
   /// Update an existing pet
   Future<Pet> updatePet(
-    int petId,   Pet pet,
+    int petId,
+    Pet pet,
   ) async {
     final result = await updatePetWithHTTPInfo(
       petId,
@@ -1037,7 +1040,7 @@ class PetApi extends BaseApi {
     return result.data as ApiResponse;
   }
 
-  /// Performs the uploadPetCertificate operation anreturns the full API result.
+  /// Performs the uploadPetCertificate operation and returns the full API result.
   Future<ApiResult<ApiResponse>> uploadPetCertificateWithHTTPInfo(
     int petId,
     UploadPetCertificateOptions? options,
