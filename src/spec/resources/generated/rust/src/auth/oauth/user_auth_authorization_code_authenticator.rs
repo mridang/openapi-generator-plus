@@ -24,7 +24,15 @@ impl crate::auth::Authenticator for UserAuthAuthorizationCodeAuthenticator {
         self.0.host()
     }
 
-    fn auth_headers(&self) -> std::collections::HashMap<String, String> {
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<Output = std::collections::HashMap<String, String>>
+                + Send
+                + 'a,
+        >,
+    > {
         self.0.auth_headers()
     }
 

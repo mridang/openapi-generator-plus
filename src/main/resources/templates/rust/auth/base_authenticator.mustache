@@ -1,6 +1,8 @@
 {{>api_info}}
 
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 
 use super::Authenticator;
 
@@ -27,7 +29,9 @@ impl Authenticator for BaseAuthenticator {
         &self.host
     }
 
-    fn auth_headers(&self) -> HashMap<String, String> {
-        HashMap::new()
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
+        Box::pin(async move { HashMap::new() })
     }
 }

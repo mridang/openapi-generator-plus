@@ -391,8 +391,11 @@ impl petstore::auth::Authenticator for NoopAuthenticator {
         "http://localhost"
     }
 
-    fn auth_headers(&self) -> HashMap<String, String> {
-        HashMap::new()
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>>
+    {
+        Box::pin(async move { HashMap::new() })
     }
 }
 
@@ -617,8 +620,11 @@ impl petstore::auth::Authenticator for CookieAuthenticator {
         "http://localhost"
     }
 
-    fn auth_headers(&self) -> HashMap<String, String> {
-        HashMap::new()
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>>
+    {
+        Box::pin(async move { HashMap::new() })
     }
 
     fn cookie_params(&self) -> HashMap<String, String> {

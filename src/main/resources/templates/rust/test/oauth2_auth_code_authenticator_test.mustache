@@ -110,7 +110,7 @@ async fn test_exchanges_code_with_correct_grant_type() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    auth.exchange_code("auth-code-xyz").expect("should succeed");
+    auth.exchange_code("auth-code-xyz").await.expect("should succeed");
 
     let body = client.last_body().expect("should have body");
     assert!(body.contains("grant_type=authorization_code"));
@@ -131,10 +131,10 @@ async fn test_includes_refresh_token_on_refresh() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    auth.exchange_code("auth-code-xyz").expect("should succeed");
+    auth.exchange_code("auth-code-xyz").await.expect("should succeed");
 
     // GetAuthHeaders triggers a refresh since token is expired
-    let headers = auth.auth_headers();
+    let headers = auth.auth_headers().await;
 
     let body = client.last_body().expect("should have body");
     assert!(body.contains("refresh_token=ref1"));
@@ -142,11 +142,11 @@ async fn test_includes_refresh_token_on_refresh() {
     assert_eq!("Bearer tok2", headers.get("Authorization").unwrap());
 }
 
-#[test]
+#[tokio::test]
 #[should_panic(expected = "must call exchange_code")]
-fn test_throws_before_exchange_code_called() {
+async fn test_throws_before_exchange_code_called() {
     let auth = create_authenticator();
-    auth.auth_headers();
+    auth.auth_headers().await;
 }
 
 #[test]

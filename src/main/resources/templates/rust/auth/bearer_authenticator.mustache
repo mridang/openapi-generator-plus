@@ -1,6 +1,8 @@
 {{>api_info}}
 
 use std::collections::HashMap;
+use std::future::Future;
+use std::pin::Pin;
 
 use super::Authenticator;
 
@@ -25,12 +27,16 @@ impl Authenticator for BearerAuthenticator {
         &self.host
     }
 
-    fn auth_headers(&self) -> HashMap<String, String> {
-        let mut headers = HashMap::new();
-        headers.insert(
-            "Authorization".to_string(),
-            format!("Bearer {}", self.token),
-        );
-        headers
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
+        Box::pin(async move {
+            let mut headers = HashMap::new();
+            headers.insert(
+                "Authorization".to_string(),
+                format!("Bearer {}", self.token),
+            );
+            headers
+        })
     }
 }

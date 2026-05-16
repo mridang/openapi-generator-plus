@@ -97,7 +97,7 @@ async fn test_sends_client_credentials_grant_type() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    auth.auth_headers();
+    auth.auth_headers().await;
 
     let body = client.last_body().expect("should have body");
     assert!(body.contains("grant_type=client_credentials"));
@@ -111,7 +111,7 @@ async fn test_sends_client_id_and_secret() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    auth.auth_headers();
+    auth.auth_headers().await;
 
     let body = client.last_body().expect("should have body");
     assert!(body.contains("client_id=my-client-id"));
@@ -126,7 +126,7 @@ async fn test_sends_scopes() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    auth.auth_headers();
+    auth.auth_headers().await;
 
     let body = client.last_body().expect("should have body");
     assert!(body.contains("scope=read+write"));
@@ -140,7 +140,7 @@ async fn test_returns_authorization_bearer_header() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    let headers = auth.auth_headers();
+    let headers = auth.auth_headers().await;
 
     assert_eq!("Bearer tok-abc", headers.get("Authorization").unwrap());
 }
@@ -153,7 +153,7 @@ async fn test_sends_request_to_token_url() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    auth.auth_headers();
+    auth.auth_headers().await;
 
     let url = client.last_url().expect("should have url");
     assert_eq!("https://auth.example.com/token", url);

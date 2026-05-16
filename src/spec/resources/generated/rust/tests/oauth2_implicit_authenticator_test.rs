@@ -57,21 +57,21 @@ fn test_builds_authorization_url_with_state() {
     assert!(url.contains("state=my-state"));
 }
 
-#[test]
-fn test_get_auth_headers_returns_bearer_after_set_access_token() {
+#[tokio::test]
+async fn test_get_auth_headers_returns_bearer_after_set_access_token() {
     let mut auth = create_authenticator();
     auth.set_access_token("implicit-tok");
 
-    let headers = auth.auth_headers();
+    let headers = auth.auth_headers().await;
 
     assert_eq!("Bearer implicit-tok", headers.get("Authorization").unwrap());
 }
 
-#[test]
+#[tokio::test]
 #[should_panic(expected = "must set access token")]
-fn test_throws_when_access_token_not_set() {
+async fn test_throws_when_access_token_not_set() {
     let auth = create_authenticator();
-    auth.auth_headers();
+    auth.auth_headers().await;
 }
 
 #[test]

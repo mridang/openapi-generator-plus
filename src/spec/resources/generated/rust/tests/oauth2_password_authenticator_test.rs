@@ -96,7 +96,7 @@ async fn test_sends_password_grant_type() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    auth.auth_headers();
+    auth.auth_headers().await;
 
     let body = client.last_body().expect("should have body");
     assert!(body.contains("grant_type=password"));
@@ -110,7 +110,7 @@ async fn test_sends_username_and_password() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    auth.auth_headers();
+    auth.auth_headers().await;
 
     let body = client.last_body().expect("should have body");
     assert!(body.contains("username=testuser"));
@@ -125,7 +125,7 @@ async fn test_sends_client_id_and_secret() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    auth.auth_headers();
+    auth.auth_headers().await;
 
     let body = client.last_body().expect("should have body");
     assert!(body.contains("client_id=my-client-id"));
@@ -140,7 +140,7 @@ async fn test_returns_authorization_bearer_header() {
     let mut auth = create_authenticator();
     auth.set_api_client(client.clone());
 
-    let headers = auth.auth_headers();
+    let headers = auth.auth_headers().await;
 
     assert_eq!("Bearer tok-pwd", headers.get("Authorization").unwrap());
 }
@@ -158,9 +158,9 @@ async fn test_uses_refresh_token_on_subsequent_calls() {
     auth.set_api_client(client.clone());
 
     // First call uses password grant
-    auth.auth_headers();
+    auth.auth_headers().await;
     // Second call should use refresh_token grant since token is expired
-    auth.auth_headers();
+    auth.auth_headers().await;
 
     let body = client.last_body().expect("should have body");
     assert!(body.contains("grant_type=refresh_token"));

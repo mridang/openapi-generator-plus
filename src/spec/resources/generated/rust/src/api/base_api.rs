@@ -109,7 +109,7 @@ impl BaseApi {
 
         /* Merge auth headers */
         if let Some(auth) = effective_auth {
-            for (k, v) in auth.auth_headers() {
+            for (k, v) in auth.auth_headers().await {
                 headers.insert(k, v);
             }
             /* Handle cookie params */

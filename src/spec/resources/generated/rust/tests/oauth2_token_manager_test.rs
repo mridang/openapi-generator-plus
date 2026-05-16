@@ -82,6 +82,7 @@ async fn test_extracts_access_token_from_response() {
 
     let token = manager
         .get_access_token("https://auth.example.com/token", &params)
+        .await
         .expect("should succeed");
 
     assert_eq!("tok123", token);
@@ -103,6 +104,7 @@ async fn test_stores_refresh_token() {
 
     manager
         .get_access_token("https://auth.example.com/token", &params)
+        .await
         .expect("should succeed");
 
     assert_eq!("ref1", manager.refresh_token());
@@ -121,9 +123,11 @@ async fn test_returns_cached_token_when_not_expired() {
 
     let first = manager
         .get_access_token("https://auth.example.com/token", &params)
+        .await
         .expect("should succeed");
     let second = manager
         .get_access_token("https://auth.example.com/token", &params)
+        .await
         .expect("should succeed");
 
     assert_eq!("tok1", first);
@@ -145,9 +149,11 @@ async fn test_refetches_token_when_expired() {
 
     let first = manager
         .get_access_token("https://auth.example.com/token", &params)
+        .await
         .expect("should succeed");
     let second = manager
         .get_access_token("https://auth.example.com/token", &params)
+        .await
         .expect("should succeed");
 
     assert_eq!("tok1", first);
@@ -163,6 +169,7 @@ async fn test_set_access_token_bypasses_endpoint() {
 
     let token = manager
         .get_access_token("https://auth.example.com/token", &params)
+        .await
         .expect("should succeed");
 
     assert_eq!("manual-token", token);
@@ -178,6 +185,7 @@ async fn test_throws_when_no_api_client_injected() {
 
     manager
         .get_access_token("https://auth.example.com/token", &params)
+        .await
         .unwrap();
 }
 
@@ -192,6 +200,8 @@ async fn test_throws_when_token_request_fails() {
     let mut params = HashMap::new();
     params.insert("grant_type".to_string(), "client_credentials".to_string());
 
-    let result = manager.get_access_token("https://auth.example.com/token", &params);
+    let result = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await;
     assert!(result.is_err(), "expected error when token request fails");
 }
