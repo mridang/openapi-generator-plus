@@ -8,6 +8,7 @@
 package com.example.petstore
 
 import com.example.petstore.auth.oauth.OAuth2ClientCredentialsAuthenticator
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.util.LinkedList
@@ -56,7 +57,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        auth.getAuthHeaders()
+        runBlocking { auth.getAuthHeaders() }
 
         assertNotNull(client.lastBody)
         assertTrue(client.lastBody!!.contains("grant_type=client_credentials"))
@@ -70,7 +71,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        auth.getAuthHeaders()
+        runBlocking { auth.getAuthHeaders() }
 
         assertTrue(client.lastBody!!.contains("client_id=my-client-id"))
         assertTrue(client.lastBody!!.contains("client_secret=my-client-secret"))
@@ -84,7 +85,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        auth.getAuthHeaders()
+        runBlocking { auth.getAuthHeaders() }
 
         assertTrue(
             client.lastBody!!.contains("scope=read+write") ||
@@ -101,7 +102,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        val headers = auth.getAuthHeaders()
+        val headers = runBlocking { auth.getAuthHeaders() }
 
         assertEquals("Bearer tok-abc", headers["Authorization"])
     }
@@ -114,7 +115,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        auth.getAuthHeaders()
+        runBlocking { auth.getAuthHeaders() }
 
         assertEquals("https://auth.example.com/token", client.lastUrl)
     }

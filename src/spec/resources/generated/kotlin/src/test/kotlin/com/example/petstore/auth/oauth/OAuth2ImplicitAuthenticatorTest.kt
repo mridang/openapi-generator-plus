@@ -8,6 +8,7 @@
 package com.example.petstore
 
 import com.example.petstore.auth.oauth.OAuth2ImplicitAuthenticator
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
@@ -62,7 +63,7 @@ class OAuth2ImplicitAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setAccessToken("implicit-tok")
 
-        val headers = auth.getAuthHeaders()
+        val headers = runBlocking { auth.getAuthHeaders() }
 
         assertEquals("Bearer implicit-tok", headers["Authorization"])
     }
@@ -72,7 +73,7 @@ class OAuth2ImplicitAuthenticatorTest {
         val auth = createAuthenticator()
 
         assertThrows(IllegalStateException::class.java) {
-            auth.getAuthHeaders()
+            runBlocking { auth.getAuthHeaders() }
         }
     }
 

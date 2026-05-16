@@ -8,6 +8,7 @@
 package com.example.petstore
 
 import com.example.petstore.auth.oauth.OAuth2TokenManager
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.util.LinkedList
@@ -48,10 +49,12 @@ class OAuth2TokenManagerTest {
         manager.apiClient = client
 
         val token =
-            manager.getAccessToken(
-                "https://auth.example.com/token",
-                mapOf("grant_type" to "client_credentials"),
-            )
+            runBlocking {
+                manager.getAccessToken(
+                    "https://auth.example.com/token",
+                    mapOf("grant_type" to "client_credentials"),
+                )
+            }
 
         assertEquals("tok123", token)
     }
@@ -64,10 +67,12 @@ class OAuth2TokenManagerTest {
         val manager = OAuth2TokenManager()
         manager.apiClient = client
 
-        manager.getAccessToken(
-            "https://auth.example.com/token",
-            mapOf("grant_type" to "authorization_code"),
-        )
+        runBlocking {
+            manager.getAccessToken(
+                "https://auth.example.com/token",
+                mapOf("grant_type" to "authorization_code"),
+            )
+        }
 
         assertEquals("ref1", manager.getRefreshToken())
     }
@@ -83,8 +88,8 @@ class OAuth2TokenManagerTest {
         val params = mapOf("grant_type" to "client_credentials")
         val tokenUrl = "https://auth.example.com/token"
 
-        val first = manager.getAccessToken(tokenUrl, params)
-        val second = manager.getAccessToken(tokenUrl, params)
+        val first = runBlocking { manager.getAccessToken(tokenUrl, params) }
+        val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
 
         assertEquals("tok1", first)
         assertEquals("tok1", second)
@@ -102,8 +107,8 @@ class OAuth2TokenManagerTest {
         val params = mapOf("grant_type" to "client_credentials")
         val tokenUrl = "https://auth.example.com/token"
 
-        val first = manager.getAccessToken(tokenUrl, params)
-        val second = manager.getAccessToken(tokenUrl, params)
+        val first = runBlocking { manager.getAccessToken(tokenUrl, params) }
+        val second = runBlocking { manager.getAccessToken(tokenUrl, params) }
 
         assertEquals("tok1", first)
         assertEquals("tok2", second)
@@ -115,10 +120,12 @@ class OAuth2TokenManagerTest {
         manager.setAccessToken("manual-token")
 
         val token =
-            manager.getAccessToken(
-                "https://auth.example.com/token",
-                emptyMap(),
-            )
+            runBlocking {
+                manager.getAccessToken(
+                    "https://auth.example.com/token",
+                    emptyMap(),
+                )
+            }
 
         assertEquals("manual-token", token)
     }
@@ -128,10 +135,12 @@ class OAuth2TokenManagerTest {
         val manager = OAuth2TokenManager()
 
         assertThrows(IllegalStateException::class.java) {
-            manager.getAccessToken(
-                "https://auth.example.com/token",
-                mapOf("grant_type" to "client_credentials"),
-            )
+            runBlocking {
+                manager.getAccessToken(
+                    "https://auth.example.com/token",
+                    mapOf("grant_type" to "client_credentials"),
+                )
+            }
         }
     }
 
@@ -144,10 +153,12 @@ class OAuth2TokenManagerTest {
         manager.apiClient = client
 
         assertThrows(RuntimeException::class.java) {
-            manager.getAccessToken(
-                "https://auth.example.com/token",
-                mapOf("grant_type" to "client_credentials"),
-            )
+            runBlocking {
+                manager.getAccessToken(
+                    "https://auth.example.com/token",
+                    mapOf("grant_type" to "client_credentials"),
+                )
+            }
         }
     }
 }

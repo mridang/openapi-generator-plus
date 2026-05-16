@@ -90,7 +90,7 @@ class BaseApiTest {
     ) : Authenticator {
         override fun getHost(): String = ""
 
-        override fun getAuthHeaders(): Map<String, String> = headers
+        override suspend fun getAuthHeaders(): Map<String, String> = headers
 
         override fun getQueryParams(): Map<String, String> = queryParams
 

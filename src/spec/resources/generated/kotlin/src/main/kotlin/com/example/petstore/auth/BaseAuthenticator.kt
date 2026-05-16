@@ -13,7 +13,7 @@ package com.example.petstore.auth
 abstract class BaseAuthenticator : Authenticator {
     abstract override fun getHost(): String
 
-    abstract override fun getAuthHeaders(): Map<String, String>
+    abstract override suspend fun getAuthHeaders(): Map<String, String>
 
     override fun getQueryParams(): Map<String, String> = emptyMap()
 

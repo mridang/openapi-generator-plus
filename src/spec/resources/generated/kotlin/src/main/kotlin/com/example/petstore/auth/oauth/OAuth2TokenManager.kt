@@ -10,7 +10,6 @@ package com.example.petstore.auth.oauth
 import com.example.petstore.ApiClient
 import com.example.petstore.ApiResponse
 import io.ktor.http.encodeURLQueryComponent
-import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -45,7 +44,7 @@ class OAuth2TokenManager {
      * @return a valid access token
      * @throws IllegalStateException if no API client has been injected or token fetch fails
      */
-    fun getAccessToken(
+    suspend fun getAccessToken(
         tokenUrl: String,
         params: Map<String, String>,
     ): String {
@@ -75,7 +74,7 @@ class OAuth2TokenManager {
      */
     fun getRefreshToken(): String? = refreshToken
 
-    private fun fetchToken(
+    private suspend fun fetchToken(
         tokenUrl: String,
         params: Map<String, String>,
     ) {
@@ -94,7 +93,7 @@ class OAuth2TokenManager {
 
         val headers = mapOf("Content-Type" to "application/x-www-form-urlencoded")
 
-        val response: ApiResponse = runBlocking { client.sendRequest("POST", tokenUrl, headers, body) }
+        val response: ApiResponse = client.sendRequest("POST", tokenUrl, headers, body)
         if (response.statusCode < 200 || response.statusCode >= 300) {
             throw RuntimeException(
                 "Token request failed with status ${response.statusCode}: ${response.body}",

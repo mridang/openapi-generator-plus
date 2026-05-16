@@ -19,7 +19,7 @@ open class BasicAuthenticator(
 ) : BaseAuthenticator() {
     override fun getHost(): String = host
 
-    override fun getAuthHeaders(): Map<String, String> {
+    override suspend fun getAuthHeaders(): Map<String, String> {
         val credentials = Base64.getEncoder().encodeToString("$username:$password".toByteArray())
         return mapOf("Authorization" to "Basic $credentials")
     }

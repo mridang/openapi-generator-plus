@@ -16,5 +16,5 @@ open class BearerAuthenticator(
 ) : BaseAuthenticator() {
     override fun getHost(): String = host
 
-    override fun getAuthHeaders(): Map<String, String> = mapOf("Authorization" to "Bearer $token")
+    override suspend fun getAuthHeaders(): Map<String, String> = mapOf("Authorization" to "Bearer $token")
 }

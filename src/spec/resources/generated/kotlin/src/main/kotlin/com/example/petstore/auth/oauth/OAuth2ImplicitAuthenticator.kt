@@ -69,7 +69,7 @@ open class OAuth2ImplicitAuthenticator(
 
     override fun getHost(): String = host
 
-    override fun getAuthHeaders(): Map<String, String> {
+    override suspend fun getAuthHeaders(): Map<String, String> {
         val token =
             accessToken
                 ?: throw IllegalStateException("Must call setAccessToken() before making API requests")

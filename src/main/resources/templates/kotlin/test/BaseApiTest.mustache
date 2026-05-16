@@ -89,7 +89,7 @@ class BaseApiTest {
         private val cookies: Map<String, String>
     ) : Authenticator {
         override fun getHost(): String = ""
-        override fun getAuthHeaders(): Map<String, String> = headers
+        override suspend fun getAuthHeaders(): Map<String, String> = headers
         override fun getQueryParams(): Map<String, String> = queryParams
         override fun getCookieParams(): Map<String, String> = cookies
     }

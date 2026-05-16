@@ -32,7 +32,7 @@ open class OAuth2ClientCredentialsAuthenticator(
 
     override fun getHost(): String = host
 
-    override fun getAuthHeaders(): Map<String, String> {
+    override suspend fun getAuthHeaders(): Map<String, String> {
         val params =
             mutableMapOf(
                 "grant_type" to "client_credentials",

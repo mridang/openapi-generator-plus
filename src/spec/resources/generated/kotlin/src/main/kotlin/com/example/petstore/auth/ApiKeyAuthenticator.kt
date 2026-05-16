@@ -18,7 +18,7 @@ open class ApiKeyAuthenticator(
 ) : BaseAuthenticator() {
     override fun getHost(): String = host
 
-    override fun getAuthHeaders(): Map<String, String> =
+    override suspend fun getAuthHeaders(): Map<String, String> =
         if (location == ApiKeyLocation.HEADER) mapOf(keyParamName to apiKey) else emptyMap()
 
     override fun getQueryParams(): Map<String, String> = if (location == ApiKeyLocation.QUERY) mapOf(keyParamName to apiKey) else emptyMap()

@@ -8,6 +8,7 @@
 package com.example.petstore
 
 import com.example.petstore.auth.oauth.OAuth2PasswordAuthenticator
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.util.LinkedList
@@ -59,7 +60,7 @@ class OAuth2PasswordAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        auth.getAuthHeaders()
+        runBlocking { auth.getAuthHeaders() }
 
         assertNotNull(client.lastBody)
         assertTrue(client.lastBody!!.contains("grant_type=password"))
@@ -73,7 +74,7 @@ class OAuth2PasswordAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        auth.getAuthHeaders()
+        runBlocking { auth.getAuthHeaders() }
 
         assertTrue(client.lastBody!!.contains("username=testuser"))
         assertTrue(client.lastBody!!.contains("password=testpass"))
@@ -87,7 +88,7 @@ class OAuth2PasswordAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        auth.getAuthHeaders()
+        runBlocking { auth.getAuthHeaders() }
 
         assertTrue(client.lastBody!!.contains("client_id=my-client-id"))
         assertTrue(client.lastBody!!.contains("client_secret=my-client-secret"))
@@ -101,7 +102,7 @@ class OAuth2PasswordAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        val headers = auth.getAuthHeaders()
+        val headers = runBlocking { auth.getAuthHeaders() }
 
         assertEquals("Bearer tok-pwd", headers["Authorization"])
     }
@@ -116,9 +117,9 @@ class OAuth2PasswordAuthenticatorTest {
         auth.setApiClient(client)
 
         // First call uses password grant
-        auth.getAuthHeaders()
+        runBlocking { auth.getAuthHeaders() }
         // Second call should use refresh_token grant since token is expired
-        auth.getAuthHeaders()
+        runBlocking { auth.getAuthHeaders() }
 
         assertTrue(client.lastBody!!.contains("grant_type=refresh_token"))
         assertTrue(client.lastBody!!.contains("refresh_token=ref1"))

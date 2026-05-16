@@ -9,7 +9,6 @@ package com.example.petstore.auth.oauth
 
 import com.example.petstore.ApiClient
 import com.example.petstore.auth.HttpAwareAuthenticator
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -50,7 +49,7 @@ open class OpenIdConnectAuthenticator(
      *
      * @return the resolved authorization code authenticator
      */
-    private fun resolveDelegate(): OAuth2AuthorizationCodeAuthenticator {
+    private suspend fun resolveDelegate(): OAuth2AuthorizationCodeAuthenticator {
         delegate?.let { return it }
 
         val client =
@@ -61,7 +60,7 @@ open class OpenIdConnectAuthenticator(
             )
 
         val headers = mapOf("Accept" to "application/json")
-        val response = runBlocking { client.sendRequest("GET", discoveryUrl, headers, null) }
+        val response = client.sendRequest("GET", discoveryUrl, headers, null)
 
         if (response.statusCode < 200 || response.statusCode >= 300) {
             throw RuntimeException(
@@ -98,18 +97,18 @@ open class OpenIdConnectAuthenticator(
      * @param state CSRF state parameter
      * @return the authorization URL
      */
-    fun buildAuthorizationUrl(state: String? = null): String = resolveDelegate().buildAuthorizationUrl(state)
+    suspend fun buildAuthorizationUrl(state: String? = null): String = resolveDelegate().buildAuthorizationUrl(state)
 
     /**
      * Exchange an authorization code for tokens using the discovered token endpoint.
      *
      * @param code the authorization code from the callback
      */
-    fun exchangeCode(code: String) {
+    suspend fun exchangeCode(code: String) {
         resolveDelegate().exchangeCode(code)
     }
 
     override fun getHost(): String = host
 
-    override fun getAuthHeaders(): Map<String, String> = resolveDelegate().getAuthHeaders()
+    override suspend fun getAuthHeaders(): Map<String, String> = resolveDelegate().getAuthHeaders()
 }

@@ -70,7 +70,7 @@ open class OAuth2AuthorizationCodeAuthenticator(
      *
      * @param code the authorization code from the callback
      */
-    fun exchangeCode(code: String) {
+    suspend fun exchangeCode(code: String) {
         val params =
             mutableMapOf(
                 "grant_type" to "authorization_code",
@@ -85,7 +85,7 @@ open class OAuth2AuthorizationCodeAuthenticator(
 
     override fun getHost(): String = host
 
-    override fun getAuthHeaders(): Map<String, String> {
+    override suspend fun getAuthHeaders(): Map<String, String> {
         check(tokenExchanged) { "Must call exchangeCode() before making API requests" }
         val params =
             mutableMapOf(

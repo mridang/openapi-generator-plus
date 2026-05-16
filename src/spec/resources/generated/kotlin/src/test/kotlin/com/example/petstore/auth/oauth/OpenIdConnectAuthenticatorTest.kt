@@ -8,6 +8,7 @@
 package com.example.petstore
 
 import com.example.petstore.auth.oauth.OpenIdConnectAuthenticator
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.util.LinkedList
@@ -62,7 +63,7 @@ class OpenIdConnectAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        val url = auth.buildAuthorizationUrl("my-state")
+        val url = runBlocking { auth.buildAuthorizationUrl("my-state") }
 
         assertTrue(url.startsWith("https://auth.example.com/authorize?"))
         assertTrue(url.contains("response_type=code"))
@@ -80,7 +81,7 @@ class OpenIdConnectAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        auth.buildAuthorizationUrl()
+        runBlocking { auth.buildAuthorizationUrl() }
 
         assertEquals("GET", client.lastMethod)
         assertEquals("https://auth.example.com/.well-known/openid-configuration", client.lastUrl)
@@ -99,7 +100,7 @@ class OpenIdConnectAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        auth.exchangeCode("oidc-code")
+        runBlocking { auth.exchangeCode("oidc-code") }
 
         assertTrue(client.lastBody!!.contains("grant_type=authorization_code"))
         assertTrue(client.lastBody!!.contains("code=oidc-code"))
@@ -120,8 +121,8 @@ class OpenIdConnectAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        auth.exchangeCode("oidc-code")
-        val headers = auth.getAuthHeaders()
+        runBlocking { auth.exchangeCode("oidc-code") }
+        val headers = runBlocking { auth.getAuthHeaders() }
 
         assertEquals("Bearer oidc-tok", headers["Authorization"])
     }
@@ -131,7 +132,7 @@ class OpenIdConnectAuthenticatorTest {
         val auth = createAuthenticator()
 
         assertThrows(IllegalStateException::class.java) {
-            auth.buildAuthorizationUrl()
+            runBlocking { auth.buildAuthorizationUrl() }
         }
     }
 

@@ -8,6 +8,7 @@
 package com.example.petstore
 
 import com.example.petstore.auth.oauth.OAuth2AuthorizationCodeAuthenticator
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.util.LinkedList
@@ -80,7 +81,7 @@ class OAuth2AuthCodeAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        auth.exchangeCode("auth-code-xyz")
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
 
         assertNotNull(client.lastBody)
         assertTrue(client.lastBody!!.contains("grant_type=authorization_code"))
@@ -98,9 +99,9 @@ class OAuth2AuthCodeAuthenticatorTest {
         val auth = createAuthenticator()
         auth.setApiClient(client)
 
-        auth.exchangeCode("auth-code-xyz")
+        runBlocking { auth.exchangeCode("auth-code-xyz") }
 
-        val headers = auth.getAuthHeaders()
+        val headers = runBlocking { auth.getAuthHeaders() }
 
         assertTrue(client.lastBody!!.contains("refresh_token=ref1"))
         assertTrue(client.lastBody!!.contains("grant_type=refresh_token"))
@@ -112,7 +113,7 @@ class OAuth2AuthCodeAuthenticatorTest {
         val auth = createAuthenticator()
 
         assertThrows(IllegalStateException::class.java) {
-            auth.getAuthHeaders()
+            runBlocking { auth.getAuthHeaders() }
         }
     }
 
