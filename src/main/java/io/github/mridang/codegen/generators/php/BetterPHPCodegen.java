@@ -188,7 +188,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
 
         invokerPackage = getPropertyOrDefault(CodegenConstants.INVOKER_PACKAGE, invokerPackage);
         additionalProperties.put("invokerPackage", invokerPackage);
-        additionalProperties.put("userAgentDefault", invokerPackage + "/1.0.0 (php)");
+        final String packageVersion = getPropertyOrDefault("packageVersion", "1.0.0");
+        additionalProperties.put("packageVersion", packageVersion);
+        additionalProperties.put(
+                "userAgentDefault", invokerPackage + "/" + packageVersion + " (php)");
 
         apiPackage = invokerPackage + "\\" + API_DIR_NAME;
         modelPackage = invokerPackage + "\\" + MODEL_DIR_NAME;

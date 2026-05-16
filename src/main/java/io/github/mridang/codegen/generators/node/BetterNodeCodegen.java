@@ -236,9 +236,15 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     public void processOpts() {
         super.processOpts();
-        additionalProperties.put("userAgentDefault", "openapi-typescript-client/1.0.0 (node)");
+        final String packageVersion = getPropertyOrDefault("packageVersion", "1.0.0");
+        additionalProperties.put("packageVersion", packageVersion);
+        additionalProperties.put(
+                "userAgentDefault", "openapi-typescript-client/" + packageVersion + " (node)");
 
-        this.apiPackage = "api";
+        // Only set apiPackage default when the caller did not override it.
+        if (this.apiPackage == null || this.apiPackage.isEmpty() || "openapitools".equals(this.apiPackage)) {
+            this.apiPackage = "api";
+        }
 
         supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
         supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));

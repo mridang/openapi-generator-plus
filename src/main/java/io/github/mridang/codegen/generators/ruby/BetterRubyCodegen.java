@@ -49,7 +49,7 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterRubyCodegen.class);
 
-    private static final String GEM_VERSION = "1.0.0";
+    private static final String DEFAULT_GEM_VERSION = "1.0.0";
     private static final String LIB_FOLDER = "lib";
 
     @Nullable protected String gemName;
@@ -217,8 +217,9 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
                 Optional.ofNullable((String) additionalProperties.get(CodegenConstants.GEM_NAME))
                         .orElseGet(() -> NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("[^\\w]+", "")));
         additionalProperties.put(CodegenConstants.GEM_NAME, gemName);
-        additionalProperties.put("gemVersion", GEM_VERSION);
-        additionalProperties.put("userAgentDefault", gemName + "/" + GEM_VERSION + " (ruby)");
+        final String gemVersion = getPropertyOrDefault("gemVersion", DEFAULT_GEM_VERSION);
+        additionalProperties.put("gemVersion", gemVersion);
+        additionalProperties.put("userAgentDefault", gemName + "/" + gemVersion + " (ruby)");
 
         setModelPackage("models");
         setApiPackage("api");

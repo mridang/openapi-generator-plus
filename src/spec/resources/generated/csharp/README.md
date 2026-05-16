@@ -17,4 +17,4 @@ dotnet test
 ## Package
 
 - Name: `PetstoreClient`
-- Version: ``
+- Version: `1.0.0`

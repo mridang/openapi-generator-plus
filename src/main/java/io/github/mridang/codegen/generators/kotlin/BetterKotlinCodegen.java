@@ -256,7 +256,6 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         sourceFolder = getPropertyOrDefault("sourceFolder", sourceFolder);
         invokerPackage = getPropertyOrDefault("invokerPackage", invokerPackage);
         additionalProperties.put("invokerPackage", invokerPackage);
-        additionalProperties.put("userAgentDefault", invokerPackage + "/1.0.0 (kotlin)");
 
         final String groupId = getPropertyOrDefault("groupId", invokerPackage);
         additionalProperties.put("groupId", groupId);
@@ -265,6 +264,8 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         additionalProperties.put("artifactId", artifactId);
         final String artifactVersion = getPropertyOrDefault("artifactVersion", "1.0.0");
         additionalProperties.put("artifactVersion", artifactVersion);
+        additionalProperties.put(
+                "userAgentDefault", invokerPackage + "/" + artifactVersion + " (kotlin)");
 
         final String invokerFolder =
                 Path.of(sourceFolder, invokerPackage.replace(".", "/")).toString();

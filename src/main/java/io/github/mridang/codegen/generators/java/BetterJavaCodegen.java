@@ -223,7 +223,6 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         sourceFolder = getPropertyOrDefault(CodegenConstants.SOURCE_FOLDER, sourceFolder);
         invokerPackage = getPropertyOrDefault(CodegenConstants.INVOKER_PACKAGE, invokerPackage);
         additionalProperties.put("invokerPackage", invokerPackage);
-        additionalProperties.put("userAgentDefault", invokerPackage + "/1.0.0 (java)");
 
         final String groupId = getPropertyOrDefault(CodegenConstants.GROUP_ID, invokerPackage);
         additionalProperties.put("groupId", groupId);
@@ -233,6 +232,8 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         final String artifactVersion =
                 getPropertyOrDefault(CodegenConstants.ARTIFACT_VERSION, "1.0.0");
         additionalProperties.put("artifactVersion", artifactVersion);
+        additionalProperties.put(
+                "userAgentDefault", invokerPackage + "/" + artifactVersion + " (java)");
 
         final String invokerFolder =
                 Path.of(sourceFolder, invokerPackage.replace(".", "/")).toString();

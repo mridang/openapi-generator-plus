@@ -17,4 +17,4 @@ npm test
 ## Package
 
 - Name: ``
-- Version: ``
+- Version: `1.0.0`

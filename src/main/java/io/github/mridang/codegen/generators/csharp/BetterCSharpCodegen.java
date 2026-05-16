@@ -181,7 +181,11 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         sourceFolder = getPropertyOrDefault(CodegenConstants.SOURCE_FOLDER, sourceFolder);
         packageName = getPropertyOrDefault(CodegenConstants.PACKAGE_NAME, packageName);
         additionalProperties.put("packageName", packageName);
-        additionalProperties.put("userAgentDefault", packageName + "/1.0.0 (csharp)");
+        final String packageVersion =
+                getPropertyOrDefault(CodegenConstants.PACKAGE_VERSION, "1.0.0");
+        additionalProperties.put("packageVersion", packageVersion);
+        additionalProperties.put(
+                "userAgentDefault", packageName + "/" + packageVersion + " (csharp)");
 
         modelPackage = "Models";
         apiPackage = "Api";
