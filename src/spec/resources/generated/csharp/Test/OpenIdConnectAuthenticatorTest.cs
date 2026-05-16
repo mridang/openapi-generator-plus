@@ -136,7 +136,7 @@ public class OpenIdConnectAuthenticatorTest
         auth.SetApiClient(client);
 
         await auth.ExchangeCodeAsync("oidc-code");
-        Dictionary<string, string> headers = auth.GetAuthHeaders();
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
 
         Assert.Equal("Bearer oidc-tok", headers["Authorization"]);
     }

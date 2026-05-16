@@ -25,6 +25,19 @@ public interface IAuthenticator
     Dictionary<string, string> GetAuthHeaders();
 
     /// <summary>
+    /// Returns the authentication headers to include in every request,
+    /// asynchronously. Authenticators that need to perform asynchronous
+    /// work (e.g. OAuth2 token exchange) should override this method.
+    ///
+    /// The default implementation wraps the synchronous
+    /// <see cref="GetAuthHeaders"/> for back-compat with non-OAuth schemes.
+    /// </summary>
+    Task<Dictionary<string, string>> GetAuthHeadersAsync()
+    {
+        return Task.FromResult(GetAuthHeaders());
+    }
+
+    /// <summary>
     /// Returns query parameters to include for authentication.
     /// </summary>
     Dictionary<string, string> GetQueryParams()

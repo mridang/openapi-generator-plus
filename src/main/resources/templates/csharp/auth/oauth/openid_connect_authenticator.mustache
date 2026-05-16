@@ -134,9 +134,24 @@ public class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareAuthentic
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// OpenID Connect requires asynchronous discovery and token exchange.
+    /// The synchronous path is not safe (it deadlocks under non-default
+    /// <see cref="System.Threading.SynchronizationContext"/>); callers
+    /// must use <see cref="GetAuthHeadersAsync"/> instead.
+    /// </remarks>
     public override Dictionary<string, string> GetAuthHeaders()
     {
-        OAuth2AuthorizationCodeAuthenticator d = GetDelegateAsync().GetAwaiter().GetResult();
-        return d.GetAuthHeaders();
+        throw new InvalidOperationException(
+            "OpenIdConnectAuthenticator requires async discovery and token exchange; "
+                + "use GetAuthHeadersAsync() instead."
+        );
+    }
+
+    /// <inheritdoc/>
+    public override async Task<Dictionary<string, string>> GetAuthHeadersAsync()
+    {
+        OAuth2AuthorizationCodeAuthenticator d = await GetDelegateAsync().ConfigureAwait(false);
+        return await d.GetAuthHeadersAsync().ConfigureAwait(false);
     }
 }

@@ -52,7 +52,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
     }
 
     [Fact]
-    public void SendsClientCredentialsGrantType()
+    public async Task SendsClientCredentialsGrantType()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -60,14 +60,14 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        auth.GetAuthHeaders();
+        await auth.GetAuthHeadersAsync();
 
         Assert.NotNull(client.LastBody);
         Assert.Contains("grant_type=client_credentials", client.LastBody!);
     }
 
     [Fact]
-    public void SendsClientIdAndSecret()
+    public async Task SendsClientIdAndSecret()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -75,14 +75,14 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        auth.GetAuthHeaders();
+        await auth.GetAuthHeadersAsync();
 
         Assert.Contains("client_id=my-client-id", client.LastBody!);
         Assert.Contains("client_secret=my-client-secret", client.LastBody!);
     }
 
     [Fact]
-    public void SendsScopes()
+    public async Task SendsScopes()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -90,13 +90,13 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        auth.GetAuthHeaders();
+        await auth.GetAuthHeadersAsync();
 
         Assert.Contains("scope=read+write", client.LastBody!);
     }
 
     [Fact]
-    public void ReturnsAuthorizationBearerHeader()
+    public async Task ReturnsAuthorizationBearerHeader()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok-abc\",\"expires_in\":3600}");
@@ -104,13 +104,13 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        Dictionary<string, string> headers = auth.GetAuthHeaders();
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
 
         Assert.Equal("Bearer tok-abc", headers["Authorization"]);
     }
 
     [Fact]
-    public void SendsRequestToTokenUrl()
+    public async Task SendsRequestToTokenUrl()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -118,7 +118,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        auth.GetAuthHeaders();
+        await auth.GetAuthHeadersAsync();
 
         Assert.Equal(new Uri("https://auth.example.com/token"), client.LastUrl);
     }

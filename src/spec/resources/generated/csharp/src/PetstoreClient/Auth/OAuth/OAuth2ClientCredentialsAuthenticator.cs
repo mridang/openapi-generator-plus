@@ -61,7 +61,22 @@ public class OAuth2ClientCredentialsAuthenticator : BaseAuthenticator, IHttpAwar
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// OAuth2 authenticators require asynchronous token exchange. The
+    /// synchronous path is not safe (it deadlocks under non-default
+    /// <see cref="System.Threading.SynchronizationContext"/>); callers
+    /// must use <see cref="GetAuthHeadersAsync"/> instead.
+    /// </remarks>
     public override Dictionary<string, string> GetAuthHeaders()
+    {
+        throw new InvalidOperationException(
+            "OAuth2 authenticators require async token exchange; "
+                + "use GetAuthHeadersAsync() instead."
+        );
+    }
+
+    /// <inheritdoc/>
+    public override async Task<Dictionary<string, string>> GetAuthHeadersAsync()
     {
         Dictionary<string, string> parameters = new()
         {
@@ -74,10 +89,9 @@ public class OAuth2ClientCredentialsAuthenticator : BaseAuthenticator, IHttpAwar
             parameters["scope"] = string.Join(" ", _scopes);
         }
 
-        string token = _tokenManager
+        string token = await _tokenManager
             .GetAccessTokenAsync(_tokenUrl, parameters)
-            .GetAwaiter()
-            .GetResult();
+            .ConfigureAwait(false);
         return new() { ["Authorization"] = "Bearer " + token };
     }
 }

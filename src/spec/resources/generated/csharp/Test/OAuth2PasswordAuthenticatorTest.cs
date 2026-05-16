@@ -55,7 +55,7 @@ public class OAuth2PasswordAuthenticatorTest
     }
 
     [Fact]
-    public void SendsPasswordGrantType()
+    public async Task SendsPasswordGrantType()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -63,14 +63,14 @@ public class OAuth2PasswordAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        auth.GetAuthHeaders();
+        await auth.GetAuthHeadersAsync();
 
         Assert.NotNull(client.LastBody);
         Assert.Contains("grant_type=password", client.LastBody!);
     }
 
     [Fact]
-    public void SendsUsernameAndPassword()
+    public async Task SendsUsernameAndPassword()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -78,14 +78,14 @@ public class OAuth2PasswordAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        auth.GetAuthHeaders();
+        await auth.GetAuthHeadersAsync();
 
         Assert.Contains("username=testuser", client.LastBody!);
         Assert.Contains("password=testpass", client.LastBody!);
     }
 
     [Fact]
-    public void SendsClientIdAndSecret()
+    public async Task SendsClientIdAndSecret()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -93,14 +93,14 @@ public class OAuth2PasswordAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        auth.GetAuthHeaders();
+        await auth.GetAuthHeadersAsync();
 
         Assert.Contains("client_id=my-client-id", client.LastBody!);
         Assert.Contains("client_secret=my-client-secret", client.LastBody!);
     }
 
     [Fact]
-    public void ReturnsAuthorizationBearerHeader()
+    public async Task ReturnsAuthorizationBearerHeader()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok-pwd\",\"expires_in\":3600}");
@@ -108,13 +108,13 @@ public class OAuth2PasswordAuthenticatorTest
         var auth = CreateAuthenticator();
         auth.SetApiClient(client);
 
-        Dictionary<string, string> headers = auth.GetAuthHeaders();
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
 
         Assert.Equal("Bearer tok-pwd", headers["Authorization"]);
     }
 
     [Fact]
-    public void UsesRefreshTokenOnSubsequentCalls()
+    public async Task UsesRefreshTokenOnSubsequentCalls()
     {
         var client = new FakeApiClient();
         client.Enqueue("{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}");
@@ -124,9 +124,9 @@ public class OAuth2PasswordAuthenticatorTest
         auth.SetApiClient(client);
 
         // First call uses password grant
-        auth.GetAuthHeaders();
+        await auth.GetAuthHeadersAsync();
         // Second call should use refresh_token grant since token is expired
-        auth.GetAuthHeaders();
+        await auth.GetAuthHeadersAsync();
 
         Assert.Contains("grant_type=refresh_token", client.LastBody!);
         Assert.Contains("refresh_token=ref1", client.LastBody!);

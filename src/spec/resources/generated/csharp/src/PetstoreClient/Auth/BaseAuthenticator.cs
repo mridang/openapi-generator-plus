@@ -20,6 +20,12 @@ public abstract class BaseAuthenticator : IAuthenticator
     public abstract Dictionary<string, string> GetAuthHeaders();
 
     /// <inheritdoc/>
+    public virtual Task<Dictionary<string, string>> GetAuthHeadersAsync()
+    {
+        return Task.FromResult(GetAuthHeaders());
+    }
+
+    /// <inheritdoc/>
     public virtual Dictionary<string, string> GetQueryParams()
     {
         return [];

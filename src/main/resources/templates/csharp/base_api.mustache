@@ -128,7 +128,10 @@ public abstract class BaseApi
 
         if (effectiveAuth is not null)
         {
-            foreach (KeyValuePair<string, string> header in effectiveAuth.GetAuthHeaders())
+            Dictionary<string, string> authHeaders = await effectiveAuth
+                .GetAuthHeadersAsync()
+                .ConfigureAwait(false);
+            foreach (KeyValuePair<string, string> header in authHeaders)
             {
                 headers[header.Key] = header.Value;
             }

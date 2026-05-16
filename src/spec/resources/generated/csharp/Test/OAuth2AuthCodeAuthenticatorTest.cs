@@ -115,8 +115,8 @@ public class OAuth2AuthCodeAuthenticatorTest
 
         await auth.ExchangeCodeAsync("auth-code-xyz");
 
-        // GetAuthHeaders triggers a refresh since token is expired
-        Dictionary<string, string> headers = auth.GetAuthHeaders();
+        // GetAuthHeadersAsync triggers a refresh since token is expired
+        Dictionary<string, string> headers = await auth.GetAuthHeadersAsync();
 
         Assert.Contains("refresh_token=ref1", client.LastBody!);
         Assert.Contains("grant_type=refresh_token", client.LastBody!);
@@ -124,11 +124,11 @@ public class OAuth2AuthCodeAuthenticatorTest
     }
 
     [Fact]
-    public void ThrowsBeforeExchangeCodeCalled()
+    public async Task ThrowsBeforeExchangeCodeCalled()
     {
         var auth = CreateAuthenticator();
 
-        Assert.Throws<InvalidOperationException>(() => auth.GetAuthHeaders());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => auth.GetAuthHeadersAsync());
     }
 
     [Fact]
