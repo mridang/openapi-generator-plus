@@ -24,10 +24,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenDiscriminator;
-import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
-import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
@@ -262,97 +260,12 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                             writer.write(name.toString());
                         });
 
-        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
-        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
-        supportingFiles.add(
-                new SupportingFile("configuration.mustache", "src", "configuration.rs"));
-        supportingFiles.add(
-                new SupportingFile("transport_options.mustache", "src", "transport_options.rs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "server_configuration.mustache", "src", "server_configuration.rs"));
-        supportingFiles.add(new SupportingFile("servers.mustache", "src", "servers.rs"));
-        supportingFiles.add(new SupportingFile("api_error.mustache", "src", "api_error.rs"));
-
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/client_error.mustache", "src/errors", "client_error.rs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/server_error.mustache", "src/errors", "server_error.rs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/bad_request_error.mustache",
-                        "src/errors",
-                        "bad_request_error.rs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/unauthorized_error.mustache",
-                        "src/errors",
-                        "unauthorized_error.rs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/forbidden_error.mustache", "src/errors", "forbidden_error.rs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/not_found_error.mustache", "src/errors", "not_found_error.rs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/conflict_error.mustache", "src/errors", "conflict_error.rs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/unprocessable_entity_error.mustache",
-                        "src/errors",
-                        "unprocessable_entity_error.rs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/internal_server_error.mustache",
-                        "src/errors",
-                        "internal_server_error.rs"));
-        supportingFiles.add(
-                new SupportingFile("errors/mod.mustache", "src/errors", "mod.rs"));
-
-        supportingFiles.add(
-                new SupportingFile(
-                        "models/base64_serde.mustache", "src/models", "base64_serde.rs"));
-        supportingFiles.add(
-                new SupportingFile("header_selector.mustache", "src", "header_selector.rs"));
-        supportingFiles.add(
-                new SupportingFile("object_serializer.mustache", "src", "object_serializer.rs"));
-        supportingFiles.add(
-                new SupportingFile("value_serializer.mustache", "src", "value_serializer.rs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "trace_context_util.mustache", "src", "trace_context_util.rs"));
-        supportingFiles.add(
-                new SupportingFile("api_response.mustache", "src", "api_response.rs"));
-        supportingFiles.add(new SupportingFile("api_result.mustache", "src", "api_result.rs"));
-        supportingFiles.add(
-                new SupportingFile("api_client.mustache", "src", "api_client.rs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "default_api_client.mustache", "src", "default_api_client.rs"));
-        supportingFiles.add(
-                new SupportingFile("base_api.mustache", "src/api", "base_api.rs"));
-        supportingFiles.add(
-                new SupportingFile("authenticator.mustache", Path.of("src", "auth").toString(), "authenticator.rs"));
         final String clientClassName =
                 Objects.requireNonNull((String) additionalProperties.get("clientClassName"));
         final String clientClassFile = NamingConvention.SNAKE_CASE.apply(clientClassName);
         additionalProperties.put("clientClassFile", clientClassFile);
         supportingFiles.add(
                 new SupportingFile("client.mustache", "src", clientClassFile + ".rs"));
-        supportingFiles.add(new SupportingFile("lib.mustache", "src", "lib.rs"));
-        supportingFiles.add(new SupportingFile("cargo_toml.mustache", "", "Cargo.toml"));
-        supportingFiles.add(new SupportingFile("rustfmt_toml.mustache", "", "rustfmt.toml"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "nextest_toml.mustache",
-                        Path.of(".config", "nextest").toString(),
-                        "default.toml"));
-        supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
-        supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
-        supportingFiles.add(new SupportingFile("gitignore.mustache", "", ".gitignore"));
 
         if (generateTests) {
             supportingFiles.add(
@@ -455,6 +368,72 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         }
     }
 
+    /** {@inheritDoc} */
+    @Override
+    protected List<SupportingFileSpec> getSupportingFileSpecs() {
+        final String authDir = Path.of("src", "auth").toString();
+        final String nextestDir = Path.of(".config", "nextest").toString();
+        return List.of(
+                new SupportingFileSpec("readme.mustache", "", "README.md"),
+                new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
+                new SupportingFileSpec("configuration.mustache", "src", "configuration.rs"),
+                new SupportingFileSpec(
+                        "transport_options.mustache", "src", "transport_options.rs"),
+                new SupportingFileSpec(
+                        "server_configuration.mustache", "src", "server_configuration.rs"),
+                new SupportingFileSpec("servers.mustache", "src", "servers.rs"),
+                new SupportingFileSpec("api_error.mustache", "src", "api_error.rs"),
+                new SupportingFileSpec(
+                        "errors/client_error.mustache", "src/errors", "client_error.rs"),
+                new SupportingFileSpec(
+                        "errors/server_error.mustache", "src/errors", "server_error.rs"),
+                new SupportingFileSpec(
+                        "errors/bad_request_error.mustache",
+                        "src/errors",
+                        "bad_request_error.rs"),
+                new SupportingFileSpec(
+                        "errors/unauthorized_error.mustache",
+                        "src/errors",
+                        "unauthorized_error.rs"),
+                new SupportingFileSpec(
+                        "errors/forbidden_error.mustache", "src/errors", "forbidden_error.rs"),
+                new SupportingFileSpec(
+                        "errors/not_found_error.mustache", "src/errors", "not_found_error.rs"),
+                new SupportingFileSpec(
+                        "errors/conflict_error.mustache", "src/errors", "conflict_error.rs"),
+                new SupportingFileSpec(
+                        "errors/unprocessable_entity_error.mustache",
+                        "src/errors",
+                        "unprocessable_entity_error.rs"),
+                new SupportingFileSpec(
+                        "errors/internal_server_error.mustache",
+                        "src/errors",
+                        "internal_server_error.rs"),
+                new SupportingFileSpec("errors/mod.mustache", "src/errors", "mod.rs"),
+                new SupportingFileSpec(
+                        "models/base64_serde.mustache", "src/models", "base64_serde.rs"),
+                new SupportingFileSpec("header_selector.mustache", "src", "header_selector.rs"),
+                new SupportingFileSpec(
+                        "object_serializer.mustache", "src", "object_serializer.rs"),
+                new SupportingFileSpec("value_serializer.mustache", "src", "value_serializer.rs"),
+                new SupportingFileSpec(
+                        "trace_context_util.mustache", "src", "trace_context_util.rs"),
+                new SupportingFileSpec("api_response.mustache", "src", "api_response.rs"),
+                new SupportingFileSpec("api_result.mustache", "src", "api_result.rs"),
+                new SupportingFileSpec("api_client.mustache", "src", "api_client.rs"),
+                new SupportingFileSpec(
+                        "default_api_client.mustache", "src", "default_api_client.rs"),
+                new SupportingFileSpec("base_api.mustache", "src/api", "base_api.rs"),
+                new SupportingFileSpec("authenticator.mustache", authDir, "authenticator.rs"),
+                new SupportingFileSpec("lib.mustache", "src", "lib.rs"),
+                new SupportingFileSpec("cargo_toml.mustache", "", "Cargo.toml"),
+                new SupportingFileSpec("rustfmt_toml.mustache", "", "rustfmt.toml"),
+                new SupportingFileSpec("nextest_toml.mustache", nextestDir, "default.toml"),
+                new SupportingFileSpec("makefile.mustache", "", "Makefile"),
+                new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
+                new SupportingFileSpec("gitignore.mustache", "", ".gitignore"));
+    }
+
     /**
      * Returns the output directory for model source files.
      * Rust models go in the {@code src/models/} subdirectory.
@@ -498,13 +477,8 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
 
     /** {@inheritDoc} */
     @Override
-    protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
-        if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
-            final String enumValue = prop.defaultValue.substring(
-                    prop.defaultValue.lastIndexOf('.') + 1);
-            prop.defaultValue =
-                    "String::from(\"" + enumValue.toLowerCase(Locale.ROOT) + "\")";
-        }
+    protected String formatEnumStringLiteral(String value) {
+        return "String::from(\"" + value + "\")";
     }
 
     /** {@inheritDoc} */

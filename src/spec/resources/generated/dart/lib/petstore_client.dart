@@ -73,4 +73,4 @@ export 'src/server_configuration.dart';
 export 'src/servers.dart';
 export 'src/trace_context_util.dart';
 export 'src/transport_options.dart';
-export 'src/value_serializer.dart';
+export 'src/value_serializert';

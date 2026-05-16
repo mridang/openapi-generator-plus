@@ -12,6 +12,7 @@ import com.example.petstore.auth.HttpAwareAuthenticator
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import java.time.Instant
 
 /**
  * Authenticator for OpenID Connect.
@@ -40,6 +41,9 @@ open class OpenIdConnectAuthenticator(
     @Volatile
     private var delegate: OAuth2AuthorizationCodeAuthenticator? = null
 
+    @Volatile
+    private var discoveryExpiry: Instant = Instant.EPOCH
+
     override fun setApiClient(apiClient: ApiClient) {
         this.apiClient = apiClient
     }
@@ -47,10 +51,18 @@ open class OpenIdConnectAuthenticator(
     /**
      * Lazily resolve the delegate by fetching the OIDC discovery document.
      *
+     * Honors the `Cache-Control: max-age=<seconds>` header from the discovery
+     * response and re-fetches when the cached document is stale. Defaults to
+     * the RFC 8414 recommended max-age of 86400 seconds (1 day) when the
+     * header is absent or unparseable.
+     *
      * @return the resolved authorization code authenticator
      */
     private suspend fun resolveDelegate(): OAuth2AuthorizationCodeAuthenticator {
-        delegate?.let { return it }
+        val cached = delegate
+        if (cached != null && Instant.now().isBefore(discoveryExpiry)) {
+            return cached
+        }
 
         val client =
             apiClient ?: throw IllegalStateException(
@@ -88,7 +100,26 @@ open class OpenIdConnectAuthenticator(
             )
         resolved.setApiClient(client)
         this.delegate = resolved
+        this.discoveryExpiry = Instant.now().plusSeconds(parseMaxAge(response.headers))
         return resolved
+    }
+
+    /**
+     * Parse `Cache-Control: max-age=<seconds>` from response headers.
+     *
+     * @return the parsed max-age in seconds, or 86400 (RFC 8414 default) if
+     *   the header is absent or does not contain a `max-age` directive
+     */
+    private fun parseMaxAge(headers: Map<String, String>): Long {
+        val cacheControl =
+            headers.entries
+                .firstOrNull { it.key.equals("Cache-Control", ignoreCase = true) }
+                ?.value
+                ?: return 86400L
+        val match =
+            Regex("max-age=(\\d+)", RegexOption.IGNORE_CASE).find(cacheControl)
+                ?: return 86400L
+        return match.groupValues[1].toLongOrNull() ?: 86400L
     }
 
     /**

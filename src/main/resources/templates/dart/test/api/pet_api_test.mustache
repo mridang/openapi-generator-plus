@@ -75,8 +75,15 @@ void main() {
     test('findPetsByStatus', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.findPetsByStatus(null);
+      final result = await api.findPetsByStatus(const FindPetsByStatusOptions(status: 'available'));
       expect(result, isNotNull);
+    });
+
+    test('findPetsByStatusWithHTTPInfo', () async {
+      final api = _newPetApiForIntegration();
+
+      final result = await api.findPetsByStatusWithHTTPInfo(const FindPetsByStatusOptions(status: 'available'));
+      expect(result.statusCode, equals(200));
     });
 
     test('updatePet', () async {
@@ -86,11 +93,28 @@ void main() {
       expect(result, isNotNull);
     });
 
+    test('updatePetWithHTTPInfo', () async {
+      final api = _newPetApiForIntegration();
+
+      final result = await api.updatePetWithHTTPInfo(1, Pet(name: 'UpdatedFido', photoUrls: ['http://example.com/fido-updated.jpg']));
+      expect(result.statusCode, greaterThanOrEqualTo(200));
+      expect(result.statusCode, lessThan(300));
+    });
+
     test('deletePet', () async {
       final api = _newPetApiForIntegration();
       final auth = _TestAuth();
 
       await api.deletePet(auth, 1, null);
+    });
+
+    test('deletePetWithHTTPInfo', () async {
+      final api = _newPetApiForIntegration();
+      final auth = _TestAuth();
+
+      final result = await api.deletePetWithHTTPInfo(auth, 1, null);
+      expect(result.statusCode, greaterThanOrEqualTo(200));
+      expect(result.statusCode, lessThan(300));
     });
 
     test('getPetPassport', () async {
@@ -99,6 +123,76 @@ void main() {
       final result = await api.getPetPassport(1);
       expect(result, isNotNull);
     });
+
+    test('getPetPassportWithHTTPInfo', () async {
+      final api = _newPetApiForIntegration();
+
+      final result = await api.getPetPassportWithHTTPInfo(1);
+      expect(result.statusCode, equals(200));
+    });
+
+    test('setPetAvatar', () async {
+      final api = _newPetApiForIntegration();
+
+      await api.setPetAvatar(1, [0xFF, 0xD8, 0xFF, 0xE0]);
+    });
+
+    test('getPetAvatar', () async {
+      final api = _newPetApiForIntegration();
+
+      final result = await api.getPetAvatar(1);
+      expect(result, isNotNull);
+    });
+
+    test('getPetAvatarThumbnail', () async {
+      final api = _newPetApiForIntegration();
+
+      final result = await api.getPetAvatarThumbnail(1);
+      expect(result, isNotNull);
+    });
+
+    test('setPetAvatarThumbnail', () async {
+      final api = _newPetApiForIntegration();
+
+      await api.setPetAvatarThumbnail(1, const SetPetAvatarThumbnailRequest());
+    });
+
+    test('uploadPetCertificate', () async {
+      final api = _newPetApiForIntegration();
+
+      final result = await api.uploadPetCertificate(
+        1,
+        const UploadPetCertificateOptions(file: [0x25, 0x50, 0x44, 0x46]),
+      );
+      expect(result, isNotNull);
+    });
+
+    test('uploadPetDocument', () async {
+      final api = _newPetApiForIntegration();
+
+      final result = await api.uploadPetDocument(
+        1,
+        const UploadPetDocumentOptions(
+          file: [0x66, 0x61, 0x6B, 0x65],
+          documentType: 'vaccination_record',
+          notes: 'Annual checkup',
+        ),
+      );
+      expect(result, isNotNull);
+    });
+
+    // skip: Prism does not validate multipart array fields correctly (addPetPhotos).
+
+    test('downloadPetDocument', () async {
+      final api = _newPetApiForIntegration();
+
+      final result = await api.downloadPetDocument(1, 1);
+      expect(result, isNotNull);
+    });
+
+    // skip: Prism returns JSON for image content type (getPetPhoto).
+
+    // skip: Per-operation server URL points to external host (getExternalPetInfo).
 
     test('downloadBinaryMock', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

@@ -13,9 +13,56 @@ use std::net::TcpListener;
 use std::sync::Arc;
 use std::thread;
 
+use std::future::Future;
+use std::pin::Pin;
+
+use petstore::api::options::*;
 use petstore::api::*;
+use petstore::auth::Authenticator;
 use petstore::models::*;
 use petstore::*;
+
+/// Test authenticator that returns a static bearer token.
+struct TestBearerAuth;
+
+impl Authenticator for TestBearerAuth {
+    fn host(&self) -> &str {
+        ""
+    }
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
+        Box::pin(async {
+            let mut headers = HashMap::new();
+            headers.insert("Authorization".to_string(), "Bearer test-token".to_string());
+            headers
+        })
+    }
+}
+
+/// Test authenticator that returns a static basic auth header.
+struct TestBasicAuth;
+
+impl Authenticator for TestBasicAuth {
+    fn host(&self) -> &str {
+        ""
+    }
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
+        Box::pin(async {
+            let mut headers = HashMap::new();
+            // base64("admin:password") = YWRtaW46cGFzc3dvcmQ=
+            headers.insert(
+                "Authorization".to_string(),
+                "Basic YWRtaW46cGFzc3dvcmQ=".to_string(),
+            );
+            headers
+        })
+    }
+}
 
 fn new_pet_api_for_integration() -> PetApi {
     let base_url = testcontainers_helper::prism_url();
@@ -25,6 +72,14 @@ fn new_pet_api_for_integration() -> PetApi {
         .build();
     let client = DefaultApiClient::new(None);
     PetApi::new(Arc::new(client), config, None)
+}
+
+fn bearer_auth() -> TestBearerAuth {
+    TestBearerAuth
+}
+
+fn basic_auth() -> TestBasicAuth {
+    TestBasicAuth
 }
 
 /// Starts a minimal HTTP mock server and returns a PetApi configured against it.
@@ -62,6 +117,36 @@ fn new_pet_api_for_mock(status: u16, content_type: &str, body: &str) -> (PetApi,
 }
 
 #[tokio::test]
+async fn test_pet_api_add_pet() {
+    let api = new_pet_api_for_integration();
+    let auth = bearer_auth();
+    let pet = Pet::new(
+        "Fido".to_string(),
+        vec!["http://example.com/fido.jpg".to_string()],
+    );
+    let result = api.add_pet(&auth, pet).await;
+    assert!(result.is_ok(), "add_pet failed: {:?}", result.err());
+}
+
+#[tokio::test]
+async fn test_pet_api_add_pet_with_http_info() {
+    let api = new_pet_api_for_integration();
+    let auth = bearer_auth();
+    let pet = Pet::new(
+        "Buddy".to_string(),
+        vec!["http://example.com/buddy.jpg".to_string()],
+    );
+    let result = api.add_pet_with_http_info(&auth, pet).await;
+    assert!(
+        result.is_ok(),
+        "add_pet_with_http_info failed: {:?}",
+        result.err()
+    );
+    let api_result = result.unwrap();
+    assert!(api_result.status_code >= 200 && api_result.status_code < 300);
+}
+
+#[tokio::test]
 async fn test_pet_api_get_pet_by_id() {
     let api = new_pet_api_for_integration();
     let result = api.get_pet_by_id(1, None).await;
@@ -69,12 +154,84 @@ async fn test_pet_api_get_pet_by_id() {
 }
 
 #[tokio::test]
+async fn test_pet_api_get_pet_by_id_with_http_info() {
+    let api = new_pet_api_for_integration();
+    let result = api.get_pet_by_id_with_http_info(1, None).await;
+    assert!(
+        result.is_ok(),
+        "get_pet_by_id_with_http_info failed: {:?}",
+        result.err()
+    );
+    let api_result = result.unwrap();
+    assert_eq!(api_result.status_code, 200);
+}
+
+#[tokio::test]
+async fn test_pet_api_update_pet() {
+    let api = new_pet_api_for_integration();
+    let pet = Pet::new(
+        "UpdatedFido".to_string(),
+        vec!["http://example.com/fido-updated.jpg".to_string()],
+    );
+    let result = api.update_pet(1, pet).await;
+    assert!(result.is_ok(), "update_pet failed: {:?}", result.err());
+}
+
+#[tokio::test]
+async fn test_pet_api_update_pet_with_http_info() {
+    let api = new_pet_api_for_integration();
+    let pet = Pet::new(
+        "UpdatedFido".to_string(),
+        vec!["http://example.com/fido-updated.jpg".to_string()],
+    );
+    let result = api.update_pet_with_http_info(1, pet).await;
+    assert!(
+        result.is_ok(),
+        "update_pet_with_http_info failed: {:?}",
+        result.err()
+    );
+}
+
+#[tokio::test]
+async fn test_pet_api_delete_pet() {
+    let api = new_pet_api_for_integration();
+    let auth = basic_auth();
+    let result = api.delete_pet(&auth, 1, None).await;
+    assert!(result.is_ok(), "delete_pet failed: {:?}", result.err());
+}
+
+#[tokio::test]
+async fn test_pet_api_delete_pet_with_http_info() {
+    let api = new_pet_api_for_integration();
+    let auth = basic_auth();
+    let result = api.delete_pet_with_http_info(&auth, 1, None).await;
+    assert!(
+        result.is_ok(),
+        "delete_pet_with_http_info failed: {:?}",
+        result.err()
+    );
+}
+
+#[tokio::test]
 async fn test_pet_api_find_pets_by_status() {
     let api = new_pet_api_for_integration();
-    let result = api.find_pets_by_status(None).await;
+    let opts = FindPetsByStatusOptions::new().status("available".to_string());
+    let result = api.find_pets_by_status(Some(&opts)).await;
     assert!(
         result.is_ok(),
         "FindPetsByStatus failed: {:?}",
+        result.err()
+    );
+}
+
+#[tokio::test]
+async fn test_pet_api_find_pets_by_status_with_http_info() {
+    let api = new_pet_api_for_integration();
+    let opts = FindPetsByStatusOptions::new().status("available".to_string());
+    let result = api.find_pets_by_status_with_http_info(Some(&opts)).await;
+    assert!(
+        result.is_ok(),
+        "find_pets_by_status_with_http_info failed: {:?}",
         result.err()
     );
 }
@@ -85,6 +242,96 @@ async fn test_pet_api_get_pet_passport() {
     let result = api.get_pet_passport(1).await;
     assert!(result.is_ok(), "GetPetPassport failed: {:?}", result.err());
 }
+
+#[tokio::test]
+async fn test_pet_api_get_pet_passport_with_http_info() {
+    let api = new_pet_api_for_integration();
+    let result = api.get_pet_passport_with_http_info(1).await;
+    assert!(
+        result.is_ok(),
+        "get_pet_passport_with_http_info failed: {:?}",
+        result.err()
+    );
+}
+
+#[tokio::test]
+async fn test_pet_api_set_pet_avatar() {
+    let api = new_pet_api_for_integration();
+    let image_bytes: Vec<u8> = vec![0xFF, 0xD8, 0xFF, 0xE0];
+    let result = api.set_pet_avatar(1, image_bytes).await;
+    assert!(result.is_ok(), "set_pet_avatar failed: {:?}", result.err());
+}
+
+#[tokio::test]
+async fn test_pet_api_get_pet_avatar() {
+    let api = new_pet_api_for_integration();
+    let result = api.get_pet_avatar(1).await;
+    assert!(result.is_ok(), "get_pet_avatar failed: {:?}", result.err());
+}
+
+#[tokio::test]
+async fn test_pet_api_get_pet_avatar_thumbnail() {
+    let api = new_pet_api_for_integration();
+    let result = api.get_pet_avatar_thumbnail(1).await;
+    assert!(
+        result.is_ok(),
+        "get_pet_avatar_thumbnail failed: {:?}",
+        result.err()
+    );
+}
+
+// skip: SetPetAvatarThumbnailRequest is a generated oneOf enum whose variants
+// require constructing serializable byte arrays that Prism rejects as malformed
+// multipart input; covered indirectly via the Java/Python integration suites.
+
+#[tokio::test]
+async fn test_pet_api_upload_pet_certificate() {
+    let api = new_pet_api_for_integration();
+    let opts = UploadPetCertificateOptions {
+        file: b"certificate-content".to_vec(),
+    };
+    let result = api.upload_pet_certificate(1, Some(&opts)).await;
+    assert!(
+        result.is_ok(),
+        "upload_pet_certificate failed: {:?}",
+        result.err()
+    );
+}
+
+#[tokio::test]
+async fn test_pet_api_upload_pet_document() {
+    let api = new_pet_api_for_integration();
+    let opts = UploadPetDocumentOptions::new()
+        .document_type("vaccination_record".to_string())
+        .notes("Annual checkup".to_string());
+    let opts = UploadPetDocumentOptions {
+        file: b"document-content".to_vec(),
+        ..opts
+    };
+    let result = api.upload_pet_document(1, Some(&opts)).await;
+    assert!(
+        result.is_ok(),
+        "upload_pet_document failed: {:?}",
+        result.err()
+    );
+}
+
+// skip: Prism does not validate multipart array fields correctly (add_pet_photos).
+
+#[tokio::test]
+async fn test_pet_api_download_pet_document() {
+    let api = new_pet_api_for_integration();
+    let result = api.download_pet_document(1, 1).await;
+    assert!(
+        result.is_ok(),
+        "download_pet_document failed: {:?}",
+        result.err()
+    );
+}
+
+// skip: Prism returns JSON for image content type (get_pet_photo).
+
+// skip: Per-operation server URL points to external host (get_external_pet_info).
 
 #[tokio::test]
 async fn test_pet_api_error_handling_not_found() {

@@ -4,10 +4,12 @@ package {{packageName}}_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"{{packageName}}/pkg"
 	"{{packageName}}/pkg/models"
+	"{{packageName}}/pkg/options"
 )
 
 // petAuth implements Authenticator for PetApi integration tests.
@@ -33,6 +35,26 @@ func newPetApiForMock(t *testing.T, server *httptest.Server) *{{packageName}}.Pe
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL(server.URL).Build()
 	client := {{packageName}}.NewDefaultApiClient(nil)
 	return {{packageName}}.NewPetApi(client, config, nil)
+}
+
+// newTempFile returns a temp *os.File with the supplied contents, registered for cleanup.
+func newTempFile(t *testing.T, contents string) *os.File {
+	t.Helper()
+	f, err := os.CreateTemp("", "pet-test-*")
+	if err != nil {
+		t.Fatalf("CreateTemp failed: %v", err)
+	}
+	if _, err := f.WriteString(contents); err != nil {
+		t.Fatalf("write temp failed: %v", err)
+	}
+	if _, err := f.Seek(0, 0); err != nil {
+		t.Fatalf("seek temp failed: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = f.Close()
+		_ = os.Remove(f.Name())
+	})
+	return f
 }
 
 func TestPetApi_AddPet(t *testing.T) {
@@ -121,6 +143,23 @@ func TestPetApi_UpdatePet(t *testing.T) {
 	}
 }
 
+func TestPetApi_UpdatePetWithHTTPInfo(t *testing.T) {
+	api := newPetApiForIntegration(t)
+
+	pet := models.NewPet("UpdatedFido", []string{"http://example.com/fido-updated.jpg"})
+
+	result, err := api.UpdatePetWithHTTPInfo(int64(1), *pet)
+	if err != nil {
+		t.Fatalf("UpdatePetWithHTTPInfo failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if result.StatusCode < 200 || result.StatusCode >= 300 {
+		t.Errorf("expected 2xx status, got %d", result.StatusCode)
+	}
+}
+
 func TestPetApi_DeletePet(t *testing.T) {
 	api := newPetApiForIntegration(t)
 	auth := &petAuth{}
@@ -131,15 +170,48 @@ func TestPetApi_DeletePet(t *testing.T) {
 	}
 }
 
+func TestPetApi_DeletePetWithHTTPInfo(t *testing.T) {
+	api := newPetApiForIntegration(t)
+	auth := &petAuth{}
+
+	result, err := api.DeletePetWithHTTPInfo(auth, int64(1), nil)
+	if err != nil {
+		t.Fatalf("DeletePetWithHTTPInfo failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if result.StatusCode < 200 || result.StatusCode >= 300 {
+		t.Errorf("expected 2xx status, got %d", result.StatusCode)
+	}
+}
+
 func TestPetApi_FindPetsByStatus(t *testing.T) {
 	api := newPetApiForIntegration(t)
 
-	result, err := api.FindPetsByStatus(nil)
+	status := "available"
+	result, err := api.FindPetsByStatus(&options.FindPetsByStatusOptions{Status: &status})
 	if err != nil {
 		t.Fatalf("FindPetsByStatus failed: %v", err)
 	}
 	if result == nil {
 		t.Fatal("expected non-nil result from FindPetsByStatus")
+	}
+}
+
+func TestPetApi_FindPetsByStatusWithHTTPInfo(t *testing.T) {
+	api := newPetApiForIntegration(t)
+
+	status := "available"
+	result, err := api.FindPetsByStatusWithHTTPInfo(&options.FindPetsByStatusOptions{Status: &status})
+	if err != nil {
+		t.Fatalf("FindPetsByStatusWithHTTPInfo failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if result.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", result.StatusCode)
 	}
 }
 
@@ -154,6 +226,101 @@ func TestPetApi_GetPetPassport(t *testing.T) {
 		t.Fatal("expected non-nil result from GetPetPassport")
 	}
 }
+
+func TestPetApi_GetPetPassportWithHTTPInfo(t *testing.T) {
+	api := newPetApiForIntegration(t)
+
+	result, err := api.GetPetPassportWithHTTPInfo(int64(1))
+	if err != nil {
+		t.Fatalf("GetPetPassportWithHTTPInfo failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if result.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", result.StatusCode)
+	}
+}
+
+func TestPetApi_SetPetAvatar(t *testing.T) {
+	api := newPetApiForIntegration(t)
+	f := newTempFile(t, "fake-image-data")
+
+	if err := api.SetPetAvatar(int64(1), f); err != nil {
+		t.Fatalf("SetPetAvatar failed: %v", err)
+	}
+}
+
+func TestPetApi_GetPetAvatar(t *testing.T) {
+	api := newPetApiForIntegration(t)
+
+	_, err := api.GetPetAvatar(int64(1))
+	if err != nil {
+		t.Fatalf("GetPetAvatar failed: %v", err)
+	}
+}
+
+func TestPetApi_GetPetAvatarThumbnail(t *testing.T) {
+	api := newPetApiForIntegration(t)
+
+	result, err := api.GetPetAvatarThumbnail(int64(1))
+	if err != nil {
+		t.Fatalf("GetPetAvatarThumbnail failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+}
+
+// skip: SetPetAvatarThumbnailRequest is a generated oneOf type with no public constructor,
+// so it cannot be invoked from a test in Go.
+
+func TestPetApi_UploadPetCertificate(t *testing.T) {
+	api := newPetApiForIntegration(t)
+	f := newTempFile(t, "certificate-content")
+
+	result, err := api.UploadPetCertificate(int64(1), &options.UploadPetCertificateOptions{File: f})
+	if err != nil {
+		t.Fatalf("UploadPetCertificate failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+}
+
+func TestPetApi_UploadPetDocument(t *testing.T) {
+	api := newPetApiForIntegration(t)
+	f := newTempFile(t, "document-content")
+	docType := "vaccination_record"
+	notes := "Annual checkup"
+
+	result, err := api.UploadPetDocument(int64(1), &options.UploadPetDocumentOptions{
+		File:         f,
+		DocumentType: &docType,
+		Notes:        &notes,
+	})
+	if err != nil {
+		t.Fatalf("UploadPetDocument failed: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+}
+
+// skip: Prism does not validate multipart array fields correctly (AddPetPhotos).
+
+func TestPetApi_DownloadPetDocument(t *testing.T) {
+	api := newPetApiForIntegration(t)
+
+	_, err := api.DownloadPetDocument(int64(1), int64(1))
+	if err != nil {
+		t.Fatalf("DownloadPetDocument failed: %v", err)
+	}
+}
+
+// skip: Prism returns JSON for image content type (GetPetPhoto).
+
+// skip: Per-operation server URL points to external host (GetExternalPetInfo).
 
 func TestPetApi_DownloadBinaryMock(t *testing.T) {
 	binaryData := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}

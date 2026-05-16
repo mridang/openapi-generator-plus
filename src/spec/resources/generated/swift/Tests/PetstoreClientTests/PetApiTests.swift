@@ -79,6 +79,16 @@ final class PetApiTests {
     #expect(result != nil)
   }
 
+  @Test func testUpdatePetWithHTTPInfo() async throws {
+    let api = petApiForIntegration()
+
+    let pet = Pet(name: "UpdatedFido", photoUrls: ["http://example.com/fido-updated.jpg"])
+
+    let result = try await api.updatePetWithHTTPInfo(petId: 1, pet: pet)
+    #expect(result.statusCode >= 200)
+    #expect(result.statusCode < 300)
+  }
+
   @Test func testDeletePet() async throws {
     let api = petApiForIntegration()
     let auth = TestAuthenticator()
@@ -86,11 +96,29 @@ final class PetApiTests {
     try await api.deletePet(auth: auth, petId: 1, options: nil)
   }
 
+  @Test func testDeletePetWithHTTPInfo() async throws {
+    let api = petApiForIntegration()
+    let auth = TestAuthenticator()
+
+    let result = try await api.deletePetWithHTTPInfo(auth: auth, petId: 1, options: nil)
+    #expect(result.statusCode >= 200)
+    #expect(result.statusCode < 300)
+  }
+
   @Test func testFindPetsByStatus() async throws {
     let api = petApiForIntegration()
 
-    let result = try await api.findPetsByStatus()
+    let result = try await api.findPetsByStatus(
+      options: FindPetsByStatusOptions(status: "available"))
     #expect(result != nil)
+  }
+
+  @Test func testFindPetsByStatusWithHTTPInfo() async throws {
+    let api = petApiForIntegration()
+
+    let result = try await api.findPetsByStatusWithHTTPInfo(
+      options: FindPetsByStatusOptions(status: "available"))
+    #expect(result.statusCode == 200)
   }
 
   @Test func testGetPetPassport() async throws {
@@ -99,6 +127,71 @@ final class PetApiTests {
     let result = try await api.getPetPassport(petId: 1)
     #expect(result != nil)
   }
+
+  @Test func testGetPetPassportWithHTTPInfo() async throws {
+    let api = petApiForIntegration()
+
+    let result = try await api.getPetPassportWithHTTPInfo(petId: 1)
+    #expect(result.statusCode == 200)
+  }
+
+  @Test func testSetPetAvatar() async throws {
+    let api = petApiForIntegration()
+    let imageData = Data([0xFF, 0xD8, 0xFF, 0xE0])
+
+    try await api.setPetAvatar(petId: 1, body: imageData)
+  }
+
+  @Test func testGetPetAvatar() async throws {
+    let api = petApiForIntegration()
+
+    let result = try await api.getPetAvatar(petId: 1)
+    #expect(result != nil)
+  }
+
+  @Test func testGetPetAvatarThumbnail() async throws {
+    let api = petApiForIntegration()
+
+    let result = try await api.getPetAvatarThumbnail(petId: 1)
+    #expect(result != nil)
+  }
+
+  // skip: SetPetAvatarThumbnailRequest has no public constructor accepting binary input
+  // (decoder-only union type), so it cannot be invoked directly from a test.
+
+  @Test func testUploadPetCertificate() async throws {
+    let api = petApiForIntegration()
+    let fakeCert = Data("fake-pdf-data".utf8)
+
+    let result = try await api.uploadPetCertificate(
+      petId: 1, options: UploadPetCertificateOptions(file: fakeCert))
+    #expect(result != nil)
+  }
+
+  @Test func testUploadPetDocument() async throws {
+    let api = petApiForIntegration()
+    let fakeDoc = Data("fake-doc-data".utf8)
+
+    let result = try await api.uploadPetDocument(
+      petId: 1,
+      options: UploadPetDocumentOptions(
+        file: fakeDoc, documentType: "vaccination_record", notes: "Annual checkup")
+    )
+    #expect(result != nil)
+  }
+
+  // skip: Prism does not validate multipart array fields correctly (addPetPhotos).
+
+  @Test func testDownloadPetDocument() async throws {
+    let api = petApiForIntegration()
+
+    let result = try await api.downloadPetDocument(petId: 1, documentId: 1)
+    #expect(result != nil)
+  }
+
+  // skip: Prism returns JSON for image content type (getPetPhoto).
+
+  // skip: Per-operation server URL points to external host (getExternalPetInfo).
 }
 
 /// Test authenticator for integration tests.

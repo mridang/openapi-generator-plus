@@ -55,11 +55,6 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec delete_order(t(), integer()) ::
           {:ok, nil} | {:error, term()}
   def delete_order(%__MODULE__{} = api, order_id) do
-    if is_nil(order_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
-    end
-
     case delete_order_with_http_info(api, order_id) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -186,11 +181,6 @@ defmodule PetstoreClient.Api.StoreApi do
   @spec get_order_by_id(t(), integer()) ::
           {:ok, Order} | {:error, term()}
   def get_order_by_id(%__MODULE__{} = api, order_id) do
-    if is_nil(order_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
-    end
-
     case get_order_by_id_with_http_info(api, order_id) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error

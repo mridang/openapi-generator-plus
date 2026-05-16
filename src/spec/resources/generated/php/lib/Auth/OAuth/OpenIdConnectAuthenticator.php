@@ -57,6 +57,12 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
     /** @var OAuth2AuthorizationCodeAuthenticator|null The delegate authenticator. */
     private ?OAuth2AuthorizationCodeAuthenticator $delegate = null;
 
+    /** @var int Unix timestamp at which the cached discovery document expires. */
+    private int $discoveryExpiry = 0;
+
+    /** RFC 8414 recommended default max-age for OIDC discovery documents. */
+    private const DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86400;
+
     /**
      * Create a new OpenID Connect authenticator.
      *
@@ -102,43 +108,68 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
      */
     private function getDelegate(): OAuth2AuthorizationCodeAuthenticator
     {
-        if (!$this->delegate instanceof OAuth2AuthorizationCodeAuthenticator) {
-            if (!$this->apiClient instanceof ApiClient) {
-                throw new \RuntimeException(
-                    'ApiClient has not been injected. '
-                    . 'Ensure the Client constructor calls setApiClient() '
-                    . 'on HttpAwareAuthenticator before making API requests.'
-                );
-            }
-
-            $response = $this->apiClient->sendRequest(
-                'GET',
-                $this->openIdConnectUrl,
-                ['Accept' => 'application/json'],
-                null
-            );
-
-            if ($response->statusCode < 200 || $response->statusCode >= 300) {
-                throw new \RuntimeException(
-                    'Failed to fetch OpenID Connect discovery document: HTTP ' . $response->statusCode
-                );
-            }
-
-            /** @var array{authorization_endpoint: string, token_endpoint: string} $discovery */
-            $discovery = json_decode($response->body, true);
-            $this->delegate = new OAuth2AuthorizationCodeAuthenticator(
-                $this->host,
-                $this->clientId,
-                $this->clientSecret,
-                $discovery['authorization_endpoint'],
-                $discovery['token_endpoint'],
-                $this->redirectUri,
-                $this->scopes
-            );
-            $this->delegate->setApiClient($this->apiClient);
+        if (
+            $this->delegate instanceof OAuth2AuthorizationCodeAuthenticator
+            && time() < $this->discoveryExpiry
+        ) {
+            return $this->delegate;
         }
 
+        if (!$this->apiClient instanceof ApiClient) {
+            throw new \RuntimeException(
+                'ApiClient has not been injected. '
+                . 'Ensure the Client constructor calls setApiClient() '
+                . 'on HttpAwareAuthenticator before making API requests.'
+            );
+        }
+
+        $response = $this->apiClient->sendRequest(
+            'GET',
+            $this->openIdConnectUrl,
+            ['Accept' => 'application/json'],
+            null
+        );
+
+        if ($response->statusCode < 200 || $response->statusCode >= 300) {
+            throw new \RuntimeException(
+                'Failed to fetch OpenID Connect discovery document: HTTP ' . $response->statusCode
+            );
+        }
+
+        /** @var array{authorization_endpoint: string, token_endpoint: string} $discovery */
+        $discovery = json_decode($response->body, true);
+        $this->delegate = new OAuth2AuthorizationCodeAuthenticator(
+            $this->host,
+            $this->clientId,
+            $this->clientSecret,
+            $discovery['authorization_endpoint'],
+            $discovery['token_endpoint'],
+            $this->redirectUri,
+            $this->scopes
+        );
+        $this->delegate->setApiClient($this->apiClient);
+        $this->discoveryExpiry = time() + $this->parseMaxAge($response->headers);
+
         return $this->delegate;
+    }
+
+    /**
+     * Parse `Cache-Control: max-age=<seconds>` from response headers.
+     *
+     * @param array<string, string> $headers response headers
+     * @return int the parsed max-age in seconds, or 86400 (RFC 8414 default) if absent
+     */
+    private function parseMaxAge(array $headers): int
+    {
+        foreach ($headers as $name => $value) {
+            if (strcasecmp((string) $name, 'Cache-Control') === 0) {
+                if (preg_match('/max-age=(\d+)/i', (string) $value, $matches) === 1) {
+                    return (int) $matches[1];
+                }
+                return self::DEFAULT_DISCOVERY_MAX_AGE_SECONDS;
+            }
+        }
+        return self::DEFAULT_DISCOVERY_MAX_AGE_SECONDS;
     }
 
     /**

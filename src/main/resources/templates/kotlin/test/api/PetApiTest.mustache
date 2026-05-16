@@ -9,6 +9,7 @@ import {{invokerPackage}}.auth.AdminBasicAuthenticator
 import {{invokerPackage}}.auth.PetStoreBearerAuthenticator
 import {{apiPackage}}.options.FindPetsByStatusOptions
 import {{apiPackage}}.options.UploadPetCertificateOptions
+import {{apiPackage}}.options.UploadPetDocumentOptions
 import {{modelPackage}}.*
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -118,9 +119,32 @@ class PetApiTest {
         }
 
         @Test
+        @DisplayName("updatePet with HttpInfo returns status")
+        fun testUpdatePetWithHttpInfo() {
+            val pet = Pet(
+                name = "UpdatedDog",
+                photoUrls = setOf("http://example.com/updated.jpg")
+            )
+
+            val result = runBlocking { api.updatePetWithHttpInfo(1L, pet) }
+
+            assertNotNull(result)
+            assertTrue(result.statusCode in 200..299)
+        }
+
+        @Test
         @DisplayName("deletePet deletes a pet")
         fun testDeletePet() {
             assertDoesNotThrow { runBlocking { api.deletePet(basicAuth, 1L, null) } }
+        }
+
+        @Test
+        @DisplayName("deletePet with HttpInfo returns status")
+        fun testDeletePetWithHttpInfo() {
+            val result = runBlocking { api.deletePetWithHttpInfo(basicAuth, 1L, null) }
+
+            assertNotNull(result)
+            assertTrue(result.statusCode in 200..299)
         }
 
         @Test
@@ -137,6 +161,19 @@ class PetApiTest {
         }
 
         @Test
+        @DisplayName("findPetsByStatus with HttpInfo returns status")
+        fun testFindPetsByStatusWithHttpInfo() {
+            val result = runBlocking {
+                api.findPetsByStatusWithHttpInfo(
+                    FindPetsByStatusOptions().status("available")
+                )
+            }
+
+            assertNotNull(result)
+            assertTrue(result.statusCode in 200..299)
+        }
+
+        @Test
         @DisplayName("getPetPassport returns passport with embedded fields")
         fun testGetPetPassport() {
             val result = runBlocking { api.getPetPassport(1L) }
@@ -147,6 +184,82 @@ class PetApiTest {
             assertNotNull(result.scans)
             assertNotNull(result.issuedAt)
         }
+
+        @Test
+        @DisplayName("getPetPassport with HttpInfo returns status")
+        fun testGetPetPassportWithHttpInfo() {
+            val result = runBlocking { api.getPetPassportWithHttpInfo(1L) }
+
+            assertNotNull(result)
+            assertTrue(result.statusCode in 200..299)
+        }
+
+        @Test
+        @DisplayName("setPetAvatar sends binary body")
+        fun testSetPetAvatar() {
+            val imageData = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())
+
+            assertDoesNotThrow { runBlocking { api.setPetAvatar(1L, imageData) } }
+        }
+
+        @Test
+        @DisplayName("getPetAvatar returns binary data")
+        fun testGetPetAvatar() {
+            val result = runBlocking { api.getPetAvatar(1L) }
+
+            assertNotNull(result)
+        }
+
+        @Test
+        @DisplayName("getPetAvatarThumbnail returns binary data")
+        fun testGetPetAvatarThumbnail() {
+            val result = runBlocking { api.getPetAvatarThumbnail(1L) }
+
+            assertNotNull(result)
+        }
+
+        @Test
+        @DisplayName("setPetAvatarThumbnail accepts base64 payload")
+        fun testSetPetAvatarThumbnail() {
+            val request = SetPetAvatarThumbnailRequest(actualInstance = byteArrayOf(0x89.toByte(), 0x50, 0x4E, 0x47))
+
+            assertDoesNotThrow { runBlocking { api.setPetAvatarThumbnail(1L, request) } }
+        }
+
+        @Test
+        @DisplayName("uploadPetCertificate uploads a single file")
+        fun testUploadPetCertificate() {
+            val fileBytes = byteArrayOf(0x25, 0x50, 0x44, 0x46)
+            val result = runBlocking { api.uploadPetCertificate(1L, UploadPetCertificateOptions(fileBytes)) }
+
+            assertNotNull(result)
+        }
+
+        @Test
+        @DisplayName("uploadPetDocument uploads with classification fields")
+        fun testUploadPetDocument() {
+            val fileBytes = "fake-doc-data".toByteArray()
+            val options = UploadPetDocumentOptions(fileBytes)
+                .documentType("vaccination_record")
+                .notes("Annual checkup")
+            val result = runBlocking { api.uploadPetDocument(1L, options) }
+
+            assertNotNull(result)
+        }
+
+        // skip: Prism does not validate multipart array fields correctly (addPetPhotos).
+
+        @Test
+        @DisplayName("downloadPetDocument returns binary data")
+        fun testDownloadPetDocument() {
+            val result = runBlocking { api.downloadPetDocument(1L, 1L) }
+
+            assertNotNull(result)
+        }
+
+        // skip: Prism returns JSON for image content type (getPetPhoto).
+
+        // skip: Per-operation server URL points to external host (getExternalPetInfo).
     }
 
     @Nested
@@ -155,7 +268,7 @@ class PetApiTest {
 
         @Test
         @DisplayName("setPetAvatar sends binary body")
-        fun testSetPetAvatar() {
+        fun testSetPetAvatarMock() {
             var capturedMethod: String? = null
             var capturedPath: String? = null
             var capturedBodyBytes: ByteArray? = null

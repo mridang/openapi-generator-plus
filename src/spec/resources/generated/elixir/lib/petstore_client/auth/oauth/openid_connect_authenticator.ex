@@ -29,7 +29,8 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
           redirect_uri: String.t(),
           scopes: [String.t()],
           api_client: term() | nil,
-          delegate: term() | nil
+          delegate: term() | nil,
+          discovery_expiry: integer() | nil
         }
 
   defstruct [
@@ -40,8 +41,12 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     :redirect_uri,
     :scopes,
     :api_client,
-    :delegate
+    :delegate,
+    :discovery_expiry
   ]
+
+  # RFC 8414 recommended default max-age for OIDC discovery documents.
+  @default_discovery_max_age_seconds 86_400
 
   @doc """
   Create a new OpenID Connect authenticator.
@@ -66,7 +71,8 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
       redirect_uri: redirect_uri,
       scopes: scopes,
       api_client: nil,
-      delegate: nil
+      delegate: nil,
+      discovery_expiry: 0
     }
   end
 
@@ -103,7 +109,14 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
     PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.auth_headers(self.delegate)
   end
 
-  defp resolve_delegate(%__MODULE__{delegate: delegate} = self) when not is_nil(delegate), do: self
+  defp resolve_delegate(%__MODULE__{delegate: delegate, discovery_expiry: expiry} = self)
+       when not is_nil(delegate) do
+    if expiry != nil and System.system_time(:second) < expiry do
+      self
+    else
+      fetch_discovery(self)
+    end
+  end
 
   defp resolve_delegate(%__MODULE__{api_client: nil}) do
     raise "ApiClient has not been injected. " <>
@@ -111,7 +124,15 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
             "on HttpAwareAuthenticator before making API requests."
   end
 
-  defp resolve_delegate(%__MODULE__{} = self) do
+  defp resolve_delegate(%__MODULE__{} = self), do: fetch_discovery(self)
+
+  defp fetch_discovery(%__MODULE__{api_client: nil}) do
+    raise "ApiClient has not been injected. " <>
+            "Ensure the Client constructor calls set_api_client " <>
+            "on HttpAwareAuthenticator before making API requests."
+  end
+
+  defp fetch_discovery(%__MODULE__{} = self) do
     headers = %{"Accept" => "application/json"}
 
     response =
@@ -134,6 +155,34 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator do
       )
 
     delegate = PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(delegate, self.api_client)
-    %{self | delegate: delegate}
+    response_headers = Map.get(response, :headers, %{}) || %{}
+    expiry = System.system_time(:second) + parse_max_age(response_headers)
+    %{self | delegate: delegate, discovery_expiry: expiry}
   end
+
+  # Parse `Cache-Control: max-age=<seconds>` from response headers.
+  # Returns 86400 (RFC 8414 default) if the header is absent or does not
+  # contain a `max-age` directive.
+  defp parse_max_age(headers) when is_map(headers) do
+    cache_control =
+      Enum.find_value(headers, nil, fn {k, v} ->
+        if is_binary(k) and String.downcase(k) == "cache-control", do: v, else: nil
+      end)
+
+    case cache_control do
+      nil ->
+        @default_discovery_max_age_seconds
+
+      value when is_binary(value) ->
+        case Regex.run(~r/max-age=(\d+)/i, value) do
+          [_, seconds] -> String.to_integer(seconds)
+          _ -> @default_discovery_max_age_seconds
+        end
+
+      _ ->
+        @default_discovery_max_age_seconds
+    end
+  end
+
+  defp parse_max_age(_), do: @default_discovery_max_age_seconds
 end

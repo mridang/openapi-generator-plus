@@ -14,9 +14,12 @@ import com.example.petstore.auth.HttpAwareAuthenticator;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
 /**
@@ -31,6 +34,10 @@ import javax.annotation.Nullable;
  */
 public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
 
+  private static final Pattern MAX_AGE_PATTERN =
+      Pattern.compile("max-age=(\\d+)", Pattern.CASE_INSENSITIVE);
+  private static final long DEFAULT_MAX_AGE_SECONDS = 86400L;
+
   private final String host;
   private final String openIdConnectUrl;
   private final String clientId;
@@ -39,6 +46,7 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
   private final List<String> scopes;
   @Nullable private ApiClient apiClient;
   @Nullable private OAuth2AuthorizationCodeAuthenticator delegate;
+  private Instant discoveryExpiry = Instant.EPOCH;
 
   /**
    * Create a new OpenID Connect authenticator.
@@ -71,36 +79,62 @@ public class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
   }
 
   private synchronized OAuth2AuthorizationCodeAuthenticator getDelegate() {
-    if (delegate == null) {
-      if (apiClient == null) {
-        throw new IllegalStateException(
-            "ApiClient has not been injected. "
-                + "Ensure the Client constructor calls setApiClient() "
-                + "on HttpAwareAuthenticator before making API requests.");
-      }
-      try {
-        Map<String, String> headers = new HashMap<>();
-        headers.put("Accept", "application/json");
-        ApiResponse response = apiClient.sendRequest("GET", openIdConnectUrl, headers, null);
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode discovery = mapper.readTree(response.body());
-        String authorizationEndpoint = discovery.get("authorization_endpoint").asText();
-        String tokenEndpoint = discovery.get("token_endpoint").asText();
-        delegate =
-            new OAuth2AuthorizationCodeAuthenticator(
-                host,
-                clientId,
-                clientSecret,
-                authorizationEndpoint,
-                tokenEndpoint,
-                redirectUri,
-                scopes);
-        delegate.setApiClient(apiClient);
-      } catch (ApiException | IOException e) {
-        throw new RuntimeException("Failed to fetch OpenID Connect discovery document", e);
-      }
+    if (delegate != null && Instant.now().isBefore(discoveryExpiry)) {
+      return delegate;
+    }
+    if (apiClient == null) {
+      throw new IllegalStateException(
+          "ApiClient has not been injected. "
+              + "Ensure the Client constructor calls setApiClient() "
+              + "on HttpAwareAuthenticator before making API requests.");
+    }
+    try {
+      Map<String, String> headers = new HashMap<>();
+      headers.put("Accept", "application/json");
+      ApiResponse response = apiClient.sendRequest("GET", openIdConnectUrl, headers, null);
+      ObjectMapper mapper = new ObjectMapper();
+      JsonNode discovery = mapper.readTree(response.body());
+      String authorizationEndpoint = discovery.get("authorization_endpoint").asText();
+      String tokenEndpoint = discovery.get("token_endpoint").asText();
+      delegate =
+          new OAuth2AuthorizationCodeAuthenticator(
+              host,
+              clientId,
+              clientSecret,
+              authorizationEndpoint,
+              tokenEndpoint,
+              redirectUri,
+              scopes);
+      delegate.setApiClient(apiClient);
+      discoveryExpiry = Instant.now().plusSeconds(parseMaxAge(response.headers()));
+    } catch (ApiException | IOException e) {
+      throw new RuntimeException("Failed to fetch OpenID Connect discovery document", e);
     }
     return delegate;
+  }
+
+  /**
+   * Parse {@code Cache-Control: max-age=<seconds>} from response headers.
+   *
+   * @param headers the response headers
+   * @return the parsed max-age in seconds, or 86400 (RFC 8414 default) if the header is absent or
+   *     does not contain a {@code max-age} directive
+   */
+  private static long parseMaxAge(Map<String, String> headers) {
+    for (Map.Entry<String, String> entry : headers.entrySet()) {
+      if ("Cache-Control".equalsIgnoreCase(entry.getKey())) {
+        Matcher matcher = MAX_AGE_PATTERN.matcher(entry.getValue());
+        if (matcher.find()) {
+          try {
+            return Long.parseLong(matcher.group(1));
+          } catch (NumberFormatException ignored) {
+            return DEFAULT_MAX_AGE_SECONDS;
+          }
+        }
+        break;
+      }
+    }
+    return DEFAULT_MAX_AGE_SECONDS;
   }
 
   /**

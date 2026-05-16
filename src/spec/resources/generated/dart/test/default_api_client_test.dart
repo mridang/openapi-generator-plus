@@ -222,7 +222,7 @@ void main() {
       };
       const body =
           '--test-boundary\r\nContent-Disposition: form-data; name="description"\r\n\r\nA test file\r\n--test-boundary--\r\n';
-      final resp = await client.sendRequest(
+      final resp = await cliconstendRequest(
         'POST',
         '$wiremockHttpUrl/api/test',
         headers,

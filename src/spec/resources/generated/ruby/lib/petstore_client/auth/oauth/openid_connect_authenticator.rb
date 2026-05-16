@@ -46,7 +46,11 @@ module PetstoreClient
           @scopes = scopes.freeze
           @api_client = nil
           @delegate = nil
+          @discovery_expiry = Time.at(0)
         end
+
+        # RFC 8414 recommended default max-age for OIDC discovery documents.
+        DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86_400
         # rubocop:enable Metrics/ParameterLists
 
         # Inject the shared API client for making discovery and token requests.
@@ -79,12 +83,14 @@ module PetstoreClient
         private
 
         # Lazily resolve the delegate by fetching the OIDC discovery document
-        # using the injected API client.
+        # using the injected API client. Honors the `Cache-Control: max-age=<seconds>`
+        # header from the discovery response; falls back to the RFC 8414
+        # recommended default of 86400 seconds when absent.
         #
         # @return [OAuth2AuthorizationCodeAuthenticator]
         # @raise [RuntimeError] if the API client has not been injected
         def resolve_delegate # rubocop:disable Metrics/MethodLength
-          return @delegate if @delegate
+          return @delegate if @delegate && Time.now < @discovery_expiry
 
           client = @api_client
           if client.nil?
@@ -103,7 +109,22 @@ module PetstoreClient
             @redirect_uri, @scopes
           )
           @delegate.api_client = client
+          @discovery_expiry = Time.now + parse_max_age(response.headers)
           @delegate
+        end
+
+        # Parse `Cache-Control: max-age=<seconds>` from response headers.
+        #
+        # @param headers [Hash{String => String}] response headers
+        # @return [Integer] the parsed max-age in seconds, or 86400 if absent
+        def parse_max_age(headers)
+          return DEFAULT_DISCOVERY_MAX_AGE_SECONDS if headers.nil?
+
+          cache_control = headers.find { |k, _| k.to_s.downcase == 'cache-control' }
+          return DEFAULT_DISCOVERY_MAX_AGE_SECONDS unless cache_control
+
+          match = cache_control[1].match(/max-age=(\d+)/i)
+          match ? match[1].to_i : DEFAULT_DISCOVERY_MAX_AGE_SECONDS
         end
       end
     end

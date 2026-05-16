@@ -16,10 +16,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import javax.annotation.Nullable;
-import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
-import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.utils.ModelUtils;
@@ -492,15 +490,6 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         return true;
     }
 
-    /** {@inheritDoc} */
-    @Override
-    protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
-        if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
-            final String enumValue = prop.defaultValue.substring(
-                    prop.defaultValue.lastIndexOf('.') + 1);
-            prop.defaultValue = "\"" + enumValue.toLowerCase(Locale.ROOT) + "\"";
-        }
-    }
 
     /** {@inheritDoc} */
     @Override

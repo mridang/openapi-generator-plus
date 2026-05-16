@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use crate::api_client::ApiClient;
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
@@ -32,6 +33,29 @@ pub struct OpenIdConnectAuthenticator {
     scopes: Vec<String>,
     api_client: Mutex<Option<Arc<dyn ApiClient>>>,
     delegate: Mutex<Option<OAuth2AuthorizationCodeAuthenticator>>,
+    discovery_expiry: Mutex<Option<Instant>>,
+}
+
+const DEFAULT_DISCOVERY_MAX_AGE_SECONDS: u64 = 86400;
+
+/// Parse `Cache-Control: max-age=<seconds>` from response headers.
+///
+/// Returns 86400 (RFC 8414 default) if the header is absent or does not
+/// contain a `max-age` directive.
+fn parse_max_age(headers: &HashMap<String, String>) -> u64 {
+    for (key, value) in headers {
+        if key.eq_ignore_ascii_case("cache-control") {
+            if let Some(idx) = value.to_ascii_lowercase().find("max-age=") {
+                let rest = &value[idx + "max-age=".len()..];
+                let digits: String = rest.chars().take_while(|c| c.is_ascii_digit()).collect();
+                if let Ok(seconds) = digits.parse::<u64>() {
+                    return seconds;
+                }
+            }
+            return DEFAULT_DISCOVERY_MAX_AGE_SECONDS;
+        }
+    }
+    DEFAULT_DISCOVERY_MAX_AGE_SECONDS
 }
 
 impl OpenIdConnectAuthenticator {
@@ -53,6 +77,7 @@ impl OpenIdConnectAuthenticator {
             scopes,
             api_client: Mutex::new(None),
             delegate: Mutex::new(None),
+            discovery_expiry: Mutex::new(None),
         }
     }
 
@@ -92,13 +117,22 @@ impl OpenIdConnectAuthenticator {
 
     /// Lazily resolves the delegate by fetching the OIDC discovery document
     /// using the injected API client. Stores the injected delegate in the
-    /// mutex for reuse.
+    /// mutex for reuse. Honors the `Cache-Control: max-age=<seconds>` header
+    /// from the discovery response; falls back to the RFC 8414 recommended
+    /// default of 86400 seconds when absent.
     async fn resolve_delegate(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        /* Fast path: delegate already resolved. */
+        /* Fast path: delegate already resolved and not yet expired. */
         {
             let delegate_guard = self.delegate.lock().unwrap();
+            let expiry_guard = self.discovery_expiry.lock().unwrap();
             if delegate_guard.is_some() {
-                return Ok(());
+                if let Some(expiry) = *expiry_guard {
+                    if Instant::now() < expiry {
+                        return Ok(());
+                    }
+                } else {
+                    return Ok(());
+                }
             }
         }
 
@@ -149,11 +183,13 @@ impl OpenIdConnectAuthenticator {
         /* Inject the API client into the delegate's token manager. */
         delegate.set_api_client(client);
 
+        let max_age = parse_max_age(&response.headers);
+        let new_expiry = Instant::now() + Duration::from_secs(max_age);
+
         let mut delegate_guard = self.delegate.lock().unwrap();
-        /* Guard against a concurrent resolver populating the delegate. */
-        if delegate_guard.is_none() {
-            *delegate_guard = Some(delegate);
-        }
+        let mut expiry_guard = self.discovery_expiry.lock().unwrap();
+        *delegate_guard = Some(delegate);
+        *expiry_guard = Some(new_expiry);
         Ok(())
     }
 }

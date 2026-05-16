@@ -170,11 +170,6 @@ defmodule PetstoreClient.Api.PetApi do
   @spec add_pet(t(), term(), Pet) ::
           {:ok, Pet} | {:error, term()}
   def add_pet(%__MODULE__{} = api, auth, pet) do
-    if is_nil(pet) do
-      raise ArgumentError,
-            "Missing the required parameter 'pet' when calling PetApi.add_pet"
-    end
-
     case add_pet_with_http_info(api, auth, pet) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -240,11 +235,6 @@ defmodule PetstoreClient.Api.PetApi do
   @spec add_pet_photos(t(), integer(), Options.t()) ::
           {:ok, [Photo]} | {:error, term()}
   def add_pet_photos(%__MODULE__{} = api, pet_id, options) do
-    if is_nil(pet_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
-    end
-
     case add_pet_photos_with_http_info(api, pet_id, options) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -320,16 +310,6 @@ defmodule PetstoreClient.Api.PetApi do
   @spec add_pet_treatment(t(), term(), integer(), PetTreatment) ::
           {:ok, PetTreatment} | {:error, term()}
   def add_pet_treatment(%__MODULE__{} = api, auth, pet_id, pet_treatment) do
-    if is_nil(pet_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.add_pet_treatment"
-    end
-
-    if is_nil(pet_treatment) do
-      raise ArgumentError,
-            "Missing the required parameter 'pet_treatment' when calling PetApi.add_pet_treatment"
-    end
-
     case add_pet_treatment_with_http_info(api, auth, pet_id, pet_treatment) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -409,11 +389,6 @@ defmodule PetstoreClient.Api.PetApi do
   @spec delete_pet(t(), term(), integer(), Options.t()) ::
           {:ok, nil} | {:error, term()}
   def delete_pet(%__MODULE__{} = api, auth, pet_id, options) do
-    if is_nil(pet_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
-    end
-
     case delete_pet_with_http_info(api, auth, pet_id, options) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -503,16 +478,6 @@ defmodule PetstoreClient.Api.PetApi do
   @spec download_pet_document(t(), integer(), integer()) ::
           {:ok, binary()} | {:error, term()}
   def download_pet_document(%__MODULE__{} = api, pet_id, document_id) do
-    if is_nil(pet_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.download_pet_document"
-    end
-
-    if is_nil(document_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'document_id' when calling PetApi.download_pet_document"
-    end
-
     case download_pet_document_with_http_info(api, pet_id, document_id) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -697,11 +662,6 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_external_pet_info(t(), integer(), keyword()) ::
           {:ok, Pet} | {:error, term()}
   def get_external_pet_info(%__MODULE__{} = api, pet_id, opts \\ []) do
-    if is_nil(pet_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_external_pet_info"
-    end
-
     case get_external_pet_info_with_http_info(api, pet_id, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -786,11 +746,6 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_multi_server_pet_info(t(), integer(), keyword()) ::
           {:ok, Pet} | {:error, term()}
   def get_multi_server_pet_info(%__MODULE__{} = api, pet_id, opts \\ []) do
-    if is_nil(pet_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_multi_server_pet_info"
-    end
-
     case get_multi_server_pet_info_with_http_info(api, pet_id, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -877,11 +832,6 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_pet_avatar(t(), integer()) ::
           {:ok, binary()} | {:error, term()}
   def get_pet_avatar(%__MODULE__{} = api, pet_id) do
-    if is_nil(pet_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar"
-    end
-
     case get_pet_avatar_with_http_info(api, pet_id) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -955,11 +905,6 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_pet_avatar_thumbnail(t(), integer()) ::
           {:ok, binary()} | {:error, term()}
   def get_pet_avatar_thumbnail(%__MODULE__{} = api, pet_id) do
-    if is_nil(pet_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar_thumbnail"
-    end
-
     case get_pet_avatar_thumbnail_with_http_info(api, pet_id) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -1036,11 +981,6 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_pet_by_id(t(), integer(), keyword()) ::
           {:ok, Pet} | {:error, term()}
   def get_pet_by_id(%__MODULE__{} = api, pet_id, opts \\ []) do
-    if is_nil(pet_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
-    end
-
     case get_pet_by_id_with_http_info(api, pet_id, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -1127,11 +1067,6 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_pet_passport(t(), integer()) ::
           {:ok, PetPassport} | {:error, term()}
   def get_pet_passport(%__MODULE__{} = api, pet_id) do
-    if is_nil(pet_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_passport"
-    end
-
     case get_pet_passport_with_http_info(api, pet_id) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -1206,16 +1141,6 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_pet_photo(t(), integer(), integer()) ::
           {:ok, binary()} | {:error, term()}
   def get_pet_photo(%__MODULE__{} = api, pet_id, photo_id) do
-    if is_nil(pet_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_photo"
-    end
-
-    if is_nil(photo_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'photo_id' when calling PetApi.get_pet_photo"
-    end
-
     case get_pet_photo_with_http_info(api, pet_id, photo_id) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -1304,16 +1229,6 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_pet_tag(t(), integer(), String.t(), Options.t()) ::
           {:ok, Pet} | {:error, term()}
   def get_pet_tag(%__MODULE__{} = api, pet_id, tag_name, options) do
-    if is_nil(pet_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_pet_tag"
-    end
-
-    if is_nil(tag_name) do
-      raise ArgumentError,
-            "Missing the required parameter 'tag_name' when calling PetApi.get_pet_tag"
-    end
-
     case get_pet_tag_with_http_info(api, pet_id, tag_name, options) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -1461,11 +1376,6 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_staging_pet_info(t(), integer(), keyword()) ::
           {:ok, Pet} | {:error, term()}
   def get_staging_pet_info(%__MODULE__{} = api, pet_id, opts \\ []) do
-    if is_nil(pet_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.get_staging_pet_info"
-    end
-
     case get_staging_pet_info_with_http_info(api, pet_id, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -1553,16 +1463,6 @@ defmodule PetstoreClient.Api.PetApi do
   @spec set_pet_avatar(t(), integer(), binary()) ::
           {:ok, nil} | {:error, term()}
   def set_pet_avatar(%__MODULE__{} = api, pet_id, body) do
-    if is_nil(pet_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar"
-    end
-
-    if is_nil(body) do
-      raise ArgumentError,
-            "Missing the required parameter 'body' when calling PetApi.set_pet_avatar"
-    end
-
     case set_pet_avatar_with_http_info(api, pet_id, body) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -1642,16 +1542,6 @@ defmodule PetstoreClient.Api.PetApi do
   @spec set_pet_avatar_thumbnail(t(), integer(), SetPetAvatarThumbnailRequest) ::
           {:ok, nil} | {:error, term()}
   def set_pet_avatar_thumbnail(%__MODULE__{} = api, pet_id, set_pet_avatar_thumbnail_request) do
-    if is_nil(pet_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar_thumbnail"
-    end
-
-    if is_nil(set_pet_avatar_thumbnail_request) do
-      raise ArgumentError,
-            "Missing the required parameter 'set_pet_avatar_thumbnail_request' when calling PetApi.set_pet_avatar_thumbnail"
-    end
-
     case set_pet_avatar_thumbnail_with_http_info(api, pet_id, set_pet_avatar_thumbnail_request) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -1729,16 +1619,6 @@ defmodule PetstoreClient.Api.PetApi do
   @spec update_pet(t(), integer(), Pet) ::
           {:ok, Pet} | {:error, term()}
   def update_pet(%__MODULE__{} = api, pet_id, pet) do
-    if is_nil(pet_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.update_pet"
-    end
-
-    if is_nil(pet) do
-      raise ArgumentError,
-            "Missing the required parameter 'pet' when calling PetApi.update_pet"
-    end
-
     case update_pet_with_http_info(api, pet_id, pet) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -1819,11 +1699,6 @@ defmodule PetstoreClient.Api.PetApi do
   @spec upload_pet_certificate(t(), integer(), Options.t()) ::
           {:ok, ApiResponse} | {:error, term()}
   def upload_pet_certificate(%__MODULE__{} = api, pet_id, options) do
-    if is_nil(pet_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
-    end
-
     case upload_pet_certificate_with_http_info(api, pet_id, options) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
@@ -1900,11 +1775,6 @@ defmodule PetstoreClient.Api.PetApi do
   @spec upload_pet_document(t(), integer(), Options.t()) ::
           {:ok, ApiResponse} | {:error, term()}
   def upload_pet_document(%__MODULE__{} = api, pet_id, options) do
-    if is_nil(pet_id) do
-      raise ArgumentError,
-            "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
-    end
-
     case upload_pet_document_with_http_info(api, pet_id, options) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error

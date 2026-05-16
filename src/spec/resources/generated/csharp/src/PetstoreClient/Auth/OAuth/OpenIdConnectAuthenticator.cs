@@ -8,6 +8,7 @@
 #pragma warning disable IDE0290 // Use primary constructor
 
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace PetstoreClient.Auth.OAuth;
 
@@ -32,6 +33,13 @@ public class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareAuthentic
     private readonly string[] _scopes;
     private IApiClient? _apiClient;
     private OAuth2AuthorizationCodeAuthenticator? _delegate;
+    private DateTimeOffset _discoveryExpiry = DateTimeOffset.MinValue;
+
+    private static readonly Regex MaxAgePattern = new(
+        "max-age=(\\d+)",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled
+    );
+    private const long DefaultMaxAgeSeconds = 86400L;
 
     /// <summary>
     /// Create a new OpenID Connect authenticator.
@@ -67,7 +75,7 @@ public class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareAuthentic
 
     private async Task<OAuth2AuthorizationCodeAuthenticator> GetDelegateAsync()
     {
-        if (_delegate is not null)
+        if (_delegate is not null && DateTimeOffset.UtcNow < _discoveryExpiry)
         {
             return _delegate;
         }
@@ -108,7 +116,33 @@ public class OpenIdConnectAuthenticator : BaseAuthenticator, IHttpAwareAuthentic
             _scopes
         );
         _delegate.SetApiClient(_apiClient);
+        _discoveryExpiry = DateTimeOffset.UtcNow.AddSeconds(ParseMaxAge(response.Headers));
         return _delegate;
+    }
+
+    /// <summary>
+    /// Parse <c>Cache-Control: max-age=&lt;seconds&gt;</c> from response headers.
+    /// </summary>
+    /// <param name="headers">The response headers.</param>
+    /// <returns>
+    /// The parsed max-age in seconds, or 86400 (RFC 8414 default) if the header
+    /// is absent or does not contain a <c>max-age</c> directive.
+    /// </returns>
+    private static long ParseMaxAge(Dictionary<string, string> headers)
+    {
+        foreach (KeyValuePair<string, string> entry in headers)
+        {
+            if (string.Equals(entry.Key, "Cache-Control", StringComparison.OrdinalIgnoreCase))
+            {
+                Match match = MaxAgePattern.Match(entry.Value);
+                if (match.Success && long.TryParse(match.Groups[1].Value, out long seconds))
+                {
+                    return seconds;
+                }
+                return DefaultMaxAgeSeconds;
+            }
+        }
+        return DefaultMaxAgeSeconds;
     }
 
     /// <summary>

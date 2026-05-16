@@ -1,11 +1,37 @@
 {{>api_info}}
 
 import json
-from typing import Dict, Optional, Sequence
+import re
+import time
+from typing import Dict, Mapping, Optional, Sequence
 
 from ...api_client import ApiClient
 from ..http_aware_authenticator import HttpAwareAuthenticator
 from .oauth2_auth_code_authenticator import OAuth2AuthorizationCodeAuthenticator
+
+# RFC 8414 recommended default max-age for OIDC discovery documents.
+_DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86400
+_MAX_AGE_PATTERN = re.compile(r'max-age=(\d+)', re.IGNORECASE)
+
+
+def _parse_max_age(headers: Optional[Mapping[str, str]]) -> int:
+    """Parse ``Cache-Control: max-age=<seconds>`` from response headers.
+
+    Returns 86400 (RFC 8414 default) if the header is absent or does not
+    contain a ``max-age`` directive.
+    """
+    if not headers:
+        return _DEFAULT_DISCOVERY_MAX_AGE_SECONDS
+    for key, value in headers.items():
+        if key.lower() == 'cache-control':
+            match = _MAX_AGE_PATTERN.search(value)
+            if match:
+                try:
+                    return int(match.group(1))
+                except ValueError:
+                    return _DEFAULT_DISCOVERY_MAX_AGE_SECONDS
+            return _DEFAULT_DISCOVERY_MAX_AGE_SECONDS
+    return _DEFAULT_DISCOVERY_MAX_AGE_SECONDS
 
 
 class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
@@ -48,6 +74,7 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
         self._scopes = tuple(scopes)
         self._api_client: Optional[ApiClient] = None
         self._delegate: Optional[OAuth2AuthorizationCodeAuthenticator] = None
+        self._discovery_expiry: float = 0.0
 
     def set_api_client(self, api_client: ApiClient) -> None:
         """Inject the shared API client for making HTTP requests.
@@ -60,6 +87,11 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
     def _get_delegate(self) -> OAuth2AuthorizationCodeAuthenticator:
         """Lazily discover the OIDC endpoints and create the delegate.
 
+        Honors the ``Cache-Control: max-age=<seconds>`` header from the
+        discovery response and re-fetches when the cached document is stale.
+        Defaults to the RFC 8414 recommended max-age of 86400 seconds when
+        the header is absent.
+
         Returns:
             The authorization code authenticator delegate.
 
@@ -67,28 +99,32 @@ class OpenIdConnectAuthenticator(HttpAwareAuthenticator):
             RuntimeError: If no API client has been injected or the
                 discovery request fails.
         """
-        if self._delegate is None:
-            if self._api_client is None:
-                raise RuntimeError(
-                    'ApiClient has not been injected. '
-                    'Ensure the {{clientClassName}} constructor calls set_api_client() '
-                    'on HttpAwareAuthenticator before making API requests.'
-                )
-            headers: Dict[str, str] = {'Accept': 'application/json'}
-            response = self._api_client.send_request('GET', self._openid_connect_url, headers, None)
-            discovery = json.loads(response.body)
-            authorization_endpoint = discovery['authorization_endpoint']
-            token_endpoint = discovery['token_endpoint']
-            self._delegate = OAuth2AuthorizationCodeAuthenticator(
-                self._host,
-                self._client_id,
-                self._client_secret,
-                authorization_endpoint,
-                token_endpoint,
-                self._redirect_uri,
-                self._scopes,
+        if self._delegate is not None and time.monotonic() < self._discovery_expiry:
+            return self._delegate
+        if self._api_client is None:
+            raise RuntimeError(
+                'ApiClient has not been injected. '
+                'Ensure the {{clientClassName}} constructor calls set_api_client() '
+                'on HttpAwareAuthenticator before making API requests.'
             )
-            self._delegate.set_api_client(self._api_client)
+        headers: Dict[str, str] = {'Accept': 'application/json'}
+        response = self._api_client.send_request('GET', self._openid_connect_url, headers, None)
+        discovery = json.loads(response.body)
+        authorization_endpoint = discovery['authorization_endpoint']
+        token_endpoint = discovery['token_endpoint']
+        self._delegate = OAuth2AuthorizationCodeAuthenticator(
+            self._host,
+            self._client_id,
+            self._client_secret,
+            authorization_endpoint,
+            token_endpoint,
+            self._redirect_uri,
+            self._scopes,
+        )
+        self._delegate.set_api_client(self._api_client)
+        self._discovery_expiry = time.monotonic() + _parse_max_age(
+            getattr(response, 'headers', None)
+        )
         return self._delegate
 
     def build_authorization_url(self, state: Optional[str] = None) -> str:

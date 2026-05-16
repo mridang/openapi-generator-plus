@@ -18,10 +18,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
-import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
-import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.utils.ModelUtils;
@@ -318,81 +316,12 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         setModelPackage("");
         setApiPackage("");
 
-        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
-        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
-        supportingFiles.add(new SupportingFile("configuration.mustache", "pkg", "configuration.go"));
-        supportingFiles.add(
-                new SupportingFile("transport_options.mustache", "pkg", "transport_options.go"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "server_configuration.mustache", "pkg", "server_configuration.go"));
-        supportingFiles.add(new SupportingFile("servers.mustache", "pkg", "servers.go"));
-        supportingFiles.add(
-                new SupportingFile("api_error.mustache", "pkg/errors", "api_error.go"));
-
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/client_error.mustache", "pkg/errors", "client_error.go"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/server_error.mustache", "pkg/errors", "server_error.go"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/bad_request_error.mustache",
-                        "pkg/errors",
-                        "bad_request_error.go"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/unauthorized_error.mustache",
-                        "pkg/errors",
-                        "unauthorized_error.go"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/forbidden_error.mustache", "pkg/errors", "forbidden_error.go"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/not_found_error.mustache", "pkg/errors", "not_found_error.go"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/conflict_error.mustache", "pkg/errors", "conflict_error.go"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/unprocessable_entity_error.mustache",
-                        "pkg/errors",
-                        "unprocessable_entity_error.go"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/internal_server_error.mustache",
-                        "pkg/errors",
-                        "internal_server_error.go"));
-        supportingFiles.add(
-                new SupportingFile("header_selector.mustache", "pkg", "header_selector.go"));
-        supportingFiles.add(
-                new SupportingFile("object_serializer.mustache", "pkg", "object_serializer.go"));
-        supportingFiles.add(
-                new SupportingFile("value_serializer.mustache", "pkg", "value_serializer.go"));
-        supportingFiles.add(
-                new SupportingFile("trace_context_util.mustache", "pkg", "trace_context_util.go"));
-        supportingFiles.add(new SupportingFile("api_response.mustache", "pkg", "api_response.go"));
-        supportingFiles.add(new SupportingFile("api_result.mustache", "pkg", "api_result.go"));
-        supportingFiles.add(new SupportingFile("api_client.mustache", "pkg", "api_client.go"));
-        supportingFiles.add(
-                new SupportingFile("default_api_client.mustache", "pkg", "default_api_client.go"));
-        supportingFiles.add(new SupportingFile("base_api.mustache", "pkg", "base_api.go"));
-        supportingFiles.add(new SupportingFile("path_utils.mustache", "pkg", "path_utils.go"));
-        supportingFiles.add(
-                new SupportingFile("authenticator.mustache", "pkg", "authenticator.go"));
         final String clientClassName =
                 Objects.requireNonNull((String) additionalProperties.get("clientClassName"));
         final String clientClassFile = NamingConvention.SNAKE_CASE.apply(clientClassName);
         additionalProperties.put("clientClassFile", clientClassFile);
         supportingFiles.add(
                 new SupportingFile("client.mustache", "pkg", clientClassFile + ".go"));
-        supportingFiles.add(new SupportingFile("go_mod.mustache", "", "go.mod"));
-        supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
-        supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
-        supportingFiles.add(new SupportingFile("gitignore.mustache", "", ".gitignore"));
-        supportingFiles.add(new SupportingFile("golangci.mustache", "", ".golangci.yml"));
 
         if (generateTests) {
             supportingFiles.add(
@@ -499,6 +428,66 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         }
     }
 
+    /** {@inheritDoc} */
+    @Override
+    protected List<SupportingFileSpec> getSupportingFileSpecs() {
+        return List.of(
+                new SupportingFileSpec("readme.mustache", "", "README.md"),
+                new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
+                new SupportingFileSpec("configuration.mustache", "pkg", "configuration.go"),
+                new SupportingFileSpec(
+                        "transport_options.mustache", "pkg", "transport_options.go"),
+                new SupportingFileSpec(
+                        "server_configuration.mustache", "pkg", "server_configuration.go"),
+                new SupportingFileSpec("servers.mustache", "pkg", "servers.go"),
+                new SupportingFileSpec("api_error.mustache", "pkg/errors", "api_error.go"),
+                new SupportingFileSpec(
+                        "errors/client_error.mustache", "pkg/errors", "client_error.go"),
+                new SupportingFileSpec(
+                        "errors/server_error.mustache", "pkg/errors", "server_error.go"),
+                new SupportingFileSpec(
+                        "errors/bad_request_error.mustache",
+                        "pkg/errors",
+                        "bad_request_error.go"),
+                new SupportingFileSpec(
+                        "errors/unauthorized_error.mustache",
+                        "pkg/errors",
+                        "unauthorized_error.go"),
+                new SupportingFileSpec(
+                        "errors/forbidden_error.mustache", "pkg/errors", "forbidden_error.go"),
+                new SupportingFileSpec(
+                        "errors/not_found_error.mustache", "pkg/errors", "not_found_error.go"),
+                new SupportingFileSpec(
+                        "errors/conflict_error.mustache", "pkg/errors", "conflict_error.go"),
+                new SupportingFileSpec(
+                        "errors/unprocessable_entity_error.mustache",
+                        "pkg/errors",
+                        "unprocessable_entity_error.go"),
+                new SupportingFileSpec(
+                        "errors/internal_server_error.mustache",
+                        "pkg/errors",
+                        "internal_server_error.go"),
+                new SupportingFileSpec("header_selector.mustache", "pkg", "header_selector.go"),
+                new SupportingFileSpec(
+                        "object_serializer.mustache", "pkg", "object_serializer.go"),
+                new SupportingFileSpec("value_serializer.mustache", "pkg", "value_serializer.go"),
+                new SupportingFileSpec(
+                        "trace_context_util.mustache", "pkg", "trace_context_util.go"),
+                new SupportingFileSpec("api_response.mustache", "pkg", "api_response.go"),
+                new SupportingFileSpec("api_result.mustache", "pkg", "api_result.go"),
+                new SupportingFileSpec("api_client.mustache", "pkg", "api_client.go"),
+                new SupportingFileSpec(
+                        "default_api_client.mustache", "pkg", "default_api_client.go"),
+                new SupportingFileSpec("base_api.mustache", "pkg", "base_api.go"),
+                new SupportingFileSpec("path_utils.mustache", "pkg", "path_utils.go"),
+                new SupportingFileSpec("authenticator.mustache", "pkg", "authenticator.go"),
+                new SupportingFileSpec("go_mod.mustache", "", "go.mod"),
+                new SupportingFileSpec("makefile.mustache", "", "Makefile"),
+                new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
+                new SupportingFileSpec("gitignore.mustache", "", ".gitignore"),
+                new SupportingFileSpec("golangci.mustache", "", ".golangci.yml"));
+    }
+
     /**
      * Returns the output directory for model source files.
      * Models are placed in the {@code pkg/models/} sub-package.
@@ -549,16 +538,6 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         return Map.of(
                 "type:time.Time", "hasTimeImport",
                 "oneOfAnyOf", "hasFmtImport");
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
-        if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
-            final String enumValue = prop.defaultValue.substring(
-                    prop.defaultValue.lastIndexOf('.') + 1);
-            prop.defaultValue = "\"" + enumValue.toLowerCase(Locale.ROOT) + "\"";
-        }
     }
 
     /** {@inheritDoc} */

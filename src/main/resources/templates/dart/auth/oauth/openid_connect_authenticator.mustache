@@ -25,6 +25,12 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
   final List<String> _scopes;
   ApiClient? _apiClient;
   OAuth2AuthorizationCodeAuthenticator? _delegate;
+  DateTime _discoveryExpiry = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// RFC 8414 recommended default max-age for OIDC discovery documents.
+  static const int _defaultDiscoveryMaxAgeSeconds = 86400;
+  static final RegExp _maxAgePattern =
+      RegExp(r'max-age=(\d+)', caseSensitive: false);
 
   /// Creates a new OpenID Connect authenticator.
   OpenIdConnectAuthenticator({
@@ -77,7 +83,9 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
   }
 
   Future<OAuth2AuthorizationCodeAuthenticator> _resolveDelegate() async {
-    if (_delegate != null) return _delegate!;
+    if (_delegate != null && DateTime.now().isBefore(_discoveryExpiry)) {
+      return _delegate!;
+    }
 
     final client = _apiClient;
     if (client == null) {
@@ -116,7 +124,27 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator
       scopes: _scopes,
     );
     _delegate!.setApiClient(client);
+    _discoveryExpiry = DateTime.now()
+        .add(Duration(seconds: _parseMaxAge(response.headers)));
 
     return _delegate!;
+  }
+
+  /// Parse `Cache-Control: max-age=<seconds>` from response headers.
+  ///
+  /// Returns 86400 (RFC 8414 default) if the header is absent or does not
+  /// contain a `max-age` directive.
+  static int _parseMaxAge(Map<String, String> headers) {
+    for (final entry in headers.entries) {
+      if (entry.key.toLowerCase() == 'cache-control') {
+        final match = _maxAgePattern.firstMatch(entry.value);
+        if (match != null) {
+          return int.tryParse(match.group(1)!) ??
+              _defaultDiscoveryMaxAgeSeconds;
+        }
+        return _defaultDiscoveryMaxAgeSeconds;
+      }
+    }
+    return _defaultDiscoveryMaxAgeSeconds;
   }
 }

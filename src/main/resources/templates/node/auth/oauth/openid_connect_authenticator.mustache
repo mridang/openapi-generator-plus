@@ -24,6 +24,11 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
   private readonly scopes: readonly string[];
   private apiClient: ApiClient | null = null;
   private delegate: OAuth2AuthorizationCodeAuthenticator | null = null;
+  private discoveryExpiry = 0;
+
+  /** RFC 8414 recommended default max-age for OIDC discovery documents. */
+  private static readonly DEFAULT_DISCOVERY_MAX_AGE_SECONDS = 86400;
+  private static readonly MAX_AGE_PATTERN = /max-age=(\d+)/i;
 
   /**
    * Create a new OpenID Connect authenticator.
@@ -70,33 +75,59 @@ export class OpenIdConnectAuthenticator implements HttpAwareAuthenticator {
    * @throws Error if the API client has not been injected
    */
   private async getDelegate(): Promise<OAuth2AuthorizationCodeAuthenticator> {
-    if (!this.delegate) {
-      if (this.apiClient == null) {
-        throw new Error(
-          'ApiClient has not been injected. ' +
-            'Ensure the {{clientClassName}} constructor calls setApiClient() ' +
-            'on HttpAwareAuthenticator before making API requests.'
-        );
-      }
-      const response = await this.apiClient.sendRequest(
-        'GET',
-        this.openIdConnectUrl,
-        { Accept: 'application/json' },
-        null
-      );
-      const discovery = JSON.parse(response.body) as Record<string, unknown>;
-      this.delegate = new OAuth2AuthorizationCodeAuthenticator(
-        this.host,
-        this.clientId,
-        this.clientSecret,
-        discovery.authorization_endpoint as string,
-        discovery.token_endpoint as string,
-        this.redirectUri,
-        [...this.scopes]
-      );
-      this.delegate.setApiClient(this.apiClient);
+    if (this.delegate && Date.now() < this.discoveryExpiry) {
+      return this.delegate;
     }
+    if (this.apiClient == null) {
+      throw new Error(
+        'ApiClient has not been injected. ' +
+          'Ensure the {{clientClassName}} constructor calls setApiClient() ' +
+          'on HttpAwareAuthenticator before making API requests.'
+      );
+    }
+    const response = await this.apiClient.sendRequest(
+      'GET',
+      this.openIdConnectUrl,
+      { Accept: 'application/json' },
+      null
+    );
+    const discovery = JSON.parse(response.body) as Record<string, unknown>;
+    this.delegate = new OAuth2AuthorizationCodeAuthenticator(
+      this.host,
+      this.clientId,
+      this.clientSecret,
+      discovery.authorization_endpoint as string,
+      discovery.token_endpoint as string,
+      this.redirectUri,
+      [...this.scopes]
+    );
+    this.delegate.setApiClient(this.apiClient);
+    this.discoveryExpiry =
+      Date.now() +
+      OpenIdConnectAuthenticator.parseMaxAge(response.headers) * 1000;
     return this.delegate;
+  }
+
+  /**
+   * Parse `Cache-Control: max-age=<seconds>` from response headers.
+   *
+   * @returns the parsed max-age in seconds, or 86400 (RFC 8414 default) if
+   *   the header is absent or does not contain a `max-age` directive
+   */
+  private static parseMaxAge(headers: Readonly<Record<string, string>>): number {
+    for (const [name, value] of Object.entries(headers)) {
+      if (name.toLowerCase() === 'cache-control') {
+        const match = OpenIdConnectAuthenticator.MAX_AGE_PATTERN.exec(value);
+        if (match) {
+          const seconds = Number.parseInt(match[1], 10);
+          return Number.isFinite(seconds)
+            ? seconds
+            : OpenIdConnectAuthenticator.DEFAULT_DISCOVERY_MAX_AGE_SECONDS;
+        }
+        return OpenIdConnectAuthenticator.DEFAULT_DISCOVERY_MAX_AGE_SECONDS;
+      }
+    }
+    return OpenIdConnectAuthenticator.DEFAULT_DISCOVERY_MAX_AGE_SECONDS;
   }
 
   /**

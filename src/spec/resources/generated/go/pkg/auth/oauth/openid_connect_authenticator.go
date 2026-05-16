@@ -10,10 +10,38 @@ package oauth
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"petstore/pkg/auth"
 )
+
+// defaultDiscoveryMaxAgeSeconds is the RFC 8414 recommended default max-age
+// for OIDC discovery documents (1 day).
+const defaultDiscoveryMaxAgeSeconds = 86400
+
+var maxAgePattern = regexp.MustCompile(`(?i)max-age=(\d+)`)
+
+// parseDiscoveryMaxAge extracts the `max-age=<seconds>` value from a
+// `Cache-Control` response header. Returns 86400 when the header is absent
+// or does not contain a `max-age` directive.
+func parseDiscoveryMaxAge(headers map[string]string) int {
+	for k, v := range headers {
+		if strings.EqualFold(k, "Cache-Control") {
+			match := maxAgePattern.FindStringSubmatch(v)
+			if len(match) >= 2 {
+				if seconds, err := strconv.Atoi(match[1]); err == nil {
+					return seconds
+				}
+			}
+			return defaultDiscoveryMaxAgeSeconds
+		}
+	}
+	return defaultDiscoveryMaxAgeSeconds
+}
 
 // OpenIdConnectAuthenticator provides OpenID Connect authentication.
 //
@@ -33,6 +61,7 @@ type OpenIdConnectAuthenticator struct {
 	scopes           []string
 	apiClient        auth.ApiClient
 	delegate         *OAuth2AuthorizationCodeAuthenticator
+	discoveryExpiry  time.Time
 	mu               sync.Mutex
 }
 
@@ -90,12 +119,14 @@ func (a *OpenIdConnectAuthenticator) AuthHeaders() map[string]string {
 }
 
 // resolveDelegate lazily resolves the delegate by fetching the OIDC discovery
-// document using the injected API client.
+// document using the injected API client. Honors the `Cache-Control: max-age=<seconds>`
+// header from the discovery response; falls back to the RFC 8414 recommended
+// default of 86400 seconds when absent.
 func (a *OpenIdConnectAuthenticator) resolveDelegate() (*OAuth2AuthorizationCodeAuthenticator, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if a.delegate != nil {
+	if a.delegate != nil && time.Now().Before(a.discoveryExpiry) {
 		return a.delegate, nil
 	}
 
@@ -130,6 +161,7 @@ func (a *OpenIdConnectAuthenticator) resolveDelegate() (*OAuth2AuthorizationCode
 		a.redirectURI, a.scopes, "",
 	)
 	a.delegate.tokenManager.SetApiClient(client)
+	a.discoveryExpiry = time.Now().Add(time.Duration(parseDiscoveryMaxAge(resp.Headers)) * time.Second)
 
 	return a.delegate, nil
 }

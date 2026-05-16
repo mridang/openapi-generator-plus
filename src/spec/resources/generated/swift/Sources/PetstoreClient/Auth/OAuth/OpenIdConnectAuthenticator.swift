@@ -26,6 +26,7 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
   private let scopes: [String]
   private var apiClient: ApiClient?
   private var delegate: OAuth2AuthorizationCodeAuthenticator?
+  private var discoveryExpiry: Date = Date(timeIntervalSince1970: 0)
   private let lock = NSLock()
 
   /// Creates a new OpenID Connect authenticator.
@@ -77,10 +78,15 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
   }
 
   /// Lazily resolves the delegate by fetching the OIDC discovery document
-  /// using the injected ``ApiClient``.
+  /// using the injected ``ApiClient``. Honors the `Cache-Control: max-age=<seconds>`
+  /// header from the discovery response; falls back to the RFC 8414
+  /// recommended default of 86400 seconds when absent.
   private func resolveDelegate() async throws -> OAuth2AuthorizationCodeAuthenticator {
     let existing: OAuth2AuthorizationCodeAuthenticator? = lock.withLock {
-      return delegate
+      if let d = delegate, Date() < discoveryExpiry {
+        return d
+      }
+      return nil
     }
     if let existing = existing {
       return existing
@@ -125,9 +131,38 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
     )
     newDelegate.setApiClient(client)
 
+    let maxAge = Self.parseMaxAge(response.headers)
     lock.withLock {
       self.delegate = newDelegate
+      self.discoveryExpiry = Date().addingTimeInterval(TimeInterval(maxAge))
     }
     return newDelegate
+  }
+
+  /// Parse `Cache-Control: max-age=<seconds>` from response headers.
+  ///
+  /// Returns 86400 (RFC 8414 default) if the header is absent or does not
+  /// contain a `max-age` directive.
+  private static func parseMaxAge(_ headers: [String: String]) -> Int {
+    let defaultMaxAge = 86400
+    for (key, value) in headers where key.lowercased() == "cache-control" {
+      guard
+        let regex = try? NSRegularExpression(
+          pattern: "max-age=(\\d+)", options: [.caseInsensitive]
+        )
+      else {
+        return defaultMaxAge
+      }
+      let range = NSRange(value.startIndex..., in: value)
+      guard let match = regex.firstMatch(in: value, options: [], range: range),
+        match.numberOfRanges >= 2,
+        let group = Range(match.range(at: 1), in: value),
+        let seconds = Int(value[group])
+      else {
+        return defaultMaxAge
+      }
+      return seconds
+    }
+    return defaultMaxAge
   }
 }

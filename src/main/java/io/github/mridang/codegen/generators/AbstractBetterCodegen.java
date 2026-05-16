@@ -403,6 +403,79 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         additionalProperties.put("generateTests", generateTests);
 
         getPropertyOrDefault("clientClassName", "Client");
+
+        for (SupportingFileSpec spec : getSupportingFileSpecs()) {
+            supportingFiles.add(
+                    new SupportingFile(spec.template(), spec.folder(), spec.outputName()));
+        }
+    }
+
+    /**
+     * Declarative list of supporting files to register during
+     * {@link #processOpts()}. Subclasses override this hook to
+     * eliminate boilerplate {@code supportingFiles.add(new
+     * SupportingFile(...))} calls. The default is an empty list.
+     *
+     * <p>This hook is invoked at the end of the base
+     * {@code processOpts()} after subclass-specific property
+     * resolution has completed in {@code super.processOpts()};
+     * however, because the subclass override of
+     * {@code processOpts} calls {@code super.processOpts()}
+     * first, any fields the subclass computes in its own
+     * {@code processOpts} body must be resolved <em>before</em>
+     * the {@code super} call if they are referenced from this
+     * method. Conditional or imperative supporting files (e.g.
+     * those gated by {@code generateTests} or computed from
+     * resolved options) should remain in the subclass
+     * {@code processOpts} body.
+     *
+     * @return list of supporting file specifications to
+     *     register; empty by default
+     */
+    protected List<SupportingFileSpec> getSupportingFileSpecs() {
+        return List.of();
+    }
+
+    /**
+     * Specification for a supporting file to register. Used by
+     * {@link #getSupportingFileSpecs()} as a lightweight
+     * data-carrier alternative to constructing
+     * {@link SupportingFile} instances directly. Implemented as
+     * a plain final class (rather than a record) because the
+     * project targets Java 11.
+     */
+    protected static final class SupportingFileSpec {
+        private final String template;
+        private final String folder;
+        private final String outputName;
+
+        /**
+         * Creates a new specification for a supporting file.
+         *
+         * @param template   the Mustache template name
+         * @param folder     the destination sub-folder relative to the output dir
+         * @param outputName the generated file name
+         */
+        public SupportingFileSpec(String template, String folder, String outputName) {
+            this.template = template;
+            this.folder = folder;
+            this.outputName = outputName;
+        }
+
+        /** Returns the Mustache template name. */
+        public String template() {
+            return template;
+        }
+
+        /** Returns the destination sub-folder relative to the output dir. */
+        public String folder() {
+            return folder;
+        }
+
+        /** Returns the generated file name. */
+        public String outputName() {
+            return outputName;
+        }
     }
 
     /**
@@ -1285,17 +1358,40 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
     /**
      * Fixes a property's default value when the base class has set it to a
-     * Java-style enum reference (e.g. {@code "StatusEnum.Placed"}). Subclasses
-     * override this to convert it to the language-appropriate string literal.
-     * The {@code model} parameter gives access to {@code model.classname} so
-     * languages like Python can prefix the class name correctly.
-     * The default implementation is a no-op.
+     * Java-style enum reference (e.g. {@code "StatusEnum.Placed"}). The default
+     * implementation strips the prefix, lowercases the remaining value, and
+     * wraps it with the language's quote character via
+     * {@link #formatEnumStringLiteral(String)}. Subclasses that need a more
+     * exotic literal (e.g. Rust's {@code String::from("...")}) override
+     * {@link #formatEnumStringLiteral(String)}; subclasses with entirely
+     * different semantics (e.g. Python's class-prefixed form) override this
+     * method directly. The {@code model} parameter gives access to
+     * {@code model.classname}.
      *
      * @param prop  the property whose {@code defaultValue} may need rewriting
      * @param model the enclosing model (provides {@code classname})
      */
     protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
-        // no-op by default; subclasses override with language-specific literal format
+        if (prop.defaultValue != null && prop.isEnum && prop.defaultValue.contains(".")) {
+            final String enumValue = prop.defaultValue.substring(
+                    prop.defaultValue.lastIndexOf('.') + 1);
+            prop.defaultValue = formatEnumStringLiteral(enumValue.toLowerCase(Locale.ROOT));
+        }
+    }
+
+    /**
+     * Wraps the (already-lowercased) enum value as a language-appropriate
+     * string literal used by {@link #fixEnumDefaultValue(CodegenProperty,
+     * CodegenModel)}. The default form is {@code <quote>value<quote>} using
+     * {@link #getQuoteChar()}; languages with bespoke literal syntax (e.g.
+     * Rust's {@code String::from("...")}) override this hook.
+     *
+     * @param value the lowercased enum value
+     * @return the language-appropriate string literal
+     */
+    protected String formatEnumStringLiteral(String value) {
+        final char q = getQuoteChar();
+        return q + value + q;
     }
 
     /**

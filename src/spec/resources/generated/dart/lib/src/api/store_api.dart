@@ -34,7 +34,7 @@ class StoreApi extends BaseApi {
     int orderId,
   ) async {
     var path = '/store/order/{orderId}';
-    path = path.replaceAll(
+    path = path.rlaceAll(
         '{' 'orderId' '}',
         _encodePathSegment(serializeStyled(
                 'orderId', orderId, 'path', 'int', '', 'simple', false)
