@@ -97,7 +97,7 @@ final class PetApiTests {
 /// Test authenticator for integration tests.
 private final class TestAuthenticator: BaseAuthenticator, @unchecked Sendable {
     override func host() -> String { return "" }
-    override func authHeaders() -> [String: String] {
+    override func authHeaders() async -> [String: String] {
         return ["Authorization": "Bearer test-token"]
     }
 }

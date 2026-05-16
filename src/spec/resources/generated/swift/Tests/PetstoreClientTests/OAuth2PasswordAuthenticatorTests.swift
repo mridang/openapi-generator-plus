@@ -10,7 +10,7 @@ import Testing
 
 @testable import PetstoreClient
 
-@Suite(.serialized) final class OAuth2PasswordAuthenticatorTests {
+@Suite final class OAuth2PasswordAuthenticatorTests {
 
   // MARK: - Mock ApiClient
 
@@ -50,48 +50,48 @@ import Testing
 
   // MARK: - Tests
 
-  @Test func testSendsPasswordGrantType() {
+  @Test func testSendsPasswordGrantType() async {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
     let auth = createAuthenticator()
     auth.setApiClient(client)
 
-    _ = auth.authHeaders()
+    _ = await auth.authHeaders()
 
     let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
     #expect(bodyString.contains("grant_type=password"))
   }
 
-  @Test func testSendsUsernameAndPassword() {
+  @Test func testSendsUsernameAndPassword() async {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
     let auth = createAuthenticator()
     auth.setApiClient(client)
 
-    _ = auth.authHeaders()
+    _ = await auth.authHeaders()
 
     let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
     #expect(bodyString.contains("username=testuser"))
     #expect(bodyString.contains("password=testpass"))
   }
 
-  @Test func testSendsClientIdAndSecret() {
+  @Test func testSendsClientIdAndSecret() async {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
     let auth = createAuthenticator()
     auth.setApiClient(client)
 
-    _ = auth.authHeaders()
+    _ = await auth.authHeaders()
 
     let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
     #expect(bodyString.contains("client_id=my-client-id"))
     #expect(bodyString.contains("client_secret=my-client-secret"))
   }
 
-  @Test func testReturnsAuthorizationBearerHeader() {
+  @Test func testReturnsAuthorizationBearerHeader() async {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(body: "{\"access_token\":\"tok-pwd\",\"expires_in\":3600}"))
@@ -99,12 +99,12 @@ import Testing
     let auth = createAuthenticator()
     auth.setApiClient(client)
 
-    let headers = auth.authHeaders()
+    let headers = await auth.authHeaders()
 
     #expect(headers["Authorization"] == "Bearer tok-pwd")
   }
 
-  @Test func testUsesRefreshTokenOnSubsequentCalls() {
+  @Test func testUsesRefreshTokenOnSubsequentCalls() async {
     let client = MockApiClient()
     client.responses.append(
       makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":1}"))
@@ -113,8 +113,8 @@ import Testing
     let auth = createAuthenticator()
     auth.setApiClient(client)
 
-    _ = auth.authHeaders()
-    _ = auth.authHeaders()
+    _ = await auth.authHeaders()
+    _ = await auth.authHeaders()
 
     let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
     #expect(bodyString.contains("grant_type=refresh_token"))

@@ -14,7 +14,7 @@ public protocol Authenticator: Sendable {
   func host() -> String
 
   /// Returns the authentication headers to include in every request.
-  func authHeaders() -> [String: String]
+  func authHeaders() async -> [String: String]
 
   /// Returns query parameters to include for authentication.
   func queryParams() -> [String: String]

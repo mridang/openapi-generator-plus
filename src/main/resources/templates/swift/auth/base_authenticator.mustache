@@ -13,7 +13,7 @@ open class BaseAuthenticator: Authenticator {
     }
 
     /// Returns authentication headers. Concrete authenticators must override.
-    open func authHeaders() -> [String: String] {
+    open func authHeaders() async -> [String: String] {
         fatalError("Subclasses must override authHeaders()")
     }
 

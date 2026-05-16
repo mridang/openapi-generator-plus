@@ -61,7 +61,7 @@ public class OAuth2PasswordAuthenticator: BaseAuthenticator, HttpAwareAuthentica
   }
 
   /// Returns the Bearer authentication header with a valid access token.
-  override public func authHeaders() -> [String: String] {
+  override public func authHeaders() async -> [String: String] {
     var params: [String: String]
     var url: String
 
@@ -86,15 +86,10 @@ public class OAuth2PasswordAuthenticator: BaseAuthenticator, HttpAwareAuthentica
       url = tokenURL
     }
 
-    var token: String?
-    let semaphore = DispatchSemaphore(value: 0)
-    Task {
-      token = try? await tokenManager.getAccessToken(tokenURL: url, params: params)
-      semaphore.signal()
+    guard let accessToken = try? await tokenManager.getAccessToken(tokenURL: url, params: params)
+    else {
+      return [:]
     }
-    semaphore.wait()
-
-    guard let accessToken = token else { return [:] }
     return ["Authorization": "Bearer \(accessToken)"]
   }
 }

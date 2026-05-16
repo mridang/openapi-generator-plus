@@ -10,7 +10,7 @@ import Testing
 
 @testable import PetstoreClient
 
-@Suite(.serialized) final class OAuth2ImplicitAuthenticatorTests {
+@Suite final class OAuth2ImplicitAuthenticatorTests {
 
   private func createAuthenticator() -> OAuth2ImplicitAuthenticator {
     return OAuth2ImplicitAuthenticator(
@@ -56,11 +56,11 @@ import Testing
     #expect(url.contains("state=my-state"))
   }
 
-  @Test func testGetAuthHeadersReturnsBearerAfterSetAccessToken() {
+  @Test func testGetAuthHeadersReturnsBearerAfterSetAccessToken() async {
     let auth = createAuthenticator()
     auth.setAccessToken("implicit-tok")
 
-    let headers = auth.authHeaders()
+    let headers = await auth.authHeaders()
 
     #expect(headers["Authorization"] == "Bearer implicit-tok")
   }

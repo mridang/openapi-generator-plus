@@ -3,7 +3,7 @@ import Foundation
 import Testing
 @testable import {{packageName}}
 
-@Suite(.serialized) final class ClientTests {
+@Suite final class ClientTests {
 
     private let authenticator = BearerAuthenticator(host: "{{{basePath}}}", token: "test-token")
 

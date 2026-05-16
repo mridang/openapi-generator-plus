@@ -10,7 +10,7 @@ import Testing
 
 @testable import PetstoreClient
 
-@Suite(.serialized) final class OpenIdConnectAuthenticatorTests {
+@Suite final class OpenIdConnectAuthenticatorTests {
 
   // MARK: - Mock ApiClient
 
@@ -109,7 +109,7 @@ import Testing
     auth.setApiClient(client)
 
     try await auth.exchangeCode("oidc-code")
-    let headers = auth.authHeaders()
+    let headers = await auth.authHeaders()
 
     #expect(headers["Authorization"] == "Bearer oidc-tok")
   }

@@ -10,7 +10,7 @@ import Testing
 
 @testable import PetstoreClient
 
-@Suite(.serialized) final class TransportOptionsTests {
+@Suite final class TransportOptionsTests {
 
   @Test func testVerifySslDefaultsToTrue() {
     let opts = TransportOptionsBuilder().build()

@@ -10,7 +10,7 @@ import Testing
 
 @testable import PetstoreClient
 
-@Suite(.serialized) final class ComposedSchemaTests {
+@Suite final class ComposedSchemaTests {
 
   // MARK: - oneOf with discriminator: PetFood
 

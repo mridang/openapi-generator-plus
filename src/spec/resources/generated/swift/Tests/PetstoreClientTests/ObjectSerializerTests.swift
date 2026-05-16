@@ -10,7 +10,7 @@ import Testing
 
 @testable import PetstoreClient
 
-@Suite(.serialized) final class ObjectSerializerTests {
+@Suite final class ObjectSerializerTests {
 
   @Test func testSerializeMapToJSON() throws {
     let input: [String: Any] = ["name": "Fido", "age": 3]

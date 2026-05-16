@@ -102,7 +102,7 @@ public class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareA
   }
 
   /// Returns the Bearer authentication header with a valid access token.
-  override public func authHeaders() -> [String: String] {
+  override public func authHeaders() async -> [String: String] {
     guard tokenExchanged else {
       fatalError("Must call exchangeCode before making API requests")
     }
@@ -112,15 +112,11 @@ public class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareA
       "refresh_token": tokenManager.refreshToken,
     ]
 
-    var token: String?
-    let semaphore = DispatchSemaphore(value: 0)
-    Task {
-      token = try? await tokenManager.getAccessToken(tokenURL: refreshURL, params: params)
-      semaphore.signal()
+    guard
+      let accessToken = try? await tokenManager.getAccessToken(tokenURL: refreshURL, params: params)
+    else {
+      return [:]
     }
-    semaphore.wait()
-
-    guard let accessToken = token else { return [:] }
     return ["Authorization": "Bearer \(accessToken)"]
   }
 }

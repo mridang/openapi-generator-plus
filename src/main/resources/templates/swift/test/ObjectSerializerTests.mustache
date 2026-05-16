@@ -3,7 +3,7 @@ import Foundation
 import Testing
 @testable import {{packageName}}
 
-@Suite(.serialized) final class ObjectSerializerTests {
+@Suite final class ObjectSerializerTests {
 
     @Test func testSerializeMapToJSON() throws {
         let input: [String: Any] = ["name": "Fido", "age": 3]

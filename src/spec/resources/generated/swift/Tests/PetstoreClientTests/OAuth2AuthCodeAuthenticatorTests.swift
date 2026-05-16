@@ -10,7 +10,7 @@ import Testing
 
 @testable import PetstoreClient
 
-@Suite(.serialized) final class OAuth2AuthCodeAuthenticatorTests {
+@Suite final class OAuth2AuthCodeAuthenticatorTests {
 
   // MARK: - Mock ApiClient
 
@@ -99,7 +99,7 @@ import Testing
 
     try await auth.exchangeCode("auth-code-xyz")
 
-    let headers = auth.authHeaders()
+    let headers = await auth.authHeaders()
 
     let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
     #expect(bodyString.contains("refresh_token=ref1"))

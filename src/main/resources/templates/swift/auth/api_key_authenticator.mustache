@@ -32,7 +32,7 @@ public class ApiKeyAuthenticator: BaseAuthenticator, @unchecked Sendable {
     }
 
     /// Returns the API key as a header if the location is `.header`.
-    override public func authHeaders() -> [String: String] {
+    override public func authHeaders() async -> [String: String] {
         if location == .header {
             return [keyParamName: apiKey]
         }

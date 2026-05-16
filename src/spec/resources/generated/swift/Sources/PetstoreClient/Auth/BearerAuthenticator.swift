@@ -25,7 +25,7 @@ public class BearerAuthenticator: BaseAuthenticator, @unchecked Sendable {
   }
 
   /// Returns the Bearer authentication header.
-  override public func authHeaders() -> [String: String] {
+  override public func authHeaders() async -> [String: String] {
     return ["Authorization": "Bearer \(token)"]
   }
 }

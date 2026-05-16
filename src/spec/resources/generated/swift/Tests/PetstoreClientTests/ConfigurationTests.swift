@@ -10,7 +10,7 @@ import Testing
 
 @testable import PetstoreClient
 
-@Suite(.serialized) final class ConfigurationTests {
+@Suite final class ConfigurationTests {
 
   @Test func testDefaultValues() {
     let config = Configuration.default()

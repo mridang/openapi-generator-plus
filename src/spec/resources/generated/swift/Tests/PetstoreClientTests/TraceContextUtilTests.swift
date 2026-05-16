@@ -10,7 +10,7 @@ import Testing
 
 @testable import PetstoreClient
 
-@Suite(.serialized) final class TraceContextUtilTests {
+@Suite final class TraceContextUtilTests {
 
   @Test func testInjectTraceContextNoOpWithoutTracer() {
     var headers: [String: String] = [

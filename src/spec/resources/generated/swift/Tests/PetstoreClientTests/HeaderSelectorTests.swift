@@ -10,7 +10,7 @@ import Testing
 
 @testable import PetstoreClient
 
-@Suite(.serialized) final class HeaderSelectorTests {
+@Suite final class HeaderSelectorTests {
 
   @Test func testIsJsonMime() {
     let hs = HeaderSelector()

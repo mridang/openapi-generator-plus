@@ -67,7 +67,7 @@ open class BaseApi {
 
         /* Merge auth headers */
         if let auth = effectiveAuth {
-            for (k, v) in auth.authHeaders() {
+            for (k, v) in await auth.authHeaders() {
                 headers[k] = v
             }
             /* Handle cookie params */

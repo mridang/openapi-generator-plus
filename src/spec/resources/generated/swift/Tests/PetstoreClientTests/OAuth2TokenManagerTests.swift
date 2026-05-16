@@ -10,7 +10,7 @@ import Testing
 
 @testable import PetstoreClient
 
-@Suite(.serialized) final class OAuth2TokenManagerTests {
+@Suite final class OAuth2TokenManagerTests {
 
   // MARK: - Mock ApiClient
 

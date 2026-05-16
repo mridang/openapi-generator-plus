@@ -21,7 +21,7 @@ public class BasicAuthenticator: BaseAuthenticator, @unchecked Sendable {
     }
 
     /// Returns the Basic authentication header.
-    override public func authHeaders() -> [String: String] {
+    override public func authHeaders() async -> [String: String] {
         return ["Authorization": authHeader]
     }
 }

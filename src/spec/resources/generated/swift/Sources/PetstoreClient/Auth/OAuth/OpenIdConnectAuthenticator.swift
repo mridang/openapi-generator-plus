@@ -71,17 +71,9 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
   }
 
   /// Returns the Bearer authentication header.
-  override public func authHeaders() -> [String: String] {
-    var resolved: OAuth2AuthorizationCodeAuthenticator?
-    let semaphore = DispatchSemaphore(value: 0)
-    Task {
-      resolved = try? await self.resolveDelegate()
-      semaphore.signal()
-    }
-    semaphore.wait()
-
-    guard let delegate = resolved else { return [:] }
-    return delegate.authHeaders()
+  override public func authHeaders() async -> [String: String] {
+    guard let delegate = try? await resolveDelegate() else { return [:] }
+    return await delegate.authHeaders()
   }
 
   /// Lazily resolves the delegate by fetching the OIDC discovery document

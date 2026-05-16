@@ -10,7 +10,7 @@
   import Testing
   @testable import PetstoreClient
 
-  @Suite(.serialized) final class DefaultApiClientUnitTests {
+  @Suite final class DefaultApiClientUnitTests {
 
     // MARK: - Helpers
 

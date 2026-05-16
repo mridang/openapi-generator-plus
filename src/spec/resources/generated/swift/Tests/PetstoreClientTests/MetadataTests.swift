@@ -10,7 +10,7 @@ import Testing
 
 @testable import PetstoreClient
 
-@Suite(.serialized) final class MetadataTests {
+@Suite final class MetadataTests {
 
   @Test func testSerializeDeserialize() throws {
     let original = Metadata()

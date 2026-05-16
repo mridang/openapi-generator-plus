@@ -10,7 +10,7 @@ import Testing
 
 @testable import PetstoreClient
 
-@Suite(.serialized) final class ClientTests {
+@Suite final class ClientTests {
 
   private let authenticator = BearerAuthenticator(host: "/api/v3", token: "test-token")
 

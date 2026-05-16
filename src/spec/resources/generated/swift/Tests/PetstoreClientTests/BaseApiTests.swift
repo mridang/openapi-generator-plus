@@ -10,7 +10,7 @@ import Testing
 
 @testable import PetstoreClient
 
-@Suite(.serialized) final class BaseApiTests {
+@Suite final class BaseApiTests {
 
   // MARK: - Mock Authenticator
 
@@ -30,7 +30,7 @@ import Testing
     }
 
     override func host() -> String { return "" }
-    override func authHeaders() -> [String: String] { return _headers }
+    override func authHeaders() async -> [String: String] { return _headers }
     override func queryParams() -> [String: String] { return _query }
     override func cookieParams() -> [String: String] { return _cookies }
   }

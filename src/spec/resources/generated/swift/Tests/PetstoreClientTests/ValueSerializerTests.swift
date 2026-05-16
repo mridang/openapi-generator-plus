@@ -10,7 +10,7 @@ import Testing
 
 @testable import PetstoreClient
 
-@Suite(.serialized) final class ValueSerializerTests {
+@Suite final class ValueSerializerTests {
 
   // MARK: - SerializeValue by location
 
