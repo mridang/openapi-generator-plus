@@ -15,6 +15,34 @@ namespace PetstoreClient;
 public static class ValueSerializer
 {
     /// <summary>
+    /// Percent-encodes a value for use as a URL path segment, preserving
+    /// the OAS 3.0 sub-delimiters used by matrix/label/simple styles
+    /// (<c>; = , . ~ ! $ &amp; ' ( ) * +</c>) and the unreserved characters.
+    /// </summary>
+    public static string EncodePathSegment(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return value;
+        }
+        string encoded = Uri.EscapeDataString(value);
+        return encoded
+            .Replace("%21", "!", StringComparison.Ordinal)
+            .Replace("%24", "$", StringComparison.Ordinal)
+            .Replace("%26", "&", StringComparison.Ordinal)
+            .Replace("%27", "'", StringComparison.Ordinal)
+            .Replace("%28", "(", StringComparison.Ordinal)
+            .Replace("%29", ")", StringComparison.Ordinal)
+            .Replace("%2A", "*", StringComparison.Ordinal)
+            .Replace("%2B", "+", StringComparison.Ordinal)
+            .Replace("%2C", ",", StringComparison.Ordinal)
+            .Replace("%3B", ";", StringComparison.Ordinal)
+            .Replace("%3D", "=", StringComparison.Ordinal)
+            .Replace("%40", "@", StringComparison.Ordinal)
+            .Replace("%3A", ":", StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// Serializes a value for use in an HTTP request parameter based on its location,
     /// schema type, and optional collection format.
     /// </summary>
@@ -115,7 +143,12 @@ public static class ValueSerializer
             items = [.. list.Cast<object>().Select(ObjectSerializer.Stringify)];
         }
 
-        Func<string, string> enc = s => location == "path" ? Uri.EscapeDataString(s) : s;
+        // URL-encoding is applied at the call site (api.mustache path replace).
+        // serializeStyled returns the raw styled string.
+        static string enc(string s)
+        {
+            return s;
+        }
 
         switch (style)
         {

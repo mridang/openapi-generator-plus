@@ -93,17 +93,11 @@ pub fn serialize_styled(
     style: &str,
     explode: bool,
 ) -> Option<SerializedValue> {
+    // URL-encoding is applied at a higher level (the API call site) — pass the
+    // raw stringified value through here.
     if style.is_empty() {
         return match value {
-            Some(val) => {
-                if location == "path" {
-                    Some(SerializedValue::Single(
-                        urlencoding::encode(val).into_owned(),
-                    ))
-                } else {
-                    Some(SerializedValue::Single(val.to_string()))
-                }
-            }
+            Some(val) => Some(SerializedValue::Single(val.to_string())),
             None => serialize_nil(location).map(SerializedValue::Single),
         };
     }
@@ -234,15 +228,7 @@ pub fn serialize_styled(
             }
         }
         _ => match value {
-            Some(val) => {
-                if location == "path" {
-                    Some(SerializedValue::Single(
-                        urlencoding::encode(val).into_owned(),
-                    ))
-                } else {
-                    Some(SerializedValue::Single(val.to_string()))
-                }
-            }
+            Some(val) => Some(SerializedValue::Single(val.to_string())),
             None => serialize_nil(location).map(SerializedValue::Single),
         },
     }

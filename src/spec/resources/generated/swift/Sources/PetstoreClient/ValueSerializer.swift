@@ -84,12 +84,9 @@ public enum ValueSerializer {
     let items = toStringArray(value)
     let isArray = items != nil
 
-    let encodeIfPath: (String) -> String = { s in
-      guard location == "path" else { return s }
-      var allowed = CharacterSet.alphanumerics
-      allowed.insert(charactersIn: "-._~")
-      return s.addingPercentEncoding(withAllowedCharacters: allowed) ?? s
-    }
+    /* URL-encoding is applied at a higher level (replacePathParam, query
+         * builder, etc.) — pass the raw stringified value through here. */
+    let encodeIfPath: (String) -> String = { $0 }
 
     switch style {
     case "matrix":

@@ -91,35 +91,34 @@ export class ValueSerializer {
       );
     }
 
+    // URL-encoding is applied at a higher level (the API call site) — pass the
+    // raw stringified value through here.
     switch (style) {
       case 'matrix': {
-        const enc = (s: string) => location === 'path' ? encodeURIComponent(s) : s;
         if (Array.isArray(value)) {
-          const items = value.map((v) => enc(ObjectSerializer.stringify(v)));
+          const items = value.map((v) => ObjectSerializer.stringify(v));
           if (explode) {
             return items.map((item) => `;${paramName}=${item}`).join('');
           }
           return `;${paramName}=${items.join(',')}`;
         }
-        return `;${paramName}=${enc(ObjectSerializer.stringify(value))}`;
+        return `;${paramName}=${ObjectSerializer.stringify(value)}`;
       }
       case 'label': {
-        const enc = (s: string) => location === 'path' ? encodeURIComponent(s) : s;
         if (Array.isArray(value)) {
-          const items = value.map((v) => enc(ObjectSerializer.stringify(v)));
+          const items = value.map((v) => ObjectSerializer.stringify(v));
           if (explode) {
             return '.' + items.join('.');
           }
           return '.' + items.join(',');
         }
-        return '.' + enc(ObjectSerializer.stringify(value));
+        return '.' + ObjectSerializer.stringify(value);
       }
       case 'simple': {
-        const enc = (s: string) => location === 'path' ? encodeURIComponent(s) : s;
         if (Array.isArray(value)) {
-          return value.map((v) => enc(ObjectSerializer.stringify(v))).join(',');
+          return value.map((v) => ObjectSerializer.stringify(v)).join(',');
         }
-        return enc(ObjectSerializer.stringify(value));
+        return ObjectSerializer.stringify(value);
       }
       case 'form': {
         if (Array.isArray(value)) {
@@ -151,6 +150,31 @@ export class ValueSerializer {
           collectionFormat ?? undefined
         );
     }
+  }
+
+  /**
+   * Percent-encodes a value for use as a URL path segment.
+   *
+   * Mirrors Swift's `.urlPathAllowed` character set: encodes characters that
+   * are not allowed in a URI path segment per RFC 3986, but preserves the
+   * sub-delimiters (including `;`, `=`, `,`, `.`) that OAS 3.0 matrix/label/
+   * simple styles use as structural separators in the styled value.
+   */
+  static encodePathSegment(value: string): string {
+    return encodeURIComponent(value)
+      .replace(/%3B/g, ';')
+      .replace(/%3D/g, '=')
+      .replace(/%2C/g, ',')
+      .replace(/%3A/g, ':')
+      .replace(/%40/g, '@')
+      .replace(/%21/g, '!')
+      .replace(/%24/g, '$')
+      .replace(/%26/g, '&')
+      .replace(/%27/g, "'")
+      .replace(/%28/g, '(')
+      .replace(/%29/g, ')')
+      .replace(/%2A/g, '*')
+      .replace(/%2B/g, '+');
   }
 
   /**

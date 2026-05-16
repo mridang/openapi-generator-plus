@@ -1,9 +1,10 @@
 {{>api_info}}
 #if !os(Linux)
-import XCTest
+import Foundation
+import Testing
 @testable import {{packageName}}
 
-final class DefaultApiClientTests: XCTestCase {
+@Suite(.serialized) final class DefaultApiClientTests {
 
     // MARK: - Helpers
 
@@ -21,38 +22,38 @@ final class DefaultApiClientTests: XCTestCase {
 
     // MARK: - Integration-equivalent tests
 
-    func testMakesHttpsRequestWithVerifySslFalse() async throws {
+    @Test func testMakesHttpsRequestWithVerifySslFalse() async throws {
         let transport = TransportOptionsBuilder().verifySSL(false).build()
         let client = makeClient(transport: transport) { _ in
             return (self.jsonBody(), 200, ["Content-Type": "application/json"])
         }
         let resp = try await client.sendRequest(
             method: "GET", url: "https://example.com", headers: [:], body: nil)
-        XCTAssertEqual(resp.statusCode, 200)
-        XCTAssertTrue(resp.body.contains("userId"))
+        #expect(resp.statusCode == 200)
+        #expect(resp.body.contains("userId"))
     }
 
-    func testMakesHttpsRequestWithCustomCaCert() async throws {
+    @Test func testMakesHttpsRequestWithCustomCaCert() async throws {
         let transport = TransportOptionsBuilder().caCertPath("/path/to/ca.pem").build()
         let client = makeClient(transport: transport) { _ in
             return (self.jsonBody(), 200, ["Content-Type": "application/json"])
         }
         let resp = try await client.sendRequest(
             method: "GET", url: "https://example.com", headers: [:], body: nil)
-        XCTAssertEqual(resp.statusCode, 200)
+        #expect(resp.statusCode == 200)
     }
 
-    func testMakesHttpRequestThroughProxy() async throws {
+    @Test func testMakesHttpRequestThroughProxy() async throws {
         let transport = try TransportOptionsBuilder().proxy("http://proxy.example.com:8080").build()
         let client = makeClient(transport: transport) { _ in
             return (self.jsonBody(), 200, ["Content-Type": "application/json"])
         }
         let resp = try await client.sendRequest(
             method: "GET", url: "https://example.com", headers: [:], body: nil)
-        XCTAssertEqual(resp.statusCode, 200)
+        #expect(resp.statusCode == 200)
     }
 
-    func testMakesHttpsRequestThroughProxyWithVerifySslFalse() async throws {
+    @Test func testMakesHttpsRequestThroughProxyWithVerifySslFalse() async throws {
         let transport = try TransportOptionsBuilder()
             .proxy("http://proxy.example.com:8080")
             .verifySSL(false)
@@ -62,10 +63,10 @@ final class DefaultApiClientTests: XCTestCase {
         }
         let resp = try await client.sendRequest(
             method: "GET", url: "https://example.com", headers: [:], body: nil)
-        XCTAssertEqual(resp.statusCode, 200)
+        #expect(resp.statusCode == 200)
     }
 
-    func testTimesOutOnSlowEndpoint() async throws {
+    @Test func testTimesOutOnSlowEndpoint() async throws {
         let transport = TransportOptionsBuilder().timeout(1).build()
         let client = makeClient(transport: transport) { _ in
             // Stub returns immediately; timeout test verifies config is accepted
@@ -73,10 +74,10 @@ final class DefaultApiClientTests: XCTestCase {
         }
         let resp = try await client.sendRequest(
             method: "GET", url: "https://example.com", headers: [:], body: nil)
-        XCTAssertEqual(resp.statusCode, 200)
+        #expect(resp.statusCode == 200)
     }
 
-    func testInjectsCustomUserAgentHeader() async throws {
+    @Test func testInjectsCustomUserAgentHeader() async throws {
         var capturedRequest: URLRequest?
         let client = makeClient { req in
             capturedRequest = req
@@ -85,10 +86,10 @@ final class DefaultApiClientTests: XCTestCase {
         _ = try await client.sendRequest(
             method: "GET", url: "https://example.com",
             headers: ["User-Agent": "custom-agent/1.0"], body: nil)
-        XCTAssertEqual(capturedRequest?.value(forHTTPHeaderField: "User-Agent"), "custom-agent/1.0")
+        #expect(capturedRequest?.value(forHTTPHeaderField: "User-Agent") == "custom-agent/1.0")
     }
 
-    func testInjectsRequestIdHeader() async throws {
+    @Test func testInjectsRequestIdHeader() async throws {
         let transport = TransportOptionsBuilder().injectRequestID(true).build()
         var capturedRequest: URLRequest?
         let client = makeClient(transport: transport) { req in
@@ -98,12 +99,12 @@ final class DefaultApiClientTests: XCTestCase {
         _ = try await client.sendRequest(
             method: "GET", url: "https://example.com", headers: [:], body: nil)
         let requestId = capturedRequest?.value(forHTTPHeaderField: "X-Request-ID")
-        XCTAssertNotNil(requestId)
+        #expect(requestId != nil)
         let uuidPattern = #"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"#
-        XCTAssertNotNil(requestId?.range(of: uuidPattern, options: .regularExpression))
+        #expect(requestId?.range(of: uuidPattern, options: .regularExpression) != nil)
     }
 
-    func testGeneratesUniqueRequestIds() async throws {
+    @Test func testGeneratesUniqueRequestIds() async throws {
         let transport = TransportOptionsBuilder().injectRequestID(true).build()
         var ids: [String] = []
         let client = makeClient(transport: transport) { req in
@@ -114,11 +115,11 @@ final class DefaultApiClientTests: XCTestCase {
             method: "GET", url: "https://example.com", headers: [:], body: nil)
         _ = try await client.sendRequest(
             method: "GET", url: "https://example.com", headers: [:], body: nil)
-        XCTAssertEqual(ids.count, 2)
-        XCTAssertNotEqual(ids[0], ids[1])
+        #expect(ids.count == 2)
+        #expect(ids[0] != ids[1])
     }
 
-    func testIncludesTransportDefaultHeaders() async throws {
+    @Test func testIncludesTransportDefaultHeaders() async throws {
         let transport = TransportOptionsBuilder()
             .defaultHeader(name: "X-Custom", value: "value123")
             .build()
@@ -129,10 +130,10 @@ final class DefaultApiClientTests: XCTestCase {
         }
         _ = try await client.sendRequest(
             method: "GET", url: "https://example.com", headers: [:], body: nil)
-        XCTAssertEqual(capturedRequest?.value(forHTTPHeaderField: "X-Custom"), "value123")
+        #expect(capturedRequest?.value(forHTTPHeaderField: "X-Custom") == "value123")
     }
 
-    func testCallerHeadersOverrideTransportDefaults() async throws {
+    @Test func testCallerHeadersOverrideTransportDefaults() async throws {
         let transport = TransportOptionsBuilder()
             .defaultHeader(name: "X-Custom", value: "default")
             .build()
@@ -144,34 +145,34 @@ final class DefaultApiClientTests: XCTestCase {
         _ = try await client.sendRequest(
             method: "GET", url: "https://example.com",
             headers: ["X-Custom": "override"], body: nil)
-        XCTAssertEqual(capturedRequest?.value(forHTTPHeaderField: "X-Custom"), "override")
+        #expect(capturedRequest?.value(forHTTPHeaderField: "X-Custom") == "override")
     }
 
-    func testFollowsRedirectsWhenEnabled() async throws {
+    @Test func testFollowsRedirectsWhenEnabled() async throws {
         let transport = TransportOptionsBuilder().followRedirects(true).build()
-        XCTAssertTrue(transport.followRedirects)
+        #expect(transport.followRedirects)
         let client = DefaultApiClient(transportOptions: transport)
-        XCTAssertNotNil(client)
+        #expect(client != nil)
     }
 
-    func testReturnsRedirectWhenDisabled() async throws {
+    @Test func testReturnsRedirectWhenDisabled() async throws {
         let transport = TransportOptionsBuilder().followRedirects(false).build()
-        XCTAssertFalse(transport.followRedirects)
+        #expect(!(transport.followRedirects))
         let client = DefaultApiClient(transportOptions: transport)
-        XCTAssertNotNil(client)
+        #expect(client != nil)
     }
 
-    func testRespectsMaxRedirectsLimit() async throws {
+    @Test func testRespectsMaxRedirectsLimit() async throws {
         let transport = TransportOptionsBuilder()
             .followRedirects(true)
             .maxRedirects(3)
             .build()
-        XCTAssertEqual(transport.maxRedirects, 3)
+        #expect(transport.maxRedirects == 3)
         let client = DefaultApiClient(transportOptions: transport)
-        XCTAssertNotNil(client)
+        #expect(client != nil)
     }
 
-    func testSendsMultipartFormData() async throws {
+    @Test func testSendsMultipartFormData() async throws {
         var capturedContentType: String?
         var capturedBody: String?
         let client = makeClient { req in
@@ -185,41 +186,41 @@ final class DefaultApiClientTests: XCTestCase {
         _ = try await client.sendRequest(
             method: "POST", url: "https://example.com",
             headers: [:], body: formFields)
-        XCTAssertTrue(capturedContentType?.hasPrefix("multipart/form-data") ?? false)
-        XCTAssertTrue(capturedBody?.contains("Content-Disposition: form-data") ?? false)
+        #expect(capturedContentType?.hasPrefix("multipart/form-data") ?? false)
+        #expect(capturedBody?.contains("Content-Disposition: form-data") ?? false)
     }
 
-    func testDecompressesGzipResponse() async throws {
+    @Test func testDecompressesGzipResponse() async throws {
         let client = makeClient { _ in
             return (self.jsonBody(), 200, ["Content-Type": "application/json"])
         }
         let resp = try await client.sendRequest(
             method: "GET", url: "https://example.com",
             headers: ["Accept-Encoding": "gzip"], body: nil)
-        XCTAssertEqual(resp.statusCode, 200)
-        XCTAssertTrue(resp.body.contains("userId"))
+        #expect(resp.statusCode == 200)
+        #expect(resp.body.contains("userId"))
     }
 
-    func testDecompressesBrotliResponse() async throws {
+    @Test func testDecompressesBrotliResponse() async throws {
         let client = makeClient { _ in
             return (self.jsonBody(), 200, ["Content-Type": "application/json"])
         }
         let resp = try await client.sendRequest(
             method: "GET", url: "https://example.com",
             headers: ["Accept-Encoding": "br"], body: nil)
-        XCTAssertEqual(resp.statusCode, 200)
-        XCTAssertTrue(resp.body.contains("userId"))
+        #expect(resp.statusCode == 200)
+        #expect(resp.body.contains("userId"))
     }
 
-    func testDecompressesZstdResponse() async throws {
+    @Test func testDecompressesZstdResponse() async throws {
         let client = makeClient { _ in
             return (self.jsonBody(), 200, ["Content-Type": "application/json"])
         }
         let resp = try await client.sendRequest(
             method: "GET", url: "https://example.com",
             headers: ["Accept-Encoding": "zstd"], body: nil)
-        XCTAssertEqual(resp.statusCode, 200)
-        XCTAssertTrue(resp.body.contains("userId"))
+        #expect(resp.statusCode == 200)
+        #expect(resp.body.contains("userId"))
     }
 }
 

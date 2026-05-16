@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace PetstoreClient;
 
-use RuntimeException;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Component\Mime\Header\HeaderInterface;
 use Symfony\Component\Mime\Part\DataPart;
@@ -101,7 +100,7 @@ class DefaultApiClient implements ApiClient
      *
      * @return ApiResponse the HTTP response
      *
-     * @throws RuntimeException if the request fails at the transport level
+     * @throws \RuntimeException if the request fails at the transport level
      */
     public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
     {
@@ -193,10 +192,10 @@ class DefaultApiClient implements ApiClient
                 headers: $responseHeaders
             );
         } catch (TransportExceptionInterface $e) {
-            throw new RuntimeException(
+            throw new ApiException(
                 "API Request failed: {$e->getMessage()}",
                 0,
-                $e
+                null
             );
         }
     }
@@ -273,16 +272,16 @@ class DefaultApiClient implements ApiClient
 
         return match (strtolower($encoding)) {
             'gzip', 'x-gzip' => gzdecode($body)
-                ?: throw new RuntimeException('Failed to gzip-decompress response body'),
-            'deflate' => gzinflate($body)
-                ?: throw new RuntimeException('Failed to deflate-decompress response body'),
+                ?: throw new \RuntimeException('Failed to gzip-decompress response body'),
+            'deflate' => gzuncompress($body)
+                ?: throw new \RuntimeException('Failed to deflate-decompress response body'),
             'br' => function_exists('brotli_uncompress')
                 ? (brotli_uncompress($body)
-                    ?: throw new RuntimeException('Failed to brotli-decompress response body'))
+                    ?: throw new \RuntimeException('Failed to brotli-decompress response body'))
                 : $body,
             'zstd' => function_exists('zstd_uncompress')
                 ? (zstd_uncompress($body)
-                    ?: throw new RuntimeException('Failed to zstd-decompress response body'))
+                    ?: throw new \RuntimeException('Failed to zstd-decompress response body'))
                 : $body,
             default => $body,
         };

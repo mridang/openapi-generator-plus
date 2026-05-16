@@ -163,12 +163,13 @@ module PetstoreClient
       parts = []
       form_parts.each do |name, value|
         if value.is_a?(Array)
-          value.each { |item| parts << multipart_part(name, item, boundary) }
+          value.each { |item| parts << multipart_part(name, item, boundary).b }
         else
-          parts << multipart_part(name, value, boundary)
+          parts << multipart_part(name, value, boundary).b
         end
       end
-      parts.join + "--#{boundary}--\r\n"
+      parts.push("--#{boundary}--\r\n".b)
+      parts.join
     end
 
     def multipart_part(name, value, boundary) # rubocop:disable Metrics/MethodLength
@@ -178,8 +179,9 @@ module PetstoreClient
         ensure
           value.close if value.respond_to?(:close)
         end
-        "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{name}\"; filename=\"#{name}\"\r\n" \
-          "Content-Type: application/octet-stream\r\n\r\n#{data}\r\n"
+        header = "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{name}\"; filename=\"#{name}\"\r\n" \
+                 "Content-Type: application/octet-stream\r\n\r\n"
+        header.b + data.b + "\r\n".b
       elsif value.respond_to?(:to_hash)
         json_str = JSON.generate(value.to_hash)
         "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{name}\"\r\n" \

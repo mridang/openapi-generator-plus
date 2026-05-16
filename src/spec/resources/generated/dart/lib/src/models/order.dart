@@ -56,7 +56,10 @@ class Order {
       json['quantity'] = quantity;
     }
     if (shipDate != null) {
-      json['shipDate'] = shipDate?.toIso8601String();
+      json['shipDate'] = shipDate
+          ?.toUtc()
+          .toIso8601String()
+          .replaceFirst(RegExp(r'(\.\d+)?Z$'), '+00:00');
     }
     if (status != null) {
       json['status'] = status;

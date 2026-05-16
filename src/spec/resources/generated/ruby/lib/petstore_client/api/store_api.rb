@@ -50,7 +50,7 @@ module PetstoreClient
         end
 
         path = '/store/order/{orderId}'
-        path = path.gsub('{orderId}', PetstoreClient::ValueSerializer.serialize_styled('orderId', order_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{orderId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('orderId', order_id, :path, 'Integer', nil, 'simple', false).to_s))
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -116,7 +116,7 @@ module PetstoreClient
         end
 
         path = '/store/order/{orderId}'
-        path = path.gsub('{orderId}', PetstoreClient::ValueSerializer.serialize_styled('orderId', order_id, :path, 'Integer', nil, 'simple', false).to_s)
+        path = path.gsub('{orderId}', encode_path_segment(PetstoreClient::ValueSerializer.serialize_styled('orderId', order_id, :path, 'Integer', nil, 'simple', false).to_s))
         # @type var query_params: Hash[String, untyped]
         query_params = {}
         # @type var header_params: Hash[String, String]
@@ -158,6 +158,20 @@ module PetstoreClient
           'Order',
           nil
         )
+      end
+
+      # Percent-encodes a value for use as a URL path segment.
+      #
+      # Encodes characters not allowed in a URI path segment, but preserves the
+      # sub-delimiters (including ';', '=', ',', '.') that OAS 3.0
+      # matrix/label/simple styles use as structural separators.
+      def encode_path_segment(value)
+        CGI.escape(value.to_s)
+          .gsub('+', '%20')
+          .gsub('%3B', ';').gsub('%3D', '=').gsub('%2C', ',').gsub('%3A', ':')
+          .gsub('%40', '@').gsub('%21', '!').gsub('%24', '$').gsub('%26', '&')
+          .gsub('%27', "'").gsub('%28', '(').gsub('%29', ')').gsub('%2A', '*')
+          .gsub('%2B', '+')
       end
     end
   end

@@ -1,38 +1,39 @@
 {{>api_info}}
-import XCTest
+import Foundation
+import Testing
 @testable import {{packageName}}
 
-final class ConfigurationTests: XCTestCase {
+@Suite(.serialized) final class ConfigurationTests {
 
-    func testDefaultValues() {
+    @Test func testDefaultValues() {
         let config = Configuration.default()
 
-        XCTAssertEqual(config.baseURL, "{{{basePath}}}")
-        XCTAssertTrue(config.defaultHeaders.isEmpty)
+        #expect(config.baseURL == "{{{basePath}}}")
+        #expect(config.defaultHeaders.isEmpty)
     }
 
-    func testBuilderReturnsInstance() {
+    @Test func testBuilderReturnsInstance() {
         let builder = ConfigurationBuilder()
-        XCTAssertNotNil(builder)
+        #expect(builder != nil)
     }
 
-    func testBuilderSetsBaseURL() {
+    @Test func testBuilderSetsBaseURL() {
         let config = ConfigurationBuilder()
             .baseURL("https://custom.example.com")
             .build()
 
-        XCTAssertEqual(config.baseURL, "https://custom.example.com")
+        #expect(config.baseURL == "https://custom.example.com")
     }
 
-    func testBuilderSetsDefaultHeader() {
+    @Test func testBuilderSetsDefaultHeader() {
         let config = ConfigurationBuilder()
             .defaultHeader(name: "X-Custom", value: "value")
             .build()
 
-        XCTAssertEqual(config.defaultHeaders["X-Custom"], "value")
+        #expect(config.defaultHeaders["X-Custom"] == "value")
     }
 
-    func testBuilderSetsMultipleDefaultHeaders() {
+    @Test func testBuilderSetsMultipleDefaultHeaders() {
         let config = ConfigurationBuilder()
             .defaultHeaders([
                 "X-First": "one",
@@ -40,21 +41,21 @@ final class ConfigurationTests: XCTestCase {
             ])
             .build()
 
-        XCTAssertEqual(config.defaultHeaders["X-First"], "one")
-        XCTAssertEqual(config.defaultHeaders["X-Second"], "two")
+        #expect(config.defaultHeaders["X-First"] == "one")
+        #expect(config.defaultHeaders["X-Second"] == "two")
     }
 
-    func testBuilderChaining() {
+    @Test func testBuilderChaining() {
         let config = ConfigurationBuilder()
             .baseURL("https://api.example.com")
             .defaultHeader(name: "Authorization", value: "Bearer token")
             .build()
 
-        XCTAssertEqual(config.baseURL, "https://api.example.com")
-        XCTAssertEqual(config.defaultHeaders["Authorization"], "Bearer token")
+        #expect(config.baseURL == "https://api.example.com")
+        #expect(config.defaultHeaders["Authorization"] == "Bearer token")
     }
 
-    func testServerURLResolution() throws {
+    @Test func testServerURLResolution() throws {
         let server = ServerConfiguration(
             urlTemplate: "https://{env}.example.com/api/{version}",
             description: "Test server",
@@ -74,10 +75,10 @@ final class ConfigurationTests: XCTestCase {
             .server(server, variables: ["env": "staging"])
             .build()
 
-        XCTAssertEqual(config.baseURL, "https://staging.example.com/api/v3")
+        #expect(config.baseURL == "https://staging.example.com/api/v3")
     }
 
-    func testServerURLResolutionWithDefaults() throws {
+    @Test func testServerURLResolutionWithDefaults() throws {
         let server = ServerConfiguration(
             urlTemplate: "https://{env}.example.com/api/{version}",
             description: "Test server",
@@ -97,19 +98,19 @@ final class ConfigurationTests: XCTestCase {
             .server(server)
             .build()
 
-        XCTAssertEqual(config.baseURL, "https://api.example.com/api/v3")
+        #expect(config.baseURL == "https://api.example.com/api/v3")
     }
 
-    func testBaseURLOverride() {
+    @Test func testBaseURLOverride() {
         let config = ConfigurationBuilder()
             .baseURL("https://original.example.com")
             .baseURL("https://override.example.com")
             .build()
 
-        XCTAssertEqual(config.baseURL, "https://override.example.com")
+        #expect(config.baseURL == "https://override.example.com")
     }
 
-    func testDefaultHeadersCopyIsolation() {
+    @Test func testDefaultHeadersCopyIsolation() {
         let config = ConfigurationBuilder()
             .defaultHeader(name: "X-Test", value: "value")
             .build()
@@ -117,35 +118,35 @@ final class ConfigurationTests: XCTestCase {
         var headers = config.defaultHeaders
         headers["X-Mutated"] = "should-not-affect-config"
 
-        XCTAssertNil(config.defaultHeaders["X-Mutated"],
+        #expect(config.defaultHeaders["X-Mutated"] == nil,
             "Modifying returned headers should not affect the configuration")
     }
 
-    func testBuilderAccumulatesMultipleHeaders() {
+    @Test func testBuilderAccumulatesMultipleHeaders() {
         let config = ConfigurationBuilder()
             .defaultHeader(name: "X-First", value: "one")
             .defaultHeader(name: "X-Second", value: "two")
             .build()
 
-        XCTAssertEqual(config.defaultHeaders.count, 2)
-        XCTAssertEqual(config.defaultHeaders["X-First"], "one")
-        XCTAssertEqual(config.defaultHeaders["X-Second"], "two")
+        #expect(config.defaultHeaders.count == 2)
+        #expect(config.defaultHeaders["X-First"] == "one")
+        #expect(config.defaultHeaders["X-Second"] == "two")
     }
 
-    func testBuilderMergesSingleAndBulkHeaders() {
+    @Test func testBuilderMergesSingleAndBulkHeaders() {
         let config = ConfigurationBuilder()
             .defaultHeader(name: "X-First", value: "one")
             .defaultHeaders(["X-Second": "two"])
             .defaultHeader(name: "X-Third", value: "three")
             .build()
 
-        XCTAssertEqual(config.defaultHeaders.count, 3)
-        XCTAssertEqual(config.defaultHeaders["X-First"], "one")
-        XCTAssertEqual(config.defaultHeaders["X-Second"], "two")
-        XCTAssertEqual(config.defaultHeaders["X-Third"], "three")
+        #expect(config.defaultHeaders.count == 3)
+        #expect(config.defaultHeaders["X-First"] == "one")
+        #expect(config.defaultHeaders["X-Second"] == "two")
+        #expect(config.defaultHeaders["X-Third"] == "three")
     }
 
-    func testInvalidServerVariableEnumValueThrows() {
+    @Test func testInvalidServerVariableEnumValueThrows() {
         let server = ServerConfiguration(
             urlTemplate: "https://{env}.example.com",
             variables: [
@@ -153,18 +154,18 @@ final class ConfigurationTests: XCTestCase {
             ]
         )
 
-        XCTAssertThrowsError(
+        #expect(throws: (any Error).self) {
             try ConfigurationBuilder().server(server, variables: ["env": "invalid"]).build()
-        )
+        }
     }
 
-    func testBuilderProducesIndependentInstances() {
+    @Test func testBuilderProducesIndependentInstances() {
         let builder = ConfigurationBuilder().baseURL("https://example.com")
         let first = builder.build()
         let second = builder.build()
 
-        XCTAssertEqual(first.baseURL, second.baseURL)
-        XCTAssertFalse(first === second as AnyObject,
+        #expect(first.baseURL == second.baseURL)
+        #expect(!(first === second as AnyObject),
             "Build() should produce independent instances")
     }
 }

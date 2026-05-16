@@ -41,7 +41,6 @@ export class ObjectSerializer {
     }
     try {
       return JSON.stringify(obj, function (_key, value) {
-        if (value === null) return undefined;
         if (value instanceof Set) return [...value];
         if (this[_key] instanceof Date) return ObjectSerializer.formatDateTimeOffset(this[_key]);
         return value;

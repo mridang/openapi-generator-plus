@@ -34,8 +34,11 @@ class StoreApi extends BaseApi {
     int orderId,
   ) async {
     var path = '/store/order/{orderId}';
-    path = path.replaceAll('{' 'orderId' '}',
-        '${serializeStyled('orderId', orderId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll(
+        '{' 'orderId' '}',
+        _encodePathSegment(serializeStyled(
+                'orderId', orderId, 'path', 'int', '', 'simple', false)
+            .toString()));
 
     final queryParams = <String, Object?>{};
 
@@ -101,8 +104,11 @@ class StoreApi extends BaseApi {
     int orderId,
   ) async {
     var path = '/store/order/{orderId}';
-    path = path.replaceAll('{' 'orderId' '}',
-        '${serializeStyled('orderId', orderId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll(
+        '{' 'orderId' '}',
+        _encodePathSegment(serializeStyled(
+                'orderId', orderId, 'path', 'int', '', 'simple', false)
+            .toString()));
 
     final queryParams = <String, Object?>{};
 
@@ -159,4 +165,26 @@ class StoreApi extends BaseApi {
       deserialize: (body) => deserialize(body, Order.fromJson) as Order,
     );
   }
+}
+
+/// Percent-encodes a value for use as a URL path segment.
+///
+/// Encodes characters not allowed in a URI path segment, but preserves the
+/// sub-delimiters (including `;`, `=`, `,`, `.`) that OAS 3.0 matrix/label/
+/// simple styles use as structural separators in the styled value.
+String _encodePathSegment(String value) {
+  return Uri.encodeComponent(value)
+      .replaceAll('%3B', ';')
+      .replaceAll('%3D', '=')
+      .replaceAll('%2C', ',')
+      .replaceAll('%3A', ':')
+      .replaceAll('%40', '@')
+      .replaceAll('%21', '!')
+      .replaceAll('%24', r'$')
+      .replaceAll('%26', '&')
+      .replaceAll('%27', "'")
+      .replaceAll('%28', '(')
+      .replaceAll('%29', ')')
+      .replaceAll('%2A', '*')
+      .replaceAll('%2B', '+');
 }

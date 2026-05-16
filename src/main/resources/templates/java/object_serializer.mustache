@@ -113,6 +113,7 @@ public final class ObjectSerializer {
      * @param value the value to stringify (may be null)
      * @return the string representation, never null
      */
+    @SuppressWarnings("EmptyCatch")
     public static String stringify(@Nullable Object value) {
         if (value == null) {
             return "";
@@ -131,10 +132,9 @@ public final class ObjectSerializer {
         }
         if (value instanceof Enum<?> e) {
             try {
-                java.lang.reflect.Method m = e.getClass().getMethod("getValue");
+                java.lang.reflect.Method m = e.getDeclaringClass().getMethod("getValue");
                 return String.valueOf(m.invoke(e));
             } catch (ReflectiveOperationException ignored) {
-                // fall through to name()
             }
             return e.name();
         }
@@ -228,7 +228,7 @@ public final class ObjectSerializer {
         return stringify(value);
     }
 
-    private static ObjectMapper createDefaultObjectMapper() {
+    static ObjectMapper createDefaultObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.setVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY);
         mapper.setVisibility(PropertyAccessor.GETTER, JsonAutoDetect.Visibility.NONE);

@@ -162,7 +162,7 @@ module {{moduleName}}
         path = '{{{path}}}'
 {{#pathParams}}
 {{=<% %>=}}
-        path = path.gsub('{<%baseName%>}', <%moduleName%>::ValueSerializer.serialize_styled('<%baseName%>', <%paramName%>, :path, '<%& dataType%>', nil, '<%style%>', <%isExplode%>).to_s)
+        path = path.gsub('{<%baseName%>}', encode_path_segment(<%moduleName%>::ValueSerializer.serialize_styled('<%baseName%>', <%paramName%>, :path, '<%& dataType%>', nil, '<%style%>', <%isExplode%>).to_s))
 <%={{ }}=%>
 {{/pathParams}}
 {{#servers}}
@@ -247,6 +247,20 @@ module {{moduleName}}
         )
       end
     {{/operation}}
+
+      # Percent-encodes a value for use as a URL path segment.
+      #
+      # Encodes characters not allowed in a URI path segment, but preserves the
+      # sub-delimiters (including ';', '=', ',', '.') that OAS 3.0
+      # matrix/label/simple styles use as structural separators.
+      def encode_path_segment(value)
+        CGI.escape(value.to_s)
+           .gsub('+', '%20')
+           .gsub('%3B', ';').gsub('%3D', '=').gsub('%2C', ',').gsub('%3A', ':')
+           .gsub('%40', '@').gsub('%21', '!').gsub('%24', '$').gsub('%26', '&')
+           .gsub('%27', "'").gsub('%28', '(').gsub('%29', ')').gsub('%2A', '*')
+           .gsub('%2B', '+')
+      end
     end
 {{/operations}}
   end

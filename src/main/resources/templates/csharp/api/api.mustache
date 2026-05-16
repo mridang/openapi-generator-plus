@@ -208,7 +208,7 @@ public class {{classname}} : BaseApi
 {{/isPrimitiveType}}
         path = path.Replace(
             "{" + nameof({{paramName}}) + "}",
-            (string)ValueSerializer.SerializeStyled(nameof({{paramName}}), {{paramName}}, "path", "{{{dataType}}}", null, "{{style}}", {{isExplode}})!,
+            ValueSerializer.EncodePathSegment((string)ValueSerializer.SerializeStyled(nameof({{paramName}}), {{paramName}}, "path", "{{{dataType}}}", null, "{{style}}", {{isExplode}})!),
             StringComparison.Ordinal
         );
         {{/pathParams}}

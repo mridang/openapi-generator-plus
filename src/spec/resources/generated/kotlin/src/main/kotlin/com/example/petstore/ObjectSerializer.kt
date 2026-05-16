@@ -89,6 +89,14 @@ class ObjectSerializer(
             is Boolean -> if (value) "true" else "false"
             is LocalDate -> DateTimeFormatter.ISO_LOCAL_DATE.format(value)
             is TemporalAccessor -> DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssxxx").format(value)
+            is Enum<*> -> {
+                try {
+                    val method = value::class.java.getMethod("getValue")
+                    method.invoke(value)?.toString() ?: value.name
+                } catch (_: NoSuchMethodException) {
+                    value.name
+                }
+            }
             else -> value.toString()
         }
     }

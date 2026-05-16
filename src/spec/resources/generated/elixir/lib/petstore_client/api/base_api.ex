@@ -281,11 +281,11 @@ defmodule PetstoreClient.Api.BaseApi do
       case v do
         values when is_list(values) ->
           Enum.map(values, fn val ->
-            "#{encoded_key}=#{URI.encode_www_form(PetstoreClient.ObjectSerializer.to_query_value(val))}"
+            "#{encoded_key}=#{URI.encode_www_form(PetstoreClient.ObjectSerializer.to_query_value(val, nil))}"
           end)
 
         _ ->
-          ["#{encoded_key}=#{URI.encode_www_form(PetstoreClient.ObjectSerializer.to_query_value(v))}"]
+          ["#{encoded_key}=#{URI.encode_www_form(PetstoreClient.ObjectSerializer.to_query_value(v, nil))}"]
       end
     end)
     |> Enum.join("&")

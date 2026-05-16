@@ -250,7 +250,44 @@ impl PetApi {
             "simple",
             false,
         ) {
-            path = path.replace("{petId}", &v);
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{petId}", &encoded);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -318,7 +355,44 @@ impl PetApi {
             "simple",
             false,
         ) {
-            path = path.replace("{petId}", &v);
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{petId}", &encoded);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -378,7 +452,44 @@ impl PetApi {
             "simple",
             false,
         ) {
-            path = path.replace("{petId}", &v);
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{petId}", &encoded);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -452,7 +563,44 @@ impl PetApi {
             "simple",
             false,
         ) {
-            path = path.replace("{petId}", &v);
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{petId}", &encoded);
         }
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "documentId",
@@ -464,7 +612,44 @@ impl PetApi {
             "simple",
             false,
         ) {
-            path = path.replace("{documentId}", &v);
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{documentId}", &encoded);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -594,7 +779,44 @@ impl PetApi {
             "simple",
             false,
         ) {
-            path = path.replace("{petId}", &v);
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{petId}", &encoded);
         }
         if let Some(s) = server {
             let server_url = s.get_url();
@@ -655,7 +877,44 @@ impl PetApi {
             "simple",
             false,
         ) {
-            path = path.replace("{petId}", &v);
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{petId}", &encoded);
         }
         if let Some(s) = server {
             let server_url = s.get_url();
@@ -711,7 +970,44 @@ impl PetApi {
             "simple",
             false,
         ) {
-            path = path.replace("{petId}", &v);
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{petId}", &encoded);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -761,7 +1057,44 @@ impl PetApi {
             "simple",
             false,
         ) {
-            path = path.replace("{petId}", &v);
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{petId}", &encoded);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -816,7 +1149,44 @@ impl PetApi {
             "simple",
             false,
         ) {
-            path = path.replace("{petId}", &v);
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{petId}", &encoded);
         }
         if let Some(s) = server {
             let server_url = s.get_url();
@@ -872,7 +1242,44 @@ impl PetApi {
             "simple",
             false,
         ) {
-            path = path.replace("{petId}", &v);
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{petId}", &encoded);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -924,7 +1331,44 @@ impl PetApi {
             "simple",
             false,
         ) {
-            path = path.replace("{petId}", &v);
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{petId}", &encoded);
         }
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "photoId",
@@ -936,7 +1380,44 @@ impl PetApi {
             "simple",
             false,
         ) {
-            path = path.replace("{photoId}", &v);
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{photoId}", &encoded);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -1001,7 +1482,44 @@ impl PetApi {
             "matrix",
             false,
         ) {
-            path = path.replace("{petId}", &v);
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{petId}", &encoded);
         }
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "tagName",
@@ -1013,7 +1531,44 @@ impl PetApi {
             "label",
             false,
         ) {
-            path = path.replace("{tagName}", &v);
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{tagName}", &encoded);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -1145,7 +1700,44 @@ impl PetApi {
             "simple",
             false,
         ) {
-            path = path.replace("{petId}", &v);
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{petId}", &encoded);
         }
         if let Some(s) = server {
             let server_url = s.get_url();
@@ -1204,7 +1796,44 @@ impl PetApi {
             "simple",
             false,
         ) {
-            path = path.replace("{petId}", &v);
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{petId}", &encoded);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -1259,7 +1888,44 @@ impl PetApi {
             "simple",
             false,
         ) {
-            path = path.replace("{petId}", &v);
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{petId}", &encoded);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -1311,7 +1977,44 @@ impl PetApi {
             "simple",
             false,
         ) {
-            path = path.replace("{petId}", &v);
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{petId}", &encoded);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -1367,7 +2070,44 @@ impl PetApi {
             "simple",
             false,
         ) {
-            path = path.replace("{petId}", &v);
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{petId}", &encoded);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();
@@ -1427,7 +2167,44 @@ impl PetApi {
             "simple",
             false,
         ) {
-            path = path.replace("{petId}", &v);
+            // URL-encode for use as a URL path segment, preserving sub-delimiters
+            // used by OAS 3.0 matrix/label/simple styles.
+            let encoded: String = v
+                .chars()
+                .flat_map(|c| {
+                    if c.is_ascii_alphanumeric()
+                        || matches!(
+                            c,
+                            '-' | '_'
+                                | '.'
+                                | '~'
+                                | '!'
+                                | '$'
+                                | '&'
+                                | '\''
+                                | '('
+                                | ')'
+                                | '*'
+                                | '+'
+                                | ','
+                                | ';'
+                                | '='
+                                | ':'
+                                | '@'
+                        )
+                    {
+                        vec![c]
+                    } else {
+                        let mut buf = [0u8; 4];
+                        let bytes = c.encode_utf8(&mut buf).as_bytes().to_vec();
+                        bytes
+                            .into_iter()
+                            .flat_map(|b| format!("%{:02X}", b).chars().collect::<Vec<_>>())
+                            .collect()
+                    }
+                })
+                .collect();
+            path = path.replace("{petId}", &encoded);
         }
 
         let mut query_params: Vec<(String, String)> = Vec::new();

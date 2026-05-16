@@ -234,6 +234,14 @@ class PetApi extends BaseApi
         $path = '/pet/{petId}/photos';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -279,6 +287,14 @@ class PetApi extends BaseApi
         $path = '/pet/{petId}/treatment';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -326,6 +342,14 @@ class PetApi extends BaseApi
         $path = '/pet/{petId}';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -379,9 +403,25 @@ class PetApi extends BaseApi
         $path = '/pet/{petId}/documents/{documentId}';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('documentId', $documentId, 'path', 'int', null, 'simple', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'documentId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -477,6 +517,14 @@ class PetApi extends BaseApi
         $path = '/pet/{petId}/external';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         if ($server instanceof GetExternalPetInfoServer) {
             $serverUrl = $server->getUrl();
@@ -525,6 +573,14 @@ class PetApi extends BaseApi
         $path = '/pet/{petId}/multi';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         if ($server instanceof GetMultiServerPetInfoServer) {
             $serverUrl = $server->getUrl();
@@ -574,6 +630,14 @@ class PetApi extends BaseApi
         $path = '/pet/{petId}/avatar';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -617,6 +681,14 @@ class PetApi extends BaseApi
         $path = '/pet/{petId}/avatar/thumbnail';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -663,6 +735,14 @@ class PetApi extends BaseApi
         $path = '/pet/{petId}';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         if ($server instanceof GetPetByIdServer) {
             $serverUrl = $server->getUrl();
@@ -712,6 +792,14 @@ class PetApi extends BaseApi
         $path = '/pet/{petId}/passport';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -755,9 +843,25 @@ class PetApi extends BaseApi
         $path = '/pet/{petId}/photos/{photoId}';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('photoId', $photoId, 'path', 'int', null, 'simple', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'photoId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -804,9 +908,25 @@ class PetApi extends BaseApi
         $path = '/pet/{petId}/tag/{tagName}';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'matrix', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('tagName', $tagName, 'path', 'string', null, 'label', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'tagName' . '}', $pathValue, $path);
         $queryParams = [];
         if ($options->colors !== null) {
@@ -860,6 +980,14 @@ class PetApi extends BaseApi
         $path = '/pet/{petId}/staging';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         if ($server instanceof GetStagingPetInfoServer) {
             $serverUrl = $server->getUrl();
@@ -906,6 +1034,14 @@ class PetApi extends BaseApi
         $path = '/pet/{petId}/avatar';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -946,6 +1082,14 @@ class PetApi extends BaseApi
         $path = '/pet/{petId}/avatar/thumbnail';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -992,6 +1136,14 @@ class PetApi extends BaseApi
         $path = '/pet/{petId}';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -1039,6 +1191,14 @@ class PetApi extends BaseApi
         $path = '/pet/{petId}/certificate';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -1087,6 +1247,14 @@ class PetApi extends BaseApi
         $path = '/pet/{petId}/documents';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];

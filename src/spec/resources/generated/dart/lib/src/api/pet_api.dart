@@ -214,8 +214,11 @@ class PetApi extends BaseApi {
     AddPetPhotosOptions? options,
   ) async {
     var path = '/pet/{petId}/photos';
-    path = path.replaceAll('{' 'petId' '}',
-        '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll(
+        '{' 'petId' '}',
+        _encodePathSegment(
+            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+                .toString()));
 
     final queryParams = <String, Object?>{};
 
@@ -266,8 +269,11 @@ class PetApi extends BaseApi {
     PetTreatment petTreatment,
   ) async {
     var path = '/pet/{petId}/treatment';
-    path = path.replaceAll('{' 'petId' '}',
-        '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll(
+        '{' 'petId' '}',
+        _encodePathSegment(
+            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+                .toString()));
 
     final queryParams = <String, Object?>{};
 
@@ -310,8 +316,11 @@ class PetApi extends BaseApi {
     DeletePetOptions? options,
   ) async {
     var path = '/pet/{petId}';
-    path = path.replaceAll('{' 'petId' '}',
-        '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll(
+        '{' 'petId' '}',
+        _encodePathSegment(
+            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+                .toString()));
 
     final queryParams = <String, Object?>{};
 
@@ -359,10 +368,16 @@ class PetApi extends BaseApi {
     int documentId,
   ) async {
     var path = '/pet/{petId}/documents/{documentId}';
-    path = path.replaceAll('{' 'petId' '}',
-        '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
-    path = path.replaceAll('{' 'documentId' '}',
-        '${serializeStyled('documentId', documentId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll(
+        '{' 'petId' '}',
+        _encodePathSegment(
+            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+                .toString()));
+    path = path.replaceAll(
+        '{' 'documentId' '}',
+        _encodePathSegment(serializeStyled(
+                'documentId', documentId, 'path', 'int', '', 'simple', false)
+            .toString()));
 
     final queryParams = <String, Object?>{};
 
@@ -453,8 +468,11 @@ class PetApi extends BaseApi {
     GetExternalPetInfoServer? server,
   ) async {
     var path = '/pet/{petId}/external';
-    path = path.replaceAll('{' 'petId' '}',
-        '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll(
+        '{' 'petId' '}',
+        _encodePathSegment(
+            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+                .toString()));
     if (server != null) {
       final serverUrl = server.getUrl();
       if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
@@ -500,8 +518,11 @@ class PetApi extends BaseApi {
     GetMultiServerPetInfoServer? server,
   ) async {
     var path = '/pet/{petId}/multi';
-    path = path.replaceAll('{' 'petId' '}',
-        '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll(
+        '{' 'petId' '}',
+        _encodePathSegment(
+            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+                .toString()));
     if (server != null) {
       final serverUrl = server.getUrl();
       if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
@@ -545,8 +566,11 @@ class PetApi extends BaseApi {
     int petId,
   ) async {
     var path = '/pet/{petId}/avatar';
-    path = path.replaceAll('{' 'petId' '}',
-        '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll(
+        '{' 'petId' '}',
+        _encodePathSegment(
+            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+                .toString()));
 
     final queryParams = <String, Object?>{};
 
@@ -584,8 +608,11 @@ class PetApi extends BaseApi {
     int petId,
   ) async {
     var path = '/pet/{petId}/avatar/thumbnail';
-    path = path.replaceAll('{' 'petId' '}',
-        '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll(
+        '{' 'petId' '}',
+        _encodePathSegment(
+            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+                .toString()));
 
     final queryParams = <String, Object?>{};
 
@@ -627,8 +654,11 @@ class PetApi extends BaseApi {
     GetPetByIdServer? server,
   ) async {
     var path = '/pet/{petId}';
-    path = path.replaceAll('{' 'petId' '}',
-        '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll(
+        '{' 'petId' '}',
+        _encodePathSegment(
+            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+                .toString()));
     if (server != null) {
       final serverUrl = server.getUrl();
       if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
@@ -672,8 +702,11 @@ class PetApi extends BaseApi {
     int petId,
   ) async {
     var path = '/pet/{petId}/passport';
-    path = path.replaceAll('{' 'petId' '}',
-        '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll(
+        '{' 'petId' '}',
+        _encodePathSegment(
+            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+                .toString()));
 
     final queryParams = <String, Object?>{};
 
@@ -715,10 +748,16 @@ class PetApi extends BaseApi {
     int photoId,
   ) async {
     var path = '/pet/{petId}/photos/{photoId}';
-    path = path.replaceAll('{' 'petId' '}',
-        '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
-    path = path.replaceAll('{' 'photoId' '}',
-        '${serializeStyled('photoId', photoId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll(
+        '{' 'petId' '}',
+        _encodePathSegment(
+            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+                .toString()));
+    path = path.replaceAll(
+        '{' 'photoId' '}',
+        _encodePathSegment(serializeStyled(
+                'photoId', photoId, 'path', 'int', '', 'simple', false)
+            .toString()));
 
     final queryParams = <String, Object?>{};
 
@@ -761,10 +800,16 @@ class PetApi extends BaseApi {
     GetPetTagOptions? options,
   ) async {
     var path = '/pet/{petId}/tag/{tagName}';
-    path = path.replaceAll('{' 'petId' '}',
-        '${serializeStyled('petId', petId, 'path', 'int', '', 'matrix', false)}');
-    path = path.replaceAll('{' 'tagName' '}',
-        '${serializeStyled('tagName', tagName, 'path', 'String', '', 'label', false)}');
+    path = path.replaceAll(
+        '{' 'petId' '}',
+        _encodePathSegment(
+            serializeStyled('petId', petId, 'path', 'int', '', 'matrix', false)
+                .toString()));
+    path = path.replaceAll(
+        '{' 'tagName' '}',
+        _encodePathSegment(serializeStyled(
+                'tagName', tagName, 'path', 'String', '', 'label', false)
+            .toString()));
 
     final queryParams = <String, Object?>{};
     if (options != null && options.colors != null) {
@@ -820,8 +865,11 @@ class PetApi extends BaseApi {
     GetStagingPetInfoServer? server,
   ) async {
     var path = '/pet/{petId}/staging';
-    path = path.replaceAll('{' 'petId' '}',
-        '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll(
+        '{' 'petId' '}',
+        _encodePathSegment(
+            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+                .toString()));
     if (server != null) {
       final serverUrl = server.getUrl();
       if (serverUrl.startsWith('http://') || serverUrl.startsWith('https://')) {
@@ -867,8 +915,11 @@ class PetApi extends BaseApi {
     List<int> body,
   ) async {
     var path = '/pet/{petId}/avatar';
-    path = path.replaceAll('{' 'petId' '}',
-        '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll(
+        '{' 'petId' '}',
+        _encodePathSegment(
+            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+                .toString()));
 
     final queryParams = <String, Object?>{};
 
@@ -907,8 +958,11 @@ class PetApi extends BaseApi {
     SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
   ) async {
     var path = '/pet/{petId}/avatar/thumbnail';
-    path = path.replaceAll('{' 'petId' '}',
-        '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll(
+        '{' 'petId' '}',
+        _encodePathSegment(
+            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+                .toString()));
 
     final queryParams = <String, Object?>{};
 
@@ -947,8 +1001,11 @@ class PetApi extends BaseApi {
     Pet pet,
   ) async {
     var path = '/pet/{petId}';
-    path = path.replaceAll('{' 'petId' '}',
-        '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll(
+        '{' 'petId' '}',
+        _encodePathSegment(
+            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+                .toString()));
 
     final queryParams = <String, Object?>{};
 
@@ -989,8 +1046,11 @@ class PetApi extends BaseApi {
     UploadPetCertificateOptions? options,
   ) async {
     var path = '/pet/{petId}/certificate';
-    path = path.replaceAll('{' 'petId' '}',
-        '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll(
+        '{' 'petId' '}',
+        _encodePathSegment(
+            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+                .toString()));
 
     final queryParams = <String, Object?>{};
 
@@ -1036,8 +1096,11 @@ class PetApi extends BaseApi {
     UploadPetDocumentOptions? options,
   ) async {
     var path = '/pet/{petId}/documents';
-    path = path.replaceAll('{' 'petId' '}',
-        '${serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)}');
+    path = path.replaceAll(
+        '{' 'petId' '}',
+        _encodePathSegment(
+            serializeStyled('petId', petId, 'path', 'int', '', 'simple', false)
+                .toString()));
 
     final queryParams = <String, Object?>{};
 
@@ -1069,4 +1132,26 @@ class PetApi extends BaseApi {
           deserialize(body, ApiResponse.fromJson) as ApiResponse,
     );
   }
+}
+
+/// Percent-encodes a value for use as a URL path segment.
+///
+/// Encodes characters not allowed in a URI path segment, but preserves the
+/// sub-delimiters (including `;`, `=`, `,`, `.`) that OAS 3.0 matrix/label/
+/// simple styles use as structural separators in the styled value.
+String _encodePathSegment(String value) {
+  return Uri.encodeComponent(value)
+      .replaceAll('%3B', ';')
+      .replaceAll('%3D', '=')
+      .replaceAll('%2C', ',')
+      .replaceAll('%3A', ':')
+      .replaceAll('%40', '@')
+      .replaceAll('%21', '!')
+      .replaceAll('%24', r'$')
+      .replaceAll('%26', '&')
+      .replaceAll('%27', "'")
+      .replaceAll('%28', '(')
+      .replaceAll('%29', ')')
+      .replaceAll('%2A', '*')
+      .replaceAll('%2B', '+');
 }

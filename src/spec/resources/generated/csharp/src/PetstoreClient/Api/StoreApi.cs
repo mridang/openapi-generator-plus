@@ -55,16 +55,18 @@ public class StoreApi : BaseApi
         string path = "/store/order/{orderId}";
         path = path.Replace(
             "{" + nameof(orderId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(orderId),
-                    orderId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            ValueSerializer.EncodePathSegment(
+                (string)
+                    ValueSerializer.SerializeStyled(
+                        nameof(orderId),
+                        orderId,
+                        "path",
+                        "long",
+                        null,
+                        "simple",
+                        false
+                    )!
+            ),
             StringComparison.Ordinal
         );
 
@@ -144,16 +146,18 @@ public class StoreApi : BaseApi
         string path = "/store/order/{orderId}";
         path = path.Replace(
             "{" + nameof(orderId) + "}",
-            (string)
-                ValueSerializer.SerializeStyled(
-                    nameof(orderId),
-                    orderId,
-                    "path",
-                    "long",
-                    null,
-                    "simple",
-                    false
-                )!,
+            ValueSerializer.EncodePathSegment(
+                (string)
+                    ValueSerializer.SerializeStyled(
+                        nameof(orderId),
+                        orderId,
+                        "path",
+                        "long",
+                        null,
+                        "simple",
+                        false
+                    )!
+            ),
             StringComparison.Ordinal
         );
 

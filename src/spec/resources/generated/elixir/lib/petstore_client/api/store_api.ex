@@ -95,6 +95,7 @@ defmodule PetstoreClient.Api.StoreApi do
         "{orderId}",
         PetstoreClient.ValueSerializer.serialize_styled("orderId", order_id, :path, "integer()", nil, "simple", false)
         |> to_string()
+        |> encode_path_segment()
       )
 
     query_params = %{}
@@ -225,6 +226,7 @@ defmodule PetstoreClient.Api.StoreApi do
         "{orderId}",
         PetstoreClient.ValueSerializer.serialize_styled("orderId", order_id, :path, "integer()", nil, "simple", false)
         |> to_string()
+        |> encode_path_segment()
       )
 
     query_params = %{}
@@ -299,5 +301,22 @@ defmodule PetstoreClient.Api.StoreApi do
       "Order",
       nil
     )
+  end
+
+  # Percent-encodes a value for use as a URL path segment.
+  #
+  # Encodes characters not allowed in a URI path segment, but preserves the
+  # sub-delimiters (including `;`, `=`, `,`, `.`) that OAS 3.0 matrix/label/
+  # simple styles use as structural separators in the styled value.
+  defp encode_path_segment(value) do
+    URI.encode(value, fn c ->
+      cond do
+        c in ?a..?z -> true
+        c in ?A..?Z -> true
+        c in ?0..?9 -> true
+        c in [?-, ?_, ?., ?~, ?!, ?$, ?&, ?', ?(, ?), ?*, ?+, ?,, ?;, ?=, ?:, ?@] -> true
+        true -> false
+      end
+    end)
   end
 end

@@ -1,8 +1,9 @@
 {{>api_info}}
-import XCTest
+import Foundation
+import Testing
 @testable import {{packageName}}
 
-final class BaseApiTests: XCTestCase {
+@Suite(.serialized) final class BaseApiTests {
 
     // MARK: - Mock Authenticator
 
@@ -50,7 +51,7 @@ final class BaseApiTests: XCTestCase {
 
     // MARK: - Error dispatch
 
-    func testErrorDispatch400() async throws {
+    @Test func testErrorDispatch400() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 400
         mockClient.responseBody = "{\"error\":\"bad request\"}"
@@ -60,13 +61,13 @@ final class BaseApiTests: XCTestCase {
 
         do {
             _ = try await api.getPetById(petId: 1)
-            XCTFail("Expected error for status 400")
+            Issue.record("Expected error for status 400")
         } catch let error as BadRequestError {
-            XCTAssertEqual(error.statusCode, 400)
+            #expect(error.statusCode == 400)
         }
     }
 
-    func testErrorDispatch401() async throws {
+    @Test func testErrorDispatch401() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 401
         mockClient.responseBody = "{\"error\":\"unauthorized\"}"
@@ -76,13 +77,13 @@ final class BaseApiTests: XCTestCase {
 
         do {
             _ = try await api.getPetById(petId: 1)
-            XCTFail("Expected error for status 401")
+            Issue.record("Expected error for status 401")
         } catch is UnauthorizedError {
             // Expected
         }
     }
 
-    func testErrorDispatch403() async throws {
+    @Test func testErrorDispatch403() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 403
 
@@ -91,13 +92,13 @@ final class BaseApiTests: XCTestCase {
 
         do {
             _ = try await api.getPetById(petId: 1)
-            XCTFail("Expected error for status 403")
+            Issue.record("Expected error for status 403")
         } catch is ForbiddenError {
             // Expected
         }
     }
 
-    func testErrorDispatch404() async throws {
+    @Test func testErrorDispatch404() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 404
 
@@ -106,13 +107,13 @@ final class BaseApiTests: XCTestCase {
 
         do {
             _ = try await api.getPetById(petId: 1)
-            XCTFail("Expected error for status 404")
+            Issue.record("Expected error for status 404")
         } catch is NotFoundError {
             // Expected
         }
     }
 
-    func testErrorDispatch409() async throws {
+    @Test func testErrorDispatch409() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 409
 
@@ -121,13 +122,13 @@ final class BaseApiTests: XCTestCase {
 
         do {
             _ = try await api.getPetById(petId: 1)
-            XCTFail("Expected error for status 409")
+            Issue.record("Expected error for status 409")
         } catch is ConflictError {
             // Expected
         }
     }
 
-    func testErrorDispatch422() async throws {
+    @Test func testErrorDispatch422() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 422
 
@@ -136,13 +137,13 @@ final class BaseApiTests: XCTestCase {
 
         do {
             _ = try await api.getPetById(petId: 1)
-            XCTFail("Expected error for status 422")
+            Issue.record("Expected error for status 422")
         } catch is UnprocessableEntityError {
             // Expected
         }
     }
 
-    func testErrorDispatch500() async throws {
+    @Test func testErrorDispatch500() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 500
 
@@ -151,13 +152,13 @@ final class BaseApiTests: XCTestCase {
 
         do {
             _ = try await api.getPetById(petId: 1)
-            XCTFail("Expected error for status 500")
+            Issue.record("Expected error for status 500")
         } catch is InternalServerError {
             // Expected
         }
     }
 
-    func testErrorDispatch502() async throws {
+    @Test func testErrorDispatch502() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 502
 
@@ -166,7 +167,7 @@ final class BaseApiTests: XCTestCase {
 
         do {
             _ = try await api.getPetById(petId: 1)
-            XCTFail("Expected error for status 502")
+            Issue.record("Expected error for status 502")
         } catch is ServerError {
             // Expected
         }
@@ -174,7 +175,7 @@ final class BaseApiTests: XCTestCase {
 
     // MARK: - Error body parsing
 
-    func testParsesJsonErrorBody() async throws {
+    @Test func testParsesJsonErrorBody() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 400
         mockClient.responseBody = "{\"error\":\"bad request\"}"
@@ -184,15 +185,15 @@ final class BaseApiTests: XCTestCase {
 
         do {
             _ = try await api.getPetById(petId: 1)
-            XCTFail("Expected error for status 400")
+            Issue.record("Expected error for status 400")
         } catch let error as BadRequestError {
-            XCTAssertNotNil(error.errorBody, "errorBody should not be nil for JSON responses")
+            #expect(error.errorBody != nil, "errorBody should not be nil for JSON responses")
         }
     }
 
     // MARK: - Error hierarchy
 
-    func testNotFoundIsClientError() async throws {
+    @Test func testNotFoundIsClientError() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 404
         mockClient.responseBody = "{\"message\":\"not found\"}"
@@ -202,14 +203,14 @@ final class BaseApiTests: XCTestCase {
 
         do {
             _ = try await api.getPetById(petId: 1)
-            XCTFail("Expected error")
+            Issue.record("Expected error")
         } catch let error as NotFoundError {
-            XCTAssertTrue(error is ClientError)
-            XCTAssertTrue(error is ApiError)
+            #expect(error is ClientError)
+            #expect(error is ApiError)
         }
     }
 
-    func testInternalServerErrorIsServerError() async throws {
+    @Test func testInternalServerErrorIsServerError() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 500
         mockClient.responseBody = "{\"message\":\"internal\"}"
@@ -219,16 +220,16 @@ final class BaseApiTests: XCTestCase {
 
         do {
             _ = try await api.getPetById(petId: 1)
-            XCTFail("Expected error")
+            Issue.record("Expected error")
         } catch let error as InternalServerError {
-            XCTAssertTrue(error is ServerError)
-            XCTAssertTrue(error is ApiError)
+            #expect(error is ServerError)
+            #expect(error is ApiError)
         }
     }
 
     // MARK: - JSON response deserialization
 
-    func testDeserializesJSONResponse() async throws {
+    @Test func testDeserializesJSONResponse() async throws {
         let mockClient = MockApiClient()
         mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[\"http://example.com/fido.jpg\"]}"
 
@@ -236,12 +237,12 @@ final class BaseApiTests: XCTestCase {
         let api = PetApi(apiClient: mockClient, config: config)
 
         let result = try await api.getPetByIdWithHTTPInfo(petId: 1)
-        XCTAssertFalse(result.rawBody.isEmpty)
+        #expect(!(result.rawBody.isEmpty))
     }
 
     // MARK: - Non-JSON content type skips deserialization
 
-    func testSkipsDeserializationForNonJsonContentType() async throws {
+    @Test func testSkipsDeserializationForNonJsonContentType() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 200
         mockClient.responseBody = "hello"
@@ -251,12 +252,12 @@ final class BaseApiTests: XCTestCase {
         let api = PetApi(apiClient: mockClient, config: config)
 
         let result = try await api.getPetByIdWithHTTPInfo(petId: 1)
-        XCTAssertEqual(result.statusCode, 200)
-        XCTAssertNil(result.data, "Data should be nil when Content-Type is not JSON")
-        XCTAssertEqual(result.rawBody, "hello")
+        #expect(result.statusCode == 200)
+        #expect(result.data == nil, "Data should be nil when Content-Type is not JSON")
+        #expect(result.rawBody == "hello")
     }
 
-    func testDeserializesVendorJsonMimeTypes() async throws {
+    @Test func testDeserializesVendorJsonMimeTypes() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 200
         mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[\"http://example.com/fido.jpg\"]}"
@@ -266,13 +267,13 @@ final class BaseApiTests: XCTestCase {
         let api = PetApi(apiClient: mockClient, config: config)
 
         let result = try await api.getPetByIdWithHTTPInfo(petId: 1)
-        XCTAssertEqual(result.statusCode, 200)
-        XCTAssertNotNil(result.data, "Data should not be nil for vendor JSON MIME type application/problem+json")
+        #expect(result.statusCode == 200)
+        #expect(result.data != nil, "Data should not be nil for vendor JSON MIME type application/problem+json")
     }
 
     // MARK: - Auth header injection
 
-    func testForwardsAuthHeaders() async throws {
+    @Test func testForwardsAuthHeaders() async throws {
         let mockClient = MockApiClient()
         mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
 
@@ -283,12 +284,12 @@ final class BaseApiTests: XCTestCase {
         let api = PetApi(apiClient: mockClient, config: config)
 
         _ = try await api.getPetById(petId: 1)
-        XCTAssertEqual(mockClient.lastHeaders["Authorization"], "Bearer test-token")
+        #expect(mockClient.lastHeaders["Authorization"] == "Bearer test-token")
     }
 
     // MARK: - Nil body
 
-    func testHandlesNilBody() async throws {
+    @Test func testHandlesNilBody() async throws {
         let mockClient = MockApiClient()
         mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
 
@@ -296,12 +297,12 @@ final class BaseApiTests: XCTestCase {
         let api = PetApi(apiClient: mockClient, config: config)
 
         let result = try await api.getPetById(petId: 1)
-        XCTAssertNotNil(result)
+        #expect(result != nil)
     }
 
     // MARK: - Header flow-through
 
-    func testAllHeadersFlowThrough() async throws {
+    @Test func testAllHeadersFlowThrough() async throws {
         let mockClient = MockApiClient()
         mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
 
@@ -309,11 +310,11 @@ final class BaseApiTests: XCTestCase {
         let api = PetApi(apiClient: mockClient, config: config)
 
         _ = try await api.getPetById(petId: 1)
-        XCTAssertNotNil(mockClient.lastHeaders["Accept"], "Expected Accept header from selector")
-        XCTAssertNotNil(mockClient.lastHeaders["Content-Type"], "Expected Content-Type header from selector")
+        #expect(mockClient.lastHeaders["Accept"] != nil, "Expected Accept header from selector")
+        #expect(mockClient.lastHeaders["Content-Type"] != nil, "Expected Content-Type header from selector")
     }
 
-    func testEmptyContentTypeDefaultsToJson() async throws {
+    @Test func testEmptyContentTypeDefaultsToJson() async throws {
         let mockClient = MockApiClient()
         mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
 
@@ -324,13 +325,13 @@ final class BaseApiTests: XCTestCase {
         _ = try await api.getPetById(petId: 1)
         // The header selector should default empty content-type to application/json
         let ct = mockClient.lastHeaders["Content-Type"]
-        XCTAssertNotNil(ct, "Expected Content-Type to be set")
-        XCTAssertEqual(ct, "application/json")
+        #expect(ct != nil, "Expected Content-Type to be set")
+        #expect(ct == "application/json")
     }
 
     // MARK: - Body serialization
 
-    func testSerializesJsonBody() async throws {
+    @Test func testSerializesJsonBody() async throws {
         let mockClient = MockApiClient()
         mockClient.responseBody = "{\"id\":1,\"name\":\"TestPet\",\"photoUrls\":[]}"
 
@@ -339,50 +340,50 @@ final class BaseApiTests: XCTestCase {
 
         let pet = Pet(name: "TestPet", photoUrls: [])
         _ = try? await api.addPet(auth: MockAuth(), pet: pet)
-        XCTAssertNotNil(mockClient.lastBody, "Expected body to be captured")
+        #expect(mockClient.lastBody != nil, "Expected body to be captured")
         if let body = mockClient.lastBody {
             let bodyStr = String(data: body, encoding: .utf8) ?? ""
-            XCTAssertTrue(bodyStr.contains("TestPet"), "Expected body to contain 'TestPet'")
+            #expect(bodyStr.contains("TestPet"), "Expected body to contain 'TestPet'")
         }
     }
 
-    func testSerializeBodyTextPlain() {
+    @Test func testSerializeBodyTextPlain() {
         let result = try? BaseApi.serializeBody("hello world", contentType: "text/plain")
-        XCTAssertNotNil(result)
+        #expect(result != nil)
         if let data = result {
             let str = String(data: data, encoding: .utf8)
-            XCTAssertEqual(str, "hello world")
+            #expect(str == "hello world")
         }
     }
 
-    func testSerializeBodyBinary() {
+    @Test func testSerializeBodyBinary() {
         let data = Data([0x01, 0x02, 0x03])
         let result = try? BaseApi.serializeBody(data, contentType: "application/octet-stream")
-        XCTAssertNotNil(result)
-        XCTAssertEqual(result!, data)
+        #expect(result != nil)
+        #expect(result! == data)
     }
 
-    func testSerializeBodyNil() {
+    @Test func testSerializeBodyNil() {
         let result = try? BaseApi.serializeBody(nil, contentType: "application/json")
-        XCTAssertNil(result) // nil body serializes to nil
+        #expect(result == nil) // nil body serializes to nil
     }
 
-    func testSerializeBodyFormUrlencoded() {
+    @Test func testSerializeBodyFormUrlencoded() {
         // Pass a [String: Any] dict directly — BaseApi.serializeBody expects a dictionary
         // for application/x-www-form-urlencoded, not pre-encoded JSON Data.
         let params: [String: Any] = ["name": "alice"]
         let result = try? BaseApi.serializeBody(params, contentType: "application/x-www-form-urlencoded")
-        XCTAssertNotNil(result)
+        #expect(result != nil)
         if let data = result {
             let str = String(data: data, encoding: .utf8)
-            XCTAssertNotNil(str)
-            XCTAssertTrue(str!.contains("name=alice"))
+            #expect(str != nil)
+            #expect(str!.contains("name=alice"))
         }
     }
 
     // MARK: - 418 Teapot (unrecognized status)
 
-    func testErrorDispatch418() async throws {
+    @Test func testErrorDispatch418() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 418
         mockClient.responseBody = "{\"error\":\"teapot\"}"
@@ -392,15 +393,15 @@ final class BaseApiTests: XCTestCase {
 
         do {
             _ = try await api.getPetById(petId: 1)
-            XCTFail("Expected error for status 418")
+            Issue.record("Expected error for status 418")
         } catch let error as ClientError {
-            XCTAssertEqual(error.statusCode, 418)
+            #expect(error.statusCode == 418)
         }
     }
 
     // MARK: - Cookie injection via authenticator
 
-    func testSetsCookieFromAuth() async throws {
+    @Test func testSetsCookieFromAuth() async throws {
         let mockClient = MockApiClient()
         mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
 
@@ -411,13 +412,13 @@ final class BaseApiTests: XCTestCase {
         let pet = Pet(name: "TestPet", photoUrls: [])
         _ = try? await api.addPet(auth: auth, pet: pet)
         if let cookie = mockClient.lastHeaders["Cookie"] {
-            XCTAssertTrue(cookie.contains("session=abc123"))
+            #expect(cookie.contains("session=abc123"))
         }
     }
 
     // MARK: - Query parameter serialization
 
-    func testQueryParamSerialization() async throws {
+    @Test func testQueryParamSerialization() async throws {
         let mockClient = MockApiClient()
         mockClient.responseBody = "[]"
 
@@ -426,11 +427,11 @@ final class BaseApiTests: XCTestCase {
 
         let options = FindPetsByStatusOptions(status: "available")
         _ = try? await api.findPetsByStatus(options: options)
-        XCTAssertTrue(mockClient.lastURL.contains("status=available"),
+        #expect(mockClient.lastURL.contains("status=available"),
             "expected URL to contain status=available, got: \(mockClient.lastURL)")
     }
 
-    func testQueryParamEmptyWhenNoOptions() async throws {
+    @Test func testQueryParamEmptyWhenNoOptions() async throws {
         let mockClient = MockApiClient()
         mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
 
@@ -438,11 +439,11 @@ final class BaseApiTests: XCTestCase {
         let api = PetApi(apiClient: mockClient, config: config)
 
         _ = try? await api.getPetById(petId: 1)
-        XCTAssertFalse(mockClient.lastURL.contains("?"),
+        #expect(!(mockClient.lastURL.contains("?")),
             "expected URL without query string, got: \(mockClient.lastURL)")
     }
 
-    func testNilOptionsOmitsQueryParams() async throws {
+    @Test func testNilOptionsOmitsQueryParams() async throws {
         let mockClient = MockApiClient()
         mockClient.responseBody = "[]"
 
@@ -450,11 +451,11 @@ final class BaseApiTests: XCTestCase {
         let api = PetApi(apiClient: mockClient, config: config)
 
         _ = try? await api.findPetsByStatus()
-        XCTAssertFalse(mockClient.lastURL.contains("status="),
+        #expect(!(mockClient.lastURL.contains("status=")),
             "expected URL without status param when options is nil, got: \(mockClient.lastURL)")
     }
 
-    func testAllowEmptyValueIncludesParamWhenNil() async throws {
+    @Test func testAllowEmptyValueIncludesParamWhenNil() async throws {
         let mockClient = MockApiClient()
         mockClient.responseBody = "[]"
 
@@ -463,11 +464,11 @@ final class BaseApiTests: XCTestCase {
 
         let opts = FindPetsByStatusOptions()
         _ = try? await api.findPetsByStatus(options: opts)
-        XCTAssertTrue(mockClient.lastURL.contains("status="),
+        #expect(mockClient.lastURL.contains("status="),
             "expected URL to contain status= for allowEmptyValue param with nil value, got: \(mockClient.lastURL)")
     }
 
-    func testAllowEmptyValueIncludesParamInQueryString() async throws {
+    @Test func testAllowEmptyValueIncludesParamInQueryString() async throws {
         let mockClient = MockApiClient()
         mockClient.responseBody = "[]"
 
@@ -476,44 +477,44 @@ final class BaseApiTests: XCTestCase {
 
         let opts = FindPetsByStatusOptions(status: "")
         _ = try? await api.findPetsByStatus(options: opts)
-        XCTAssertTrue(mockClient.lastURL.contains("status="),
+        #expect(mockClient.lastURL.contains("status="),
             "expected URL to contain status= for empty string allowEmptyValue param, got: \(mockClient.lastURL)")
     }
 
     // MARK: - Server variable overrides
 
-    func testServerVariableOverridesResolve() throws {
+    @Test func testServerVariableOverridesResolve() throws {
         let config = try ConfigurationBuilder()
             .server(Servers.server1, variables: ["environment": "staging"])
             .build()
-        XCTAssertEqual(config.baseURL, "https://staging.example.com/api/v3")
+        #expect(config.baseURL == "https://staging.example.com/api/v3")
     }
 
-    func testDefaultServerVariablesResolve() throws {
+    @Test func testDefaultServerVariablesResolve() throws {
         let config = try ConfigurationBuilder()
             .server(Servers.server1)
             .build()
-        XCTAssertEqual(config.baseURL, "https://api.example.com/api/v3")
+        #expect(config.baseURL == "https://api.example.com/api/v3")
     }
 
-    func testApiRequestUsesResolvedServerUrl() throws {
+    @Test func testApiRequestUsesResolvedServerUrl() throws {
         let config = try ConfigurationBuilder()
             .server(Servers.server1, variables: ["environment": "staging"])
             .build()
-        XCTAssertTrue(config.baseURL.hasPrefix("https://staging.example.com"),
+        #expect(config.baseURL.hasPrefix("https://staging.example.com"),
             "expected base URL to start with https://staging.example.com, got: \(config.baseURL)")
     }
 
-    func testInvalidEnumValueThrows() {
-        XCTAssertThrowsError(try ConfigurationBuilder()
+    @Test func testInvalidEnumValueThrows() {
+        #expect(throws: (any Error).self) { try ConfigurationBuilder()
             .server(Servers.server1, variables: ["environment": "invalid"])
             .build()
-        )
+        }
     }
 
     // MARK: - Query serialization
 
-    func testExpandsArrayQueryParams() async throws {
+    @Test func testExpandsArrayQueryParams() async throws {
         let mockClient = MockApiClient()
         mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
 
@@ -524,15 +525,15 @@ final class BaseApiTests: XCTestCase {
         _ = try? await api.getPetTag(petId: 1, tagName: "tag1", options: opts)
         // The spec defines colors as pipeDelimited (explode: false), so both values appear
         // in a single param separated by pipe: colors=red%7Cblue
-        XCTAssertTrue(mockClient.lastURL.contains("colors="),
+        #expect(mockClient.lastURL.contains("colors="),
             "expected URL to contain colors= param, got: \(mockClient.lastURL)")
-        XCTAssertTrue(mockClient.lastURL.contains("red"),
+        #expect(mockClient.lastURL.contains("red"),
             "expected URL to contain red, got: \(mockClient.lastURL)")
-        XCTAssertTrue(mockClient.lastURL.contains("blue"),
+        #expect(mockClient.lastURL.contains("blue"),
             "expected URL to contain blue, got: \(mockClient.lastURL)")
     }
 
-    func testSerializesBooleanQueryParams() async throws {
+    @Test func testSerializesBooleanQueryParams() async throws {
         let mockClient = MockApiClient()
         mockClient.responseBody = "[]"
 
@@ -541,11 +542,11 @@ final class BaseApiTests: XCTestCase {
 
         let opts = FindPetsByStatusOptions(status: "true")
         _ = try? await api.findPetsByStatus(options: opts)
-        XCTAssertTrue(mockClient.lastURL.contains("status=true"),
+        #expect(mockClient.lastURL.contains("status=true"),
             "expected URL to contain status=true, got: \(mockClient.lastURL)")
     }
 
-    func testSerializesNumberQueryParams() async throws {
+    @Test func testSerializesNumberQueryParams() async throws {
         let mockClient = MockApiClient()
         mockClient.responseBody = "{\"id\":10,\"name\":\"Fido\",\"photoUrls\":[]}"
 
@@ -553,13 +554,13 @@ final class BaseApiTests: XCTestCase {
         let api = PetApi(apiClient: mockClient, config: config)
 
         _ = try? await api.getPetById(petId: 10)
-        XCTAssertFalse(mockClient.lastURL.contains("10.0"),
+        #expect(!(mockClient.lastURL.contains("10.0")),
             "should not contain 10.0, got: \(mockClient.lastURL)")
     }
 
     // MARK: - Returns nil for void operations
 
-    func testReturnsNilForVoidOperation() async throws {
+    @Test func testReturnsNilForVoidOperation() async throws {
         let mockClient = MockApiClient()
         mockClient.responseBody = ""
 

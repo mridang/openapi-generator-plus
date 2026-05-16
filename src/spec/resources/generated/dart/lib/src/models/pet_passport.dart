@@ -59,7 +59,10 @@ class PetPassport {
       json['scans'] = scans?.map((e) => base64Encode(e)).toList();
     }
     if (issuedAt != null) {
-      json['issuedAt'] = issuedAt?.toIso8601String();
+      json['issuedAt'] = issuedAt
+          ?.toUtc()
+          .toIso8601String()
+          .replaceFirst(RegExp(r'(\.\d+)?Z$'), '+00:00');
     }
     return json;
   }

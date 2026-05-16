@@ -50,6 +50,14 @@ class StoreApi extends BaseApi
         $path = '/store/order/{orderId}';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('orderId', $orderId, 'path', 'int', null, 'simple', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'orderId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];
@@ -133,6 +141,14 @@ class StoreApi extends BaseApi
         $path = '/store/order/{orderId}';
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('orderId', $orderId, 'path', 'int', null, 'simple', false);
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . 'orderId' . '}', $pathValue, $path);
         $queryParams = [];
         $headerParams = [];

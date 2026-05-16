@@ -46,7 +46,9 @@ export class StoreApi extends BaseApi {
     let path = `/store/order/{orderId}`;
     path = path.replace(
       `{${'orderId'}}`,
-      ValueSerializer.serializeStyled('orderId', orderId, 'path', 'number', null, 'simple', false) as string
+      ValueSerializer.encodePathSegment(
+        ValueSerializer.serializeStyled('orderId', orderId, 'path', 'number', null, 'simple', false) as string
+      )
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};
@@ -117,7 +119,9 @@ export class StoreApi extends BaseApi {
     let path = `/store/order/{orderId}`;
     path = path.replace(
       `{${'orderId'}}`,
-      ValueSerializer.serializeStyled('orderId', orderId, 'path', 'number', null, 'simple', false) as string
+      ValueSerializer.encodePathSegment(
+        ValueSerializer.serializeStyled('orderId', orderId, 'path', 'number', null, 'simple', false) as string
+      )
     );
     const queryParams: Record<string, unknown> = {};
     const headerParams: Record<string, string> = {};

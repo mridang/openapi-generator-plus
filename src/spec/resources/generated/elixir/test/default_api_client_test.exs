@@ -65,7 +65,7 @@ defmodule PetstoreClient.DefaultApiClientIntegrationTest do
       PetstoreClient.DefaultApiClient.send_request(client, :get, "#{wiremock_url}/api/slow", %{}, nil)
       flunk("Expected a transport error but none was raised")
     rescue
-      _ in [Req.TransportError, Finch.TransportError] -> :ok
+      _ in [PetstoreClient.ApiError, Req.TransportError, Finch.TransportError] -> :ok
     end
   end
 

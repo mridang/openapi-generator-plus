@@ -213,8 +213,12 @@ class DefaultApiClient:
         """
         parts: list[bytes] = []
         for name, value in form_parts.items():
+            if value is None:
+                continue
             if isinstance(value, list):
                 for item in value:
+                    if item is None:
+                        continue
                     parts.append(self._multipart_part(name, item, boundary))
             else:
                 parts.append(self._multipart_part(name, value, boundary))

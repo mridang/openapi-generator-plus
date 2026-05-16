@@ -186,6 +186,14 @@ class {{classname}} extends BaseApi
 {{#pathParams}}
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('{{baseName}}', ${{paramName}}, 'path', '{{dataType}}', null, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . '{{baseName}}' . '}', $pathValue, $path);
 {{/pathParams}}
 {{#servers}}
@@ -328,6 +336,14 @@ class {{classname}} extends BaseApi
 {{#pathParams}}
         /** @var string $pathValue */
         $pathValue = ValueSerializer::serializeStyled('{{baseName}}', ${{paramName}}, 'path', '{{dataType}}', null, '{{style}}', {{#isExplode}}true{{/isExplode}}{{^isExplode}}false{{/isExplode}});
+        // URL-encode the styled value for use as a URL path segment, preserving
+        // sub-delimiters used by OAS 3.0 matrix/label/simple styles.
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
         $path = str_replace('{' . '{{baseName}}' . '}', $pathValue, $path);
 {{/pathParams}}
 {{#servers}}

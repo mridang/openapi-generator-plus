@@ -217,7 +217,7 @@ export class {{classname}} extends BaseApi {
 {{#-first}}
     let path = `{{{path}}}`;
 {{/-first}}
-    path = path.replace(`{${'{{baseName}}'}}`, ValueSerializer.serializeStyled('{{baseName}}', {{paramName}}, 'path', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) as string);
+    path = path.replace(`{${'{{baseName}}'}}`, ValueSerializer.encodePathSegment(ValueSerializer.serializeStyled('{{baseName}}', {{paramName}}, 'path', '{{{dataType}}}', null, '{{style}}', {{isExplode}}) as string));
 {{/pathParams}}
 {{#servers}}
 {{#-first}}

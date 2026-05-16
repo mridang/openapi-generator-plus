@@ -34,6 +34,18 @@ defmodule PetstoreClient.ApiError do
     }
   end
 
+  def exception(opts) when is_list(opts) do
+    msg = Keyword.get(opts, :message, "Error message: the server returns an error")
+
+    %__MODULE__{
+      message: msg,
+      status_code: Keyword.get(opts, :status_code),
+      response_headers: Keyword.get(opts, :response_headers),
+      response_body: Keyword.get(opts, :response_body),
+      error_body: Keyword.get(opts, :error_body)
+    }
+  end
+
   def exception(msg) when is_binary(msg) do
     %__MODULE__{message: msg}
   end

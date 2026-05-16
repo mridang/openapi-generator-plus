@@ -1,8 +1,9 @@
 {{>api_info}}
-import XCTest
+import Foundation
+import Testing
 @testable import {{packageName}}
 
-final class OAuth2TokenManagerTests: XCTestCase {
+@Suite(.serialized) final class OAuth2TokenManagerTests {
 
     // MARK: - Mock ApiClient
 
@@ -28,7 +29,7 @@ final class OAuth2TokenManagerTests: XCTestCase {
 
     // MARK: - Tests
 
-    func testExtractsAccessTokenFromResponse() async throws {
+    @Test func testExtractsAccessTokenFromResponse() async throws {
         let client = MockApiClient()
         client.responses.append(makeResponse(body: "{\"access_token\":\"tok123\",\"expires_in\":3600}"))
 
@@ -40,10 +41,10 @@ final class OAuth2TokenManagerTests: XCTestCase {
             params: ["grant_type": "client_credentials"]
         )
 
-        XCTAssertEqual(token, "tok123")
+        #expect(token == "tok123")
     }
 
-    func testStoresRefreshToken() async throws {
+    @Test func testStoresRefreshToken() async throws {
         let client = MockApiClient()
         client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}"))
 
@@ -55,10 +56,10 @@ final class OAuth2TokenManagerTests: XCTestCase {
             params: ["grant_type": "authorization_code"]
         )
 
-        XCTAssertEqual(manager.refreshToken, "ref1")
+        #expect(manager.refreshToken == "ref1")
     }
 
-    func testReturnsCachedTokenWhenNotExpired() async throws {
+    @Test func testReturnsCachedTokenWhenNotExpired() async throws {
         let client = MockApiClient()
         client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
@@ -71,11 +72,11 @@ final class OAuth2TokenManagerTests: XCTestCase {
         let first = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
         let second = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
 
-        XCTAssertEqual(first, "tok1")
-        XCTAssertEqual(second, "tok1")
+        #expect(first == "tok1")
+        #expect(second == "tok1")
     }
 
-    func testRefetchesTokenWhenExpired() async throws {
+    @Test func testRefetchesTokenWhenExpired() async throws {
         let client = MockApiClient()
         client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":1}"))
         client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
@@ -89,11 +90,11 @@ final class OAuth2TokenManagerTests: XCTestCase {
         let first = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
         let second = try await manager.getAccessToken(tokenURL: tokenURL, params: params)
 
-        XCTAssertEqual(first, "tok1")
-        XCTAssertEqual(second, "tok2")
+        #expect(first == "tok1")
+        #expect(second == "tok2")
     }
 
-    func testSetAccessTokenBypassesEndpoint() async throws {
+    @Test func testSetAccessTokenBypassesEndpoint() async throws {
         let manager = OAuth2TokenManager()
         manager.setAccessToken("manual-token")
 
@@ -102,10 +103,10 @@ final class OAuth2TokenManagerTests: XCTestCase {
             params: [:]
         )
 
-        XCTAssertEqual(token, "manual-token")
+        #expect(token == "manual-token")
     }
 
-    func testThrowsWhenNoApiClientInjected() async {
+    @Test func testThrowsWhenNoApiClientInjected() async {
         let manager = OAuth2TokenManager()
 
         do {
@@ -113,13 +114,13 @@ final class OAuth2TokenManagerTests: XCTestCase {
                 tokenURL: "https://auth.example.com/token",
                 params: ["grant_type": "client_credentials"]
             )
-            XCTFail("Expected error when no ApiClient injected")
+            Issue.record("Expected error when no ApiClient injected")
         } catch {
-            XCTAssertNotNil(error)
+            #expect(error != nil)
         }
     }
 
-    func testThrowsWhenTokenRequestFails() async {
+    @Test func testThrowsWhenTokenRequestFails() async {
         let client = MockApiClient()
         client.responses.append(makeResponse(body: "{\"error\":\"invalid_client\"}", statusCode: 401))
 
@@ -131,9 +132,9 @@ final class OAuth2TokenManagerTests: XCTestCase {
                 tokenURL: "https://auth.example.com/token",
                 params: ["grant_type": "client_credentials"]
             )
-            XCTFail("Expected error when token request fails")
+            Issue.record("Expected error when token request fails")
         } catch {
-            XCTAssertNotNil(error)
+            #expect(error != nil)
         }
     }
 }

@@ -3,20 +3,37 @@
 import Foundation
 import TestcontainersCore
 
-var wiremockHttpUrl: String = ""
-var wiremockHttpsUrl: String = ""
-var wiremockInternalHttpUrl: String = ""
-var wiremockInternalHttpsUrl: String = ""
-var proxyUrl: String = ""
-var prismUrl: String = ""
-var caCertPath: String = ""
+nonisolated(unsafe) var wiremockHttpUrl: String = ""
+nonisolated(unsafe) var wiremockHttpsUrl: String = ""
+nonisolated(unsafe) var wiremockInternalHttpUrl: String = ""
+nonisolated(unsafe) var wiremockInternalHttpsUrl: String = ""
+nonisolated(unsafe) var proxyUrl: String = ""
+nonisolated(unsafe) var prismUrl: String = ""
+nonisolated(unsafe) var caCertPath: String = ""
 
-private var wiremockContainer: DockerContainer?
-private var squidContainer: DockerContainer?
-private var prismContainer: DockerContainer?
-private var sharedNetwork: Network?
+nonisolated(unsafe) private var wiremockContainer: DockerContainer?
+nonisolated(unsafe) private var squidContainer: DockerContainer?
+nonisolated(unsafe) private var prismContainer: DockerContainer?
+nonisolated(unsafe) private var sharedNetwork: Network?
+
+/// Serialization guard so multiple parallel @Suite inits race-free.
+/// First caller runs `_setUpContainers()`; later callers wait, then see globals already set.
+private actor ContainerSetupGuard {
+    static let shared = ContainerSetupGuard()
+    private var ready = false
+
+    func ensureReady() async throws {
+        if ready { return }
+        try await _setUpContainers()
+        ready = true
+    }
+}
 
 func setUpContainers() async throws {
+    try await ContainerSetupGuard.shared.ensureReady()
+}
+
+private func _setUpContainers() async throws {
     let fixturesPath = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         .appendingPathComponent("Tests/Fixtures")
 

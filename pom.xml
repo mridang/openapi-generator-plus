@@ -64,6 +64,7 @@
           <exclude>**/__pycache__/**</exclude>
           <exclude>**/.out/**</exclude>
           <exclude>**/*.class</exclude>
+          <exclude>**/.build/**</exclude>
         </excludes>
       </testResource>
     </testResources>

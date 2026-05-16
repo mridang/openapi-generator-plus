@@ -8,6 +8,7 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, Dict, List, Optional  # noqa: F401
+from urllib.parse import quote  # noqa: F401
 
 from petstore_client.models.api_response import ApiResponse  # noqa: F401
 from petstore_client.models.pet import Pet  # noqa: F401
@@ -262,7 +263,10 @@ class PetApi(BaseApi):
         path = '/pet/{petId}/photos'
         path = path.replace(
             '{' + 'petId' + '}',
-            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+            quote(
+                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+                safe="/;,=.~:!$&'()*+@",
+            ),
         )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
@@ -331,7 +335,10 @@ class PetApi(BaseApi):
         path = '/pet/{petId}/treatment'
         path = path.replace(
             '{' + 'petId' + '}',
-            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+            quote(
+                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+                safe="/;,=.~:!$&'()*+@",
+            ),
         )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
@@ -390,7 +397,10 @@ class PetApi(BaseApi):
         path = '/pet/{petId}'
         path = path.replace(
             '{' + 'petId' + '}',
-            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+            quote(
+                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+                safe="/;,=.~:!$&'()*+@",
+            ),
         )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
@@ -460,11 +470,17 @@ class PetApi(BaseApi):
         path = '/pet/{petId}/documents/{documentId}'
         path = path.replace(
             '{' + 'petId' + '}',
-            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+            quote(
+                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+                safe="/;,=.~:!$&'()*+@",
+            ),
         )
         path = path.replace(
             '{' + 'documentId' + '}',
-            str(ValueSerializer.serialize_styled('documentId', document_id, 'path', 'int', None, 'simple', False)),
+            quote(
+                str(ValueSerializer.serialize_styled('documentId', document_id, 'path', 'int', None, 'simple', False)),
+                safe="/;,=.~:!$&'()*+@",
+            ),
         )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
@@ -573,7 +589,10 @@ class PetApi(BaseApi):
         path = '/pet/{petId}/external'
         path = path.replace(
             '{' + 'petId' + '}',
-            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+            quote(
+                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+                safe="/;,=.~:!$&'()*+@",
+            ),
         )
         if server is not None:
             _server_url = server.get_url()
@@ -630,7 +649,10 @@ class PetApi(BaseApi):
         path = '/pet/{petId}/multi'
         path = path.replace(
             '{' + 'petId' + '}',
-            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+            quote(
+                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+                safe="/;,=.~:!$&'()*+@",
+            ),
         )
         if server is not None:
             _server_url = server.get_url()
@@ -687,7 +709,10 @@ class PetApi(BaseApi):
         path = '/pet/{petId}/avatar'
         path = path.replace(
             '{' + 'petId' + '}',
-            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+            quote(
+                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+                safe="/;,=.~:!$&'()*+@",
+            ),
         )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
@@ -740,7 +765,10 @@ class PetApi(BaseApi):
         path = '/pet/{petId}/avatar/thumbnail'
         path = path.replace(
             '{' + 'petId' + '}',
-            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+            quote(
+                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+                safe="/;,=.~:!$&'()*+@",
+            ),
         )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
@@ -797,7 +825,10 @@ class PetApi(BaseApi):
         path = '/pet/{petId}'
         path = path.replace(
             '{' + 'petId' + '}',
-            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+            quote(
+                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+                safe="/;,=.~:!$&'()*+@",
+            ),
         )
         if server is not None:
             _server_url = server.get_url()
@@ -854,7 +885,10 @@ class PetApi(BaseApi):
         path = '/pet/{petId}/passport'
         path = path.replace(
             '{' + 'petId' + '}',
-            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+            quote(
+                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+                safe="/;,=.~:!$&'()*+@",
+            ),
         )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
@@ -917,11 +951,17 @@ class PetApi(BaseApi):
         path = '/pet/{petId}/photos/{photoId}'
         path = path.replace(
             '{' + 'petId' + '}',
-            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+            quote(
+                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+                safe="/;,=.~:!$&'()*+@",
+            ),
         )
         path = path.replace(
             '{' + 'photoId' + '}',
-            str(ValueSerializer.serialize_styled('photoId', photo_id, 'path', 'int', None, 'simple', False)),
+            quote(
+                str(ValueSerializer.serialize_styled('photoId', photo_id, 'path', 'int', None, 'simple', False)),
+                safe="/;,=.~:!$&'()*+@",
+            ),
         )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
@@ -988,11 +1028,17 @@ class PetApi(BaseApi):
         path = '/pet/{petId}/tag/{tagName}'
         path = path.replace(
             '{' + 'petId' + '}',
-            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'matrix', False)),
+            quote(
+                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'matrix', False)),
+                safe="/;,=.~:!$&'()*+@",
+            ),
         )
         path = path.replace(
             '{' + 'tagName' + '}',
-            str(ValueSerializer.serialize_styled('tagName', tag_name, 'path', 'str', None, 'label', False)),
+            quote(
+                str(ValueSerializer.serialize_styled('tagName', tag_name, 'path', 'str', None, 'label', False)),
+                safe="/;,=.~:!$&'()*+@",
+            ),
         )
         query_params: Dict[str, Any] = {}
         if options is not None and options.colors is not None:
@@ -1060,7 +1106,10 @@ class PetApi(BaseApi):
         path = '/pet/{petId}/staging'
         path = path.replace(
             '{' + 'petId' + '}',
-            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+            quote(
+                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+                safe="/;,=.~:!$&'()*+@",
+            ),
         )
         if server is not None:
             _server_url = server.get_url()
@@ -1125,7 +1174,10 @@ class PetApi(BaseApi):
         path = '/pet/{petId}/avatar'
         path = path.replace(
             '{' + 'petId' + '}',
-            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+            quote(
+                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+                safe="/;,=.~:!$&'()*+@",
+            ),
         )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
@@ -1186,7 +1238,10 @@ class PetApi(BaseApi):
         path = '/pet/{petId}/avatar/thumbnail'
         path = path.replace(
             '{' + 'petId' + '}',
-            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+            quote(
+                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+                safe="/;,=.~:!$&'()*+@",
+            ),
         )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
@@ -1247,7 +1302,10 @@ class PetApi(BaseApi):
         path = '/pet/{petId}'
         path = path.replace(
             '{' + 'petId' + '}',
-            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+            quote(
+                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+                safe="/;,=.~:!$&'()*+@",
+            ),
         )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
@@ -1312,7 +1370,10 @@ class PetApi(BaseApi):
         path = '/pet/{petId}/certificate'
         path = path.replace(
             '{' + 'petId' + '}',
-            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+            quote(
+                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+                safe="/;,=.~:!$&'()*+@",
+            ),
         )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
@@ -1379,7 +1440,10 @@ class PetApi(BaseApi):
         path = '/pet/{petId}/documents'
         path = path.replace(
             '{' + 'petId' + '}',
-            str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+            quote(
+                str(ValueSerializer.serialize_styled('petId', pet_id, 'path', 'int', None, 'simple', False)),
+                safe="/;,=.~:!$&'()*+@",
+            ),
         )
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}

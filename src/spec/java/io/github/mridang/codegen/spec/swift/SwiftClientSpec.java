@@ -16,7 +16,7 @@ public class SwiftClientSpec extends AbstractClientSpec implements SwiftSpec {
     protected String[] getBuildCommands() {
         return new String[] {
             "mkdir -p .out/reports",
-            "swift test --enable-code-coverage --xunit-output .out/reports/junit.xml"
+            "swift test --enable-code-coverage --enable-swift-testing --disable-xctest --xunit-output .out/reports/junit.xml"
         };
     }
 

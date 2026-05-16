@@ -95,7 +95,7 @@ class {{classname}} extends BaseApi {
 
     var path = '{{{path}}}';
 {{#pathParams}}
-    path = path.replaceAll('{' + '{{{baseName}}}' + '}', '${serializeStyled('{{baseName}}', {{paramName}}, 'path', '{{{dataType}}}', '', '{{style}}', {{isExplode}})}');
+    path = path.replaceAll('{' + '{{{baseName}}}' + '}', _encodePathSegment(serializeStyled('{{baseName}}', {{paramName}}, 'path', '{{{dataType}}}', '', '{{style}}', {{isExplode}}).toString()));
 {{/pathParams}}
 {{#servers}}
 {{#-first}}
@@ -217,5 +217,27 @@ class {{classname}} extends BaseApi {
     );
   }
 {{/operation}}
+}
+
+/// Percent-encodes a value for use as a URL path segment.
+///
+/// Encodes characters not allowed in a URI path segment, but preserves the
+/// sub-delimiters (including `;`, `=`, `,`, `.`) that OAS 3.0 matrix/label/
+/// simple styles use as structural separators in the styled value.
+String _encodePathSegment(String value) {
+  return Uri.encodeComponent(value)
+      .replaceAll('%3B', ';')
+      .replaceAll('%3D', '=')
+      .replaceAll('%2C', ',')
+      .replaceAll('%3A', ':')
+      .replaceAll('%40', '@')
+      .replaceAll('%21', '!')
+      .replaceAll('%24', r'$')
+      .replaceAll('%26', '&')
+      .replaceAll('%27', "'")
+      .replaceAll('%28', '(')
+      .replaceAll('%29', ')')
+      .replaceAll('%2A', '*')
+      .replaceAll('%2B', '+');
 }
 {{/operations}}

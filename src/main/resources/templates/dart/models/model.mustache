@@ -248,7 +248,7 @@ class {{classname}} {
 {{^isByteArray}}
 {{#isPrimitiveType}}
 {{#isDateTime}}
-    json['{{baseName}}'] = {{name}}.toIso8601String();
+    json['{{baseName}}'] = {{name}}.toUtc().toIso8601String().replaceFirst(RegExp(r'(\.\d+)?Z$'), '+00:00');
 {{/isDateTime}}
 {{#isDate}}
     json['{{baseName}}'] = {{name}};
@@ -297,7 +297,7 @@ class {{classname}} {
 {{^isByteArray}}
 {{#isPrimitiveType}}
 {{#isDateTime}}
-      json['{{baseName}}'] = {{name}}?.toIso8601String();
+      json['{{baseName}}'] = {{name}}?.toUtc().toIso8601String().replaceFirst(RegExp(r'(\.\d+)?Z$'), '+00:00');
 {{/isDateTime}}
 {{#isDate}}
       json['{{baseName}}'] = {{name}};

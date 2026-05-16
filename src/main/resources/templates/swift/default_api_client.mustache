@@ -97,7 +97,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         }
 
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw URLError(.badServerResponse)
+            throw ApiError(statusCode: 0, message: "Unexpected non-HTTP response from server")
         }
 
         var respHeaders: [String: String] = [:]

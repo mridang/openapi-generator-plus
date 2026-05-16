@@ -1,10 +1,11 @@
 {{>api_info}}
-import XCTest
+import Foundation
+import Testing
 @testable import {{packageName}}
 
-final class TraceContextUtilTests: XCTestCase {
+@Suite(.serialized) final class TraceContextUtilTests {
 
-    func testInjectTraceContextNoOpWithoutTracer() {
+    @Test func testInjectTraceContextNoOpWithoutTracer() {
         var headers: [String: String] = [
             "X-Existing": "value"
         ]
@@ -13,57 +14,57 @@ final class TraceContextUtilTests: XCTestCase {
         // It should not modify existing headers.
         TraceContextUtil.injectTraceContext(headers: &headers)
 
-        XCTAssertEqual(headers["X-Existing"], "value")
+        #expect(headers["X-Existing"] == "value")
     }
 
-    func testInjectTraceContextEmptyHeadersDoNotCauseException() {
+    @Test func testInjectTraceContextEmptyHeadersDoNotCauseException() {
         var headers: [String: String] = [:]
 
         // Should not crash with empty headers dictionary
         TraceContextUtil.injectTraceContext(headers: &headers)
     }
 
-    func testInjectTraceContextDoesNotInjectTraceparentWithoutOTel() {
+    @Test func testInjectTraceContextDoesNotInjectTraceparentWithoutOTel() {
         var headers: [String: String] = [:]
 
         TraceContextUtil.injectTraceContext(headers: &headers)
 
-        XCTAssertNil(headers["traceparent"])
+        #expect(headers["traceparent"] == nil)
     }
 
-    func testInjectTraceContextDoesNotInjectTracestateWithoutOTel() {
+    @Test func testInjectTraceContextDoesNotInjectTracestateWithoutOTel() {
         var headers: [String: String] = [:]
 
         TraceContextUtil.injectTraceContext(headers: &headers)
 
-        XCTAssertNil(headers["tracestate"])
+        #expect(headers["tracestate"] == nil)
     }
 
-    func testInjectTraceContextPreservesAuthorizationHeader() {
+    @Test func testInjectTraceContextPreservesAuthorizationHeader() {
         var headers: [String: String] = ["Authorization": "Bearer token123"]
 
         TraceContextUtil.injectTraceContext(headers: &headers)
 
-        XCTAssertEqual(headers["Authorization"], "Bearer token123")
+        #expect(headers["Authorization"] == "Bearer token123")
     }
 
-    func testInjectTraceContextPreservesContentTypeHeader() {
+    @Test func testInjectTraceContextPreservesContentTypeHeader() {
         var headers: [String: String] = ["Content-Type": "application/json"]
 
         TraceContextUtil.injectTraceContext(headers: &headers)
 
-        XCTAssertEqual(headers["Content-Type"], "application/json")
+        #expect(headers["Content-Type"] == "application/json")
     }
 
-    func testInjectTraceContextPreservesXRequestIdHeader() {
+    @Test func testInjectTraceContextPreservesXRequestIdHeader() {
         var headers: [String: String] = ["X-Request-ID": "req-12345"]
 
         TraceContextUtil.injectTraceContext(headers: &headers)
 
-        XCTAssertEqual(headers["X-Request-ID"], "req-12345")
+        #expect(headers["X-Request-ID"] == "req-12345")
     }
 
-    func testInjectTraceContextPreservesAllExistingHeaders() {
+    @Test func testInjectTraceContextPreservesAllExistingHeaders() {
         var headers: [String: String] = [
             "Authorization": "Bearer token",
             "Content-Type": "application/json",
@@ -72,8 +73,8 @@ final class TraceContextUtilTests: XCTestCase {
 
         TraceContextUtil.injectTraceContext(headers: &headers)
 
-        XCTAssertEqual(headers["Authorization"], "Bearer token")
-        XCTAssertEqual(headers["Content-Type"], "application/json")
-        XCTAssertEqual(headers["X-Request-ID"], "abc-123")
+        #expect(headers["Authorization"] == "Bearer token")
+        #expect(headers["Content-Type"] == "application/json")
+        #expect(headers["X-Request-ID"] == "abc-123")
     }
 }

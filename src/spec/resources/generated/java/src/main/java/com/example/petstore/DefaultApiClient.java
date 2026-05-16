@@ -59,6 +59,8 @@ import javax.net.ssl.X509TrustManager;
  */
 public final class DefaultApiClient implements ApiClient {
 
+  private static final ObjectMapper MULTIPART_MAPPER = ObjectSerializer.createDefaultObjectMapper();
+
   private static final X509TrustManager TRUST_ALL_MANAGER =
       new X509TrustManager() {
         @Override
@@ -473,7 +475,7 @@ public final class DefaultApiClient implements ApiClient {
       byteArrays.add(("\"" + fieldName + "\"\r\n\r\n" + value).getBytes(StandardCharsets.UTF_8));
     } else {
       try {
-        String json = new ObjectMapper().writeValueAsString(value);
+        String json = MULTIPART_MAPPER.writeValueAsString(value);
         byteArrays.add(
             ("\"" + fieldName + "\"\r\nContent-Type: application/json\r\n\r\n" + json)
                 .getBytes(StandardCharsets.UTF_8));

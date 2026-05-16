@@ -224,6 +224,41 @@ public class ObjectSerializer
             WriteIndented = false,
         };
         options.Converters.Add(new JsonStringEnumConverter());
+        options.Converters.Add(new DateTimeOffsetJsonConverter());
         return options;
+    }
+
+    /// <summary>
+    /// Serializes DateTimeOffset values as ISO 8601 strings with second
+    /// precision (no subseconds), matching the format used by all other
+    /// language generators: yyyy-MM-dd'T'HH:mm:sszzz.
+    /// </summary>
+    private sealed class DateTimeOffsetJsonConverter
+        : System.Text.Json.Serialization.JsonConverter<DateTimeOffset>
+    {
+        private const string Format = "yyyy-MM-dd'T'HH:mm:sszzz";
+
+        public override DateTimeOffset Read(
+            ref Utf8JsonReader reader,
+            Type typeToConvert,
+            JsonSerializerOptions options
+        )
+        {
+            return DateTimeOffset.Parse(
+                reader.GetString()!,
+                System.Globalization.CultureInfo.InvariantCulture
+            );
+        }
+
+        public override void Write(
+            Utf8JsonWriter writer,
+            DateTimeOffset value,
+            JsonSerializerOptions options
+        )
+        {
+            writer.WriteStringValue(
+                value.ToString(Format, System.Globalization.CultureInfo.InvariantCulture)
+            );
+        }
     }
 }

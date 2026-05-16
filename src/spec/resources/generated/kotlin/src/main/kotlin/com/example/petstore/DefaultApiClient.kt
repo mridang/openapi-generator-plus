@@ -172,6 +172,7 @@ class DefaultApiClient internal constructor(
                     },
                 )
             null -> {}
+            is String, is Number, is Boolean -> append(fieldName, value.toString())
             else -> {
                 val json =
                     try {
