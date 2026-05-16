@@ -327,10 +327,11 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                 new SupportingFile("package_swift.mustache", "", "Package.swift"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
+        supportingFiles.add(new SupportingFile("gitignore.mustache", "", ".gitignore"));
+        supportingFiles.add(new SupportingFile("swiftlint_yml.mustache", "", ".swiftlint.yml"));
 
         if (generateTests) {
             final String testDir = Path.of("Tests", packageName + "Tests").toString();
-            supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/TestContainersHelper.mustache",

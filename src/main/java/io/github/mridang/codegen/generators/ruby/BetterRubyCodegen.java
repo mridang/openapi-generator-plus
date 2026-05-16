@@ -304,9 +304,9 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("rakefile.mustache", "", "Rakefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
+        supportingFiles.add(new SupportingFile("gitignore.mustache", "", ".gitignore"));
 
         if (generateTests) {
-            supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
             supportingFiles.add(
                     new SupportingFile("test/test_helper.mustache", "test", "test_helper.rb"));
             supportingFiles.add(

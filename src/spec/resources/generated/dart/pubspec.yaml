@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 name: petstore_client
 description: A simplified Pet Store API for integration testing.
 version: 1.0.0

@@ -344,10 +344,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 new SupportingFile("client.mustache", "src", clientClassFile + ".ts"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
+        supportingFiles.add(new SupportingFile("gitignore.mustache", "", ".gitignore"));
 
         if (generateTests) {
             supportingFiles.add(new SupportingFile("test/jest.config.mjs", "", "jest.config.mjs"));
-            supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
             supportingFiles.add(
                     new SupportingFile("test/global-setup.ts", "test", "global-setup.ts"));
             supportingFiles.add(

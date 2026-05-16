@@ -2,5 +2,9 @@
 bin/
 obj/
 
+# IDE files
+*.user
+.vs/
+
 # Coverage output
 .out/

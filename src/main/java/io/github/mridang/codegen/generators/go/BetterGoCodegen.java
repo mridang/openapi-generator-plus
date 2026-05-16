@@ -391,9 +391,10 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         supportingFiles.add(new SupportingFile("go_mod.mustache", "", "go.mod"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
+        supportingFiles.add(new SupportingFile("gitignore.mustache", "", ".gitignore"));
+        supportingFiles.add(new SupportingFile("golangci.mustache", "", ".golangci.yml"));
 
         if (generateTests) {
-            supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/testcontainers_helper_test.mustache",

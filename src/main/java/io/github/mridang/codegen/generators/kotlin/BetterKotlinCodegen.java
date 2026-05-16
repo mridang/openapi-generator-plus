@@ -390,6 +390,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                         "client.mustache", invokerFolder, clientClassName + ".kt"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
+        supportingFiles.add(new SupportingFile("gitignore.mustache", "", ".gitignore"));
 
         if (generateTests) {
             final String testFolder =
@@ -502,7 +503,6 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                             "test/OpenIdConnectAuthenticatorTest.mustache",
                             testAuthFolder,
                             "OpenIdConnectAuthenticatorTest.kt"));
-            supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
         }
     }
 

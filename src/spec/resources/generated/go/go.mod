@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: MIT
 module petstore
 
 go 1.26

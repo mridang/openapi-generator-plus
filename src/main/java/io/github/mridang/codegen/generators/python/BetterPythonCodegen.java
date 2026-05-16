@@ -309,10 +309,10 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         supportingFiles.add(new SupportingFile("pyproject_toml.mustache", "", "pyproject.toml"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
+        supportingFiles.add(new SupportingFile("gitignore.mustache", "", ".gitignore"));
 
         if (generateTests) {
             supportingFiles.add(new SupportingFile("test/conftest.py", "", "conftest.py"));
-            supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
             supportingFiles.add(
                     new SupportingFile("test/tests_init.py", "test", "__init__.py"));
             final String testApiPath = Path.of("test", "api").toString();

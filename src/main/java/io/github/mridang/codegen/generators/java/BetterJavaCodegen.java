@@ -341,6 +341,8 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                         "client.mustache", invokerFolder, clientClassName + ".java"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
+        supportingFiles.add(new SupportingFile("gitignore.mustache", "", ".gitignore"));
+        supportingFiles.add(new SupportingFile("checkstyle_xml.mustache", "", "checkstyle.xml"));
 
         if (generateTests) {
             final String testFolder =
@@ -424,7 +426,6 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                             "test/ComposedSchemaTest.mustache",
                             testModelsFolder,
                             "ComposedSchemaTest.java"));
-            supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
 
         }
     }

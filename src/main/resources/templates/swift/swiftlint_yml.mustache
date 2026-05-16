@@ -1,0 +1,54 @@
+disabled_rules:
+  - todo
+  - trailing_whitespace
+
+opt_in_rules:
+  - empty_count
+  - empty_string
+  - explicit_init
+  - first_where
+  - last_where
+  - sorted_imports
+  - unneeded_parentheses_in_closure_argument
+
+excluded:
+  - .build
+  - Tests/Fixtures
+  - Tests/Spec
+
+line_length:
+  warning: 200
+  error: 300
+  ignores_urls: true
+  ignores_comments: true
+
+identifier_name:
+  min_length: 1
+  max_length:
+    warning: 60
+    error: 80
+
+type_name:
+  min_length: 1
+  max_length:
+    warning: 60
+    error: 80
+
+function_body_length:
+  warning: 100
+  error: 200
+
+type_body_length:
+  warning: 500
+  error: 1000
+
+file_length:
+  warning: 1000
+  error: 2000
+  ignore_comment_only_lines: true
+
+cyclomatic_complexity:
+  warning: 15
+  error: 25
+
+reporter: "xcode"

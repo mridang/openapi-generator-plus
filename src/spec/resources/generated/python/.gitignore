@@ -12,5 +12,10 @@ __pycache__/
 venv/
 .venv/
 
+# Build output
+dist/
+build/
+*.egg-info/
+
 # Coverage output
 .out/

@@ -334,11 +334,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                         "php_cs_fixer.mustache", "", ".php-cs-fixer.dist.php"));
         supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
         supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
+        supportingFiles.add(new SupportingFile("gitignore.mustache", "", ".gitignore"));
 
         if (generateTests) {
             supportingFiles.add(new SupportingFile("test/bootstrap.php", "test", "bootstrap.php"));
             supportingFiles.add(new SupportingFile("test/phpunit.xml", "", "phpunit.xml"));
-            supportingFiles.add(new SupportingFile("test/gitignore", "", ".gitignore"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/Api/PetMockApiClient.mustache",

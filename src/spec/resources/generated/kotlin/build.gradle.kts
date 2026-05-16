@@ -1,11 +1,28 @@
+// SPDX-License-Identifier: MIT
 plugins {
     kotlin("multiplatform") version "2.0.21"
     kotlin("plugin.serialization") version "2.0.21"
     id("org.jetbrains.kotlinx.kover") version "0.9.1"
+    `maven-publish`
 }
 
 group = "com.example.petstore"
 version = "1.0.0"
+
+publishing {
+    publications {
+        withType<MavenPublication> {
+            pom {
+                licenses {
+                    license {
+                        name.set("MIT")
+                        url.set("https://opensource.org/licenses/MIT")
+                    }
+                }
+            }
+        }
+    }
+}
 
 repositories {
     mavenCentral()
