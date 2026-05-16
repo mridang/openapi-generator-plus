@@ -44,8 +44,7 @@ T? deserialize<T>(String data, T Function(Map<String, dynamic>) fromJson) {
     if (decoded is Map<String, dynamic>) {
       return fromJson(decoded);
     }
-    throw SerializationError(
-        'Expected JSON object, got ${decoded.runtimeType}');
+    throw SerializationError('Expected JSON object, got ${decoded.runtimeType}');
   } catch (e) {
     if (e is SerializationError) rethrow;
     throw SerializationError('Failed to deserialize JSON: $e', e);
@@ -54,8 +53,7 @@ T? deserialize<T>(String data, T Function(Map<String, dynamic>) fromJson) {
 
 /// Parses a JSON string into a list of values.
 /// Returns null if data is empty.
-List<T>? deserializeList<T>(
-    String data, T Function(Map<String, dynamic>) fromJson) {
+List<T>? deserializeList<T>(String data, T Function(Map<String, dynamic>) fromJson) {
   if (data.isEmpty) {
     return null;
   }
@@ -152,8 +150,7 @@ String toFormValue(Object? value) {
 /// Resolve a oneOf schema by attempting deserialization against each candidate.
 /// Each entry in [fromJsonCandidates] is a factory function that attempts to
 /// deserialize the given map. Returns the first successful result.
-T? resolveOneOf<T>(Map<String, dynamic> data,
-    List<T Function(Map<String, dynamic>)> fromJsonCandidates) {
+T? resolveOneOf<T>(Map<String, dynamic> data, List<T Function(Map<String, dynamic>)> fromJsonCandidates) {
   for (final fromJson in fromJsonCandidates) {
     try {
       return fromJson(data);
@@ -167,8 +164,7 @@ T? resolveOneOf<T>(Map<String, dynamic> data,
 /// Resolve an anyOf schema by attempting deserialization against each candidate.
 /// Each entry in [fromJsonCandidates] is a factory function that attempts to
 /// deserialize the given map. Returns the first successful result.
-T? resolveAnyOf<T>(Map<String, dynamic> data,
-    List<T Function(Map<String, dynamic>)> fromJsonCandidates) {
+T? resolveAnyOf<T>(Map<String, dynamic> data, List<T Function(Map<String, dynamic>)> fromJsonCandidates) {
   return resolveOneOf(data, fromJsonCandidates);
 }
 

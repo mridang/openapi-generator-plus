@@ -18,6 +18,11 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
 
   use Agent
 
+  # Safety margin (in seconds) applied to token expiry checks so that we
+  # refresh slightly before the token actually expires, avoiding a race
+  # against the server clock.
+  @expiry_safety_margin_s 60
+
   @type state :: %{
           api_client: term() | nil,
           access_token: String.t() | nil,
@@ -67,12 +72,48 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
     state = Agent.get(manager, & &1)
     now = System.system_time(:second)
 
-    if state.access_token && (is_nil(state.token_expiry) || now < state.token_expiry) do
-      state.access_token
-    else
-      new_state = fetch_token(state, token_url, params)
-      Agent.update(manager, fn _ -> new_state end)
-      new_state.access_token
+    cond do
+      state.access_token && (is_nil(state.token_expiry) || now < state.token_expiry - @expiry_safety_margin_s) ->
+        state.access_token
+
+      is_binary(state.refresh_token) and state.refresh_token != "" ->
+        refresh_params =
+          %{"grant_type" => "refresh_token", "refresh_token" => state.refresh_token}
+          |> maybe_put(params, "client_id")
+          |> maybe_put(params, "client_secret")
+
+        case try_fetch_token(state, token_url, refresh_params) do
+          {:ok, new_state} ->
+            Agent.update(manager, fn _ -> new_state end)
+            new_state.access_token
+
+          :error ->
+            # Refresh failed (e.g. refresh token revoked or expired).
+            # Fall back to re-running the original grant.
+            new_state = fetch_token(state, token_url, params)
+            Agent.update(manager, fn _ -> new_state end)
+            new_state.access_token
+        end
+
+      true ->
+        new_state = fetch_token(state, token_url, params)
+        Agent.update(manager, fn _ -> new_state end)
+        new_state.access_token
+    end
+  end
+
+  defp maybe_put(map, params, key) do
+    case Map.get(params, key) do
+      nil -> map
+      value -> Map.put(map, key, value)
+    end
+  end
+
+  defp try_fetch_token(state, token_url, params) do
+    try do
+      {:ok, fetch_token(state, token_url, params)}
+    rescue
+      _ -> :error
     end
   end
 

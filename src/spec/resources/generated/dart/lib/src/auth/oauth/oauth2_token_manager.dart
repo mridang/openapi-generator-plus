@@ -17,6 +17,10 @@ import '../../api_client.dart';
 /// honour the same transport configuration (proxy, TLS, timeouts) as regular
 /// API calls.
 class OAuth2TokenManager {
+  /// Safety margin applied to token expiry checks so that we refresh slightly
+  /// before the token actually expires, avoiding a race against the server clock.
+  static const Duration _expirySafetyMargin = Duration(seconds: 60);
+
   ApiClient? _apiClient;
   String _accessToken = '';
   String _refreshToken = '';
@@ -36,8 +40,33 @@ class OAuth2TokenManager {
     Map<String, String> params,
   ) async {
     if (_accessToken.isNotEmpty &&
-        (_tokenExpiry == null || DateTime.now().isBefore(_tokenExpiry!))) {
+        (_tokenExpiry == null ||
+            DateTime.now().isBefore(_tokenExpiry!.subtract(_expirySafetyMargin)))) {
       return _accessToken;
+    }
+
+    if (_refreshToken.isNotEmpty) {
+      final refreshParams = <String, String>{
+        'grant_type': 'refresh_token',
+        'refresh_token': _refreshToken,
+      };
+      final clientId = params['client_id'];
+      if (clientId != null) {
+        refreshParams['client_id'] = clientId;
+      }
+      final clientSecret = params['client_secret'];
+      if (clientSecret != null) {
+        refreshParams['client_secret'] = clientSecret;
+      }
+      try {
+        await _fetchToken(tokenUrl, refreshParams);
+        if (_accessToken.isNotEmpty) {
+          return _accessToken;
+        }
+      } catch (_) {
+        // Refresh failed (e.g. refresh token revoked or expired). Fall back to
+        // re-running the original grant below.
+      }
     }
 
     await _fetchToken(tokenUrl, params);

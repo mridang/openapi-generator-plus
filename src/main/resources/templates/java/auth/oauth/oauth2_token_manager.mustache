@@ -25,6 +25,13 @@ import javax.annotation.Nullable;
  */
 public class OAuth2TokenManager {
 
+    /**
+     * Safety margin (in seconds) applied to token expiry checks so that we
+     * refresh slightly before the token actually expires, avoiding a race
+     * against the server clock.
+     */
+    private static final long EXPIRY_SAFETY_MARGIN_SECONDS = 60L;
+
     private final ObjectMapper objectMapper;
     @Nullable private ApiClient apiClient;
     @Nullable private String    accessToken;
@@ -61,8 +68,30 @@ public class OAuth2TokenManager {
      * @throws IllegalStateException if no API client has been injected or token fetch fails
      */
     public synchronized String getAccessToken(String tokenUrl, Map<String, String> params) {
-        if (accessToken != null && (tokenExpiry == null || Instant.now().isBefore(tokenExpiry))) {
+        if (accessToken != null
+                && (tokenExpiry == null
+                        || Instant.now().isBefore(tokenExpiry.minusSeconds(EXPIRY_SAFETY_MARGIN_SECONDS)))) {
             return accessToken;
+        }
+        if (refreshToken != null && !refreshToken.isEmpty()) {
+            Map<String, String> refreshParams = new HashMap<>();
+            refreshParams.put("grant_type", "refresh_token");
+            refreshParams.put("refresh_token", refreshToken);
+            if (params.containsKey("client_id")) {
+                refreshParams.put("client_id", params.get("client_id"));
+            }
+            if (params.containsKey("client_secret")) {
+                refreshParams.put("client_secret", params.get("client_secret"));
+            }
+            try {
+                fetchToken(tokenUrl, refreshParams);
+                if (accessToken != null) {
+                    return accessToken;
+                }
+            } catch (RuntimeException ignored) {
+                /* Refresh failed (e.g. refresh token revoked or expired). Fall
+                 * back to re-running the original grant below. */
+            }
         }
         fetchToken(tokenUrl, params);
         if (accessToken == null) {

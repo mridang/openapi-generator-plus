@@ -28,6 +28,13 @@ use PetstoreClient\ApiException;
  */
 final class OAuth2TokenManager
 {
+    /**
+     * Safety margin (in seconds) applied to token expiry checks so that we
+     * refresh slightly before the token actually expires, avoiding a race
+     * against the server clock.
+     */
+    private const EXPIRY_SAFETY_MARGIN_S = 60;
+
     /** @var ApiClient|null The shared API client for making token requests. */
     private ?ApiClient $apiClient = null;
 
@@ -61,8 +68,29 @@ final class OAuth2TokenManager
      */
     public function getAccessToken(string $tokenUrl, array $params): string
     {
-        if ($this->accessToken !== null && ($this->tokenExpiry === null || microtime(true) < $this->tokenExpiry)) {
+        if ($this->accessToken !== null && ($this->tokenExpiry === null || microtime(true) < ($this->tokenExpiry - self::EXPIRY_SAFETY_MARGIN_S))) {
             return $this->accessToken;
+        }
+        if ($this->refreshToken !== null && $this->refreshToken !== '') {
+            $refreshParams = [
+                'grant_type' => 'refresh_token',
+                'refresh_token' => $this->refreshToken,
+            ];
+            if (isset($params['client_id'])) {
+                $refreshParams['client_id'] = $params['client_id'];
+            }
+            if (isset($params['client_secret'])) {
+                $refreshParams['client_secret'] = $params['client_secret'];
+            }
+            try {
+                $this->fetchToken($tokenUrl, $refreshParams);
+                if ($this->accessToken !== null) {
+                    return $this->accessToken;
+                }
+            } catch (\RuntimeException $ignored) {
+                /* Refresh failed (e.g. refresh token revoked or expired).
+                 * Fall back to re-running the original grant below. */
+            }
         }
         $this->fetchToken($tokenUrl, $params);
         if ($this->accessToken === null) {

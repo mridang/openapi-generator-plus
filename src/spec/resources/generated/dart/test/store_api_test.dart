@@ -7,8 +7,8 @@
 
 import 'dart:io';
 
-import 'package:petstore_client/petstore_client.dart';
 import 'package:test/test.dart';
+import 'package:petstore_client/petstore_client.dart';
 
 import 'testcontainers_helper.dart';
 
@@ -34,14 +34,14 @@ void main() {
     test('placeOrder', () async {
       final api = _newStoreApiForIntegration();
 
-      final result = await api.placeOrder(const Order());
+      final result = await api.placeOrder(Order());
       expect(result, isNotNull);
     });
 
     test('placeOrderWithHTTPInfo', () async {
       final api = _newStoreApiForIntegration();
 
-      final result = await api.placeOrderWithHTTPInfo(const Order());
+      final result = await api.placeOrderWithHTTPInfo(Order());
       expect(result.statusCode, greaterThanOrEqualTo(200));
       expect(result.statusCode, lessThan(300));
       expect(result.data, isNotNull);
@@ -127,7 +127,7 @@ void main() {
             .build();
         final api = StoreApi(apiClient: DefaultApiClient(), config: config);
 
-        await api.placeOrder(const Order());
+        await api.placeOrder(Order());
         fail('Expected error for server error response');
       } on InternalServerError {
         // Expected

@@ -19,6 +19,11 @@ module PetstoreClient
       # honour the same transport configuration (proxy, TLS, timeouts) as
       # regular API calls.
       class OAuth2TokenManager
+        # Safety margin (in seconds) applied to token expiry checks so that
+        # we refresh slightly before the token actually expires, avoiding a
+        # race against the server clock.
+        EXPIRY_SAFETY_MARGIN_S = 60
+
         # Inject the shared API client for making token requests.
         #
         # @param client [ApiClient] the shared API client instance
@@ -48,7 +53,20 @@ module PetstoreClient
         # @raise [RuntimeError] if no API client has been injected or token fetch fails
         def get_access_token(token_url, params)
           @mutex.synchronize do
-            return @access_token if @access_token && (@token_expiry.nil? || Time.now.to_f < @token_expiry)
+            return @access_token if @access_token && (@token_expiry.nil? || Time.now.to_f < (@token_expiry - EXPIRY_SAFETY_MARGIN_S))
+
+            if @refresh_token && !@refresh_token.empty?
+              refresh_params = { 'grant_type' => 'refresh_token', 'refresh_token' => @refresh_token }
+              refresh_params['client_id'] = params['client_id'] if params.key?('client_id')
+              refresh_params['client_secret'] = params['client_secret'] if params.key?('client_secret')
+              begin
+                fetch_token(token_url, refresh_params)
+                return @access_token if @access_token
+              rescue StandardError
+                # Refresh failed (e.g. refresh token revoked or expired).
+                # Fall back to re-running the original grant below.
+              end
+            end
 
             fetch_token(token_url, params)
             @access_token

@@ -15,6 +15,13 @@ import type { ApiClient } from '../../api-client.js';
  * API calls.
  */
 export class OAuth2TokenManager {
+  /**
+   * Safety margin (in milliseconds) applied to token expiry checks so that
+   * we refresh slightly before the token actually expires, avoiding a race
+   * against the server clock.
+   */
+  private static readonly EXPIRY_SAFETY_MARGIN_MS = 60_000;
+
   private apiClient: ApiClient | null = null;
   private accessToken: string | null = null;
   private tokenExpiry: number | null = null;
@@ -38,8 +45,32 @@ export class OAuth2TokenManager {
    * @throws Error if no API client has been injected or token fetch fails
    */
   async getAccessToken(tokenUrl: string, params: Record<string, string>): Promise<string> {
-    if (this.accessToken && (this.tokenExpiry === null || Date.now() < this.tokenExpiry)) {
+    if (
+      this.accessToken &&
+      (this.tokenExpiry === null || Date.now() < this.tokenExpiry - OAuth2TokenManager.EXPIRY_SAFETY_MARGIN_MS)
+    ) {
       return this.accessToken;
+    }
+    if (this.refreshToken) {
+      const refreshParams: Record<string, string> = {
+        grant_type: 'refresh_token',
+        refresh_token: this.refreshToken
+      };
+      if (params.client_id !== undefined) {
+        refreshParams.client_id = params.client_id;
+      }
+      if (params.client_secret !== undefined) {
+        refreshParams.client_secret = params.client_secret;
+      }
+      try {
+        await this.fetchToken(tokenUrl, refreshParams);
+        if (this.accessToken) {
+          return this.accessToken;
+        }
+      } catch {
+        /* Refresh failed (e.g. refresh token revoked or expired).
+         * Fall back to re-running the original grant below. */
+      }
     }
     await this.fetchToken(tokenUrl, params);
     return this.accessToken!;

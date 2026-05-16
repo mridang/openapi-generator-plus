@@ -21,6 +21,11 @@ class OAuth2TokenManager:
     as regular API calls.
     """
 
+    # Safety margin (in seconds) applied to token expiry checks so that we
+    # refresh slightly before the token actually expires, avoiding a race
+    # against the server clock.
+    _EXPIRY_SAFETY_MARGIN_S = 60
+
     def __init__(self) -> None:
         """Create a new token manager.
 
@@ -59,8 +64,27 @@ class OAuth2TokenManager:
                 fetch fails.
         """
         with self._lock:
-            if self._access_token and (self._token_expiry is None or time.time() < self._token_expiry):
+            if self._access_token and (
+                self._token_expiry is None or time.time() < (self._token_expiry - self._EXPIRY_SAFETY_MARGIN_S)
+            ):
                 return self._access_token
+            if self._refresh_token:
+                refresh_params: Dict[str, str] = {
+                    'grant_type': 'refresh_token',
+                    'refresh_token': self._refresh_token,
+                }
+                if 'client_id' in params:
+                    refresh_params['client_id'] = params['client_id']
+                if 'client_secret' in params:
+                    refresh_params['client_secret'] = params['client_secret']
+                try:
+                    self._fetch_token(token_url, refresh_params)
+                    if self._access_token is not None:
+                        return self._access_token
+                except Exception:
+                    # Refresh failed (e.g. refresh token revoked or expired).
+                    # Fall back to re-running the original grant below.
+                    pass
             self._fetch_token(token_url, params)
             if self._access_token is None:
                 raise RuntimeError('Token fetch did not return an access token')

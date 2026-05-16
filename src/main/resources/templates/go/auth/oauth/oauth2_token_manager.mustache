@@ -11,6 +11,11 @@ import (
 	"{{packageName}}/pkg/auth"
 )
 
+// expirySafetyMargin is applied to token expiry checks so that we refresh
+// slightly before the token actually expires, avoiding a race against the
+// server clock.
+const expirySafetyMargin = 60 * time.Second
+
 // OAuth2TokenManager manages OAuth2 token lifecycle: fetching, caching, and refreshing.
 //
 // Uses the shared ApiClient instance so that token exchange requests honour
@@ -52,8 +57,26 @@ func (m *OAuth2TokenManager) GetAccessToken(tokenURL string, params map[string]s
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.accessToken != "" && (m.tokenExpiry.IsZero() || time.Now().Before(m.tokenExpiry)) {
+	if m.accessToken != "" && (m.tokenExpiry.IsZero() || time.Now().Before(m.tokenExpiry.Add(-expirySafetyMargin))) {
 		return m.accessToken, nil
+	}
+
+	if m.refreshToken != "" {
+		refreshParams := map[string]string{
+			"grant_type":    "refresh_token",
+			"refresh_token": m.refreshToken,
+		}
+		if v, ok := params["client_id"]; ok {
+			refreshParams["client_id"] = v
+		}
+		if v, ok := params["client_secret"]; ok {
+			refreshParams["client_secret"] = v
+		}
+		if err := m.fetchToken(tokenURL, refreshParams); err == nil && m.accessToken != "" {
+			return m.accessToken, nil
+		}
+		/* Refresh failed (e.g. refresh token revoked or expired).
+		 * Fall back to re-running the original grant below. */
 	}
 
 	if err := m.fetchToken(tokenURL, params); err != nil {

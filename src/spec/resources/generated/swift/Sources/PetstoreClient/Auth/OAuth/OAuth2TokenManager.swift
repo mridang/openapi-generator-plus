@@ -12,6 +12,11 @@ import Foundation
 /// Uses the shared ``ApiClient`` instance so that token exchange requests honour
 /// the same transport configuration (proxy, TLS, timeouts) as regular API calls.
 public final class OAuth2TokenManager: @unchecked Sendable {
+  /// Safety margin (in seconds) applied to token expiry checks so that we
+  /// refresh slightly before the token actually expires, avoiding a race
+  /// against the server clock.
+  private static let expirySafetyMargin: TimeInterval = 60
+
   private let lock = NSLock()
   private var apiClient: ApiClient?
   private var accessToken: String = ""
@@ -43,13 +48,37 @@ public final class OAuth2TokenManager: @unchecked Sendable {
   /// This method is synchronized to prevent concurrent token requests.
   public func getAccessToken(tokenURL: String, params: [String: String]) async throws -> String {
     let cached: String? = lock.withLock {
-      if !accessToken.isEmpty && Date() < tokenExpiry {
+      if !accessToken.isEmpty && Date() < tokenExpiry.addingTimeInterval(-Self.expirySafetyMargin) {
         return accessToken
       }
       return nil
     }
     if let cached = cached {
       return cached
+    }
+
+    let currentRefreshToken: String = lock.withLock { _refreshToken }
+    if !currentRefreshToken.isEmpty {
+      var refreshParams: [String: String] = [
+        "grant_type": "refresh_token",
+        "refresh_token": currentRefreshToken,
+      ]
+      if let clientId = params["client_id"] {
+        refreshParams["client_id"] = clientId
+      }
+      if let clientSecret = params["client_secret"] {
+        refreshParams["client_secret"] = clientSecret
+      }
+      do {
+        try await fetchToken(tokenURL: tokenURL, params: refreshParams)
+        let refreshed: String = lock.withLock { accessToken }
+        if !refreshed.isEmpty {
+          return refreshed
+        }
+      } catch {
+        /* Refresh failed (e.g. refresh token revoked or expired).
+                 * Fall back to re-running the original grant below. */
+      }
     }
 
     try await fetchToken(tokenURL: tokenURL, params: params)

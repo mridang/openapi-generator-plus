@@ -16,6 +16,10 @@ use crate::api_client::{ApiClient, RequestBody};
 ///
 /// Uses the shared ApiClient instance so that token exchange requests honour
 /// the same transport configuration (proxy, TLS, timeouts) as regular API calls.
+/// Safety margin applied to token expiry checks so that we refresh slightly
+/// before the token actually expires, avoiding a race against the server clock.
+const EXPIRY_SAFETY_MARGIN: Duration = Duration::from_secs(60);
+
 pub struct OAuth2TokenManager {
     inner: Mutex<TokenManagerInner>,
 }
@@ -66,18 +70,18 @@ impl OAuth2TokenManager {
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         /* Fast path: return the cached token if still valid. The mutex is
          * released before any async work begins. */
-        let client = {
+        let (client, current_refresh_token) = {
             let inner = self.inner.lock().unwrap();
             if !inner.access_token.is_empty() {
                 match inner.token_expiry {
                     None => return Ok(inner.access_token.clone()),
-                    Some(expiry) if Instant::now() < expiry => {
+                    Some(expiry) if Instant::now() < expiry - EXPIRY_SAFETY_MARGIN => {
                         return Ok(inner.access_token.clone());
                     }
                     _ => {}
                 }
             }
-            inner
+            let client = inner
                 .api_client
                 .as_ref()
                 .ok_or(
@@ -85,9 +89,40 @@ impl OAuth2TokenManager {
                  Ensure the Client constructor calls set_api_client \
                  on HttpAwareAuthenticator before making API requests",
                 )?
-                .clone()
+                .clone();
+            (client, inner.refresh_token.clone())
         };
 
+        /* If we have a refresh token, try the refresh_token grant first.
+         * On failure (4xx/5xx or transport error) fall back to re-running
+         * the original grant. */
+        if !current_refresh_token.is_empty() {
+            let mut refresh_params: HashMap<String, String> = HashMap::new();
+            refresh_params.insert("grant_type".to_string(), "refresh_token".to_string());
+            refresh_params.insert("refresh_token".to_string(), current_refresh_token);
+            if let Some(client_id) = params.get("client_id") {
+                refresh_params.insert("client_id".to_string(), client_id.clone());
+            }
+            if let Some(client_secret) = params.get("client_secret") {
+                refresh_params.insert("client_secret".to_string(), client_secret.clone());
+            }
+            if let Ok(token) = self
+                .fetch_token(client.clone(), token_url, &refresh_params)
+                .await
+            {
+                return Ok(token);
+            }
+        }
+
+        self.fetch_token(client, token_url, params).await
+    }
+
+    async fn fetch_token(
+        &self,
+        client: Arc<dyn ApiClient>,
+        token_url: &str,
+        params: &HashMap<String, String>,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let mut headers = HashMap::new();
         headers.insert(
             "Content-Type".to_string(),

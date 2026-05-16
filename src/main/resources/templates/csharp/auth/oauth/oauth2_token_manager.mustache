@@ -13,6 +13,13 @@ namespace {{packageName}}.Auth.OAuth;
 /// </summary>
 public sealed class OAuth2TokenManager
 {
+    /// <summary>
+    /// Safety margin (in seconds) applied to token expiry checks so that we
+    /// refresh slightly before the token actually expires, avoiding a race
+    /// against the server clock.
+    /// </summary>
+    private const int ExpirySafetyMarginSeconds = 60;
+
     private IApiClient? _apiClient;
     private string? _accessToken;
     private DateTimeOffset? _tokenExpiry;
@@ -39,12 +46,47 @@ public sealed class OAuth2TokenManager
         Dictionary<string, string> parameters
     )
     {
+        ArgumentNullException.ThrowIfNull(parameters);
         if (
             _accessToken is not null
-            && (_tokenExpiry is null || DateTimeOffset.UtcNow < _tokenExpiry)
+            && (
+                _tokenExpiry is null
+                || DateTimeOffset.UtcNow
+                    < _tokenExpiry.Value.AddSeconds(-ExpirySafetyMarginSeconds)
+            )
         )
         {
             return _accessToken;
+        }
+
+        if (!string.IsNullOrEmpty(RefreshToken))
+        {
+            Dictionary<string, string> refreshParams = new()
+            {
+                ["grant_type"] = "refresh_token",
+                ["refresh_token"] = RefreshToken!,
+            };
+            if (parameters.TryGetValue("client_id", out string? clientId))
+            {
+                refreshParams["client_id"] = clientId;
+            }
+            if (parameters.TryGetValue("client_secret", out string? clientSecret))
+            {
+                refreshParams["client_secret"] = clientSecret;
+            }
+            try
+            {
+                await FetchTokenAsync(tokenUrl, refreshParams).ConfigureAwait(false);
+                if (_accessToken is not null)
+                {
+                    return _accessToken;
+                }
+            }
+            catch (HttpRequestException)
+            {
+                /* Refresh failed (e.g. refresh token revoked or expired).
+                 * Fall back to re-running the original grant below. */
+            }
         }
 
         await FetchTokenAsync(tokenUrl, parameters).ConfigureAwait(false);
