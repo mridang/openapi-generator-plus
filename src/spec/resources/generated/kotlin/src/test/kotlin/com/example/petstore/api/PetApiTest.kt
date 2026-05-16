@@ -24,7 +24,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -32,6 +31,22 @@ import org.junit.jupiter.api.Test
 class PetApiTest {
     companion object {
         private fun getBaseUrl(): String = PrismContainer.getBaseUrl()
+
+        // Shared DefaultApiClient + PetApi across all integration tests in
+        // this class. Each ktor CIO HttpClient holds connection pools and
+        // file descriptors; creating a fresh client per test (24+ instances
+        // in this suite) exhausts Prism's connection limits and causes
+        // EOFException / Connection refused cascades.
+        private val sharedConfig: Configuration by lazy {
+            Configuration
+                .builder()
+                .baseUrl(getBaseUrl())
+                .defaultHeader("Authorization", "Bearer test-token")
+                .build()
+        }
+        private val sharedApi: PetApi by lazy {
+            PetApi(DefaultApiClient(), sharedConfig)
+        }
     }
 
     private val bearerAuth =
@@ -50,18 +65,7 @@ class PetApiTest {
     @Nested
     @DisplayName("Integration tests")
     inner class IntegrationTests {
-        private lateinit var api: PetApi
-
-        @BeforeEach
-        fun setUp() {
-            val config =
-                Configuration
-                    .builder()
-                    .baseUrl(getBaseUrl())
-                    .defaultHeader("Authorization", "Bearer test-token")
-                    .build()
-            api = PetApi(DefaultApiClient(), config)
-        }
+        private val api: PetApi get() = sharedApi
 
         @Test
         @DisplayName("addPet creates a new pet")

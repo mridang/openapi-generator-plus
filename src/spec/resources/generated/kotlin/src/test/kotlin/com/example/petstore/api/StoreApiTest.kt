@@ -16,7 +16,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -26,23 +25,24 @@ import java.time.ZoneOffset
 class StoreApiTest {
     companion object {
         private fun getBaseUrl(): String = PrismContainer.getBaseUrl()
-    }
 
-    @Nested
-    @DisplayName("Integration tests")
-    inner class IntegrationTests {
-        private lateinit var api: StoreApi
-
-        @BeforeEach
-        fun setUp() {
+        // Share one ktor HttpClient across the suite — see PetApiTest for
+        // why per-test client creation exhausts Prism's connection limits.
+        private val sharedApi: StoreApi by lazy {
             val config =
                 Configuration
                     .builder()
                     .baseUrl(getBaseUrl())
                     .defaultHeader("Authorization", "Bearer test-token")
                     .build()
-            api = StoreApi(DefaultApiClient(), config)
+            StoreApi(DefaultApiClient(), config)
         }
+    }
+
+    @Nested
+    @DisplayName("Integration tests")
+    inner class IntegrationTests {
+        private val api: StoreApi get() = sharedApi
 
         @Test
         @DisplayName("placeOrder creates a new order")
