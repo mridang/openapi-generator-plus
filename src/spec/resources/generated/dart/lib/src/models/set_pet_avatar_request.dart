@@ -23,9 +23,7 @@ class SetPetAvatarRequest {
   factory SetPetAvatarRequest.fromJson(Map<String, dynamic> json) {
     return SetPetAvatarRequest(
       data: base64Decode(json['data'] as String),
-
       mimeType: json['mimeType'] as String,
-
     );
   }
 

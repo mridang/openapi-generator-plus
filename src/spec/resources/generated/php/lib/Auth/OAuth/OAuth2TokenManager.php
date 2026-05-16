@@ -66,9 +66,19 @@ final class OAuth2TokenManager
      *
      * @throws \RuntimeException if no API client has been injected or token fetch fails
      */
-    public function getAccessToken(string $tokenUrl, array $params): string
+    /**
+     * @param string                $tokenUrl     the token endpoint URL
+     * @param array<string, string> $params       the request body parameters
+     * @param array<string, string> $extraHeaders additional HTTP headers (e.g. for HTTP Basic client auth)
+     */
+    public function getAccessToken(string $tokenUrl, array $params, array $extraHeaders = []): string
     {
-        if ($this->accessToken !== null && ($this->tokenExpiry === null || microtime(true) < ($this->tokenExpiry - self::EXPIRY_SAFETY_MARGIN_S))) {
+        if (
+            $this->accessToken !== null && (
+            $this->tokenExpiry === null
+            || microtime(true) < ($this->tokenExpiry - self::EXPIRY_SAFETY_MARGIN_S)
+            )
+        ) {
             return $this->accessToken;
         }
         if ($this->refreshToken !== null && $this->refreshToken !== '') {
@@ -83,7 +93,7 @@ final class OAuth2TokenManager
                 $refreshParams['client_secret'] = $params['client_secret'];
             }
             try {
-                $this->fetchToken($tokenUrl, $refreshParams);
+                $this->fetchToken($tokenUrl, $refreshParams, $extraHeaders);
                 if ($this->accessToken !== null) {
                     return $this->accessToken;
                 }
@@ -92,7 +102,7 @@ final class OAuth2TokenManager
                  * Fall back to re-running the original grant below. */
             }
         }
-        $this->fetchToken($tokenUrl, $params);
+        $this->fetchToken($tokenUrl, $params, $extraHeaders);
         if ($this->accessToken === null) {
             throw new \RuntimeException('Failed to obtain access token');
         }
@@ -129,7 +139,11 @@ final class OAuth2TokenManager
      *
      * @throws \RuntimeException if the API client has not been injected or the request fails
      */
-    private function fetchToken(string $tokenUrl, array $params): void
+    /**
+     * @param array<string, string> $params       the request body parameters
+     * @param array<string, string> $extraHeaders additional HTTP headers
+     */
+    private function fetchToken(string $tokenUrl, array $params, array $extraHeaders = []): void
     {
         if (!$this->apiClient instanceof ApiClient) {
             throw new \RuntimeException(
@@ -139,7 +153,7 @@ final class OAuth2TokenManager
             );
         }
 
-        $headers = ['Content-Type' => 'application/x-www-form-urlencoded'];
+        $headers = array_merge(['Content-Type' => 'application/x-www-form-urlencoded'], $extraHeaders);
         $body = http_build_query($params);
 
         try {

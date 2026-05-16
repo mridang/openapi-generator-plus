@@ -46,7 +46,12 @@ class OAuth2TokenManager:
         """
         self._api_client = api_client
 
-    def get_access_token(self, token_url: str, params: Dict[str, str]) -> str:
+    def get_access_token(
+        self,
+        token_url: str,
+        params: Dict[str, str],
+        extra_headers: Optional[Dict[str, str]] = None,
+    ) -> str:
         """Get a valid access token, fetching or refreshing as necessary.
 
         This method is thread-safe; concurrent calls will not trigger
@@ -55,6 +60,8 @@ class OAuth2TokenManager:
         Args:
             token_url: The OAuth2 token endpoint URL.
             params: The token request parameters (grant_type, client_id, etc.).
+            extra_headers: Optional additional HTTP headers to send with the
+                token request (e.g. Authorization for HTTP Basic client auth).
 
         Returns:
             A valid access token.
@@ -78,14 +85,14 @@ class OAuth2TokenManager:
                 if 'client_secret' in params:
                     refresh_params['client_secret'] = params['client_secret']
                 try:
-                    self._fetch_token(token_url, refresh_params)
+                    self._fetch_token(token_url, refresh_params, extra_headers)
                     if self._access_token is not None:
                         return self._access_token
                 except Exception:
                     # Refresh failed (e.g. refresh token revoked or expired).
                     # Fall back to re-running the original grant below.
                     pass
-            self._fetch_token(token_url, params)
+            self._fetch_token(token_url, params, extra_headers)
             if self._access_token is None:
                 raise RuntimeError('Token fetch did not return an access token')
             return self._access_token
@@ -100,12 +107,18 @@ class OAuth2TokenManager:
             self._access_token = token
             self._token_expiry = None
 
-    def _fetch_token(self, token_url: str, params: Dict[str, str]) -> None:
+    def _fetch_token(
+        self,
+        token_url: str,
+        params: Dict[str, str],
+        extra_headers: Optional[Dict[str, str]] = None,
+    ) -> None:
         """Fetch a token from the token endpoint using the injected ApiClient.
 
         Args:
             token_url: The OAuth2 token endpoint URL.
             params: The token request form parameters.
+            extra_headers: Additional HTTP headers to include on the request.
 
         Raises:
             RuntimeError: If no API client has been injected or the token
@@ -125,6 +138,8 @@ class OAuth2TokenManager:
         headers: Dict[str, str] = {
             'Content-Type': 'application/x-www-form-urlencoded',
         }
+        if extra_headers:
+            headers.update(extra_headers)
 
         response = self._api_client.send_request('POST', token_url, headers, body)
         if response.status_code < 200 or response.status_code >= 300:

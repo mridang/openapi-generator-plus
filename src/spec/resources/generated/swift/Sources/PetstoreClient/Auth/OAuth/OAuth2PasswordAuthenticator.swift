@@ -23,6 +23,7 @@ public class OAuth2PasswordAuthenticator: BaseAuthenticator, HttpAwareAuthentica
   private let username: String
   private let password: String
   private let scopes: [String]
+  private let clientAuthMethod: ClientAuthMethod
   private let tokenManager: OAuth2TokenManager
 
   /// Creates a new password authenticator.
@@ -36,7 +37,8 @@ public class OAuth2PasswordAuthenticator: BaseAuthenticator, HttpAwareAuthentica
     username: String,
     password: String,
     scopes: [String] = [],
-    refreshURL: String = ""
+    refreshURL: String = "",
+    clientAuthMethod: ClientAuthMethod = .body
   ) {
     self._host = host
     self.clientID = clientID
@@ -46,6 +48,7 @@ public class OAuth2PasswordAuthenticator: BaseAuthenticator, HttpAwareAuthentica
     self.username = username
     self.password = password
     self.scopes = scopes
+    self.clientAuthMethod = clientAuthMethod
     self.tokenManager = OAuth2TokenManager()
     super.init()
   }
@@ -64,6 +67,12 @@ public class OAuth2PasswordAuthenticator: BaseAuthenticator, HttpAwareAuthentica
   override public func authHeaders() async -> [String: String] {
     var params: [String: String]
     var url: String
+    var extraHeaders: [String: String] = [:]
+    if clientAuthMethod == .basic {
+      let credentials =
+        "\(clientID):\(clientSecret)".data(using: .utf8)?.base64EncodedString() ?? ""
+      extraHeaders["Authorization"] = "Basic \(credentials)"
+    }
 
     let refreshToken = tokenManager.refreshToken
     if !refreshToken.isEmpty {
@@ -75,18 +84,22 @@ public class OAuth2PasswordAuthenticator: BaseAuthenticator, HttpAwareAuthentica
     } else {
       params = [
         "grant_type": "password",
-        "client_id": clientID,
-        "client_secret": clientSecret,
         "username": username,
         "password": password,
       ]
+      if clientAuthMethod != .basic {
+        params["client_id"] = clientID
+        params["client_secret"] = clientSecret
+      }
       if !scopes.isEmpty {
         params["scope"] = scopes.joined(separator: " ")
       }
       url = tokenURL
     }
 
-    guard let accessToken = try? await tokenManager.getAccessToken(tokenURL: url, params: params)
+    guard
+      let accessToken = try? await tokenManager.getAccessToken(
+        tokenURL: url, params: params, extraHeaders: extraHeaders)
     else {
       return [:]
     }

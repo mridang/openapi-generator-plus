@@ -62,6 +62,100 @@ client = {{moduleName}}::{{clientClassName}}.new(authenticator)
 ```
 
 {{/hasOAuth2ClientCredentials}}
+{{#hasOAuth2AuthorizationCode}}
+### OAuth2 Authorization Code
+
+```ruby
+authenticator = {{moduleName}}::Auth::OAuth::OAuth2AuthCodeAuthenticator.new(
+  'https://api.example.com', 'client-id', 'client-secret',
+  'https://auth.example.com/token', 'authorization-code', 'https://app.example.com/callback')
+client = {{moduleName}}::{{clientClassName}}.new(authenticator)
+```
+
+{{/hasOAuth2AuthorizationCode}}
+{{#hasOAuth2Password}}
+### OAuth2 Password
+
+```ruby
+authenticator = {{moduleName}}::Auth::OAuth::OAuth2PasswordAuthenticator.new(
+  'https://api.example.com', 'client-id', 'client-secret',
+  'https://auth.example.com/token', 'username', 'password')
+client = {{moduleName}}::{{clientClassName}}.new(authenticator)
+```
+
+{{/hasOAuth2Password}}
+{{#hasOAuth2Implicit}}
+### OAuth2 Implicit
+
+The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
+
+```ruby
+authenticator = {{moduleName}}::Auth::OAuth::OAuth2ImplicitAuthenticator.new('https://api.example.com', 'your-access-token')
+client = {{moduleName}}::{{clientClassName}}.new(authenticator)
+```
+
+{{/hasOAuth2Implicit}}
+{{#hasOpenIdConnect}}
+### OpenID Connect
+
+```ruby
+authenticator = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
+  'https://api.example.com', 'client-id', 'client-secret',
+  'https://auth.example.com/.well-known/openid-configuration')
+client = {{moduleName}}::{{clientClassName}}.new(authenticator)
+```
+
+{{/hasOpenIdConnect}}
+{{#hasAnyOAuth2}}
+### OAuth2 token lifecycle
+
+#### Refresh tokens
+
+When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
+
+#### Token caching
+
+The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
+
+#### Client authentication method
+
+OAuth2 clients can transmit their `client_id` and `client_secret` to the token endpoint two ways (RFC 6749 §2.3.1):
+
+- `ClientAuthMethod::BODY` (default) sends them as `application/x-www-form-urlencoded` parameters in the request body.
+- `ClientAuthMethod::BASIC` sends them as an HTTP Basic `Authorization` header.
+
+Override the default if your authorization server only accepts one form:
+
+```ruby
+authenticator = {{moduleName}}::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
+  'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token',
+  client_auth_method: {{moduleName}}::Auth::OAuth::ClientAuthMethod::BASIC)
+```
+
+{{/hasAnyOAuth2}}
+{{#hasServers}}
+## Servers
+
+If the OpenAPI spec defines multiple servers, the generated `{{moduleName}}::Servers` module exposes each as a `ServerConfiguration` constant (e.g., `SERVER_0`, `SERVER_1`, ...) plus an `ALL` array. Pass the desired server's URL to the client:
+
+```ruby
+client = {{moduleName}}::{{clientClassName}}.with_token({{moduleName}}::Servers::SERVER_0.url, 'your-token')
+```
+
+{{/hasServers}}
+
+## Testing
+
+The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
+
+```ruby
+fake_authenticator = Class.new do
+  def get_auth_headers(request) = { 'Authorization' => 'Bearer test-token' }
+  def host = 'https://api.example.com'
+end.new
+
+client = {{moduleName}}::{{clientClassName}}.new(fake_authenticator)
+```
 
 ## Error Handling
 

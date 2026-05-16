@@ -40,7 +40,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     /// Returns a valid access token, fetching or refreshing as necessary.
     ///
     /// This method is synchronized to prevent concurrent token requests.
-    public func getAccessToken(tokenURL: String, params: [String: String]) async throws -> String {
+    public func getAccessToken(tokenURL: String, params: [String: String], extraHeaders: [String: String] = [:]) async throws -> String {
         let cached: String? = lock.withLock {
             if !accessToken.isEmpty && Date() < tokenExpiry.addingTimeInterval(-Self.expirySafetyMargin) {
                 return accessToken
@@ -64,7 +64,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
                 refreshParams["client_secret"] = clientSecret
             }
             do {
-                try await fetchToken(tokenURL: tokenURL, params: refreshParams)
+                try await fetchToken(tokenURL: tokenURL, params: refreshParams, extraHeaders: extraHeaders)
                 let refreshed: String = lock.withLock { accessToken }
                 if !refreshed.isEmpty {
                     return refreshed
@@ -75,7 +75,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
             }
         }
 
-        try await fetchToken(tokenURL: tokenURL, params: params)
+        try await fetchToken(tokenURL: tokenURL, params: params, extraHeaders: extraHeaders)
 
         return lock.withLock {
             return accessToken
@@ -90,7 +90,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
         }
     }
 
-    private func fetchToken(tokenURL: String, params: [String: String]) async throws {
+    private func fetchToken(tokenURL: String, params: [String: String], extraHeaders: [String: String] = [:]) async throws {
         let client: ApiClient = try lock.withLock {
             guard let client = apiClient else {
                 throw NSError(domain: "OAuth2TokenManager", code: -1, userInfo: [
@@ -105,7 +105,10 @@ public final class OAuth2TokenManager: @unchecked Sendable {
         let body = params.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
         let bodyData = body.data(using: .utf8)
 
-        let headers = ["Content-Type": "application/x-www-form-urlencoded"]
+        var headers = ["Content-Type": "application/x-www-form-urlencoded"]
+        for (key, value) in extraHeaders {
+            headers[key] = value
+        }
         let response = try await client.sendRequest(method: "POST", url: tokenURL, headers: headers, body: bodyData)
 
         guard response.statusCode >= 200 && response.statusCode < 300 else {

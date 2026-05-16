@@ -13,8 +13,11 @@ use std::sync::Arc;
 
 use crate::api_client::ApiClient;
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
+use crate::auth::oauth::client_auth_method::ClientAuthMethod;
 use crate::auth::oauth::oauth2_token_manager::OAuth2TokenManager;
 use crate::auth::Authenticator;
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use base64::Engine as _;
 
 /// OAuth2ClientCredentialsAuthenticator provides OAuth2 client credentials
 /// flow authentication.
@@ -28,6 +31,7 @@ pub struct OAuth2ClientCredentialsAuthenticator {
     client_secret: String,
     token_url: String,
     scopes: Vec<String>,
+    client_auth_method: ClientAuthMethod,
     token_manager: OAuth2TokenManager,
 }
 
@@ -46,8 +50,16 @@ impl OAuth2ClientCredentialsAuthenticator {
             client_secret: client_secret.to_string(),
             token_url: token_url.to_string(),
             scopes,
+            client_auth_method: ClientAuthMethod::Body,
             token_manager: OAuth2TokenManager::new(),
         }
+    }
+
+    /// Sets how the client credentials are transmitted to the token endpoint
+    /// (RFC 6749 §2.3.1). Builder-style; returns the receiver.
+    pub fn with_client_auth_method(mut self, method: ClientAuthMethod) -> Self {
+        self.client_auth_method = method;
+        self
     }
 }
 
@@ -62,15 +74,25 @@ impl Authenticator for OAuth2ClientCredentialsAuthenticator {
         Box::pin(async move {
             let mut params = HashMap::new();
             params.insert("grant_type".to_string(), "client_credentials".to_string());
-            params.insert("client_id".to_string(), self.client_id.clone());
-            params.insert("client_secret".to_string(), self.client_secret.clone());
+            let mut extra_headers = HashMap::new();
+            if self.client_auth_method == ClientAuthMethod::Basic {
+                let credentials = BASE64_STANDARD
+                    .encode(format!("{}:{}", self.client_id, self.client_secret).as_bytes());
+                extra_headers.insert(
+                    "Authorization".to_string(),
+                    format!("Basic {}", credentials),
+                );
+            } else {
+                params.insert("client_id".to_string(), self.client_id.clone());
+                params.insert("client_secret".to_string(), self.client_secret.clone());
+            }
             if !self.scopes.is_empty() {
                 params.insert("scope".to_string(), self.scopes.join(" "));
             }
 
             match self
                 .token_manager
-                .get_access_token(&self.token_url, &params)
+                .get_access_token_with_headers(&self.token_url, &params, &extra_headers)
                 .await
             {
                 Ok(token) => {

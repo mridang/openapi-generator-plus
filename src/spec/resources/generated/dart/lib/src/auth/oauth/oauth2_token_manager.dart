@@ -37,11 +37,13 @@ class OAuth2TokenManager {
   /// Returns a valid access token, fetching or refreshing as necessary.
   Future<String> getAccessToken(
     String tokenUrl,
-    Map<String, String> params,
-  ) async {
+    Map<String, String> params, [
+    Map<String, String> extraHeaders = const {},
+  ]) async {
     if (_accessToken.isNotEmpty &&
         (_tokenExpiry == null ||
-            DateTime.now().isBefore(_tokenExpiry!.subtract(_expirySafetyMargin)))) {
+            DateTime.now()
+                .isBefore(_tokenExpiry!.subtract(_expirySafetyMargin)))) {
       return _accessToken;
     }
 
@@ -59,17 +61,17 @@ class OAuth2TokenManager {
         refreshParams['client_secret'] = clientSecret;
       }
       try {
-        await _fetchToken(tokenUrl, refreshParams);
+        await _fetchToken(tokenUrl, refreshParams, extraHeaders);
         if (_accessToken.isNotEmpty) {
           return _accessToken;
         }
       } catch (_) {
-        // Refresh failed (e.g. refresh token revoked or expired). Fall back to
-        // re-running the original grant below.
+        /* Refresh failed (e.g. refresh token revoked or expired). Fall back to
+         * re-running the original grant below. */
       }
     }
 
-    await _fetchToken(tokenUrl, params);
+    await _fetchToken(tokenUrl, params, extraHeaders);
     return _accessToken;
   }
 
@@ -81,8 +83,9 @@ class OAuth2TokenManager {
 
   Future<void> _fetchToken(
     String tokenUrl,
-    Map<String, String> params,
-  ) async {
+    Map<String, String> params, [
+    Map<String, String> extraHeaders = const {},
+  ]) async {
     final client = _apiClient;
     if (client == null) {
       throw StateError(
@@ -99,10 +102,15 @@ class OAuth2TokenManager {
 
     final bodyBytes = Uint8List.fromList(utf8.encode(body));
 
+    final headers = <String, String>{
+      'Content-Type': 'application/x-www-form-urlencoded',
+      ...extraHeaders,
+    };
+
     final response = await client.sendRequest(
       'POST',
       tokenUrl,
-      {'Content-Type': 'application/x-www-form-urlencoded'},
+      headers,
       bodyBytes,
     );
 

@@ -60,6 +60,114 @@ let authenticator = OAuth2ClientCredentialsAuthenticator::new(
 let client = Client::new(Box::new(authenticator), None);
 ```
 
+### OAuth2 Authorization Code
+
+```rust
+use petstore::auth::oauth::oauth2_auth_code_authenticator::OAuth2AuthCodeAuthenticator;
+
+let authenticator = OAuth2AuthCodeAuthenticator::new(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback");
+let client = Client::new(Box::new(authenticator), None);
+```
+
+### OAuth2 Password
+
+```rust
+use petstore::auth::oauth::oauth2_password_authenticator::OAuth2PasswordAuthenticator;
+
+let authenticator = OAuth2PasswordAuthenticator::new(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", "username", "password");
+let client = Client::new(Box::new(authenticator), None);
+```
+
+### OAuth2 Implicit
+
+The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
+
+```rust
+use petstore::auth::oauth::oauth2_implicit_authenticator::OAuth2ImplicitAuthenticator;
+
+let authenticator = OAuth2ImplicitAuthenticator::new("https://api.example.com", "your-access-token");
+let client = Client::new(Box::new(authenticator), None);
+```
+
+### OpenID Connect
+
+```rust
+use petstore::auth::oauth::openid_connect_authenticator::OpenIdConnectAuthenticator;
+
+let authenticator = OpenIdConnectAuthenticator::new(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/.well-known/openid-configuration");
+let client = Client::new(Box::new(authenticator), None);
+```
+
+### OAuth2 token lifecycle
+
+#### Async authentication
+
+OAuth2 authenticators implement `async fn get_auth_headers(&self, request: &RequestContext) -> Result<HashMap<String, String>, AuthError>` because resolving the access token requires an HTTP call to the token endpoint. The generated API methods always `.await` this call before sending the request. A synchronous helper is preserved for back-compat but the OAuth flows require the async path.
+
+#### Refresh tokens
+
+When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
+
+#### Token caching
+
+The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
+
+#### Client authentication method
+
+OAuth2 clients can transmit their `client_id` and `client_secret` to the token endpoint two ways (RFC 6749 §2.3.1):
+
+- `ClientAuthMethod::Body` (default) sends them as `application/x-www-form-urlencoded` parameters in the request body.
+- `ClientAuthMethod::Basic` sends them as an HTTP Basic `Authorization` header.
+
+Override the default with the `with_client_auth_method` builder:
+
+```rust
+use petstore::auth::oauth::client_auth_method::ClientAuthMethod;
+use petstore::auth::oauth::oauth2_client_credentials_authenticator::OAuth2ClientCredentialsAuthenticator;
+
+let authenticator = OAuth2ClientCredentialsAuthenticator::new(
+    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token")
+    .with_client_auth_method(ClientAuthMethod::Basic);
+```
+
+## Servers
+
+If the OpenAPI spec defines multiple servers, the generated `petstore::servers` module exposes each as a `server_N()` function returning a `ServerConfiguration`. Resolve the URL and pass it to the client:
+
+```rust
+use petstore::servers::server_0;
+
+let client = Client::with_token(&server_0().url(), "your-token", None);
+```
+
+## Testing
+
+The `Authenticator` trait is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
+
+```rust
+use async_trait::async_trait;
+use std::collections::HashMap;
+use petstore::auth::authenticator::{Authenticator, AuthError, RequestContext};
+
+struct FakeAuthenticator;
+
+#[async_trait]
+impl Authenticator for FakeAuthenticator {
+    async fn get_auth_headers(&self, _req: &RequestContext) -> Result<HashMap<String, String>, AuthError> {
+        Ok(HashMap::from([("Authorization".to_string(), "Bearer test-token".to_string())]))
+    }
+    fn host(&self) -> &str { "https://api.example.com" }
+}
+
+let client = Client::new(Box::new(FakeAuthenticator), None);
+```
+
 ## Error Handling
 
 All API errors are represented by the `ApiError` enum. The error hierarchy is:

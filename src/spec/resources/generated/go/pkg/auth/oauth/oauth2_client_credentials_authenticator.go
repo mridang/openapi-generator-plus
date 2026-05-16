@@ -8,6 +8,7 @@
 package oauth
 
 import (
+	"encoding/base64"
 	"log"
 	"strings"
 
@@ -21,24 +22,34 @@ import (
 // as regular API calls.
 type OAuth2ClientCredentialsAuthenticator struct {
 	auth.BaseAuthenticator
-	host         string
-	clientID     string
-	clientSecret string
-	tokenURL     string
-	scopes       []string
-	tokenManager *OAuth2TokenManager
+	host             string
+	clientID         string
+	clientSecret     string
+	tokenURL         string
+	scopes           []string
+	clientAuthMethod ClientAuthMethod
+	tokenManager     *OAuth2TokenManager
 }
 
 // NewOAuth2ClientCredentialsAuthenticator creates a new client credentials authenticator.
+// Use WithClientAuthMethod to switch to HTTP Basic authentication for the token request.
 func NewOAuth2ClientCredentialsAuthenticator(host, clientID, clientSecret, tokenURL string, scopes []string) *OAuth2ClientCredentialsAuthenticator {
 	return &OAuth2ClientCredentialsAuthenticator{
-		host:         host,
-		clientID:     clientID,
-		clientSecret: clientSecret,
-		tokenURL:     tokenURL,
-		scopes:       scopes,
-		tokenManager: NewOAuth2TokenManager(),
+		host:             host,
+		clientID:         clientID,
+		clientSecret:     clientSecret,
+		tokenURL:         tokenURL,
+		scopes:           scopes,
+		clientAuthMethod: ClientAuthMethodBody,
+		tokenManager:     NewOAuth2TokenManager(),
 	}
+}
+
+// WithClientAuthMethod sets how the client_id/client_secret are transmitted
+// to the token endpoint. Returns the receiver to allow chaining.
+func (a *OAuth2ClientCredentialsAuthenticator) WithClientAuthMethod(method ClientAuthMethod) *OAuth2ClientCredentialsAuthenticator {
+	a.clientAuthMethod = method
+	return a
 }
 
 // Host returns the API base URL.
@@ -54,15 +65,21 @@ func (a *OAuth2ClientCredentialsAuthenticator) SetApiClient(client auth.ApiClien
 // AuthHeaders returns the Bearer authentication header with a valid access token.
 func (a *OAuth2ClientCredentialsAuthenticator) AuthHeaders() map[string]string {
 	params := map[string]string{
-		"grant_type":    "client_credentials",
-		"client_id":     a.clientID,
-		"client_secret": a.clientSecret,
+		"grant_type": "client_credentials",
+	}
+	var extraHeaders map[string]string
+	if a.clientAuthMethod == ClientAuthMethodBasic {
+		credentials := base64.StdEncoding.EncodeToString([]byte(a.clientID + ":" + a.clientSecret))
+		extraHeaders = map[string]string{"Authorization": "Basic " + credentials}
+	} else {
+		params["client_id"] = a.clientID
+		params["client_secret"] = a.clientSecret
 	}
 	if len(a.scopes) > 0 {
 		params["scope"] = strings.Join(a.scopes, " ")
 	}
 
-	token, err := a.tokenManager.GetAccessToken(a.tokenURL, params)
+	token, err := a.tokenManager.GetAccessTokenWithHeaders(a.tokenURL, params, extraHeaders)
 	if err != nil {
 		log.Printf("oauth2 client credentials token error: %v", err)
 		return map[string]string{}

@@ -44,11 +44,13 @@ public sealed class OAuth2TokenManager
     /// </summary>
     /// <param name="tokenUrl">The OAuth2 token endpoint URL.</param>
     /// <param name="parameters">The token request parameters (grant_type, client_id, etc.).</param>
+    /// <param name="extraHeaders">Optional additional headers to send with the token request (e.g. Authorization for HTTP Basic client auth).</param>
     /// <returns>A valid access token.</returns>
     /// <exception cref="InvalidOperationException">If no API client has been injected or token fetch fails.</exception>
     public async Task<string> GetAccessTokenAsync(
         Uri tokenUrl,
-        Dictionary<string, string> parameters
+        Dictionary<string, string> parameters,
+        Dictionary<string, string>? extraHeaders = null
     )
     {
         ArgumentNullException.ThrowIfNull(parameters);
@@ -80,7 +82,7 @@ public sealed class OAuth2TokenManager
             }
             try
             {
-                await FetchTokenAsync(tokenUrl, refreshParams).ConfigureAwait(false);
+                await FetchTokenAsync(tokenUrl, refreshParams, extraHeaders).ConfigureAwait(false);
                 if (_accessToken is not null)
                 {
                     return _accessToken;
@@ -93,7 +95,7 @@ public sealed class OAuth2TokenManager
             }
         }
 
-        await FetchTokenAsync(tokenUrl, parameters).ConfigureAwait(false);
+        await FetchTokenAsync(tokenUrl, parameters, extraHeaders).ConfigureAwait(false);
         return _accessToken ?? throw new InvalidOperationException("Failed to obtain access token");
     }
 
@@ -107,7 +109,11 @@ public sealed class OAuth2TokenManager
         _tokenExpiry = null;
     }
 
-    private async Task FetchTokenAsync(Uri tokenUrl, Dictionary<string, string> parameters)
+    private async Task FetchTokenAsync(
+        Uri tokenUrl,
+        Dictionary<string, string> parameters,
+        Dictionary<string, string>? extraHeaders
+    )
     {
         if (_apiClient is null)
         {
@@ -131,6 +137,13 @@ public sealed class OAuth2TokenManager
         {
             ["Content-Type"] = "application/x-www-form-urlencoded",
         };
+        if (extraHeaders is not null)
+        {
+            foreach (KeyValuePair<string, string> kvp in extraHeaders)
+            {
+                headers[kvp.Key] = kvp.Value;
+            }
+        }
 
         ApiResponse response = await _apiClient
             .SendRequestAsync("POST", tokenUrl, headers, body)

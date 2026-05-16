@@ -46,24 +46,12 @@ module {{moduleName}}
         # @param params [Hash{String => String}] the token request parameters
         # @return [String] a valid access token
         # @raise [RuntimeError] if no API client has been injected or token fetch fails
-        def get_access_token(token_url, params)
+        def get_access_token(token_url, params, extra_headers = {})
           @mutex.synchronize do
-            return @access_token if @access_token && (@token_expiry.nil? || Time.now.to_f < (@token_expiry - EXPIRY_SAFETY_MARGIN_S))
+            return @access_token if token_still_valid?
+            return @access_token if try_refresh_token(token_url, params, extra_headers)
 
-            if @refresh_token && !@refresh_token.empty?
-              refresh_params = { 'grant_type' => 'refresh_token', 'refresh_token' => @refresh_token }
-              refresh_params['client_id'] = params['client_id'] if params.key?('client_id')
-              refresh_params['client_secret'] = params['client_secret'] if params.key?('client_secret')
-              begin
-                fetch_token(token_url, refresh_params)
-                return @access_token if @access_token
-              rescue StandardError
-                # Refresh failed (e.g. refresh token revoked or expired).
-                # Fall back to re-running the original grant below.
-              end
-            end
-
-            fetch_token(token_url, params)
+            fetch_token(token_url, params, extra_headers)
             @access_token
           end
         end
@@ -81,29 +69,57 @@ module {{moduleName}}
 
         private
 
+        # @return [Boolean] true when the cached access token is still valid
+        def token_still_valid?
+          @access_token && (@token_expiry.nil? || Time.now.to_f < (@token_expiry - EXPIRY_SAFETY_MARGIN_S))
+        end
+
+        # Try to refresh using the existing refresh token.
+        #
+        # @return [Boolean] true when refresh succeeded and @access_token is set
+        def try_refresh_token(token_url, params, extra_headers)
+          refresh = @refresh_token
+          return false if refresh.nil? || refresh.empty?
+
+          fetch_token(token_url, build_refresh_params(refresh, params), extra_headers)
+          !@access_token.nil?
+        rescue StandardError
+          false # refresh failed; caller will retry the original grant
+        end
+
+        def build_refresh_params(refresh, original_params)
+          refresh_params = { 'grant_type' => 'refresh_token', 'refresh_token' => refresh }
+          %w[client_id client_secret].each do |key|
+            refresh_params[key] = original_params[key] if original_params.key?(key)
+          end
+          refresh_params
+        end
+
         # Fetch a token from the token endpoint using the injected API client.
         #
         # @param token_url [String] the OAuth2 token endpoint URL
         # @param params [Hash{String => String}] the token request parameters
         # @return [void]
         # @raise [RuntimeError] if no API client has been injected or the request fails
-        def fetch_token(token_url, params) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
-          client = @api_client
-          if client.nil?
-            raise 'ApiClient has not been injected. ' \
-                  'Ensure the {{clientClassName}} constructor calls api_client= ' \
-                  'on HttpAwareAuthenticator before making API requests.'
-          end
+        def fetch_token(token_url, params, extra_headers = {})
+          client = require_api_client
+          headers = { 'Content-Type' => 'application/x-www-form-urlencoded' }.merge(extra_headers)
+          response = client.send_request(:post, token_url, headers, URI.encode_www_form(params))
+          status = response.status_code
+          raise "Token request failed with status #{status}" unless (200..299).cover?(status)
 
-          headers = { 'Content-Type' => 'application/x-www-form-urlencoded' }
-          body = URI.encode_www_form(params)
+          apply_token_response(JSON.parse(response.body))
+        end
 
-          response = client.send_request(:post, token_url, headers, body)
-          unless response.status_code >= 200 && response.status_code < 300
-            raise "Token request failed with status #{response.status_code}"
-          end
+        def require_api_client
+          @api_client || raise(
+            'ApiClient has not been injected. ' \
+            'Ensure the {{clientClassName}} constructor calls api_client= ' \
+            'on HttpAwareAuthenticator before making API requests.'
+          )
+        end
 
-          parsed = JSON.parse(response.body)
+        def apply_token_response(parsed)
           @access_token = parsed['access_token']
           @refresh_token = parsed['refresh_token'] if parsed.key?('refresh_token')
           return unless parsed.key?('expires_in')

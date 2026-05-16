@@ -68,6 +68,19 @@ impl OAuth2TokenManager {
         token_url: &str,
         params: &HashMap<String, String>,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        self.get_access_token_with_headers(token_url, params, &HashMap::new())
+            .await
+    }
+
+    /// Returns a valid access token, fetching or refreshing as necessary, with
+    /// additional HTTP headers (e.g. `Authorization` for HTTP Basic client
+    /// authentication per RFC 6749 §2.3.1) included on the token request.
+    pub async fn get_access_token_with_headers(
+        &self,
+        token_url: &str,
+        params: &HashMap<String, String>,
+        extra_headers: &HashMap<String, String>,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         /* Fast path: return the cached token if still valid. The mutex is
          * released before any async work begins. */
         let (client, current_refresh_token) = {
@@ -107,14 +120,15 @@ impl OAuth2TokenManager {
                 refresh_params.insert("client_secret".to_string(), client_secret.clone());
             }
             if let Ok(token) = self
-                .fetch_token(client.clone(), token_url, &refresh_params)
+                .fetch_token(client.clone(), token_url, &refresh_params, extra_headers)
                 .await
             {
                 return Ok(token);
             }
         }
 
-        self.fetch_token(client, token_url, params).await
+        self.fetch_token(client, token_url, params, extra_headers)
+            .await
     }
 
     async fn fetch_token(
@@ -122,12 +136,16 @@ impl OAuth2TokenManager {
         client: Arc<dyn ApiClient>,
         token_url: &str,
         params: &HashMap<String, String>,
+        extra_headers: &HashMap<String, String>,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let mut headers = HashMap::new();
         headers.insert(
             "Content-Type".to_string(),
             "application/x-www-form-urlencoded".to_string(),
         );
+        for (k, v) in extra_headers {
+            headers.insert(k.clone(), v.clone());
+        }
 
         let body: String = params
             .iter()

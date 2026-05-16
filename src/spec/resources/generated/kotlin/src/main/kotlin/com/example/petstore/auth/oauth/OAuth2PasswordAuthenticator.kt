@@ -26,6 +26,7 @@ open class OAuth2PasswordAuthenticator(
     private val username: String,
     private val password: String,
     private val scopes: List<String>,
+    private val clientAuthMethod: ClientAuthMethod = ClientAuthMethod.BODY,
 ) : HttpAwareAuthenticator {
     private val tokenManager = OAuth2TokenManager()
 
@@ -37,26 +38,40 @@ open class OAuth2PasswordAuthenticator(
 
     override suspend fun getAuthHeaders(): Map<String, String> {
         val currentRefreshToken = tokenManager.getRefreshToken()
+        val extraHeaders = mutableMapOf<String, String>()
+        if (clientAuthMethod == ClientAuthMethod.BASIC) {
+            val credentials =
+                java.util.Base64
+                    .getEncoder()
+                    .encodeToString("$clientId:$clientSecret".toByteArray(Charsets.UTF_8))
+            extraHeaders["Authorization"] = "Basic $credentials"
+        }
         val params =
             if (currentRefreshToken != null) {
-                mutableMapOf(
-                    "grant_type" to "refresh_token",
-                    "refresh_token" to currentRefreshToken,
-                    "client_id" to clientId,
-                    "client_secret" to clientSecret,
-                )
+                val p =
+                    mutableMapOf(
+                        "grant_type" to "refresh_token",
+                        "refresh_token" to currentRefreshToken,
+                    )
+                if (clientAuthMethod != ClientAuthMethod.BASIC) {
+                    p["client_id"] = clientId
+                    p["client_secret"] = clientSecret
+                }
+                p
             } else {
                 mutableMapOf(
                     "grant_type" to "password",
-                    "client_id" to clientId,
-                    "client_secret" to clientSecret,
                     "username" to username,
                     "password" to password,
                 ).also { p ->
+                    if (clientAuthMethod != ClientAuthMethod.BASIC) {
+                        p["client_id"] = clientId
+                        p["client_secret"] = clientSecret
+                    }
                     if (scopes.isNotEmpty()) p["scope"] = scopes.joinToString(" ")
                 }
             }
-        val token = tokenManager.getAccessToken(refreshUrl ?: tokenUrl, params)
+        val token = tokenManager.getAccessToken(refreshUrl ?: tokenUrl, params, extraHeaders)
         return mapOf("Authorization" to "Bearer $token")
     }
 }

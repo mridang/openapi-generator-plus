@@ -8,6 +8,8 @@
 mod oauth2_token_manager;
 pub use oauth2_token_manager::*;
 
+mod client_auth_method;
+pub use client_auth_method::*;
 mod oauth2_client_credentials_authenticator;
 pub use oauth2_client_credentials_authenticator::*;
 

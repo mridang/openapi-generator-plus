@@ -60,6 +60,13 @@ func (m *OAuth2TokenManager) RefreshToken() string {
 //
 // This method is synchronized to prevent concurrent token requests.
 func (m *OAuth2TokenManager) GetAccessToken(tokenURL string, params map[string]string) (string, error) {
+	return m.GetAccessTokenWithHeaders(tokenURL, params, nil)
+}
+
+// GetAccessTokenWithHeaders returns a valid access token, fetching or refreshing
+// as necessary, with additional HTTP headers (e.g. Authorization for HTTP Basic
+// client authentication per RFC 6749 §2.3.1) included on the token request.
+func (m *OAuth2TokenManager) GetAccessTokenWithHeaders(tokenURL string, params map[string]string, extraHeaders map[string]string) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -78,14 +85,14 @@ func (m *OAuth2TokenManager) GetAccessToken(tokenURL string, params map[string]s
 		if v, ok := params["client_secret"]; ok {
 			refreshParams["client_secret"] = v
 		}
-		if err := m.fetchToken(tokenURL, refreshParams); err == nil && m.accessToken != "" {
+		if err := m.fetchToken(tokenURL, refreshParams, extraHeaders); err == nil && m.accessToken != "" {
 			return m.accessToken, nil
 		}
 		/* Refresh failed (e.g. refresh token revoked or expired).
 		 * Fall back to re-running the original grant below. */
 	}
 
-	if err := m.fetchToken(tokenURL, params); err != nil {
+	if err := m.fetchToken(tokenURL, params, extraHeaders); err != nil {
 		return "", err
 	}
 	return m.accessToken, nil
@@ -99,7 +106,7 @@ func (m *OAuth2TokenManager) SetAccessToken(token string) {
 	m.tokenExpiry = time.Time{}
 }
 
-func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]string) error {
+func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]string, extraHeaders map[string]string) error {
 	client := m.apiClient
 	if client == nil {
 		return fmt.Errorf("API client has not been injected. " +
@@ -114,6 +121,9 @@ func (m *OAuth2TokenManager) fetchToken(tokenURL string, params map[string]strin
 
 	headers := map[string]string{
 		"Content-Type": "application/x-www-form-urlencoded",
+	}
+	for k, v := range extraHeaders {
+		headers[k] = v
 	}
 
 	resp, err := client.SendRequest("POST", tokenURL, headers, []byte(values.Encode()))

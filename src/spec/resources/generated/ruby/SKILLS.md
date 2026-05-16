@@ -56,6 +56,88 @@ authenticator = PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticato
 client = PetstoreClient::Client.new(authenticator)
 ```
 
+### OAuth2 Authorization Code
+
+```ruby
+authenticator = PetstoreClient::Auth::OAuth::OAuth2AuthCodeAuthenticator.new(
+  'https://api.example.com', 'client-id', 'client-secret',
+  'https://auth.example.com/token', 'authorization-code', 'https://app.example.com/callback')
+client = PetstoreClient::Client.new(authenticator)
+```
+
+### OAuth2 Password
+
+```ruby
+authenticator = PetstoreClient::Auth::OAuth::OAuth2PasswordAuthenticator.new(
+  'https://api.example.com', 'client-id', 'client-secret',
+  'https://auth.example.com/token', 'username', 'password')
+client = PetstoreClient::Client.new(authenticator)
+```
+
+### OAuth2 Implicit
+
+The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
+
+```ruby
+authenticator = PetstoreClient::Auth::OAuth::OAuth2ImplicitAuthenticator.new('https://api.example.com', 'your-access-token')
+client = PetstoreClient::Client.new(authenticator)
+```
+
+### OpenID Connect
+
+```ruby
+authenticator = PetstoreClient::Auth::OAuth::OpenIdConnectAuthenticator.new(
+  'https://api.example.com', 'client-id', 'client-secret',
+  'https://auth.example.com/.well-known/openid-configuration')
+client = PetstoreClient::Client.new(authenticator)
+```
+
+### OAuth2 token lifecycle
+
+#### Refresh tokens
+
+When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
+
+#### Token caching
+
+The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
+
+#### Client authentication method
+
+OAuth2 clients can transmit their `client_id` and `client_secret` to the token endpoint two ways (RFC 6749 §2.3.1):
+
+- `ClientAuthMethod::BODY` (default) sends them as `application/x-www-form-urlencoded` parameters in the request body.
+- `ClientAuthMethod::BASIC` sends them as an HTTP Basic `Authorization` header.
+
+Override the default if your authorization server only accepts one form:
+
+```ruby
+authenticator = PetstoreClient::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
+  'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token',
+  client_auth_method: PetstoreClient::Auth::OAuth::ClientAuthMethod::BASIC)
+```
+
+## Servers
+
+If the OpenAPI spec defines multiple servers, the generated `PetstoreClient::Servers` module exposes each as a `ServerConfiguration` constant (e.g., `SERVER_0`, `SERVER_1`, ...) plus an `ALL` array. Pass the desired server's URL to the client:
+
+```ruby
+client = PetstoreClient::Client.with_token(PetstoreClient::Servers::SERVER_0.url, 'your-token')
+```
+
+## Testing
+
+The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
+
+```ruby
+fake_authenticator = Class.new do
+  def get_auth_headers(request) = { 'Authorization' => 'Bearer test-token' }
+  def host = 'https://api.example.com'
+end.new
+
+client = PetstoreClient::Client.new(fake_authenticator)
+```
+
 ## Error Handling
 
 All API errors inherit from `ApiError`. The error hierarchy is:

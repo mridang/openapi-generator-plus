@@ -54,6 +54,7 @@ class OAuth2TokenManager {
     suspend fun getAccessToken(
         tokenUrl: String,
         params: Map<String, String>,
+        extraHeaders: Map<String, String> = emptyMap(),
     ): String {
         val token = accessToken
         val expiry = tokenExpiryMs
@@ -70,14 +71,14 @@ class OAuth2TokenManager {
                     params["client_secret"]?.let { put("client_secret", it) }
                 }
             try {
-                fetchToken(tokenUrl, refreshParams)
+                fetchToken(tokenUrl, refreshParams, extraHeaders)
                 accessToken?.let { return it }
             } catch (_: RuntimeException) {
                 /* Refresh failed (e.g. refresh token revoked or expired).
                  * Fall back to re-running the original grant below. */
             }
         }
-        fetchToken(tokenUrl, params)
+        fetchToken(tokenUrl, params, extraHeaders)
         return accessToken ?: throw IllegalStateException("Token fetch did not return an access token")
     }
 
@@ -101,6 +102,7 @@ class OAuth2TokenManager {
     private suspend fun fetchToken(
         tokenUrl: String,
         params: Map<String, String>,
+        extraHeaders: Map<String, String> = emptyMap(),
     ) {
         val client =
             apiClient
@@ -115,7 +117,7 @@ class OAuth2TokenManager {
                 "${k.encodeURLQueryComponent(spaceToPlus = true)}=${v.encodeURLQueryComponent(spaceToPlus = true)}"
             }
 
-        val headers = mapOf("Content-Type" to "application/x-www-form-urlencoded")
+        val headers = mapOf("Content-Type" to "application/x-www-form-urlencoded") + extraHeaders
 
         val response: ApiResponse = client.sendRequest("POST", tokenUrl, headers, body)
         if (response.statusCode < 200 || response.statusCode >= 300) {

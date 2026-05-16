@@ -26,6 +26,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator do
           username: String.t(),
           password: String.t(),
           scopes: [String.t()],
+          client_auth_method: PetstoreClient.Auth.OAuth.ClientAuthMethod.t(),
           token_manager: pid() | nil
         }
 
@@ -38,6 +39,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator do
     :username,
     :password,
     :scopes,
+    :client_auth_method,
     :token_manager
   ]
 
@@ -53,7 +55,9 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator do
     * `username` - Resource owner username.
     * `password` - Resource owner password.
     * `scopes` - Requested scopes.
-    * `opts` - Keyword list with optional `:refresh_url`.
+    * `opts` - Keyword list. Supported options:
+      * `:refresh_url` - Refresh token endpoint URL (defaults to `token_url`).
+      * `:client_auth_method` - `:body` (default) or `:basic` per RFC 6749 §2.3.1.
 
   """
   @spec new(String.t(), String.t(), String.t(), String.t(), String.t(), String.t(), [String.t()], keyword()) :: t()
@@ -69,6 +73,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator do
       username: username,
       password: password,
       scopes: scopes,
+      client_auth_method: Keyword.get(opts, :client_auth_method, :body),
       token_manager: manager
     }
   end
@@ -86,6 +91,16 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator do
   def auth_headers(%__MODULE__{} = self) do
     refresh = PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(self.token_manager)
 
+    extra_headers =
+      case self.client_auth_method do
+        :basic ->
+          credentials = Base.encode64("#{self.client_id}:#{self.client_secret}")
+          %{"Authorization" => "Basic #{credentials}"}
+
+        _ ->
+          %{}
+      end
+
     token =
       if refresh do
         params = %{
@@ -93,15 +108,28 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator do
           "refresh_token" => refresh
         }
 
-        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(self.token_manager, self.refresh_url, params)
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+          self.token_manager,
+          self.refresh_url,
+          params,
+          extra_headers
+        )
       else
-        params = %{
+        base_params = %{
           "grant_type" => "password",
-          "client_id" => self.client_id,
-          "client_secret" => self.client_secret,
           "username" => self.username,
           "password" => self.password
         }
+
+        params =
+          if self.client_auth_method == :basic do
+            base_params
+          else
+            Map.merge(base_params, %{
+              "client_id" => self.client_id,
+              "client_secret" => self.client_secret
+            })
+          end
 
         params =
           if self.scopes != [] do
@@ -110,7 +138,12 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator do
             params
           end
 
-        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(self.token_manager, self.token_url, params)
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+          self.token_manager,
+          self.token_url,
+          params,
+          extra_headers
+        )
       end
 
     %{"Authorization" => "Bearer #{token}"}

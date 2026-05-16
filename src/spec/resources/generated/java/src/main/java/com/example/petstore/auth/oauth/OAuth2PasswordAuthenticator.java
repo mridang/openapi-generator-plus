@@ -9,6 +9,7 @@ package com.example.petstore.auth.oauth;
 
 import com.example.petstore.ApiClient;
 import com.example.petstore.auth.HttpAwareAuthenticator;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -31,6 +32,7 @@ public class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
   private final String username;
   private final String password;
   private final List<String> scopes;
+  private final ClientAuthMethod clientAuthMethod;
   private final OAuth2TokenManager tokenManager;
 
   /**
@@ -52,7 +54,16 @@ public class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
       String username,
       String password,
       List<String> scopes) {
-    this(host, clientId, clientSecret, tokenUrl, null, username, password, scopes);
+    this(
+        host,
+        clientId,
+        clientSecret,
+        tokenUrl,
+        null,
+        username,
+        password,
+        scopes,
+        ClientAuthMethod.BODY);
   }
 
   /**
@@ -76,6 +87,42 @@ public class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
       String username,
       String password,
       List<String> scopes) {
+    this(
+        host,
+        clientId,
+        clientSecret,
+        tokenUrl,
+        refreshUrl,
+        username,
+        password,
+        scopes,
+        ClientAuthMethod.BODY);
+  }
+
+  /**
+   * Create a new password authenticator with a refresh URL and explicit client authentication
+   * method.
+   *
+   * @param host API base URL
+   * @param clientId OAuth2 client ID
+   * @param clientSecret OAuth2 client secret
+   * @param tokenUrl token endpoint URL
+   * @param refreshUrl refresh token endpoint URL (falls back to tokenUrl if null)
+   * @param username resource owner username
+   * @param password resource owner password
+   * @param scopes requested scopes
+   * @param clientAuthMethod how to transmit the client credentials
+   */
+  public OAuth2PasswordAuthenticator(
+      String host,
+      String clientId,
+      String clientSecret,
+      String tokenUrl,
+      @Nullable String refreshUrl,
+      String username,
+      String password,
+      List<String> scopes,
+      ClientAuthMethod clientAuthMethod) {
     this.host = host;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
@@ -83,6 +130,7 @@ public class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
     this.username = username;
     this.password = password;
     this.scopes = List.copyOf(scopes);
+    this.clientAuthMethod = clientAuthMethod;
     this.tokenManager = new OAuth2TokenManager();
   }
 
@@ -103,19 +151,27 @@ public class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
     if (currentRefreshToken != null) {
       params.put("grant_type", "refresh_token");
       params.put("refresh_token", currentRefreshToken);
-      params.put("client_id", clientId);
-      params.put("client_secret", clientSecret);
     } else {
       params.put("grant_type", "password");
-      params.put("client_id", clientId);
-      params.put("client_secret", clientSecret);
       params.put("username", username);
       params.put("password", password);
       if (!scopes.isEmpty()) {
         params.put("scope", String.join(" ", scopes));
       }
     }
-    String token = tokenManager.getAccessToken(refreshUrl, params);
+    Map<String, String> extraHeaders = new HashMap<>();
+    if (clientAuthMethod == ClientAuthMethod.BASIC) {
+      String credentials =
+          Base64.getEncoder()
+              .encodeToString(
+                  (clientId + ":" + clientSecret)
+                      .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      extraHeaders.put("Authorization", "Basic " + credentials);
+    } else {
+      params.put("client_id", clientId);
+      params.put("client_secret", clientSecret);
+    }
+    String token = tokenManager.getAccessToken(refreshUrl, params, extraHeaders);
     return Collections.singletonMap("Authorization", "Bearer " + token);
   }
 }

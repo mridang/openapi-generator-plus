@@ -64,6 +64,115 @@ $client = new {{clientClassName}}($authenticator);
 ```
 
 {{/hasOAuth2ClientCredentials}}
+{{#hasOAuth2AuthorizationCode}}
+### OAuth2 Authorization Code
+
+```php
+use {{invokerPackage}}\Auth\OAuth\OAuth2AuthCodeAuthenticator;
+
+$authenticator = new OAuth2AuthCodeAuthenticator(
+    'https://api.example.com', 'client-id', 'client-secret',
+    'https://auth.example.com/token', 'authorization-code', 'https://app.example.com/callback');
+$client = new {{clientClassName}}($authenticator);
+```
+
+{{/hasOAuth2AuthorizationCode}}
+{{#hasOAuth2Password}}
+### OAuth2 Password
+
+```php
+use {{invokerPackage}}\Auth\OAuth\OAuth2PasswordAuthenticator;
+
+$authenticator = new OAuth2PasswordAuthenticator(
+    'https://api.example.com', 'client-id', 'client-secret',
+    'https://auth.example.com/token', 'username', 'password');
+$client = new {{clientClassName}}($authenticator);
+```
+
+{{/hasOAuth2Password}}
+{{#hasOAuth2Implicit}}
+### OAuth2 Implicit
+
+The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
+
+```php
+use {{invokerPackage}}\Auth\OAuth\OAuth2ImplicitAuthenticator;
+
+$authenticator = new OAuth2ImplicitAuthenticator('https://api.example.com', 'your-access-token');
+$client = new {{clientClassName}}($authenticator);
+```
+
+{{/hasOAuth2Implicit}}
+{{#hasOpenIdConnect}}
+### OpenID Connect
+
+```php
+use {{invokerPackage}}\Auth\OAuth\OpenIdConnectAuthenticator;
+
+$authenticator = new OpenIdConnectAuthenticator(
+    'https://api.example.com', 'client-id', 'client-secret',
+    'https://auth.example.com/.well-known/openid-configuration');
+$client = new {{clientClassName}}($authenticator);
+```
+
+{{/hasOpenIdConnect}}
+{{#hasAnyOAuth2}}
+### OAuth2 token lifecycle
+
+#### Refresh tokens
+
+When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
+
+#### Token caching
+
+The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
+
+#### Client authentication method
+
+OAuth2 clients can transmit their `client_id` and `client_secret` to the token endpoint two ways (RFC 6749 §2.3.1):
+
+- `ClientAuthMethod::Body` (default) sends them as `application/x-www-form-urlencoded` parameters in the request body.
+- `ClientAuthMethod::Basic` sends them as an HTTP Basic `Authorization` header.
+
+Override the default if your authorization server only accepts one form:
+
+```php
+use {{invokerPackage}}\Auth\OAuth\ClientAuthMethod;
+use {{invokerPackage}}\Auth\OAuth\OAuth2ClientCredentialsAuthenticator;
+
+$authenticator = new OAuth2ClientCredentialsAuthenticator(
+    'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token',
+    clientAuthMethod: ClientAuthMethod::Basic);
+```
+
+{{/hasAnyOAuth2}}
+{{#hasServers}}
+## Servers
+
+If the OpenAPI spec defines multiple servers, the generated `{{invokerPackage}}\Servers` class exposes each as a `ServerConfiguration` constant (e.g., `Servers::SERVER_0`, `Servers::SERVER_1`, ...) plus an `Servers::ALL` array. Pass the desired server's URL to the client:
+
+```php
+use {{invokerPackage}}\Servers;
+
+$client = {{clientClassName}}::withToken(Servers::SERVER_0->url(), 'your-token');
+```
+
+{{/hasServers}}
+
+## Testing
+
+The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
+
+```php
+$fake = new class implements {{invokerPackage}}\Auth\Authenticator {
+    public function getAuthHeaders(RequestContext $request): array {
+        return ['Authorization' => 'Bearer test-token'];
+    }
+    public function getHost(): string { return 'https://api.example.com'; }
+};
+
+$client = new {{clientClassName}}($fake);
+```
 
 ## Error Handling
 

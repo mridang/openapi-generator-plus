@@ -91,8 +91,8 @@ export class ValueSerializer {
       );
     }
 
-    // URL-encoding is applied at a higher level (the API call site) — pass the
-    // raw stringified value through here.
+    /* URL-encoding is applied at a higher level (the API call site) — pass the
+     * raw stringified value through here. */
     switch (style) {
       case 'matrix': {
         if (Array.isArray(value)) {

@@ -9,6 +9,7 @@ package com.example.petstore.auth.oauth;
 
 import com.example.petstore.ApiClient;
 import com.example.petstore.auth.HttpAwareAuthenticator;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -28,10 +29,12 @@ public class OAuth2ClientCredentialsAuthenticator implements HttpAwareAuthentica
   private final String clientSecret;
   private final String tokenUrl;
   private final List<String> scopes;
+  private final ClientAuthMethod clientAuthMethod;
   private final OAuth2TokenManager tokenManager;
 
   /**
-   * Create a new client credentials authenticator.
+   * Create a new client credentials authenticator using the default {@link ClientAuthMethod#BODY}
+   * client authentication method.
    *
    * @param host API base URL
    * @param clientId OAuth2 client ID
@@ -41,11 +44,32 @@ public class OAuth2ClientCredentialsAuthenticator implements HttpAwareAuthentica
    */
   public OAuth2ClientCredentialsAuthenticator(
       String host, String clientId, String clientSecret, String tokenUrl, List<String> scopes) {
+    this(host, clientId, clientSecret, tokenUrl, scopes, ClientAuthMethod.BODY);
+  }
+
+  /**
+   * Create a new client credentials authenticator.
+   *
+   * @param host API base URL
+   * @param clientId OAuth2 client ID
+   * @param clientSecret OAuth2 client secret
+   * @param tokenUrl token endpoint URL
+   * @param scopes requested scopes
+   * @param clientAuthMethod how to transmit the client credentials
+   */
+  public OAuth2ClientCredentialsAuthenticator(
+      String host,
+      String clientId,
+      String clientSecret,
+      String tokenUrl,
+      List<String> scopes,
+      ClientAuthMethod clientAuthMethod) {
     this.host = host;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     this.tokenUrl = tokenUrl;
     this.scopes = List.copyOf(scopes);
+    this.clientAuthMethod = clientAuthMethod;
     this.tokenManager = new OAuth2TokenManager();
   }
 
@@ -63,12 +87,22 @@ public class OAuth2ClientCredentialsAuthenticator implements HttpAwareAuthentica
   public Map<String, String> getAuthHeaders() {
     Map<String, String> params = new HashMap<>();
     params.put("grant_type", "client_credentials");
-    params.put("client_id", clientId);
-    params.put("client_secret", clientSecret);
+    Map<String, String> extraHeaders = new HashMap<>();
+    if (clientAuthMethod == ClientAuthMethod.BASIC) {
+      String credentials =
+          Base64.getEncoder()
+              .encodeToString(
+                  (clientId + ":" + clientSecret)
+                      .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      extraHeaders.put("Authorization", "Basic " + credentials);
+    } else {
+      params.put("client_id", clientId);
+      params.put("client_secret", clientSecret);
+    }
     if (!scopes.isEmpty()) {
       params.put("scope", String.join(" ", scopes));
     }
-    String token = tokenManager.getAccessToken(tokenUrl, params);
+    String token = tokenManager.getAccessToken(tokenUrl, params, extraHeaders);
     return Collections.singletonMap("Authorization", "Bearer " + token);
   }
 }

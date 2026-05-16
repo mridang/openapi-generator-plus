@@ -26,6 +26,7 @@ public class OAuth2PasswordAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
     private readonly string _username;
     private readonly string _password;
     private readonly string[] _scopes;
+    private readonly ClientAuthMethod _clientAuthMethod;
     private readonly OAuth2TokenManager _tokenManager = new();
 
     /// <summary>
@@ -39,6 +40,7 @@ public class OAuth2PasswordAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
     /// <param name="username">Resource owner username.</param>
     /// <param name="password">Resource owner password.</param>
     /// <param name="scopes">Requested scopes.</param>
+    /// <param name="clientAuthMethod">How to transmit the client credentials. Defaults to <see cref="ClientAuthMethod.Body"/>.</param>
     public OAuth2PasswordAuthenticator(
         string host,
         string clientId,
@@ -47,7 +49,8 @@ public class OAuth2PasswordAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
         Uri? refreshUrl,
         string username,
         string password,
-        string[] scopes
+        string[] scopes,
+        ClientAuthMethod clientAuthMethod = ClientAuthMethod.Body
     )
     {
         _host = host;
@@ -58,6 +61,7 @@ public class OAuth2PasswordAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
         _username = username;
         _password = password;
         _scopes = [.. scopes];
+        _clientAuthMethod = clientAuthMethod;
     }
 
     /// <inheritdoc/>
@@ -99,8 +103,6 @@ public class OAuth2PasswordAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
             {
                 ["grant_type"] = "refresh_token",
                 ["refresh_token"] = _tokenManager.RefreshToken,
-                ["client_id"] = _clientId,
-                ["client_secret"] = _clientSecret,
             };
         }
         else
@@ -109,11 +111,22 @@ public class OAuth2PasswordAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
             parameters = new()
             {
                 ["grant_type"] = "password",
-                ["client_id"] = _clientId,
-                ["client_secret"] = _clientSecret,
                 ["username"] = _username,
                 ["password"] = _password,
             };
+        }
+        Dictionary<string, string>? extraHeaders = null;
+        if (_clientAuthMethod == ClientAuthMethod.Basic)
+        {
+            string credentials = Convert.ToBase64String(
+                System.Text.Encoding.UTF8.GetBytes(_clientId + ":" + _clientSecret)
+            );
+            extraHeaders = new() { ["Authorization"] = "Basic " + credentials };
+        }
+        else
+        {
+            parameters["client_id"] = _clientId;
+            parameters["client_secret"] = _clientSecret;
         }
         if (_scopes.Length > 0)
         {
@@ -121,7 +134,7 @@ public class OAuth2PasswordAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
         }
 
         string token = await _tokenManager
-            .GetAccessTokenAsync(url, parameters)
+            .GetAccessTokenAsync(url, parameters, extraHeaders)
             .ConfigureAwait(false);
         return new() { ["Authorization"] = "Bearer " + token };
     }

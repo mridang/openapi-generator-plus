@@ -7,6 +7,7 @@
 
 import type { ApiClient } from '../../api-client.js';
 import type { HttpAwareAuthenticator } from '../http-aware-authenticator.js';
+import { ClientAuthMethod } from './client-auth-method.js';
 import { OAuth2TokenManager } from './oauth2-token-manager.js';
 
 /**
@@ -22,6 +23,7 @@ export class OAuth2ClientCredentialsAuthenticator implements HttpAwareAuthentica
   private readonly clientSecret: string;
   private readonly tokenUrl: string;
   private readonly scopes: readonly string[];
+  private readonly clientAuthMethod: ClientAuthMethod;
   private readonly tokenManager: OAuth2TokenManager;
 
   /**
@@ -32,13 +34,22 @@ export class OAuth2ClientCredentialsAuthenticator implements HttpAwareAuthentica
    * @param clientSecret OAuth2 client secret
    * @param tokenUrl token endpoint URL
    * @param scopes requested scopes
+   * @param clientAuthMethod how to transmit client credentials (default Body)
    */
-  constructor(host: string, clientId: string, clientSecret: string, tokenUrl: string, scopes: string[]) {
+  constructor(
+    host: string,
+    clientId: string,
+    clientSecret: string,
+    tokenUrl: string,
+    scopes: string[],
+    clientAuthMethod: ClientAuthMethod = ClientAuthMethod.Body
+  ) {
     this.host = host;
     this.clientId = clientId;
     this.clientSecret = clientSecret;
     this.tokenUrl = tokenUrl;
     this.scopes = Object.freeze([...scopes]);
+    this.clientAuthMethod = clientAuthMethod;
     this.tokenManager = new OAuth2TokenManager();
   }
 
@@ -82,14 +93,20 @@ export class OAuth2ClientCredentialsAuthenticator implements HttpAwareAuthentica
    */
   async getAuthHeadersAsync(): Promise<Record<string, string>> {
     const params: Record<string, string> = {
-      grant_type: 'client_credentials',
-      client_id: this.clientId,
-      client_secret: this.clientSecret
+      grant_type: 'client_credentials'
     };
+    const extraHeaders: Record<string, string> = {};
+    if (this.clientAuthMethod === ClientAuthMethod.Basic) {
+      const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
+      extraHeaders.Authorization = `Basic ${credentials}`;
+    } else {
+      params.client_id = this.clientId;
+      params.client_secret = this.clientSecret;
+    }
     if (this.scopes.length > 0) {
       params.scope = this.scopes.join(' ');
     }
-    const token = await this.tokenManager.getAccessToken(this.tokenUrl, params);
+    const token = await this.tokenManager.getAccessToken(this.tokenUrl, params, extraHeaders);
     return { Authorization: `Bearer ${token}` };
   }
 

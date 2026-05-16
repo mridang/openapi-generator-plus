@@ -14,6 +14,18 @@ from {{packageName}}.auth.oauth.oauth2_password_authenticator import (
     OAuth2PasswordAuthenticator as OAuth2PasswordAuthenticator,
 )
 {{/hasOAuth2Password}}
+{{#hasOAuth2ClientCredentials}}
+from {{packageName}}.auth.oauth.client_auth_method import (
+    ClientAuthMethod as ClientAuthMethod,
+)
+{{/hasOAuth2ClientCredentials}}
+{{^hasOAuth2ClientCredentials}}
+{{#hasOAuth2Password}}
+from {{packageName}}.auth.oauth.client_auth_method import (
+    ClientAuthMethod as ClientAuthMethod,
+)
+{{/hasOAuth2Password}}
+{{/hasOAuth2ClientCredentials}}
 {{#hasOAuth2AuthorizationCode}}
 from {{packageName}}.auth.oauth.oauth2_auth_code_authenticator import (
     OAuth2AuthorizationCodeAuthenticator as OAuth2AuthorizationCodeAuthenticator,

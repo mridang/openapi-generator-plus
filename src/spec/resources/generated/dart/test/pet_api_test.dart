@@ -7,8 +7,8 @@
 
 import 'dart:io';
 
-import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart';
+import 'package:test/test.dart';
 
 import 'testcontainers_helper.dart';
 
@@ -46,7 +46,8 @@ void main() {
       final api = _newPetApiForIntegration();
       final auth = _TestAuth();
 
-      final result = await api.addPet(auth, Pet(name: 'Fido', photoUrls: ['http://example.com/fido.jpg']));
+      final result = await api.addPet(auth,
+          const Pet(name: 'Fido', photoUrls: ['http://example.com/fido.jpg']));
       expect(result, isNotNull);
     });
 
@@ -54,7 +55,10 @@ void main() {
       final api = _newPetApiForIntegration();
       final auth = _TestAuth();
 
-      final result = await api.addPetWithHTTPInfo(auth, Pet(name: 'Buddy', photoUrls: ['http://example.com/buddy.jpg']));
+      final result = await api.addPetWithHTTPInfo(
+          auth,
+          const Pet(
+              name: 'Buddy', photoUrls: ['http://example.com/buddy.jpg']));
       expect(result.statusCode, greaterThanOrEqualTo(200));
       expect(result.statusCode, lessThan(300));
       expect(result.data, isNotNull);
@@ -87,7 +91,11 @@ void main() {
     test('updatePet', () async {
       final api = _newPetApiForIntegration();
 
-      final result = await api.updatePet(1, Pet(name: 'UpdatedFido', photoUrls: ['http://example.com/fido-updated.jpg']));
+      final result = await api.updatePet(
+          1,
+          const Pet(
+              name: 'UpdatedFido',
+              photoUrls: ['http://example.com/fido-updated.jpg']));
       expect(result, isNotNull);
     });
 

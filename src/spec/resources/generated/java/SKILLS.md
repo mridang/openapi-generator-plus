@@ -69,6 +69,105 @@ var authenticator = new OAuth2ClientCredentialsAuthenticator(
 var client = new Client(authenticator);
 ```
 
+### OAuth2 Authorization Code
+
+```java
+import com.example.petstore.auth.oauth.OAuth2AuthCodeAuthenticator;
+
+var authenticator = new OAuth2AuthCodeAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback");
+var client = new Client(authenticator);
+```
+
+### OAuth2 Password
+
+```java
+import com.example.petstore.auth.oauth.OAuth2PasswordAuthenticator;
+
+var authenticator = new OAuth2PasswordAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", "username", "password");
+var client = new Client(authenticator);
+```
+
+### OAuth2 Implicit
+
+The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
+
+```java
+import com.example.petstore.auth.oauth.OAuth2ImplicitAuthenticator;
+
+var authenticator = new OAuth2ImplicitAuthenticator("https://api.example.com", "your-access-token");
+var client = new Client(authenticator);
+```
+
+### OpenID Connect
+
+```java
+import com.example.petstore.auth.oauth.OpenIdConnectAuthenticator;
+
+var authenticator = new OpenIdConnectAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/.well-known/openid-configuration");
+var client = new Client(authenticator);
+```
+
+### OAuth2 token lifecycle
+
+#### Refresh tokens
+
+When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
+
+#### Token caching
+
+The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
+
+#### Client authentication method
+
+OAuth2 clients can transmit their `client_id` and `client_secret` to the token endpoint two ways (RFC 6749 §2.3.1):
+
+- `ClientAuthMethod.BODY` (default) sends them as `application/x-www-form-urlencoded` parameters in the request body.
+- `ClientAuthMethod.BASIC` sends them as an HTTP Basic `Authorization` header.
+
+Override the default if your authorization server only accepts one form:
+
+```java
+import com.example.petstore.auth.oauth.ClientAuthMethod;
+import com.example.petstore.auth.oauth.OAuth2ClientCredentialsAuthenticator;
+
+var authenticator = new OAuth2ClientCredentialsAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", java.util.List.of(), ClientAuthMethod.BASIC);
+```
+
+## Servers
+
+If the OpenAPI spec defines multiple servers, the generated `Servers` class exposes each as a `ServerConfiguration` constant (e.g., `Servers.SERVER_0`, `Servers.SERVER_1`, ...) plus an `Servers.ALL` list. Pass the desired server's URL to the client:
+
+```java
+import com.example.petstore.Servers;
+
+var client = Client.withToken(Servers.SERVER_0.url(), "your-token");
+```
+
+## Testing
+
+The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
+
+```java
+import com.example.petstore.auth.Authenticator;
+
+var fake = new Authenticator() {
+    public java.util.Map<String, String> getAuthHeaders(RequestContext req) {
+        return java.util.Map.of("Authorization", "Bearer test-token");
+    }
+    public String getHost() { return "https://api.example.com"; }
+};
+
+var client = new Client(fake);
+```
+
 ## Error Handling
 
 All API errors extend `ApiError`. The error hierarchy is:

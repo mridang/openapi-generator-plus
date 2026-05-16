@@ -23,6 +23,7 @@ public class OAuth2ClientCredentialsAuthenticator : BaseAuthenticator, IHttpAwar
     private readonly string _clientSecret;
     private readonly Uri _tokenUrl;
     private readonly string[] _scopes;
+    private readonly ClientAuthMethod _clientAuthMethod;
     private readonly OAuth2TokenManager _tokenManager = new();
 
     /// <summary>
@@ -33,12 +34,14 @@ public class OAuth2ClientCredentialsAuthenticator : BaseAuthenticator, IHttpAwar
     /// <param name="clientSecret">OAuth2 client secret.</param>
     /// <param name="tokenUrl">Token endpoint URL.</param>
     /// <param name="scopes">Requested scopes.</param>
+    /// <param name="clientAuthMethod">How to transmit the client credentials. Defaults to <see cref="ClientAuthMethod.Body"/>.</param>
     public OAuth2ClientCredentialsAuthenticator(
         string host,
         string clientId,
         string clientSecret,
         Uri tokenUrl,
-        string[] scopes
+        string[] scopes,
+        ClientAuthMethod clientAuthMethod = ClientAuthMethod.Body
     )
     {
         _host = host;
@@ -46,6 +49,7 @@ public class OAuth2ClientCredentialsAuthenticator : BaseAuthenticator, IHttpAwar
         _clientSecret = clientSecret;
         _tokenUrl = tokenUrl;
         _scopes = [.. scopes];
+        _clientAuthMethod = clientAuthMethod;
     }
 
     /// <inheritdoc/>
@@ -78,19 +82,27 @@ public class OAuth2ClientCredentialsAuthenticator : BaseAuthenticator, IHttpAwar
     /// <inheritdoc/>
     public override async Task<Dictionary<string, string>> GetAuthHeadersAsync()
     {
-        Dictionary<string, string> parameters = new()
+        Dictionary<string, string> parameters = new() { ["grant_type"] = "client_credentials" };
+        Dictionary<string, string>? extraHeaders = null;
+        if (_clientAuthMethod == ClientAuthMethod.Basic)
         {
-            ["grant_type"] = "client_credentials",
-            ["client_id"] = _clientId,
-            ["client_secret"] = _clientSecret,
-        };
+            string credentials = Convert.ToBase64String(
+                System.Text.Encoding.UTF8.GetBytes(_clientId + ":" + _clientSecret)
+            );
+            extraHeaders = new() { ["Authorization"] = "Basic " + credentials };
+        }
+        else
+        {
+            parameters["client_id"] = _clientId;
+            parameters["client_secret"] = _clientSecret;
+        }
         if (_scopes.Length > 0)
         {
             parameters["scope"] = string.Join(" ", _scopes);
         }
 
         string token = await _tokenManager
-            .GetAccessTokenAsync(_tokenUrl, parameters)
+            .GetAccessTokenAsync(_tokenUrl, parameters, extraHeaders)
             .ConfigureAwait(false);
         return new() { ["Authorization"] = "Bearer " + token };
     }

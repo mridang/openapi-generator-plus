@@ -50,10 +50,115 @@ let client = Client(authenticator: authenticator)
 ```swift
 let authenticator = OAuth2ClientCredentialsAuthenticator(
     host: "https://api.example.com",
-    clientId: "client-id",
+    clientID: "client-id",
     clientSecret: "client-secret",
-    tokenUrl: "https://auth.example.com/token")
+    tokenURL: "https://auth.example.com/token")
 let client = Client(authenticator: authenticator)
+```
+
+### OAuth2 Authorization Code
+
+```swift
+let authenticator = OAuth2AuthCodeAuthenticator(
+    host: "https://api.example.com",
+    clientID: "client-id",
+    clientSecret: "client-secret",
+    authorizationURL: "https://auth.example.com/authorize",
+    tokenURL: "https://auth.example.com/token",
+    redirectURI: "https://app.example.com/callback")
+let client = Client(authenticator: authenticator)
+```
+
+### OAuth2 Password
+
+```swift
+let authenticator = OAuth2PasswordAuthenticator(
+    host: "https://api.example.com",
+    clientID: "client-id",
+    clientSecret: "client-secret",
+    tokenURL: "https://auth.example.com/token",
+    username: "username",
+    password: "password")
+let client = Client(authenticator: authenticator)
+```
+
+### OAuth2 Implicit
+
+The implicit flow obtains the access token in the browser via the authorization URL. The authenticator wraps the configuration; the access token itself is supplied by your front-end.
+
+```swift
+let authenticator = OAuth2ImplicitAuthenticator(
+    host: "https://api.example.com",
+    clientID: "client-id",
+    authorizationURL: "https://auth.example.com/authorize")
+let client = Client(authenticator: authenticator)
+```
+
+### OpenID Connect
+
+```swift
+let authenticator = OpenIdConnectAuthenticator(
+    host: "https://api.example.com",
+    openIDConnectURL: "https://auth.example.com/.well-known/openid-configuration",
+    clientID: "client-id",
+    clientSecret: "client-secret",
+    redirectURI: "https://app.example.com/callback")
+let client = Client(authenticator: authenticator)
+```
+
+### OAuth2 token lifecycle
+
+#### Async authentication
+
+OAuth2 authenticators implement `authHeaders(request:) async throws -> [String: String]` because resolving the access token requires an HTTP call to the token endpoint. The generated API methods always `await` this call before sending the request. A synchronous overload is preserved for back-compat but the OAuth flows require the async path.
+
+#### Refresh tokens
+
+When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
+
+#### Token caching
+
+The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
+
+#### Client authentication method
+
+OAuth2 clients can transmit their `client_id` and `client_secret` to the token endpoint two ways (RFC 6749 §2.3.1):
+
+- `ClientAuthMethod.body` (default) sends them as `application/x-www-form-urlencoded` parameters in the request body.
+- `ClientAuthMethod.basic` sends them as an HTTP Basic `Authorization` header.
+
+Override the default if your authorization server only accepts one form:
+
+```swift
+let authenticator = OAuth2ClientCredentialsAuthenticator(
+    host: "https://api.example.com",
+    clientID: "client-id",
+    clientSecret: "client-secret",
+    tokenURL: "https://auth.example.com/token",
+    clientAuthMethod: .basic)
+```
+
+## Servers
+
+If the OpenAPI spec defines multiple servers, the generated `Servers` enum exposes each as a `ServerConfiguration` static property (e.g., `Servers.server0`, `Servers.server1`, ...) plus a `Servers.all` array. Pass the desired server's URL to the client:
+
+```swift
+let client = Client(host: Servers.server0.url(), accessToken: "your-token")
+```
+
+## Testing
+
+The `Authenticator` protocol is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
+
+```swift
+struct FakeAuthenticator: Authenticator {
+    var host: String { "https://api.example.com" }
+    func authHeaders(request: RequestContext) async throws -> [String: String] {
+        ["Authorization": "Bearer test-token"]
+    }
+}
+
+let client = Client(authenticator: FakeAuthenticator())
 ```
 
 ## Error Handling

@@ -23,10 +23,11 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator do
           client_secret: String.t(),
           token_url: String.t(),
           scopes: [String.t()],
+          client_auth_method: PetstoreClient.Auth.OAuth.ClientAuthMethod.t(),
           token_manager: pid() | nil
         }
 
-  defstruct [:host, :client_id, :client_secret, :token_url, :scopes, :token_manager]
+  defstruct [:host, :client_id, :client_secret, :token_url, :scopes, :client_auth_method, :token_manager]
 
   @doc """
   Create a new client credentials authenticator.
@@ -38,10 +39,12 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator do
     * `client_secret` - OAuth2 client secret.
     * `token_url` - Token endpoint URL.
     * `scopes` - Requested scopes.
+    * `opts` - Keyword list. Supported options:
+      * `:client_auth_method` - `:body` (default) or `:basic` per RFC 6749 §2.3.1.
 
   """
-  @spec new(String.t(), String.t(), String.t(), String.t(), [String.t()]) :: t()
-  def new(host, client_id, client_secret, token_url, scopes) do
+  @spec new(String.t(), String.t(), String.t(), String.t(), [String.t()], keyword()) :: t()
+  def new(host, client_id, client_secret, token_url, scopes, opts \\ []) do
     {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
 
     %__MODULE__{
@@ -50,6 +53,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator do
       client_secret: client_secret,
       token_url: token_url,
       scopes: scopes,
+      client_auth_method: Keyword.get(opts, :client_auth_method, :body),
       token_manager: manager
     }
   end
@@ -65,11 +69,19 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator do
 
   @impl PetstoreClient.Auth.Authenticator
   def auth_headers(%__MODULE__{} = self) do
-    params = %{
-      "grant_type" => "client_credentials",
-      "client_id" => self.client_id,
-      "client_secret" => self.client_secret
-    }
+    {params, extra_headers} =
+      case self.client_auth_method do
+        :basic ->
+          credentials = Base.encode64("#{self.client_id}:#{self.client_secret}")
+          {%{"grant_type" => "client_credentials"}, %{"Authorization" => "Basic #{credentials}"}}
+
+        _ ->
+          {%{
+             "grant_type" => "client_credentials",
+             "client_id" => self.client_id,
+             "client_secret" => self.client_secret
+           }, %{}}
+      end
 
     params =
       if self.scopes != [] do
@@ -78,7 +90,14 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator do
         params
       end
 
-    token = PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(self.token_manager, self.token_url, params)
+    token =
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+        self.token_manager,
+        self.token_url,
+        params,
+        extra_headers
+      )
+
     %{"Authorization" => "Bearer #{token}"}
   end
 end

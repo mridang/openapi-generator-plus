@@ -13,8 +13,11 @@ use std::sync::Arc;
 
 use crate::api_client::ApiClient;
 use crate::auth::http_aware_authenticator::HttpAwareAuthenticator;
+use crate::auth::oauth::client_auth_method::ClientAuthMethod;
 use crate::auth::oauth::oauth2_token_manager::OAuth2TokenManager;
 use crate::auth::Authenticator;
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
+use base64::Engine as _;
 
 /// OAuth2PasswordAuthenticator provides OAuth2 resource owner password
 /// credentials flow authentication.
@@ -31,6 +34,7 @@ pub struct OAuth2PasswordAuthenticator {
     username: String,
     password: String,
     scopes: Vec<String>,
+    client_auth_method: ClientAuthMethod,
     token_manager: OAuth2TokenManager,
 }
 
@@ -63,8 +67,16 @@ impl OAuth2PasswordAuthenticator {
             username: username.to_string(),
             password: password.to_string(),
             scopes,
+            client_auth_method: ClientAuthMethod::Body,
             token_manager: OAuth2TokenManager::new(),
         }
+    }
+
+    /// Sets how the client credentials are transmitted to the token endpoint
+    /// (RFC 6749 §2.3.1). Builder-style; returns the receiver.
+    pub fn with_client_auth_method(mut self, method: ClientAuthMethod) -> Self {
+        self.client_auth_method = method;
+        self
     }
 }
 
@@ -78,6 +90,15 @@ impl Authenticator for OAuth2PasswordAuthenticator {
     ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
         Box::pin(async move {
             let refresh_token = self.token_manager.refresh_token();
+            let mut extra_headers = HashMap::new();
+            if self.client_auth_method == ClientAuthMethod::Basic {
+                let credentials = BASE64_STANDARD
+                    .encode(format!("{}:{}", self.client_id, self.client_secret).as_bytes());
+                extra_headers.insert(
+                    "Authorization".to_string(),
+                    format!("Basic {}", credentials),
+                );
+            }
 
             let (token_url, params) = if !refresh_token.is_empty() {
                 let mut params = HashMap::new();
@@ -87,8 +108,10 @@ impl Authenticator for OAuth2PasswordAuthenticator {
             } else {
                 let mut params = HashMap::new();
                 params.insert("grant_type".to_string(), "password".to_string());
-                params.insert("client_id".to_string(), self.client_id.clone());
-                params.insert("client_secret".to_string(), self.client_secret.clone());
+                if self.client_auth_method != ClientAuthMethod::Basic {
+                    params.insert("client_id".to_string(), self.client_id.clone());
+                    params.insert("client_secret".to_string(), self.client_secret.clone());
+                }
                 params.insert("username".to_string(), self.username.clone());
                 params.insert("password".to_string(), self.password.clone());
                 if !self.scopes.is_empty() {
@@ -99,7 +122,7 @@ impl Authenticator for OAuth2PasswordAuthenticator {
 
             match self
                 .token_manager
-                .get_access_token(&token_url, &params)
+                .get_access_token_with_headers(&token_url, &params, &extra_headers)
                 .await
             {
                 Ok(token) => {

@@ -44,25 +44,36 @@ class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator implements 
     /** @var string[] Requested scopes. */
     private readonly array $scopes;
 
+    /** @var ClientAuthMethod How client credentials are transmitted. */
+    private readonly ClientAuthMethod $clientAuthMethod;
+
     /** @var OAuth2TokenManager Token lifecycle manager. */
     private readonly OAuth2TokenManager $tokenManager;
 
     /**
      * Create a new client credentials authenticator.
      *
-     * @param string   $host         API base URL
-     * @param string   $clientId     OAuth2 client ID
-     * @param string   $clientSecret OAuth2 client secret
-     * @param string   $tokenUrl     token endpoint URL
-     * @param string[] $scopes       requested scopes
+     * @param string           $host             API base URL
+     * @param string           $clientId         OAuth2 client ID
+     * @param string           $clientSecret     OAuth2 client secret
+     * @param string           $tokenUrl         token endpoint URL
+     * @param string[]         $scopes           requested scopes
+     * @param ClientAuthMethod $clientAuthMethod how to transmit client credentials (default Body)
      */
-    public function __construct(string $host, string $clientId, string $clientSecret, string $tokenUrl, array $scopes)
-    {
+    public function __construct(
+        string $host,
+        string $clientId,
+        string $clientSecret,
+        string $tokenUrl,
+        array $scopes,
+        ClientAuthMethod $clientAuthMethod = ClientAuthMethod::Body
+    ) {
         $this->host = $host;
         $this->clientId = $clientId;
         $this->clientSecret = $clientSecret;
         $this->tokenUrl = $tokenUrl;
         $this->scopes = $scopes;
+        $this->clientAuthMethod = $clientAuthMethod;
         $this->tokenManager = new OAuth2TokenManager();
     }
 
@@ -94,15 +105,19 @@ class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator implements 
      */
     public function getAuthHeaders(): array
     {
-        $params = [
-            'grant_type' => 'client_credentials',
-            'client_id' => $this->clientId,
-            'client_secret' => $this->clientSecret,
-        ];
+        $params = ['grant_type' => 'client_credentials'];
+        $extraHeaders = [];
+        if ($this->clientAuthMethod === ClientAuthMethod::Basic) {
+            $credentials = base64_encode($this->clientId . ':' . $this->clientSecret);
+            $extraHeaders['Authorization'] = 'Basic ' . $credentials;
+        } else {
+            $params['client_id'] = $this->clientId;
+            $params['client_secret'] = $this->clientSecret;
+        }
         if ($this->scopes !== []) {
             $params['scope'] = implode(' ', $this->scopes);
         }
-        $token = $this->tokenManager->getAccessToken($this->tokenUrl, $params);
+        $token = $this->tokenManager->getAccessToken($this->tokenUrl, $params, $extraHeaders);
 
         return ['Authorization' => 'Bearer ' . $token];
     }

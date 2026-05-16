@@ -67,8 +67,9 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
   @doc """
   Get a valid access token, fetching or refreshing as necessary.
   """
-  @spec get_access_token(pid(), String.t(), %{optional(String.t()) => String.t()}) :: String.t()
-  def get_access_token(manager, token_url, params) do
+  @spec get_access_token(pid(), String.t(), %{optional(String.t()) => String.t()}, %{optional(String.t()) => String.t()}) ::
+          String.t()
+  def get_access_token(manager, token_url, params, extra_headers \\ %{}) do
     state = Agent.get(manager, & &1)
     now = System.system_time(:second)
 
@@ -82,7 +83,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
           |> maybe_put(params, "client_id")
           |> maybe_put(params, "client_secret")
 
-        case try_fetch_token(state, token_url, refresh_params) do
+        case try_fetch_token(state, token_url, refresh_params, extra_headers) do
           {:ok, new_state} ->
             Agent.update(manager, fn _ -> new_state end)
             new_state.access_token
@@ -90,13 +91,13 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
           :error ->
             # Refresh failed (e.g. refresh token revoked or expired).
             # Fall back to re-running the original grant.
-            new_state = fetch_token(state, token_url, params)
+            new_state = fetch_token(state, token_url, params, extra_headers)
             Agent.update(manager, fn _ -> new_state end)
             new_state.access_token
         end
 
       true ->
-        new_state = fetch_token(state, token_url, params)
+        new_state = fetch_token(state, token_url, params, extra_headers)
         Agent.update(manager, fn _ -> new_state end)
         new_state.access_token
     end
@@ -109,9 +110,9 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
     end
   end
 
-  defp try_fetch_token(state, token_url, params) do
+  defp try_fetch_token(state, token_url, params, extra_headers) do
     try do
-      {:ok, fetch_token(state, token_url, params)}
+      {:ok, fetch_token(state, token_url, params, extra_headers)}
     rescue
       _ -> :error
     end
@@ -127,7 +128,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
     end)
   end
 
-  defp fetch_token(state, token_url, params) do
+  defp fetch_token(state, token_url, params, extra_headers \\ %{}) do
     client = state.api_client
 
     if is_nil(client) do
@@ -136,7 +137,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
               "on HttpAwareAuthenticator before making API requests."
     end
 
-    headers = %{"Content-Type" => "application/x-www-form-urlencoded"}
+    headers = Map.merge(%{"Content-Type" => "application/x-www-form-urlencoded"}, extra_headers)
     body = URI.encode_query(params)
 
     response =

@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.StringJoiner;
@@ -68,6 +69,23 @@ public class OAuth2TokenManager {
      * @throws IllegalStateException if no API client has been injected or token fetch fails
      */
     public synchronized String getAccessToken(String tokenUrl, Map<String, String> params) {
+        return getAccessToken(tokenUrl, params, Collections.emptyMap());
+    }
+
+    /**
+     * Get a valid access token, fetching or refreshing as necessary.
+     *
+     * <p>This overload accepts additional HTTP headers (e.g. an
+     * {@code Authorization} header for HTTP Basic client authentication per
+     * RFC 6749 §2.3.1).
+     *
+     * @param tokenUrl     the OAuth2 token endpoint URL
+     * @param params       the token request parameters (grant_type, etc.)
+     * @param extraHeaders additional headers to include on the token request
+     * @return a valid access token
+     */
+    public synchronized String getAccessToken(String tokenUrl, Map<String, String> params,
+            Map<String, String> extraHeaders) {
         if (accessToken != null
                 && (tokenExpiry == null
                         || Instant.now().isBefore(tokenExpiry.minusSeconds(EXPIRY_SAFETY_MARGIN_SECONDS)))) {
@@ -84,7 +102,7 @@ public class OAuth2TokenManager {
                 refreshParams.put("client_secret", params.get("client_secret"));
             }
             try {
-                fetchToken(tokenUrl, refreshParams);
+                fetchToken(tokenUrl, refreshParams, extraHeaders);
                 if (accessToken != null) {
                     return accessToken;
                 }
@@ -93,7 +111,7 @@ public class OAuth2TokenManager {
                  * back to re-running the original grant below. */
             }
         }
-        fetchToken(tokenUrl, params);
+        fetchToken(tokenUrl, params, extraHeaders);
         if (accessToken == null) {
             throw new IllegalStateException("Token fetch did not return an access token");
         }
@@ -115,11 +133,12 @@ public class OAuth2TokenManager {
      *
      * @return the refresh token, or null if not available
      */
-    public @Nullable String getRefreshToken() {
+    public synchronized @Nullable String getRefreshToken() {
         return refreshToken;
     }
 
-    private void fetchToken(String tokenUrl, Map<String, String> params) {
+    private void fetchToken(String tokenUrl, Map<String, String> params,
+            Map<String, String> extraHeaders) {
         if (apiClient == null) {
             throw new IllegalStateException(
                     "ApiClient has not been injected. "
@@ -135,6 +154,7 @@ public class OAuth2TokenManager {
 
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/x-www-form-urlencoded");
+        headers.putAll(extraHeaders);
 
         try {
             ApiResponse response = apiClient.sendRequest(

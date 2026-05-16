@@ -48,9 +48,13 @@ require '{{gemName}}/auth/api_key_authenticator'
 require '{{gemName}}/auth/oauth/oauth2_token_manager'
 {{/hasAnyOAuth2}}
 {{#hasOAuth2ClientCredentials}}
+require '{{gemName}}/auth/oauth/client_auth_method'
 require '{{gemName}}/auth/oauth/oauth2_client_credentials_authenticator'
 {{/hasOAuth2ClientCredentials}}
 {{#hasOAuth2Password}}
+{{^hasOAuth2ClientCredentials}}
+require '{{gemName}}/auth/oauth/client_auth_method'
+{{/hasOAuth2ClientCredentials}}
 require '{{gemName}}/auth/oauth/oauth2_password_authenticator'
 {{/hasOAuth2Password}}
 {{#hasOAuth2AuthorizationCode}}

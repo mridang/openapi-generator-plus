@@ -44,7 +44,11 @@ export class OAuth2TokenManager {
    * @returns a valid access token
    * @throws Error if no API client has been injected or token fetch fails
    */
-  async getAccessToken(tokenUrl: string, params: Record<string, string>): Promise<string> {
+  async getAccessToken(
+    tokenUrl: string,
+    params: Record<string, string>,
+    extraHeaders: Record<string, string> = {}
+  ): Promise<string> {
     if (
       this.accessToken &&
       (this.tokenExpiry === null || Date.now() < this.tokenExpiry - OAuth2TokenManager.EXPIRY_SAFETY_MARGIN_MS)
@@ -63,7 +67,7 @@ export class OAuth2TokenManager {
         refreshParams.client_secret = params.client_secret;
       }
       try {
-        await this.fetchToken(tokenUrl, refreshParams);
+        await this.fetchToken(tokenUrl, refreshParams, extraHeaders);
         if (this.accessToken) {
           return this.accessToken;
         }
@@ -72,7 +76,7 @@ export class OAuth2TokenManager {
          * Fall back to re-running the original grant below. */
       }
     }
-    await this.fetchToken(tokenUrl, params);
+    await this.fetchToken(tokenUrl, params, extraHeaders);
     return this.accessToken!;
   }
 
@@ -101,7 +105,11 @@ export class OAuth2TokenManager {
    * @param tokenUrl the OAuth2 token endpoint URL
    * @param params the token request parameters
    */
-  private async fetchToken(tokenUrl: string, params: Record<string, string>): Promise<void> {
+  private async fetchToken(
+    tokenUrl: string,
+    params: Record<string, string>,
+    extraHeaders: Record<string, string> = {}
+  ): Promise<void> {
     if (this.apiClient == null) {
       throw new Error(
         'ApiClient has not been injected. ' +
@@ -114,7 +122,7 @@ export class OAuth2TokenManager {
     const response = await this.apiClient.sendRequest(
       'POST',
       tokenUrl,
-      { 'Content-Type': 'application/x-www-form-urlencoded' },
+      { 'Content-Type': 'application/x-www-form-urlencoded', ...extraHeaders },
       body
     );
 

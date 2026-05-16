@@ -7,8 +7,8 @@
 
 import 'dart:convert';
 
-import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart';
+import 'package:test/test.dart';
 
 void main() {
   group('ObjectSerializer', () {
@@ -23,7 +23,7 @@ void main() {
     });
 
     test('deserializeRaw JSON to map', () {
-      final input = '{"name":"Fido","age":3}';
+      const input = '{"name":"Fido","age":3}';
 
       final result = deserializeRaw(input) as Map<String, dynamic>;
       expect(result['name'], equals('Fido'));
@@ -178,12 +178,14 @@ void main() {
     });
 
     test('serialize includes fields set to default values', () {
-      final category = Category(id: 0, name: '');
+      const category = Category(id: 0, name: '');
       final json = serialize(category);
       final parsed = jsonDecode(json) as Map<String, dynamic>;
-      expect(parsed.containsKey('id'), isTrue, reason: 'serialized JSON should include id field');
+      expect(parsed.containsKey('id'), isTrue,
+          reason: 'serialized JSON should include id field');
       expect(parsed['id'], equals(0));
-      expect(parsed.containsKey('name'), isTrue, reason: 'serialized JSON should include name field');
+      expect(parsed.containsKey('name'), isTrue,
+          reason: 'serialized JSON should include name field');
       expect(parsed['name'], equals(''));
     });
   });

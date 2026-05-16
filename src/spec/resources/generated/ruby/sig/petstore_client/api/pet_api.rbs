@@ -91,6 +91,10 @@ module PetstoreClient
       def upload_pet_certificate_with_http_info: (Integer pet_id, Options::UploadPetCertificateOptions options) -> ::PetstoreClient::ApiResult
       def upload_pet_document: (Integer pet_id, Options::UploadPetDocumentOptions options) -> untyped
       def upload_pet_document_with_http_info: (Integer pet_id, Options::UploadPetDocumentOptions options) -> ::PetstoreClient::ApiResult
+
+      private
+
+      def encode_path_segment: (String value) -> String
     end
   end
 end

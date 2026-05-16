@@ -17,7 +17,7 @@ public static class ValueSerializer
     /// <summary>
     /// Percent-encodes a value for use as a URL path segment, preserving
     /// the OAS 3.0 sub-delimiters used by matrix/label/simple styles
-    /// (<c>; = , . ~ ! $ &amp; ' ( ) * +</c>) and the unreserved characters.
+    /// (<c>; = , . ~ ! $ and ' ( ) * +</c>) and the unreserved characters.
     /// </summary>
     public static string EncodePathSegment(string value)
     {
@@ -143,8 +143,8 @@ public static class ValueSerializer
             items = [.. list.Cast<object>().Select(ObjectSerializer.Stringify)];
         }
 
-        // URL-encoding is applied at the call site (api.mustache path replace).
-        // serializeStyled returns the raw styled string.
+        /* URL-encoding is applied at the call site (api.mustache path replace).
+         * serializeStyled returns the raw styled string. */
         static string enc(string s)
         {
             return s;

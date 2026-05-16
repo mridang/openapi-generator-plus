@@ -6,11 +6,17 @@ pub use oauth2_token_manager::*;
 {{/hasAnyOAuth2}}
 
 {{#hasOAuth2ClientCredentials}}
+mod client_auth_method;
+pub use client_auth_method::*;
 mod oauth2_client_credentials_authenticator;
 pub use oauth2_client_credentials_authenticator::*;
 {{/hasOAuth2ClientCredentials}}
 
 {{#hasOAuth2Password}}
+{{^hasOAuth2ClientCredentials}}
+mod client_auth_method;
+pub use client_auth_method::*;
+{{/hasOAuth2ClientCredentials}}
 mod oauth2_password_authenticator;
 pub use oauth2_password_authenticator::*;
 {{/hasOAuth2Password}}

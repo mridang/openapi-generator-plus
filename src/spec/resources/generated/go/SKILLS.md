@@ -51,6 +51,90 @@ authenticator := oauth.NewOAuth2ClientCredentialsAuthenticator(
 client := petstore.NewClient(authenticator, nil)
 ```
 
+### OAuth2 Authorization Code
+
+```go
+authenticator := oauth.NewOAuth2AuthCodeAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback")
+client := petstore.NewClient(authenticator, nil)
+```
+
+### OAuth2 Password
+
+```go
+authenticator := oauth.NewOAuth2PasswordAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", "username", "password")
+client := petstore.NewClient(authenticator, nil)
+```
+
+### OAuth2 Implicit
+
+The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
+
+```go
+authenticator := oauth.NewOAuth2ImplicitAuthenticator("https://api.example.com", "your-access-token")
+client := petstore.NewClient(authenticator, nil)
+```
+
+### OpenID Connect
+
+```go
+authenticator := oauth.NewOpenIdConnectAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/.well-known/openid-configuration")
+client := petstore.NewClient(authenticator, nil)
+```
+
+### OAuth2 token lifecycle
+
+#### Refresh tokens
+
+When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
+
+#### Token caching
+
+The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
+
+#### Client authentication method
+
+OAuth2 clients can transmit their `client_id` and `client_secret` to the token endpoint two ways (RFC 6749 §2.3.1):
+
+- `ClientAuthMethodBody` (default) sends them as `application/x-www-form-urlencoded` parameters in the request body.
+- `ClientAuthMethodBasic` sends them as an HTTP Basic `Authorization` header.
+
+Override the default with the `WithClientAuthMethod` setter:
+
+```go
+authenticator := oauth.NewOAuth2ClientCredentialsAuthenticator(
+    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token").
+    WithClientAuthMethod(oauth.ClientAuthMethodBasic)
+```
+
+## Servers
+
+If the OpenAPI spec defines multiple servers, the generated package exposes each as a `*ServerConfiguration` variable (e.g., `Server0`, `Server1`, ...) plus an `AllServers` slice. Pass the desired server's URL to the client constructor:
+
+```go
+client := petstore.NewClientWithToken(petstore.Server0.URL(), "your-token", nil)
+```
+
+## Testing
+
+The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
+
+```go
+type fakeAuth struct{}
+
+func (fakeAuth) GetAuthHeaders(_ *auth.RequestContext) (map[string]string, error) {
+    return map[string]string{"Authorization": "Bearer test-token"}, nil
+}
+func (fakeAuth) Host() string { return "https://api.example.com" }
+
+client := petstore.NewClient(fakeAuth{}, nil)
+```
+
 ## Error Handling
 
 All API errors implement the error interface. The error hierarchy is:

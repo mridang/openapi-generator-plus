@@ -56,6 +56,103 @@ authenticator = OAuth2ClientCredentialsAuthenticator(
 client = Client(authenticator)
 ```
 
+### OAuth2 Authorization Code
+
+```python
+from petstore_client.auth.oauth.oauth2_auth_code_authenticator import OAuth2AuthCodeAuthenticator
+
+authenticator = OAuth2AuthCodeAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback")
+client = Client(authenticator)
+```
+
+### OAuth2 Password
+
+```python
+from petstore_client.auth.oauth.oauth2_password_authenticator import OAuth2PasswordAuthenticator
+
+authenticator = OAuth2PasswordAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/token", "username", "password")
+client = Client(authenticator)
+```
+
+### OAuth2 Implicit
+
+The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
+
+```python
+from petstore_client.auth.oauth.oauth2_implicit_authenticator import OAuth2ImplicitAuthenticator
+
+authenticator = OAuth2ImplicitAuthenticator("https://api.example.com", "your-access-token")
+client = Client(authenticator)
+```
+
+### OpenID Connect
+
+```python
+from petstore_client.auth.oauth.openid_connect_authenticator import OpenIdConnectAuthenticator
+
+authenticator = OpenIdConnectAuthenticator(
+    "https://api.example.com", "client-id", "client-secret",
+    "https://auth.example.com/.well-known/openid-configuration")
+client = Client(authenticator)
+```
+
+### OAuth2 token lifecycle
+
+#### Refresh tokens
+
+When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
+
+#### Token caching
+
+The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
+
+#### Client authentication method
+
+OAuth2 clients can transmit their `client_id` and `client_secret` to the token endpoint two ways (RFC 6749 §2.3.1):
+
+- `ClientAuthMethod.BODY` (default) sends them as `application/x-www-form-urlencoded` parameters in the request body.
+- `ClientAuthMethod.BASIC` sends them as an HTTP Basic `Authorization` header.
+
+Override the default if your authorization server only accepts one form:
+
+```python
+from petstore_client.auth.oauth.client_auth_method import ClientAuthMethod
+from petstore_client.auth.oauth.oauth2_client_credentials_authenticator import OAuth2ClientCredentialsAuthenticator
+
+authenticator = OAuth2ClientCredentialsAuthenticator(
+    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token",
+    client_auth_method=ClientAuthMethod.BASIC)
+```
+
+## Servers
+
+If the OpenAPI spec defines multiple servers, the generated `petstore_client.servers` module exposes each as a `ServerConfiguration` (e.g., `SERVER_0`, `SERVER_1`, ...) plus an `ALL` list. Pass the desired server's URL to the client:
+
+```python
+from petstore_client.servers import SERVER_0
+
+client = Client.with_token(SERVER_0.url(), "your-token")
+```
+
+## Testing
+
+The `Authenticator` protocol is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect. Combine with a stub HTTP transport (e.g., `responses`, `requests-mock`) to assert request URLs/bodies without a network.
+
+```python
+class FakeAuthenticator:
+    def get_auth_headers(self, request):
+        return {"Authorization": "Bearer test-token"}
+
+    def get_host(self):
+        return "https://api.example.com"
+
+client = Client(FakeAuthenticator())
+```
+
 ## Error Handling
 
 All API errors extend `ApiError`. The exception hierarchy is:

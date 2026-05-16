@@ -58,6 +58,90 @@ authenticator = PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.n
 client = PetstoreClient.Client.new(authenticator)
 ```
 
+### OAuth2 Authorization Code
+
+```elixir
+authenticator = PetstoreClient.Auth.OAuth.OAuth2AuthCodeAuthenticator.new(
+  "https://api.example.com", "client-id", "client-secret",
+  "https://auth.example.com/token", "authorization-code", "https://app.example.com/callback")
+client = PetstoreClient.Client.new(authenticator)
+```
+
+### OAuth2 Password
+
+```elixir
+authenticator = PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.new(
+  "https://api.example.com", "client-id", "client-secret",
+  "https://auth.example.com/token", "username", "password")
+client = PetstoreClient.Client.new(authenticator)
+```
+
+### OAuth2 Implicit
+
+The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
+
+```elixir
+authenticator = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.new("https://api.example.com", "your-access-token")
+client = PetstoreClient.Client.new(authenticator)
+```
+
+### OpenID Connect
+
+```elixir
+authenticator = PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.new(
+  "https://api.example.com", "client-id", "client-secret",
+  "https://auth.example.com/.well-known/openid-configuration")
+client = PetstoreClient.Client.new(authenticator)
+```
+
+### OAuth2 token lifecycle
+
+#### Refresh tokens
+
+When an OAuth2 grant (Authorization Code, Password, or OpenID Connect) returns a `refresh_token` alongside the access token, the generated `OAuth2TokenManager` will automatically use `grant_type=refresh_token` to obtain a fresh access token when the cached one expires. If the refresh attempt fails (for example because the refresh token itself has been revoked or has expired), the token manager falls back to re-running the original grant. Client Credentials never receives a refresh token; that flow always re-runs the client-credentials grant.
+
+#### Token caching
+
+The token manager caches the access token in memory and refreshes it `60` seconds before its declared expiry. This safety margin avoids a race where a token returned by `/token` could be rejected by the API moments later because the clocks of the two services drift. The margin is fixed; tune your authorization server's `expires_in` if it is too tight.
+
+#### Client authentication method
+
+OAuth2 clients can transmit their `client_id` and `client_secret` to the token endpoint two ways (RFC 6749 §2.3.1):
+
+- `:body` (default) sends them as `application/x-www-form-urlencoded` parameters in the request body.
+- `:basic` sends them as an HTTP Basic `Authorization` header.
+
+Override the default if your authorization server only accepts one form:
+
+```elixir
+authenticator = PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+  "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token",
+  client_auth_method: :basic)
+```
+
+## Servers
+
+If the OpenAPI spec defines multiple servers, the generated `PetstoreClient.Servers` module exposes each as a `server_N/0` function returning a `ServerConfiguration`. Resolve the URL via `ServerConfiguration.url/1`:
+
+```elixir
+url = PetstoreClient.Servers.server_0() |> PetstoreClient.ServerConfiguration.url()
+client = PetstoreClient.Client.with_token(url, "your-token")
+```
+
+## Testing
+
+The authenticator behaviour is the seam for tests: substitute a fake struct that returns a known header map.
+
+```elixir
+defmodule FakeAuthenticator do
+  defstruct []
+  def get_auth_headers(_), do: {:ok, %{"Authorization" => "Bearer test-token"}}
+  def host(_), do: "https://api.example.com"
+end
+
+client = PetstoreClient.Client.new(%FakeAuthenticator{})
+```
+
 ## Error Handling
 
 All API errors are represented as exception structs. The error hierarchy is:

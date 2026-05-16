@@ -31,11 +31,18 @@ class PetPassport {
   /// Creates a [PetPassport] from a JSON map.
   factory PetPassport.fromJson(Map<String, dynamic> json) {
     return PetPassport(
-      pet: json['pet'] != null ? Pet.fromJson(json['pet'] as Map<String, dynamic>) : null,
-      thumbnail: json['thumbnail'] != null ? base64Decode(json['thumbnail'] as String) : null,
-      scans: (json['scans'] as List?)?.map((e) => base64Decode(e as String) as List<int>).toList(),
-      issuedAt: json['issuedAt'] != null ? DateTime.parse(json['issuedAt'] as String) : null,
-
+      pet: json['pet'] != null
+          ? Pet.fromJson(json['pet'] as Map<String, dynamic>)
+          : null,
+      thumbnail: json['thumbnail'] != null
+          ? base64Decode(json['thumbnail'] as String)
+          : null,
+      scans: (json['scans'] as List?)
+          ?.map((e) => base64Decode(e as String) as List<int>)
+          .toList(),
+      issuedAt: json['issuedAt'] != null
+          ? DateTime.parse(json['issuedAt'] as String)
+          : null,
     );
   }
 
@@ -52,8 +59,10 @@ class PetPassport {
       json['scans'] = scans?.map((e) => base64Encode(e)).toList();
     }
     if (issuedAt != null) {
-      json['issuedAt'] = issuedAt?.toUtc().toIso8601String().replaceFirst(RegExp(r'(\.\d+)?Z$'), '+00:00');
-
+      json['issuedAt'] = issuedAt
+          ?.toUtc()
+          .toIso8601String()
+          .replaceFirst(RegExp(r'(\.\d+)?Z$'), '+00:00');
     }
     return json;
   }
