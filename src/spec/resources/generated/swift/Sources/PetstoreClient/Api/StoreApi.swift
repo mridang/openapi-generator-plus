@@ -47,7 +47,15 @@ public final class StoreApi: BaseApi {
     /// Returns pet inventories by status
     public func getInventory() async throws -> [String: Int] {
         let result = try await getInventoryWithHTTPInfo()
-        return result.data!
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for getInventory",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
     }
 
     /// Performs the getInventory operation and returns the full API result.
@@ -79,7 +87,15 @@ public final class StoreApi: BaseApi {
     /// Find purchase order by ID
     public func getOrderById(orderId: Int64, ) async throws -> Order {
         let result = try await getOrderByIdWithHTTPInfo(orderId: orderId, )
-        return result.data!
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for getOrderById",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
     }
 
     /// Performs the getOrderById operation and returns the full API result.
@@ -112,7 +128,15 @@ public final class StoreApi: BaseApi {
     /// Place an order for a pet
     public func placeOrder(order: Order?, ) async throws -> Order {
         let result = try await placeOrderWithHTTPInfo(order: order, )
-        return result.data!
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for placeOrder",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
     }
 
     /// Performs the placeOrder operation and returns the full API result.

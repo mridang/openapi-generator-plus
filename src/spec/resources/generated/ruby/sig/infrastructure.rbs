@@ -281,12 +281,14 @@ module PetstoreClient
       end
       class OpenIdConnectAuthenticator < BaseAuthenticator
         include HttpAwareAuthenticator
+        DEFAULT_DISCOVERY_MAX_AGE_SECONDS: Integer
         def initialize: (String, String, String, String, String, Array[String]) -> void
         attr_writer api_client: ApiClient?
         def build_authorization_url: (?String?) -> String
         def exchange_code: (String) -> void
         private
         def resolve_delegate: () -> OAuth2AuthorizationCodeAuthenticator
+        def parse_max_age: (Hash[String, String]?) -> Integer
       end
 
       class OAuth2TokenManager

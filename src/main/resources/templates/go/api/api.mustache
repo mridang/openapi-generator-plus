@@ -190,15 +190,15 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 {{/hasCookieParams}}
 
 {{#hasFormParams}}
-	formBody := make(map[string]string)
+	formBody := make(map[string]interface{})
 	if options != nil {
 {{#formParams}}
 {{#required}}
-		formBody["{{baseName}}"] = fmt.Sprintf("%v", options.{{#pascalcase}}{{paramName}}{{/pascalcase}})
+		formBody["{{baseName}}"] = options.{{#pascalcase}}{{paramName}}{{/pascalcase}}
 {{/required}}
 {{^required}}
 		if options.{{#pascalcase}}{{paramName}}{{/pascalcase}} != nil {
-			formBody["{{baseName}}"] = fmt.Sprintf("%v", *options.{{#pascalcase}}{{paramName}}{{/pascalcase}})
+			formBody["{{baseName}}"] = *options.{{#pascalcase}}{{paramName}}{{/pascalcase}}
 		}
 {{/required}}
 {{/formParams}}

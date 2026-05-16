@@ -10,8 +10,11 @@ package petstore
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/uuid"
@@ -265,6 +268,34 @@ func writeMultipartField(writer *multipart.Writer, name string, value interface{
 	switch v := value.(type) {
 	case string:
 		return writer.WriteField(name, v)
+	case *os.File:
+		if v == nil {
+			return nil
+		}
+		fileName := filepath.Base(v.Name())
+		part, err := writer.CreateFormFile(name, fileName)
+		if err != nil {
+			return fmt.Errorf("failed to create multipart file part %q: %w", name, err)
+		}
+		if _, err := v.Seek(0, io.SeekStart); err != nil {
+			return fmt.Errorf("failed to rewind multipart file %q: %w", name, err)
+		}
+		_, err = io.Copy(part, v)
+		return err
+	case io.Reader:
+		part, err := writer.CreateFormFile(name, name)
+		if err != nil {
+			return fmt.Errorf("failed to create multipart file part %q: %w", name, err)
+		}
+		_, err = io.Copy(part, v)
+		return err
+	case []byte:
+		part, err := writer.CreateFormFile(name, name)
+		if err != nil {
+			return fmt.Errorf("failed to create multipart file part %q: %w", name, err)
+		}
+		_, err = part.Write(v)
+		return err
 	case map[string]interface{}:
 		jsonBytes, err := json.Marshal(v)
 		if err != nil {

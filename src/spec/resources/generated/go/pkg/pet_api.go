@@ -216,10 +216,10 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(petId int64, options *AddPetPhotosOpti
 
 	headerParams := make(map[string]string)
 
-	formBody := make(map[string]string)
+	formBody := make(map[string]interface{})
 	if options != nil {
-		formBody["files"] = fmt.Sprintf("%v", options.Files)
-		formBody["metadata"] = fmt.Sprintf("%v", options.Metadata)
+		formBody["files"] = options.Files
+		formBody["metadata"] = options.Metadata
 	}
 	var requestBody interface{} = formBody
 
@@ -1241,9 +1241,9 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(petId int64, options *UploadPe
 
 	headerParams := make(map[string]string)
 
-	formBody := make(map[string]string)
+	formBody := make(map[string]interface{})
 	if options != nil {
-		formBody["file"] = fmt.Sprintf("%v", options.File)
+		formBody["file"] = options.File
 	}
 	var requestBody interface{} = formBody
 
@@ -1304,14 +1304,14 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(petId int64, options *UploadPetDo
 
 	headerParams := make(map[string]string)
 
-	formBody := make(map[string]string)
+	formBody := make(map[string]interface{})
 	if options != nil {
-		formBody["file"] = fmt.Sprintf("%v", options.File)
+		formBody["file"] = options.File
 		if options.DocumentType != nil {
-			formBody["documentType"] = fmt.Sprintf("%v", *options.DocumentType)
+			formBody["documentType"] = *options.DocumentType
 		}
 		if options.Notes != nil {
-			formBody["notes"] = fmt.Sprintf("%v", *options.Notes)
+			formBody["notes"] = *options.Notes
 		}
 	}
 	var requestBody interface{} = formBody

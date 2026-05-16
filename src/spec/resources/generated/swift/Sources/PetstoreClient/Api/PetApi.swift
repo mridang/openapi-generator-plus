@@ -127,7 +127,15 @@ public final class PetApi: BaseApi {
     /// Add a new pet to the store
     public func addPet(auth: Authenticator, pet: Pet, ) async throws -> Pet {
         let result = try await addPetWithHTTPInfo(auth: auth, pet: pet, )
-        return result.data!
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for addPet",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
     }
 
     /// Performs the addPet operation and returns the full API result.
@@ -160,7 +168,15 @@ public final class PetApi: BaseApi {
     /// Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
     public func addPetPhotos(petId: Int64, options: AddPetPhotosOptions? = nil, ) async throws -> [Photo] {
         let result = try await addPetPhotosWithHTTPInfo(petId: petId, options: options, )
-        return result.data!
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for addPetPhotos",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
     }
 
     /// Performs the addPetPhotos operation and returns the full API result.
@@ -200,7 +216,15 @@ public final class PetApi: BaseApi {
     /// Record a treatment for a pet
     public func addPetTreatment(auth: Authenticator, petId: Int64, petTreatment: PetTreatment, ) async throws -> PetTreatment {
         let result = try await addPetTreatmentWithHTTPInfo(auth: auth, petId: petId, petTreatment: petTreatment, )
-        return result.data!
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for addPetTreatment",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
     }
 
     /// Performs the addPetTreatment operation and returns the full API result.
@@ -274,7 +298,15 @@ public final class PetApi: BaseApi {
     /// Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
     public func downloadPetDocument(petId: Int64, documentId: Int64, ) async throws -> Data {
         let result = try await downloadPetDocumentWithHTTPInfo(petId: petId, documentId: documentId, )
-        return result.data!
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for downloadPetDocument",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
     }
 
     /// Performs the downloadPetDocument operation and returns the full API result.
@@ -310,7 +342,15 @@ public final class PetApi: BaseApi {
     /// See https://example.com/docs/filtering Find out more about filtering
     public func findPetsByStatus(options: FindPetsByStatusOptions? = nil, ) async throws -> [Pet] {
         let result = try await findPetsByStatusWithHTTPInfo(options: options, )
-        return result.data!
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for findPetsByStatus",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
     }
 
     /// Performs the findPetsByStatus operation and returns the full API result.
@@ -356,7 +396,15 @@ public final class PetApi: BaseApi {
     /// Get external pet info
     public func getExternalPetInfo(petId: Int64, server: (any GetExternalPetInfoServer)? = nil, ) async throws -> Pet {
         let result = try await getExternalPetInfoWithHTTPInfo(petId: petId, server: server, )
-        return result.data!
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for getExternalPetInfo",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
     }
 
     /// Performs the getExternalPetInfo operation and returns the full API result.
@@ -395,7 +443,15 @@ public final class PetApi: BaseApi {
     /// Get multi-server pet info
     public func getMultiServerPetInfo(petId: Int64, server: (any GetMultiServerPetInfoServer)? = nil, ) async throws -> Pet {
         let result = try await getMultiServerPetInfoWithHTTPInfo(petId: petId, server: server, )
-        return result.data!
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for getMultiServerPetInfo",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
     }
 
     /// Performs the getMultiServerPetInfo operation and returns the full API result.
@@ -435,7 +491,15 @@ public final class PetApi: BaseApi {
     /// Returns the raw image bytes of the pet's current avatar.
     public func getPetAvatar(petId: Int64, ) async throws -> Data {
         let result = try await getPetAvatarWithHTTPInfo(petId: petId, )
-        return result.data!
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for getPetAvatar",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
     }
 
     /// Performs the getPetAvatar operation and returns the full API result.
@@ -469,7 +533,15 @@ public final class PetApi: BaseApi {
     /// Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
     public func getPetAvatarThumbnail(petId: Int64, ) async throws -> Data {
         let result = try await getPetAvatarThumbnailWithHTTPInfo(petId: petId, )
-        return result.data!
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for getPetAvatarThumbnail",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
     }
 
     /// Performs the getPetAvatarThumbnail operation and returns the full API result.
@@ -504,7 +576,15 @@ public final class PetApi: BaseApi {
     @available(*, deprecated, message: "This operation is deprecated.")
     public func getPetById(petId: Int64, server: (any GetPetByIdServer)? = nil, ) async throws -> Pet {
         let result = try await getPetByIdWithHTTPInfo(petId: petId, server: server, )
-        return result.data!
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for getPetById",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
     }
 
     /// Performs the getPetById operation and returns the full API result.
@@ -544,7 +624,15 @@ public final class PetApi: BaseApi {
     /// Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
     public func getPetPassport(petId: Int64, ) async throws -> PetPassport {
         let result = try await getPetPassportWithHTTPInfo(petId: petId, )
-        return result.data!
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for getPetPassport",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
     }
 
     /// Performs the getPetPassport operation and returns the full API result.
@@ -578,7 +666,15 @@ public final class PetApi: BaseApi {
     /// Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
     public func getPetPhoto(petId: Int64, photoId: Int64, ) async throws -> Data {
         let result = try await getPetPhotoWithHTTPInfo(petId: petId, photoId: photoId, )
-        return result.data!
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for getPetPhoto",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
     }
 
     /// Performs the getPetPhoto operation and returns the full API result.
@@ -612,7 +708,15 @@ public final class PetApi: BaseApi {
     /// Get a tag for a pet
     public func getPetTag(petId: Int64, tagName: String, options: GetPetTagOptions? = nil, ) async throws -> Pet {
         let result = try await getPetTagWithHTTPInfo(petId: petId, tagName: tagName, options: options, )
-        return result.data!
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for getPetTag",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
     }
 
     /// Performs the getPetTag operation and returns the full API result.
@@ -662,7 +766,15 @@ public final class PetApi: BaseApi {
     /// Get staging pet info
     public func getStagingPetInfo(petId: Int64, server: (any GetStagingPetInfoServer)? = nil, ) async throws -> Pet {
         let result = try await getStagingPetInfoWithHTTPInfo(petId: petId, server: server, )
-        return result.data!
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for getStagingPetInfo",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
     }
 
     /// Performs the getStagingPetInfo operation and returns the full API result.
@@ -769,7 +881,15 @@ public final class PetApi: BaseApi {
     /// Update an existing pet
     public func updatePet(petId: Int64, pet: Pet, ) async throws -> Pet {
         let result = try await updatePetWithHTTPInfo(petId: petId, pet: pet, )
-        return result.data!
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for updatePet",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
     }
 
     /// Performs the updatePet operation and returns the full API result.
@@ -803,7 +923,15 @@ public final class PetApi: BaseApi {
     /// Attaches a single adoption certificate document. No metadata fields are required alongside the file.
     public func uploadPetCertificate(petId: Int64, options: UploadPetCertificateOptions? = nil, ) async throws -> ApiResponse {
         let result = try await uploadPetCertificateWithHTTPInfo(petId: petId, options: options, )
-        return result.data!
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for uploadPetCertificate",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
     }
 
     /// Performs the uploadPetCertificate operation and returns the full API result.
@@ -841,7 +969,15 @@ public final class PetApi: BaseApi {
     /// Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
     public func uploadPetDocument(petId: Int64, options: UploadPetDocumentOptions? = nil, ) async throws -> ApiResponse {
         let result = try await uploadPetDocumentWithHTTPInfo(petId: petId, options: options, )
-        return result.data!
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for uploadPetDocument",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
     }
 
     /// Performs the uploadPetDocument operation and returns the full API result.

@@ -117,11 +117,15 @@ open class BaseApi {
     }
 
     /// Dispatches an API request, deserializes the response, and returns an ApiResult.
+    /// Binary endpoints (return type `Data`) get the raw response bytes; JSON endpoints
+    /// run through `ObjectSerializer.deserialize`.
     func invokeAPIForResult<T: Decodable>(_ params: InvokeAPIParams, as type: T.Type) async throws -> ApiResult<T> {
         let response = try await invokeAPI(params)
         let responseContentType = response.headers.first(where: { $0.key.caseInsensitiveCompare("content-type") == .orderedSame })?.value ?? ""
         var data: T? = nil
-        if !response.body.isEmpty && headerSelector.isJsonMime(responseContentType) {
+        if type == Data.self {
+            data = (response.body.data(using: .utf8) ?? Data()) as? T
+        } else if !response.body.isEmpty && headerSelector.isJsonMime(responseContentType) {
             data = try ObjectSerializer.deserialize(response.body, as: type)
         }
         return ApiResult<T>(

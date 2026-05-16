@@ -70,7 +70,15 @@ public final class {{classname}}: BaseApi {
     public func {{operationId}}({{#hasAuthMethods}}auth: Authenticator, {{/hasAuthMethods}}{{#pathParams}}{{paramName}}: {{{dataType}}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{^required}}{{{dataType}}}?{{/required}}{{#required}}{{{dataType}}}{{/required}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? = nil, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? = nil, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? = nil, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Options? = nil, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server: (any {{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server)? = nil, {{/-first}}{{/servers}}) async throws{{#returnType}} -> {{{.}}}{{/returnType}} {
         let result = try await {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth: auth, {{/hasAuthMethods}}{{#pathParams}}{{paramName}}: {{paramName}}, {{/pathParams}}{{#bodyParam}}{{paramName}}: {{paramName}}, {{/bodyParam}}{{#queryParams}}{{#-first}}options: options, {{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}options: options, {{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}options: options, {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}options: options, {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}server: server, {{/-first}}{{/servers}})
 {{#returnType}}
-        return result.data!
+        guard let data = result.data else {
+            throw ApiError(
+                statusCode: result.statusCode,
+                message: "Server returned no body for {{operationId}}",
+                responseBody: result.rawBody,
+                responseHeaders: result.headers
+            )
+        }
+        return data
 {{/returnType}}
 {{^returnType}}
         _ = result
