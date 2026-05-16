@@ -67,7 +67,10 @@ kotlin {
 
 tasks.named<Test>("jvmTest") {
     useJUnitPlatform()
-    maxHeapSize = "512m"
+    // Bumped from 512m: the integration suite spawns one ktor HttpClient
+    // per test (24+ in PetApiTest alone) and 512m caused GC pauses long
+    // enough that ktor request timeouts surfaced as ConnectException.
+    maxHeapSize = "1024m"
     reports.junitXml.outputLocation.set(file(".out/reports"))
     /* Pass Docker env vars to the forked test JVM for DinD support */
     listOf(

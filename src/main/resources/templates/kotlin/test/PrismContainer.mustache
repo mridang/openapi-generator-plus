@@ -22,8 +22,11 @@ object PrismContainer {
                 "/tmp/openapi.yaml"
             )
             .withCommand("mock", "-m", "false", "-h", "0.0.0.0", "/tmp/openapi.yaml")
-            .waitingFor(Wait.forListeningPort())
-            .withStartupTimeout(java.time.Duration.ofSeconds(120))
+            // Same as the Java/Python/PHP setup — Wait.forListeningPort can return
+            // before Prism is actually serving requests, leading to the first burst
+            // of tests racing the server boot.
+            .waitingFor(Wait.forLogMessage(".*Prism is listening.*", 1))
+            .withStartupTimeout(java.time.Duration.ofMinutes(2))
         INSTANCE.start()
     }
 
