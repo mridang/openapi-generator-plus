@@ -16,11 +16,11 @@ public class ApiError: Error, LocalizedError, @unchecked Sendable {
   /// The error message.
   public let message: String
 
-  /// The raw response body.
-  public let responseBody: String
+  /// The raw response body (nil if the transport failed before producing one).
+  public let responseBody: String?
 
-  /// The response headers.
-  public let responseHeaders: [String: String]
+  /// The response headers (nil if the transport failed before producing them).
+  public let responseHeaders: [String: String]?
 
   /// The parsed response body, if JSON.
   public let errorBody: Any?
@@ -28,8 +28,8 @@ public class ApiError: Error, LocalizedError, @unchecked Sendable {
   public init(
     statusCode: Int = 0,
     message: String = "",
-    responseBody: String = "",
-    responseHeaders: [String: String] = [:],
+    responseBody: String? = nil,
+    responseHeaders: [String: String]? = nil,
     errorBody: Any? = nil
   ) {
     self.statusCode = statusCode
@@ -44,18 +44,21 @@ public class ApiError: Error, LocalizedError, @unchecked Sendable {
     if statusCode != 0 {
       msg += "\nHTTP status code: \(statusCode)"
     }
-    if !responseHeaders.isEmpty {
-      msg += "\nResponse headers: \(responseHeaders)"
+    if let headers = responseHeaders, !headers.isEmpty {
+      msg += "\nResponse headers: \(headers)"
     }
-    if !responseBody.isEmpty {
-      msg += "\nResponse body: \(responseBody)"
+    if let body = responseBody, !body.isEmpty {
+      msg += "\nResponse body: \(body)"
     }
     return msg
   }
 
-  /// Deserializes the response body into the target type.
+  /// Deserializes the response body into the target type. Returns nil if there
+  /// is no response body to parse.
   public func typedErrorBody<T: Decodable>(as type: T.Type) throws -> T? {
-    guard !responseBody.isEmpty, let data = responseBody.data(using: .utf8) else {
+    guard let body = responseBody, !body.isEmpty,
+      let data = body.data(using: .utf8)
+    else {
       return nil
     }
     return try JSONDecoder().decode(type, from: data)

@@ -372,7 +372,13 @@ fn throw_api_error(response: &ApiResponse) -> Box<dyn std::error::Error + Send +
         None
     };
 
-    let base_err = ApiError::new(code, msg, body, response.headers.clone(), error_body);
+    let base_err = ApiError::new(
+        code,
+        msg,
+        Some(body),
+        Some(response.headers.clone()),
+        error_body,
+    );
 
     if code >= 400 && code < 500 {
         let client_err = ClientError::from(base_err);

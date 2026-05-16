@@ -125,13 +125,8 @@ impl ApiClient for DefaultApiClient {
             }
 
             let response = request_builder.send().await.map_err(|e| {
-                Box::new(ApiError::new(
-                    0,
-                    e.to_string(),
-                    String::new(),
-                    HashMap::new(),
-                    None,
-                )) as Box<dyn std::error::Error + Send + Sync>
+                Box::new(ApiError::new(0, e.to_string(), None, None, None))
+                    as Box<dyn std::error::Error + Send + Sync>
             })?;
 
             let status_code = response.status().as_u16();

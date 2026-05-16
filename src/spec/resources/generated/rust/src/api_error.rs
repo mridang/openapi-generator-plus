@@ -18,11 +18,11 @@ pub struct ApiError {
     /// The error message.
     pub message: String,
 
-    /// The raw response body.
-    pub response_body: String,
+    /// The raw response body (None if the transport failed before producing one).
+    pub response_body: Option<String>,
 
-    /// The response headers.
-    pub response_headers: HashMap<String, String>,
+    /// The response headers (None if the transport failed before producing them).
+    pub response_headers: Option<HashMap<String, String>>,
 
     /// The parsed response body, if JSON.
     pub error_body: Option<serde_json::Value>,
@@ -33,8 +33,8 @@ impl ApiError {
     pub fn new(
         status_code: u16,
         message: String,
-        response_body: String,
-        response_headers: HashMap<String, String>,
+        response_body: Option<String>,
+        response_headers: Option<HashMap<String, String>>,
         error_body: Option<serde_json::Value>,
     ) -> Self {
         Self {
@@ -46,9 +46,15 @@ impl ApiError {
         }
     }
 
-    /// Deserializes the response body into the target type.
-    pub fn typed_error_body<T: serde::de::DeserializeOwned>(&self) -> Result<T, serde_json::Error> {
-        serde_json::from_str(&self.response_body)
+    /// Deserializes the response body into the target type. Returns
+    /// `Ok(None)` if there is no response body to parse.
+    pub fn typed_error_body<T: serde::de::DeserializeOwned>(
+        &self,
+    ) -> Result<Option<T>, serde_json::Error> {
+        match self.response_body.as_deref() {
+            Some(body) if !body.is_empty() => serde_json::from_str(body).map(Some),
+            _ => Ok(None),
+        }
     }
 }
 
@@ -63,11 +69,15 @@ impl fmt::Display for ApiError {
         if self.status_code != 0 {
             msg.push_str(&format!("\nHTTP status code: {}", self.status_code));
         }
-        if !self.response_headers.is_empty() {
-            msg.push_str(&format!("\nResponse headers: {:?}", self.response_headers));
+        if let Some(headers) = &self.response_headers {
+            if !headers.is_empty() {
+                msg.push_str(&format!("\nResponse headers: {:?}", headers));
+            }
         }
-        if !self.response_body.is_empty() {
-            msg.push_str(&format!("\nResponse body: {}", self.response_body));
+        if let Some(body) = &self.response_body {
+            if !body.is_empty() {
+                msg.push_str(&format!("\nResponse body: {}", body));
+            }
         }
         write!(f, "{}", msg)
     }

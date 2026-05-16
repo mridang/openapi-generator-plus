@@ -364,8 +364,8 @@ fn throw_api_error(response: &ApiResponse) -> Box<dyn std::error::Error + Send +
     let base_err = ApiError::new(
         code,
         msg,
-        body,
-        response.headers.clone(),
+        Some(body),
+        Some(response.headers.clone()),
         error_body,
     );
 

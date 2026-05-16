@@ -116,8 +116,8 @@ impl ApiClient for DefaultApiClient {
                 Box::new(ApiError::new(
                     0,
                     e.to_string(),
-                    String::new(),
-                    HashMap::new(),
+                    None,
+                    None,
                     None,
                 )) as Box<dyn std::error::Error + Send + Sync>
             })?;
