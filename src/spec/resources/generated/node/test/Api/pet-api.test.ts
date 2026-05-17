@@ -139,15 +139,11 @@ describe('PetApi', () => {
     expect(result.id).toBeDefined();
   });
 
-  test('getExternalPetInfo uses per-operation server URL', async () => {
-    const externalConfig = Configuration.builder().baseUrl(baseUrl).build();
-    const externalApi = new PetApi(undefined, externalConfig);
+  // skip: Per-operation server URL points to external host (getExternalPetInfo).
+  test.skip('getExternalPetInfo - Per-operation server URL points to external host', async () => {
+    const result = await api.getExternalPetInfo(1);
 
-    try {
-      await externalApi.getExternalPetInfo(1);
-    } catch {
-      // Expected to fail since the external server is not available in test
-    }
+    expect(result).toBeDefined();
   });
 
   test('getPetPassport', async () => {

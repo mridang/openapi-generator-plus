@@ -48,6 +48,7 @@ export class ObjectSerializer {
       return JSON.stringify(obj, function (_key, value) {
         if (value instanceof Set) return [...value];
         if (this[_key] instanceof Date) return ObjectSerializer.formatDateTimeOffset(this[_key]);
+        if (value === null && _key !== '') return undefined;
         return value;
       });
     } catch (e) {

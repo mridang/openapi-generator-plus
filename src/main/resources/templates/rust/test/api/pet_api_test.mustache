@@ -271,7 +271,12 @@ async fn test_pet_api_upload_pet_document() {
     assert!(result.is_ok(), "upload_pet_document failed: {:?}", result.err());
 }
 
-// skip: Prism does not validate multipart array fields correctly (add_pet_photos).
+#[tokio::test]
+#[ignore = "Prism does not validate multipart array fields correctly"]
+async fn test_pet_api_add_pet_photos() {
+    let api = new_pet_api_for_integration();
+    let _ = api.add_pet_photos(1, None).await;
+}
 
 // Prism returns an empty body for octet-stream document downloads; same
 // binary-response-deserialization gap as get_pet_avatar. Disabled pending
@@ -284,9 +289,29 @@ async fn test_pet_api_download_pet_document() {
     assert!(result.is_ok(), "download_pet_document failed: {:?}", result.err());
 }
 
-// skip: Prism returns JSON for image content type (get_pet_photo).
+#[tokio::test]
+#[ignore = "Prism returns JSON for image content type"]
+async fn test_pet_api_get_pet_photo() {
+    let api = new_pet_api_for_integration();
+    let _ = api.get_pet_photo(1, 1).await;
+}
 
-// skip: Per-operation server URL points to external host (get_external_pet_info).
+#[tokio::test]
+#[ignore = "Prism does not support matrix/label style parameters"]
+async fn test_pet_api_get_pet_tag() {
+    let api = new_pet_api_for_integration();
+    let opts = GetPetTagOptions::new()
+        .colors(vec!["blue".to_string(), "black".to_string()])
+        .sizes(vec!["S".to_string(), "M".to_string()]);
+    let _ = api.get_pet_tag(5, "cute".to_string(), Some(&opts)).await;
+}
+
+#[tokio::test]
+#[ignore = "Per-operation server URL points to external host"]
+async fn test_pet_api_get_external_pet_info() {
+    let api = new_pet_api_for_integration();
+    let _ = api.get_external_pet_info(1, None).await;
+}
 
 #[tokio::test]
 async fn test_pet_api_error_handling_not_found() {

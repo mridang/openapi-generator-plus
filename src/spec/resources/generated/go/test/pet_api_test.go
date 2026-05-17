@@ -315,7 +315,9 @@ func TestPetApi_UploadPetDocument(t *testing.T) {
 	}
 }
 
-// skip: Prism does not validate multipart array fields correctly (AddPetPhotos).
+func TestPetApi_AddPetPhotos(t *testing.T) {
+	t.Skip("Prism does not validate multipart array fields correctly")
+}
 
 func TestPetApi_DownloadPetDocument(t *testing.T) {
 	api := newPetApiForIntegration(t)
@@ -326,9 +328,17 @@ func TestPetApi_DownloadPetDocument(t *testing.T) {
 	}
 }
 
-// skip: Prism returns JSON for image content type (GetPetPhoto).
+func TestPetApi_GetPetPhoto(t *testing.T) {
+	t.Skip("Prism returns JSON for image content type")
+}
 
-// skip: Per-operation server URL points to external host (GetExternalPetInfo).
+func TestPetApi_GetPetTag(t *testing.T) {
+	t.Skip("Prism does not support matrix/label style parameters")
+}
+
+func TestPetApi_GetExternalPetInfo(t *testing.T) {
+	t.Skip("Per-operation server URL points to external host")
+}
 
 func TestPetApi_DownloadBinaryMock(t *testing.T) {
 	binaryData := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}

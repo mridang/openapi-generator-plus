@@ -183,6 +183,14 @@ describe('ObjectSerializer', () => {
       expect(result).toBe('null');
     });
 
+    test('excludes null-valued properties from serialized output', () => {
+      const pet: Record<string, unknown> = { name: 'Fido', status: null };
+      const result = ObjectSerializer.serialize(pet);
+      const parsed = JSON.parse(result);
+      expect(parsed).toHaveProperty('name', 'Fido');
+      expect(parsed).not.toHaveProperty('status');
+    });
+
     test('includes fields explicitly set to default values', () => {
       const category = new Category();
       category.id = 0;

@@ -10,7 +10,9 @@
 package com.example.petstore.api
 
 import com.example.petstore.*
+import com.example.petstore.api.options.AddPetPhotosOptions
 import com.example.petstore.api.options.FindPetsByStatusOptions
+import com.example.petstore.api.options.GetPetTagOptions
 import com.example.petstore.api.options.UploadPetCertificateOptions
 import com.example.petstore.api.options.UploadPetDocumentOptions
 import com.example.petstore.auth.AdminBasicAuthenticator
@@ -282,7 +284,13 @@ class PetApiTest {
             assertNotNull(result)
         }
 
-        // skip: Prism does not validate multipart array fields correctly (addPetPhotos).
+        @Test
+        @Disabled("Prism does not validate multipart array fields correctly")
+        @DisplayName("addPetPhotos uploads photos with metadata via multipart")
+        fun testAddPetPhotos() {
+            val files = listOf(byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte()))
+            runBlocking { api.addPetPhotos(1L, AddPetPhotosOptions(files, PhotoMetadata())) }
+        }
 
         @Test
         @DisplayName("downloadPetDocument returns binary data")
@@ -292,9 +300,41 @@ class PetApiTest {
             assertNotNull(result)
         }
 
-        // skip: Prism returns JSON for image content type (getPetPhoto).
+        @Test
+        @Disabled("Prism returns JSON for image content type")
+        @DisplayName("getPetPhoto returns a photo via content negotiation")
+        fun testGetPetPhoto() {
+            val result = runBlocking { api.getPetPhoto(1L, 1L) }
 
-        // skip: Per-operation server URL points to external host (getExternalPetInfo).
+            assertNotNull(result)
+        }
+
+        @Test
+        @Disabled("Prism does not support matrix/label style parameters")
+        @DisplayName("getPetTag sends styled path and query parameters")
+        fun testGetPetTag() {
+            val result =
+                runBlocking {
+                    api.getPetTag(
+                        5L,
+                        "cute",
+                        GetPetTagOptions()
+                            .colors(listOf("blue", "black"))
+                            .sizes(listOf("S", "M")),
+                    )
+                }
+
+            assertNotNull(result)
+        }
+
+        @Test
+        @Disabled("Per-operation server URL points to external host")
+        @DisplayName("getExternalPetInfo uses per-operation server URL")
+        fun testGetExternalPetInfo() {
+            val result = runBlocking { api.getExternalPetInfo(1L) }
+
+            assertNotNull(result)
+        }
     }
 
     @Nested
