@@ -1,5 +1,7 @@
 {{>api_info}}
 
+use std::collections::HashSet;
+
 use {{packageName}}::models::*;
 
 // -- oneOf with discriminator: PetFood --
@@ -105,7 +107,7 @@ fn test_pet_with_owner_deserialize() {
 fn test_pet_with_owner_serialize() {
     let pet = PetWithOwner::new(
         "Fido".to_string(),
-        vec!["http://example.com/fido.jpg".to_string()],
+        HashSet::from(["http://example.com/fido.jpg".to_string()]),
         "John Doe".to_string(),
     );
 

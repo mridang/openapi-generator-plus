@@ -46,8 +46,11 @@ void main() {
       final api = _newPetApiForIntegration();
       final auth = _TestAuth();
 
-      final result = await api.addPet(auth,
-          const Pet(name: 'Fido', photoUrls: ['http://example.com/fido.jpg']));
+      final result = await api.addPet(
+          auth,
+          const Pet(
+              name: 'Fido',
+              photoUrls: <String>{'http://example.com/fido.jpg'}));
       expect(result, isNotNull);
     });
 
@@ -58,7 +61,8 @@ void main() {
       final result = await api.addPetWithHTTPInfo(
           auth,
           const Pet(
-              name: 'Buddy', photoUrls: ['http://example.com/buddy.jpg']));
+              name: 'Buddy',
+              photoUrls: <String>{'http://example.com/buddy.jpg'}));
       expect(result.statusCode, greaterThanOrEqualTo(200));
       expect(result.statusCode, lessThan(300));
       expect(result.data, isNotNull);
@@ -104,7 +108,7 @@ void main() {
           1,
           const Pet(
               name: 'UpdatedFido',
-              photoUrls: ['http://example.com/fido-updated.jpg']));
+              photoUrls: <String>{'http://example.com/fido-updated.jpg'}));
       expect(result, isNotNull);
     });
 
@@ -115,7 +119,7 @@ void main() {
           1,
           const Pet(
               name: 'UpdatedFido',
-              photoUrls: ['http://example.com/fido-updated.jpg']));
+              photoUrls: <String>{'http://example.com/fido-updated.jpg'}));
       expect(result.statusCode, greaterThanOrEqualTo(200));
       expect(result.statusCode, lessThan(300));
     });
