@@ -120,4 +120,92 @@ public class TraceContextUtilTest
         // Recorded flag should be "01"
         Assert.Equal("01", flags);
     }
+
+    // Universal "no active trace" scenarios — verify existing headers pass through unmodified
+
+    [Fact]
+    public void ShouldNotThrowWithEmptyHeadersWhenNoActiveActivity()
+    {
+        Activity.Current = null;
+
+        var headers = new Dictionary<string, string>();
+        var exception = Record.Exception(() => TraceContextUtil.InjectTraceContext(headers));
+
+        Assert.Null(exception);
+        Assert.Empty(headers);
+    }
+
+    [Fact]
+    public void ShouldNotInjectTraceparentWhenNoActiveActivity()
+    {
+        Activity.Current = null;
+
+        var headers = new Dictionary<string, string>();
+        TraceContextUtil.InjectTraceContext(headers);
+
+        Assert.False(headers.ContainsKey("traceparent"));
+    }
+
+    [Fact]
+    public void ShouldNotInjectTracestateWhenNoActiveActivity()
+    {
+        Activity.Current = null;
+
+        var headers = new Dictionary<string, string>();
+        TraceContextUtil.InjectTraceContext(headers);
+
+        Assert.False(headers.ContainsKey("tracestate"));
+    }
+
+    [Fact]
+    public void ShouldPreserveAuthorizationHeaderWhenNoActiveActivity()
+    {
+        Activity.Current = null;
+
+        var headers = new Dictionary<string, string> { ["Authorization"] = "Bearer token123" };
+        TraceContextUtil.InjectTraceContext(headers);
+
+        Assert.Equal("Bearer token123", headers["Authorization"]);
+    }
+
+    [Fact]
+    public void ShouldPreserveContentTypeHeaderWhenNoActiveActivity()
+    {
+        Activity.Current = null;
+
+        var headers = new Dictionary<string, string> { ["Content-Type"] = "application/json" };
+        TraceContextUtil.InjectTraceContext(headers);
+
+        Assert.Equal("application/json", headers["Content-Type"]);
+    }
+
+    [Fact]
+    public void ShouldPreserveXRequestIdHeaderWhenNoActiveActivity()
+    {
+        Activity.Current = null;
+
+        var headers = new Dictionary<string, string> { ["X-Request-ID"] = "req-12345" };
+        TraceContextUtil.InjectTraceContext(headers);
+
+        Assert.Equal("req-12345", headers["X-Request-ID"]);
+    }
+
+    [Fact]
+    public void ShouldPreserveAllExistingHeadersWhenNoActiveActivity()
+    {
+        Activity.Current = null;
+
+        var headers = new Dictionary<string, string>
+        {
+            ["Authorization"] = "Bearer token",
+            ["Content-Type"] = "application/json",
+            ["X-Request-ID"] = "abc-123",
+        };
+        TraceContextUtil.InjectTraceContext(headers);
+
+        Assert.Equal(3, headers.Count);
+        Assert.Equal("Bearer token", headers["Authorization"]);
+        Assert.Equal("application/json", headers["Content-Type"]);
+        Assert.Equal("abc-123", headers["X-Request-ID"]);
+    }
 }
