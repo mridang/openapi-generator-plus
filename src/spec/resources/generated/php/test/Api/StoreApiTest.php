@@ -7,8 +7,8 @@ namespace PetstoreClient\Test\Api;
 use PHPUnit\Framework\TestCase;
 use PetstoreClient\Api\StoreApi;
 use PetstoreClient\Configuration;
-use PetstoreClient\Exceptions\NotFoundException;
-use PetstoreClient\Exceptions\ServerException;
+use PetstoreClient\Errors\NotFoundException;
+use PetstoreClient\Errors\ServerException;
 use PetstoreClient\Models\Order;
 use PetstoreClient\Models\OrderStatusEnum;
 

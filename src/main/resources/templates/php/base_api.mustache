@@ -13,15 +13,15 @@ use {{invokerPackage}}\HeaderSelector;
 use {{invokerPackage}}\ObjectSerializer;
 use {{invokerPackage}}\TraceContextUtil;
 use {{invokerPackage}}\Auth\Authenticator;
-use {{invokerPackage}}\Exceptions\BadRequestException;
-use {{invokerPackage}}\Exceptions\ClientException;
-use {{invokerPackage}}\Exceptions\ConflictException;
-use {{invokerPackage}}\Exceptions\ForbiddenException;
-use {{invokerPackage}}\Exceptions\InternalServerErrorException;
-use {{invokerPackage}}\Exceptions\NotFoundException;
-use {{invokerPackage}}\Exceptions\ServerException;
-use {{invokerPackage}}\Exceptions\UnauthorizedException;
-use {{invokerPackage}}\Exceptions\UnprocessableEntityException;
+use {{invokerPackage}}\Errors\BadRequestException;
+use {{invokerPackage}}\Errors\ClientException;
+use {{invokerPackage}}\Errors\ConflictException;
+use {{invokerPackage}}\Errors\ForbiddenException;
+use {{invokerPackage}}\Errors\InternalServerErrorException;
+use {{invokerPackage}}\Errors\NotFoundException;
+use {{invokerPackage}}\Errors\ServerException;
+use {{invokerPackage}}\Errors\UnauthorizedException;
+use {{invokerPackage}}\Errors\UnprocessableEntityException;
 
 /**
  * Base class for all API classes. Provides the invokeApi method that

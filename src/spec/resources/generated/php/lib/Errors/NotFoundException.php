@@ -11,7 +11,7 @@
 
 declare(strict_types=1);
 
-namespace PetstoreClient\Exceptions;
+namespace PetstoreClient\Errors;
 
 /**
  * Exception for HTTP 404 Not Found.

@@ -11,7 +11,7 @@
 
 declare(strict_types=1);
 
-namespace PetstoreClient\Exceptions;
+namespace PetstoreClient\Errors;
 
 use PetstoreClient\ApiException;
 
