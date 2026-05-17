@@ -625,35 +625,17 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         return super.toEnumVarName(value, datatype);
     }
 
-    /**
-     * Registers base auth supporting files and, when test generation
-     * is enabled, the PHP OAuth test class files.
-     */
+    /** {@inheritDoc} */
     @Override
-    protected void registerAuthSupportingFiles() {
-        super.registerAuthSupportingFiles();
-
-        if (generateTests) {
-            if (hasAnyOAuth2 || hasOpenIdConnect) {
-                supportingFiles.add(new SupportingFile("test/MockTokenApiClient.mustache", "test", "MockTokenApiClient.php"));
-                supportingFiles.add(new SupportingFile("test/OAuth2TokenManagerTest.mustache", "test", "OAuth2TokenManagerTest.php"));
-            }
-            if (hasOAuth2AuthorizationCode) {
-                supportingFiles.add(new SupportingFile("test/OAuth2AuthCodeAuthenticatorTest.mustache", "test", "OAuth2AuthCodeAuthenticatorTest.php"));
-            }
-            if (hasOAuth2Implicit) {
-                supportingFiles.add(new SupportingFile("test/OAuth2ImplicitAuthenticatorTest.mustache", "test", "OAuth2ImplicitAuthenticatorTest.php"));
-            }
-            if (hasOAuth2ClientCredentials) {
-                supportingFiles.add(new SupportingFile("test/OAuth2ClientCredentialsAuthenticatorTest.mustache", "test", "OAuth2ClientCredentialsAuthenticatorTest.php"));
-            }
-            if (hasOAuth2Password) {
-                supportingFiles.add(new SupportingFile("test/OAuth2PasswordAuthenticatorTest.mustache", "test", "OAuth2PasswordAuthenticatorTest.php"));
-            }
-            if (hasOpenIdConnect) {
-                supportingFiles.add(new SupportingFile("test/OpenIdConnectAuthenticatorTest.mustache", "test", "OpenIdConnectAuthenticatorTest.php"));
-            }
-        }
+    protected List<OAuthTestFileSpec> getOAuthTestFileSpecs() {
+        return List.of(
+                new OAuthTestFileSpec("test/MockTokenApiClient.mustache", "test", "MockTokenApiClient.php", OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
+                new OAuthTestFileSpec("test/OAuth2TokenManagerTest.mustache", "test", "OAuth2TokenManagerTest.php", OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
+                new OAuthTestFileSpec("test/OAuth2AuthCodeAuthenticatorTest.mustache", "test", "OAuth2AuthCodeAuthenticatorTest.php", OAuthTestCondition.AUTH_CODE),
+                new OAuthTestFileSpec("test/OAuth2ImplicitAuthenticatorTest.mustache", "test", "OAuth2ImplicitAuthenticatorTest.php", OAuthTestCondition.IMPLICIT),
+                new OAuthTestFileSpec("test/OAuth2ClientCredentialsAuthenticatorTest.mustache", "test", "OAuth2ClientCredentialsAuthenticatorTest.php", OAuthTestCondition.CLIENT_CREDENTIALS),
+                new OAuthTestFileSpec("test/OAuth2PasswordAuthenticatorTest.mustache", "test", "OAuth2PasswordAuthenticatorTest.php", OAuthTestCondition.PASSWORD),
+                new OAuthTestFileSpec("test/OpenIdConnectAuthenticatorTest.mustache", "test", "OpenIdConnectAuthenticatorTest.php", OAuthTestCondition.OIDC));
     }
 
     /** {@inheritDoc} */

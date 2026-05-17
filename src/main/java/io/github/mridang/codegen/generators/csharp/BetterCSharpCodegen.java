@@ -544,54 +544,16 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     }
 
     /** {@inheritDoc} */
+    /** {@inheritDoc} */
     @Override
-    protected void registerAuthSupportingFiles() {
-        super.registerAuthSupportingFiles();
-
-        if (generateTests) {
-            if (hasAnyOAuth2 || hasOpenIdConnect) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/OAuth2TokenManagerTest.mustache",
-                                "Test",
-                                "OAuth2TokenManagerTest.cs"));
-            }
-            if (hasOAuth2AuthorizationCode) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/OAuth2AuthCodeAuthenticatorTest.mustache",
-                                "Test",
-                                "OAuth2AuthCodeAuthenticatorTest.cs"));
-            }
-            if (hasOAuth2Implicit) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/OAuth2ImplicitAuthenticatorTest.mustache",
-                                "Test",
-                                "OAuth2ImplicitAuthenticatorTest.cs"));
-            }
-            if (hasOAuth2ClientCredentials) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/OAuth2ClientCredentialsAuthenticatorTest.mustache",
-                                "Test",
-                                "OAuth2ClientCredentialsAuthenticatorTest.cs"));
-            }
-            if (hasOAuth2Password) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/OAuth2PasswordAuthenticatorTest.mustache",
-                                "Test",
-                                "OAuth2PasswordAuthenticatorTest.cs"));
-            }
-            if (hasOpenIdConnect) {
-                supportingFiles.add(
-                        new SupportingFile(
-                                "test/OpenIdConnectAuthenticatorTest.mustache",
-                                "Test",
-                                "OpenIdConnectAuthenticatorTest.cs"));
-            }
-        }
+    protected List<OAuthTestFileSpec> getOAuthTestFileSpecs() {
+        return List.of(
+                new OAuthTestFileSpec("test/OAuth2TokenManagerTest.mustache", "Test", "OAuth2TokenManagerTest.cs", OAuthTestCondition.ANY_OAUTH2_OR_OIDC),
+                new OAuthTestFileSpec("test/OAuth2AuthCodeAuthenticatorTest.mustache", "Test", "OAuth2AuthCodeAuthenticatorTest.cs", OAuthTestCondition.AUTH_CODE),
+                new OAuthTestFileSpec("test/OAuth2ImplicitAuthenticatorTest.mustache", "Test", "OAuth2ImplicitAuthenticatorTest.cs", OAuthTestCondition.IMPLICIT),
+                new OAuthTestFileSpec("test/OAuth2ClientCredentialsAuthenticatorTest.mustache", "Test", "OAuth2ClientCredentialsAuthenticatorTest.cs", OAuthTestCondition.CLIENT_CREDENTIALS),
+                new OAuthTestFileSpec("test/OAuth2PasswordAuthenticatorTest.mustache", "Test", "OAuth2PasswordAuthenticatorTest.cs", OAuthTestCondition.PASSWORD),
+                new OAuthTestFileSpec("test/OpenIdConnectAuthenticatorTest.mustache", "Test", "OpenIdConnectAuthenticatorTest.cs", OAuthTestCondition.OIDC));
     }
 
     /** {@inheritDoc} */

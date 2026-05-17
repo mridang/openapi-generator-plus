@@ -711,6 +711,67 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * add their extras. Subclasses that have no additional files (Ruby, Go,
      * Kotlin, Swift, Dart, Elixir) can skip the override entirely.
      */
+    /**
+     * Condition controlling when an OAuth test file is added.
+     * Used by {@link #getOAuthTestFileSpecs()} + the base-class loop
+     * in {@link #registerAuthSupportingFiles()}.
+     */
+    protected enum OAuthTestCondition {
+        /** Token manager + any authenticator test (hasAnyOAuth2 || hasOpenIdConnect). */
+        ANY_OAUTH2_OR_OIDC,
+        /** Auth-code authenticator test. */
+        AUTH_CODE,
+        /** Implicit authenticator test. */
+        IMPLICIT,
+        /** Client-credentials authenticator test. */
+        CLIENT_CREDENTIALS,
+        /** Password authenticator test. */
+        PASSWORD,
+        /** OpenID Connect authenticator test. */
+        OIDC
+    }
+
+    /** Descriptor for a single OAuth test supporting file. */
+    public static final class OAuthTestFileSpec {
+        private final String templatePath;
+        private final String outputDir;
+        private final String outputFile;
+        private final OAuthTestCondition condition;
+
+        public OAuthTestFileSpec(
+                String templatePath,
+                String outputDir,
+                String outputFile,
+                OAuthTestCondition condition) {
+            this.templatePath = templatePath;
+            this.outputDir = outputDir;
+            this.outputFile = outputFile;
+            this.condition = condition;
+        }
+
+        /** Returns the template path relative to the language template root. */
+        public String templatePath() { return templatePath; }
+
+        /** Returns the output directory for the generated file. */
+        public String outputDir() { return outputDir; }
+
+        /** Returns the output filename for the generated file. */
+        public String outputFile() { return outputFile; }
+
+        /** Returns the condition controlling when this file is emitted. */
+        public OAuthTestCondition condition() { return condition; }
+    }
+
+    /**
+     * Returns the list of OAuth test files to register. Override in each
+     * language subclass; the base class loops over these and applies the
+     * {@link OAuthTestCondition} filter inside
+     * {@link #registerAuthSupportingFiles()}. Default: empty (no test files).
+     */
+    protected List<OAuthTestFileSpec> getOAuthTestFileSpecs() {
+        return List.of();
+    }
+
     protected void registerAuthSupportingFiles() {
         if (emitsBaseAuthenticator()) {
             supportingFiles.add(new SupportingFile(
@@ -785,6 +846,32 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     "auth/oauth/openid_connect_authenticator.mustache",
                     getOAuthDir(),
                     toAuthFilename("openid_connect_authenticator")));
+        }
+
+        // B3: Process per-language OAuth test file declarations
+        if (generateTests) {
+            for (final OAuthTestFileSpec spec : getOAuthTestFileSpecs()) {
+                final boolean shouldAdd;
+                if (spec.condition() == OAuthTestCondition.ANY_OAUTH2_OR_OIDC) {
+                    shouldAdd = hasAnyOAuth2 || hasOpenIdConnect;
+                } else if (spec.condition() == OAuthTestCondition.AUTH_CODE) {
+                    shouldAdd = hasOAuth2AuthorizationCode;
+                } else if (spec.condition() == OAuthTestCondition.IMPLICIT) {
+                    shouldAdd = hasOAuth2Implicit;
+                } else if (spec.condition() == OAuthTestCondition.CLIENT_CREDENTIALS) {
+                    shouldAdd = hasOAuth2ClientCredentials;
+                } else if (spec.condition() == OAuthTestCondition.PASSWORD) {
+                    shouldAdd = hasOAuth2Password;
+                } else if (spec.condition() == OAuthTestCondition.OIDC) {
+                    shouldAdd = hasOpenIdConnect;
+                } else {
+                    shouldAdd = false;
+                }
+                if (shouldAdd) {
+                    supportingFiles.add(
+                            new SupportingFile(spec.templatePath(), spec.outputDir(), spec.outputFile()));
+                }
+            }
         }
     }
 
