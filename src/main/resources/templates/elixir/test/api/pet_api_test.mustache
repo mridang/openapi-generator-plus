@@ -164,5 +164,35 @@ defmodule {{moduleName}}.Api.PetApiTest do
     assert {:ok, result} = {{moduleName}}.Api.PetApi.get_pet_avatar(api, 1)
     assert result != nil
   end
+
+  test "upload multipart from mock" do
+    api = new_pet_api_for_mock(200, "application/json", ~s({"code":200,"type":"","message":"success"}))
+    options = %{{moduleName}}.Api.Options.UploadPetCertificateOptions{
+      file: "fake-cert-data"
+    }
+    assert {:ok, result} = {{moduleName}}.Api.PetApi.upload_pet_certificate(api, 1, options)
+    assert result != nil
+  end
+
+  test "get_pet_by_id_with_http_info returns http metadata", %{api: api} do
+    assert {:ok, result} = {{moduleName}}.Api.PetApi.get_pet_by_id_with_http_info(api, 1)
+    assert result.status_code == 200
+    assert result.data != nil
+    assert result.raw_body != nil
+  end
+
+  test "add_pet_with_http_info returns http metadata", %{api: api, auth: auth} do
+    pet = %{{moduleName}}.Models.Pet{
+      id: 99,
+      name: "HttpInfoDog",
+      photo_urls: ["http://example.com/photo.jpg"],
+      status: "available"
+    }
+
+    assert {:ok, result} = {{moduleName}}.Api.PetApi.add_pet_with_http_info(api, auth, pet)
+    assert result.status_code >= 200
+    assert result.status_code < 300
+    assert result.data != nil
+  end
 end
 {{/generateTests}}

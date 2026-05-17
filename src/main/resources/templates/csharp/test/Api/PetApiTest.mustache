@@ -188,6 +188,33 @@ public class PetApiTest
         Assert.IsType<PetPassport>(result);
     }
 
+    [Fact]
+    public async Task TestGetPetByIdWithHttpInfo()
+    {
+        var result = await _api.GetPetByIdWithHttpInfoAsync(1L);
+
+        Assert.NotNull(result);
+        Assert.Equal(200, result.StatusCode);
+        Assert.NotNull(result.Data);
+        Assert.NotNull(result.RawBody);
+    }
+
+    [Fact]
+    public async Task TestAddPetWithHttpInfo()
+    {
+        var pet = new Pet("HttpInfoDog", new HashSet<string> { "http://example.com/photo.jpg" })
+        {
+            Id = 99L,
+            Status = Pet.StatusEnum.Available,
+        };
+
+        var result = await _api.AddPetWithHttpInfoAsync(_auth, pet);
+
+        Assert.NotNull(result);
+        Assert.True(result.StatusCode >= 200 && result.StatusCode < 300);
+        Assert.NotNull(result.Data);
+    }
+
     [Fact(Skip = "Prism does not support matrix/label parameter styles")]
     public async Task TestGetPetTagStyledParams()
     {
@@ -265,6 +292,17 @@ public class PetApiTest
         var mockApi = NewPetApiForMock(200, "application/octet-stream", "FAKE_BINARY_DATA");
 
         var result = await mockApi.GetPetAvatarAsync(1L);
+        Assert.NotNull(result);
+    }
+
+    [Fact]
+    public async Task TestUploadMultipartMock()
+    {
+        var mockApi = NewPetApiForMock(200, "application/json", "{\"code\":200,\"type\":\"\",\"message\":\"success\"}");
+
+        var fileData = new MemoryStream(new byte[] { 0x25, 0x50, 0x44, 0x46 });
+        var result = await mockApi.UploadPetCertificateAsync(1L, new UploadPetCertificateOptions { File = fileData });
+
         Assert.NotNull(result);
     }
 }

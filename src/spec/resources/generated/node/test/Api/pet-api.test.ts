@@ -207,4 +207,19 @@ describe('PetApi error handling', () => {
       close();
     }
   });
+
+  test('upload multipart from mock', async () => {
+    const { api: mockApi, close } = await createMockServer(
+      200,
+      'application/json',
+      '{"code":200,"type":"","message":"success"}'
+    );
+    try {
+      const file = Buffer.from([0x25, 0x50, 0x44, 0x46]);
+      const result = await mockApi.uploadPetCertificate(1, { file });
+      expect(result).toBeDefined();
+    } finally {
+      close();
+    }
+  });
 });

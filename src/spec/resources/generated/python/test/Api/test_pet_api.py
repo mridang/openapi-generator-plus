@@ -147,6 +147,12 @@ def _create_mock_server(status: int, content_type: str, body: str) -> tuple[PetA
             self.end_headers()
             self.wfile.write(body.encode('utf-8'))
 
+        def do_POST(self) -> None:
+            self.send_response(status)
+            self.send_header('Content-Type', content_type)
+            self.end_headers()
+            self.wfile.write(body.encode('utf-8'))
+
         def log_message(self, format: str, *args: object) -> None:  # noqa: A002
             pass
 
@@ -178,3 +184,37 @@ class TestPetApiErrorHandling:
         api, server = _create_mock_server(200, 'application/octet-stream', 'FAKE_BINARY_DATA')
         result = await api.get_pet_avatar(1)
         assert result is not None
+
+    async def test_upload_multipart_mock(self) -> None:
+        api, server = _create_mock_server(200, 'application/json', '{"code":200,"type":"","message":"success"}')
+        result = await api.upload_pet_certificate(1, UploadPetCertificateOptions(file=b'fake-cert-data'))
+        assert result is not None
+
+
+class TestPetApiWithHttpInfo:
+    """Test suite for PetApi with_http_info methods."""
+
+    @pytest.fixture(autouse=True)
+    def setup(self, api_base_url: Any) -> None:
+        config = (
+            Configuration.builder().base_url(api_base_url).default_header('Authorization', 'Bearer test-token').build()
+        )
+        self.api = PetApi(config=config)
+        self.auth = BearerAuthenticator(api_base_url, 'test-token')
+
+    async def test_get_pet_by_id_with_http_info(self) -> None:
+        result = await self.api.get_pet_by_id_with_http_info(1)
+
+        assert result is not None
+        assert result.status_code == 200
+        assert result.data is not None
+        assert result.raw_body is not None
+
+    async def test_add_pet_with_http_info(self) -> None:
+        pet = Pet(id=99, name='HttpInfoDog', photoUrls={'http://example.com/photo.jpg'}, status=PetStatusEnum.AVAILABLE)
+
+        result = await self.api.add_pet_with_http_info(self.auth, pet)
+
+        assert result is not None
+        assert 200 <= result.status_code < 300
+        assert result.data is not None

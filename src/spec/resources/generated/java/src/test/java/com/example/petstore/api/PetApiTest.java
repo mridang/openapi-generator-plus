@@ -255,4 +255,17 @@ class PetApiTest {
     InputStream result = mockApi.getPetAvatar(1L);
     assertNotNull(result);
   }
+
+  @Test
+  void testUploadMultipartMock() throws Exception {
+    PetApi mockApi =
+        newPetApiForMock(
+            200, "application/json", "{\"code\":200,\"type\":\"\",\"message\":\"success\"}");
+
+    InputStream fakeFile =
+        new ByteArrayInputStream("fake-cert-data".getBytes(StandardCharsets.UTF_8));
+    ApiResponse result =
+        mockApi.uploadPetCertificate(1L, new UploadPetCertificateOptions(fakeFile));
+    assertNotNull(result);
+  }
 }

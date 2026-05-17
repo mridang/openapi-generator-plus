@@ -228,4 +228,19 @@ class PetApiTest extends TestCase
         $this->assertNotNull($result);
         $this->assertSame($binaryData, $result);
     }
+
+    public function testUploadMultipartMock(): void
+    {
+        $apiResponse = '{"code":200,"type":"ok","message":"upload successful"}';
+        $api = $this->newPetApiForMock(200, 'application/json', $apiResponse);
+
+        $tmpFile = tempnam(sys_get_temp_dir(), 'cert');
+        file_put_contents($tmpFile, 'certificate-content');
+        $file = new \SplFileObject($tmpFile, 'r');
+
+        $result = $api->uploadPetCertificate(1, new UploadPetCertificateOptions($file));
+
+        $this->assertNotNull($result);
+        unlink($tmpFile);
+    }
 }

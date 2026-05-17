@@ -184,8 +184,10 @@ defmodule PetstoreClient.Api.BaseApi do
                   nil -> nil
                 end
 
+              # When Content-Type is absent (nil) treat it as JSON, matching
+              # the behaviour of all other generated clients.
               is_json =
-                not is_nil(resp_content_type) and
+                is_nil(resp_content_type) or
                   PetstoreClient.HeaderSelector.json_mime?(resp_content_type)
 
               if is_json do

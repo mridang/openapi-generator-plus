@@ -170,6 +170,8 @@ class BaseApi {
           '';
       if (_headerSelector.isJsonMime(responseContentType)) {
         data = deserialize(response.body);
+      } else {
+        data = response.body as T?;
       }
     }
 

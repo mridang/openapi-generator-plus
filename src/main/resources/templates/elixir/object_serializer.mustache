@@ -239,10 +239,38 @@ defmodule {{moduleName}}.ObjectSerializer do
     end
   end
 
+  # Returns true when at least one key in data matches a JSON key for the struct,
+  # preventing a catch-all empty struct from winning over a better candidate.
+  # Uses the attribute_map (JSON key names) when available so that camelCase
+  # JSON keys are compared against camelCase attribute names, not snake_case field atoms.
+  defp fields_overlap?(%{} = data, struct_instance) when is_struct(struct_instance) do
+    module = struct_instance.__struct__
+
+    json_keys =
+      if function_exported?(module, :attribute_map, 0) do
+        module.attribute_map() |> Map.values() |> MapSet.new()
+      else
+        struct_instance
+        |> Map.from_struct()
+        |> Map.keys()
+        |> MapSet.new(&to_string/1)
+      end
+
+    data
+    |> Map.keys()
+    |> Enum.any?(fn k ->
+      key_str = if is_atom(k), do: to_string(k), else: k
+      MapSet.member?(json_keys, key_str)
+    end)
+  end
+
+  defp fields_overlap?(_data, _result), do: true
+
   @doc """
   Attempt to deserialize data against a list of candidate schemas, returning
   the first successful result. Each candidate is an anonymous function that
   accepts the raw JSON data and returns a deserialized value or raises on failure.
+  Candidates where no JSON key matches any struct field are skipped.
   """
   @spec resolve_one_of(term(), [function()]) :: term() | nil
   def resolve_one_of(data, candidates) do
@@ -250,7 +278,7 @@ defmodule {{moduleName}}.ObjectSerializer do
       try do
         result = candidate.(data)
 
-        if fields_overlap?(result, data) do
+        if fields_overlap?(data, result) do
           {:halt, result}
         else
           {:cont, nil}
@@ -260,20 +288,6 @@ defmodule {{moduleName}}.ObjectSerializer do
       end
     end)
   end
-
-  defp fields_overlap?(result, data) when is_struct(result) and is_map(data) do
-    module = result.__struct__
-
-    if function_exported?(module, :attribute_map, 0) do
-      json_keys = Map.values(module.attribute_map())
-      data_keys = data |> Map.keys() |> Enum.map(&to_string/1)
-      Enum.any?(json_keys, fn k -> k in data_keys end)
-    else
-      true
-    end
-  end
-
-  defp fields_overlap?(_result, _data), do: true
 
   @doc """
   Attempt to deserialize data against a list of candidate schemas using

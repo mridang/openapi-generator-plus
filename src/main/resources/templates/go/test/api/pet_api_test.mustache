@@ -61,7 +61,7 @@ func TestPetApi_AddPet(t *testing.T) {
 	api := newPetApiForIntegration(t)
 	auth := &petAuth{}
 
-	pet := models.NewPet("Fido", []string{"http://example.com/fido.jpg"})
+	pet := models.NewPet("Fido", models.Set[string]{"http://example.com/fido.jpg"})
 
 	result, err := api.AddPet(auth, *pet)
 	if err != nil {
@@ -76,7 +76,7 @@ func TestPetApi_AddPetWithHTTPInfo(t *testing.T) {
 	api := newPetApiForIntegration(t)
 	auth := &petAuth{}
 
-	pet := models.NewPet("Buddy", []string{"http://example.com/buddy.jpg"})
+	pet := models.NewPet("Buddy", models.Set[string]{"http://example.com/buddy.jpg"})
 
 	result, err := api.AddPetWithHTTPInfo(auth, *pet)
 	if err != nil {
@@ -132,7 +132,7 @@ func TestPetApi_GetPetByIdWithHTTPInfo(t *testing.T) {
 func TestPetApi_UpdatePet(t *testing.T) {
 	api := newPetApiForIntegration(t)
 
-	pet := models.NewPet("UpdatedFido", []string{"http://example.com/fido-updated.jpg"})
+	pet := models.NewPet("UpdatedFido", models.Set[string]{"http://example.com/fido-updated.jpg"})
 
 	result, err := api.UpdatePet(int64(1), *pet)
 	if err != nil {
@@ -146,7 +146,7 @@ func TestPetApi_UpdatePet(t *testing.T) {
 func TestPetApi_UpdatePetWithHTTPInfo(t *testing.T) {
 	api := newPetApiForIntegration(t)
 
-	pet := models.NewPet("UpdatedFido", []string{"http://example.com/fido-updated.jpg"})
+	pet := models.NewPet("UpdatedFido", models.Set[string]{"http://example.com/fido-updated.jpg"})
 
 	result, err := api.UpdatePetWithHTTPInfo(int64(1), *pet)
 	if err != nil {
@@ -272,8 +272,9 @@ func TestPetApi_GetPetAvatarThumbnail(t *testing.T) {
 	}
 }
 
-// skip: SetPetAvatarThumbnailRequest is a generated oneOf type with no public constructor,
-// so it cannot be invoked from a test in Go.
+func TestPetApi_SetPetAvatarThumbnail(t *testing.T) {
+	t.Skip("SetPetAvatarThumbnailRequest is a generated oneOf type with no public constructor, so it cannot be invoked from a test in Go.")
+}
 
 func TestPetApi_UploadPetCertificate(t *testing.T) {
 	api := newPetApiForIntegration(t)

@@ -291,9 +291,13 @@ async fn test_pet_api_get_pet_avatar_thumbnail() {
     );
 }
 
-// skip: SetPetAvatarThumbnailRequest is a generated oneOf enum whose variants
-// require constructing serializable byte arrays that Prism rejects as malformed
-// multipart input; covered indirectly via the Java/Python integration suites.
+#[tokio::test]
+#[ignore = "Prism rejects oneOf byte request bodies; covered via Java/Python integration suites"]
+async fn test_pet_api_set_pet_avatar_thumbnail() {
+    let api = new_pet_api_for_integration();
+    let body = SetPetAvatarThumbnailRequest::VecU8(vec![0xFF, 0xD8, 0xFF, 0xE0]);
+    let _ = api.set_pet_avatar_thumbnail(1, body).await;
+}
 
 #[tokio::test]
 async fn test_pet_api_upload_pet_certificate() {
@@ -398,4 +402,15 @@ async fn test_pet_api_download_binary_mock() {
     let (api, _) = new_pet_api_for_mock(200, "application/octet-stream", "FAKE_BINARY_DATA");
 
     let _ = api.get_pet_avatar(1).await;
+}
+
+#[tokio::test]
+async fn test_pet_api_upload_multipart_mock() {
+    let (api, _) = new_pet_api_for_mock(
+        200,
+        "application/json",
+        r#"{"code":200,"type":"","message":"success"}"#,
+    );
+
+    let _ = api.upload_pet_certificate(1, None).await;
 }

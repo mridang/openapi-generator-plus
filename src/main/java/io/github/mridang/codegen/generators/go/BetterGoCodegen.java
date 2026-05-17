@@ -232,6 +232,18 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
 
     /** {@inheritDoc} */
     @Override
+    protected String getUniqueItemsSetType() {
+        return "Set[$1]";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getArrayContainerPattern() {
+        return "^\\[\\](.+)$";
+    }
+
+    /** {@inheritDoc} */
+    @Override
     protected String getSourceFolder() {
         return "pkg";
     }
@@ -474,7 +486,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 new SupportingFileSpec("makefile.mustache", "", "Makefile"),
                 new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
                 new SupportingFileSpec("gitignore.mustache", "", ".gitignore"),
-                new SupportingFileSpec("golangci.mustache", "", ".golangci.yml"));
+                new SupportingFileSpec("golangci.mustache", "", ".golangci.yml"),
+                new SupportingFileSpec("models/set.mustache", "pkg/models", "set.go"));
     }
 
     /**

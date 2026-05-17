@@ -156,8 +156,12 @@ final class PetApiTests {
     #expect(result != nil)
   }
 
-  // skip: SetPetAvatarThumbnailRequest has no public constructor accepting binary input
-  // (decoder-only union type), so it cannot be invoked directly from a test.
+  @Test(
+    .disabled(
+      "SetPetAvatarThumbnailRequest is a decoder-only union type with no public constructor"))
+  func testSetPetAvatarThumbnail() async throws {
+    // SetPetAvatarThumbnailRequest has no public constructor; placeholder only.
+  }
 
   @Test func testUploadPetCertificate() async throws {
     let api = petApiForIntegration()
@@ -211,6 +215,57 @@ final class PetApiTests {
     let api = petApiForIntegration()
     _ = try await api.getExternalPetInfo(petId: 1)
   }
+
+  // MARK: - Mock Helpers
+
+  private func petApiForMock(
+    statusCode: Int,
+    body: String,
+    contentType: String = "application/json"
+  ) -> PetApi {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = statusCode
+    mockClient.responseBody = body
+    mockClient.responseHeaders = ["Content-Type": contentType]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    return PetApi(apiClient: mockClient, config: config)
+  }
+
+  // MARK: - Mock Tests
+
+  @Test func testDownloadBinaryMock() async throws {
+    let mockApi = petApiForMock(
+      statusCode: 200, body: "FAKE_BINARY_DATA", contentType: "application/octet-stream")
+    let result = try await mockApi.getPetAvatar(petId: 1)
+    #expect(result != nil)
+  }
+
+  @Test func testUploadMultipartMock() async throws {
+    let mockApi = petApiForMock(
+      statusCode: 200, body: "{\"code\":200,\"type\":\"\",\"message\":\"success\"}")
+    let result = try await mockApi.uploadPetCertificate(petId: 1, options: nil)
+    #expect(result != nil)
+  }
+
+  @Test func testErrorHandlingNotFound() async throws {
+    let mockApi = petApiForMock(statusCode: 404, body: "{\"message\":\"Pet not found\"}")
+    do {
+      _ = try await mockApi.getPetById(petId: 99999)
+      Issue.record("Expected error for status 404")
+    } catch {
+      #expect(error != nil)
+    }
+  }
+
+  @Test func testErrorHandlingServerError() async throws {
+    let mockApi = petApiForMock(statusCode: 500, body: "{\"message\":\"Internal server error\"}")
+    do {
+      _ = try await mockApi.getPetById(petId: 1)
+      Issue.record("Expected error for status 500")
+    } catch {
+      #expect(error != nil)
+    }
+  }
 }
 
 /// Test authenticator for integration tests.
@@ -218,5 +273,29 @@ private final class TestAuthenticator: BaseAuthenticator, @unchecked Sendable {
   override func host() -> String { return "" }
   override func authHeaders() async -> [String: String] {
     return ["Authorization": "Bearer test-token"]
+  }
+}
+
+private final class MockApiClient: ApiClient, @unchecked Sendable {
+  var lastMethod: String = ""
+  var lastURL: String = ""
+  var lastHeaders: [String: String] = [:]
+  var lastBody: Data? = nil
+  var responseStatusCode: Int = 200
+  var responseBody: String = "{}"
+  var responseHeaders: [String: String] = ["Content-Type": "application/json"]
+
+  func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+    async throws -> HttpResponse
+  {
+    lastMethod = method
+    lastURL = url
+    lastHeaders = headers
+    lastBody = body as? Data
+    return HttpResponse(
+      statusCode: responseStatusCode,
+      body: responseBody,
+      headers: responseHeaders
+    )
   }
 }

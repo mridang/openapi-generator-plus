@@ -199,8 +199,11 @@ impl BaseApi {
 
         let data = if is_json && !response.body.is_empty() {
             crate::object_serializer::deserialize(response.body.as_bytes())?
+        } else if !is_json && !response.body.is_empty() {
+            /* Non-JSON response -- populate data with the raw body string so
+             * callers can access it without also checking raw_body. */
+            serde_json::from_value(serde_json::Value::String(response.body.clone())).ok()
         } else {
-            /* Non-JSON or empty response -- skip deserialization */
             None
         };
 

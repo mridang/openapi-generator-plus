@@ -225,5 +225,50 @@ describe PetstoreClient::Api::PetApi do
         thread.join(2)
       end
     end
+
+    it 'handles multipart upload from mock' do
+      api, server, thread = new_pet_api_for_mock(200, 'application/json', '{"code":200,"type":"","message":"success"}')
+      begin
+        options = PetstoreClient::Api::Options::UploadPetCertificateOptions.new(
+          file: StringIO.new('fake-cert-data')
+        )
+        result = api.upload_pet_certificate(1, options)
+        _(result).wont_be_nil
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
+  describe 'with_http_info methods' do
+    describe '#get_pet_by_id_with_http_info' do
+      it 'returns HTTP info along with the response' do
+        result = @api.get_pet_by_id_with_http_info(1)
+
+        _(result).wont_be_nil
+        _(result.status_code).must_equal 200
+        _(result.data).wont_be_nil
+        _(result.raw_body).wont_be_nil
+      end
+    end
+
+    describe '#add_pet_with_http_info' do
+      it 'returns HTTP info on successful pet creation' do
+        pet = PetstoreClient::Models::Pet.new(
+          id: 99,
+          name: 'HttpInfoDog',
+          photo_urls: Set['http://example.com/photo.jpg'],
+          status: 'available'
+        )
+
+        result = @api.add_pet_with_http_info(@auth, pet)
+
+        _(result).wont_be_nil
+        _(result.status_code).must_be :>=, 200
+        _(result.status_code).must_be :<, 300
+        _(result.data).wont_be_nil
+      end
+    end
   end
 end

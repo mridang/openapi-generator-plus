@@ -10,6 +10,7 @@ import datetime
 import decimal
 import json
 import re
+from datetime import timezone
 from enum import Enum
 from typing import Any, Callable, ClassVar, Optional, Type, TypeVar, Union
 
@@ -100,7 +101,8 @@ class ObjectSerializer:
         elif isinstance(obj, cls._PRIMITIVE_TYPES):
             return obj
         elif isinstance(obj, datetime.datetime):
-            return obj.isoformat(timespec='seconds')
+            dt = obj if obj.tzinfo is not None else obj.replace(tzinfo=timezone.utc)
+            return dt.isoformat(timespec='seconds')
         elif isinstance(obj, datetime.date):
             return obj.isoformat()
         elif isinstance(obj, decimal.Decimal):
@@ -232,7 +234,8 @@ class ObjectSerializer:
         if isinstance(value, Enum):
             return str(value.value)
         if isinstance(value, datetime.datetime):
-            return value.isoformat(timespec='seconds')
+            dt = value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
+            return dt.isoformat(timespec='seconds')
         if isinstance(value, datetime.date):
             return value.isoformat()
         return str(value)

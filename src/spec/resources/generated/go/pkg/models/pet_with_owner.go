@@ -13,11 +13,11 @@ import (
 
 // PetWithOwner A pet record extended with owner information
 type PetWithOwner struct {
-	Id        *int64    `json:"id,omitempty"`
-	Name      string    `json:"name"`
-	Category  *Category `json:"category,omitempty"`
-	PhotoUrls []string  `json:"photoUrls"`
-	Tags      *[]Tag    `json:"tags,omitempty"`
+	Id        *int64      `json:"id,omitempty"`
+	Name      string      `json:"name"`
+	Category  *Category   `json:"category,omitempty"`
+	PhotoUrls Set[string] `json:"photoUrls"`
+	Tags      *[]Tag      `json:"tags,omitempty"`
 	/* Status pet status in the store */
 	/* Deprecated: This property is deprecated. */
 	Status     *string `json:"status,omitempty"`
@@ -26,7 +26,7 @@ type PetWithOwner struct {
 }
 
 // NewPetWithOwner creates a new PetWithOwner instance.
-func NewPetWithOwner(name string, photoUrls []string, ownerName string) *PetWithOwner {
+func NewPetWithOwner(name string, photoUrls Set[string], ownerName string) *PetWithOwner {
 	return &PetWithOwner{
 		Name:      name,
 		PhotoUrls: photoUrls,

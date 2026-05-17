@@ -127,6 +127,8 @@ open class BaseApi {
             data = (response.body.data(using: .utf8) ?? Data()) as? T
         } else if !response.body.isEmpty && headerSelector.isJsonMime(responseContentType) {
             data = try ObjectSerializer.deserialize(response.body, as: type)
+        } else if !response.body.isEmpty && !headerSelector.isJsonMime(responseContentType) {
+            data = response.body as? T
         }
         return ApiResult<T>(
             statusCode: response.statusCode,
@@ -341,7 +343,12 @@ open class BaseApi {
 }
 
 /// Replaces a path parameter placeholder with a percent-encoded value.
+/// Uses a custom character set derived from `.urlPathAllowed` with `/` removed
+/// so that path-param values like "foo/bar" are encoded as "foo%2Fbar" and do
+/// not corrupt the URL path structure.
 func replacePathParam(_ path: String, name: String, value: String) -> String {
-    let encoded = value.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? value
+    var allowed = CharacterSet.urlPathAllowed
+    allowed.remove("/")
+    let encoded = value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
     return path.replacingOccurrences(of: "{\(name)}", with: encoded)
 }
