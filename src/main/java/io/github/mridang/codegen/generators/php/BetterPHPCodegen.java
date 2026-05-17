@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.openapitools.codegen.CliOption;
 import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
@@ -108,6 +109,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         instantiationTypes.put("map", "array");
 
         reservedWords = loadReservedWords("/reserved-words/php.txt");
+
+        cliOptions.add(CliOption.newString(CodegenConstants.INVOKER_PACKAGE,
+                CodegenConstants.INVOKER_PACKAGE_DESC));
+        cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_VERSION,
+                "Version of the generated package (default: 1.0.0).").defaultValue("1.0.0"));
     }
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */

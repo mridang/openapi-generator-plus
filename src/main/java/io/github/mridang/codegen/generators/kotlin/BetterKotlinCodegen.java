@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.openapitools.codegen.CliOption;
+import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
@@ -114,6 +116,17 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         instantiationTypes.put("map", "HashMap");
 
         reservedWords = loadReservedWords("/reserved-words/kotlin.txt");
+
+        cliOptions.add(CliOption.newString(CodegenConstants.SOURCE_FOLDER,
+                CodegenConstants.SOURCE_FOLDER_DESC));
+        cliOptions.add(CliOption.newString(CodegenConstants.INVOKER_PACKAGE,
+                CodegenConstants.INVOKER_PACKAGE_DESC));
+        cliOptions.add(CliOption.newString(CodegenConstants.GROUP_ID,
+                CodegenConstants.GROUP_ID_DESC));
+        cliOptions.add(CliOption.newString(CodegenConstants.ARTIFACT_ID,
+                CodegenConstants.ARTIFACT_ID_DESC));
+        cliOptions.add(CliOption.newString(CodegenConstants.ARTIFACT_VERSION,
+                CodegenConstants.ARTIFACT_VERSION_DESC));
     }
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */

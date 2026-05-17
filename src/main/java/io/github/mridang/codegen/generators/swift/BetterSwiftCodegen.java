@@ -17,6 +17,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.openapitools.codegen.CliOption;
+import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.GeneratorLanguage;
@@ -99,6 +101,11 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                                 "AnyObject"));
 
         reservedWords = loadReservedWords("/reserved-words/swift.txt");
+
+        cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_NAME,
+                CodegenConstants.PACKAGE_NAME_DESC));
+        cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_VERSION,
+                "Version of the generated Swift package (default: 1.0.0).").defaultValue("1.0.0"));
     }
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */

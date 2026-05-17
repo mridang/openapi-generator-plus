@@ -37,6 +37,7 @@ import java.util.Set;
 import java.util.EnumSet;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.openapitools.codegen.CliOption;
 import org.openapitools.codegen.CodegenDiscriminator;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
@@ -117,6 +118,13 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         typeMapping.clear();
         importMapping.clear();
         hideGenerationTimestamp = true;
+
+        cliOptions.add(CliOption.newString("clientClassName",
+                "Name of the generated API client class (default: Client).")
+                .defaultValue("Client"));
+        cliOptions.add(CliOption.newBoolean("generateTests",
+                "Whether to generate test files alongside source files (default: true).")
+                .defaultValue("true"));
 
         modifyFeatureSet(features -> features
 

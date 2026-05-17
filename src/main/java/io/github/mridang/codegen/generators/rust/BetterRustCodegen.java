@@ -23,6 +23,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
+import org.openapitools.codegen.CliOption;
+import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.CodegenDiscriminator;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
@@ -111,6 +113,11 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                                 "HashMap"));
 
         reservedWords = loadReservedWords("/reserved-words/rust.txt");
+
+        cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_NAME,
+                CodegenConstants.PACKAGE_NAME_DESC));
+        cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_VERSION,
+                "Version of the generated Rust crate (default: 1.0.0).").defaultValue("1.0.0"));
     }
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */

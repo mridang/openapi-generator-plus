@@ -19,6 +19,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.openapitools.codegen.CliOption;
 import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.CodegenOperation;
@@ -93,6 +94,9 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         additionalProperties.put("importFileExtension", ".js");
 
         setEnumUnknownDefaultCase(true);
+
+        cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_VERSION,
+                "Version of the generated npm package (default: 1.0.0).").defaultValue("1.0.0"));
     }
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */

@@ -18,6 +18,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.openapitools.codegen.CliOption;
+import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.GeneratorLanguage;
@@ -97,6 +99,11 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                                 "error"));
 
         reservedWords = loadReservedWords("/reserved-words/go.txt");
+
+        cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_NAME,
+                CodegenConstants.PACKAGE_NAME_DESC));
+        cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_VERSION,
+                "Version of the generated Go module (default: 1.0.0).").defaultValue("1.0.0"));
     }
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */

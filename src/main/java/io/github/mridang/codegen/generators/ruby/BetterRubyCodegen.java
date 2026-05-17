@@ -23,6 +23,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import org.openapitools.codegen.CliOption;
 import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
@@ -111,6 +112,14 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         instantiationTypes.put("array", "Array");
 
         reservedWords = loadReservedWords("/reserved-words/ruby.txt");
+
+        cliOptions.add(CliOption.newString(CodegenConstants.GEM_NAME,
+                CodegenConstants.GEM_NAME_DESC));
+        cliOptions.add(CliOption.newString("gemVersion",
+                "Version of the generated gem (default: 1.0.0).")
+                .defaultValue("1.0.0"));
+        cliOptions.add(CliOption.newString(CodegenConstants.MODULE_NAME,
+                CodegenConstants.MODULE_NAME_DESC));
     }
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */

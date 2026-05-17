@@ -15,6 +15,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.openapitools.codegen.CliOption;
 import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
@@ -90,6 +91,13 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         instantiationTypes.put("map", "Dictionary");
 
         reservedWords = loadReservedWords("/reserved-words/csharp.txt");
+
+        cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_NAME,
+                CodegenConstants.PACKAGE_NAME_DESC));
+        cliOptions.add(CliOption.newString(CodegenConstants.PACKAGE_VERSION,
+                "Version of the generated NuGet package (default: 1.0.0).").defaultValue("1.0.0"));
+        cliOptions.add(CliOption.newString(CodegenConstants.SOURCE_FOLDER,
+                CodegenConstants.SOURCE_FOLDER_DESC));
     }
 
     /** Returns the generator name used to select this codegen via the {@code -g} flag. */
