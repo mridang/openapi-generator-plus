@@ -129,7 +129,7 @@ class {{classname}} {
 {{/isEnum}}
 {{^isEnum}}
 {{#isArray}}
-      {{name}}: (json['{{baseName}}'] as List).map((e) => {{#items}}{{#isByteArray}}base64Decode(e as String) as List<int>{{/isByteArray}}{{^isByteArray}}{{#isPrimitiveType}}e as {{{dataType}}}{{/isPrimitiveType}}{{^isPrimitiveType}}{{{dataType}}}.fromJson(e as Map<String, dynamic>){{/isPrimitiveType}}{{/isByteArray}}{{/items}}).toList(),
+      {{name}}: (json['{{baseName}}'] as List).map((e) => {{#items}}{{#isByteArray}}base64Decode(e as String) as List<int>{{/isByteArray}}{{^isByteArray}}{{#isPrimitiveType}}e as {{{dataType}}}{{/isPrimitiveType}}{{^isPrimitiveType}}{{{dataType}}}.fromJson(e as Map<String, dynamic>){{/isPrimitiveType}}{{/isByteArray}}{{/items}}).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
 {{/isArray}}
 {{^isArray}}
 {{#isMap}}
@@ -170,7 +170,7 @@ class {{classname}} {
 {{/isEnum}}
 {{^isEnum}}
 {{#isArray}}
-      {{name}}: (json['{{baseName}}'] as List?)?.map((e) => {{#items}}{{#isByteArray}}base64Decode(e as String) as List<int>{{/isByteArray}}{{^isByteArray}}{{#isPrimitiveType}}e as {{{dataType}}}{{/isPrimitiveType}}{{^isPrimitiveType}}{{{dataType}}}.fromJson(e as Map<String, dynamic>){{/isPrimitiveType}}{{/isByteArray}}{{/items}}).toList(),
+      {{name}}: (json['{{baseName}}'] as List?)?.map((e) => {{#items}}{{#isByteArray}}base64Decode(e as String) as List<int>{{/isByteArray}}{{^isByteArray}}{{#isPrimitiveType}}e as {{{dataType}}}{{/isPrimitiveType}}{{^isPrimitiveType}}{{{dataType}}}.fromJson(e as Map<String, dynamic>){{/isPrimitiveType}}{{/isByteArray}}{{/items}}).{{#uniqueItems}}toSet(){{/uniqueItems}}{{^uniqueItems}}toList(){{/uniqueItems}},
 {{/isArray}}
 {{^isArray}}
 {{#isMap}}
@@ -233,7 +233,7 @@ class {{classname}} {
 {{/isByteArray}}
 {{^isByteArray}}
 {{#isPrimitiveType}}
-    json['{{baseName}}'] = {{name}};
+    json['{{baseName}}'] = {{name}}.toList();
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
     json['{{baseName}}'] = {{name}}.map((e) => e.toJson()).toList();
@@ -282,7 +282,7 @@ class {{classname}} {
 {{/isByteArray}}
 {{^isByteArray}}
 {{#isPrimitiveType}}
-      json['{{baseName}}'] = {{name}};
+      json['{{baseName}}'] = {{name}}?.toList();
 {{/isPrimitiveType}}
 {{^isPrimitiveType}}
       json['{{baseName}}'] = {{name}}?.map((e) => e.toJson()).toList();

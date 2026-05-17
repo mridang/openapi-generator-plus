@@ -369,9 +369,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     /**
      * Returns the quote character used in generated string
      * literals for this language (either single or double
-     * quote).
+     * quote). Defaults to double-quote; languages that use
+     * single-quote (Python, Dart, PHP, Node, Ruby) override.
      */
-    protected abstract char getQuoteChar();
+    protected char getQuoteChar() {
+        return '"';
+    }
 
     /**
      * Returns whether the quote character should be escaped
@@ -1272,9 +1275,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             }
             for (final CodegenProperty prop : model.optionalVars) {
                 fixEnumDefaultValue(prop, model);
+                applyUniqueItemsSetType(prop);
             }
             for (final CodegenProperty prop : model.requiredVars) {
                 fixEnumDefaultValue(prop, model);
+                applyUniqueItemsSetType(prop);
             }
 
             // Gap 10: Sort vars by default value (Elixir defstruct ordering)
@@ -1400,11 +1405,16 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * optionally sanitize example values (Gap 16). Subclasses
      * that need additional processing should call super.
      */
-    @Override
-    public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
-        super.postProcessModelProperty(model, property);
-
-        // Unique-item array → set type replacement (existing)
+    /**
+     * Applies the unique-items set type replacement to a single property.
+     * Safe to call multiple times — idempotent because once the container
+     * prefix no longer matches the pattern, subsequent calls are no-ops.
+     * Called from both {@link #postProcessModelProperty} (for {@code vars}
+     * and {@code allVars}) and {@link #postProcessModels} (for
+     * {@code requiredVars} and {@code optionalVars}, which are separate
+     * object instances in the OpenAPI Generator model).
+     */
+    private void applyUniqueItemsSetType(CodegenProperty property) {
         final String setType = getUniqueItemsSetType();
         if (setType != null && property.isArray && property.getUniqueItems()) {
             final String pattern = getArrayContainerPattern();
@@ -1412,6 +1422,14 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     property.datatypeWithEnum.replaceFirst(pattern, setType);
             property.dataType = property.dataType.replaceFirst(pattern, setType);
         }
+    }
+
+    @Override
+    public void postProcessModelProperty(CodegenModel model, CodegenProperty property) {
+        super.postProcessModelProperty(model, property);
+
+        // Unique-item array → set type replacement
+        applyUniqueItemsSetType(property);
 
         // Gap 15: Declarative model property import lists (Java Jackson annotations)
         if (!model.isEnum) {
@@ -1726,22 +1744,29 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     /**
      * Returns the language-specific null literal, used in
      * {@link #toDefaultValue} for schemas with no default.
-     * Examples: {@code "null"} (Java), {@code "None"} (Python),
-     * {@code "nil"} (Go / Ruby / Swift), {@code "Nothing"} (Kotlin).
+     * Defaults to {@code "null"}; languages with a different
+     * null literal (Go/Elixir/Swift/Ruby → {@code "nil"},
+     * Python/Rust → {@code "None"}) override.
      */
-    protected abstract String getNullLiteral();
+    protected String getNullLiteral() {
+        return "null";
+    }
 
     /**
      * Returns the language-specific true literal.
-     * Examples: {@code "true"} (most languages), {@code "True"} (Python).
+     * Defaults to {@code "true"}; Python overrides to {@code "True"}.
      */
-    protected abstract String getTrueLiteral();
+    protected String getTrueLiteral() {
+        return "true";
+    }
 
     /**
      * Returns the language-specific false literal.
-     * Examples: {@code "false"} (most languages), {@code "False"} (Python).
+     * Defaults to {@code "false"}; Python overrides to {@code "False"}.
      */
-    protected abstract String getFalseLiteral();
+    protected String getFalseLiteral() {
+        return "false";
+    }
 
     // =========================================================================
     // Gap 8 — Source folder declaration

@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
 import org.openapitools.codegen.CodegenProperty;
@@ -214,32 +215,8 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
 
     /** {@inheritDoc} */
     @Override
-    protected String getNullLiteral() {
-        return "null";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getTrueLiteral() {
-        return "true";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getFalseLiteral() {
-        return "false";
-    }
-
-    /** {@inheritDoc} */
-    @Override
     protected String getSourceFolder() {
         return "src/main/kotlin";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected char getQuoteChar() {
-        return '"';
     }
 
     /**
@@ -272,53 +249,53 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
         supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
         supportingFiles.add(
-                new SupportingFile("api_exception.mustache", invokerFolder, "ApiException.kt"));
+                new SupportingFile("api_error.mustache", invokerFolder, "ApiException.kt"));
 
-        final String exceptionsFolder = Path.of(invokerFolder, "exceptions").toString();
+        final String errorsFolder = Path.of(invokerFolder, "errors").toString();
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/ClientException.mustache",
-                        exceptionsFolder,
+                        "errors/ClientException.mustache",
+                        errorsFolder,
                         "ClientException.kt"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/ServerException.mustache",
-                        exceptionsFolder,
+                        "errors/ServerException.mustache",
+                        errorsFolder,
                         "ServerException.kt"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/BadRequestException.mustache",
-                        exceptionsFolder,
+                        "errors/BadRequestException.mustache",
+                        errorsFolder,
                         "BadRequestException.kt"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/UnauthorizedException.mustache",
-                        exceptionsFolder,
+                        "errors/UnauthorizedException.mustache",
+                        errorsFolder,
                         "UnauthorizedException.kt"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/ForbiddenException.mustache",
-                        exceptionsFolder,
+                        "errors/ForbiddenException.mustache",
+                        errorsFolder,
                         "ForbiddenException.kt"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/NotFoundException.mustache",
-                        exceptionsFolder,
+                        "errors/NotFoundException.mustache",
+                        errorsFolder,
                         "NotFoundException.kt"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/ConflictException.mustache",
-                        exceptionsFolder,
+                        "errors/ConflictException.mustache",
+                        errorsFolder,
                         "ConflictException.kt"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/UnprocessableEntityException.mustache",
-                        exceptionsFolder,
+                        "errors/UnprocessableEntityException.mustache",
+                        errorsFolder,
                         "UnprocessableEntityException.kt"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/InternalServerErrorException.mustache",
-                        exceptionsFolder,
+                        "errors/InternalServerErrorException.mustache",
+                        errorsFolder,
                         "InternalServerErrorException.kt"));
         supportingFiles.add(
                 new SupportingFile("api_client.mustache", invokerFolder, "ApiClient.kt"));
@@ -525,7 +502,24 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         } else if (ModelUtils.isMapSchema(unaliased)) {
             return "mutableMapOf()";
         }
+        if (ModelUtils.isStringSchema(unaliased)
+                && unaliased.getDefault() != null
+                && unaliased.getEnum() != null
+                && !unaliased.getEnum().isEmpty()) {
+            return unaliased.getDefault().toString();
+        }
         return null;
+    }
+
+    /**
+     * Keeps the enum-reference default value (e.g.
+     * {@code StatusEnum.PLACED}) as produced by
+     * {@code updateCodegenPropertyEnum}, rather than converting it
+     * to a string literal as the base-class implementation would.
+     */
+    @Override
+    protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
+        // no-op: StatusEnum.PLACED is the correct Kotlin form
     }
 
     /** {@inheritDoc} */

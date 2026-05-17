@@ -12,7 +12,7 @@ package com.example.petstore
 import com.example.petstore.api.PetApi
 import com.example.petstore.api.options.FindPetsByStatusOptions
 import com.example.petstore.auth.Authenticator
-import com.example.petstore.exceptions.*
+import com.example.petstore.errors.*
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName

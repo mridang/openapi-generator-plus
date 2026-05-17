@@ -72,7 +72,7 @@ public class Order {
    */
   @JsonProperty("status")
   @Nullable
-  public StatusEnum status;
+  public StatusEnum status = StatusEnum.PLACED;
 
   /** Example: {@code null} */
   @JsonProperty("complete")

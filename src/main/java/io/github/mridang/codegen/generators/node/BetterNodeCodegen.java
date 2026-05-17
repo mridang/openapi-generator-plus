@@ -201,24 +201,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
 
     /** {@inheritDoc} */
     @Override
-    protected String getNullLiteral() {
-        return "null";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getTrueLiteral() {
-        return "true";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getFalseLiteral() {
-        return "false";
-    }
-
-    /** {@inheritDoc} */
-    @Override
     protected String getSourceFolder() {
         return "src";
     }
@@ -266,47 +248,47 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
 
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/index.mustache", "src/exceptions", "index.ts"));
+                        "errors/index.mustache", "src/errors", "index.ts"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/client-error.mustache", "src/exceptions", "client-error.ts"));
+                        "errors/client-error.mustache", "src/errors", "client-error.ts"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/server-error.mustache", "src/exceptions", "server-error.ts"));
+                        "errors/server-error.mustache", "src/errors", "server-error.ts"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/bad-request-error.mustache",
-                        "src/exceptions",
+                        "errors/bad-request-error.mustache",
+                        "src/errors",
                         "bad-request-error.ts"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/unauthorized-error.mustache",
-                        "src/exceptions",
+                        "errors/unauthorized-error.mustache",
+                        "src/errors",
                         "unauthorized-error.ts"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/forbidden-error.mustache",
-                        "src/exceptions",
+                        "errors/forbidden-error.mustache",
+                        "src/errors",
                         "forbidden-error.ts"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/not-found-error.mustache",
-                        "src/exceptions",
+                        "errors/not-found-error.mustache",
+                        "src/errors",
                         "not-found-error.ts"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/conflict-error.mustache",
-                        "src/exceptions",
+                        "errors/conflict-error.mustache",
+                        "src/errors",
                         "conflict-error.ts"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/unprocessable-entity-error.mustache",
-                        "src/exceptions",
+                        "errors/unprocessable-entity-error.mustache",
+                        "src/errors",
                         "unprocessable-entity-error.ts"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/internal-server-error.mustache",
-                        "src/exceptions",
+                        "errors/internal-server-error.mustache",
+                        "src/errors",
                         "internal-server-error.ts"));
         supportingFiles.add(
                 new SupportingFile(
@@ -470,10 +452,25 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
      * variables do not need explicit default value expressions
      * in the generated model constructors.
      */
+    /**
+     * Returns a quoted string literal for string enum schemas that
+     * have a declared OAS {@code default} (e.g. {@code 'placed'}).
+     * The quote character is the Node/TypeScript single-quote so
+     * the value is used as-is in the model template without further
+     * transformation. All other types return null.
+     */
     @Nullable
     @SuppressWarnings("rawtypes")
     @Override
     public String toDefaultValue(Schema schema) {
+        final Schema resolved = ModelUtils.getReferencedSchema(this.openAPI, schema);
+        if (ModelUtils.isStringSchema(resolved)
+                && resolved.getDefault() != null
+                && resolved.getEnum() != null
+                && !resolved.getEnum().isEmpty()) {
+            final String val = resolved.getDefault().toString();
+            return getQuoteChar() + val + getQuoteChar();
+        }
         return null;
     }
 

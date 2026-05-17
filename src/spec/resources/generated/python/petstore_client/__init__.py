@@ -53,8 +53,8 @@ from petstore_client.configuration import Configuration as Configuration
 from petstore_client.transport_options import TransportOptions as TransportOptions
 from petstore_client.server_configuration import ServerConfiguration as ServerConfiguration
 from petstore_client.server_configuration import ServerVariable as ServerVariable
-from petstore_client.exceptions import OpenApiException as OpenApiException
-from petstore_client.exceptions import ApiException as ApiException
+from petstore_client.errors import OpenApiException as OpenApiException
+from petstore_client.errors import ApiException as ApiException
 
 # import models into sdk package
 from petstore_client.models.api_response import (

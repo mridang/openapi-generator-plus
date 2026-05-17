@@ -12,16 +12,16 @@ from ..configuration import Configuration
 from ..object_serializer import ObjectSerializer
 from ..header_selector import HeaderSelector
 from ..trace_context_util import inject_trace_context
-from ..exceptions import ApiException
-from ..exceptions.client_exception import ClientException
-from ..exceptions.server_exception import ServerException
-from ..exceptions.bad_request_exception import BadRequestException
-from ..exceptions.unauthorized_exception import UnauthorizedException
-from ..exceptions.forbidden_exception import ForbiddenException
-from ..exceptions.not_found_exception import NotFoundException
-from ..exceptions.conflict_exception import ConflictException
-from ..exceptions.unprocessable_entity_exception import UnprocessableEntityException
-from ..exceptions.internal_server_error_exception import InternalServerErrorException
+from ..errors import ApiException
+from ..errors.client_exception import ClientException
+from ..errors.server_exception import ServerException
+from ..errors.bad_request_exception import BadRequestException
+from ..errors.unauthorized_exception import UnauthorizedException
+from ..errors.forbidden_exception import ForbiddenException
+from ..errors.not_found_exception import NotFoundException
+from ..errors.conflict_exception import ConflictException
+from ..errors.unprocessable_entity_exception import UnprocessableEntityException
+from ..errors.internal_server_error_exception import InternalServerErrorException
 from ..auth.authenticator import Authenticator
 
 T = TypeVar('T')

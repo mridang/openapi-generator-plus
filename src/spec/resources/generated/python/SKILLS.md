@@ -169,7 +169,7 @@ All API errors extend `ApiError`. The exception hierarchy is:
     - `InternalServerErrorException` (500)
 
 ```python
-from petstore_client.exceptions import (
+from petstore_client.errors import (
     NotFoundException,
     ClientException,
     ServerException,

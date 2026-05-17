@@ -183,8 +183,14 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
 
     /** {@inheritDoc} */
     @Override
-    protected char getQuoteChar() {
-        return '"';
+    protected String getUniqueItemsSetType() {
+        return "Set<$1>";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getArrayContainerPattern() {
+        return "^\\[(.+)\\]$";
     }
 
     /** {@inheritDoc} */
@@ -476,18 +482,6 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
     @Override
     protected String getNullLiteral() {
         return "nil";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getTrueLiteral() {
-        return "true";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getFalseLiteral() {
-        return "false";
     }
 
     /** {@inheritDoc} */

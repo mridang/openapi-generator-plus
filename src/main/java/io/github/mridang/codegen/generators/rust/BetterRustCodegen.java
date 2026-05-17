@@ -81,7 +81,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         typeMapping.put("DateTime", "String");
         typeMapping.put("array", "Vec");
         typeMapping.put("List", "Vec");
-        typeMapping.put("set", "Vec");
+        typeMapping.put("set", "std::collections::HashSet");
         typeMapping.put("map", "std::collections::HashMap");
         typeMapping.put("object", "serde_json::Value");
         typeMapping.put("AnyType", "serde_json::Value");
@@ -190,8 +190,14 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
 
     /** {@inheritDoc} */
     @Override
-    protected char getQuoteChar() {
-        return '"';
+    protected String getUniqueItemsSetType() {
+        return "std::collections::HashSet<";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String getArrayContainerPattern() {
+        return "^Vec<";
     }
 
     /** {@inheritDoc} */
@@ -485,18 +491,6 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
     @Override
     protected String getNullLiteral() {
         return "None";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getTrueLiteral() {
-        return "true";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getFalseLiteral() {
-        return "false";
     }
 
     /** {@inheritDoc} */

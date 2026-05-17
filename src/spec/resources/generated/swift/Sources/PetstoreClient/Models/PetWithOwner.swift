@@ -12,7 +12,7 @@ public struct PetWithOwner: Codable, Sendable {
   public var id: Int64?
   public var name: String
   public var category: Category?
-  public var photoUrls: [String]
+  public var photoUrls: Set<String>
   public var tags: [Tag]?
   /// pet status in the store
   @available(*, deprecated, message: "This property is deprecated.")
@@ -33,7 +33,7 @@ public struct PetWithOwner: Codable, Sendable {
 
   /// Creates a new PetWithOwner instance.
   public init(
-    name: String, photoUrls: [String], ownerName: String, id: Int64? = nil,
+    name: String, photoUrls: Set<String>, ownerName: String, id: Int64? = nil,
     category: Category? = nil, tags: [Tag]? = nil, status: String? = nil, ownerEmail: String? = nil
   ) {
     self.name = name

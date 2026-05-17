@@ -54,7 +54,7 @@ public class Order
     /// </summary>
     /// <example>approved</example>
     [JsonPropertyName("status")]
-    public StatusEnum? Status { get; set; }
+    public StatusEnum? Status { get; set; } = StatusEnum.Placed;
 
     /// <example>null</example>
     [JsonPropertyName("complete")]

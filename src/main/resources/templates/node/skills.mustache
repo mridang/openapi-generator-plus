@@ -197,9 +197,9 @@ All API errors extend `ApiError`. The error hierarchy is:
     - `InternalServerError` (500)
 
 ```typescript
-import { NotFoundError } from './src/exceptions/not-found-error';
-import { ClientError } from './src/exceptions/client-error';
-import { ServerError } from './src/exceptions/server-error';
+import { NotFoundError } from './src/errors/not-found-error';
+import { ClientError } from './src/errors/client-error';
+import { ServerError } from './src/errors/server-error';
 
 try {
   const result = await client.petApi.getPetById(petId);

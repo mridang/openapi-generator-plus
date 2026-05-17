@@ -36,7 +36,7 @@ data class PetWithOwner(
     val photoUrls: Set<String> = mutableSetOf(),
     /** Example: `null` */
     @SerialName("tags")
-    val tags: List<Tag>? = null,
+    val tags: List<Tag>? = mutableListOf(),
     /**
      * pet status in the store
      *

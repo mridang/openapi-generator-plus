@@ -921,18 +921,6 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
 
     /** {@inheritDoc} */
     @Override
-    protected String getTrueLiteral() {
-        return "true";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getFalseLiteral() {
-        return "false";
-    }
-
-    /** {@inheritDoc} */
-    @Override
     protected String getSourceFolder() {
         return "lib";
     }

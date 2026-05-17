@@ -205,20 +205,8 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
 
     /** {@inheritDoc} */
     @Override
-    protected String getNullLiteral() {
-        return "null";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getTrueLiteral() {
-        return "true";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getFalseLiteral() {
-        return "false";
+    protected String getUniqueItemsSetType() {
+        return "Set<";
     }
 
     /** {@inheritDoc} */

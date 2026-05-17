@@ -19,7 +19,7 @@ pub struct PetWithOwner {
     #[serde(rename = "category", skip_serializing_if = "Option::is_none")]
     pub category: Option<Category>,
     #[serde(rename = "photoUrls")]
-    pub photo_urls: Vec<String>,
+    pub photo_urls: std::collections::HashSet<String>,
     #[serde(rename = "tags", skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<Tag>>,
     /// pet status in the store
@@ -35,7 +35,11 @@ pub struct PetWithOwner {
 #[allow(deprecated)]
 impl PetWithOwner {
     /// Creates a new PetWithOwner instance with required parameters.
-    pub fn new(name: String, photo_urls: Vec<String>, owner_name: String) -> Self {
+    pub fn new(
+        name: String,
+        photo_urls: std::collections::HashSet<String>,
+        owner_name: String,
+    ) -> Self {
         Self {
             name,
             photo_urls,

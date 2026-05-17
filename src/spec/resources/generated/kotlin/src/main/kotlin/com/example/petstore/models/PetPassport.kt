@@ -33,7 +33,7 @@ data class PetPassport(
      * Example: `null`
      */
     @SerialName("scans")
-    val scans: List<ByteArray>? = null,
+    val scans: List<ByteArray>? = mutableListOf(),
     /** Example: `null` */
     @SerialName("issuedAt")
     @Contextual

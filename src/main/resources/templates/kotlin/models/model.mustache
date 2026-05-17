@@ -234,7 +234,7 @@ class {{classname}}(
   @SerialName("{{baseName}}")
 {{#isDateTime}}  @Contextual
 {{/isDateTime}}{{#isDate}}  @Contextual
-{{/isDate}}  val {{name}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}{{^required}} = null{{/required}}{{#required}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/required}}{{^-last}},{{/-last}}
+{{/isDate}}  val {{name}}: {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}{{^required}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}}{{/required}}{{#required}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{/required}}{{^-last}},{{/-last}}
 {{/vars}}
 ){{#parent}} : {{{.}}}(){{/parent}} {
 {{#vars}}

@@ -38,7 +38,7 @@ data class Order(
      * Example: `approved`
      */
     @SerialName("status")
-    val status: StatusEnum? = null,
+    val status: StatusEnum? = StatusEnum.PLACED,
     /** Example: `null` */
     @SerialName("complete")
     val complete: Boolean? = null,

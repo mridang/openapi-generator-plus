@@ -14,7 +14,7 @@ import zlib
 import urllib3
 
 from petstore_client.api_response import ApiResponse
-from petstore_client.exceptions import ApiException
+from petstore_client.errors import ApiException
 from petstore_client.transport_options import TransportOptions
 
 try:

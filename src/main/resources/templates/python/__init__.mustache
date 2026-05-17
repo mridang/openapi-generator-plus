@@ -29,8 +29,8 @@ from {{packageName}}.configuration import Configuration as Configuration
 from {{packageName}}.transport_options import TransportOptions as TransportOptions
 from {{packageName}}.server_configuration import ServerConfiguration as ServerConfiguration
 from {{packageName}}.server_configuration import ServerVariable as ServerVariable
-from {{packageName}}.exceptions import OpenApiException as OpenApiException
-from {{packageName}}.exceptions import ApiException as ApiException
+from {{packageName}}.errors import OpenApiException as OpenApiException
+from {{packageName}}.errors import ApiException as ApiException
 {{#hasHttpSignatureMethods}}
 from {{packageName}}.signing import HttpSigningConfiguration as HttpSigningConfiguration
 {{/hasHttpSignatureMethods}}

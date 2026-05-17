@@ -233,53 +233,53 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 new SupportingFile(
                         "value_serializer.mustache", invokerFolder, "ValueSerializer.php"));
         supportingFiles.add(
-                new SupportingFile("api_exception.mustache", invokerFolder, "ApiException.php"));
+                new SupportingFile("api_error.mustache", invokerFolder, "ApiException.php"));
 
-        final String exceptionsFolder = Path.of(invokerFolder, "Exceptions").toString();
+        final String errorsFolder = Path.of(invokerFolder, "Errors").toString();
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/ClientException.mustache",
-                        exceptionsFolder,
+                        "errors/ClientException.mustache",
+                        errorsFolder,
                         "ClientException.php"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/ServerException.mustache",
-                        exceptionsFolder,
+                        "errors/ServerException.mustache",
+                        errorsFolder,
                         "ServerException.php"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/BadRequestException.mustache",
-                        exceptionsFolder,
+                        "errors/BadRequestException.mustache",
+                        errorsFolder,
                         "BadRequestException.php"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/UnauthorizedException.mustache",
-                        exceptionsFolder,
+                        "errors/UnauthorizedException.mustache",
+                        errorsFolder,
                         "UnauthorizedException.php"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/ForbiddenException.mustache",
-                        exceptionsFolder,
+                        "errors/ForbiddenException.mustache",
+                        errorsFolder,
                         "ForbiddenException.php"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/NotFoundException.mustache",
-                        exceptionsFolder,
+                        "errors/NotFoundException.mustache",
+                        errorsFolder,
                         "NotFoundException.php"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/ConflictException.mustache",
-                        exceptionsFolder,
+                        "errors/ConflictException.mustache",
+                        errorsFolder,
                         "ConflictException.php"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/UnprocessableEntityException.mustache",
-                        exceptionsFolder,
+                        "errors/UnprocessableEntityException.mustache",
+                        errorsFolder,
                         "UnprocessableEntityException.php"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/InternalServerErrorException.mustache",
-                        exceptionsFolder,
+                        "errors/InternalServerErrorException.mustache",
+                        errorsFolder,
                         "InternalServerErrorException.php"));
         supportingFiles.add(
                 new SupportingFile(
@@ -584,24 +584,6 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
     @Override
     protected String getMapTypeTemplate() {
         return "%1$s<%2$s, %3$s>";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getNullLiteral() {
-        return "null";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getTrueLiteral() {
-        return "true";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getFalseLiteral() {
-        return "false";
     }
 
     /** {@inheritDoc} */

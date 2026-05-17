@@ -240,53 +240,53 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
         supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
         supportingFiles.add(
-                new SupportingFile("api_exception.mustache", invokerFolder, "ApiException.java"));
+                new SupportingFile("api_error.mustache", invokerFolder, "ApiException.java"));
 
-        final String exceptionsFolder = Path.of(invokerFolder, "exceptions").toString();
+        final String errorsFolder = Path.of(invokerFolder, "errors").toString();
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/ClientException.mustache",
-                        exceptionsFolder,
+                        "errors/ClientException.mustache",
+                        errorsFolder,
                         "ClientException.java"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/ServerException.mustache",
-                        exceptionsFolder,
+                        "errors/ServerException.mustache",
+                        errorsFolder,
                         "ServerException.java"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/BadRequestException.mustache",
-                        exceptionsFolder,
+                        "errors/BadRequestException.mustache",
+                        errorsFolder,
                         "BadRequestException.java"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/UnauthorizedException.mustache",
-                        exceptionsFolder,
+                        "errors/UnauthorizedException.mustache",
+                        errorsFolder,
                         "UnauthorizedException.java"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/ForbiddenException.mustache",
-                        exceptionsFolder,
+                        "errors/ForbiddenException.mustache",
+                        errorsFolder,
                         "ForbiddenException.java"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/NotFoundException.mustache",
-                        exceptionsFolder,
+                        "errors/NotFoundException.mustache",
+                        errorsFolder,
                         "NotFoundException.java"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/ConflictException.mustache",
-                        exceptionsFolder,
+                        "errors/ConflictException.mustache",
+                        errorsFolder,
                         "ConflictException.java"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/UnprocessableEntityException.mustache",
-                        exceptionsFolder,
+                        "errors/UnprocessableEntityException.mustache",
+                        errorsFolder,
                         "UnprocessableEntityException.java"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/InternalServerErrorException.mustache",
-                        exceptionsFolder,
+                        "errors/InternalServerErrorException.mustache",
+                        errorsFolder,
                         "InternalServerErrorException.java"));
         supportingFiles.add(
                 new SupportingFile("api_client.mustache", invokerFolder, "ApiClient.java"));
@@ -445,8 +445,11 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     /**
      * Returns the default value expression for a schema type.
      * Arrays default to empty ArrayList or LinkedHashSet for
-     * unique items; maps default to empty HashMap. All other
-     * types return null to let the language default apply.
+     * unique items; maps default to empty HashMap. String enum
+     * schemas with a default return the raw value so that
+     * {@code updateCodegenPropertyEnum} can match it to an enum
+     * var and produce {@code StatusEnum.PLACED}. All other types
+     * return null.
      */
     @Nullable
     @SuppressWarnings("rawtypes")
@@ -461,7 +464,24 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         } else if (ModelUtils.isMapSchema(unaliased)) {
             return "new HashMap<>()";
         }
+        if (ModelUtils.isStringSchema(unaliased)
+                && unaliased.getDefault() != null
+                && unaliased.getEnum() != null
+                && !unaliased.getEnum().isEmpty()) {
+            return unaliased.getDefault().toString();
+        }
         return null;
+    }
+
+    /**
+     * Keeps the enum-reference default value (e.g.
+     * {@code StatusEnum.PLACED}) as produced by
+     * {@code updateCodegenPropertyEnum}, rather than converting it
+     * to a string literal as the base-class implementation would.
+     */
+    @Override
+    protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
+        // no-op: StatusEnum.PLACED is the correct Java form
     }
 
     /**
@@ -480,30 +500,6 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     @Override
     protected Set<String> getNumericDataTypes() {
         return NUMERIC_DATA_TYPES;
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected char getQuoteChar() {
-        return '"';
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getNullLiteral() {
-        return "null";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getTrueLiteral() {
-        return "true";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getFalseLiteral() {
-        return "false";
     }
 
     /** {@inheritDoc} */

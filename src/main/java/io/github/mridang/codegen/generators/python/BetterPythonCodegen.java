@@ -223,53 +223,53 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                 new SupportingFile("base_api.mustache", apiPath, "base_api.py"));
         supportingFiles.add(
                 new SupportingFile("configuration.mustache", packagePath, "configuration.py"));
-        final String exceptionsPath = Path.of(packagePath, "exceptions").toString();
+        final String errorsPath = Path.of(packagePath, "errors").toString();
         supportingFiles.add(
-                new SupportingFile("exceptions.mustache", exceptionsPath, "__init__.py"));
+                new SupportingFile("errors.mustache", errorsPath, "__init__.py"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/client_exception.mustache",
-                        exceptionsPath,
+                        "errors/client_exception.mustache",
+                        errorsPath,
                         "client_exception.py"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/server_exception.mustache",
-                        exceptionsPath,
+                        "errors/server_exception.mustache",
+                        errorsPath,
                         "server_exception.py"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/bad_request_exception.mustache",
-                        exceptionsPath,
+                        "errors/bad_request_exception.mustache",
+                        errorsPath,
                         "bad_request_exception.py"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/unauthorized_exception.mustache",
-                        exceptionsPath,
+                        "errors/unauthorized_exception.mustache",
+                        errorsPath,
                         "unauthorized_exception.py"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/forbidden_exception.mustache",
-                        exceptionsPath,
+                        "errors/forbidden_exception.mustache",
+                        errorsPath,
                         "forbidden_exception.py"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/not_found_exception.mustache",
-                        exceptionsPath,
+                        "errors/not_found_exception.mustache",
+                        errorsPath,
                         "not_found_exception.py"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/conflict_exception.mustache",
-                        exceptionsPath,
+                        "errors/conflict_exception.mustache",
+                        errorsPath,
                         "conflict_exception.py"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/unprocessable_entity_exception.mustache",
-                        exceptionsPath,
+                        "errors/unprocessable_entity_exception.mustache",
+                        errorsPath,
                         "unprocessable_entity_exception.py"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/internal_server_error_exception.mustache",
-                        exceptionsPath,
+                        "errors/internal_server_error_exception.mustache",
+                        errorsPath,
                         "internal_server_error_exception.py"));
         supportingFiles.add(
                 new SupportingFile(

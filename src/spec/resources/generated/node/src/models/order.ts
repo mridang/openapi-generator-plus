@@ -25,7 +25,7 @@ export class Order {
    * @example approved
    */
   @Expose({ name: 'status' })
-  status?: string;
+  status?: string = 'placed';
   /** @example null */
   @Expose({ name: 'complete' })
   complete?: boolean;

@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import com.example.petstore.api.PetApi;
 import com.example.petstore.api.options.FindPetsByStatusOptions;
 import com.example.petstore.auth.Authenticator;
-import com.example.petstore.exceptions.*;
+import com.example.petstore.errors.*;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.*;

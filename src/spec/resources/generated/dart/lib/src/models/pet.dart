@@ -16,7 +16,7 @@ class Pet {
 
   final Category? category;
 
-  final List<String> photoUrls;
+  final Set<String> photoUrls;
 
   final List<Tag>? tags;
 
@@ -41,7 +41,7 @@ class Pet {
       category: json['category'] != null
           ? Category.fromJson(json['category'] as Map<String, dynamic>)
           : null,
-      photoUrls: (json['photoUrls'] as List).map((e) => e as String).toList(),
+      photoUrls: (json['photoUrls'] as List).map((e) => e as String).toSet(),
       tags: (json['tags'] as List?)
           ?.map((e) => Tag.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -61,7 +61,7 @@ class Pet {
     if (category != null) {
       json['category'] = category?.toJson();
     }
-    json['photoUrls'] = photoUrls;
+    json['photoUrls'] = photoUrls.toList();
     if (tags != null) {
       json['tags'] = tags?.map((e) => e.toJson()).toList();
     }

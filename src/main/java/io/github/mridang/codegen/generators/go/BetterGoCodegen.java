@@ -207,26 +207,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
 
     /** {@inheritDoc} */
     @Override
-    protected char getQuoteChar() {
-        return '"';
-    }
-
-    /** {@inheritDoc} */
-    @Override
     protected String getNullLiteral() {
         return "nil";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getTrueLiteral() {
-        return "true";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getFalseLiteral() {
-        return "false";
     }
 
     /** {@inheritDoc} */

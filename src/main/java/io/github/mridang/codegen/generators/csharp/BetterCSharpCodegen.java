@@ -16,9 +16,12 @@ import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
+import org.openapitools.codegen.utils.ModelUtils;
 import org.openapitools.codegen.SupportingFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -201,53 +204,53 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 new SupportingFile(
                         "default_api_client.mustache", invokerFolder, "DefaultApiClient.cs"));
         supportingFiles.add(
-                new SupportingFile("api_exception.mustache", invokerFolder, "ApiException.cs"));
+                new SupportingFile("api_error.mustache", invokerFolder, "ApiException.cs"));
 
-        final String exceptionsFolder = Path.of(invokerFolder, "Exceptions").toString();
+        final String errorsFolder = Path.of(invokerFolder, "Errors").toString();
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/ClientException.mustache",
-                        exceptionsFolder,
+                        "errors/ClientException.mustache",
+                        errorsFolder,
                         "ClientException.cs"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/ServerException.mustache",
-                        exceptionsFolder,
+                        "errors/ServerException.mustache",
+                        errorsFolder,
                         "ServerException.cs"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/BadRequestException.mustache",
-                        exceptionsFolder,
+                        "errors/BadRequestException.mustache",
+                        errorsFolder,
                         "BadRequestException.cs"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/UnauthorizedException.mustache",
-                        exceptionsFolder,
+                        "errors/UnauthorizedException.mustache",
+                        errorsFolder,
                         "UnauthorizedException.cs"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/ForbiddenException.mustache",
-                        exceptionsFolder,
+                        "errors/ForbiddenException.mustache",
+                        errorsFolder,
                         "ForbiddenException.cs"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/NotFoundException.mustache",
-                        exceptionsFolder,
+                        "errors/NotFoundException.mustache",
+                        errorsFolder,
                         "NotFoundException.cs"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/ConflictException.mustache",
-                        exceptionsFolder,
+                        "errors/ConflictException.mustache",
+                        errorsFolder,
                         "ConflictException.cs"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/UnprocessableEntityException.mustache",
-                        exceptionsFolder,
+                        "errors/UnprocessableEntityException.mustache",
+                        errorsFolder,
                         "UnprocessableEntityException.cs"));
         supportingFiles.add(
                 new SupportingFile(
-                        "exceptions/InternalServerErrorException.mustache",
-                        exceptionsFolder,
+                        "errors/InternalServerErrorException.mustache",
+                        errorsFolder,
                         "InternalServerErrorException.cs"));
         supportingFiles.add(
                 new SupportingFile("api_response.mustache", invokerFolder, "ApiResponse.cs"));
@@ -434,11 +437,36 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
      * for value types) and explicit default expressions are
      * not needed in the generated models.
      */
+    /**
+     * Returns a raw string value for string enum schemas that have a
+     * declared OAS {@code default}. This value is then matched by
+     * {@code updateCodegenPropertyEnum} and converted to the typed
+     * enum form (e.g. {@code StatusEnum.Placed}). All other types
+     * return null.
+     */
     @Nullable
     @SuppressWarnings("rawtypes")
     @Override
     public String toDefaultValue(Schema schema) {
+        final Schema resolved = ModelUtils.getReferencedSchema(this.openAPI, schema);
+        if (ModelUtils.isStringSchema(resolved)
+                && resolved.getDefault() != null
+                && resolved.getEnum() != null
+                && !resolved.getEnum().isEmpty()) {
+            return resolved.getDefault().toString();
+        }
         return null;
+    }
+
+    /**
+     * Keeps the enum-reference default value (e.g.
+     * {@code StatusEnum.Placed}) as produced by
+     * {@code updateCodegenPropertyEnum}, rather than converting it
+     * to a string literal as the base-class implementation would.
+     */
+    @Override
+    protected void fixEnumDefaultValue(CodegenProperty prop, CodegenModel model) {
+        // no-op: StatusEnum.Placed is the correct C# form
     }
 
     /** {@inheritDoc} */
@@ -461,34 +489,10 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
 
     /** {@inheritDoc} */
     @Override
-    protected String getNullLiteral() {
-        return "null";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getTrueLiteral() {
-        return "true";
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected String getFalseLiteral() {
-        return "false";
-    }
-
-    /** {@inheritDoc} */
-    @Override
     protected Set<String> getNumericDataTypes() {
         return Set.of(
                 "int", "uint", "long", "ulong", "short", "ushort",
                 "byte", "sbyte", "float", "double", "decimal");
-    }
-
-    /** {@inheritDoc} */
-    @Override
-    protected char getQuoteChar() {
-        return '"';
     }
 
     /** {@inheritDoc} */
