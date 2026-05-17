@@ -10,7 +10,7 @@ using PetstoreClient;
 using PetstoreClient.Api;
 using PetstoreClient.Api.Options;
 using PetstoreClient.Auth;
-using PetstoreClient.Exceptions;
+using PetstoreClient.Errors;
 using Xunit;
 
 namespace Test;

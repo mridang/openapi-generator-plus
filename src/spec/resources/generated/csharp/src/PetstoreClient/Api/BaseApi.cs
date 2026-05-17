@@ -11,7 +11,7 @@
 #pragma warning disable IDE0046 // Convert to conditional expression
 
 using PetstoreClient.Auth;
-using PetstoreClient.Exceptions;
+using PetstoreClient.Errors;
 
 namespace PetstoreClient.Api;
 

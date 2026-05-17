@@ -129,7 +129,7 @@ void main() {
 
       // Exercise auth headers through the API layer
       try {
-        await api.addPet(auth, const Pet(name: 'Test', photoUrls: []));
+        await api.addPet(auth, const Pet(name: 'Test', photoUrls: <String>{}));
       } catch (_) {}
 
       // Verify via echo-headers endpoint
@@ -150,7 +150,7 @@ void main() {
       final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
       try {
-        await api.addPet(auth, const Pet(name: 'Test', photoUrls: []));
+        await api.addPet(auth, const Pet(name: 'Test', photoUrls: <String>{}));
       } catch (_) {}
     });
 
@@ -503,7 +503,8 @@ void main() {
         final auth = _BaseApiAuth();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        await api.addPet(auth, const Pet(name: 'TestPet', photoUrls: []));
+        await api.addPet(
+            auth, const Pet(name: 'TestPet', photoUrls: <String>{}));
         expect(receivedBody, contains('TestPet'));
       } finally {
         await server.close();

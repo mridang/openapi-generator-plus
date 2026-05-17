@@ -7,7 +7,7 @@
 
 mod testcontainers_helper;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use petstore::api::*;
@@ -484,7 +484,7 @@ async fn test_base_api_serializes_json_body() {
         .base_url("http://localhost")
         .build();
     let api = PetApi::new(client.clone(), config, None);
-    let pet = Pet::new("TestPet".to_string(), vec![]);
+    let pet = Pet::new("TestPet".to_string(), HashSet::new());
     let auth = NoopAuthenticator;
     let _ = api.add_pet(&auth, pet).await;
     let body = client.captured_body.lock().unwrap();
@@ -642,7 +642,7 @@ async fn test_base_api_sets_cookie_from_auth() {
         .build();
     let api = PetApi::new(client.clone(), config, None);
     let auth = CookieAuthenticator;
-    let pet = Pet::new("TestPet".to_string(), vec![]);
+    let pet = Pet::new("TestPet".to_string(), HashSet::new());
     let _ = api.add_pet(&auth, pet).await;
     let headers = client.captured_headers.lock().unwrap();
     if let Some(cookie) = headers.get("Cookie") {

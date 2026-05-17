@@ -7,7 +7,7 @@
 
 mod testcontainers_helper;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Read;
 use std::net::TcpListener;
 use std::sync::Arc;
@@ -122,7 +122,7 @@ async fn test_pet_api_add_pet() {
     let auth = bearer_auth();
     let pet = Pet::new(
         "Fido".to_string(),
-        vec!["http://example.com/fido.jpg".to_string()],
+        HashSet::from(["http://example.com/fido.jpg".to_string()]),
     );
     let result = api.add_pet(&auth, pet).await;
     assert!(result.is_ok(), "add_pet failed: {:?}", result.err());
@@ -134,7 +134,7 @@ async fn test_pet_api_add_pet_with_http_info() {
     let auth = bearer_auth();
     let pet = Pet::new(
         "Buddy".to_string(),
-        vec!["http://example.com/buddy.jpg".to_string()],
+        HashSet::from(["http://example.com/buddy.jpg".to_string()]),
     );
     let result = api.add_pet_with_http_info(&auth, pet).await;
     assert!(
@@ -171,7 +171,7 @@ async fn test_pet_api_update_pet() {
     let api = new_pet_api_for_integration();
     let pet = Pet::new(
         "UpdatedFido".to_string(),
-        vec!["http://example.com/fido-updated.jpg".to_string()],
+        HashSet::from(["http://example.com/fido-updated.jpg".to_string()]),
     );
     let result = api.update_pet(1, pet).await;
     assert!(result.is_ok(), "update_pet failed: {:?}", result.err());
@@ -182,7 +182,7 @@ async fn test_pet_api_update_pet_with_http_info() {
     let api = new_pet_api_for_integration();
     let pet = Pet::new(
         "UpdatedFido".to_string(),
-        vec!["http://example.com/fido-updated.jpg".to_string()],
+        HashSet::from(["http://example.com/fido-updated.jpg".to_string()]),
     );
     let result = api.update_pet_with_http_info(1, pet).await;
     assert!(

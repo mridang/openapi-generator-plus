@@ -7,7 +7,7 @@
 
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 
-namespace PetstoreClient.Exceptions;
+namespace PetstoreClient.Errors;
 
 /// <summary>
 /// Exception for HTTP 409 Conflict.

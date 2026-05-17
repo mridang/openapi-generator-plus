@@ -101,7 +101,7 @@ public class StoreApiTest
     {
         var mockApi = NewStoreApiForMock(404, "application/json", "{\"message\":\"Order not found\"}");
 
-        await Assert.ThrowsAsync<{{packageName}}.Exceptions.NotFoundException>(async () => await mockApi.GetOrderByIdAsync(99999L));
+        await Assert.ThrowsAsync<{{packageName}}.Errors.NotFoundException>(async () => await mockApi.GetOrderByIdAsync(99999L));
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public class StoreApiTest
             Complete = false,
         };
 
-        await Assert.ThrowsAsync<{{packageName}}.Exceptions.InternalServerErrorException>(async () => await mockApi.PlaceOrderAsync(order));
+        await Assert.ThrowsAsync<{{packageName}}.Errors.InternalServerErrorException>(async () => await mockApi.PlaceOrderAsync(order));
     }
 
     [Fact]
@@ -126,6 +126,6 @@ public class StoreApiTest
     {
         var mockApi = NewStoreApiForMock(404, "application/json", "{\"message\":\"Order not found\"}");
 
-        await Assert.ThrowsAsync<{{packageName}}.Exceptions.NotFoundException>(async () => await mockApi.DeleteOrderAsync(99999L));
+        await Assert.ThrowsAsync<{{packageName}}.Errors.NotFoundException>(async () => await mockApi.DeleteOrderAsync(99999L));
     }
 }

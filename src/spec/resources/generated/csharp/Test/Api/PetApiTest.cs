@@ -271,7 +271,7 @@ public class PetApiTest
     {
         var mockApi = NewPetApiForMock(404, "application/json", "{\"message\":\"Pet not found\"}");
 
-        await Assert.ThrowsAsync<PetstoreClient.Exceptions.NotFoundException>(
+        await Assert.ThrowsAsync<PetstoreClient.Errors.NotFoundException>(
             async () => await mockApi.GetPetByIdAsync(99999L)
         );
     }
@@ -285,7 +285,7 @@ public class PetApiTest
             "{\"message\":\"Internal server error\"}"
         );
 
-        await Assert.ThrowsAsync<PetstoreClient.Exceptions.InternalServerErrorException>(
+        await Assert.ThrowsAsync<PetstoreClient.Errors.InternalServerErrorException>(
             async () => await mockApi.GetPetByIdAsync(1L)
         );
     }

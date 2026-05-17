@@ -116,7 +116,7 @@ public class StoreApiTest
             "{\"message\":\"Order not found\"}"
         );
 
-        await Assert.ThrowsAsync<PetstoreClient.Exceptions.NotFoundException>(
+        await Assert.ThrowsAsync<PetstoreClient.Errors.NotFoundException>(
             async () => await mockApi.GetOrderByIdAsync(99999L)
         );
     }
@@ -139,7 +139,7 @@ public class StoreApiTest
             Complete = false,
         };
 
-        await Assert.ThrowsAsync<PetstoreClient.Exceptions.InternalServerErrorException>(
+        await Assert.ThrowsAsync<PetstoreClient.Errors.InternalServerErrorException>(
             async () => await mockApi.PlaceOrderAsync(order)
         );
     }
@@ -153,7 +153,7 @@ public class StoreApiTest
             "{\"message\":\"Order not found\"}"
         );
 
-        await Assert.ThrowsAsync<PetstoreClient.Exceptions.NotFoundException>(
+        await Assert.ThrowsAsync<PetstoreClient.Errors.NotFoundException>(
             async () => await mockApi.DeleteOrderAsync(99999L)
         );
     }
