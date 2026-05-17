@@ -12,6 +12,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CliOption;
@@ -240,6 +241,54 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
      * and optional test scaffolding.
      */
     @Override
+    protected List<SupportingFileSpec> getSupportingFileSpecs() {
+        final String sf = Optional.ofNullable((String) additionalProperties.get("sourceFolder"))
+                .orElse(sourceFolder);
+        final String pkg = Optional.ofNullable((String) additionalProperties.get("invokerPackage"))
+                .orElse(invokerPackage);
+        final String invokerFolder = Path.of(sf, pkg.replace(".", "/")).toString();
+        final String errorsFolder = Path.of(invokerFolder, "errors").toString();
+        final String jvmInvokerFolder =
+                Path.of("src", "jvmMain", "kotlin", pkg.replace(".", "/")).toString();
+        return List.of(
+            new SupportingFileSpec("readme.mustache", "", "README.md"),
+            new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
+            new SupportingFileSpec("api_error.mustache", invokerFolder, "ApiException.kt"),
+            new SupportingFileSpec("errors/ClientException.mustache", errorsFolder, "ClientException.kt"),
+            new SupportingFileSpec("errors/ServerException.mustache", errorsFolder, "ServerException.kt"),
+            new SupportingFileSpec("errors/BadRequestException.mustache", errorsFolder, "BadRequestException.kt"),
+            new SupportingFileSpec("errors/UnauthorizedException.mustache", errorsFolder, "UnauthorizedException.kt"),
+            new SupportingFileSpec("errors/ForbiddenException.mustache", errorsFolder, "ForbiddenException.kt"),
+            new SupportingFileSpec("errors/NotFoundException.mustache", errorsFolder, "NotFoundException.kt"),
+            new SupportingFileSpec("errors/ConflictException.mustache", errorsFolder, "ConflictException.kt"),
+            new SupportingFileSpec("errors/UnprocessableEntityException.mustache", errorsFolder, "UnprocessableEntityException.kt"),
+            new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.kt"),
+            new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.kt"),
+            new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.kt"),
+            new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiResponse.kt"),
+            new SupportingFileSpec("api_result.mustache", invokerFolder, "ApiResult.kt"),
+            new SupportingFileSpec("base_api.mustache", Path.of(invokerFolder, "api").toString(), "BaseApi.kt"),
+            new SupportingFileSpec("configuration.mustache", invokerFolder, "Configuration.kt"),
+            new SupportingFileSpec("transport_options.mustache", invokerFolder, "TransportOptions.kt"),
+            new SupportingFileSpec("server_configuration.mustache", invokerFolder, "ServerConfiguration.kt"),
+            new SupportingFileSpec("servers.mustache", invokerFolder, "Servers.kt"),
+            new SupportingFileSpec("object_serializer.mustache", invokerFolder, "ObjectSerializer.kt"),
+            new SupportingFileSpec("value_serializer.mustache", invokerFolder, "ValueSerializer.kt"),
+            new SupportingFileSpec("header_selector.mustache", invokerFolder, "HeaderSelector.kt"),
+            new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.kt"),
+            new SupportingFileSpec("http_client_factory_jvm.mustache", jvmInvokerFolder, "HttpClientFactory.kt"),
+            new SupportingFileSpec("trace_context_util_jvm.mustache", jvmInvokerFolder, "TraceContextUtil.kt"),
+            new SupportingFileSpec("build_gradle.mustache", "", "build.gradle.kts"),
+            new SupportingFileSpec("settings_gradle.mustache", "", "settings.gradle.kts"),
+            new SupportingFileSpec("gradle_properties.mustache", "", "gradle.properties"),
+            new SupportingFileSpec("authenticator.mustache", Path.of(invokerFolder, "auth").toString(), "Authenticator.kt"),
+            new SupportingFileSpec("makefile.mustache", "", "Makefile"),
+            new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
+            new SupportingFileSpec("gitignore.mustache", "", ".gitignore")
+        );
+    }
+
+    @Override
     public void processOpts() {
         super.processOpts();
 
@@ -259,128 +308,10 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
 
         final String invokerFolder =
                 Path.of(sourceFolder, invokerPackage.replace(".", "/")).toString();
-        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
-        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
-        supportingFiles.add(
-                new SupportingFile("api_error.mustache", invokerFolder, "ApiException.kt"));
-
-        final String errorsFolder = Path.of(invokerFolder, "errors").toString();
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/ClientException.mustache",
-                        errorsFolder,
-                        "ClientException.kt"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/ServerException.mustache",
-                        errorsFolder,
-                        "ServerException.kt"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/BadRequestException.mustache",
-                        errorsFolder,
-                        "BadRequestException.kt"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/UnauthorizedException.mustache",
-                        errorsFolder,
-                        "UnauthorizedException.kt"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/ForbiddenException.mustache",
-                        errorsFolder,
-                        "ForbiddenException.kt"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/NotFoundException.mustache",
-                        errorsFolder,
-                        "NotFoundException.kt"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/ConflictException.mustache",
-                        errorsFolder,
-                        "ConflictException.kt"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/UnprocessableEntityException.mustache",
-                        errorsFolder,
-                        "UnprocessableEntityException.kt"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/InternalServerErrorException.mustache",
-                        errorsFolder,
-                        "InternalServerErrorException.kt"));
-        supportingFiles.add(
-                new SupportingFile("api_client.mustache", invokerFolder, "ApiClient.kt"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "default_api_client.mustache", invokerFolder, "DefaultApiClient.kt"));
-        supportingFiles.add(
-                new SupportingFile("api_response.mustache", invokerFolder, "ApiResponse.kt"));
-        supportingFiles.add(
-                new SupportingFile("api_result.mustache", invokerFolder, "ApiResult.kt"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "base_api.mustache",
-                        Path.of(invokerFolder, "api").toString(),
-                        "BaseApi.kt"));
-        supportingFiles.add(
-                new SupportingFile("configuration.mustache", invokerFolder, "Configuration.kt"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "transport_options.mustache", invokerFolder, "TransportOptions.kt"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "server_configuration.mustache",
-                        invokerFolder,
-                        "ServerConfiguration.kt"));
-        supportingFiles.add(
-                new SupportingFile("servers.mustache", invokerFolder, "Servers.kt"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "object_serializer.mustache", invokerFolder, "ObjectSerializer.kt"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "value_serializer.mustache", invokerFolder, "ValueSerializer.kt"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "header_selector.mustache", invokerFolder, "HeaderSelector.kt"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "trace_context_util.mustache", invokerFolder, "TraceContextUtil.kt"));
-
-        /* JVM-specific actual implementations in jvmMain source set */
-        final String jvmInvokerFolder =
-                Path.of("src", "jvmMain", "kotlin", invokerPackage.replace(".", "/")).toString();
-        supportingFiles.add(
-                new SupportingFile(
-                        "http_client_factory_jvm.mustache",
-                        jvmInvokerFolder,
-                        "HttpClientFactory.kt"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "trace_context_util_jvm.mustache",
-                        jvmInvokerFolder,
-                        "TraceContextUtil.kt"));
-
-        supportingFiles.add(
-                new SupportingFile("build_gradle.mustache", "", "build.gradle.kts"));
-        supportingFiles.add(
-                new SupportingFile("settings_gradle.mustache", "", "settings.gradle.kts"));
-        supportingFiles.add(
-                new SupportingFile("gradle_properties.mustache", "", "gradle.properties"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "authenticator.mustache",
-                        Path.of(invokerFolder, "auth").toString(),
-                        "Authenticator.kt"));
         final String clientClassName = (String) additionalProperties.get("clientClassName");
         supportingFiles.add(
                 new SupportingFile(
                         "client.mustache", invokerFolder, clientClassName + ".kt"));
-        supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
-        supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
-        supportingFiles.add(new SupportingFile("gitignore.mustache", "", ".gitignore"));
 
         if (generateTests) {
             final String testFolder =

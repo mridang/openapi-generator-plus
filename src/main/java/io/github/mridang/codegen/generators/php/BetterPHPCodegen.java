@@ -189,6 +189,52 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
      * serialization, and optional test scaffolding.
      */
     @Override
+    protected List<SupportingFileSpec> getSupportingFileSpecs() {
+        final String invokerFolder = SRC_BASE_PATH;
+        final String apiFolder = Path.of(SRC_BASE_PATH, API_DIR_NAME).toString();
+        final String errorsFolder = Path.of(SRC_BASE_PATH, "Errors").toString();
+        return List.of(
+            new SupportingFileSpec("readme.mustache", "", "README.md"),
+            new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
+            new SupportingFileSpec("configuration.mustache", invokerFolder, "Configuration.php"),
+            new SupportingFileSpec("configuration_builder.mustache", invokerFolder, "ConfigurationBuilder.php"),
+            new SupportingFileSpec("object_serializer.mustache", invokerFolder, "ObjectSerializer.php"),
+            new SupportingFileSpec("value_serializer.mustache", invokerFolder, "ValueSerializer.php"),
+            new SupportingFileSpec("api_error.mustache", invokerFolder, "ApiException.php"),
+            new SupportingFileSpec("errors/ClientException.mustache", errorsFolder, "ClientException.php"),
+            new SupportingFileSpec("errors/ServerException.mustache", errorsFolder, "ServerException.php"),
+            new SupportingFileSpec("errors/BadRequestException.mustache", errorsFolder, "BadRequestException.php"),
+            new SupportingFileSpec("errors/UnauthorizedException.mustache", errorsFolder, "UnauthorizedException.php"),
+            new SupportingFileSpec("errors/ForbiddenException.mustache", errorsFolder, "ForbiddenException.php"),
+            new SupportingFileSpec("errors/NotFoundException.mustache", errorsFolder, "NotFoundException.php"),
+            new SupportingFileSpec("errors/ConflictException.mustache", errorsFolder, "ConflictException.php"),
+            new SupportingFileSpec("errors/UnprocessableEntityException.mustache", errorsFolder, "UnprocessableEntityException.php"),
+            new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.php"),
+            new SupportingFileSpec("header_selector.mustache", invokerFolder, "HeaderSelector.php"),
+            new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.php"),
+            new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiResponse.php"),
+            new SupportingFileSpec("api_result.mustache", invokerFolder, "ApiResult.php"),
+            new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.php"),
+            new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.php"),
+            new SupportingFileSpec("transport_options.mustache", invokerFolder, "TransportOptions.php"),
+            new SupportingFileSpec("transport_options_builder.mustache", invokerFolder, "TransportOptionsBuilder.php"),
+            new SupportingFileSpec("server_variable.mustache", invokerFolder, "ServerVariable.php"),
+            new SupportingFileSpec("server_configuration.mustache", invokerFolder, "ServerConfiguration.php"),
+            new SupportingFileSpec("servers.mustache", invokerFolder, "Servers.php"),
+            new SupportingFileSpec("base_api.mustache", apiFolder, "BaseApi.php"),
+            new SupportingFileSpec("authenticator.mustache", Path.of(SRC_BASE_PATH, "Auth").toString(), "Authenticator.php"),
+            new SupportingFileSpec("composer.mustache", "", "composer.json"),
+            new SupportingFileSpec("phpstan_neon.mustache", "", "phpstan.neon"),
+            new SupportingFileSpec("rector.mustache", "", "rector.php"),
+            new SupportingFileSpec("phpcs_xml.mustache", "", "phpcs.xml"),
+            new SupportingFileSpec("php_cs_fixer.mustache", "", ".php-cs-fixer.dist.php"),
+            new SupportingFileSpec("makefile.mustache", "", "Makefile"),
+            new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
+            new SupportingFileSpec("gitignore.mustache", "", ".gitignore")
+        );
+    }
+
+    @Override
     public void processOpts() {
         super.processOpts();
 
@@ -221,126 +267,10 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         additionalProperties.put("escapedInvokerPackage", invokerPackage.replace("\\", "\\\\"));
 
         final String invokerFolder = toSrcPath(invokerPackage);
-        final String apiFolder = toSrcPath(apiPackage);
-
-        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
-        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
-        supportingFiles.add(
-                new SupportingFile("configuration.mustache", invokerFolder, "Configuration.php"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "configuration_builder.mustache",
-                        invokerFolder,
-                        "ConfigurationBuilder.php"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "object_serializer.mustache", invokerFolder, "ObjectSerializer.php"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "value_serializer.mustache", invokerFolder, "ValueSerializer.php"));
-        supportingFiles.add(
-                new SupportingFile("api_error.mustache", invokerFolder, "ApiException.php"));
-
-        final String errorsFolder = Path.of(invokerFolder, "Errors").toString();
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/ClientException.mustache",
-                        errorsFolder,
-                        "ClientException.php"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/ServerException.mustache",
-                        errorsFolder,
-                        "ServerException.php"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/BadRequestException.mustache",
-                        errorsFolder,
-                        "BadRequestException.php"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/UnauthorizedException.mustache",
-                        errorsFolder,
-                        "UnauthorizedException.php"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/ForbiddenException.mustache",
-                        errorsFolder,
-                        "ForbiddenException.php"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/NotFoundException.mustache",
-                        errorsFolder,
-                        "NotFoundException.php"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/ConflictException.mustache",
-                        errorsFolder,
-                        "ConflictException.php"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/UnprocessableEntityException.mustache",
-                        errorsFolder,
-                        "UnprocessableEntityException.php"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/InternalServerErrorException.mustache",
-                        errorsFolder,
-                        "InternalServerErrorException.php"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "header_selector.mustache", invokerFolder, "HeaderSelector.php"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "trace_context_util.mustache", invokerFolder, "TraceContextUtil.php"));
-        supportingFiles.add(
-                new SupportingFile("api_response.mustache", invokerFolder, "ApiResponse.php"));
-        supportingFiles.add(
-                new SupportingFile("api_result.mustache", invokerFolder, "ApiResult.php"));
-        supportingFiles.add(
-                new SupportingFile("api_client.mustache", invokerFolder, "ApiClient.php"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "default_api_client.mustache", invokerFolder, "DefaultApiClient.php"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "transport_options.mustache", invokerFolder, "TransportOptions.php"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "transport_options_builder.mustache",
-                        invokerFolder,
-                        "TransportOptionsBuilder.php"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "server_variable.mustache", invokerFolder, "ServerVariable.php"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "server_configuration.mustache",
-                        invokerFolder,
-                        "ServerConfiguration.php"));
-        supportingFiles.add(
-                new SupportingFile("servers.mustache", invokerFolder, "Servers.php"));
-        supportingFiles.add(
-                new SupportingFile("base_api.mustache", apiFolder, "BaseApi.php"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "authenticator.mustache",
-                        Path.of(invokerFolder, "Auth").toString(),
-                        "Authenticator.php"));
         final String clientClassName = (String) additionalProperties.get("clientClassName");
         supportingFiles.add(
                 new SupportingFile(
                         "client.mustache", invokerFolder, clientClassName + ".php"));
-        supportingFiles.add(new SupportingFile("composer.mustache", "", "composer.json"));
-        supportingFiles.add(new SupportingFile("phpstan_neon.mustache", "", "phpstan.neon"));
-        supportingFiles.add(new SupportingFile("rector.mustache", "", "rector.php"));
-        supportingFiles.add(new SupportingFile("phpcs_xml.mustache", "", "phpcs.xml"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "php_cs_fixer.mustache", "", ".php-cs-fixer.dist.php"));
-        supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
-        supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
-        supportingFiles.add(new SupportingFile("gitignore.mustache", "", ".gitignore"));
 
         if (generateTests) {
             supportingFiles.add(new SupportingFile("test/bootstrap.php", "test", "bootstrap.php"));

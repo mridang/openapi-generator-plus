@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CliOption;
@@ -258,6 +259,49 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
      * infrastructure in the lib/src/ directory.
      */
     @Override
+    protected List<SupportingFileSpec> getSupportingFileSpecs() {
+        final String srcDir = Path.of("lib", "src").toString();
+        final String errorsDir = Path.of(srcDir, "errors").toString();
+        final String pkg = Optional.ofNullable((String) additionalProperties.get("packageName"))
+                .orElse(packageName);
+        return List.of(
+            new SupportingFileSpec("readme.mustache", "", "README.md"),
+            new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
+            new SupportingFileSpec("configuration.mustache", srcDir, "configuration.dart"),
+            new SupportingFileSpec("transport_options.mustache", srcDir, "transport_options.dart"),
+            new SupportingFileSpec("server_configuration.mustache", srcDir, "server_configuration.dart"),
+            new SupportingFileSpec("servers.mustache", srcDir, "servers.dart"),
+            new SupportingFileSpec("api_error.mustache", srcDir, "api_error.dart"),
+            new SupportingFileSpec("errors/api_error.mustache", errorsDir, "api_error.dart"),
+            new SupportingFileSpec("errors/client_error.mustache", errorsDir, "client_error.dart"),
+            new SupportingFileSpec("errors/server_error.mustache", errorsDir, "server_error.dart"),
+            new SupportingFileSpec("errors/bad_request_error.mustache", errorsDir, "bad_request_error.dart"),
+            new SupportingFileSpec("errors/unauthorized_error.mustache", errorsDir, "unauthorized_error.dart"),
+            new SupportingFileSpec("errors/forbidden_error.mustache", errorsDir, "forbidden_error.dart"),
+            new SupportingFileSpec("errors/not_found_error.mustache", errorsDir, "not_found_error.dart"),
+            new SupportingFileSpec("errors/conflict_error.mustache", errorsDir, "conflict_error.dart"),
+            new SupportingFileSpec("errors/unprocessable_entity_error.mustache", errorsDir, "unprocessable_entity_error.dart"),
+            new SupportingFileSpec("errors/internal_server_error.mustache", errorsDir, "internal_server_error.dart"),
+            new SupportingFileSpec("header_selector.mustache", srcDir, "header_selector.dart"),
+            new SupportingFileSpec("object_serializer.mustache", srcDir, "object_serializer.dart"),
+            new SupportingFileSpec("value_serializer.mustache", srcDir, "value_serializer.dart"),
+            new SupportingFileSpec("trace_context_util.mustache", srcDir, "trace_context_util.dart"),
+            new SupportingFileSpec("api_response.mustache", srcDir, "api_response.dart"),
+            new SupportingFileSpec("api_result.mustache", srcDir, "api_result.dart"),
+            new SupportingFileSpec("api_client.mustache", srcDir, "api_client.dart"),
+            new SupportingFileSpec("default_api_client.mustache", srcDir, "default_api_client.dart"),
+            new SupportingFileSpec("base_api.mustache", Path.of(srcDir, "api").toString(), "base_api.dart"),
+            new SupportingFileSpec("authenticator.mustache", Path.of(srcDir, "auth").toString(), "authenticator.dart"),
+            new SupportingFileSpec("barrel.mustache", "lib", pkg + ".dart"),
+            new SupportingFileSpec("pubspec.mustache", "", "pubspec.yaml"),
+            new SupportingFileSpec("analysis_options.mustache", "", "analysis_options.yaml"),
+            new SupportingFileSpec("makefile.mustache", "", "Makefile"),
+            new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
+            new SupportingFileSpec("gitignore.mustache", "", ".gitignore")
+        );
+    }
+
+    @Override
     public void processOpts() {
         super.processOpts();
 
@@ -269,115 +313,12 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
 
         final String srcDir = Path.of("lib", "src").toString();
 
-        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
-        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
-        supportingFiles.add(
-                new SupportingFile("configuration.mustache", srcDir, "configuration.dart"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "transport_options.mustache", srcDir, "transport_options.dart"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "server_configuration.mustache", srcDir, "server_configuration.dart"));
-        supportingFiles.add(
-                new SupportingFile("servers.mustache", srcDir, "servers.dart"));
-        supportingFiles.add(
-                new SupportingFile("api_error.mustache", srcDir, "api_error.dart"));
-
-        final String errorsDir = Path.of(srcDir, "errors").toString();
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/api_error.mustache", errorsDir, "api_error.dart"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/client_error.mustache", errorsDir, "client_error.dart"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/server_error.mustache", errorsDir, "server_error.dart"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/bad_request_error.mustache",
-                        errorsDir,
-                        "bad_request_error.dart"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/unauthorized_error.mustache",
-                        errorsDir,
-                        "unauthorized_error.dart"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/forbidden_error.mustache",
-                        errorsDir,
-                        "forbidden_error.dart"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/not_found_error.mustache",
-                        errorsDir,
-                        "not_found_error.dart"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/conflict_error.mustache",
-                        errorsDir,
-                        "conflict_error.dart"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/unprocessable_entity_error.mustache",
-                        errorsDir,
-                        "unprocessable_entity_error.dart"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/internal_server_error.mustache",
-                        errorsDir,
-                        "internal_server_error.dart"));
-
-        supportingFiles.add(
-                new SupportingFile(
-                        "header_selector.mustache", srcDir, "header_selector.dart"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "object_serializer.mustache", srcDir, "object_serializer.dart"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "value_serializer.mustache", srcDir, "value_serializer.dart"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "trace_context_util.mustache", srcDir, "trace_context_util.dart"));
-        supportingFiles.add(
-                new SupportingFile("api_response.mustache", srcDir, "api_response.dart"));
-        supportingFiles.add(
-                new SupportingFile("api_result.mustache", srcDir, "api_result.dart"));
-        supportingFiles.add(
-                new SupportingFile("api_client.mustache", srcDir, "api_client.dart"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "default_api_client.mustache", srcDir, "default_api_client.dart"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "base_api.mustache",
-                        Path.of(srcDir, "api").toString(),
-                        "base_api.dart"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "authenticator.mustache",
-                        Path.of(srcDir, "auth").toString(),
-                        "authenticator.dart"));
-
         final String clientClassName =
                 Objects.requireNonNull((String) additionalProperties.get("clientClassName"));
         final String clientClassFile = NamingConvention.SNAKE_CASE.apply(clientClassName);
         additionalProperties.put("clientClassFile", clientClassFile);
         supportingFiles.add(
                 new SupportingFile("client.mustache", srcDir, clientClassFile + ".dart"));
-
-        supportingFiles.add(
-                new SupportingFile("barrel.mustache", "lib", packageName + ".dart"));
-        supportingFiles.add(
-                new SupportingFile("pubspec.mustache", "", "pubspec.yaml"));
-        supportingFiles.add(
-                new SupportingFile("analysis_options.mustache", "", "analysis_options.yaml"));
-        supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
-        supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
-        supportingFiles.add(new SupportingFile("gitignore.mustache", "", ".gitignore"));
 
         if (generateTests) {
             supportingFiles.add(

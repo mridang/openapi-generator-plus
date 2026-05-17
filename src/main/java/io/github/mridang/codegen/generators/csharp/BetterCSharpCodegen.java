@@ -13,6 +13,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CliOption;
@@ -186,6 +187,49 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
      * scaffolding.
      */
     @Override
+    protected List<SupportingFileSpec> getSupportingFileSpecs() {
+        final String sf = Optional.ofNullable((String) additionalProperties.get(CodegenConstants.SOURCE_FOLDER))
+                .orElse(sourceFolder);
+        final String pkg = Optional.ofNullable((String) additionalProperties.get(CodegenConstants.PACKAGE_NAME))
+                .orElse(packageName);
+        final String invokerFolder = Path.of(sf, pkg.replace(".", "/")).toString();
+        final String errorsFolder = Path.of(invokerFolder, "Errors").toString();
+        return List.of(
+            new SupportingFileSpec("readme.mustache", "", "README.md"),
+            new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
+            new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.cs"),
+            new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.cs"),
+            new SupportingFileSpec("api_error.mustache", invokerFolder, "ApiException.cs"),
+            new SupportingFileSpec("errors/ClientException.mustache", errorsFolder, "ClientException.cs"),
+            new SupportingFileSpec("errors/ServerException.mustache", errorsFolder, "ServerException.cs"),
+            new SupportingFileSpec("errors/BadRequestException.mustache", errorsFolder, "BadRequestException.cs"),
+            new SupportingFileSpec("errors/UnauthorizedException.mustache", errorsFolder, "UnauthorizedException.cs"),
+            new SupportingFileSpec("errors/ForbiddenException.mustache", errorsFolder, "ForbiddenException.cs"),
+            new SupportingFileSpec("errors/NotFoundException.mustache", errorsFolder, "NotFoundException.cs"),
+            new SupportingFileSpec("errors/ConflictException.mustache", errorsFolder, "ConflictException.cs"),
+            new SupportingFileSpec("errors/UnprocessableEntityException.mustache", errorsFolder, "UnprocessableEntityException.cs"),
+            new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.cs"),
+            new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiResponse.cs"),
+            new SupportingFileSpec("api_result.mustache", invokerFolder, "ApiResult.cs"),
+            new SupportingFileSpec("base_api.mustache", Path.of(invokerFolder, "Api").toString(), "BaseApi.cs"),
+            new SupportingFileSpec("configuration.mustache", invokerFolder, "Configuration.cs"),
+            new SupportingFileSpec("transport_options.mustache", invokerFolder, "TransportOptions.cs"),
+            new SupportingFileSpec("server_configuration.mustache", invokerFolder, "ServerConfiguration.cs"),
+            new SupportingFileSpec("servers.mustache", invokerFolder, "Servers.cs"),
+            new SupportingFileSpec("object_serializer.mustache", invokerFolder, "ObjectSerializer.cs"),
+            new SupportingFileSpec("value_serializer.mustache", invokerFolder, "ValueSerializer.cs"),
+            new SupportingFileSpec("header_selector.mustache", invokerFolder, "HeaderSelector.cs"),
+            new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.cs"),
+            new SupportingFileSpec("authenticator.mustache", Path.of(invokerFolder, "Auth").toString(), "IAuthenticator.cs"),
+            new SupportingFileSpec("csproj.mustache", invokerFolder, pkg + ".csproj"),
+            new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
+            new SupportingFileSpec("gitignore.mustache", "", ".gitignore"),
+            new SupportingFileSpec("dotnet_tools.mustache", ".config", "dotnet-tools.json"),
+            new SupportingFileSpec("makefile.mustache", "", "Makefile")
+        );
+    }
+
+    @Override
     public void processOpts() {
         super.processOpts();
 
@@ -204,111 +248,10 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
         final String invokerFolder =
                 Path.of(sourceFolder, packageName.replace(".", "/")).toString();
 
-        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
-        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
-        supportingFiles.add(
-                new SupportingFile("api_client.mustache", invokerFolder, "ApiClient.cs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "default_api_client.mustache", invokerFolder, "DefaultApiClient.cs"));
-        supportingFiles.add(
-                new SupportingFile("api_error.mustache", invokerFolder, "ApiException.cs"));
-
-        final String errorsFolder = Path.of(invokerFolder, "Errors").toString();
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/ClientException.mustache",
-                        errorsFolder,
-                        "ClientException.cs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/ServerException.mustache",
-                        errorsFolder,
-                        "ServerException.cs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/BadRequestException.mustache",
-                        errorsFolder,
-                        "BadRequestException.cs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/UnauthorizedException.mustache",
-                        errorsFolder,
-                        "UnauthorizedException.cs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/ForbiddenException.mustache",
-                        errorsFolder,
-                        "ForbiddenException.cs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/NotFoundException.mustache",
-                        errorsFolder,
-                        "NotFoundException.cs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/ConflictException.mustache",
-                        errorsFolder,
-                        "ConflictException.cs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/UnprocessableEntityException.mustache",
-                        errorsFolder,
-                        "UnprocessableEntityException.cs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/InternalServerErrorException.mustache",
-                        errorsFolder,
-                        "InternalServerErrorException.cs"));
-        supportingFiles.add(
-                new SupportingFile("api_response.mustache", invokerFolder, "ApiResponse.cs"));
-        supportingFiles.add(
-                new SupportingFile("api_result.mustache", invokerFolder, "ApiResult.cs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "base_api.mustache",
-                        Path.of(invokerFolder, apiPackage).toString(),
-                        "BaseApi.cs"));
-        supportingFiles.add(
-                new SupportingFile("configuration.mustache", invokerFolder, "Configuration.cs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "transport_options.mustache", invokerFolder, "TransportOptions.cs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "server_configuration.mustache",
-                        invokerFolder,
-                        "ServerConfiguration.cs"));
-        supportingFiles.add(
-                new SupportingFile("servers.mustache", invokerFolder, "Servers.cs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "object_serializer.mustache", invokerFolder, "ObjectSerializer.cs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "value_serializer.mustache", invokerFolder, "ValueSerializer.cs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "header_selector.mustache", invokerFolder, "HeaderSelector.cs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "trace_context_util.mustache", invokerFolder, "TraceContextUtil.cs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "authenticator.mustache",
-                        Path.of(invokerFolder, "Auth").toString(),
-                        "IAuthenticator.cs"));
         final String clientClassName = (String) additionalProperties.get("clientClassName");
         supportingFiles.add(
                 new SupportingFile(
                         "client.mustache", invokerFolder, clientClassName + ".cs"));
-        supportingFiles.add(
-                new SupportingFile("csproj.mustache", invokerFolder, packageName + ".csproj"));
-        supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
-        supportingFiles.add(new SupportingFile("gitignore.mustache", "", ".gitignore"));
-        supportingFiles.add(
-                new SupportingFile("dotnet_tools.mustache", ".config", "dotnet-tools.json"));
-        supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
 
         if (generateTests) {
             supportingFiles.add(

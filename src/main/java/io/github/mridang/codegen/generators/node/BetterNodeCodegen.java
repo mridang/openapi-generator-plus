@@ -218,6 +218,49 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
      * is enabled.
      */
     @Override
+    protected List<SupportingFileSpec> getSupportingFileSpecs() {
+        return List.of(
+            new SupportingFileSpec("readme.mustache", "", "README.md"),
+            new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
+            new SupportingFileSpec("api_client.mustache", "src", "api-client.ts"),
+            new SupportingFileSpec("default_api_client.mustache", "src", "default-api-client.ts"),
+            new SupportingFileSpec("api_response.mustache", "src", "api-response.ts"),
+            new SupportingFileSpec("api_result.mustache", "src", "api-result.ts"),
+            new SupportingFileSpec("configuration.mustache", "src", "configuration.ts"),
+            new SupportingFileSpec("transport_options.mustache", "src", "transport-options.ts"),
+            new SupportingFileSpec("server_configuration.mustache", "src", "server-configuration.ts"),
+            new SupportingFileSpec("servers.mustache", "src", "servers.ts"),
+            new SupportingFileSpec("api_error.mustache", "src", "api-error.ts"),
+            new SupportingFileSpec("base_api.mustache", "src/api", "base-api.ts"),
+            new SupportingFileSpec("errors/index.mustache", "src/errors", "index.ts"),
+            new SupportingFileSpec("errors/client-error.mustache", "src/errors", "client-error.ts"),
+            new SupportingFileSpec("errors/server-error.mustache", "src/errors", "server-error.ts"),
+            new SupportingFileSpec("errors/bad-request-error.mustache", "src/errors", "bad-request-error.ts"),
+            new SupportingFileSpec("errors/unauthorized-error.mustache", "src/errors", "unauthorized-error.ts"),
+            new SupportingFileSpec("errors/forbidden-error.mustache", "src/errors", "forbidden-error.ts"),
+            new SupportingFileSpec("errors/not-found-error.mustache", "src/errors", "not-found-error.ts"),
+            new SupportingFileSpec("errors/conflict-error.mustache", "src/errors", "conflict-error.ts"),
+            new SupportingFileSpec("errors/unprocessable-entity-error.mustache", "src/errors", "unprocessable-entity-error.ts"),
+            new SupportingFileSpec("errors/internal-server-error.mustache", "src/errors", "internal-server-error.ts"),
+            new SupportingFileSpec("object_serializer.mustache", "src", "object-serializer.ts"),
+            new SupportingFileSpec("value_serializer.mustache", "src", "value-serializer.ts"),
+            new SupportingFileSpec("header_selector.mustache", "src", "header-selector.ts"),
+            new SupportingFileSpec("trace_context_util.mustache", "src", "trace-context-util.ts"),
+            new SupportingFileSpec("tsconfig.mustache", "", "tsconfig.json"),
+            new SupportingFileSpec("models/index.mustache", "src/models", "index.ts"),
+            new SupportingFileSpec("api/index.mustache", "src/api", "index.ts"),
+            new SupportingFileSpec("package.mustache", "", "package.json"),
+            new SupportingFileSpec("prettierrc.mustache", "", "prettier.config.mjs"),
+            new SupportingFileSpec("prettierignore.mustache", "", ".prettierignore"),
+            new SupportingFileSpec("eslint_config.mustache", "", "eslint.config.mjs"),
+            new SupportingFileSpec("authenticator.mustache", "src/auth", "authenticator.ts"),
+            new SupportingFileSpec("makefile.mustache", "", "Makefile"),
+            new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
+            new SupportingFileSpec("gitignore.mustache", "", ".gitignore")
+        );
+    }
+
+    @Override
     public void processOpts() {
         super.processOpts();
         final String packageVersion = getPropertyOrDefault("packageVersion", "1.0.0");
@@ -230,95 +273,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             this.apiPackage = "api";
         }
 
-        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
-        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
-        supportingFiles.add(new SupportingFile("api_client.mustache", "src", "api-client.ts"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "default_api_client.mustache", "src", "default-api-client.ts"));
-        supportingFiles.add(new SupportingFile("api_response.mustache", "src", "api-response.ts"));
-        supportingFiles.add(new SupportingFile("api_result.mustache", "src", "api-result.ts"));
-        supportingFiles.add(
-                new SupportingFile("configuration.mustache", "src", "configuration.ts"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "transport_options.mustache", "src", "transport-options.ts"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "server_configuration.mustache", "src", "server-configuration.ts"));
-        supportingFiles.add(new SupportingFile("servers.mustache", "src", "servers.ts"));
-        supportingFiles.add(new SupportingFile("api_error.mustache", "src", "api-error.ts"));
-        supportingFiles.add(new SupportingFile("base_api.mustache", "src/api", "base-api.ts"));
-
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/index.mustache", "src/errors", "index.ts"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/client-error.mustache", "src/errors", "client-error.ts"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/server-error.mustache", "src/errors", "server-error.ts"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/bad-request-error.mustache",
-                        "src/errors",
-                        "bad-request-error.ts"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/unauthorized-error.mustache",
-                        "src/errors",
-                        "unauthorized-error.ts"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/forbidden-error.mustache",
-                        "src/errors",
-                        "forbidden-error.ts"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/not-found-error.mustache",
-                        "src/errors",
-                        "not-found-error.ts"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/conflict-error.mustache",
-                        "src/errors",
-                        "conflict-error.ts"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/unprocessable-entity-error.mustache",
-                        "src/errors",
-                        "unprocessable-entity-error.ts"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/internal-server-error.mustache",
-                        "src/errors",
-                        "internal-server-error.ts"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "object_serializer.mustache", "src", "object-serializer.ts"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "value_serializer.mustache", "src", "value-serializer.ts"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "header_selector.mustache", "src", "header-selector.ts"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "trace_context_util.mustache", "src", "trace-context-util.ts"));
-        supportingFiles.add(new SupportingFile("tsconfig.mustache", "", "tsconfig.json"));
-        supportingFiles.add(
-                new SupportingFile("models/index.mustache", "src/models", "index.ts"));
-        supportingFiles.add(
-                new SupportingFile("api/index.mustache", "src/api", "index.ts"));
-        supportingFiles.add(new SupportingFile("package.mustache", "", "package.json"));
-        supportingFiles.add(new SupportingFile("prettierrc.mustache", "", "prettier.config.mjs"));
-        supportingFiles.add(new SupportingFile("prettierignore.mustache", "", ".prettierignore"));
-        supportingFiles.add(
-                new SupportingFile("eslint_config.mustache", "", "eslint.config.mjs"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "authenticator.mustache", "src/auth", "authenticator.ts"));
         final String clientClassName =
                 Objects.requireNonNull(
                         (String) additionalProperties.get("clientClassName"));
@@ -326,9 +280,6 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         additionalProperties.put("clientClassFile", clientClassFile);
         supportingFiles.add(
                 new SupportingFile("client.mustache", "src", clientClassFile + ".ts"));
-        supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
-        supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
-        supportingFiles.add(new SupportingFile("gitignore.mustache", "", ".gitignore"));
 
         if (generateTests) {
             supportingFiles.add(new SupportingFile("test/jest.config.mjs", "", "jest.config.mjs"));

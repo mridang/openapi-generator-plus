@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -237,6 +238,48 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
      * infrastructure in the Sources/ directory.
      */
     @Override
+    protected List<SupportingFileSpec> getSupportingFileSpecs() {
+        final String pkg = Optional.ofNullable((String) additionalProperties.get("packageName"))
+                .orElse(packageName);
+        final String srcDir = Path.of("Sources", pkg).toString();
+        final String errorsDir = Path.of(srcDir, "Errors").toString();
+        return List.of(
+            new SupportingFileSpec("readme.mustache", "", "README.md"),
+            new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
+            new SupportingFileSpec("configuration.mustache", srcDir, "Configuration.swift"),
+            new SupportingFileSpec("transport_options.mustache", srcDir, "TransportOptions.swift"),
+            new SupportingFileSpec("server_configuration.mustache", srcDir, "ServerConfiguration.swift"),
+            new SupportingFileSpec("servers.mustache", srcDir, "Servers.swift"),
+            new SupportingFileSpec("api_error.mustache", srcDir, "ApiError.swift"),
+            new SupportingFileSpec("errors/client_error.mustache", errorsDir, "ClientError.swift"),
+            new SupportingFileSpec("errors/server_error.mustache", errorsDir, "ServerError.swift"),
+            new SupportingFileSpec("errors/bad_request_error.mustache", errorsDir, "BadRequestError.swift"),
+            new SupportingFileSpec("errors/unauthorized_error.mustache", errorsDir, "UnauthorizedError.swift"),
+            new SupportingFileSpec("errors/forbidden_error.mustache", errorsDir, "ForbiddenError.swift"),
+            new SupportingFileSpec("errors/not_found_error.mustache", errorsDir, "NotFoundError.swift"),
+            new SupportingFileSpec("errors/conflict_error.mustache", errorsDir, "ConflictError.swift"),
+            new SupportingFileSpec("errors/unprocessable_entity_error.mustache", errorsDir, "UnprocessableEntityError.swift"),
+            new SupportingFileSpec("errors/internal_server_error.mustache", errorsDir, "InternalServerError.swift"),
+            new SupportingFileSpec("header_selector.mustache", srcDir, "HeaderSelector.swift"),
+            new SupportingFileSpec("object_serializer.mustache", srcDir, "ObjectSerializer.swift"),
+            new SupportingFileSpec("value_serializer.mustache", srcDir, "ValueSerializer.swift"),
+            new SupportingFileSpec("trace_context_util.mustache", srcDir, "TraceContextUtil.swift"),
+            new SupportingFileSpec("api_response.mustache", srcDir, "HTTPApiResponse.swift"),
+            new SupportingFileSpec("api_result.mustache", srcDir, "ApiResult.swift"),
+            new SupportingFileSpec("api_client.mustache", srcDir, "ApiClient.swift"),
+            new SupportingFileSpec("default_api_client.mustache", srcDir, "DefaultApiClient.swift"),
+            new SupportingFileSpec("base_api.mustache", Path.of(srcDir, "Api").toString(), "BaseApi.swift"),
+            new SupportingFileSpec("authenticator.mustache", Path.of(srcDir, "Auth").toString(), "Authenticator.swift"),
+            new SupportingFileSpec("any_codable.mustache", srcDir, "AnyCodable.swift"),
+            new SupportingFileSpec("package_swift.mustache", "", "Package.swift"),
+            new SupportingFileSpec("makefile.mustache", "", "Makefile"),
+            new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
+            new SupportingFileSpec("gitignore.mustache", "", ".gitignore"),
+            new SupportingFileSpec("swiftlint_yml.mustache", "", ".swiftlint.yml")
+        );
+    }
+
+    @Override
     public void processOpts() {
         super.processOpts();
 
@@ -248,98 +291,10 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
 
         final String srcDir = Path.of("Sources", packageName).toString();
 
-        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
-        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
-        supportingFiles.add(
-                new SupportingFile("configuration.mustache", srcDir, "Configuration.swift"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "transport_options.mustache", srcDir, "TransportOptions.swift"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "server_configuration.mustache", srcDir, "ServerConfiguration.swift"));
-        supportingFiles.add(
-                new SupportingFile("servers.mustache", srcDir, "Servers.swift"));
-        supportingFiles.add(
-                new SupportingFile("api_error.mustache", srcDir, "ApiError.swift"));
-
-        final String errorsDir = Path.of(srcDir, "Errors").toString();
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/client_error.mustache", errorsDir, "ClientError.swift"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/server_error.mustache", errorsDir, "ServerError.swift"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/bad_request_error.mustache",
-                        errorsDir,
-                        "BadRequestError.swift"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/unauthorized_error.mustache",
-                        errorsDir,
-                        "UnauthorizedError.swift"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/forbidden_error.mustache", errorsDir, "ForbiddenError.swift"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/not_found_error.mustache", errorsDir, "NotFoundError.swift"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/conflict_error.mustache", errorsDir, "ConflictError.swift"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/unprocessable_entity_error.mustache",
-                        errorsDir,
-                        "UnprocessableEntityError.swift"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/internal_server_error.mustache",
-                        errorsDir,
-                        "InternalServerError.swift"));
-
-        supportingFiles.add(
-                new SupportingFile(
-                        "header_selector.mustache", srcDir, "HeaderSelector.swift"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "object_serializer.mustache", srcDir, "ObjectSerializer.swift"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "value_serializer.mustache", srcDir, "ValueSerializer.swift"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "trace_context_util.mustache", srcDir, "TraceContextUtil.swift"));
-        supportingFiles.add(
-                new SupportingFile("api_response.mustache", srcDir, "HTTPApiResponse.swift"));
-        supportingFiles.add(
-                new SupportingFile("api_result.mustache", srcDir, "ApiResult.swift"));
-        supportingFiles.add(
-                new SupportingFile("api_client.mustache", srcDir, "ApiClient.swift"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "default_api_client.mustache", srcDir, "DefaultApiClient.swift"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "base_api.mustache", Path.of(srcDir, "Api").toString(), "BaseApi.swift"));
-        supportingFiles.add(
-                new SupportingFile("authenticator.mustache", Path.of(srcDir, "Auth").toString(), "Authenticator.swift"));
-        supportingFiles.add(
-                new SupportingFile("any_codable.mustache", srcDir, "AnyCodable.swift"));
-
         final String clientClassName =
                 Objects.requireNonNull((String) additionalProperties.get("clientClassName"));
         supportingFiles.add(
                 new SupportingFile("client.mustache", srcDir, clientClassName + ".swift"));
-
-        supportingFiles.add(
-                new SupportingFile("package_swift.mustache", "", "Package.swift"));
-        supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
-        supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
-        supportingFiles.add(new SupportingFile("gitignore.mustache", "", ".gitignore"));
-        supportingFiles.add(new SupportingFile("swiftlint_yml.mustache", "", ".swiftlint.yml"));
 
         if (generateTests) {
             final String testDir = Path.of("Tests", packageName + "Tests").toString();

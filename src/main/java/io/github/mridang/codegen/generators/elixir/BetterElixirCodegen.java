@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CliOption;
@@ -219,6 +220,53 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
      * infrastructure in the lib/ directory.
      */
     @Override
+    protected List<SupportingFileSpec> getSupportingFileSpecs() {
+        final String pkg = Optional.ofNullable((String) additionalProperties.get("packageName"))
+                .orElse(packageName);
+        final String libDir = Path.of("lib", pkg).toString();
+        final String apiDir = Path.of(libDir, "api").toString();
+        final String modelsDir = Path.of(libDir, "models").toString();
+        final String errorsDir = Path.of(libDir, "errors").toString();
+        return List.of(
+            new SupportingFileSpec("readme.mustache", "", "README.md"),
+            new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
+            new SupportingFileSpec("api_module.mustache", apiDir, "api_module.ex"),
+            new SupportingFileSpec("models_module.mustache", modelsDir, "models_module.ex"),
+            new SupportingFileSpec("configuration.mustache", libDir, "configuration.ex"),
+            new SupportingFileSpec("transport_options.mustache", libDir, "transport_options.ex"),
+            new SupportingFileSpec("server_configuration.mustache", libDir, "server_configuration.ex"),
+            new SupportingFileSpec("servers.mustache", libDir, "servers.ex"),
+            new SupportingFileSpec("api_error.mustache", libDir, "api_error.ex"),
+            new SupportingFileSpec("errors/client_error.mustache", errorsDir, "client_error.ex"),
+            new SupportingFileSpec("errors/server_error.mustache", errorsDir, "server_error.ex"),
+            new SupportingFileSpec("errors/bad_request_error.mustache", errorsDir, "bad_request_error.ex"),
+            new SupportingFileSpec("errors/unauthorized_error.mustache", errorsDir, "unauthorized_error.ex"),
+            new SupportingFileSpec("errors/forbidden_error.mustache", errorsDir, "forbidden_error.ex"),
+            new SupportingFileSpec("errors/not_found_error.mustache", errorsDir, "not_found_error.ex"),
+            new SupportingFileSpec("errors/conflict_error.mustache", errorsDir, "conflict_error.ex"),
+            new SupportingFileSpec("errors/unprocessable_entity_error.mustache", errorsDir, "unprocessable_entity_error.ex"),
+            new SupportingFileSpec("errors/internal_server_error.mustache", errorsDir, "internal_server_error.ex"),
+            new SupportingFileSpec("header_selector.mustache", libDir, "header_selector.ex"),
+            new SupportingFileSpec("object_serializer.mustache", libDir, "object_serializer.ex"),
+            new SupportingFileSpec("value_serializer.mustache", libDir, "value_serializer.ex"),
+            new SupportingFileSpec("trace_context_util.mustache", libDir, "trace_context_util.ex"),
+            new SupportingFileSpec("api_response.mustache", libDir, "api_response.ex"),
+            new SupportingFileSpec("api_result.mustache", libDir, "api_result.ex"),
+            new SupportingFileSpec("api_client.mustache", libDir, "api_client.ex"),
+            new SupportingFileSpec("default_api_client.mustache", libDir, "default_api_client.ex"),
+            new SupportingFileSpec("base_api.mustache", Path.of(libDir, "api").toString(), "base_api.ex"),
+            new SupportingFileSpec("authenticator.mustache", Path.of(libDir, "auth").toString(), "authenticator.ex"),
+            new SupportingFileSpec("main_module.mustache", "lib", pkg + ".ex"),
+            new SupportingFileSpec("mix_exs.mustache", "", "mix.exs"),
+            new SupportingFileSpec("coveralls_json.mustache", "", "coveralls.json"),
+            new SupportingFileSpec("formatter_exs.mustache", "", ".formatter.exs"),
+            new SupportingFileSpec("makefile.mustache", "", "Makefile"),
+            new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
+            new SupportingFileSpec("gitignore.mustache", "", ".gitignore")
+        );
+    }
+
+    @Override
     public void processOpts() {
         super.processOpts();
 
@@ -232,118 +280,12 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
 
         final String libDir = Path.of("lib", packageName).toString();
 
-        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
-        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
-
-        final String apiDir = Path.of(libDir, "api").toString();
-        final String modelsDir = Path.of(libDir, "models").toString();
-        supportingFiles.add(
-                new SupportingFile("api_module.mustache", apiDir, "api_module.ex"));
-        supportingFiles.add(
-                new SupportingFile("models_module.mustache", modelsDir, "models_module.ex"));
-        supportingFiles.add(
-                new SupportingFile("configuration.mustache", libDir, "configuration.ex"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "transport_options.mustache", libDir, "transport_options.ex"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "server_configuration.mustache", libDir, "server_configuration.ex"));
-        supportingFiles.add(
-                new SupportingFile("servers.mustache", libDir, "servers.ex"));
-        supportingFiles.add(
-                new SupportingFile("api_error.mustache", libDir, "api_error.ex"));
-
-        final String errorsDir = Path.of(libDir, "errors").toString();
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/client_error.mustache", errorsDir, "client_error.ex"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/server_error.mustache", errorsDir, "server_error.ex"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/bad_request_error.mustache",
-                        errorsDir,
-                        "bad_request_error.ex"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/unauthorized_error.mustache",
-                        errorsDir,
-                        "unauthorized_error.ex"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/forbidden_error.mustache",
-                        errorsDir,
-                        "forbidden_error.ex"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/not_found_error.mustache",
-                        errorsDir,
-                        "not_found_error.ex"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/conflict_error.mustache",
-                        errorsDir,
-                        "conflict_error.ex"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/unprocessable_entity_error.mustache",
-                        errorsDir,
-                        "unprocessable_entity_error.ex"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/internal_server_error.mustache",
-                        errorsDir,
-                        "internal_server_error.ex"));
-
-        supportingFiles.add(
-                new SupportingFile(
-                        "header_selector.mustache", libDir, "header_selector.ex"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "object_serializer.mustache", libDir, "object_serializer.ex"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "value_serializer.mustache", libDir, "value_serializer.ex"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "trace_context_util.mustache", libDir, "trace_context_util.ex"));
-        supportingFiles.add(
-                new SupportingFile("api_response.mustache", libDir, "api_response.ex"));
-        supportingFiles.add(
-                new SupportingFile("api_result.mustache", libDir, "api_result.ex"));
-        supportingFiles.add(
-                new SupportingFile("api_client.mustache", libDir, "api_client.ex"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "default_api_client.mustache", libDir, "default_api_client.ex"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "base_api.mustache",
-                        Path.of(libDir, "api").toString(),
-                        "base_api.ex"));
-        supportingFiles.add(
-                new SupportingFile("authenticator.mustache", Path.of(libDir, "auth").toString(), "authenticator.ex"));
-
         final String clientClassName =
                 Objects.requireNonNull((String) additionalProperties.get("clientClassName"));
         final String clientClassFile = NamingConvention.SNAKE_CASE.apply(clientClassName);
         additionalProperties.put("clientClassFile", clientClassFile);
         supportingFiles.add(
                 new SupportingFile("client.mustache", libDir, clientClassFile + ".ex"));
-
-        supportingFiles.add(
-                new SupportingFile("main_module.mustache", "lib", packageName + ".ex"));
-        supportingFiles.add(
-                new SupportingFile("mix_exs.mustache", "", "mix.exs"));
-        supportingFiles.add(
-                new SupportingFile("coveralls_json.mustache", "", "coveralls.json"));
-        supportingFiles.add(
-                new SupportingFile("formatter_exs.mustache", "", ".formatter.exs"));
-        supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
-        supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
-        supportingFiles.add(new SupportingFile("gitignore.mustache", "", ".gitignore"));
 
         if (generateTests) {
             supportingFiles.add(

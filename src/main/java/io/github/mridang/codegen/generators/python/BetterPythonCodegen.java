@@ -15,6 +15,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import javax.annotation.Nullable;
@@ -191,6 +192,55 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
      * classes, exceptions, auth, and configuration modules.
      */
     @Override
+    protected List<SupportingFileSpec> getSupportingFileSpecs() {
+        final String pkg = Optional.ofNullable((String) additionalProperties.get("packageName"))
+                .orElse(packageName);
+        final String packagePath = pkg.replace('.', File.separatorChar);
+        final String apiPath = Path.of(packagePath, "api").toString();
+        final String modelPath = Path.of(packagePath, "models").toString();
+        final String errorsPath = Path.of(packagePath, "errors").toString();
+        final String authPath = Path.of(packagePath, "auth").toString();
+        return List.of(
+            new SupportingFileSpec("readme.mustache", "", "README.md"),
+            new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
+            new SupportingFileSpec("models/__init__.mustache", modelPath, "__init__.py"),
+            new SupportingFileSpec("api/__init__.mustache", apiPath, "__init__.py"),
+            new SupportingFileSpec("__init__.mustache", packagePath, "__init__.py"),
+            new SupportingFileSpec("py_typed.mustache", packagePath, "py.typed"),
+            new SupportingFileSpec("api_client.mustache", packagePath, "api_client.py"),
+            new SupportingFileSpec("default_api_client.mustache", packagePath, "default_api_client.py"),
+            new SupportingFileSpec("api_response.mustache", packagePath, "api_response.py"),
+            new SupportingFileSpec("api_result.mustache", packagePath, "api_result.py"),
+            new SupportingFileSpec("base_api.mustache", apiPath, "base_api.py"),
+            new SupportingFileSpec("configuration.mustache", packagePath, "configuration.py"),
+            new SupportingFileSpec("errors.mustache", errorsPath, "__init__.py"),
+            new SupportingFileSpec("errors/client_exception.mustache", errorsPath, "client_exception.py"),
+            new SupportingFileSpec("errors/server_exception.mustache", errorsPath, "server_exception.py"),
+            new SupportingFileSpec("errors/bad_request_exception.mustache", errorsPath, "bad_request_exception.py"),
+            new SupportingFileSpec("errors/unauthorized_exception.mustache", errorsPath, "unauthorized_exception.py"),
+            new SupportingFileSpec("errors/forbidden_exception.mustache", errorsPath, "forbidden_exception.py"),
+            new SupportingFileSpec("errors/not_found_exception.mustache", errorsPath, "not_found_exception.py"),
+            new SupportingFileSpec("errors/conflict_exception.mustache", errorsPath, "conflict_exception.py"),
+            new SupportingFileSpec("errors/unprocessable_entity_exception.mustache", errorsPath, "unprocessable_entity_exception.py"),
+            new SupportingFileSpec("errors/internal_server_error_exception.mustache", errorsPath, "internal_server_error_exception.py"),
+            new SupportingFileSpec("object_serializer.mustache", packagePath, "object_serializer.py"),
+            new SupportingFileSpec("value_serializer.mustache", packagePath, "value_serializer.py"),
+            new SupportingFileSpec("header_selector.mustache", packagePath, "header_selector.py"),
+            new SupportingFileSpec("trace_context_util.mustache", packagePath, "trace_context_util.py"),
+            new SupportingFileSpec("transport_options.mustache", packagePath, "transport_options.py"),
+            new SupportingFileSpec("server_configuration.mustache", packagePath, "server_configuration.py"),
+            new SupportingFileSpec("servers.mustache", packagePath, "servers.py"),
+            new SupportingFileSpec("auth/__init__.mustache", authPath, "__init__.py"),
+            new SupportingFileSpec("authenticator.mustache", authPath, "authenticator.py"),
+            new SupportingFileSpec("auth/base_authenticator.mustache", authPath, "base_authenticator.py"),
+            new SupportingFileSpec("pyproject_toml.mustache", "", "pyproject.toml"),
+            new SupportingFileSpec("makefile.mustache", "", "Makefile"),
+            new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
+            new SupportingFileSpec("gitignore.mustache", "", ".gitignore")
+        );
+    }
+
+    @Override
     public void processOpts() {
         super.processOpts();
 
@@ -202,120 +252,14 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         modelPackage = packageName + ".models";
         apiPackage = packageName + ".api";
 
-        final String modelPath = modelPackage.replace('.', File.separatorChar);
-        final String apiPath = apiPackage.replace('.', File.separatorChar);
         final String packagePath = packageName.replace('.', File.separatorChar);
 
-        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
-        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
-        supportingFiles.add(
-                new SupportingFile("models/__init__.mustache", modelPath, "__init__.py"));
-        supportingFiles.add(
-                new SupportingFile("api/__init__.mustache", apiPath, "__init__.py"));
-        supportingFiles.add(
-                new SupportingFile("__init__.mustache", packagePath, "__init__.py"));
-        supportingFiles.add(
-                new SupportingFile("py_typed.mustache", packagePath, "py.typed"));
-        supportingFiles.add(
-                new SupportingFile("api_client.mustache", packagePath, "api_client.py"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "default_api_client.mustache", packagePath, "default_api_client.py"));
-        supportingFiles.add(
-                new SupportingFile("api_response.mustache", packagePath, "api_response.py"));
-        supportingFiles.add(
-                new SupportingFile("api_result.mustache", packagePath, "api_result.py"));
-        supportingFiles.add(
-                new SupportingFile("base_api.mustache", apiPath, "base_api.py"));
-        supportingFiles.add(
-                new SupportingFile("configuration.mustache", packagePath, "configuration.py"));
-        final String errorsPath = Path.of(packagePath, "errors").toString();
-        supportingFiles.add(
-                new SupportingFile("errors.mustache", errorsPath, "__init__.py"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/client_exception.mustache",
-                        errorsPath,
-                        "client_exception.py"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/server_exception.mustache",
-                        errorsPath,
-                        "server_exception.py"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/bad_request_exception.mustache",
-                        errorsPath,
-                        "bad_request_exception.py"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/unauthorized_exception.mustache",
-                        errorsPath,
-                        "unauthorized_exception.py"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/forbidden_exception.mustache",
-                        errorsPath,
-                        "forbidden_exception.py"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/not_found_exception.mustache",
-                        errorsPath,
-                        "not_found_exception.py"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/conflict_exception.mustache",
-                        errorsPath,
-                        "conflict_exception.py"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/unprocessable_entity_exception.mustache",
-                        errorsPath,
-                        "unprocessable_entity_exception.py"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/internal_server_error_exception.mustache",
-                        errorsPath,
-                        "internal_server_error_exception.py"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "object_serializer.mustache", packagePath, "object_serializer.py"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "value_serializer.mustache", packagePath, "value_serializer.py"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "header_selector.mustache", packagePath, "header_selector.py"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "trace_context_util.mustache", packagePath, "trace_context_util.py"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "transport_options.mustache", packagePath, "transport_options.py"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "server_configuration.mustache",
-                        packagePath,
-                        "server_configuration.py"));
-        supportingFiles.add(
-                new SupportingFile("servers.mustache", packagePath, "servers.py"));
-        final String authPath = Path.of(packagePath, "auth").toString();
-        supportingFiles.add(
-                new SupportingFile("auth/__init__.mustache", authPath, "__init__.py"));
-        supportingFiles.add(
-                new SupportingFile("authenticator.mustache", authPath, "authenticator.py"));
-        supportingFiles.add(
-                new SupportingFile("auth/base_authenticator.mustache", authPath, "base_authenticator.py"));
         final String clientClassName =
                 Objects.requireNonNull((String) additionalProperties.get("clientClassName"));
         final String clientClassFile = NamingConvention.SNAKE_CASE.apply(clientClassName);
         additionalProperties.put("clientClassFile", clientClassFile);
         supportingFiles.add(
                 new SupportingFile("client.mustache", packagePath, clientClassFile + ".py"));
-        supportingFiles.add(new SupportingFile("pyproject_toml.mustache", "", "pyproject.toml"));
-        supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
-        supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
-        supportingFiles.add(new SupportingFile("gitignore.mustache", "", ".gitignore"));
 
         if (generateTests) {
             supportingFiles.add(new SupportingFile("test/conftest.py", "", "conftest.py"));

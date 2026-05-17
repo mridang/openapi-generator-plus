@@ -218,6 +218,60 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
      * the Zeitwerk-compatible snake_case layout under lib/.
      */
     @Override
+    protected List<SupportingFileSpec> getSupportingFileSpecs() {
+        final String resolvedModuleName = Optional.ofNullable(
+                (String) additionalProperties.get(CodegenConstants.MODULE_NAME))
+                .orElse(moduleName);
+        final String resolvedGemName = Optional.ofNullable(
+                (String) additionalProperties.get(CodegenConstants.GEM_NAME))
+                .orElseGet(() -> NamingConvention.SNAKE_CASE.apply(
+                        resolvedModuleName.replaceAll("[^\\w]+", "")));
+        final String modulePath = NamingConvention.SNAKE_CASE.apply(
+                resolvedModuleName.replaceAll("::", "/"));
+        final String libPath = Path.of(LIB_FOLDER, modulePath).toString();
+        final String errorsPath = Path.of(libPath, "errors").toString();
+        return List.of(
+            new SupportingFileSpec("readme.mustache", "", "README.md"),
+            new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
+            new SupportingFileSpec("gem.mustache", LIB_FOLDER, resolvedGemName + ".rb"),
+            new SupportingFileSpec("configuration.mustache", libPath, "configuration.rb"),
+            new SupportingFileSpec("transport_options.mustache", libPath, "transport_options.rb"),
+            new SupportingFileSpec("server_configuration.mustache", libPath, "server_configuration.rb"),
+            new SupportingFileSpec("servers.mustache", libPath, "servers.rb"),
+            new SupportingFileSpec("api_error.mustache", libPath, "api_error.rb"),
+            new SupportingFileSpec("errors/client_error.mustache", errorsPath, "client_error.rb"),
+            new SupportingFileSpec("errors/server_error.mustache", errorsPath, "server_error.rb"),
+            new SupportingFileSpec("errors/bad_request_error.mustache", errorsPath, "bad_request_error.rb"),
+            new SupportingFileSpec("errors/unauthorized_error.mustache", errorsPath, "unauthorized_error.rb"),
+            new SupportingFileSpec("errors/forbidden_error.mustache", errorsPath, "forbidden_error.rb"),
+            new SupportingFileSpec("errors/not_found_error.mustache", errorsPath, "not_found_error.rb"),
+            new SupportingFileSpec("errors/conflict_error.mustache", errorsPath, "conflict_error.rb"),
+            new SupportingFileSpec("errors/unprocessable_entity_error.mustache", errorsPath, "unprocessable_entity_error.rb"),
+            new SupportingFileSpec("errors/internal_server_error.mustache", errorsPath, "internal_server_error.rb"),
+            new SupportingFileSpec("version.mustache", libPath, "version.rb"),
+            new SupportingFileSpec("header_selector.mustache", libPath, "header_selector.rb"),
+            new SupportingFileSpec("object_serializer.mustache", libPath, "object_serializer.rb"),
+            new SupportingFileSpec("value_serializer.mustache", libPath, "value_serializer.rb"),
+            new SupportingFileSpec("trace_context_util.mustache", libPath, "trace_context_util.rb"),
+            new SupportingFileSpec("api_response.mustache", libPath, "api_response.rb"),
+            new SupportingFileSpec("api_result.mustache", libPath, "api_result.rb"),
+            new SupportingFileSpec("api_client.mustache", libPath, "api_client.rb"),
+            new SupportingFileSpec("default_api_client.mustache", libPath, "default_api_client.rb"),
+            new SupportingFileSpec("base_api.mustache", Path.of(libPath, "api").toString(), "base_api.rb"),
+            new SupportingFileSpec("authenticator.mustache", Path.of(libPath, "auth").toString(), "authenticator.rb"),
+            new SupportingFileSpec("gemfile.mustache", "", "Gemfile"),
+            new SupportingFileSpec("rubocop.mustache", "", ".rubocop.yml"),
+            new SupportingFileSpec("steepfile.mustache", "", "Steepfile"),
+            new SupportingFileSpec("vendor_rbs.mustache", "sig", "vendor.rbs"),
+            new SupportingFileSpec("infrastructure_rbs.mustache", "sig", "infrastructure.rbs"),
+            new SupportingFileSpec("makefile.mustache", "", "Makefile"),
+            new SupportingFileSpec("rakefile.mustache", "", "Rakefile"),
+            new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
+            new SupportingFileSpec("gitignore.mustache", "", ".gitignore")
+        );
+    }
+
+    @Override
     public void processOpts() {
         super.processOpts();
 
@@ -236,84 +290,12 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         final String modulePath = NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("::", "/"));
         final String libPath = Path.of(LIB_FOLDER, modulePath).toString();
 
-        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
-        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
-        supportingFiles.add(new SupportingFile("gem.mustache", LIB_FOLDER, gemName + ".rb"));
-        supportingFiles.add(new SupportingFile("configuration.mustache", libPath, "configuration.rb"));
-        supportingFiles.add(new SupportingFile("transport_options.mustache", libPath, "transport_options.rb"));
-        supportingFiles.add(new SupportingFile("server_configuration.mustache", libPath, "server_configuration.rb"));
-        supportingFiles.add(new SupportingFile("servers.mustache", libPath, "servers.rb"));
-        supportingFiles.add(new SupportingFile("api_error.mustache", libPath, "api_error.rb"));
-
-        final String errorsPath = Path.of(libPath, "errors").toString();
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/client_error.mustache", errorsPath, "client_error.rb"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/server_error.mustache", errorsPath, "server_error.rb"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/bad_request_error.mustache",
-                        errorsPath,
-                        "bad_request_error.rb"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/unauthorized_error.mustache",
-                        errorsPath,
-                        "unauthorized_error.rb"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/forbidden_error.mustache", errorsPath, "forbidden_error.rb"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/not_found_error.mustache", errorsPath, "not_found_error.rb"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/conflict_error.mustache", errorsPath, "conflict_error.rb"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/unprocessable_entity_error.mustache",
-                        errorsPath,
-                        "unprocessable_entity_error.rb"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/internal_server_error.mustache",
-                        errorsPath,
-                        "internal_server_error.rb"));
-        supportingFiles.add(new SupportingFile("version.mustache", libPath, "version.rb"));
-        supportingFiles.add(new SupportingFile("header_selector.mustache", libPath, "header_selector.rb"));
-        supportingFiles.add(new SupportingFile("object_serializer.mustache", libPath, "object_serializer.rb"));
-        supportingFiles.add(new SupportingFile("value_serializer.mustache", libPath, "value_serializer.rb"));
-        supportingFiles.add(new SupportingFile("trace_context_util.mustache", libPath, "trace_context_util.rb"));
-        supportingFiles.add(new SupportingFile("api_response.mustache", libPath, "api_response.rb"));
-        supportingFiles.add(new SupportingFile("api_result.mustache", libPath, "api_result.rb"));
-        supportingFiles.add(new SupportingFile("api_client.mustache", libPath, "api_client.rb"));
-        supportingFiles.add(new SupportingFile("default_api_client.mustache", libPath, "default_api_client.rb"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "base_api.mustache", Path.of(libPath, "api").toString(), "base_api.rb"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "authenticator.mustache",
-                        Path.of(libPath, "auth").toString(),
-                        "authenticator.rb"));
         final String clientClassName =
                 Objects.requireNonNull((String) additionalProperties.get("clientClassName"));
         final String clientClassFile = NamingConvention.SNAKE_CASE.apply(clientClassName);
         additionalProperties.put("clientClassFile", clientClassFile);
         supportingFiles.add(
                 new SupportingFile("client.mustache", libPath, clientClassFile + ".rb"));
-        supportingFiles.add(new SupportingFile("gemfile.mustache", "", "Gemfile"));
-        supportingFiles.add(new SupportingFile("rubocop.mustache", "", ".rubocop.yml"));
-        supportingFiles.add(new SupportingFile("steepfile.mustache", "", "Steepfile"));
-        supportingFiles.add(new SupportingFile("vendor_rbs.mustache", "sig", "vendor.rbs"));
-        supportingFiles.add(
-                new SupportingFile("infrastructure_rbs.mustache", "sig", "infrastructure.rbs"));
-        supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
-        supportingFiles.add(new SupportingFile("rakefile.mustache", "", "Rakefile"));
-        supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
-        supportingFiles.add(new SupportingFile("gitignore.mustache", "", ".gitignore"));
 
         if (generateTests) {
             supportingFiles.add(

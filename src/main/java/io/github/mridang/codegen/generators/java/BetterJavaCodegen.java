@@ -11,6 +11,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CliOption;
@@ -229,6 +230,50 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
      * and optional test scaffolding.
      */
     @Override
+    protected List<SupportingFileSpec> getSupportingFileSpecs() {
+        final String sf = Optional.ofNullable((String) additionalProperties.get(CodegenConstants.SOURCE_FOLDER))
+                .orElse(sourceFolder);
+        final String pkg = Optional.ofNullable((String) additionalProperties.get(CodegenConstants.INVOKER_PACKAGE))
+                .orElse(invokerPackage);
+        final String invokerFolder = Path.of(sf, pkg.replace(".", "/")).toString();
+        final String errorsFolder = Path.of(invokerFolder, "errors").toString();
+        return List.of(
+            new SupportingFileSpec("readme.mustache", "", "README.md"),
+            new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
+            new SupportingFileSpec("api_error.mustache", invokerFolder, "ApiException.java"),
+            new SupportingFileSpec("errors/ClientException.mustache", errorsFolder, "ClientException.java"),
+            new SupportingFileSpec("errors/ServerException.mustache", errorsFolder, "ServerException.java"),
+            new SupportingFileSpec("errors/BadRequestException.mustache", errorsFolder, "BadRequestException.java"),
+            new SupportingFileSpec("errors/UnauthorizedException.mustache", errorsFolder, "UnauthorizedException.java"),
+            new SupportingFileSpec("errors/ForbiddenException.mustache", errorsFolder, "ForbiddenException.java"),
+            new SupportingFileSpec("errors/NotFoundException.mustache", errorsFolder, "NotFoundException.java"),
+            new SupportingFileSpec("errors/ConflictException.mustache", errorsFolder, "ConflictException.java"),
+            new SupportingFileSpec("errors/UnprocessableEntityException.mustache", errorsFolder, "UnprocessableEntityException.java"),
+            new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.java"),
+            new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.java"),
+            new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.java"),
+            new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiResponse.java"),
+            new SupportingFileSpec("api_result.mustache", invokerFolder, "ApiResult.java"),
+            new SupportingFileSpec("base_api.mustache", Path.of(invokerFolder, "api").toString(), "BaseApi.java"),
+            new SupportingFileSpec("configuration.mustache", invokerFolder, "Configuration.java"),
+            new SupportingFileSpec("transport_options.mustache", invokerFolder, "TransportOptions.java"),
+            new SupportingFileSpec("server_configuration.mustache", invokerFolder, "ServerConfiguration.java"),
+            new SupportingFileSpec("server_variable.mustache", invokerFolder, "ServerVariable.java"),
+            new SupportingFileSpec("servers.mustache", invokerFolder, "Servers.java"),
+            new SupportingFileSpec("object_serializer.mustache", invokerFolder, "ObjectSerializer.java"),
+            new SupportingFileSpec("value_serializer.mustache", invokerFolder, "ValueSerializer.java"),
+            new SupportingFileSpec("header_selector.mustache", invokerFolder, "HeaderSelector.java"),
+            new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.java"),
+            new SupportingFileSpec("pom.mustache", "", "pom.xml"),
+            new SupportingFileSpec("authenticator.mustache", Path.of(invokerFolder, "auth").toString(), "Authenticator.java"),
+            new SupportingFileSpec("makefile.mustache", "", "Makefile"),
+            new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
+            new SupportingFileSpec("gitignore.mustache", "", ".gitignore"),
+            new SupportingFileSpec("checkstyle_xml.mustache", "", "checkstyle.xml")
+        );
+    }
+
+    @Override
     public void processOpts() {
         super.processOpts();
 
@@ -249,112 +294,10 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
 
         final String invokerFolder =
                 Path.of(sourceFolder, invokerPackage.replace(".", "/")).toString();
-        supportingFiles.add(new SupportingFile("readme.mustache", "", "README.md"));
-        supportingFiles.add(new SupportingFile("skills.mustache", "", "SKILLS.md"));
-        supportingFiles.add(
-                new SupportingFile("api_error.mustache", invokerFolder, "ApiException.java"));
-
-        final String errorsFolder = Path.of(invokerFolder, "errors").toString();
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/ClientException.mustache",
-                        errorsFolder,
-                        "ClientException.java"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/ServerException.mustache",
-                        errorsFolder,
-                        "ServerException.java"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/BadRequestException.mustache",
-                        errorsFolder,
-                        "BadRequestException.java"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/UnauthorizedException.mustache",
-                        errorsFolder,
-                        "UnauthorizedException.java"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/ForbiddenException.mustache",
-                        errorsFolder,
-                        "ForbiddenException.java"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/NotFoundException.mustache",
-                        errorsFolder,
-                        "NotFoundException.java"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/ConflictException.mustache",
-                        errorsFolder,
-                        "ConflictException.java"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/UnprocessableEntityException.mustache",
-                        errorsFolder,
-                        "UnprocessableEntityException.java"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "errors/InternalServerErrorException.mustache",
-                        errorsFolder,
-                        "InternalServerErrorException.java"));
-        supportingFiles.add(
-                new SupportingFile("api_client.mustache", invokerFolder, "ApiClient.java"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "default_api_client.mustache", invokerFolder, "DefaultApiClient.java"));
-        supportingFiles.add(
-                new SupportingFile("api_response.mustache", invokerFolder, "ApiResponse.java"));
-        supportingFiles.add(
-                new SupportingFile("api_result.mustache", invokerFolder, "ApiResult.java"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "base_api.mustache",
-                        Path.of(invokerFolder, "api").toString(),
-                        "BaseApi.java"));
-        supportingFiles.add(
-                new SupportingFile("configuration.mustache", invokerFolder, "Configuration.java"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "transport_options.mustache", invokerFolder, "TransportOptions.java"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "server_configuration.mustache",
-                        invokerFolder,
-                        "ServerConfiguration.java"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "server_variable.mustache", invokerFolder, "ServerVariable.java"));
-        supportingFiles.add(
-                new SupportingFile("servers.mustache", invokerFolder, "Servers.java"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "object_serializer.mustache", invokerFolder, "ObjectSerializer.java"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "value_serializer.mustache", invokerFolder, "ValueSerializer.java"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "header_selector.mustache", invokerFolder, "HeaderSelector.java"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "trace_context_util.mustache", invokerFolder, "TraceContextUtil.java"));
-        supportingFiles.add(new SupportingFile("pom.mustache", "", "pom.xml"));
-        supportingFiles.add(
-                new SupportingFile(
-                        "authenticator.mustache",
-                        Path.of(invokerFolder, "auth").toString(),
-                        "Authenticator.java"));
         final String clientClassName = (String) additionalProperties.get("clientClassName");
         supportingFiles.add(
                 new SupportingFile(
                         "client.mustache", invokerFolder, clientClassName + ".java"));
-        supportingFiles.add(new SupportingFile("makefile.mustache", "", "Makefile"));
-        supportingFiles.add(new SupportingFile("editorconfig.mustache", "", ".editorconfig"));
-        supportingFiles.add(new SupportingFile("gitignore.mustache", "", ".gitignore"));
-        supportingFiles.add(new SupportingFile("checkstyle_xml.mustache", "", "checkstyle.xml"));
 
         if (generateTests) {
             final String testFolder =
