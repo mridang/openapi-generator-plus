@@ -49,9 +49,40 @@ object ValueSerializer {
 
         val str = serializer.stringify(value)
         if ("path" == location) {
-            return URLEncoder.encode(str, StandardCharsets.UTF_8).replace("+", "%20")
+            return encodePathSegment(str)
         }
         return str
+    }
+
+    /**
+     * Percent-encodes a value for use as a URL path segment.
+     *
+     * Encodes characters that are not allowed in a URI path segment per RFC 3986,
+     * but preserves the sub-delimiters (including `;`, `=`, `,`, `:`, etc.) that
+     * OAS 3.0 matrix/label/simple styles use as structural separators in the styled value.
+     *
+     * The preserved set matches the canonical encoding used by Node, C#, Swift, etc.:
+     * `; = , : @ ! $ & ' ( ) * +`.
+     */
+    @JvmStatic
+    fun encodePathSegment(value: String): String {
+        if (value.isEmpty()) return value
+        return URLEncoder
+            .encode(value, StandardCharsets.UTF_8)
+            .replace("+", "%20")
+            .replace("%3B", ";")
+            .replace("%3D", "=")
+            .replace("%2C", ",")
+            .replace("%3A", ":")
+            .replace("%40", "@")
+            .replace("%21", "!")
+            .replace("%24", "$")
+            .replace("%26", "&")
+            .replace("%27", "'")
+            .replace("%28", "(")
+            .replace("%29", ")")
+            .replace("%2A", "*")
+            .replace("%2B", "+")
     }
 
     @JvmStatic
@@ -85,7 +116,15 @@ object ValueSerializer {
             return serialize(value, location, schemaType, collectionFormat)
         }
 
-        val items = toStringList(value)
+        var items = toStringList(value)
+
+        // For path styles, percent-encode each individual item BEFORE applying
+        // the structural separators (";", "=", ".", ",") that the style defines.
+        // This ensures reserved characters inside the value are escaped while
+        // the style's structural punctuation remains literal.
+        if ("path" == location) {
+            items = items.map { encodePathSegment(it) }
+        }
 
         return when (style) {
             "matrix" ->

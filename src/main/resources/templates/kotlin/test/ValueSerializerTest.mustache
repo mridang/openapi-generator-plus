@@ -9,6 +9,114 @@ import org.junit.jupiter.api.Test
 
 class ValueSerializerTest {
 
+    /**
+     * Cross-language parity tests for path-segment percent-encoding.
+     * Every SDK must produce identical encoded strings for these inputs.
+     */
+    @Nested
+    @DisplayName("path encoding parity")
+    inner class PathEncodingParityTests {
+
+        @Test
+        @DisplayName("ASCII-safe pass-through")
+        fun asciiSafePassThrough() {
+            assertEquals("abc123", ValueSerializer.serialize("abc123", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("space encoded as %20")
+        fun spaceEncoded() {
+            assertEquals("a%20b", ValueSerializer.serialize("a b", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("slash encoded")
+        fun slashEncoded() {
+            assertEquals("a%2Fb", ValueSerializer.serialize("a/b", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("question mark encoded")
+        fun questionMarkEncoded() {
+            assertEquals("a%3Fb", ValueSerializer.serialize("a?b", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("hash encoded")
+        fun hashEncoded() {
+            assertEquals("a%23b", ValueSerializer.serialize("a#b", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("semicolon preserved (sub-delimiter)")
+        fun semicolonPreserved() {
+            assertEquals("a;b", ValueSerializer.serialize("a;b", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("comma preserved (sub-delimiter)")
+        fun commaPreserved() {
+            assertEquals("a,b", ValueSerializer.serialize("a,b", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("colon preserved (sub-delimiter)")
+        fun colonPreserved() {
+            assertEquals("a:b", ValueSerializer.serialize("a:b", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("equals preserved (sub-delimiter)")
+        fun equalsPreserved() {
+            assertEquals("x=y", ValueSerializer.serialize("x=y", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("unicode encoded as UTF-8 percent")
+        fun unicodeEncoded() {
+            assertEquals("%E6%97%A5%E6%9C%AC", ValueSerializer.serialize("日本", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("plus preserved (sub-delimiter)")
+        fun plusPreserved() {
+            assertEquals("a+b", ValueSerializer.serialize("a+b", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("already-percent-encoded is re-encoded (literal %)")
+        fun alreadyEncodedReencoded() {
+            assertEquals("a%2520b", ValueSerializer.serialize("a%20b", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("matrix style with reserved char in value")
+        fun matrixStyleEncodesValue() {
+            assertEquals(";id=a%20b",
+                ValueSerializer.serializeStyled("id", "a b", "path", "string", null, "matrix", false))
+        }
+
+        @Test
+        @DisplayName("simple style array with reserved chars")
+        fun simpleStyleArrayEncodesEachItem() {
+            assertEquals("a%20b,c%3Fd",
+                ValueSerializer.serializeStyled("ids", listOf("a b", "c?d"),
+                    "path", "array", null, "simple", false))
+        }
+
+        @Test
+        @DisplayName("empty string returns empty string")
+        fun emptyStringReturnsEmpty() {
+            assertEquals("", ValueSerializer.serialize("", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("null returns empty string in path location")
+        fun nullReturnsEmptyInPath() {
+            assertEquals("", ValueSerializer.serialize(null, "path", "string", null))
+        }
+    }
+
     @Nested
     @DisplayName("serialize - query location")
     inner class QuerySerializeTests {
@@ -337,9 +445,10 @@ class ValueSerializerTest {
         }
 
         @Test
-        @DisplayName("scalar does not URL-encode path value")
-        fun scalarDoesNotUrlEncodePath() {
-            assertEquals("hello world", ValueSerializer.serializeStyled("id", "hello world", "path", "string", null, "simple", false))
+        @DisplayName("scalar URL-encodes path value")
+        fun scalarUrlEncodesPath() {
+            // Path-location values are percent-encoded so reserved chars don't break the URL.
+            assertEquals("hello%20world", ValueSerializer.serializeStyled("id", "hello world", "path", "string", null, "simple", false))
         }
     }
 

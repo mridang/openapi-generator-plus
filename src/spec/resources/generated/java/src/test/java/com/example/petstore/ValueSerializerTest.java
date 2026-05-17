@@ -67,6 +67,117 @@ class ValueSerializerTest {
     }
   }
 
+  /**
+   * Cross-language parity tests for path-segment percent-encoding. Every SDK must produce identical
+   * encoded strings for these inputs.
+   */
+  @Nested
+  @DisplayName("path encoding parity")
+  class PathEncodingParityTests {
+
+    @Test
+    @DisplayName("ASCII-safe pass-through")
+    void asciiSafePassThrough() {
+      assertEquals("abc123", ValueSerializer.serialize("abc123", "path", "string", null));
+    }
+
+    @Test
+    @DisplayName("space encoded as %20")
+    void spaceEncoded() {
+      assertEquals("a%20b", ValueSerializer.serialize("a b", "path", "string", null));
+    }
+
+    @Test
+    @DisplayName("slash encoded")
+    void slashEncoded() {
+      assertEquals("a%2Fb", ValueSerializer.serialize("a/b", "path", "string", null));
+    }
+
+    @Test
+    @DisplayName("question mark encoded")
+    void questionMarkEncoded() {
+      assertEquals("a%3Fb", ValueSerializer.serialize("a?b", "path", "string", null));
+    }
+
+    @Test
+    @DisplayName("hash encoded")
+    void hashEncoded() {
+      assertEquals("a%23b", ValueSerializer.serialize("a#b", "path", "string", null));
+    }
+
+    @Test
+    @DisplayName("semicolon preserved (sub-delimiter)")
+    void semicolonPreserved() {
+      assertEquals("a;b", ValueSerializer.serialize("a;b", "path", "string", null));
+    }
+
+    @Test
+    @DisplayName("comma preserved (sub-delimiter)")
+    void commaPreserved() {
+      assertEquals("a,b", ValueSerializer.serialize("a,b", "path", "string", null));
+    }
+
+    @Test
+    @DisplayName("colon preserved (sub-delimiter)")
+    void colonPreserved() {
+      assertEquals("a:b", ValueSerializer.serialize("a:b", "path", "string", null));
+    }
+
+    @Test
+    @DisplayName("equals preserved (sub-delimiter)")
+    void equalsPreserved() {
+      assertEquals("x=y", ValueSerializer.serialize("x=y", "path", "string", null));
+    }
+
+    @Test
+    @DisplayName("unicode encoded as UTF-8 percent")
+    void unicodeEncoded() {
+      assertEquals("%E6%97%A5%E6%9C%AC", ValueSerializer.serialize("日本", "path", "string", null));
+    }
+
+    @Test
+    @DisplayName("plus preserved (sub-delimiter)")
+    void plusPreserved() {
+      assertEquals("a+b", ValueSerializer.serialize("a+b", "path", "string", null));
+    }
+
+    @Test
+    @DisplayName("already-percent-encoded is re-encoded (literal %)")
+    void alreadyEncodedReencoded() {
+      // Inputs are treated as raw literals; the '%' is itself encoded.
+      assertEquals("a%2520b", ValueSerializer.serialize("a%20b", "path", "string", null));
+    }
+
+    @Test
+    @DisplayName("matrix style with reserved char in value")
+    void matrixStyleEncodesValue() {
+      assertEquals(
+          ";id=a%20b",
+          ValueSerializer.serializeStyled("id", "a b", "path", "string", null, "matrix", false));
+    }
+
+    @Test
+    @DisplayName("simple style array with reserved chars")
+    void simpleStyleArrayEncodesEachItem() {
+      assertEquals(
+          "a%20b,c%3Fd",
+          ValueSerializer.serializeStyled(
+              "ids", Arrays.asList("a b", "c?d"), "path", "array", null, "simple", false));
+    }
+
+    @Test
+    @DisplayName("empty string returns empty string")
+    void emptyStringReturnsEmpty() {
+      assertEquals("", ValueSerializer.serialize("", "path", "string", null));
+    }
+
+    @Test
+    @DisplayName("null returns empty string in path location")
+    void nullReturnsEmptyInPath() {
+      assertEquals("", ValueSerializer.serialize(null, "path", "string", null));
+    }
+  }
+
   @Nested
   @DisplayName("query location")
   class QueryTests {
@@ -498,10 +609,11 @@ class ValueSerializerTest {
     }
 
     @Test
-    @DisplayName("scalar does not URL-encode path value")
-    void scalarDoesNotUrlEncodePath() {
+    @DisplayName("scalar URL-encodes path value")
+    void scalarUrlEncodesPath() {
+      // Path-location values are percent-encoded so reserved chars don't break the URL.
       assertEquals(
-          "hello world",
+          "hello%20world",
           ValueSerializer.serializeStyled(
               "id", "hello world", "path", "string", null, "simple", false));
     }

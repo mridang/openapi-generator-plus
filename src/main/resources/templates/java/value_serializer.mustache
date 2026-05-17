@@ -91,10 +91,44 @@ public final class ValueSerializer {
         String str = ObjectSerializer.stringify(value);
 
         if ("path".equals(location)) {
-            return URLEncoder.encode(str, StandardCharsets.UTF_8).replace("+", "%20");
+            return encodePathSegment(str);
         }
 
         return str;
+    }
+
+    /**
+     * Percent-encodes a value for use as a URL path segment.
+     *
+     * <p>Encodes characters that are not allowed in a URI path segment per RFC 3986,
+     * but preserves the sub-delimiters (including {@code ;}, {@code =}, {@code ,}, {@code :}, etc.)
+     * that OAS 3.0 matrix/label/simple styles use as structural separators in the styled value.
+     *
+     * <p>The preserved set matches the canonical encoding used by Node, C#, Swift, etc.:
+     * {@code ; = , : @ ! $ & ' ( ) * +}.
+     *
+     * @param value the raw value to encode
+     * @return the percent-encoded path segment
+     */
+    public static String encodePathSegment(String value) {
+        if (value == null || value.isEmpty()) {
+            return value;
+        }
+        return URLEncoder.encode(value, StandardCharsets.UTF_8)
+                .replace("+", "%20")
+                .replace("%3B", ";")
+                .replace("%3D", "=")
+                .replace("%2C", ",")
+                .replace("%3A", ":")
+                .replace("%40", "@")
+                .replace("%21", "!")
+                .replace("%24", "$")
+                .replace("%26", "&")
+                .replace("%27", "'")
+                .replace("%28", "(")
+                .replace("%29", ")")
+                .replace("%2A", "*")
+                .replace("%2B", "+");
     }
 
     /**
@@ -158,6 +192,14 @@ public final class ValueSerializer {
         }
 
         List<String> items = toStringList(value);
+
+        // For path styles, percent-encode each individual item BEFORE applying
+        // the structural separators (";", "=", ".", ",") that the style defines.
+        // This ensures reserved characters inside the value are escaped while
+        // the style's structural punctuation remains literal.
+        if ("path".equals(location)) {
+            items = items.stream().map(ValueSerializer::encodePathSegment).collect(Collectors.toList());
+        }
 
         return switch (style) {
             case "matrix" -> {
