@@ -216,8 +216,8 @@ defmodule PetstoreClient.ObjectSerializer do
     Enum.map(data, fn item -> convert_to_type(item, sub_type) end)
   end
 
-  def convert_to_type(data, "MapSet<" <> rest) when is_list(data) do
-    sub_type = String.trim_trailing(rest, ">")
+  def convert_to_type(data, "MapSet.t(" <> rest) when is_list(data) do
+    sub_type = String.replace_suffix(rest, ")", "")
     data |> Enum.map(fn item -> convert_to_type(item, sub_type) end) |> MapSet.new()
   end
 

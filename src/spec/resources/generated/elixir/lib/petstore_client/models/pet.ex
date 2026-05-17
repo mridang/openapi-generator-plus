@@ -12,7 +12,7 @@ defmodule PetstoreClient.Models.Pet do
           id: integer() | nil,
           name: String.t() | nil,
           category: Category | nil,
-          photo_urls: [String.t()] | nil,
+          photo_urls: MapSet.t(String.t()) | nil,
           tags: [Tag] | nil,
           status: String.t() | nil
         }
@@ -54,7 +54,7 @@ defmodule PetstoreClient.Models.Pet do
       id: "integer()",
       name: "String.t()",
       category: "Category",
-      photo_urls: "[String.t()]",
+      photo_urls: "MapSet.t(String.t())",
       tags: "[Tag]",
       status: "String.t()"
     }

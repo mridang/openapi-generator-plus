@@ -189,6 +189,25 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         return "[%2$s]";
     }
 
+    /**
+     * Elixir uses {@code MapSet.t(Type)} for unique-item collections
+     * (the idiomatic Elixir set type).
+     */
+    @Override
+    protected String getUniqueItemsSetType() {
+        return "MapSet.t($1)";
+    }
+
+    /**
+     * Matches Elixir's bracket-wrapped type syntax {@code [Type]},
+     * capturing the inner type for replacement by
+     * {@link #getUniqueItemsSetType()}.
+     */
+    @Override
+    protected String getArrayContainerPattern() {
+        return "^\\[(.+)\\]$";
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String getMapTypeTemplate() {
