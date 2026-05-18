@@ -8,8 +8,9 @@
 package petstore_test
 
 import (
-	petstore "petstore/pkg"
 	"testing"
+
+	"petstore/pkg"
 )
 
 func TestTransportOptions_VerifySslDefaultsToTrue(t *testing.T) {
@@ -241,5 +242,60 @@ func TestTransportOptions_BuilderProducesIndependentInstances(t *testing.T) {
 	}
 	if first == second {
 		t.Error("expected builder to produce independent instances")
+	}
+}
+
+// TimeoutConfigTests
+
+func TestTransportOptions_TimeoutDefaultsToNil(t *testing.T) {
+	// Default TransportOptions has no timeout set; nil means no timeout applied.
+	opts := petstore.NewTransportOptionsBuilder().Build()
+	if opts.Timeout() != nil {
+		t.Error("expected nil timeout by default")
+	}
+}
+
+func TestTransportOptions_SettingTimeoutIsAccessible(t *testing.T) {
+	opts := petstore.NewTransportOptionsBuilder().Timeout(5000).Build()
+	if opts.Timeout() == nil || *opts.Timeout() != 5000 {
+		t.Error("expected timeout to be 5000")
+	}
+}
+
+func TestTransportOptions_TimeoutFieldIsNamedTimeout(t *testing.T) {
+	// Verify via the Timeout() accessor that the field is named 'Timeout'
+	// (not e.g. 'ConnectionTimeout' or 'OpenTimeout').
+	opts := petstore.NewTransportOptionsBuilder().Timeout(1000).Build()
+	if opts.Timeout() == nil {
+		t.Fatal("expected non-nil timeout")
+	}
+	if *opts.Timeout() != 1000 {
+		t.Errorf("expected timeout 1000, got %d", *opts.Timeout())
+	}
+}
+
+// ProxyConfigTests
+
+func TestTransportOptions_ProxyUrlIsPreservedOnReadBack(t *testing.T) {
+	opts := petstore.NewTransportOptionsBuilder().
+		Proxy("http://proxy.example.com:8080").
+		Build()
+
+	if opts.Proxy() == nil {
+		t.Fatal("expected non-nil proxy")
+	}
+	if opts.Proxy().String() != "http://proxy.example.com:8080" {
+		t.Errorf("expected proxy 'http://proxy.example.com:8080', got %q", opts.Proxy().String())
+	}
+}
+
+func TestTransportOptions_SettingProxyIsSupportedOnAllPlatforms(t *testing.T) {
+	// Proxy configuration must not panic on any platform.
+	opts := petstore.NewTransportOptionsBuilder().
+		Proxy("http://proxy.example.com:8080").
+		Build()
+
+	if opts.Proxy() == nil {
+		t.Error("expected non-nil proxy")
 	}
 }

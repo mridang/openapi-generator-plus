@@ -5,7 +5,7 @@
 defmodule {{moduleName}}.Api.{{serverTypeName}} do
   @moduledoc "Server type for the {{operationId}} operation."
 
-  @callback url() :: String.t()
+  @callback url(term()) :: String.t()
 end
 
 {{#variants}}
@@ -39,7 +39,7 @@ defmodule {{moduleName}}.Api.{{serverTypeName}}.{{variantName}} do
 
   {{/hasVariables}}
   @impl true
-  def url({{#hasVariables}}%__MODULE__{} = server{{/hasVariables}}) do
+  def url({{#hasVariables}}%__MODULE__{} = server{{/hasVariables}}{{^hasVariables}}_server{{/hasVariables}}) do
   {{#hasVariables}}
     "{{url}}"
   {{#serverVariables}}

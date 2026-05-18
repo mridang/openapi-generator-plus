@@ -273,14 +273,32 @@ class ObjectSerializer
         }
 
         if (is_string($data)) {
-            /** @var object $result */
-            $result = self::getSerializer()->deserialize($data, $class, 'json');
-            return $result;
+            try {
+                $decoded = json_decode($data, true, 512, JSON_THROW_ON_ERROR);
+                if (!is_array($decoded)) {
+                    throw new \InvalidArgumentException(
+                        sprintf('Expected a JSON object, got %s', get_debug_type($decoded))
+                    );
+                }
+                /** @var object $result */
+                $result = self::getSerializer()->denormalize($decoded, $class);
+                return $result;
+            } catch (\JsonException | \InvalidArgumentException $e) {
+                throw new ApiException($e->getMessage());
+            } catch (\Throwable $e) {
+                throw new ApiException($e->getMessage());
+            }
         }
 
-        /** @var object $result */
-        $result = self::getSerializer()->denormalize($data, $class);
-        return $result;
+        try {
+            /** @var object $result */
+            $result = self::getSerializer()->denormalize($data, $class);
+            return $result;
+        } catch (\JsonException | \InvalidArgumentException $e) {
+            throw new ApiException($e->getMessage());
+        } catch (\Throwable $e) {
+            throw new ApiException($e->getMessage());
+        }
     }
 
     /**

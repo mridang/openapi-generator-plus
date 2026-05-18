@@ -202,6 +202,10 @@ public abstract class BaseApi {
             }
         }
 
+        if (requestBody == null) {
+            headers.remove("Content-Type");
+        }
+
         ApiResponse response = apiClient.sendRequest(method, url, headers, requestBody);
 
         if (response.statusCode() < 200 || response.statusCode() >= 300) {

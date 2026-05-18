@@ -86,6 +86,9 @@ class DefaultApiClient internal constructor(
                 httpClient.request(url) {
                     this.method = HttpMethod(method)
                     for ((key, value) in mergedHeaders) {
+                        if (body == null && key.equals("Content-Type", ignoreCase = true)) {
+                            continue
+                        }
                         header(key, value)
                     }
                     buildRequestBody(this, method, body, mergedHeaders)

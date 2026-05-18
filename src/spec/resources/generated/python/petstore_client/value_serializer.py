@@ -57,9 +57,27 @@ class ValueSerializer:
         str_val = ObjectSerializer.stringify(value)
 
         if location == 'path':
-            return quote(str_val, safe='')
+            return cls.encode_path_segment(str_val)
 
         return str_val
+
+    @staticmethod
+    def encode_path_segment(value: str) -> str:
+        """Percent-encodes a value for use as a URL path segment.
+
+        Encodes characters that are not allowed in a URI path segment per RFC 3986,
+        but preserves the sub-delimiters that OAS 3.0 matrix/label/simple styles
+        use as structural separators: ; = , : @ ! $ & ' ( ) * +
+
+        Args:
+            value: The raw string to encode.
+
+        Returns:
+            The percent-encoded path segment string.
+        """
+        if not value:
+            return value
+        return quote(value, safe=";=,:@!$&'()*+")
 
     @classmethod
     def serialize_styled(
@@ -96,39 +114,51 @@ class ValueSerializer:
                 return None
             return ''
 
-        if style == 'matrix':
+        # For path styles, percent-encode each individual item BEFORE applying
+        # the structural separators (";", "=", ".", ",") that the style defines.
+        # This ensures reserved characters inside the value are escaped while
+        # the style's structural punctuation remains literal.
+        if location == 'path':
+            if isinstance(value, list):
+                items = [cls.encode_path_segment(ObjectSerializer.stringify(v)) for v in value]
+            else:
+                encoded_scalar = cls.encode_path_segment(ObjectSerializer.stringify(value))
+        else:
             if isinstance(value, list):
                 items = [ObjectSerializer.stringify(v) for v in value]
+
+        if style == 'matrix':
+            if isinstance(value, list):
                 if explode:
                     return ''.join(f';{param_name}={item}' for item in items)
                 else:
                     return f';{param_name}={",".join(items)}'
+            if location == 'path':
+                return f';{param_name}={encoded_scalar}'
             return f';{param_name}={ObjectSerializer.stringify(value)}'
 
         if style == 'label':
             if isinstance(value, list):
-                items = [ObjectSerializer.stringify(v) for v in value]
                 if explode:
                     return '.' + '.'.join(items)
                 else:
                     return '.' + ','.join(items)
+            if location == 'path':
+                return f'.{encoded_scalar}'
             return f'.{ObjectSerializer.stringify(value)}'
 
         if style == 'spaceDelimited':
             if isinstance(value, list):
-                items = [ObjectSerializer.stringify(v) for v in value]
                 return ' '.join(items)
             return ObjectSerializer.stringify(value)
 
         if style == 'pipeDelimited':
             if isinstance(value, list):
-                items = [ObjectSerializer.stringify(v) for v in value]
                 return '|'.join(items)
             return ObjectSerializer.stringify(value)
 
         if style == 'form':
             if isinstance(value, list):
-                items = [ObjectSerializer.stringify(v) for v in value]
                 if explode:
                     return items
                 return ','.join(items)
@@ -136,8 +166,9 @@ class ValueSerializer:
 
         if style == 'simple':
             if isinstance(value, list):
-                items = [ObjectSerializer.stringify(v) for v in value]
                 return ','.join(items)
+            if location == 'path':
+                return encoded_scalar
             return ObjectSerializer.stringify(value)
 
         return cls.serialize(value, location, schema_type, collection_format)

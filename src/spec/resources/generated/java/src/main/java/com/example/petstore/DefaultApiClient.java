@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
@@ -206,6 +207,9 @@ public final class DefaultApiClient implements ApiClient {
     mergedHeaders.putIfAbsent("Accept-Encoding", getSupportedEncodings());
 
     for (Map.Entry<String, String> header : mergedHeaders.entrySet()) {
+      if (body == null && "content-type".equalsIgnoreCase(header.getKey())) {
+        continue;
+      }
       builder.header(header.getKey(), header.getValue());
     }
 
@@ -220,19 +224,28 @@ public final class DefaultApiClient implements ApiClient {
        */
       if (transportOptions.isFollowRedirects() && transportOptions.getMaxRedirects() != null) {
         int redirectsRemaining = transportOptions.getMaxRedirects();
+        URI originalUri = URI.create(url);
+        Set<String> sensitiveHeaders = Set.of("authorization", "cookie", "proxy-authorization");
         while (isRedirect(response.statusCode()) && redirectsRemaining > 0) {
           String location = response.headers().firstValue("location").orElse(null);
           if (location == null) {
             break;
           }
-          URI redirectUri = URI.create(url).resolve(location);
+          URI redirectUri = originalUri.resolve(location);
+          boolean sameOrigin =
+              redirectUri.getHost() != null
+                  && redirectUri.getHost().equalsIgnoreCase(originalUri.getHost())
+                  && redirectUri.getPort() == originalUri.getPort();
           HttpRequest.Builder redirectBuilder =
               HttpRequest.newBuilder(redirectUri).method(method, bodyPublisher);
           if (transportOptions.getTimeout() != null) {
             redirectBuilder.timeout(Duration.ofMillis(transportOptions.getTimeout()));
           }
-          for (Map.Entry<String, String> header : mergedHeaders.entrySet()) {
-            redirectBuilder.header(header.getKey(), header.getValue());
+          for (Map.Entry<String, String> entry : mergedHeaders.entrySet()) {
+            if (!sameOrigin && sensitiveHeaders.contains(entry.getKey().toLowerCase(Locale.ROOT))) {
+              continue;
+            }
+            redirectBuilder.header(entry.getKey(), entry.getValue());
           }
           response =
               httpClient.send(redirectBuilder.build(), HttpResponse.BodyHandlers.ofByteArray());

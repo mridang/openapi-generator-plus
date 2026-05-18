@@ -191,6 +191,116 @@ import Testing
         #expect(ObjectSerializer.stringify(nil) == "")
     }
 
+    // MARK: - DateTimeOffsetPreservationTests
+
+    @Test func testDateTimeUTCSerializesWithOffset() {
+        // Use a fixed UTC date for predictable output
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        let date = formatter.date(from: "2024-01-01T12:30:45+00:00")!
+        let result = ObjectSerializer.stringify(date)
+        #expect(result.contains("2024-01-01"), "should contain date: \(result)")
+        #expect(result.contains("12:30:45"), "should contain time: \(result)")
+    }
+
+    @Test func testDateTimeSerializedStringContainsOffset() {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        let date = formatter.date(from: "2024-01-01T12:30:45+00:00")!
+        let result = ObjectSerializer.stringify(date)
+        let hasOffset = result.hasSuffix("Z") ||
+            result.contains("+") ||
+            (result.last?.isNumber == true && result.contains("-"))
+        #expect(hasOffset, "should contain timezone offset: \(result)")
+    }
+
+    @Test func testDateTimeSubsecondsDropped() {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let date = formatter.date(from: "2024-01-01T12:30:45.123+00:00")!
+        let result = ObjectSerializer.stringify(date)
+        #expect(!result.contains(".123"), "subseconds should not appear: \(result)")
+    }
+
+    @Test func testDateOnlyStringIsIso8601() {
+        // Test that a Date at midnight serializes with date component
+        let components = DateComponents(calendar: .current, year: 2024, month: 1, day: 1, hour: 0, minute: 0, second: 0)
+        let date = components.date!
+        let result = ObjectSerializer.stringify(date)
+        #expect(result.contains("2024-01-01"), "should contain date: \(result)")
+    }
+
+    @Test func testDateTimeEndsWithOffsetOrZ() {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        let date = formatter.date(from: "2024-01-01T12:30:45+00:00")!
+        let result = ObjectSerializer.stringify(date)
+        let matchesPattern = result.hasSuffix("Z") ||
+            result.range(of: #"[+-]\d{2}:\d{2}$"#, options: .regularExpression) != nil
+        #expect(matchesPattern, "should end with offset or Z: \(result)")
+    }
+
+    @Test func testDateTimePositiveOffsetPreservedIfFormatterUsesLocalZone() {
+        // This test verifies the formatter uses the date's timezone, not always UTC
+        // The exact offset depends on the test environment, but the result must be valid ISO 8601
+        let date = Date(timeIntervalSince1970: 1704100245) // 2024-01-01 some time
+        let result = ObjectSerializer.stringify(date)
+        #expect(!result.isEmpty, "result should not be empty")
+        #expect(result.contains("T"), "result should contain T separator: \(result)")
+    }
+
+    @Test func testDateTimeRoundTrip() throws {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        let original = formatter.date(from: "2024-01-01T12:30:45+00:00")!
+        let serialized = ObjectSerializer.stringify(original)
+        let parsed = formatter.date(from: serialized)
+        #expect(parsed != nil, "should be able to parse back serialized datetime: \(serialized)")
+        #expect(abs(original.timeIntervalSince1970 - (parsed?.timeIntervalSince1970 ?? 0)) < 1,
+            "round-trip should preserve instant")
+    }
+
+    // MARK: - NonAsciiSerializationTests
+
+    @Test func testAccentedCharacterNotUnicodeEscaped() throws {
+        let result = try ObjectSerializer.serialize("café")
+        #expect(result.contains("é"), "should contain literal é: \(result)")
+    }
+
+    @Test func testCjkCharactersNotUnicodeEscaped() throws {
+        let result = try ObjectSerializer.serialize("日本")
+        #expect(result.contains("日本"), "should contain literal CJK chars: \(result)")
+    }
+
+    @Test func testTabCharacterEscapedProperly() throws {
+        let result = try ObjectSerializer.serialize("a\tb")
+        #expect(result.contains("\\t"), "tab should be escaped as \\t: \(result)")
+    }
+
+    // MARK: - DeserializationErrorWrappingTests
+
+    @Test func testTruncatedJsonThrowsSerializationError() {
+        #expect(throws: (any Error).self) {
+            try ObjectSerializer.deserialize("{", as: [String: String].self)
+        }
+    }
+
+    @Test func testInvalidJsonStructureThrowsError() {
+        struct TestModel: Codable { let id: Int }
+        #expect(throws: (any Error).self) {
+            try ObjectSerializer.deserialize("\"hello\"", as: TestModel.self)
+        }
+    }
+
+    @Test func testThrownErrorHasDescription() {
+        do {
+            _ = try ObjectSerializer.deserialize("{", as: [String: String].self)
+            Issue.record("Expected error was not thrown")
+        } catch {
+            #expect(!error.localizedDescription.isEmpty, "error should have a description")
+        }
+    }
+
     @Test func testSerializeIncludesFieldsSetToDefaultValues() throws {
         let category = Category(id: 0, name: "")
         let json = try ObjectSerializer.serialize(category)

@@ -150,4 +150,39 @@ describe('TransportOptions', () => {
     expect(first.verifySsl).toBe(second.verifySsl);
     expect(first).not.toBe(second);
   });
+
+  describe('TimeoutConfigTests', () => {
+    test('timeout defaults to null', () => {
+      // Default TransportOptions has no timeout set; null means no timeout applied.
+      const opts = TransportOptions.builder().build();
+      expect(opts.timeout).toBeNull();
+    });
+
+    test('setting timeout to 5000 is accessible', () => {
+      const opts = TransportOptions.builder().timeout(5000).build();
+      expect(opts.timeout).toBe(5000);
+    });
+
+    test('timeout field is named exactly timeout', () => {
+      // Verify via the property that the field is named 'timeout'
+      // (not e.g. 'connectionTimeout' or 'timeoutIntervalForRequest').
+      const opts = TransportOptions.builder().timeout(1000).build();
+      expect(opts.timeout).not.toBeNull();
+      expect(opts.timeout).toBe(1000);
+    });
+  });
+
+  describe('ProxyConfigTests', () => {
+    test('setting proxy URL is preserved on read-back', () => {
+      const opts = TransportOptions.builder().proxy('http://proxy.example.com:8080').build();
+      expect(opts.proxy).toBe('http://proxy.example.com:8080');
+    });
+
+    test('setting proxy is supported on all platforms', () => {
+      // Proxy configuration must not throw on any Node.js platform.
+      expect(() => {
+        TransportOptions.builder().proxy('http://proxy.example.com:8080').build();
+      }).not.toThrow();
+    });
+  });
 });

@@ -234,4 +234,56 @@ class TransportOptionsTest {
             assertNotSame(first, second)
         }
     }
+
+    @Nested
+    @DisplayName("TimeoutConfigTests")
+    inner class TimeoutConfigTests {
+        @Test
+        @DisplayName("timeout defaults to null")
+        fun timeoutDefaultsToNull() {
+            // Default TransportOptions has no timeout set; null means no timeout applied.
+            val opts = TransportOptions.builder().build()
+            assertNull(opts.timeout)
+        }
+
+        @Test
+        @DisplayName("setting timeout to 5000 is accessible")
+        fun settingTimeoutIsAccessible() {
+            val opts = TransportOptions.builder().timeout(5000).build()
+            assertEquals(5000, opts.timeout)
+        }
+
+        @Test
+        @DisplayName("timeout field is named exactly 'timeout'")
+        fun timeoutFieldIsNamedTimeout() {
+            // Verify via the property that the field is named 'timeout'.
+            val opts = TransportOptions.builder().timeout(1000).build()
+            assertNotNull(opts.timeout)
+            assertEquals(1000, opts.timeout)
+        }
+    }
+
+    @Nested
+    @DisplayName("ProxyConfigTests")
+    inner class ProxyConfigTests {
+        @Test
+        @DisplayName("setting proxy URL is preserved on read-back")
+        fun proxyUrlIsPreservedOnReadBack() {
+            val opts =
+                TransportOptions
+                    .builder()
+                    .proxy("http://proxy.example.com:8080")
+                    .build()
+            assertEquals("http://proxy.example.com:8080", opts.proxy)
+        }
+
+        @Test
+        @DisplayName("setting proxy is supported on all platforms")
+        fun settingProxyIsSupportedOnAllPlatforms() {
+            // Proxy configuration must not throw on any JVM platform.
+            assertDoesNotThrow {
+                TransportOptions.builder().proxy("http://proxy.example.com:8080").build()
+            }
+        }
+    }
 }

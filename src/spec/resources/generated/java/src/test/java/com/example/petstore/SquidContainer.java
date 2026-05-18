@@ -28,8 +28,17 @@ public final class SquidContainer {
                 MountableFile.forHostPath(Path.of("/app/src/test/resources/proxy/squid.conf")),
                 "/etc/squid/squid.conf")
             .withNetwork(WireMockContainer.PROXY_NETWORK)
-            .withStartupTimeout(Duration.ofMinutes(2));
+            .withStartupTimeout(Duration.ofMinutes(2))
+            .withLabel("com.mridang.openapi.testcontainer", "true");
     INSTANCE.start();
+    Runtime.getRuntime()
+        .addShutdownHook(
+            new Thread(
+                () -> {
+                  if (INSTANCE != null && INSTANCE.isRunning()) {
+                    INSTANCE.stop();
+                  }
+                }));
     try {
       Thread.sleep(3000);
     } catch (InterruptedException e) {

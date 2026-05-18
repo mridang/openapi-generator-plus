@@ -5,6 +5,92 @@
 require 'test_helper'
 
 describe PetstoreClient::ObjectSerializer do
+  describe 'DateTimeOffsetPreservation' do
+    it 'UTC datetime serializes containing date-time and offset' do
+      t = Time.new(2024, 1, 1, 12, 30, 45, '+00:00')
+      result = PetstoreClient::ObjectSerializer.stringify(t)
+      _(result).must_include('2024-01-01')
+      _(result).must_include('12:30:45')
+      assert(result.include?('+00:00') || result.include?('Z') || result.end_with?('Z'),
+        "should contain UTC offset: #{result}")
+    end
+
+    it 'positive offset is preserved in serialized string' do
+      t = Time.new(2024, 1, 1, 12, 30, 45, '+05:30')
+      result = PetstoreClient::ObjectSerializer.stringify(t)
+      _(result).must_include('+05:30')
+    end
+
+    it 'negative offset is preserved in serialized string' do
+      t = Time.new(2024, 1, 1, 12, 30, 45, '-08:00')
+      result = PetstoreClient::ObjectSerializer.stringify(t)
+      _(result).must_include('-08:00')
+    end
+
+    it 'subseconds are dropped from serialized datetime' do
+      t = Time.new(2024, 1, 1, 12, 30, 45, '+00:00')
+      result = PetstoreClient::ObjectSerializer.stringify(t)
+      _(result).wont_include('.123')
+    end
+
+    it 'date-only serializes as ISO 8601 date without time component' do
+      d = Date.new(2024, 1, 1)
+      result = PetstoreClient::ObjectSerializer.stringify(d)
+      _(result).must_equal('2024-01-01')
+    end
+
+    it 'serialized datetime string contains an offset' do
+      t = Time.new(2024, 1, 1, 12, 30, 45, '+00:00')
+      result = PetstoreClient::ObjectSerializer.stringify(t)
+      assert(result.match?(/[+-]\d{2}:\d{2}$|Z$/), "should end with offset: #{result}")
+    end
+
+    it 'round-trip datetime yields equivalent instant' do
+      original = Time.new(2024, 1, 1, 12, 30, 45, '+05:30')
+      serialized = PetstoreClient::ObjectSerializer.stringify(original)
+      parsed = Time.parse(serialized)
+      _(original.to_i).must_equal(parsed.to_i)
+    end
+  end
+
+  describe 'NonAsciiSerialization' do
+    it 'accented character serializes without unicode escape' do
+      result = PetstoreClient::ObjectSerializer.serialize('café')
+      _(result).must_include('é')
+    end
+
+    it 'CJK characters serialize without unicode escape' do
+      result = PetstoreClient::ObjectSerializer.serialize('日本')
+      _(result).must_include('日本')
+    end
+
+    it 'tab character is properly escaped in JSON' do
+      result = PetstoreClient::ObjectSerializer.serialize("a\tb")
+      _(result).must_include('\t')
+    end
+  end
+
+  describe 'DeserializationErrorWrapping' do
+    it 'truncated JSON raises SerializationError not a raw parse error' do
+      _(proc {
+        PetstoreClient::ObjectSerializer.deserialize('{', 'Category')
+      }).must_raise(PetstoreClient::SerializationError)
+    end
+
+    it 'incomplete JSON object raises SerializationError' do
+      _(proc {
+        PetstoreClient::ObjectSerializer.deserialize('{"name":', 'Category')
+      }).must_raise(PetstoreClient::SerializationError)
+    end
+
+    it 'thrown SerializationError has a cause referencing original error' do
+      PetstoreClient::ObjectSerializer.deserialize('{', 'Category')
+      flunk 'Expected SerializationError to be raised'
+    rescue PetstoreClient::SerializationError => e
+      _(e.cause).wont_be_nil
+    end
+  end
+
   describe '.stringify' do
     it 'returns empty string for nil' do
       _(PetstoreClient::ObjectSerializer.stringify(nil)).must_equal('')

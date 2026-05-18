@@ -134,3 +134,32 @@ class TestTransportOptions:
 
         assert first.verify_ssl == second.verify_ssl
         assert first is not second
+
+    # TimeoutConfigTests
+
+    def test_timeout_defaults_to_none_in_timeout_group(self) -> None:
+        # Default TransportOptions has no timeout set; None means no timeout applied.
+        opts = TransportOptions.builder().build()
+        assert opts.timeout is None
+
+    def test_setting_timeout_is_accessible(self) -> None:
+        opts = TransportOptions.builder().timeout(5000).build()
+        assert opts.timeout == 5000
+
+    def test_timeout_field_is_named_timeout(self) -> None:
+        # Verify via the attribute that the field is named 'timeout'
+        # (not e.g. 'connection_timeout' or 'open_timeout').
+        opts = TransportOptions.builder().timeout(1000).build()
+        assert opts.timeout is not None
+        assert opts.timeout == 1000
+
+    # ProxyConfigTests
+
+    def test_proxy_url_is_preserved_on_read_back(self) -> None:
+        opts = TransportOptions.builder().proxy('http://proxy.example.com:8080').build()
+        assert opts.proxy == 'http://proxy.example.com:8080'
+
+    def test_setting_proxy_is_supported_on_all_platforms(self) -> None:
+        # Proxy configuration must not raise on any platform.
+        opts = TransportOptions.builder().proxy('http://proxy.example.com:8080').build()
+        assert opts.proxy == 'http://proxy.example.com:8080'

@@ -19,7 +19,8 @@ type PhotoMetadataLocation struct {
 
 // NewPhotoMetadataLocation creates a new PhotoMetadataLocation instance.
 func NewPhotoMetadataLocation() *PhotoMetadataLocation {
-	return &PhotoMetadataLocation{}
+	return &PhotoMetadataLocation{
+	}
 }
 
 // MarshalJSON implements the json.Marshaler interface.

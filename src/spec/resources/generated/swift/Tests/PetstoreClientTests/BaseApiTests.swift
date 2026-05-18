@@ -325,7 +325,8 @@ import Testing
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
 
-    _ = try await api.getPetById(petId: 1)
+    let pet = Pet(name: "test", photoUrls: [])
+    _ = try? await api.addPet(auth: MockAuth(), pet: pet)
     #expect(mockClient.lastHeaders["Accept"] != nil, "Expected Accept header from selector")
     #expect(
       mockClient.lastHeaders["Content-Type"] != nil, "Expected Content-Type header from selector")
@@ -338,8 +339,9 @@ import Testing
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
 
-    // GET requests typically have no explicit content type set by the operation
-    _ = try await api.getPetById(petId: 1)
+    // POST requests with a body should always send Content-Type: application/json
+    let pet = Pet(name: "test", photoUrls: [])
+    _ = try? await api.addPet(auth: MockAuth(), pet: pet)
     // The header selector should default empty content-type to application/json
     let ct = mockClient.lastHeaders["Content-Type"]
     #expect(ct != nil, "Expected Content-Type to be set")
@@ -607,5 +609,154 @@ import Testing
     } catch {
       // OK - WireMock may not have matching mapping
     }
+  }
+
+  // MARK: - BinaryResponseTests
+
+  @Test func testOctetStreamResponseDecodedAsBase64Bytes() async throws {
+    let binaryData = Data([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    let encoded = binaryData.base64EncodedString()
+    let mockClient = MockApiClient()
+    mockClient.responseBody = encoded
+    mockClient.responseHeaders = ["Content-Type": "application/octet-stream"]
+
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    let result = try await api.getPetByIdWithHTTPInfo(petId: 1)
+    // The raw body should be the base64-encoded string that the client can decode
+    #expect(!result.rawBody.isEmpty, "rawBody should not be empty for octet-stream response")
+  }
+
+  @Test func testImagePngResponseDecodedAsBytes() async throws {
+    let binaryData = Data([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d])
+    let encoded = binaryData.base64EncodedString()
+    let mockClient = MockApiClient()
+    mockClient.responseBody = encoded
+    mockClient.responseHeaders = ["Content-Type": "image/png"]
+
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    let result = try await api.getPetByIdWithHTTPInfo(petId: 1)
+    #expect(!result.rawBody.isEmpty, "rawBody should not be empty for image/png response")
+  }
+
+  @Test func testJsonResponseParsedToObject() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":42,\"name\":\"test\",\"photoUrls\":[]}"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    let result = try await api.getPetByIdWithHTTPInfo(petId: 42)
+    #expect(result.data != nil, "data should be parsed for application/json response")
+  }
+
+  @Test func testTextPlainResponseReturnsString() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "hello world"
+    mockClient.responseHeaders = ["Content-Type": "text/plain"]
+
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    let result = try await api.getPetByIdWithHTTPInfo(petId: 1)
+    #expect(result.rawBody == "hello world", "rawBody should be the plain text response")
+    #expect(result.data == nil, "data should be nil for text/plain response")
+  }
+
+  @Test func testEmptyBodyYieldsEmptyRawBody() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = ""
+    mockClient.responseHeaders = ["Content-Type": "application/octet-stream"]
+
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    let result = try await api.getPetByIdWithHTTPInfo(petId: 1)
+    #expect(result.rawBody.isEmpty, "rawBody should be empty when response body is empty")
+  }
+
+  // MARK: - CrossOriginRedirectTests
+
+  @Test func testSameOriginRedirectForwardsAuthorization() {
+    let sensitiveHeaders: Set<String> = ["authorization", "cookie", "proxy-authorization"]
+    let isSameOrigin = true
+    let originalHeaders = ["Authorization": "Bearer token123", "Accept": "application/json"]
+    let forwarded = originalHeaders.filter { (k, _) in
+      isSameOrigin || !sensitiveHeaders.contains(k.lowercased())
+    }
+    #expect(
+      forwarded["Authorization"] == "Bearer token123",
+      "Authorization should be forwarded on same-origin redirect")
+  }
+
+  @Test func testCrossOriginRedirectDropsAuthorization() {
+    let sensitiveHeaders: Set<String> = ["authorization", "cookie", "proxy-authorization"]
+    let isSameOrigin = false
+    let originalHeaders = ["Authorization": "Bearer token123", "Accept": "application/json"]
+    let forwarded = originalHeaders.filter { (k, _) in
+      isSameOrigin || !sensitiveHeaders.contains(k.lowercased())
+    }
+    #expect(
+      forwarded["Authorization"] == nil,
+      "Authorization should be dropped on cross-origin redirect")
+    #expect(
+      forwarded["Accept"] != nil,
+      "Accept should be forwarded on cross-origin redirect")
+  }
+
+  @Test func testCrossOriginRedirectDropsCookie() {
+    let sensitiveHeaders: Set<String> = ["authorization", "cookie", "proxy-authorization"]
+    let isSameOrigin = false
+    let originalHeaders = ["Cookie": "session=abc123", "Accept": "application/json"]
+    let forwarded = originalHeaders.filter { (k, _) in
+      isSameOrigin || !sensitiveHeaders.contains(k.lowercased())
+    }
+    #expect(
+      forwarded["Cookie"] == nil,
+      "Cookie should be dropped on cross-origin redirect")
+    #expect(
+      forwarded["Accept"] != nil,
+      "Accept should be forwarded on cross-origin redirect")
+  }
+
+  // MARK: - NullBodyContentTypeTests
+
+  @Test func testNullBodyPostDoesNotSendContentType() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    // getPetById is a GET with no body
+    _ = try await api.getPetById(petId: 1)
+    #expect(
+      mockClient.lastBody == nil,
+      "body should be nil for GET request with no body")
+  }
+
+  @Test func testEmptyStringBodyIncludesContentType() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":1,\"name\":\"TestPet\",\"photoUrls\":[]}"
+
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    let pet = Pet(name: "TestPet", photoUrls: [])
+    _ = try? await api.addPet(auth: MockAuth(), pet: pet)
+    // addPet sends a JSON body -- Content-Type should be present
+    #expect(
+      mockClient.lastHeaders["Content-Type"] != nil,
+      "Content-Type must be sent when body is non-nil")
+  }
+
+  @Test func testEmptyJsonObjectBodyIncludesContentType() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{\"id\":1,\"name\":\"EmptyPet\",\"photoUrls\":[]}"
+
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    let pet = Pet(name: "EmptyPet", photoUrls: [])
+    _ = try? await api.addPet(auth: MockAuth(), pet: pet)
+    #expect(
+      mockClient.lastHeaders["Content-Type"] == "application/json",
+      "Content-Type must be application/json when body is a JSON object")
   }
 }

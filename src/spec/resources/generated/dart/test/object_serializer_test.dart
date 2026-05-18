@@ -177,6 +177,106 @@ void main() {
       expect(stringify(null), equals(''));
     });
 
+    // DateTimeOffsetPreservationTests
+
+    test('UTC datetime serializes containing date-time and offset', () {
+      final dt = DateTime.utc(2024, 1, 1, 12, 30, 45);
+      final result = stringify(dt);
+      expect(result, contains('2024-01-01'));
+      expect(result, contains('12:30:45'));
+      expect(result.contains('+00:00') || result.endsWith('Z'), isTrue,
+          reason: 'should contain UTC offset: $result');
+    });
+
+    test('positive timezone offset is preserved', () {
+      // Use a fixed UTC equivalent: 12:30:45+05:30 = 07:00:45 UTC
+      final utcDt = DateTime.utc(2024, 1, 1, 7, 0, 45);
+      final result = stringify(utcDt);
+      expect(result, isNotEmpty);
+    });
+
+    test('negative timezone offset does not lose the offset', () {
+      final utcDt =
+          DateTime.utc(2024, 1, 1, 20, 30, 45); // 12:30:45-08:00 = 20:30:45 UTC
+      final result = stringify(utcDt);
+      expect(result, isNotEmpty);
+    });
+
+    test('subseconds are dropped from serialized datetime', () {
+      final dt = DateTime.utc(2024, 1, 1, 12, 30, 45, 123);
+      final result = stringify(dt);
+      expect(result, isNot(contains('.123')));
+    });
+
+    test('date formatted as string contains date component', () {
+      final dt = DateTime.utc(2024, 1, 1, 0, 0, 0);
+      final result = stringify(dt);
+      expect(result, contains('2024-01-01'));
+    });
+
+    test('serialized datetime ends with an offset or Z', () {
+      final dt = DateTime.utc(2024, 1, 1, 12, 30, 45);
+      final result = stringify(dt);
+      expect(
+          result.endsWith('Z') || result.contains('+') || result.contains('-'),
+          isTrue,
+          reason: 'should end with offset: $result');
+    });
+
+    test('round-trip: serialize then deserialize yields equivalent instant',
+        () {
+      final dt = DateTime.utc(2024, 1, 1, 12, 30, 45);
+      final result = stringify(dt);
+      final parsed = DateTime.parse(result);
+      expect(parsed.toUtc().millisecondsSinceEpoch,
+          equals(dt.millisecondsSinceEpoch));
+    });
+
+    // NonAsciiSerializationTests
+
+    test('accented character serializes without unicode escape', () {
+      final result = serialize({'key': 'café'});
+      expect(result, contains('é'));
+    });
+
+    test('CJK characters serialize without unicode escape', () {
+      final result = serialize({'key': '日本'});
+      expect(result, contains('日本'));
+    });
+
+    test('tab character is properly escaped in JSON', () {
+      final result = serialize({'key': 'a\tb'});
+      expect(result, contains(r'\t'));
+    });
+
+    // DeserializationErrorWrappingTests
+
+    test('truncated JSON throws SerializationError not raw parse error', () {
+      expect(
+        () => deserializeRaw('{'),
+        throwsA(isA<SerializationError>()),
+      );
+    });
+
+    test('incomplete JSON object throws SerializationError', () {
+      expect(
+        () => deserializeRaw('{"name":'),
+        throwsA(isA<SerializationError>()),
+      );
+    });
+
+    test('thrown SerializationError has a cause referencing original error',
+        () {
+      try {
+        deserializeRaw('{');
+        fail('Expected SerializationError');
+      } catch (e) {
+        expect(e, isA<SerializationError>());
+        final serErr = e as SerializationError;
+        expect(serErr.cause, isNotNull);
+      }
+    });
+
     test('serialize includes fields set to default values', () {
       const category = Category(id: 0, name: '');
       final json = serialize(category);

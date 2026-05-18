@@ -157,4 +157,41 @@ describe PetstoreClient::TransportOptions do
     _(first.verify_ssl).must_equal second.verify_ssl
     _(first).wont_be_same_as second
   end
+
+  # TimeoutConfigTests
+
+  it 'timeout defaults to nil' do
+    # Default TransportOptions has no timeout set; nil means no timeout applied.
+    opts = PetstoreClient::TransportOptions.builder.build
+    _(opts.timeout).must_be_nil
+  end
+
+  it 'setting timeout to 5000 is accessible' do
+    opts = PetstoreClient::TransportOptions.builder.timeout(5000).build
+    _(opts.timeout).must_equal 5000
+  end
+
+  it 'timeout field is named exactly timeout' do
+    # Verify via the reader that the field is named :timeout (not :open_timeout or :connection_timeout).
+    opts = PetstoreClient::TransportOptions.builder.timeout(1000).build
+    _(opts.timeout).wont_be_nil
+    _(opts.timeout).must_equal 1000
+  end
+
+  # ProxyConfigTests
+
+  it 'setting proxy URL is preserved on read-back' do
+    opts = PetstoreClient::TransportOptions.builder
+      .proxy('http://proxy.example.com:8080')
+      .build
+    _(opts.proxy).must_equal 'http://proxy.example.com:8080'
+  end
+
+  it 'setting proxy is supported on all platforms' do
+    # Proxy configuration must not raise on any platform.
+    opts = PetstoreClient::TransportOptions.builder
+      .proxy('http://proxy.example.com:8080')
+      .build
+    _(opts.proxy).must_equal 'http://proxy.example.com:8080'
+  end
 end

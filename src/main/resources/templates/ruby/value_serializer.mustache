@@ -3,17 +3,34 @@
 {{>api_info}}
 
 require 'cgi'
+require 'uri'
 
 module {{moduleName}}
   # Serializes parameter values for HTTP requests based on their location.
   class ValueSerializer # rubocop:disable Metrics/ClassLength
+    # Percent-encodes a string for use as a path segment, preserving
+    # sub-delimiters that OAS 3.0 path styles use as structural separators.
+    PRESERVE_ENCODED = {
+      '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+      '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+      '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+      '%2B' => '+'
+    }.freeze
+
+    def self.encode_path_segment(value)
+      return '' if value.nil? || value.empty?
+
+      encoded = URI.encode_www_form_component(value).gsub('+', '%20')
+      PRESERVE_ENCODED.reduce(encoded) { |s, (from, to)| s.gsub(from, to) }
+    end
+
     def self.serialize(value, location, _schema_type, collection_format: nil)
       return serialize_nil(location) if value.nil?
       return serialize_array(value, location, collection_format) if value.is_a?(Array)
 
       str_val = ObjectSerializer.stringify(value)
 
-      return CGI.escape(str_val).gsub('+', '%20') if location == :path
+      return encode_path_segment(str_val) if location == :path
 
       str_val
     end
@@ -45,6 +62,11 @@ module {{moduleName}}
       else
         value.map { |v| ObjectSerializer.stringify(v) }.join(',')
       end
+    end
+
+    def self.encode_item(value, location)
+      str = ObjectSerializer.stringify(value)
+      location == :path ? encode_path_segment(str) : str
     end
 
     # Serialize a deepObject-style query parameter.
@@ -88,25 +110,25 @@ module {{moduleName}}
 
         if value.is_a?(Array)
           if explode
-            value.map { |v| ";#{param_name}=#{ObjectSerializer.stringify(v)}" }.join
+            value.map do |v|
+              ";#{param_name}=#{encode_item(v, location)}"
+            end.join
           else
-            ";#{param_name}=#{value.map { |v| ObjectSerializer.stringify(v) }.join(',')}"
+            items = value.map { |v| encode_item(v, location) }
+            ";#{param_name}=#{items.join(',')}"
           end
         else
-          ";#{param_name}=#{ObjectSerializer.stringify(value)}"
+          ";#{param_name}=#{encode_item(value, location)}"
         end
       when 'label'
         return nil if value.nil? && location == :query
         return '' if value.nil?
 
         if value.is_a?(Array)
-          if explode
-            ".#{value.map { |v| ObjectSerializer.stringify(v) }.join('.')}"
-          else
-            ".#{value.map { |v| ObjectSerializer.stringify(v) }.join(',')}"
-          end
+          items = value.map { |v| encode_item(v, location) }
+          explode ? ".#{items.join('.')}" : ".#{items.join(',')}"
         else
-          ".#{ObjectSerializer.stringify(value)}"
+          ".#{encode_item(value, location)}"
         end
       when 'spaceDelimited'
         return nil if value.nil? && location == :query
@@ -142,15 +164,15 @@ module {{moduleName}}
         return '' if value.nil?
 
         if value.is_a?(Array)
-          value.map { |v| ObjectSerializer.stringify(v) }.join(',')
+          value.map { |v| encode_item(v, location) }.join(',')
         else
-          ObjectSerializer.stringify(value)
+          encode_item(value, location)
         end
       else
         serialize(value, location, schema_type, collection_format: collection_format)
       end
     end
 
-    private_class_method :serialize_nil, :serialize_array, :serialize_query_array
+    private_class_method :serialize_nil, :serialize_array, :serialize_query_array, :encode_item
   end
 end

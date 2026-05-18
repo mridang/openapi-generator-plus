@@ -128,6 +128,8 @@ export class DefaultApiClient implements ApiClient {
       const boundary = crypto.randomUUID();
       mergedHeaders['Content-Type'] = `multipart/form-data; boundary=${boundary}`;
       body = await this.buildMultipartBody(body as Record<string, unknown>, boundary);
+    } else if (body == null) {
+      delete mergedHeaders['Content-Type'];
     }
 
     const fetchOptions: Record<string, unknown> = {

@@ -32,11 +32,7 @@ public enum ValueSerializer {
 
     let strVal = ObjectSerializer.stringify(value)
     if location == "path" {
-      /* Use a strict character set matching Java's URLEncoder behavior:
-             * only unreserved characters (letters, digits, -, _, ., ~) pass through unencoded. */
-      var allowed = CharacterSet.alphanumerics
-      allowed.insert(charactersIn: "-._~")
-      return strVal.addingPercentEncoding(withAllowedCharacters: allowed) ?? strVal
+      return ValueSerializer.encodePathSegment(strVal)
     }
     return strVal
   }
@@ -84,9 +80,9 @@ public enum ValueSerializer {
     let items = toStringArray(value)
     let isArray = items != nil
 
-    /* URL-encoding is applied at a higher level (replacePathParam, query
-         * builder, etc.) — pass the raw stringified value through here. */
-    let encodeIfPath: (String) -> String = { $0 }
+    let encodeIfPath: (String) -> String = {
+      location == "path" ? ValueSerializer.encodePathSegment($0) : $0
+    }
 
     switch style {
     case "matrix":
@@ -156,6 +152,15 @@ public enum ValueSerializer {
       return serializeValue(
         value, location: location, schemaType: schemaType, collectionFormat: collectionFormat)
     }
+  }
+
+  /// Percent-encodes a string for use as a path segment, preserving
+  /// sub-delimiters that OAS 3.0 path styles use as structural separators.
+  static func encodePathSegment(_ value: String) -> String {
+    guard !value.isEmpty else { return value }
+    var allowed = CharacterSet.alphanumerics
+    allowed.insert(charactersIn: "-._~;=,:@!$&'()*+")
+    return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
   }
 
   private static func serializeNil(location: String) -> Any? {

@@ -288,6 +288,123 @@ class ObjectSerializerTest {
     }
 
     @Nested
+    @DisplayName("DateTimeOffsetPreservationTests")
+    class DateTimeOffsetPreservationTests {
+
+        @Test
+        @DisplayName("UTC datetime serializes containing date-time and offset")
+        void utcDateTimeSerializesWithOffset() {
+            OffsetDateTime dt = OffsetDateTime.parse("2024-01-01T12:30:45+00:00");
+            String result = ObjectSerializer.stringify(dt);
+            assertTrue(result.contains("2024-01-01T12:30:45"), "should contain datetime: " + result);
+            assertTrue(result.contains("+00:00") || result.endsWith("Z"), "should contain UTC offset: " + result);
+        }
+
+        @Test
+        @DisplayName("datetime with +05:30 offset preserves offset in serialized string")
+        void positivOffsetPreserved() {
+            OffsetDateTime dt = OffsetDateTime.parse("2024-01-01T12:30:45+05:30");
+            String result = ObjectSerializer.stringify(dt);
+            assertTrue(result.contains("+05:30"), "should contain +05:30 offset: " + result);
+        }
+
+        @Test
+        @DisplayName("datetime with -08:00 offset preserves offset in serialized string")
+        void negativeOffsetPreserved() {
+            OffsetDateTime dt = OffsetDateTime.parse("2024-01-01T12:30:45-08:00");
+            String result = ObjectSerializer.stringify(dt);
+            assertTrue(result.contains("-08:00"), "should contain -08:00 offset: " + result);
+        }
+
+        @Test
+        @DisplayName("subseconds are dropped from serialized datetime")
+        void subsecondsTruncated() {
+            OffsetDateTime dt = OffsetDateTime.parse("2024-01-01T12:30:45.123+00:00");
+            String result = ObjectSerializer.stringify(dt);
+            assertFalse(result.contains(".123"), "subseconds should not appear: " + result);
+        }
+
+        @Test
+        @DisplayName("date-only serializes as ISO 8601 date without time component")
+        void dateOnlySerializesAsDate() {
+            java.time.LocalDate date = java.time.LocalDate.parse("2024-01-01");
+            String result = ObjectSerializer.stringify(date);
+            assertEquals("2024-01-01", result);
+        }
+
+        @Test
+        @DisplayName("serialized datetime string ends with an offset or Z")
+        void serializedDateTimeHasOffset() {
+            OffsetDateTime dt = OffsetDateTime.of(2024, 1, 1, 12, 30, 45, 0, ZoneOffset.UTC);
+            String result = ObjectSerializer.stringify(dt);
+            assertTrue(result.endsWith("+00:00") || result.endsWith("Z") || result.matches(".*[+-]\\d{2}:\\d{2}$"),
+                "should end with offset: " + result);
+        }
+
+        @Test
+        @DisplayName("round-trip: serialize then deserialize yields equivalent datetime")
+        void roundTripDateTime() {
+            OffsetDateTime original = OffsetDateTime.parse("2024-01-01T12:30:45+05:30");
+            String serialized = ObjectSerializer.stringify(original);
+            OffsetDateTime parsed = OffsetDateTime.parse(serialized);
+            assertEquals(original.toInstant(), parsed.toInstant(), "instant should match after round-trip");
+        }
+    }
+
+    @Nested
+    @DisplayName("NonAsciiSerializationTests")
+    class NonAsciiSerializationTests {
+
+        @Test
+        @DisplayName("string with accented character serializes without unicode escape")
+        void accentedCharacterNotEscaped() throws Exception {
+            String result = serializer.serialize("café");
+            assertTrue(result.contains("é"), "should contain literal é, got: " + result);
+        }
+
+        @Test
+        @DisplayName("string with CJK characters serializes without unicode escape")
+        void cjkCharactersNotEscaped() throws Exception {
+            String result = serializer.serialize("日本");
+            assertTrue(result.contains("日本"), "should contain literal CJK chars, got: " + result);
+        }
+
+        @Test
+        @DisplayName("string with tab character serializes as JSON \\t escape")
+        void tabCharacterEscapedProperly() throws Exception {
+            String result = serializer.serialize("a\tb");
+            assertTrue(result.contains("\\t"), "tab should be escaped as \\t in JSON, got: " + result);
+        }
+    }
+
+    @Nested
+    @DisplayName("DeserializationErrorWrappingTests")
+    class DeserializationErrorWrappingTests {
+
+        @Test
+        @DisplayName("truncated JSON throws SerializationException not raw parse error")
+        void truncatedJsonThrowsSerializationException() {
+            assertThrows(ObjectSerializer.SerializationException.class, () ->
+                serializer.deserialize("{", new com.fasterxml.jackson.core.type.TypeReference<{{modelPackage}}.Category>() {}));
+        }
+
+        @Test
+        @DisplayName("type mismatch JSON throws SerializationException")
+        void typeMismatchThrowsSerializationException() {
+            assertThrows(ObjectSerializer.SerializationException.class, () ->
+                serializer.deserialize("{\"id\":\"not-a-number\",\"name\":123}", new com.fasterxml.jackson.core.type.TypeReference<{{modelPackage}}.Category>() {}));
+        }
+
+        @Test
+        @DisplayName("thrown SerializationException has cause referencing original error")
+        void serializationExceptionHasCause() {
+            ObjectSerializer.SerializationException ex = assertThrows(ObjectSerializer.SerializationException.class, () ->
+                serializer.deserialize("{", new com.fasterxml.jackson.core.type.TypeReference<{{modelPackage}}.Category>() {}));
+            assertNotNull(ex.getCause(), "exception should have a cause");
+        }
+    }
+
+    @Nested
     @DisplayName("serialize")
     class SerializeTests {
 

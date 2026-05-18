@@ -2,6 +2,95 @@
 defmodule {{moduleName}}.ObjectSerializerTest do
   use ExUnit.Case, async: true
 
+  describe "DateTimeOffsetPreservation" do
+    test "UTC datetime serializes containing date-time and UTC offset" do
+      dt = ~U[2024-01-01 12:30:45Z]
+      result = {{moduleName}}.ObjectSerializer.stringify(dt)
+      assert String.contains?(result, "2024-01-01")
+      assert String.contains?(result, "12:30:45")
+      assert String.contains?(result, "+00:00") or String.ends_with?(result, "Z")
+    end
+
+    test "positive timezone offset is preserved in serialized string" do
+      {:ok, dt, _} = DateTime.from_iso8601("2024-01-01T12:30:45+05:30")
+      result = {{moduleName}}.ObjectSerializer.stringify(dt)
+      assert String.contains?(result, "+05:30"), "should contain +05:30: #{result}"
+    end
+
+    test "negative timezone offset is preserved in serialized string" do
+      {:ok, dt, _} = DateTime.from_iso8601("2024-01-01T12:30:45-08:00")
+      result = {{moduleName}}.ObjectSerializer.stringify(dt)
+      assert String.contains?(result, "-08:00"), "should contain -08:00: #{result}"
+    end
+
+    test "subseconds are not part of seconds-precision output" do
+      {:ok, dt, _} = DateTime.from_iso8601("2024-01-01T12:30:45+00:00")
+      result = {{moduleName}}.ObjectSerializer.stringify(dt)
+      refute String.contains?(result, ".123")
+    end
+
+    test "date-only serializes as ISO 8601 date without time component" do
+      d = ~D[2024-01-01]
+      result = {{moduleName}}.ObjectSerializer.stringify(d)
+      assert result == "2024-01-01"
+    end
+
+    test "serialized datetime string contains an offset marker" do
+      dt = ~U[2024-01-01 12:30:45Z]
+      result = {{moduleName}}.ObjectSerializer.stringify(dt)
+      has_offset = String.contains?(result, "+") or String.contains?(result, "-") or String.ends_with?(result, "Z")
+      assert has_offset, "should contain timezone indicator: #{result}"
+    end
+
+    test "round-trip: serialize then deserialize yields equivalent datetime" do
+      {:ok, original, _} = DateTime.from_iso8601("2024-01-01T12:30:45+05:30")
+      serialized = {{moduleName}}.ObjectSerializer.stringify(original)
+      {:ok, parsed, _} = DateTime.from_iso8601(serialized)
+      assert DateTime.to_unix(original) == DateTime.to_unix(parsed)
+    end
+  end
+
+  describe "NonAsciiSerialization" do
+    test "accented character serializes without unicode escape" do
+      result = {{moduleName}}.ObjectSerializer.serialize("café")
+      assert String.contains?(result, "é"), "should contain literal é: #{result}"
+    end
+
+    test "CJK characters serialize without unicode escape" do
+      result = {{moduleName}}.ObjectSerializer.serialize("日本")
+      assert String.contains?(result, "日本"), "should contain literal CJK chars: #{result}"
+    end
+
+    test "tab character is properly escaped in JSON" do
+      result = {{moduleName}}.ObjectSerializer.serialize("a\tb")
+      assert String.contains?(result, "\\t"), "tab should be escaped: #{result}"
+    end
+  end
+
+  describe "DeserializationErrorWrapping" do
+    test "truncated JSON raises SerializationError" do
+      assert_raise {{moduleName}}.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.deserialize("{", "Category")
+      end
+    end
+
+    test "incomplete JSON object raises SerializationError" do
+      assert_raise {{moduleName}}.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.deserialize("{\"name\":", "Category")
+      end
+    end
+
+    test "thrown SerializationError has a message referencing the failure" do
+      try do
+        {{moduleName}}.ObjectSerializer.deserialize("{", "Category")
+        flunk("Expected SerializationError to be raised")
+      rescue
+        e in {{moduleName}}.SerializationError ->
+          assert e.message != nil and e.message != ""
+      end
+    end
+  end
+
   describe "stringify/1" do
     test "returns empty string for nil" do
       assert {{moduleName}}.ObjectSerializer.stringify(nil) == ""

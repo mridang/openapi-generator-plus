@@ -47,7 +47,7 @@ export class ValueSerializer {
     const str = ObjectSerializer.stringify(value);
 
     if (location === 'path') {
-      return encodeURIComponent(str);
+      return ValueSerializer.encodePathSegment(str);
     }
 
     return str;
@@ -91,34 +91,35 @@ export class ValueSerializer {
       );
     }
 
-    /* URL-encoding is applied at a higher level (the API call site) — pass the
-     * raw stringified value through here. */
+    const encodeIfPath = (s: string) =>
+      location === 'path' ? ValueSerializer.encodePathSegment(s) : s;
+
     switch (style) {
       case 'matrix': {
         if (Array.isArray(value)) {
-          const items = value.map((v) => ObjectSerializer.stringify(v));
+          const items = value.map((v) => encodeIfPath(ObjectSerializer.stringify(v)));
           if (explode) {
             return items.map((item) => `;${paramName}=${item}`).join('');
           }
           return `;${paramName}=${items.join(',')}`;
         }
-        return `;${paramName}=${ObjectSerializer.stringify(value)}`;
+        return `;${paramName}=${encodeIfPath(ObjectSerializer.stringify(value))}`;
       }
       case 'label': {
         if (Array.isArray(value)) {
-          const items = value.map((v) => ObjectSerializer.stringify(v));
+          const items = value.map((v) => encodeIfPath(ObjectSerializer.stringify(v)));
           if (explode) {
             return '.' + items.join('.');
           }
           return '.' + items.join(',');
         }
-        return '.' + ObjectSerializer.stringify(value);
+        return '.' + encodeIfPath(ObjectSerializer.stringify(value));
       }
       case 'simple': {
         if (Array.isArray(value)) {
-          return value.map((v) => ObjectSerializer.stringify(v)).join(',');
+          return value.map((v) => encodeIfPath(ObjectSerializer.stringify(v))).join(',');
         }
-        return ObjectSerializer.stringify(value);
+        return encodeIfPath(ObjectSerializer.stringify(value));
       }
       case 'form': {
         if (Array.isArray(value)) {

@@ -376,9 +376,9 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void SimpleStyleScalarDoesNotUrlEncodePath()
+    public void SimpleStyleScalarUrlEncodesPath()
     {
-        Assert.Equal("hello world", ValueSerializer.SerializeStyled("id", "hello world", "path", "string", null, "simple", false));
+        Assert.Equal("hello%20world", ValueSerializer.SerializeStyled("id", "hello world", "path", "string", null, "simple", false));
     }
 
     // -- serializeStyled: null style falls back to location default --
@@ -410,5 +410,105 @@ public class ValueSerializerTest
     {
         var result = ValueSerializer.SerializeDeepObject("filter", null);
         Assert.Empty(result);
+    }
+
+    // -- path encoding parity --
+    // Cross-language parity tests for path-segment percent-encoding.
+    // Every SDK must produce identical encoded strings for these inputs.
+
+    [Fact]
+    public void PathEncodingParityAsciiSafePassThrough()
+    {
+        Assert.Equal("abc123", ValueSerializer.Serialize("abc123", "path", "string"));
+    }
+
+    [Fact]
+    public void PathEncodingParitySpaceEncoded()
+    {
+        Assert.Equal("a%20b", ValueSerializer.Serialize("a b", "path", "string"));
+    }
+
+    [Fact]
+    public void PathEncodingParitySlashEncoded()
+    {
+        Assert.Equal("a%2Fb", ValueSerializer.Serialize("a/b", "path", "string"));
+    }
+
+    [Fact]
+    public void PathEncodingParityQuestionMarkEncoded()
+    {
+        Assert.Equal("a%3Fb", ValueSerializer.Serialize("a?b", "path", "string"));
+    }
+
+    [Fact]
+    public void PathEncodingParityHashEncoded()
+    {
+        Assert.Equal("a%23b", ValueSerializer.Serialize("a#b", "path", "string"));
+    }
+
+    [Fact]
+    public void PathEncodingParityCommaPreserved()
+    {
+        Assert.Equal("a,b", ValueSerializer.Serialize("a,b", "path", "string"));
+    }
+
+    [Fact]
+    public void PathEncodingParityColonPreserved()
+    {
+        Assert.Equal("a:b", ValueSerializer.Serialize("a:b", "path", "string"));
+    }
+
+    [Fact]
+    public void PathEncodingParityPlusPreserved()
+    {
+        Assert.Equal("a+b", ValueSerializer.Serialize("a+b", "path", "string"));
+    }
+
+    [Fact]
+    public void PathEncodingParityUnicodeEncoded()
+    {
+        Assert.Equal("%E6%97%A5%E6%9C%AC", ValueSerializer.Serialize("日本", "path", "string"));
+    }
+
+    [Fact]
+    public void PathEncodingParityEmptyStringPreserved()
+    {
+        Assert.Equal("", ValueSerializer.Serialize("", "path", "string"));
+    }
+
+    [Fact]
+    public void PathEncodingParityNullReturnsEmpty()
+    {
+        Assert.Equal("", ValueSerializer.Serialize(null, "path", "string"));
+    }
+
+    [Fact]
+    public void PathEncodingParitySimpleStyleEncodesValue()
+    {
+        Assert.Equal("a%20b", ValueSerializer.SerializeStyled("color", "a b", "path", "string", null, "simple", false));
+    }
+
+    [Fact]
+    public void PathEncodingParitySimpleStyleArrayEncodesEachItem()
+    {
+        Assert.Equal("a%20b,c%3Fd", ValueSerializer.SerializeStyled("color", new List<object> { "a b", "c?d" }, "path", "array", null, "simple", false));
+    }
+
+    [Fact]
+    public void PathEncodingParityMatrixStyleEncodesValue()
+    {
+        Assert.Equal(";color=a%20b", ValueSerializer.SerializeStyled("color", "a b", "path", "string", null, "matrix", false));
+    }
+
+    [Fact]
+    public void PathEncodingParityLabelStyleEncodesValue()
+    {
+        Assert.Equal(".a%20b", ValueSerializer.SerializeStyled("color", "a b", "path", "string", null, "label", false));
+    }
+
+    [Fact]
+    public void PathEncodingParityQueryLocationNotPathEncoded()
+    {
+        Assert.Equal("a b", ValueSerializer.SerializeStyled("color", "a b", "query", "string", null, "form", false));
     }
 }

@@ -346,4 +346,79 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == %{}
     end
   end
+
+  # Cross-language parity tests for path-segment percent-encoding.
+  # Every SDK must produce identical encoded strings for these inputs.
+  describe "path encoding parity" do
+    test "ASCII-safe pass-through" do
+      assert PetstoreClient.ValueSerializer.serialize("abc123", :path, "string") == "abc123"
+    end
+
+    test "space encoded as %20" do
+      assert PetstoreClient.ValueSerializer.serialize("a b", :path, "string") == "a%20b"
+    end
+
+    test "slash encoded" do
+      assert PetstoreClient.ValueSerializer.serialize("a/b", :path, "string") == "a%2Fb"
+    end
+
+    test "question mark encoded" do
+      assert PetstoreClient.ValueSerializer.serialize("a?b", :path, "string") == "a%3Fb"
+    end
+
+    test "hash encoded" do
+      assert PetstoreClient.ValueSerializer.serialize("a#b", :path, "string") == "a%23b"
+    end
+
+    test "comma preserved (sub-delimiter)" do
+      assert PetstoreClient.ValueSerializer.serialize("a,b", :path, "string") == "a,b"
+    end
+
+    test "colon preserved (sub-delimiter)" do
+      assert PetstoreClient.ValueSerializer.serialize("a:b", :path, "string") == "a:b"
+    end
+
+    test "plus preserved (sub-delimiter)" do
+      assert PetstoreClient.ValueSerializer.serialize("a+b", :path, "string") == "a+b"
+    end
+
+    test "unicode encoded as UTF-8 percent" do
+      assert PetstoreClient.ValueSerializer.serialize("日本", :path, "string") == "%E6%97%A5%E6%9C%AC"
+    end
+
+    test "empty string preserved" do
+      assert PetstoreClient.ValueSerializer.serialize("", :path, "string") == ""
+    end
+
+    test "null returns empty string in path location" do
+      assert PetstoreClient.ValueSerializer.serialize(nil, :path, "string") == ""
+    end
+
+    test "simple style encodes value" do
+      result = PetstoreClient.ValueSerializer.serialize_styled("color", "a b", :path, "string", nil, "simple", false)
+      assert result == "a%20b"
+    end
+
+    test "simple style array encodes each item" do
+      result =
+        PetstoreClient.ValueSerializer.serialize_styled("color", ["a b", "c?d"], :path, "array", nil, "simple", false)
+
+      assert result == "a%20b,c%3Fd"
+    end
+
+    test "matrix style encodes value" do
+      result = PetstoreClient.ValueSerializer.serialize_styled("color", "a b", :path, "string", nil, "matrix", false)
+      assert result == ";color=a%20b"
+    end
+
+    test "label style encodes value" do
+      result = PetstoreClient.ValueSerializer.serialize_styled("color", "a b", :path, "string", nil, "label", false)
+      assert result == ".a%20b"
+    end
+
+    test "query location is not path-encoded" do
+      result = PetstoreClient.ValueSerializer.serialize_styled("color", "a b", :query, "string", nil, "form", false)
+      assert result == "a b"
+    end
+  end
 end

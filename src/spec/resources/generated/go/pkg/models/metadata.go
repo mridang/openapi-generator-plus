@@ -21,7 +21,8 @@ type Metadata struct {
 
 // NewMetadata creates a new Metadata instance.
 func NewMetadata() *Metadata {
-	return &Metadata{}
+	return &Metadata{
+	}
 }
 
 // MarshalJSON implements the json.Marshaler interface.

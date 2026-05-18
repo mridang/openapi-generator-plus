@@ -30,7 +30,13 @@ object SquidContainer {
                     "/etc/squid/squid.conf",
                 ).withNetwork(WireMockContainer.PROXY_NETWORK)
                 .withStartupTimeout(Duration.ofSeconds(120))
+                .withLabel("com.mridang.openapi.testcontainer", "true")
         INSTANCE.start()
+        Runtime.getRuntime().addShutdownHook(
+            Thread {
+                if (INSTANCE.isRunning) INSTANCE.stop()
+            },
+        )
         Thread.sleep(3000)
     }
 

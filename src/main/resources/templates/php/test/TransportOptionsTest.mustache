@@ -178,4 +178,39 @@ class TransportOptionsTest extends TestCase
         $this->assertSame($first->verifySsl, $second->verifySsl);
         $this->assertNotSame($first, $second);
     }
+
+    // TimeoutConfigTests
+
+    public function testSettingTimeoutIsAccessible(): void
+    {
+        $opts = TransportOptions::builder()->timeout(5000)->build();
+        $this->assertSame(5000, $opts->timeout);
+    }
+
+    public function testTimeoutFieldIsNamedTimeout(): void
+    {
+        // Verify via the property that the field is named 'timeout' (not e.g. 'connectionTimeout').
+        $opts = TransportOptions::builder()->timeout(1000)->build();
+        $this->assertNotNull($opts->timeout);
+        $this->assertSame(1000, $opts->timeout);
+    }
+
+    // ProxyConfigTests
+
+    public function testProxyUrlIsPreservedOnReadBack(): void
+    {
+        $opts = TransportOptions::builder()
+            ->proxy('http://proxy.example.com:8080')
+            ->build();
+        $this->assertSame('http://proxy.example.com:8080', $opts->proxy);
+    }
+
+    public function testSettingProxyIsSupportedOnAllPlatforms(): void
+    {
+        // Proxy configuration must not throw on any platform.
+        $opts = TransportOptions::builder()
+            ->proxy('http://proxy.example.com:8080')
+            ->build();
+        $this->assertSame('http://proxy.example.com:8080', $opts->proxy);
+    }
 }

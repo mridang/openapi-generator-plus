@@ -64,7 +64,7 @@ class ObjectSerializer:
                 if hasattr(obj, 'actual_instance'):
                     return self.serialize(obj.actual_instance)
                 return obj.model_dump_json(by_alias=True, exclude_none=True)
-            return json.dumps(ObjectSerializer._sanitize_for_serialization(obj), default=str)
+            return json.dumps(ObjectSerializer._sanitize_for_serialization(obj), default=str, ensure_ascii=False)
         except Exception as e:
             raise SerializationError(f'Failed to serialize object to JSON: {e}', e)
 

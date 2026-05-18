@@ -3,6 +3,8 @@ ExUnit.start(formatters: [ExUnit.CLIFormatter, JUnitFormatter])
 Application.put_env(:junit_formatter, :report_dir, ".out/reports")
 Application.put_env(:junit_formatter, :report_file, "junit.xml")
 
+System.put_env("TESTCONTAINERS_RYUK_DISABLED", "true")
+Process.flag(:trap_exit, true)
 {:ok, _} = Testcontainers.start_link()
 
 host_app_path = System.get_env("HOST_APP_PATH", File.cwd!())

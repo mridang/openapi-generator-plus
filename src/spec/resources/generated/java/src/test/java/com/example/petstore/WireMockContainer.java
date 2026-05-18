@@ -50,8 +50,24 @@ public final class WireMockContainer {
             .withNetwork(PROXY_NETWORK)
             .withNetworkAliases("wiremock")
             .waitingFor(Wait.forLogMessage(".*port:.*", 1))
-            .withStartupTimeout(Duration.ofMinutes(2));
+            .withStartupTimeout(Duration.ofMinutes(2))
+            .withLabel("com.mridang.openapi.testcontainer", "true");
     INSTANCE.start();
+    Runtime.getRuntime()
+        .addShutdownHook(
+            new Thread(
+                () -> {
+                  if (INSTANCE != null && INSTANCE.isRunning()) {
+                    INSTANCE.stop();
+                  }
+                  if (PROXY_NETWORK != null) {
+                    try {
+                      PROXY_NETWORK.close();
+                    } catch (Exception e) {
+                      e.printStackTrace(System.err);
+                    }
+                  }
+                }));
   }
 
   private WireMockContainer() {}

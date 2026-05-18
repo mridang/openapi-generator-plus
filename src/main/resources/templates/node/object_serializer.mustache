@@ -149,19 +149,24 @@ export class ObjectSerializer {
   }
 
   /**
-   * Formats a Date as an ISO 8601 string with a UTC offset (+00:00) instead
-   * of the "Z" suffix, matching the format used by Java, Kotlin, C#, and
-   * other language generators.
+   * Formats a Date as an ISO 8601 string preserving the local timezone offset
+   * instead of converting to UTC, matching the format used by Java, Kotlin, C#,
+   * and other language generators.
    */
   private static formatDateTimeOffset(date: Date): string {
     const pad = (n: number, w = 2): string => String(n).padStart(w, '0');
-    const y = date.getUTCFullYear();
-    const mo = pad(date.getUTCMonth() + 1);
-    const d = pad(date.getUTCDate());
-    const h = pad(date.getUTCHours());
-    const mi = pad(date.getUTCMinutes());
-    const s = pad(date.getUTCSeconds());
-    return `${y}-${mo}-${d}T${h}:${mi}:${s}+00:00`;
+    const y = date.getFullYear();
+    const mo = pad(date.getMonth() + 1);
+    const d = pad(date.getDate());
+    const h = pad(date.getHours());
+    const mi = pad(date.getMinutes());
+    const s = pad(date.getSeconds());
+    const offsetMin = -date.getTimezoneOffset();
+    const sign = offsetMin >= 0 ? '+' : '-';
+    const absMin = Math.abs(offsetMin);
+    const hh = String(Math.floor(absMin / 60)).padStart(2, '0');
+    const mm = String(absMin % 60).padStart(2, '0');
+    return `${y}-${mo}-${d}T${h}:${mi}:${s}${sign}${hh}:${mm}`;
   }
 
   /**

@@ -8,6 +8,7 @@
 #pragma warning disable CS1591
 
 using System.Collections;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -222,6 +223,7 @@ public class ObjectSerializer
             PropertyNamingPolicy = null,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
             WriteIndented = false,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         };
         options.Converters.Add(new JsonStringEnumConverter());
         options.Converters.Add(new DateTimeOffsetJsonConverter());

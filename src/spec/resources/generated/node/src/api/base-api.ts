@@ -128,6 +128,9 @@ export abstract class BaseApi {
     await injectTraceContext(headers);
 
     const serializedBody = this.serializeBody(body, contentType);
+    if (serializedBody === null) {
+      delete headers['Content-Type'];
+    }
 
     const response = await this.apiClient.sendRequest(method, url, headers, serializedBody);
 

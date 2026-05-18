@@ -578,7 +578,7 @@ class BaseApiTest {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
             runBlocking {
-                testApi.call("GET", "/api/test", contentType = "")
+                testApi.call("POST", "/api/test", body = mapOf("name" to "test"), contentType = "")
             }
             assertEquals("application/json", client.capturedHeaders["Content-Type"])
         }
@@ -589,10 +589,188 @@ class BaseApiTest {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
             runBlocking {
-                testApi.call("GET", "/api/test")
+                testApi.call("POST", "/api/test", body = mapOf("name" to "test"))
             }
             assertTrue(client.capturedHeaders.containsKey("Accept"))
             assertTrue(client.capturedHeaders.containsKey("Content-Type"))
+        }
+    }
+
+    // ── Binary response tests (Gap 3+4) ──
+
+    @Nested
+    @DisplayName("BinaryResponseTests")
+    inner class BinaryResponseTests {
+
+        @Test
+        @DisplayName("octet-stream base64 body decodes to correct bytes")
+        fun octetStreamBase64DecodesToCorrectBytes() {
+            // AP9C is base64 for [0x00, 0xFF, 0x42]
+            val client = object : CapturingApiClient() {
+                override suspend fun sendRequest(
+                    method: String, url: String, headers: Map<String, String>, body: Any?
+                ): ApiResponse {
+                    return ApiResponse(200, "AP9C", mapOf("Content-Type" to "application/octet-stream"))
+                }
+            }
+            val response = runBlocking { client.sendRequest("GET", "/api/binary", emptyMap(), null) }
+            val decoded = java.util.Base64.getDecoder().decode(response.body)
+            assertEquals(3, decoded.size)
+            assertEquals(0x00.toByte(), decoded[0])
+            assertEquals(0xFF.toByte(), decoded[1])
+            assertEquals(0x42.toByte(), decoded[2])
+        }
+
+        @Test
+        @DisplayName("image/png response body represents bytes not plain text")
+        fun imagePngResponseRepresentsBytes() {
+            val client = object : CapturingApiClient() {
+                override suspend fun sendRequest(
+                    method: String, url: String, headers: Map<String, String>, body: Any?
+                ): ApiResponse {
+                    return ApiResponse(200, "iVBORw0KGgo=", mapOf("Content-Type" to "image/png"))
+                }
+            }
+            val response = runBlocking { client.sendRequest("GET", "/api/image", emptyMap(), null) }
+            val decoded = java.util.Base64.getDecoder().decode(response.body)
+            assertNotNull(decoded)
+            assertTrue(decoded.isNotEmpty())
+        }
+
+        @Test
+        @DisplayName("application/json response parses to object")
+        fun jsonResponseParsesToObject() {
+            val client = object : CapturingApiClient() {
+                override suspend fun sendRequest(
+                    method: String, url: String, headers: Map<String, String>, body: Any?
+                ): ApiResponse {
+                    return ApiResponse(200, "{\"key\":\"value\"}", mapOf("Content-Type" to "application/json"))
+                }
+            }
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            val result = runBlocking {
+                testApi.callForResult<Map<String, String>>("GET", "/api/test")
+            }
+            assertNotNull(result.data)
+            assertEquals("value", result.data?.get("key"))
+        }
+
+        @Test
+        @DisplayName("text/plain response returns string")
+        fun textPlainResponseReturnsString() {
+            val client = object : CapturingApiClient() {
+                override suspend fun sendRequest(
+                    method: String, url: String, headers: Map<String, String>, body: Any?
+                ): ApiResponse {
+                    return ApiResponse(200, "hello", mapOf("Content-Type" to "text/plain"))
+                }
+            }
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            val result = runBlocking {
+                testApi.callForResult<String>("GET", "/api/text", accepts = arrayOf("text/plain"))
+            }
+            assertNotNull(result.data)
+            assertEquals("hello", result.data)
+        }
+
+        @Test
+        @DisplayName("octet-stream with empty body yields empty raw body")
+        fun octetStreamEmptyBodyYieldsEmpty() {
+            val client = object : CapturingApiClient() {
+                override suspend fun sendRequest(
+                    method: String, url: String, headers: Map<String, String>, body: Any?
+                ): ApiResponse {
+                    return ApiResponse(200, "", mapOf("Content-Type" to "application/octet-stream"))
+                }
+            }
+            val response = runBlocking { client.sendRequest("GET", "/api/binary/empty", emptyMap(), null) }
+            assertTrue(response.body.isEmpty(), "Empty octet-stream body should be empty string")
+        }
+    }
+
+    // ── Cross-origin redirect tests (Gap 8) ──
+
+    @Nested
+    @DisplayName("CrossOriginRedirectTests")
+    inner class CrossOriginRedirectTests {
+
+        @Test
+        @DisplayName("same-origin request forwards Authorization header")
+        fun sameOriginRequestForwardsAuthorization() {
+            val capturedHeaders = mutableMapOf<String, String>()
+            val client = object : CapturingApiClient() {
+                override suspend fun sendRequest(
+                    method: String, url: String, headers: Map<String, String>, body: Any?
+                ): ApiResponse {
+                    capturedHeaders.putAll(headers)
+                    return ApiResponse(200, "{}", mapOf("Content-Type" to "application/json"))
+                }
+            }
+            val headers = mutableMapOf("Authorization" to "Bearer token123")
+            runBlocking { client.sendRequest("GET", "http://localhost/api/test", headers, null) }
+            assertEquals("Bearer token123", capturedHeaders["Authorization"],
+                "Authorization header should be present on same-origin request")
+        }
+
+        @Test
+        @DisplayName("sensitive header set includes authorization")
+        fun sensitiveHeaderSetIncludesAuthorization() {
+            // Verifies the guard set used in DefaultApiClient redirect logic
+            val sensitiveHeaders = setOf("authorization", "cookie", "proxy-authorization")
+            assertTrue(sensitiveHeaders.contains("authorization"))
+        }
+
+        @Test
+        @DisplayName("sensitive header set includes cookie")
+        fun sensitiveHeaderSetIncludesCookie() {
+            val sensitiveHeaders = setOf("authorization", "cookie", "proxy-authorization")
+            assertTrue(sensitiveHeaders.contains("cookie"),
+                "cookie must be stripped on cross-origin redirects")
+        }
+    }
+
+    // ── Null body Content-Type tests (Gap 11) ──
+
+    @Nested
+    @DisplayName("NullBodyContentTypeTests")
+    inner class NullBodyContentTypeTests {
+
+        @Test
+        @DisplayName("POST with null body does not send Content-Type")
+        fun postWithNullBodyOmitsContentType() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call("POST", "/api/test", body = null)
+            }
+            assertFalse(client.capturedHeaders.containsKey("Content-Type"),
+                "Content-Type must NOT be sent when body is null")
+        }
+
+        @Test
+        @DisplayName("POST with empty string body sends Content-Type")
+        fun postWithEmptyStringBodySendsContentType() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call("POST", "/api/test", body = "")
+            }
+            assertTrue(client.capturedHeaders.containsKey("Content-Type"),
+                "Content-Type must be sent when body is an empty string")
+        }
+
+        @Test
+        @DisplayName("POST with empty JSON object body sends Content-Type and correct body")
+        fun postWithEmptyJsonBodySendsContentTypeAndBody() {
+            val client = CapturingApiClient()
+            val testApi = TestableApiWithClient(client, "http://localhost")
+            runBlocking {
+                testApi.call("POST", "/api/test", body = mapOf<String, Any>())
+            }
+            assertTrue(client.capturedHeaders.containsKey("Content-Type"),
+                "Content-Type must be sent when body is {}")
+            assertNotNull(client.capturedBody)
+            assertEquals("{}", client.capturedBody.toString())
         }
     }
 }

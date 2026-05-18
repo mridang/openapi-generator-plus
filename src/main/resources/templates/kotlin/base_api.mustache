@@ -172,6 +172,10 @@ abstract class BaseApi {
                 null
             }
 
+        if (requestBody == null) {
+            headers.remove("Content-Type")
+        }
+
         val response = apiClient.sendRequest(method, url, headers, requestBody)
 
         if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -222,7 +226,7 @@ abstract class BaseApi {
                     !headerSelector.isJsonMime(responseContentType)
                 ) {
                     if (T::class == ByteArray::class) {
-                        response.body.toByteArray(Charsets.ISO_8859_1) as T
+                        java.util.Base64.getMimeDecoder().decode(response.body) as T
                     } else {
                         response.body as T
                     }

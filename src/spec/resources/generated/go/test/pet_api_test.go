@@ -13,7 +13,7 @@ import (
 	"os"
 	"testing"
 
-	petstore "petstore/pkg"
+	"petstore/pkg"
 	"petstore/pkg/models"
 	"petstore/pkg/options"
 )
@@ -21,10 +21,8 @@ import (
 // petAuth implements Authenticator for PetApi integration tests.
 type petAuth struct{}
 
-func (a *petAuth) Host() string { return "" }
-func (a *petAuth) AuthHeaders() map[string]string {
-	return map[string]string{"Authorization": "Bearer test-token"}
-}
+func (a *petAuth) Host() string                    { return "" }
+func (a *petAuth) AuthHeaders() map[string]string  { return map[string]string{"Authorization": "Bearer test-token"} }
 func (a *petAuth) QueryParams() map[string]string  { return map[string]string{} }
 func (a *petAuth) CookieParams() map[string]string { return map[string]string{} }
 

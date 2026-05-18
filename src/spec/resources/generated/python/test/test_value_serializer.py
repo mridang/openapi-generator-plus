@@ -228,10 +228,10 @@ class TestSimpleStyleBackwardCompatibility:
     def test_null_returns_empty_string(self) -> None:
         assert ValueSerializer.serialize_styled('id', None, 'path', 'string', None, 'simple', True) == ''
 
-    def test_scalar_does_not_url_encode(self) -> None:
+    def test_scalar_url_encodes_for_path(self) -> None:
         assert (
             ValueSerializer.serialize_styled('id', 'hello world', 'path', 'string', None, 'simple', False)
-            == 'hello world'
+            == 'hello%20world'
         )
 
 
@@ -252,3 +252,63 @@ class TestDeepObjectSerialization:
     def test_null_returns_empty_dict(self) -> None:
         result = ValueSerializer.serialize_deep_object('filter', None)
         assert result == {}
+
+
+class TestPathEncodingParity:
+    """Cross-language parity tests for path-segment percent-encoding.
+
+    Every SDK must produce identical encoded strings for these inputs.
+    """
+
+    def test_ascii_safe_pass_through(self) -> None:
+        assert ValueSerializer.serialize('abc123', 'path', 'string') == 'abc123'
+
+    def test_space_encoded(self) -> None:
+        assert ValueSerializer.serialize('a b', 'path', 'string') == 'a%20b'
+
+    def test_slash_encoded(self) -> None:
+        assert ValueSerializer.serialize('a/b', 'path', 'string') == 'a%2Fb'
+
+    def test_question_mark_encoded(self) -> None:
+        assert ValueSerializer.serialize('a?b', 'path', 'string') == 'a%3Fb'
+
+    def test_hash_encoded(self) -> None:
+        assert ValueSerializer.serialize('a#b', 'path', 'string') == 'a%23b'
+
+    def test_comma_preserved(self) -> None:
+        assert ValueSerializer.serialize('a,b', 'path', 'string') == 'a,b'
+
+    def test_colon_preserved(self) -> None:
+        assert ValueSerializer.serialize('a:b', 'path', 'string') == 'a:b'
+
+    def test_plus_preserved(self) -> None:
+        assert ValueSerializer.serialize('a+b', 'path', 'string') == 'a+b'
+
+    def test_unicode_encoded(self) -> None:
+        assert ValueSerializer.serialize('日本', 'path', 'string') == '%E6%97%A5%E6%9C%AC'
+
+    def test_empty_string_preserved(self) -> None:
+        assert ValueSerializer.serialize('', 'path', 'string') == ''
+
+    def test_null_returns_empty(self) -> None:
+        assert ValueSerializer.serialize(None, 'path', 'string') == ''
+
+    def test_simple_style_encodes_value(self) -> None:
+        assert ValueSerializer.serialize_styled('color', 'a b', 'path', 'string', None, 'simple', False) == 'a%20b'
+
+    def test_simple_style_array_encodes_each_item(self) -> None:
+        assert (
+            ValueSerializer.serialize_styled('color', ['a b', 'c?d'], 'path', 'array', None, 'simple', False)
+            == 'a%20b,c%3Fd'
+        )
+
+    def test_matrix_style_encodes_value(self) -> None:
+        assert (
+            ValueSerializer.serialize_styled('color', 'a b', 'path', 'string', None, 'matrix', False) == ';color=a%20b'
+        )
+
+    def test_label_style_encodes_value(self) -> None:
+        assert ValueSerializer.serialize_styled('color', 'a b', 'path', 'string', None, 'label', False) == '.a%20b'
+
+    def test_query_location_not_path_encoded(self) -> None:
+        assert ValueSerializer.serialize_styled('color', 'a b', 'query', 'string', None, 'form', False) == 'a b'

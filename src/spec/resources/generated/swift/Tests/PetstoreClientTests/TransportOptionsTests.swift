@@ -164,4 +164,58 @@ import Testing
     #expect(first.verifySSL == second.verifySSL)
     #expect(!(first === second))
   }
+
+  // TimeoutConfigTests
+
+  @Test func testTimeoutDefaultsToNil() {
+    // Default TransportOptions has no timeout set; nil means no timeout applied.
+    let opts = TransportOptionsBuilder().build()
+    #expect(opts.timeout == nil)
+  }
+
+  @Test func testSettingTimeoutIsAccessible() {
+    let opts = TransportOptionsBuilder().timeout(5000).build()
+    #expect(opts.timeout == 5000)
+  }
+
+  @Test func testTimeoutFieldIsNamedTimeout() {
+    // Verify via the property that the field is named 'timeout'
+    // (not e.g. 'timeoutIntervalForRequest' or 'timeoutIntervalForResource').
+    let opts = TransportOptionsBuilder().timeout(1000).build()
+    #expect(opts.timeout != nil)
+    #expect(opts.timeout == 1000)
+  }
+
+  // ProxyConfigTests
+
+  @Test func testProxyUrlIsPreservedOnReadBack() throws {
+    let opts = try TransportOptionsBuilder()
+      .proxy("http://proxy.example.com:8080")
+      .build()
+    #expect(opts.proxy != nil)
+    #expect(opts.proxy?.absoluteString == "http://proxy.example.com:8080")
+  }
+
+  #if os(Linux)
+    @Test func testSettingProxyRaisesOnLinux() throws {
+      // On Linux, URLSession does not support proxy configuration.
+      // DefaultApiClient.buildSession throws ApiError when a proxy is set on Linux.
+      // We verify that TransportOptions accepts the proxy value (no error at options level),
+      // and document that constructing DefaultApiClient with this opts on Linux will crash
+      // (via try! in the initializer) rather than silently ignoring the proxy setting.
+      let opts = try TransportOptionsBuilder()
+        .proxy("http://proxy.example.com:8080")
+        .build()
+      // The proxy is recorded in TransportOptions; it is DefaultApiClient's init that rejects it.
+      #expect(opts.proxy != nil)
+    }
+  #else
+    @Test func testSettingProxyIsSupportedOnNonLinux() throws {
+      // Proxy configuration must not throw on Apple platforms.
+      let opts = try TransportOptionsBuilder()
+        .proxy("http://proxy.example.com:8080")
+        .build()
+      #expect(opts.proxy != nil)
+    }
+  #endif
 }

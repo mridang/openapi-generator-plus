@@ -74,11 +74,11 @@ defmodule PetstoreClient.ValueSerializer do
   """
   @spec serialize_styled(String.t(), term(), atom(), String.t(), atom() | nil, String.t() | nil, boolean()) ::
           String.t() | [String.t()] | nil
-  def serialize_styled(param_name, value, location, schema_type, collection_format, nil, _explode) do
+  def serialize_styled(_param_name, value, location, schema_type, collection_format, nil, _explode) do
     serialize(value, location, schema_type, collection_format: collection_format)
   end
 
-  def serialize_styled(param_name, value, location, schema_type, collection_format, "", _explode) do
+  def serialize_styled(_param_name, value, location, schema_type, collection_format, "", _explode) do
     serialize(value, location, schema_type, collection_format: collection_format)
   end
 
@@ -130,7 +130,7 @@ defmodule PetstoreClient.ValueSerializer do
     Enum.map_join(value, ",", &PetstoreClient.ObjectSerializer.stringify/1)
   end
 
-  defp serialize_matrix(param_name, nil, :query, _explode), do: nil
+  defp serialize_matrix(_param_name, nil, :query, _explode), do: nil
   defp serialize_matrix(_param_name, nil, _location, _explode), do: ""
 
   defp serialize_matrix(param_name, value, _location, explode) when is_list(value) do

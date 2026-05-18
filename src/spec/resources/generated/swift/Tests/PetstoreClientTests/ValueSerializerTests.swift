@@ -422,11 +422,11 @@ import Testing
     #expect(result as? String == "blue")
   }
 
-  @Test func testSerializeStyledSimplePathDoesNotURLEncode() {
+  @Test func testSerializeStyledSimplePathEncodesValue() {
     let result = ValueSerializer.serializeStyled(
       "name", value: "hello world", location: "path", schemaType: "string", collectionFormat: "",
       style: "simple", explode: false)
-    #expect(result as? String == "hello world")
+    #expect(result as? String == "hello%20world")
   }
 
   @Test func testSerializeStyledFormExplodeSingleElementArray() {
@@ -435,5 +435,110 @@ import Testing
       style: "form", explode: true)
     let items = result as? [String]
     #expect(items == ["red"])
+  }
+
+  // MARK: - Path encoding parity
+  // Cross-language parity tests for path-segment percent-encoding.
+  // Every SDK must produce identical encoded strings for these inputs.
+
+  @Test func testPathEncodingParityAsciiSafePassThrough() {
+    let result = ValueSerializer.serializeValue(
+      "abc123", location: "path", schemaType: "string", collectionFormat: "")
+    #expect(result as? String == "abc123")
+  }
+
+  @Test func testPathEncodingParitySpaceEncoded() {
+    let result = ValueSerializer.serializeValue(
+      "a b", location: "path", schemaType: "string", collectionFormat: "")
+    #expect(result as? String == "a%20b")
+  }
+
+  @Test func testPathEncodingParitySlashEncoded() {
+    let result = ValueSerializer.serializeValue(
+      "a/b", location: "path", schemaType: "string", collectionFormat: "")
+    #expect(result as? String == "a%2Fb")
+  }
+
+  @Test func testPathEncodingParityQuestionMarkEncoded() {
+    let result = ValueSerializer.serializeValue(
+      "a?b", location: "path", schemaType: "string", collectionFormat: "")
+    #expect(result as? String == "a%3Fb")
+  }
+
+  @Test func testPathEncodingParityHashEncoded() {
+    let result = ValueSerializer.serializeValue(
+      "a#b", location: "path", schemaType: "string", collectionFormat: "")
+    #expect(result as? String == "a%23b")
+  }
+
+  @Test func testPathEncodingParityCommaPreserved() {
+    let result = ValueSerializer.serializeValue(
+      "a,b", location: "path", schemaType: "string", collectionFormat: "")
+    #expect(result as? String == "a,b")
+  }
+
+  @Test func testPathEncodingParityColonPreserved() {
+    let result = ValueSerializer.serializeValue(
+      "a:b", location: "path", schemaType: "string", collectionFormat: "")
+    #expect(result as? String == "a:b")
+  }
+
+  @Test func testPathEncodingParityPlusPreserved() {
+    let result = ValueSerializer.serializeValue(
+      "a+b", location: "path", schemaType: "string", collectionFormat: "")
+    #expect(result as? String == "a+b")
+  }
+
+  @Test func testPathEncodingParityUnicodeEncoded() {
+    let result = ValueSerializer.serializeValue(
+      "日本", location: "path", schemaType: "string", collectionFormat: "")
+    #expect(result as? String == "%E6%97%A5%E6%9C%AC")
+  }
+
+  @Test func testPathEncodingParityEmptyStringPreserved() {
+    let result = ValueSerializer.serializeValue(
+      "", location: "path", schemaType: "string", collectionFormat: "")
+    #expect(result as? String == "")
+  }
+
+  @Test func testPathEncodingParityNullReturnsEmpty() {
+    let result = ValueSerializer.serializeValue(
+      nil, location: "path", schemaType: "string", collectionFormat: "")
+    #expect(result as? String == "")
+  }
+
+  @Test func testPathEncodingParitySimpleStyleEncodesValue() {
+    let result = ValueSerializer.serializeStyled(
+      "color", value: "a b", location: "path", schemaType: "string", collectionFormat: "",
+      style: "simple", explode: false)
+    #expect(result as? String == "a%20b")
+  }
+
+  @Test func testPathEncodingParitySimpleStyleArrayEncodesEachItem() {
+    let result = ValueSerializer.serializeStyled(
+      "color", value: ["a b", "c?d"], location: "path", schemaType: "array", collectionFormat: "",
+      style: "simple", explode: false)
+    #expect(result as? String == "a%20b,c%3Fd")
+  }
+
+  @Test func testPathEncodingParityMatrixStyleEncodesValue() {
+    let result = ValueSerializer.serializeStyled(
+      "color", value: "a b", location: "path", schemaType: "string", collectionFormat: "",
+      style: "matrix", explode: false)
+    #expect(result as? String == ";color=a%20b")
+  }
+
+  @Test func testPathEncodingParityLabelStyleEncodesValue() {
+    let result = ValueSerializer.serializeStyled(
+      "color", value: "a b", location: "path", schemaType: "string", collectionFormat: "",
+      style: "label", explode: false)
+    #expect(result as? String == ".a%20b")
+  }
+
+  @Test func testPathEncodingParityQueryLocationNotPathEncoded() {
+    let result = ValueSerializer.serializeStyled(
+      "color", value: "a b", location: "query", schemaType: "string", collectionFormat: "",
+      style: "form", explode: false)
+    #expect(result as? String == "a b")
   }
 }

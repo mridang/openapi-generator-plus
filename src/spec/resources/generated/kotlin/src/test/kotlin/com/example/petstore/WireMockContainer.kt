@@ -51,7 +51,17 @@ object WireMockContainer {
                 .withNetworkAliases("wiremock")
                 .waitingFor(Wait.forListeningPort())
                 .withStartupTimeout(Duration.ofSeconds(120))
+                .withLabel("com.mridang.openapi.testcontainer", "true")
         INSTANCE.start()
+        Runtime.getRuntime().addShutdownHook(
+            Thread {
+                if (INSTANCE.isRunning) INSTANCE.stop()
+                try {
+                    PROXY_NETWORK.close()
+                } catch (_: Exception) {
+                }
+            },
+        )
     }
 
     fun getHttpsUrl(): String = "https://${INSTANCE.host}:${INSTANCE.getMappedPort(8443)}"

@@ -349,4 +349,88 @@ class ValueSerializerTest extends TestCase
         $result = ValueSerializer::serializeDeepObject('filter', null);
         $this->assertSame([], $result);
     }
+
+    // -- path encoding parity --
+    // Cross-language parity tests for path-segment percent-encoding.
+    // Every SDK must produce identical encoded strings for these inputs.
+
+    public function testPathEncodingParityAsciiSafePassThrough(): void
+    {
+        $this->assertSame('abc123', ValueSerializer::serialize('abc123', 'path', 'string'));
+    }
+
+    public function testPathEncodingParitySpaceEncoded(): void
+    {
+        $this->assertSame('a%20b', ValueSerializer::serialize('a b', 'path', 'string'));
+    }
+
+    public function testPathEncodingParitySlashEncoded(): void
+    {
+        $this->assertSame('a%2Fb', ValueSerializer::serialize('a/b', 'path', 'string'));
+    }
+
+    public function testPathEncodingParityQuestionMarkEncoded(): void
+    {
+        $this->assertSame('a%3Fb', ValueSerializer::serialize('a?b', 'path', 'string'));
+    }
+
+    public function testPathEncodingParityHashEncoded(): void
+    {
+        $this->assertSame('a%23b', ValueSerializer::serialize('a#b', 'path', 'string'));
+    }
+
+    public function testPathEncodingParityCommaPreserved(): void
+    {
+        $this->assertSame('a,b', ValueSerializer::serialize('a,b', 'path', 'string'));
+    }
+
+    public function testPathEncodingParityColonPreserved(): void
+    {
+        $this->assertSame('a:b', ValueSerializer::serialize('a:b', 'path', 'string'));
+    }
+
+    public function testPathEncodingParityPlusPreserved(): void
+    {
+        $this->assertSame('a+b', ValueSerializer::serialize('a+b', 'path', 'string'));
+    }
+
+    public function testPathEncodingParityUnicodeEncoded(): void
+    {
+        $this->assertSame('%E6%97%A5%E6%9C%AC', ValueSerializer::serialize('日本', 'path', 'string'));
+    }
+
+    public function testPathEncodingParityEmptyStringPreserved(): void
+    {
+        $this->assertSame('', ValueSerializer::serialize('', 'path', 'string'));
+    }
+
+    public function testPathEncodingParityNullReturnsEmpty(): void
+    {
+        $this->assertSame('', ValueSerializer::serialize(null, 'path', 'string'));
+    }
+
+    public function testPathEncodingParitySimpleStyleEncodesValue(): void
+    {
+        $this->assertSame('a%20b', ValueSerializer::serializeStyled('color', 'a b', 'path', 'string', null, 'simple', false));
+    }
+
+    public function testPathEncodingParitySimpleStyleArrayEncodesEachItem(): void
+    {
+        $this->assertSame('a%20b,c%3Fd', ValueSerializer::serializeStyled('color', ['a b', 'c?d'], 'path', 'array', null, 'simple', false));
+    }
+
+    public function testPathEncodingParityMatrixStyleEncodesValue(): void
+    {
+        $this->assertSame(';color=a%20b', ValueSerializer::serializeStyled('color', 'a b', 'path', 'string', null, 'matrix', false));
+    }
+
+    public function testPathEncodingParityLabelStyleEncodesValue(): void
+    {
+        $this->assertSame('.a%20b', ValueSerializer::serializeStyled('color', 'a b', 'path', 'string', null, 'label', false));
+    }
+
+    public function testPathEncodingParityQueryLocationNotPathEncoded(): void
+    {
+        $this->assertSame('a b', ValueSerializer::serializeStyled('color', 'a b', 'query', 'string', null, 'form', false));
+    }
 }

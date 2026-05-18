@@ -36,7 +36,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
   public init(transportOptions: TransportOptions? = nil) {
     let opts = transportOptions ?? TransportOptionsBuilder().build()
     self.transportOptions = opts
-    let (session, delegate) = DefaultApiClient.buildSession(opts)
+    let (session, delegate) = try! DefaultApiClient.buildSession(opts)
     self.session = session
     self.sessionDelegate = delegate
   }
@@ -91,6 +91,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       request.httpBody = DefaultApiClient.buildMultipartBody(formParts, boundary: boundary)
     } else if let data = body as? Data {
       request.httpBody = data
+    } else {
+      merged.removeValue(forKey: "Content-Type")
     }
 
     for (k, v) in merged {
@@ -197,7 +199,9 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       || mediaType.hasSuffix("+xml")
   }
 
-  private static func buildSession(_ opts: TransportOptions) -> (URLSession, SessionDelegate?) {
+  private static func buildSession(_ opts: TransportOptions) throws -> (
+    URLSession, SessionDelegate?
+  ) {
     let config = URLSessionConfiguration.default
 
     if let timeout = opts.timeout {
@@ -206,7 +210,11 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       config.timeoutIntervalForResource = seconds
     }
 
-    #if !os(Linux)
+    #if os(Linux)
+      if opts.proxy != nil {
+        throw ApiError(message: "Proxy configuration is not supported on Linux")
+      }
+    #else
       if let proxy = opts.proxy {
         var proxyDict: [AnyHashable: Any] = [:]
         let scheme = proxy.scheme ?? "http"

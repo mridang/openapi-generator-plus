@@ -609,6 +609,152 @@ fn test_serialize_styled_empty_style() {
     assert_eq!(unwrap_single(result), "5");
 }
 
+// -- path encoding parity --
+// Cross-language parity tests for path-segment percent-encoding.
+// Every SDK must produce identical encoded strings for these inputs.
+
+#[test]
+fn test_path_encoding_parity_ascii_safe_pass_through() {
+    let result = value_serializer::serialize_value(Some("abc123"), "path", "string", "");
+    assert_eq!(result.unwrap(), "abc123");
+}
+
+#[test]
+fn test_path_encoding_parity_space_encoded() {
+    let result = value_serializer::serialize_value(Some("a b"), "path", "string", "");
+    assert_eq!(result.unwrap(), "a%20b");
+}
+
+#[test]
+fn test_path_encoding_parity_slash_encoded() {
+    let result = value_serializer::serialize_value(Some("a/b"), "path", "string", "");
+    assert_eq!(result.unwrap(), "a%2Fb");
+}
+
+#[test]
+fn test_path_encoding_parity_question_mark_encoded() {
+    let result = value_serializer::serialize_value(Some("a?b"), "path", "string", "");
+    assert_eq!(result.unwrap(), "a%3Fb");
+}
+
+#[test]
+fn test_path_encoding_parity_hash_encoded() {
+    let result = value_serializer::serialize_value(Some("a#b"), "path", "string", "");
+    assert_eq!(result.unwrap(), "a%23b");
+}
+
+#[test]
+fn test_path_encoding_parity_comma_preserved() {
+    let result = value_serializer::serialize_value(Some("a,b"), "path", "string", "");
+    assert_eq!(result.unwrap(), "a,b");
+}
+
+#[test]
+fn test_path_encoding_parity_colon_preserved() {
+    let result = value_serializer::serialize_value(Some("a:b"), "path", "string", "");
+    assert_eq!(result.unwrap(), "a:b");
+}
+
+#[test]
+fn test_path_encoding_parity_plus_preserved() {
+    let result = value_serializer::serialize_value(Some("a+b"), "path", "string", "");
+    assert_eq!(result.unwrap(), "a+b");
+}
+
+#[test]
+fn test_path_encoding_parity_unicode_encoded() {
+    let result = value_serializer::serialize_value(Some("日本"), "path", "string", "");
+    assert_eq!(result.unwrap(), "%E6%97%A5%E6%9C%AC");
+}
+
+#[test]
+fn test_path_encoding_parity_empty_string_preserved() {
+    let result = value_serializer::serialize_value(Some(""), "path", "string", "");
+    assert_eq!(result.unwrap(), "");
+}
+
+#[test]
+fn test_path_encoding_parity_null_returns_empty() {
+    let result = value_serializer::serialize_value(None::<&str>, "path", "string", "");
+    assert_eq!(result.unwrap(), "");
+}
+
+#[test]
+fn test_path_encoding_parity_simple_style_encodes_value() {
+    let result = value_serializer::serialize_styled(
+        "color",
+        Some("a b"),
+        None,
+        "path",
+        "string",
+        "",
+        "simple",
+        false,
+    );
+    assert_eq!(unwrap_single(result), "a%20b");
+}
+
+#[test]
+fn test_path_encoding_parity_simple_style_array_encodes_each_item() {
+    let items: Vec<String> = vec!["a b".into(), "c?d".into()];
+    let result = value_serializer::serialize_styled(
+        "color",
+        None,
+        Some(&items),
+        "path",
+        "array",
+        "",
+        "simple",
+        false,
+    );
+    assert_eq!(unwrap_single(result), "a%20b,c%3Fd");
+}
+
+#[test]
+fn test_path_encoding_parity_matrix_style_encodes_value() {
+    let result = value_serializer::serialize_styled(
+        "color",
+        Some("a b"),
+        None,
+        "path",
+        "string",
+        "",
+        "matrix",
+        false,
+    );
+    assert_eq!(unwrap_single(result), ";color=a%20b");
+}
+
+#[test]
+fn test_path_encoding_parity_label_style_encodes_value() {
+    let result = value_serializer::serialize_styled(
+        "color",
+        Some("a b"),
+        None,
+        "path",
+        "string",
+        "",
+        "label",
+        false,
+    );
+    assert_eq!(unwrap_single(result), ".a%20b");
+}
+
+#[test]
+fn test_path_encoding_parity_query_location_not_path_encoded() {
+    let result = value_serializer::serialize_styled(
+        "color",
+        Some("a b"),
+        None,
+        "query",
+        "string",
+        "",
+        "form",
+        false,
+    );
+    assert_eq!(unwrap_single(result), "a b");
+}
+
 // -- regression tests --
 
 #[test]
@@ -630,7 +776,7 @@ fn test_serialize_styled_form_explode_scalar_returns_single() {
 }
 
 #[test]
-fn test_serialize_styled_simple_path_no_url_encode() {
+fn test_serialize_styled_simple_path_url_encodes_value() {
     let result = value_serializer::serialize_styled(
         "name",
         Some("hello world"),
@@ -641,7 +787,7 @@ fn test_serialize_styled_simple_path_no_url_encode() {
         "simple",
         false,
     );
-    assert_eq!(unwrap_single(result), "hello world");
+    assert_eq!(unwrap_single(result), "hello%20world");
 }
 
 #[test]

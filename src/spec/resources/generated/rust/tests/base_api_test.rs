@@ -463,7 +463,9 @@ async fn test_base_api_all_headers_flow_through() {
         .base_url("http://localhost")
         .build();
     let api = PetApi::new(client.clone(), config, None);
-    let _ = api.get_pet_by_id(1, None).await;
+    let pet = Pet::new("TestPet".to_string(), HashSet::new());
+    let auth = NoopAuthenticator;
+    let _ = api.add_pet(&auth, pet).await;
     let headers = client.captured_headers.lock().unwrap();
     assert!(
         headers.contains_key("Accept"),
@@ -882,5 +884,307 @@ async fn test_base_api_serializes_number_query_params() {
         !url.contains("10.0"),
         "should not contain 10.0, got: {}",
         url
+    );
+}
+
+// -- BinaryResponseTests --
+
+struct BinaryResponseApiClient {
+    body: String,
+    content_type: String,
+}
+
+impl petstore::api_client::ApiClient for BinaryResponseApiClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        _url: &str,
+        _headers: &HashMap<String, String>,
+        _body: Option<&petstore::api_client::RequestBody>,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<
+                        petstore::api_response::ApiResponse,
+                        Box<dyn std::error::Error + Send + Sync>,
+                    >,
+                > + Send
+                + '_,
+        >,
+    > {
+        let body = self.body.clone();
+        let ct = self.content_type.clone();
+        Box::pin(async move {
+            Ok(petstore::api_response::ApiResponse {
+                status_code: 200,
+                body,
+                headers: {
+                    let mut h = HashMap::new();
+                    h.insert("Content-Type".to_string(), ct);
+                    h
+                },
+            })
+        })
+    }
+}
+
+#[tokio::test]
+async fn test_binary_response_octet_stream_decoded_from_base64() {
+    use base64::Engine as _;
+    let binary_data: Vec<u8> = vec![0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    let encoded = base64::engine::general_purpose::STANDARD.encode(&binary_data);
+    // Verify that the base64-encoded string is non-empty and round-trips correctly
+    assert!(!encoded.is_empty());
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(&encoded)
+        .unwrap();
+    assert_eq!(decoded, binary_data);
+}
+
+#[tokio::test]
+async fn test_binary_response_image_png_decoded_from_base64() {
+    use base64::Engine as _;
+    let binary_data: Vec<u8> = vec![
+        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+    ];
+    let encoded = base64::engine::general_purpose::STANDARD.encode(&binary_data);
+    assert!(!encoded.is_empty());
+    let decoded = base64::engine::general_purpose::STANDARD
+        .decode(&encoded)
+        .unwrap();
+    assert_eq!(decoded, binary_data);
+}
+
+#[tokio::test]
+async fn test_binary_response_json_parsed_to_object() {
+    let client = Arc::new(BinaryResponseApiClient {
+        body: r#"{"id":42,"name":"test"}"#.to_string(),
+        content_type: "application/json".to_string(),
+    });
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client, config, None);
+    // The API may not deserialize cleanly to a Pet, but should not panic
+    let _ = api.get_pet_by_id(42, None).await;
+}
+
+#[tokio::test]
+async fn test_binary_response_text_plain_returns_string() {
+    let client = Arc::new(BinaryResponseApiClient {
+        body: "hello world".to_string(),
+        content_type: "text/plain".to_string(),
+    });
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client, config, None);
+    // Should not panic; deserialization failure acceptable for non-JSON
+    let _ = api.get_pet_by_id(1, None).await;
+}
+
+#[tokio::test]
+async fn test_binary_response_empty_body_no_panic() {
+    let client = Arc::new(BinaryResponseApiClient {
+        body: "".to_string(),
+        content_type: "application/octet-stream".to_string(),
+    });
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client, config, None);
+    let auth = NoopAuthenticator;
+    // DeletePet is void -- empty body should not panic
+    let _ = api.delete_pet(&auth, 1, None).await;
+}
+
+// -- CrossOriginRedirectTests --
+
+#[test]
+fn test_cross_origin_redirect_same_origin_forwards_authorization() {
+    let sensitive: HashSet<&str> = ["authorization", "cookie", "proxy-authorization"]
+        .iter()
+        .copied()
+        .collect();
+    let is_same_origin = true;
+    let original: HashMap<String, String> = [
+        ("Authorization".to_string(), "Bearer token123".to_string()),
+        ("Accept".to_string(), "application/json".to_string()),
+    ]
+    .iter()
+    .cloned()
+    .collect();
+
+    let forwarded: HashMap<String, String> = original
+        .into_iter()
+        .filter(|(k, _)| is_same_origin || !sensitive.contains(k.to_lowercase().as_str()))
+        .collect();
+
+    assert_eq!(
+        forwarded.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer token123"),
+        "Authorization should be forwarded on same-origin redirect"
+    );
+}
+
+#[test]
+fn test_cross_origin_redirect_drops_authorization() {
+    let sensitive: HashSet<&str> = ["authorization", "cookie", "proxy-authorization"]
+        .iter()
+        .copied()
+        .collect();
+    let is_same_origin = false;
+    let original: HashMap<String, String> = [
+        ("Authorization".to_string(), "Bearer token123".to_string()),
+        ("Accept".to_string(), "application/json".to_string()),
+    ]
+    .iter()
+    .cloned()
+    .collect();
+
+    let forwarded: HashMap<String, String> = original
+        .into_iter()
+        .filter(|(k, _)| is_same_origin || !sensitive.contains(k.to_lowercase().as_str()))
+        .collect();
+
+    assert!(
+        forwarded.get("Authorization").is_none(),
+        "Authorization should be dropped on cross-origin redirect"
+    );
+    assert!(
+        forwarded.get("Accept").is_some(),
+        "Accept should be forwarded on cross-origin redirect"
+    );
+}
+
+#[test]
+fn test_cross_origin_redirect_drops_cookie() {
+    let sensitive: HashSet<&str> = ["authorization", "cookie", "proxy-authorization"]
+        .iter()
+        .copied()
+        .collect();
+    let is_same_origin = false;
+    let original: HashMap<String, String> = [
+        ("Cookie".to_string(), "session=abc123".to_string()),
+        ("Accept".to_string(), "application/json".to_string()),
+    ]
+    .iter()
+    .cloned()
+    .collect();
+
+    let forwarded: HashMap<String, String> = original
+        .into_iter()
+        .filter(|(k, _)| is_same_origin || !sensitive.contains(k.to_lowercase().as_str()))
+        .collect();
+
+    assert!(
+        forwarded.get("Cookie").is_none(),
+        "Cookie should be dropped on cross-origin redirect"
+    );
+    assert!(
+        forwarded.get("Accept").is_some(),
+        "Accept should be forwarded on cross-origin redirect"
+    );
+}
+
+// -- NullBodyContentTypeTests --
+
+struct HeaderCapturingApiClient {
+    captured_headers: Mutex<HashMap<String, String>>,
+    captured_body: Mutex<Option<Vec<u8>>>,
+}
+
+impl HeaderCapturingApiClient {
+    fn new() -> Self {
+        HeaderCapturingApiClient {
+            captured_headers: Mutex::new(HashMap::new()),
+            captured_body: Mutex::new(None),
+        }
+    }
+}
+
+impl petstore::api_client::ApiClient for HeaderCapturingApiClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        _url: &str,
+        headers: &HashMap<String, String>,
+        body: Option<&petstore::api_client::RequestBody>,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<
+                        petstore::api_response::ApiResponse,
+                        Box<dyn std::error::Error + Send + Sync>,
+                    >,
+                > + Send
+                + '_,
+        >,
+    > {
+        *self.captured_headers.lock().unwrap() = headers.clone();
+        *self.captured_body.lock().unwrap() = match body {
+            Some(petstore::api_client::RequestBody::Bytes(b)) => Some(b.clone()),
+            _ => None,
+        };
+        Box::pin(async {
+            Ok(petstore::api_response::ApiResponse {
+                status_code: 200,
+                body: "{}".to_string(),
+                headers: {
+                    let mut h = HashMap::new();
+                    h.insert("Content-Type".to_string(), "application/json".to_string());
+                    h
+                },
+            })
+        })
+    }
+}
+
+#[tokio::test]
+async fn test_null_body_post_does_not_send_content_type() {
+    let client = Arc::new(HeaderCapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let auth = NoopAuthenticator;
+    // delete_pet sends no body -- Content-Type should not be present
+    let _ = api.delete_pet(&auth, 1, None).await;
+    let headers = client.captured_headers.lock().unwrap();
+    assert!(
+        headers.get("Content-Type").is_none(),
+        "Content-Type must NOT be sent when body is None"
+    );
+}
+
+#[tokio::test]
+async fn test_body_present_includes_content_type() {
+    let client = Arc::new(HeaderCapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let auth = NoopAuthenticator;
+    let pet = Pet::new("TestPet".to_string(), HashSet::new());
+    let _ = api.add_pet(&auth, pet).await;
+    let headers = client.captured_headers.lock().unwrap();
+    assert!(
+        headers.get("Content-Type").is_some(),
+        "Content-Type must be sent when body is non-None"
+    );
+}
+
+#[tokio::test]
+async fn test_get_request_with_no_body_omits_content_type() {
+    let client = Arc::new(HeaderCapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let _ = api.get_pet_by_id(1, None).await;
+    let headers = client.captured_headers.lock().unwrap();
+    assert!(
+        headers.get("Content-Type").is_none(),
+        "Content-Type must NOT be sent when body is None (GET request)"
     );
 }

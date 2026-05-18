@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	petstore "petstore/pkg"
+	"petstore/pkg"
 )
 
 func TestHeaderSelector_IsJSONMIME(t *testing.T) {

@@ -340,14 +340,14 @@ class TestHeaderFlowThrough:
         client = CapturingApiClient()
         config = Configuration(base_url='http://localhost')
         stub = StubApi(api_client=client, config=config)
-        await stub.call('GET', '/api/test', {}, {}, None, ['application/json'], '', None)
+        await stub.call('POST', '/api/test', {}, {}, {'name': 'test'}, ['application/json'], '', None)
         assert client.captured_headers.get('Content-Type') == 'application/json'
 
     async def test_all_headers_flow_through(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url='http://localhost')
         stub = StubApi(api_client=client, config=config)
-        await stub.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', None)
+        await stub.call('POST', '/api/test', {}, {}, {'name': 'test'}, ['application/json'], 'application/json', None)
         assert 'Accept' in client.captured_headers
         assert 'Content-Type' in client.captured_headers
 
@@ -368,3 +368,156 @@ class TestServerVariableOverrides:
     def test_api_request_uses_resolved_server_url(self, api: Any, wiremock_http_url: Any) -> None:
         config = Configuration.builder().server(Servers.SERVER_1, {'environment': 'staging'}).build()
         assert config.base_url.startswith('https://staging.example.com')
+
+
+class BinaryOctetStreamApiClient(CapturingApiClient):
+    """API client that returns an application/octet-stream response with base64 body."""
+
+    def __init__(self, encoded_body: str) -> None:
+        super().__init__()
+        self._encoded_body = encoded_body
+
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None) -> ApiResponse:
+        super().send_request(method, url, headers, body)
+        return ApiResponse(
+            status_code=200, body=self._encoded_body, headers={'Content-Type': 'application/octet-stream'}
+        )
+
+
+class ImagePngApiClient(CapturingApiClient):
+    """API client that returns an image/png response with base64 body."""
+
+    def __init__(self, encoded_body: str) -> None:
+        super().__init__()
+        self._encoded_body = encoded_body
+
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None) -> ApiResponse:
+        super().send_request(method, url, headers, body)
+        return ApiResponse(status_code=200, body=self._encoded_body, headers={'Content-Type': 'image/png'})
+
+
+class EmptyBinaryApiClient(CapturingApiClient):
+    """API client that returns an empty application/octet-stream response."""
+
+    def send_request(self, method: str, url: str, headers: dict[str, str], body: Any = None) -> ApiResponse:
+        super().send_request(method, url, headers, body)
+        return ApiResponse(status_code=200, body='', headers={'Content-Type': 'application/octet-stream'})
+
+
+class TestBinaryResponse:
+    async def test_octet_stream_response_decoded_as_base64_bytes(self) -> None:
+        import base64
+
+        binary_data = b'\x89\x50\x4e\x47\x0d\x0a\x1a\x0a'
+        encoded = base64.b64encode(binary_data).decode('ascii')
+        client = BinaryOctetStreamApiClient(encoded)
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        result = await stub.call(
+            'GET', '/api/test', {}, {}, None, ['application/octet-stream'], 'application/octet-stream', 'bytes'
+        )
+        assert result == binary_data
+
+    async def test_image_png_response_decoded_as_bytes(self) -> None:
+        import base64
+
+        binary_data = b'\x89\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d'
+        encoded = base64.b64encode(binary_data).decode('ascii')
+        client = ImagePngApiClient(encoded)
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        result = await stub.call('GET', '/api/img', {}, {}, None, ['image/png'], 'image/png', 'bytes')
+        assert result == binary_data
+
+    async def test_json_response_parsed_to_object(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        result = await stub.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', None)
+        assert result is None
+
+    async def test_text_plain_response_returns_string(self) -> None:
+        client = PlainTextApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        result = await stub.call('GET', '/api/test', {}, {}, None, ['text/plain'], 'application/json', 'str')
+        assert isinstance(result, str)
+        assert result == 'hello'
+
+    async def test_empty_body_yields_none(self) -> None:
+        client = EmptyBinaryApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        result = await stub.call(
+            'GET', '/api/test', {}, {}, None, ['application/octet-stream'], 'application/octet-stream', None
+        )
+        assert result is None
+
+
+class TestCrossOriginRedirect:
+    def test_same_origin_redirect_forwards_authorization(self) -> None:
+        sensitive_headers = {'authorization', 'cookie', 'proxy-authorization'}
+        is_same_origin = True
+        auth_header = 'Bearer token123'
+        original_headers = {'Authorization': auth_header, 'Accept': 'application/json'}
+        forwarded_headers = {}
+
+        for key, value in original_headers.items():
+            if not is_same_origin and key.lower() in sensitive_headers:
+                continue
+            forwarded_headers[key] = value
+
+        assert 'Authorization' in forwarded_headers
+        assert forwarded_headers['Authorization'] == auth_header
+
+    def test_cross_origin_redirect_drops_authorization(self) -> None:
+        sensitive_headers = {'authorization', 'cookie', 'proxy-authorization'}
+        is_same_origin = False
+        original_headers = {'Authorization': 'Bearer token123', 'Accept': 'application/json'}
+        forwarded_headers = {}
+
+        for key, value in original_headers.items():
+            if not is_same_origin and key.lower() in sensitive_headers:
+                continue
+            forwarded_headers[key] = value
+
+        assert 'Authorization' not in forwarded_headers
+        assert 'Accept' in forwarded_headers
+
+    def test_cross_origin_redirect_drops_cookie(self) -> None:
+        sensitive_headers = {'authorization', 'cookie', 'proxy-authorization'}
+        is_same_origin = False
+        original_headers = {'Cookie': 'session=abc123', 'Accept': 'application/json'}
+        forwarded_headers = {}
+
+        for key, value in original_headers.items():
+            if not is_same_origin and key.lower() in sensitive_headers:
+                continue
+            forwarded_headers[key] = value
+
+        assert 'Cookie' not in forwarded_headers
+        assert 'Accept' in forwarded_headers
+
+
+class TestNullBodyContentType:
+    async def test_null_body_post_does_not_send_content_type(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('POST', '/api/test', {}, {}, None, ['application/json'], 'application/json', None)
+        assert 'Content-Type' not in client.captured_headers, 'Content-Type must NOT be sent when body is None'
+
+    async def test_empty_string_body_includes_content_type(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('POST', '/api/test', {}, {}, '', ['application/json'], 'application/json', None)
+        assert 'Content-Type' in client.captured_headers, 'Content-Type must be sent when body is an empty string'
+
+    async def test_empty_json_object_body_includes_content_type(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('POST', '/api/test', {}, {}, {}, ['application/json'], 'application/json', None)
+        assert 'Content-Type' in client.captured_headers, 'Content-Type must be sent when body is {}'
+        assert client.captured_headers['Content-Type'] == 'application/json'

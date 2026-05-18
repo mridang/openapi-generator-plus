@@ -718,5 +718,288 @@ void main() {
         throwsArgumentError,
       );
     });
+
+    // -- BinaryResponseTests --
+
+    test('octet-stream response decoded as base64 bytes', () async {
+      final binaryData =
+          Uint8List.fromList([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      final encoded = base64.encode(binaryData);
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.set('content-type', 'application/octet-stream')
+          ..write(encoded)
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/api/test',
+          {},
+          null,
+        );
+        expect(resp.body, isNotEmpty);
+        // The body is the base64-encoded form of the binary data
+        final decoded = base64.decode(resp.body);
+        expect(decoded, equals(binaryData));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('image/png response decoded as bytes', () async {
+      final binaryData = Uint8List.fromList([
+        0x89,
+        0x50,
+        0x4e,
+        0x47,
+        0x0d,
+        0x0a,
+        0x1a,
+        0x0a,
+        0x00,
+        0x00,
+        0x00,
+        0x0d
+      ]);
+      final encoded = base64.encode(binaryData);
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.set('content-type', 'image/png')
+          ..write(encoded)
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/api/img',
+          {},
+          null,
+        );
+        expect(resp.body, isNotEmpty);
+        final decoded = base64.decode(resp.body);
+        expect(decoded, equals(binaryData));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('application/json response parsed to object', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":42,"name":"test"}')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/api/test',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+        final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+        expect(parsed['id'], equals(42));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('text/plain response returns string', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.text
+          ..write('hello world')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/api/test',
+          {},
+          null,
+        );
+        expect(resp.body, equals('hello world'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('empty body yields empty string in response', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.set('content-type', 'application/octet-stream')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/api/test',
+          {},
+          null,
+        );
+        expect(resp.body, isEmpty);
+      } finally {
+        await server.close();
+      }
+    });
+
+    // -- CrossOriginRedirectTests --
+
+    test('same-origin redirect forwards Authorization header', () {
+      final originalHeaders = {
+        'Authorization': 'Bearer token123',
+        'Accept': 'application/json'
+      };
+      // Same-origin: all headers are forwarded without filtering
+      final forwarded = Map<String, String>.from(originalHeaders);
+      expect(forwarded['Authorization'], equals('Bearer token123'),
+          reason: 'Authorization should be forwarded on same-origin redirect');
+    });
+
+    test('cross-origin redirect drops Authorization header', () {
+      const sensitiveHeaders = {
+        'authorization',
+        'cookie',
+        'proxy-authorization'
+      };
+      const isSameOrigin = false;
+      final originalHeaders = {
+        'Authorization': 'Bearer token123',
+        'Accept': 'application/json'
+      };
+      final forwarded = Map.fromEntries(originalHeaders.entries.where((e) =>
+          isSameOrigin || !sensitiveHeaders.contains(e.key.toLowerCase())));
+      expect(forwarded.containsKey('Authorization'), isFalse,
+          reason: 'Authorization should be dropped on cross-origin redirect');
+      expect(forwarded.containsKey('Accept'), isTrue,
+          reason: 'Accept should be forwarded on cross-origin redirect');
+    });
+
+    test('cross-origin redirect drops Cookie header', () {
+      const sensitiveHeaders = {
+        'authorization',
+        'cookie',
+        'proxy-authorization'
+      };
+      const isSameOrigin = false;
+      final originalHeaders = {
+        'Cookie': 'session=abc123',
+        'Accept': 'application/json'
+      };
+      final forwarded = Map.fromEntries(originalHeaders.entries.where((e) =>
+          isSameOrigin || !sensitiveHeaders.contains(e.key.toLowerCase())));
+      expect(forwarded.containsKey('Cookie'), isFalse,
+          reason: 'Cookie should be dropped on cross-origin redirect');
+      expect(forwarded.containsKey('Accept'), isTrue,
+          reason: 'Accept should be forwarded on cross-origin redirect');
+    });
+
+    // -- NullBodyContentTypeTests --
+
+    test('null body POST does not send Content-Type', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final Map<String, String> receivedHeaders = {};
+      server.listen((request) {
+        request.headers.forEach((name, values) {
+          receivedHeaders[name.toLowerCase()] = values.first;
+        });
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{}')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'POST',
+          'http://localhost:${server.port}/api/test',
+          {},
+          null,
+        );
+        expect(receivedHeaders.containsKey('content-type'), isFalse,
+            reason: 'Content-Type must NOT be sent when body is null');
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('empty string body includes Content-Type', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      String? receivedContentType;
+      server.listen((request) {
+        receivedContentType = request.headers.value('content-type');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{}')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'POST',
+          'http://localhost:${server.port}/api/test',
+          {'Content-Type': 'application/json'},
+          utf8.encode(''),
+        );
+        expect(receivedContentType, isNotNull,
+            reason: 'Content-Type must be sent when body is an empty string');
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('empty JSON object body includes Content-Type', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      String? receivedContentType;
+      server.listen((request) {
+        receivedContentType = request.headers.value('content-type');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{}')
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        await client.sendRequest(
+          'POST',
+          'http://localhost:${server.port}/api/test',
+          {'Content-Type': 'application/json'},
+          utf8.encode('{}'),
+        );
+        expect(receivedContentType, isNotNull,
+            reason: 'Content-Type must be sent when body is {}');
+        expect(receivedContentType, contains('application/json'));
+      } finally {
+        await server.close();
+      }
+    });
   });
 }

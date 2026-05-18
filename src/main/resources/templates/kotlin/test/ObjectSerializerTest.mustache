@@ -10,10 +10,131 @@ import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.util.UUID
+import kotlinx.serialization.SerializationException
 
 class ObjectSerializerTest {
 
     private val serializer = ObjectSerializer()
+
+    @Nested
+    @DisplayName("DateTimeOffsetPreservationTests")
+    inner class DateTimeOffsetPreservationTests {
+
+        @Test
+        @DisplayName("UTC datetime serializes containing date-time and offset")
+        fun utcDateTimeSerializesWithOffset() {
+            val dt = OffsetDateTime.parse("2024-01-01T12:30:45+00:00")
+            val result = serializer.stringify(dt)
+            assertTrue(result.contains("2024-01-01T12:30:45"), "should contain datetime: $result")
+            assertTrue(result.contains("+00:00") || result.endsWith("Z"), "should contain UTC offset: $result")
+        }
+
+        @Test
+        @DisplayName("datetime with +05:30 offset preserves offset in serialized string")
+        fun positiveOffsetPreserved() {
+            val dt = OffsetDateTime.parse("2024-01-01T12:30:45+05:30")
+            val result = serializer.stringify(dt)
+            assertTrue(result.contains("+05:30"), "should contain +05:30 offset: $result")
+        }
+
+        @Test
+        @DisplayName("datetime with -08:00 offset preserves offset in serialized string")
+        fun negativeOffsetPreserved() {
+            val dt = OffsetDateTime.parse("2024-01-01T12:30:45-08:00")
+            val result = serializer.stringify(dt)
+            assertTrue(result.contains("-08:00"), "should contain -08:00 offset: $result")
+        }
+
+        @Test
+        @DisplayName("subseconds are dropped from serialized datetime")
+        fun subsecondsTruncated() {
+            val dt = OffsetDateTime.parse("2024-01-01T12:30:45.123+00:00")
+            val result = serializer.stringify(dt)
+            assertFalse(result.contains(".123"), "subseconds should not appear: $result")
+        }
+
+        @Test
+        @DisplayName("date-only serializes as ISO 8601 date without time component")
+        fun dateOnlySerializesAsDate() {
+            val date = java.time.LocalDate.parse("2024-01-01")
+            val result = serializer.stringify(date)
+            assertEquals("2024-01-01", result)
+        }
+
+        @Test
+        @DisplayName("serialized datetime string ends with an offset or Z")
+        fun serializedDateTimeHasOffset() {
+            val dt = OffsetDateTime.of(2024, 1, 1, 12, 30, 45, 0, ZoneOffset.UTC)
+            val result = serializer.stringify(dt)
+            assertTrue(result.endsWith("+00:00") || result.endsWith("Z") || result.matches(Regex(".*[+-]\\d{2}:\\d{2}$")),
+                "should end with offset: $result")
+        }
+
+        @Test
+        @DisplayName("round-trip: serialize then deserialize yields equivalent datetime")
+        fun roundTripDateTime() {
+            val original = OffsetDateTime.parse("2024-01-01T12:30:45+05:30")
+            val serialized = serializer.stringify(original)
+            val parsed = OffsetDateTime.parse(serialized)
+            assertEquals(original.toInstant(), parsed.toInstant(), "instant should match after round-trip")
+        }
+    }
+
+    @Nested
+    @DisplayName("NonAsciiSerializationTests")
+    inner class NonAsciiSerializationTests {
+
+        @Test
+        @DisplayName("string with accented character serializes without unicode escape")
+        fun accentedCharacterNotEscaped() {
+            val result = serializer.serialize("café")
+            assertTrue(result.contains("é"), "should contain literal é, got: $result")
+        }
+
+        @Test
+        @DisplayName("string with CJK characters serializes without unicode escape")
+        fun cjkCharactersNotEscaped() {
+            val result = serializer.serialize("日本")
+            assertTrue(result.contains("日本"), "should contain literal CJK chars, got: $result")
+        }
+
+        @Test
+        @DisplayName("string with tab character serializes as JSON \\t escape")
+        fun tabCharacterEscapedProperly() {
+            val result = serializer.serialize("a\tb")
+            assertTrue(result.contains("\\t"), "tab should be escaped as \\t in JSON, got: $result")
+        }
+    }
+
+    @Nested
+    @DisplayName("DeserializationErrorWrappingTests")
+    inner class DeserializationErrorWrappingTests {
+
+        @Test
+        @DisplayName("truncated JSON throws SerializationException not raw parse error")
+        fun truncatedJsonThrowsSerializationException() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Category>("{")
+            }
+        }
+
+        @Test
+        @DisplayName("type mismatch JSON throws SerializationException")
+        fun typeMismatchThrowsSerializationException() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Category>("{\"id\":\"not-a-number\",\"name\":123}")
+            }
+        }
+
+        @Test
+        @DisplayName("thrown SerializationException message references original error")
+        fun serializationExceptionHasMessage() {
+            val ex = assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Category>("{")
+            }
+            assertNotNull(ex.message, "exception should have a message")
+        }
+    }
 
     @Nested
     @DisplayName("serialize")

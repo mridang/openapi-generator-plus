@@ -86,7 +86,8 @@ func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]st
 	var bodyReader io.Reader
 	switch b := body.(type) {
 	case nil:
-		// no body
+		// no body -- remove Content-Type to avoid sending it without a body
+		delete(merged, "Content-Type")
 	case []byte:
 		bodyReader = bytes.NewReader(b)
 	case map[string]interface{}:

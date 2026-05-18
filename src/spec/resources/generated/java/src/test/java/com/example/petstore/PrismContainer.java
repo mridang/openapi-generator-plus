@@ -27,8 +27,17 @@ public final class PrismContainer {
                 "/tmp/openapi.yaml")
             .withCommand("mock", "-m", "false", "-h", "0.0.0.0", "/tmp/openapi.yaml")
             .waitingFor(Wait.forLogMessage(".*Prism is listening.*", 1))
-            .withStartupTimeout(Duration.ofMinutes(2));
+            .withStartupTimeout(Duration.ofMinutes(2))
+            .withLabel("com.mridang.openapi.testcontainer", "true");
     INSTANCE.start();
+    Runtime.getRuntime()
+        .addShutdownHook(
+            new Thread(
+                () -> {
+                  if (INSTANCE != null && INSTANCE.isRunning()) {
+                    INSTANCE.stop();
+                  }
+                }));
   }
 
   private PrismContainer() {}

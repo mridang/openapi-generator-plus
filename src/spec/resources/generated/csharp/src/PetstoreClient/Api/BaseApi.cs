@@ -163,6 +163,11 @@ public abstract class BaseApi
 
         TraceContextUtil.InjectTraceContext(headers);
 
+        if (body == null)
+        {
+            _ = headers.Remove("Content-Type");
+        }
+
         object? requestBody = null;
         if (body != null)
         {

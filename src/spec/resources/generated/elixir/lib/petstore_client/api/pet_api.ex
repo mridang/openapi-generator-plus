@@ -8,7 +8,7 @@
 defmodule PetstoreClient.Api.GetExternalPetInfoServer do
   @moduledoc "Server type for the get_external_pet_info operation."
 
-  @callback url() :: String.t()
+  @callback url(term()) :: String.t()
 end
 
 defmodule PetstoreClient.Api.GetExternalPetInfoServer.Server0 do
@@ -17,7 +17,7 @@ defmodule PetstoreClient.Api.GetExternalPetInfoServer.Server0 do
   @behaviour PetstoreClient.Api.GetExternalPetInfoServer
 
   @impl true
-  def url() do
+  def url(_server) do
     "https://external-api.example.com/v1"
   end
 end
@@ -25,7 +25,7 @@ end
 defmodule PetstoreClient.Api.GetMultiServerPetInfoServer do
   @moduledoc "Server type for the get_multi_server_pet_info operation."
 
-  @callback url() :: String.t()
+  @callback url(term()) :: String.t()
 end
 
 defmodule PetstoreClient.Api.GetMultiServerPetInfoServer.Primary do
@@ -34,7 +34,7 @@ defmodule PetstoreClient.Api.GetMultiServerPetInfoServer.Primary do
   @behaviour PetstoreClient.Api.GetMultiServerPetInfoServer
 
   @impl true
-  def url() do
+  def url(_server) do
     "https://primary.example.com/v1"
   end
 end
@@ -67,7 +67,7 @@ end
 defmodule PetstoreClient.Api.GetPetByIdServer do
   @moduledoc "Server type for the get_pet_by_id operation."
 
-  @callback url() :: String.t()
+  @callback url(term()) :: String.t()
 end
 
 defmodule PetstoreClient.Api.GetPetByIdServer.CDNBackedReadEndpointForPetDetails do
@@ -76,7 +76,7 @@ defmodule PetstoreClient.Api.GetPetByIdServer.CDNBackedReadEndpointForPetDetails
   @behaviour PetstoreClient.Api.GetPetByIdServer
 
   @impl true
-  def url() do
+  def url(_server) do
     "https://cdn.petstore.io/v3"
   end
 end
@@ -84,7 +84,7 @@ end
 defmodule PetstoreClient.Api.GetStagingPetInfoServer do
   @moduledoc "Server type for the get_staging_pet_info operation."
 
-  @callback url() :: String.t()
+  @callback url(term()) :: String.t()
 end
 
 defmodule PetstoreClient.Api.GetStagingPetInfoServer.Environment do

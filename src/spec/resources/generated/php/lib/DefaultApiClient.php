@@ -161,6 +161,9 @@ class DefaultApiClient implements ApiClient
                 'body' => $formData->bodyToIterable(),
             ];
         } else {
+            if ($body === null) {
+                unset($mergedHeaders['Content-Type']);
+            }
             $options = [
                 'headers' => $mergedHeaders,
             ];

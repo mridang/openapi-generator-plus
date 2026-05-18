@@ -200,4 +200,41 @@ public class TransportOptionsTest
         Assert.Equal(first.VerifySsl, second.VerifySsl);
         Assert.NotSame(first, second);
     }
+
+    // TimeoutConfigTests
+
+    [Fact]
+    public void SettingTimeoutIsAccessible()
+    {
+        var opts = TransportOptions.Builder().Timeout(5000).Build();
+        Assert.Equal(5000, opts.Timeout);
+    }
+
+    [Fact]
+    public void TimeoutFieldIsNamedTimeout()
+    {
+        // Verify via the property that the field is named 'Timeout' (not e.g. 'ConnectionTimeout').
+        var opts = TransportOptions.Builder().Timeout(1000).Build();
+        Assert.NotNull(opts.Timeout);
+        Assert.Equal(1000, opts.Timeout);
+    }
+
+    // ProxyConfigTests
+
+    [Fact]
+    public void ProxyUrlIsPreservedOnReadBack()
+    {
+        var opts = TransportOptions.Builder().Proxy("http://proxy.example.com:8080").Build();
+        Assert.Equal("http://proxy.example.com:8080", opts.Proxy);
+    }
+
+    [Fact]
+    public void SettingProxyIsSupportedOnAllPlatforms()
+    {
+        // Proxy configuration must not throw on any .NET platform.
+        var exception = Record.Exception(
+            () => TransportOptions.Builder().Proxy("http://proxy.example.com:8080").Build()
+        );
+        Assert.Null(exception);
+    }
 }

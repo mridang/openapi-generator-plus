@@ -373,6 +373,97 @@ void main() {
       final items = result as List<String>;
       expect(items, equals(['red']));
     });
+
+    // Path encoding parity
+    // Cross-language parity tests for path-segment percent-encoding.
+    // Every SDK must produce identical encoded strings for these inputs.
+
+    group('path encoding parity', () {
+      test('ASCII-safe pass-through', () {
+        final result = serializeValue('abc123', 'path', 'string', '');
+        expect(result, equals('abc123'));
+      });
+
+      test('space encoded as %20', () {
+        final result = serializeValue('a b', 'path', 'string', '');
+        expect(result, equals('a%20b'));
+      });
+
+      test('slash encoded', () {
+        final result = serializeValue('a/b', 'path', 'string', '');
+        expect(result, equals('a%2Fb'));
+      });
+
+      test('question mark encoded', () {
+        final result = serializeValue('a?b', 'path', 'string', '');
+        expect(result, equals('a%3Fb'));
+      });
+
+      test('hash encoded', () {
+        final result = serializeValue('a#b', 'path', 'string', '');
+        expect(result, equals('a%23b'));
+      });
+
+      test('comma preserved (sub-delimiter)', () {
+        final result = serializeValue('a,b', 'path', 'string', '');
+        expect(result, equals('a,b'));
+      });
+
+      test('colon preserved (sub-delimiter)', () {
+        final result = serializeValue('a:b', 'path', 'string', '');
+        expect(result, equals('a:b'));
+      });
+
+      test('plus preserved (sub-delimiter)', () {
+        final result = serializeValue('a+b', 'path', 'string', '');
+        expect(result, equals('a+b'));
+      });
+
+      test('unicode encoded as UTF-8 percent', () {
+        final result = serializeValue('日本', 'path', 'string', '');
+        expect(result, equals('%E6%97%A5%E6%9C%AC'));
+      });
+
+      test('empty string preserved', () {
+        final result = serializeValue('', 'path', 'string', '');
+        expect(result, equals(''));
+      });
+
+      test('null returns empty string in path location', () {
+        final result = serializeValue(null, 'path', 'string', '');
+        expect(result, equals(''));
+      });
+
+      test('simple style encodes value', () {
+        final result = serializeStyled(
+            'color', 'a b', 'path', 'string', '', 'simple', false);
+        expect(result, equals('a%20b'));
+      });
+
+      test('simple style array encodes each item', () {
+        final result = serializeStyled(
+            'color', ['a b', 'c?d'], 'path', 'array', '', 'simple', false);
+        expect(result, equals('a%20b,c%3Fd'));
+      });
+
+      test('matrix style encodes value', () {
+        final result = serializeStyled(
+            'color', 'a b', 'path', 'string', '', 'matrix', false);
+        expect(result, equals(';color=a%20b'));
+      });
+
+      test('label style encodes value', () {
+        final result = serializeStyled(
+            'color', 'a b', 'path', 'string', '', 'label', false);
+        expect(result, equals('.a%20b'));
+      });
+
+      test('query location is not path-encoded', () {
+        final result = serializeStyled(
+            'color', 'a b', 'query', 'string', '', 'form', false);
+        expect(result, equals('a b'));
+      });
+    });
   });
 }
 {{/generateTests}}

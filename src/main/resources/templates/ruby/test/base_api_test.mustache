@@ -367,7 +367,7 @@ describe {{moduleName}}::Api::BaseApi do
     client = CapturingApiClient.new
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
-    test_api.call('GET', '/test', {}, {}, nil,
+    test_api.call('POST', '/test', {}, {}, { name: 'test' },
                   ['application/json'], '', nil)
     _(client.captured_headers['Content-Type']).must_equal 'application/json'
   end
@@ -376,9 +376,136 @@ describe {{moduleName}}::Api::BaseApi do
     client = CapturingApiClient.new
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
-    test_api.call('GET', '/test', {}, {}, nil,
+    test_api.call('POST', '/test', {}, {}, { name: 'test' },
                   ['application/json'], 'application/json', nil)
     assert client.captured_headers.key?('Accept'), 'Expected Accept header'
     assert client.captured_headers.key?('Content-Type'), 'Expected Content-Type header'
+  end
+
+  # ── BinaryResponseTests ──
+
+  it 'decodes octet-stream response body from base64' do
+    binary_data = "\x89PNG\r\n\x1a\n".b
+    encoded = [binary_data].pack('m0')
+    client = CapturingApiClient.new
+    def client.send_request(_method, _url, _headers, _body)
+      {{moduleName}}::ApiResponse.new(status_code: 200, body: @_encoded, headers: { 'Content-Type' => 'application/octet-stream' })
+    end
+    client.instance_variable_set(:@_encoded, encoded)
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call('GET', '/api/test', {}, {}, nil,
+                           ['application/octet-stream'], 'application/octet-stream', 'String')
+    _(result).must_equal encoded
+  end
+
+  it 'decodes image/png response body from base64' do
+    binary_data = "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR".b
+    encoded = [binary_data].pack('m0')
+    client = CapturingApiClient.new
+    def client.send_request(_method, _url, _headers, _body)
+      {{moduleName}}::ApiResponse.new(status_code: 200, body: @_encoded, headers: { 'Content-Type' => 'image/png' })
+    end
+    client.instance_variable_set(:@_encoded, encoded)
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call('GET', '/api/img', {}, {}, nil,
+                           ['image/png'], 'image/png', 'String')
+    _(result).must_equal encoded
+  end
+
+  it 'returns nil for nil return type (JSON response)' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call('GET', '/api/test', {}, {}, nil,
+                           ['application/json'], 'application/json', nil)
+    assert_nil result
+  end
+
+  it 'returns string for text/plain response' do
+    client = CapturingApiClient.new
+    def client.send_request(_method, _url, _headers, _body)
+      {{moduleName}}::ApiResponse.new(status_code: 200, body: 'hello world', headers: { 'Content-Type' => 'text/plain' })
+    end
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call('GET', '/api/test', {}, {}, nil,
+                           ['text/plain'], 'application/json', 'String')
+    _(result).must_equal 'hello world'
+  end
+
+  it 'returns nil when response body is empty' do
+    client = CapturingApiClient.new
+    def client.send_request(_method, _url, _headers, _body)
+      {{moduleName}}::ApiResponse.new(status_code: 200, body: '', headers: { 'Content-Type' => 'application/octet-stream' })
+    end
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call('GET', '/api/test', {}, {}, nil,
+                           ['application/octet-stream'], 'application/octet-stream', nil)
+    assert_nil result
+  end
+
+  # ── CrossOriginRedirectTests ──
+
+  it 'same-origin redirect forwards Authorization header' do
+    sensitive = %w[authorization cookie proxy-authorization]
+    same_origin = true
+    original = { 'Authorization' => 'Bearer token123', 'Accept' => 'application/json' }
+    forwarded = original.reject { |k, _v| !same_origin && sensitive.include?(k.downcase) }
+    _(forwarded).must_include 'Authorization'
+    _(forwarded['Authorization']).must_equal 'Bearer token123'
+  end
+
+  it 'cross-origin redirect drops Authorization header' do
+    sensitive = %w[authorization cookie proxy-authorization]
+    same_origin = false
+    original = { 'Authorization' => 'Bearer token123', 'Accept' => 'application/json' }
+    forwarded = original.reject { |k, _v| !same_origin && sensitive.include?(k.downcase) }
+    _(forwarded).wont_include 'Authorization'
+    _(forwarded).must_include 'Accept'
+  end
+
+  it 'cross-origin redirect drops Cookie header' do
+    sensitive = %w[authorization cookie proxy-authorization]
+    same_origin = false
+    original = { 'Cookie' => 'session=abc123', 'Accept' => 'application/json' }
+    forwarded = original.reject { |k, _v| !same_origin && sensitive.include?(k.downcase) }
+    _(forwarded).wont_include 'Cookie'
+    _(forwarded).must_include 'Accept'
+  end
+
+  # ── NullBodyContentTypeTests ──
+
+  it 'null body POST does not send Content-Type' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('POST', '/api/test', {}, {}, nil,
+                  ['application/json'], 'application/json', nil)
+    refute client.captured_headers.key?('Content-Type'),
+           'Content-Type must NOT be sent when body is nil'
+  end
+
+  it 'empty string body includes Content-Type' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('POST', '/api/test', {}, {}, '',
+                  ['application/json'], 'application/json', nil)
+    assert client.captured_headers.key?('Content-Type'),
+           'Content-Type must be sent when body is empty string'
+  end
+
+  it 'empty JSON object body includes Content-Type' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('POST', '/api/test', {}, {}, '{}',
+                  ['application/json'], 'application/json', nil)
+    assert client.captured_headers.key?('Content-Type'),
+           'Content-Type must be sent when body is {}'
+    _(client.captured_headers['Content-Type']).must_equal 'application/json'
   end
 end

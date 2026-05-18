@@ -202,4 +202,48 @@ class TransportOptionsTest {
     assertEquals(first.isVerifySsl(), second.isVerifySsl());
     assertNotSame(first, second);
   }
+
+  // TimeoutConfigTests
+
+  @Test
+  @DisplayName("timeout defaults to null")
+  void timeoutDefaultsToNullInTimeoutGroup() {
+    // Default TransportOptions has no timeout set; null means no timeout applied.
+    TransportOptions opts = TransportOptions.builder().build();
+    assertNull(opts.getTimeout());
+  }
+
+  @Test
+  @DisplayName("setting timeout to 5000 is accessible")
+  void settingTimeoutIsAccessible() {
+    TransportOptions opts = TransportOptions.builder().timeout(5000).build();
+    assertEquals(5000, opts.getTimeout());
+  }
+
+  @Test
+  @DisplayName("timeout field is named exactly 'timeout'")
+  void timeoutFieldIsNamedTimeout() {
+    // Verify via the getter that the field is named 'timeout' (not e.g. 'connectionTimeout').
+    TransportOptions opts = TransportOptions.builder().timeout(1000).build();
+    assertNotNull(opts.getTimeout());
+    assertEquals(1000, opts.getTimeout());
+  }
+
+  // ProxyConfigTests
+
+  @Test
+  @DisplayName("setting proxy URL is preserved on read-back")
+  void proxyUrlIsPreservedOnReadBack() {
+    TransportOptions opts =
+        TransportOptions.builder().proxy("http://proxy.example.com:8080").build();
+    assertEquals("http://proxy.example.com:8080", opts.getProxy());
+  }
+
+  @Test
+  @DisplayName("setting proxy is supported on all platforms")
+  void settingProxyIsSupportedOnAllPlatforms() {
+    // Proxy configuration must not throw on any JVM platform.
+    assertDoesNotThrow(
+        () -> TransportOptions.builder().proxy("http://proxy.example.com:8080").build());
+  }
 }

@@ -177,3 +177,46 @@ fn test_transport_options_builder_produces_independent_instances() {
     assert_eq!(first.verify_ssl(), second.verify_ssl());
     assert_ne!(&first as *const _, &second as *const _);
 }
+
+// TimeoutConfigTests
+
+#[test]
+fn test_transport_options_timeout_defaults_to_none_timeout_group() {
+    // Default TransportOptions has no timeout set; None means no timeout applied.
+    let opts = TransportOptionsBuilder::new().build();
+    assert!(opts.timeout().is_none(), "expected no timeout by default");
+}
+
+#[test]
+fn test_transport_options_setting_timeout_is_accessible() {
+    let opts = TransportOptionsBuilder::new().timeout(5000).build();
+    assert_eq!(opts.timeout(), Some(5000), "expected timeout to be 5000");
+}
+
+#[test]
+fn test_transport_options_timeout_field_is_named_timeout() {
+    // Verify via the timeout() accessor that the field is named 'timeout'
+    // (not e.g. 'connection_timeout' or 'open_timeout').
+    let opts = TransportOptionsBuilder::new().timeout(1000).build();
+    assert!(opts.timeout().is_some(), "expected non-None timeout");
+    assert_eq!(opts.timeout(), Some(1000));
+}
+
+// ProxyConfigTests
+
+#[test]
+fn test_transport_options_proxy_url_is_preserved_on_read_back() {
+    let opts = TransportOptionsBuilder::new()
+        .proxy("http://proxy.example.com:8080")
+        .build();
+    assert_eq!(opts.proxy(), Some("http://proxy.example.com:8080"));
+}
+
+#[test]
+fn test_transport_options_setting_proxy_is_supported_on_all_platforms() {
+    // Proxy configuration must not panic on any platform.
+    let opts = TransportOptionsBuilder::new()
+        .proxy("http://proxy.example.com:8080")
+        .build();
+    assert!(opts.proxy().is_some(), "expected proxy to be set");
+}

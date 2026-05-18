@@ -259,9 +259,9 @@ describe('ValueSerializer', () => {
       expect(ValueSerializer.serializeStyled('id', null, 'path', 'string', null, 'simple', true)).toBe('');
     });
 
-    test('scalar does not URL-encode path value (encoding happens at URL build time)', () => {
+    test('scalar URL-encodes path value', () => {
       expect(ValueSerializer.serializeStyled('id', 'hello world', 'path', 'string', null, 'simple', false)).toBe(
-        'hello world'
+        'hello%20world'
       );
     });
   });
@@ -318,6 +318,78 @@ describe('ValueSerializer', () => {
 
     test('boolean false returns "false"', () => {
       expect(ValueSerializer.serialize(false, 'form', 'boolean')).toBe('false');
+    });
+  });
+
+  // Cross-language parity tests for path-segment percent-encoding.
+  // Every SDK must produce identical encoded strings for these inputs.
+  describe('path encoding parity', () => {
+    test('ASCII-safe pass-through', () => {
+      expect(ValueSerializer.serialize('abc123', 'path', 'string')).toBe('abc123');
+    });
+
+    test('space encoded as %20', () => {
+      expect(ValueSerializer.serialize('a b', 'path', 'string')).toBe('a%20b');
+    });
+
+    test('slash encoded', () => {
+      expect(ValueSerializer.serialize('a/b', 'path', 'string')).toBe('a%2Fb');
+    });
+
+    test('question mark encoded', () => {
+      expect(ValueSerializer.serialize('a?b', 'path', 'string')).toBe('a%3Fb');
+    });
+
+    test('hash encoded', () => {
+      expect(ValueSerializer.serialize('a#b', 'path', 'string')).toBe('a%23b');
+    });
+
+    test('comma preserved (sub-delimiter)', () => {
+      expect(ValueSerializer.serialize('a,b', 'path', 'string')).toBe('a,b');
+    });
+
+    test('colon preserved (sub-delimiter)', () => {
+      expect(ValueSerializer.serialize('a:b', 'path', 'string')).toBe('a:b');
+    });
+
+    test('plus preserved (sub-delimiter)', () => {
+      expect(ValueSerializer.serialize('a+b', 'path', 'string')).toBe('a+b');
+    });
+
+    test('unicode encoded as UTF-8 percent', () => {
+      expect(ValueSerializer.serialize('日本', 'path', 'string')).toBe('%E6%97%A5%E6%9C%AC');
+    });
+
+    test('empty string preserved', () => {
+      expect(ValueSerializer.serialize('', 'path', 'string')).toBe('');
+    });
+
+    test('null returns empty string in path location', () => {
+      expect(ValueSerializer.serialize(null, 'path', 'string')).toBe('');
+    });
+
+    test('simple style encodes value', () => {
+      expect(ValueSerializer.serializeStyled('color', 'a b', 'path', 'string', null, 'simple', false)).toBe('a%20b');
+    });
+
+    test('simple style array encodes each item', () => {
+      expect(ValueSerializer.serializeStyled('color', ['a b', 'c?d'], 'path', 'array', null, 'simple', false)).toBe(
+        'a%20b,c%3Fd'
+      );
+    });
+
+    test('matrix style encodes value', () => {
+      expect(ValueSerializer.serializeStyled('color', 'a b', 'path', 'string', null, 'matrix', false)).toBe(
+        ';color=a%20b'
+      );
+    });
+
+    test('label style encodes value', () => {
+      expect(ValueSerializer.serializeStyled('color', 'a b', 'path', 'string', null, 'label', false)).toBe('.a%20b');
+    });
+
+    test('query location is not path-encoded', () => {
+      expect(ValueSerializer.serializeStyled('color', 'a b', 'query', 'string', null, 'form', false)).toBe('a b');
     });
   });
 });

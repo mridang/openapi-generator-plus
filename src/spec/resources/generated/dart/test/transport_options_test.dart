@@ -158,4 +158,45 @@ void main() {
       expect(identical(first, second), isFalse);
     });
   });
+
+  group('TimeoutConfigTests', () {
+    test('timeout defaults to null', () {
+      // Default TransportOptions has no timeout set; null means no timeout applied.
+      final opts = TransportOptionsBuilder().build();
+      expect(opts.timeout, isNull);
+    });
+
+    test('setting timeout to 5000 is accessible', () {
+      final opts = TransportOptionsBuilder().timeout(5000).build();
+      expect(opts.timeout, equals(5000));
+    });
+
+    test('timeout field is named exactly timeout', () {
+      // Verify via the property that the field is named 'timeout'
+      // (not e.g. 'connectionTimeout').
+      final opts = TransportOptionsBuilder().timeout(1000).build();
+      expect(opts.timeout, isNotNull);
+      expect(opts.timeout, equals(1000));
+    });
+  });
+
+  group('ProxyConfigTests', () {
+    test('setting proxy URL is preserved on read-back', () {
+      final opts = TransportOptionsBuilder()
+          .proxy('http://proxy.example.com:8080')
+          .build();
+      expect(opts.proxy, isNotNull);
+      expect(opts.proxy.toString(), contains('proxy.example.com'));
+    });
+
+    test('setting proxy is supported on all platforms', () {
+      // Proxy configuration must not throw on any Dart platform.
+      expect(
+        () => TransportOptionsBuilder()
+            .proxy('http://proxy.example.com:8080')
+            .build(),
+        returnsNormally,
+      );
+    });
+  });
 }

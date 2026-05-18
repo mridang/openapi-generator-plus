@@ -13,6 +13,34 @@ import (
 	"strings"
 )
 
+// EncodePathSegment percent-encodes a string for use as a URL path segment,
+// while preserving the RFC 3986 sub-delimiters that OAS 3.0 parameter styles
+// use as structural separators: ; = , : @ ! $ & ' ( ) * +
+//
+// This matches the canonical encoding used by Java, Node, C#, Swift, etc.
+func EncodePathSegment(value string) string {
+	if value == "" {
+		return value
+	}
+	// url.PathEscape encodes everything except unreserved characters.
+	// Restore the sub-delimiters that must be preserved in path segments.
+	encoded := url.PathEscape(value)
+	encoded = strings.ReplaceAll(encoded, "%3B", ";")
+	encoded = strings.ReplaceAll(encoded, "%3D", "=")
+	encoded = strings.ReplaceAll(encoded, "%2C", ",")
+	encoded = strings.ReplaceAll(encoded, "%3A", ":")
+	encoded = strings.ReplaceAll(encoded, "%40", "@")
+	encoded = strings.ReplaceAll(encoded, "%21", "!")
+	encoded = strings.ReplaceAll(encoded, "%24", "$")
+	encoded = strings.ReplaceAll(encoded, "%26", "&")
+	encoded = strings.ReplaceAll(encoded, "%27", "'")
+	encoded = strings.ReplaceAll(encoded, "%28", "(")
+	encoded = strings.ReplaceAll(encoded, "%29", ")")
+	encoded = strings.ReplaceAll(encoded, "%2A", "*")
+	encoded = strings.ReplaceAll(encoded, "%2B", "+")
+	return encoded
+}
+
 // SerializeValue serializes a parameter value for HTTP requests based on its location.
 //
 // Parameters:
@@ -47,7 +75,7 @@ func SerializeValue(value interface{}, location, schemaType, collectionFormat st
 
 	strVal := Stringify(value)
 	if location == "path" {
-		return url.PathEscape(strVal)
+		return EncodePathSegment(strVal)
 	}
 	return strVal
 }
@@ -103,6 +131,21 @@ func SerializeStyled(paramName string, value interface{}, location, schemaType, 
 	}
 
 	items, isArray := toStringSlice(value)
+
+	// For path styles, percent-encode each individual item BEFORE applying
+	// the structural separators (";", "=", ".", ",") that the style defines.
+	// This ensures reserved characters inside the value are escaped while
+	// the style's structural punctuation remains literal.
+	if location == "path" {
+		encoded := make([]string, len(items))
+		for i, item := range items {
+			encoded[i] = EncodePathSegment(item)
+		}
+		items = encoded
+		if !isArray && value != nil {
+			value = EncodePathSegment(Stringify(value))
+		}
+	}
 
 	switch style {
 	case "matrix":

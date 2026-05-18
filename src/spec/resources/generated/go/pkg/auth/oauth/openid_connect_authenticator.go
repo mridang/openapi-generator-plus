@@ -53,16 +53,16 @@ func parseDiscoveryMaxAge(headers map[string]string) int {
 // transport configuration (proxy, TLS, timeouts) as regular API calls.
 type OpenIdConnectAuthenticator struct {
 	auth.BaseAuthenticator
-	host             string
-	openIDConnectURL string
-	clientID         string
-	clientSecret     string
-	redirectURI      string
-	scopes           []string
-	apiClient        auth.ApiClient
-	delegate         *OAuth2AuthorizationCodeAuthenticator
-	discoveryExpiry  time.Time
-	mu               sync.Mutex
+	host              string
+	openIDConnectURL  string
+	clientID          string
+	clientSecret      string
+	redirectURI       string
+	scopes            []string
+	apiClient         auth.ApiClient
+	delegate          *OAuth2AuthorizationCodeAuthenticator
+	discoveryExpiry   time.Time
+	mu                sync.Mutex
 }
 
 // NewOpenIdConnectAuthenticator creates a new OpenID Connect authenticator.

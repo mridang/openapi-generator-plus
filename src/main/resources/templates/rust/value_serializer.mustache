@@ -14,6 +14,26 @@ pub enum SerializedValue {
     Multi(Vec<String>),
 }
 
+/// Percent-encodes a path segment value, preserving RFC 3986 sub-delimiters
+/// (`;`, `=`, `,`, `:`, `@`, `!`, `$`, `&`, `'`, `(`, `)`, `*`, `+`).
+fn encode_path_segment(s: &str) -> String {
+    urlencoding::encode(s)
+        .into_owned()
+        .replace("%3B", ";")
+        .replace("%3D", "=")
+        .replace("%2C", ",")
+        .replace("%3A", ":")
+        .replace("%40", "@")
+        .replace("%21", "!")
+        .replace("%24", "$")
+        .replace("%26", "&")
+        .replace("%27", "'")
+        .replace("%28", "(")
+        .replace("%29", ")")
+        .replace("%2A", "*")
+        .replace("%2B", "+")
+}
+
 /// Serializes a parameter value for HTTP requests based on its location.
 ///
 /// # Arguments
@@ -32,7 +52,7 @@ pub fn serialize_value(
         None => serialize_nil(location),
         Some(val) => {
             if location == "path" {
-                Some(urlencoding::encode(val).into_owned())
+                Some(encode_path_segment(val))
             } else {
                 Some(val.to_string())
             }
@@ -105,18 +125,26 @@ pub fn serialize_styled(
                 return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
             }
             if let Some(arr) = items {
+                let enc: Vec<String> = if location == "path" {
+                    arr.iter().map(|v| encode_path_segment(v)).collect()
+                } else {
+                    arr.to_vec()
+                };
                 if explode {
-                    let parts: Vec<String> = arr
+                    let parts: Vec<String> = enc
                         .iter()
                         .map(|v| format!(";{}={}", param_name, v))
                         .collect();
                     Some(SerializedValue::Single(parts.join("")))
                 } else {
-                    Some(SerializedValue::Single(format!(";{}={}", param_name, arr.join(","))))
+                    Some(SerializedValue::Single(format!(";{}={}", param_name, enc.join(","))))
                 }
             } else {
                 match value {
-                    Some(val) => Some(SerializedValue::Single(format!(";{}={}", param_name, val))),
+                    Some(val) => {
+                        let encoded = if location == "path" { encode_path_segment(val) } else { val.to_string() };
+                        Some(SerializedValue::Single(format!(";{}={}", param_name, encoded)))
+                    }
                     None => Some(SerializedValue::Single(format!(";{}", param_name))),
                 }
             }
@@ -126,14 +154,22 @@ pub fn serialize_styled(
                 return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
             }
             if let Some(arr) = items {
-                if explode {
-                    Some(SerializedValue::Single(format!(".{}", arr.join("."))))
+                let enc: Vec<String> = if location == "path" {
+                    arr.iter().map(|v| encode_path_segment(v)).collect()
                 } else {
-                    Some(SerializedValue::Single(format!(".{}", arr.join(","))))
+                    arr.to_vec()
+                };
+                if explode {
+                    Some(SerializedValue::Single(format!(".{}", enc.join("."))))
+                } else {
+                    Some(SerializedValue::Single(format!(".{}", enc.join(","))))
                 }
             } else {
                 match value {
-                    Some(val) => Some(SerializedValue::Single(format!(".{}", val))),
+                    Some(val) => {
+                        let encoded = if location == "path" { encode_path_segment(val) } else { val.to_string() };
+                        Some(SerializedValue::Single(format!(".{}", encoded)))
+                    }
                     None => Some(SerializedValue::Single(".".to_string())),
                 }
             }
@@ -186,10 +222,18 @@ pub fn serialize_styled(
                 return if location == "query" { None } else { Some(SerializedValue::Single(String::new())) };
             }
             if let Some(arr) = items {
-                Some(SerializedValue::Single(arr.join(",")))
+                let enc: Vec<String> = if location == "path" {
+                    arr.iter().map(|v| encode_path_segment(v)).collect()
+                } else {
+                    arr.to_vec()
+                };
+                Some(SerializedValue::Single(enc.join(",")))
             } else {
                 match value {
-                    Some(val) => Some(SerializedValue::Single(val.to_string())),
+                    Some(val) => {
+                        let encoded = if location == "path" { encode_path_segment(val) } else { val.to_string() };
+                        Some(SerializedValue::Single(encoded))
+                    }
                     None => Some(SerializedValue::Single(String::new())),
                 }
             }

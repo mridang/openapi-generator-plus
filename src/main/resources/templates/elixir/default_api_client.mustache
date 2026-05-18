@@ -193,7 +193,7 @@ defmodule {{moduleName}}.DefaultApiClient do
     req_opts
   end
 
-  defp prepare_body(nil, headers), do: {nil, headers}
+  defp prepare_body(nil, headers), do: {nil, Map.delete(headers, "Content-Type")}
 
   defp prepare_body(body, headers) when is_map(body) do
     boundary = generate_uuid()

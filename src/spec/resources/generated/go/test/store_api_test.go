@@ -12,7 +12,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	petstore "petstore/pkg"
+	"petstore/pkg"
 	"petstore/pkg/models"
 )
 

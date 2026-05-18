@@ -811,4 +811,297 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert result != nil
     assert result["message"] == "success"
   end
+
+  # BinaryResponseTests
+
+  defmodule OctetStreamApiClient do
+    @behaviour PetstoreClient.ApiClient
+
+    @impl true
+    def send_request(_method, _url, _headers, _body) do
+      binary_data = <<0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A>>
+      encoded = Base.encode64(binary_data)
+
+      %PetstoreClient.ApiResponse{
+        status_code: 200,
+        body: encoded,
+        headers: %{"Content-Type" => "application/octet-stream"}
+      }
+    end
+  end
+
+  defmodule ImagePngApiClient do
+    @behaviour PetstoreClient.ApiClient
+
+    @impl true
+    def send_request(_method, _url, _headers, _body) do
+      binary_data = <<0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D>>
+      encoded = Base.encode64(binary_data)
+      %PetstoreClient.ApiResponse{status_code: 200, body: encoded, headers: %{"Content-Type" => "image/png"}}
+    end
+  end
+
+  defmodule EmptyBinaryApiClient do
+    @behaviour PetstoreClient.ApiClient
+
+    @impl true
+    def send_request(_method, _url, _headers, _body) do
+      %PetstoreClient.ApiResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/octet-stream"}}
+    end
+  end
+
+  test "octet-stream response body is base64-encoded binary" do
+    binary_data = <<0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A>>
+    encoded = Base.encode64(binary_data)
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: OctetStreamApiClient}
+
+    assert {:ok, result} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/api/test",
+               %{},
+               %{},
+               nil,
+               ["application/octet-stream"],
+               "application/octet-stream",
+               "String"
+             )
+
+    assert result == encoded
+  end
+
+  test "image/png response body is base64-encoded binary" do
+    binary_data = <<0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D>>
+    encoded = Base.encode64(binary_data)
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: ImagePngApiClient}
+
+    assert {:ok, result} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/api/img",
+               %{},
+               %{},
+               nil,
+               ["image/png"],
+               "image/png",
+               "String"
+             )
+
+    assert result == encoded
+  end
+
+  test "application/json response is deserialized to map" do
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: VendorJsonApiClient}
+
+    assert {:ok, result} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/api/test",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               "Object"
+             )
+
+    assert is_map(result)
+  end
+
+  test "text/plain response returns raw string" do
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: NilContentTypeApiClient}
+
+    assert {:ok, result} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/api/test",
+               %{},
+               %{},
+               nil,
+               ["text/plain"],
+               "application/json",
+               "String"
+             )
+
+    assert is_binary(result)
+  end
+
+  test "empty body returns nil" do
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: EmptyBinaryApiClient}
+
+    assert {:ok, nil} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/api/test",
+               %{},
+               %{},
+               nil,
+               ["application/octet-stream"],
+               "application/octet-stream",
+               nil
+             )
+  end
+
+  # CrossOriginRedirectTests
+
+  test "same-origin redirect forwards Authorization header" do
+    sensitive_headers = MapSet.new(["authorization", "cookie", "proxy-authorization"])
+    is_same_origin = true
+    original_headers = %{"Authorization" => "Bearer token123", "Accept" => "application/json"}
+
+    forwarded =
+      Enum.reject(original_headers, fn {k, _v} ->
+        !is_same_origin and MapSet.member?(sensitive_headers, String.downcase(k))
+      end)
+      |> Enum.into(%{})
+
+    assert Map.get(forwarded, "Authorization") == "Bearer token123"
+  end
+
+  test "cross-origin redirect drops Authorization header" do
+    sensitive_headers = MapSet.new(["authorization", "cookie", "proxy-authorization"])
+    is_same_origin = false
+    original_headers = %{"Authorization" => "Bearer token123", "Accept" => "application/json"}
+
+    forwarded =
+      Enum.reject(original_headers, fn {k, _v} ->
+        !is_same_origin and MapSet.member?(sensitive_headers, String.downcase(k))
+      end)
+      |> Enum.into(%{})
+
+    refute Map.has_key?(forwarded, "Authorization"),
+           "Authorization should be dropped on cross-origin redirect"
+
+    assert Map.has_key?(forwarded, "Accept"),
+           "Accept should be forwarded on cross-origin redirect"
+  end
+
+  test "cross-origin redirect drops Cookie header" do
+    sensitive_headers = MapSet.new(["authorization", "cookie", "proxy-authorization"])
+    is_same_origin = false
+    original_headers = %{"Cookie" => "session=abc123", "Accept" => "application/json"}
+
+    forwarded =
+      Enum.reject(original_headers, fn {k, _v} ->
+        !is_same_origin and MapSet.member?(sensitive_headers, String.downcase(k))
+      end)
+      |> Enum.into(%{})
+
+    refute Map.has_key?(forwarded, "Cookie"),
+           "Cookie should be dropped on cross-origin redirect"
+
+    assert Map.has_key?(forwarded, "Accept"),
+           "Accept should be forwarded on cross-origin redirect"
+  end
+
+  # NullBodyContentTypeTests
+
+  defmodule CapturingHeadersApiClient do
+    @behaviour PetstoreClient.ApiClient
+    use Agent
+
+    def start do
+      Agent.start_link(fn -> %{} end, name: __MODULE__)
+    end
+
+    def captured_headers do
+      Agent.get(__MODULE__, & &1)
+    end
+
+    @impl true
+    def send_request(_method, _url, headers, _body) do
+      Agent.update(__MODULE__, fn _ -> headers end)
+      %PetstoreClient.ApiResponse{status_code: 200, body: "{}", headers: %{"Content-Type" => "application/json"}}
+    end
+  end
+
+  test "null body POST does not send Content-Type" do
+    {:ok, _} = CapturingHeadersApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: CapturingHeadersApiClient}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :post,
+        "/api/test",
+        %{},
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        nil
+      )
+
+    headers = CapturingHeadersApiClient.captured_headers()
+
+    refute Map.has_key?(headers, "Content-Type"),
+           "Content-Type must NOT be sent when body is nil"
+
+    Agent.stop(CapturingHeadersApiClient)
+  end
+
+  test "empty string body includes Content-Type" do
+    {:ok, _} = CapturingHeadersApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: CapturingHeadersApiClient}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :post,
+        "/api/test",
+        %{},
+        %{},
+        "",
+        ["application/json"],
+        "application/json",
+        nil
+      )
+
+    headers = CapturingHeadersApiClient.captured_headers()
+
+    assert Map.has_key?(headers, "Content-Type"),
+           "Content-Type must be sent when body is an empty string"
+
+    Agent.stop(CapturingHeadersApiClient)
+  end
+
+  test "empty JSON object body includes Content-Type" do
+    {:ok, _} = CapturingHeadersApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: CapturingHeadersApiClient}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :post,
+        "/api/test",
+        %{},
+        %{},
+        %{},
+        ["application/json"],
+        "application/json",
+        nil
+      )
+
+    headers = CapturingHeadersApiClient.captured_headers()
+
+    assert Map.has_key?(headers, "Content-Type"),
+           "Content-Type must be sent when body is {}"
+
+    assert headers["Content-Type"] == "application/json"
+
+    Agent.stop(CapturingHeadersApiClient)
+  end
 end

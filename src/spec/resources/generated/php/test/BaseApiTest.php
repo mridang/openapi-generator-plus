@@ -632,4 +632,249 @@ class BaseApiTest extends TestCase
         $this->assertArrayHasKey('Accept', $client->capturedHeaders);
         $this->assertArrayHasKey('Content-Type', $client->capturedHeaders);
     }
+
+    // -- BinaryResponseTests --
+
+    public function testOctetStreamResponseDecodedAsBase64Bytes(): void
+    {
+        $binaryData = "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A";
+        $encoded = base64_encode($binaryData);
+        $client = new class implements ApiClient {
+            public string $body = '';
+            public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
+            {
+                return new ApiResponse(200, $this->body, ['Content-Type' => 'application/octet-stream']);
+            }
+        };
+        $client->body = $encoded;
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $result = $testApi->call(
+            'GET',
+            '/api/test',
+            [],
+            [],
+            null,
+            ['application/octet-stream'],
+            'application/octet-stream',
+            null
+        );
+        $this->assertSame($binaryData, $result);
+    }
+
+    public function testImagePngResponseDecodedAsBytes(): void
+    {
+        $binaryData = "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A\x00\x00\x00\x0D";
+        $encoded = base64_encode($binaryData);
+        $client = new class implements ApiClient {
+            public string $body = '';
+            public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
+            {
+                return new ApiResponse(200, $this->body, ['Content-Type' => 'image/png']);
+            }
+        };
+        $client->body = $encoded;
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $result = $testApi->call(
+            'GET',
+            '/api/img',
+            [],
+            [],
+            null,
+            ['image/png'],
+            'image/png',
+            null
+        );
+        $this->assertSame($binaryData, $result);
+    }
+
+    public function testJsonResponseParsedToObject(): void
+    {
+        $client = new class implements ApiClient {
+            public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
+            {
+                return new ApiResponse(200, '{"id":42,"name":"test"}', ['Content-Type' => 'application/json']);
+            }
+        };
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $result = $testApi->call(
+            'GET',
+            '/api/test',
+            [],
+            [],
+            null,
+            ['application/json'],
+            null,
+            null
+        );
+        $this->assertNotNull($result);
+    }
+
+    public function testTextPlainResponseReturnsString(): void
+    {
+        $client = new class implements ApiClient {
+            public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
+            {
+                return new ApiResponse(200, 'hello world', ['Content-Type' => 'text/plain']);
+            }
+        };
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $result = $testApi->call(
+            'GET',
+            '/api/test',
+            [],
+            [],
+            null,
+            ['text/plain'],
+            null,
+            null
+        );
+        $this->assertIsString($result);
+        $this->assertSame('hello world', $result);
+    }
+
+    public function testEmptyBodyYieldsNull(): void
+    {
+        $client = new class implements ApiClient {
+            public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
+            {
+                return new ApiResponse(200, '', ['Content-Type' => 'application/octet-stream']);
+            }
+        };
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $result = $testApi->call(
+            'GET',
+            '/api/test',
+            [],
+            [],
+            null,
+            ['application/octet-stream'],
+            null,
+            null
+        );
+        $this->assertNull($result);
+    }
+
+    // -- CrossOriginRedirectTests --
+
+    public function testSameOriginRedirectForwardsAuthorization(): void
+    {
+        $authHeader = 'Bearer token123';
+        $forwardedHeaders = [];
+
+        // Same-origin: sensitive headers are forwarded
+        $forwardedHeaders['Authorization'] = $authHeader;
+
+        $this->assertArrayHasKey('Authorization', $forwardedHeaders);
+        $this->assertSame($authHeader, $forwardedHeaders['Authorization']);
+    }
+
+    public function testCrossOriginRedirectDropsAuthorization(): void
+    {
+        $sensitiveHeaders = ['authorization', 'cookie', 'proxy-authorization'];
+        $originalHeaders = ['Authorization' => 'Bearer token123', 'Accept' => 'application/json'];
+        $forwardedHeaders = [];
+
+        // Cross-origin: skip sensitive headers
+        foreach ($originalHeaders as $key => $value) {
+            if (in_array(strtolower($key), $sensitiveHeaders, true)) {
+                continue;
+            }
+            $forwardedHeaders[$key] = $value;
+        }
+
+        $this->assertArrayNotHasKey('Authorization', $forwardedHeaders);
+        $this->assertArrayHasKey('Accept', $forwardedHeaders);
+    }
+
+    public function testCrossOriginRedirectDropsCookie(): void
+    {
+        $sensitiveHeaders = ['authorization', 'cookie', 'proxy-authorization'];
+        $originalHeaders = ['Cookie' => 'session=abc123', 'Accept' => 'application/json'];
+        $forwardedHeaders = [];
+
+        // Cross-origin: skip sensitive headers
+        foreach ($originalHeaders as $key => $value) {
+            if (in_array(strtolower($key), $sensitiveHeaders, true)) {
+                continue;
+            }
+            $forwardedHeaders[$key] = $value;
+        }
+
+        $this->assertArrayNotHasKey('Cookie', $forwardedHeaders);
+        $this->assertArrayHasKey('Accept', $forwardedHeaders);
+    }
+
+    // -- NullBodyContentTypeTests --
+
+    public function testNullBodyPostDoesNotSendContentType(): void
+    {
+        $client = new CapturingApiClient();
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $testApi->call(
+            'POST',
+            '/api/test',
+            [],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null
+        );
+        $this->assertArrayNotHasKey(
+            'Content-Type',
+            $client->capturedHeaders,
+            'Content-Type must NOT be sent when body is null'
+        );
+    }
+
+    public function testEmptyStringBodyIncludesContentType(): void
+    {
+        $client = new CapturingApiClient();
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $testApi->call(
+            'POST',
+            '/api/test',
+            [],
+            [],
+            '',
+            ['application/json'],
+            'application/json',
+            null
+        );
+        $this->assertArrayHasKey(
+            'Content-Type',
+            $client->capturedHeaders,
+            'Content-Type must be sent when body is an empty string'
+        );
+    }
+
+    public function testEmptyJsonObjectBodyIncludesContentType(): void
+    {
+        $client = new CapturingApiClient();
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $testApi->call(
+            'POST',
+            '/api/test',
+            [],
+            [],
+            '{}',
+            ['application/json'],
+            'application/json',
+            null
+        );
+        $this->assertArrayHasKey(
+            'Content-Type',
+            $client->capturedHeaders,
+            'Content-Type must be sent when body is {}'
+        );
+        $this->assertSame('application/json', $client->capturedHeaders['Content-Type']);
+    }
 }

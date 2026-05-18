@@ -110,6 +110,10 @@ open class BaseApi {
       serializedBody = try Self.serializeBody(params.body, contentType: params.contentType)
     }
 
+    if serializedBody == nil {
+      headers.removeValue(forKey: "Content-Type")
+    }
+
     /* Send request */
     let response = try await apiClient.sendRequest(
       method: params.method,

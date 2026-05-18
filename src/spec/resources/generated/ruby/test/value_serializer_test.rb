@@ -306,11 +306,11 @@ describe PetstoreClient::ValueSerializer do
         _(result).must_equal('')
       end
 
-      it 'scalar does not URL-encode' do
+      it 'scalar URL-encodes for path' do
         result = PetstoreClient::ValueSerializer.serialize_styled(
           'id', 'hello world', :path, 'string', nil, 'simple', false
         )
-        _(result).must_equal('hello world')
+        _(result).must_equal('hello%20world')
       end
     end
 
@@ -337,6 +337,80 @@ describe PetstoreClient::ValueSerializer do
     it 'null returns empty hash' do
       result = PetstoreClient::ValueSerializer.serialize_deep_object('filter', nil)
       _(result).must_equal({})
+    end
+  end
+
+  # Cross-language parity tests for path-segment percent-encoding.
+  # Every SDK must produce identical encoded strings for these inputs.
+  describe 'path encoding parity' do
+    it 'ASCII-safe pass-through' do
+      _(PetstoreClient::ValueSerializer.serialize('abc123', :path, 'string')).must_equal('abc123')
+    end
+
+    it 'space encoded as %20' do
+      _(PetstoreClient::ValueSerializer.serialize('a b', :path, 'string')).must_equal('a%20b')
+    end
+
+    it 'slash encoded' do
+      _(PetstoreClient::ValueSerializer.serialize('a/b', :path, 'string')).must_equal('a%2Fb')
+    end
+
+    it 'question mark encoded' do
+      _(PetstoreClient::ValueSerializer.serialize('a?b', :path, 'string')).must_equal('a%3Fb')
+    end
+
+    it 'hash encoded' do
+      _(PetstoreClient::ValueSerializer.serialize('a#b', :path, 'string')).must_equal('a%23b')
+    end
+
+    it 'comma preserved (sub-delimiter)' do
+      _(PetstoreClient::ValueSerializer.serialize('a,b', :path, 'string')).must_equal('a,b')
+    end
+
+    it 'colon preserved (sub-delimiter)' do
+      _(PetstoreClient::ValueSerializer.serialize('a:b', :path, 'string')).must_equal('a:b')
+    end
+
+    it 'plus preserved (sub-delimiter)' do
+      _(PetstoreClient::ValueSerializer.serialize('a+b', :path, 'string')).must_equal('a+b')
+    end
+
+    it 'unicode encoded as UTF-8 percent' do
+      _(PetstoreClient::ValueSerializer.serialize('日本', :path, 'string')).must_equal('%E6%97%A5%E6%9C%AC')
+    end
+
+    it 'empty string preserved' do
+      _(PetstoreClient::ValueSerializer.serialize('', :path, 'string')).must_equal('')
+    end
+
+    it 'null returns empty string in path location' do
+      _(PetstoreClient::ValueSerializer.serialize(nil, :path, 'string')).must_equal('')
+    end
+
+    it 'simple style encodes value' do
+      result = PetstoreClient::ValueSerializer.serialize_styled('color', 'a b', :path, 'string', nil, 'simple', false)
+      _(result).must_equal('a%20b')
+    end
+
+    it 'simple style array encodes each item' do
+      result = PetstoreClient::ValueSerializer.serialize_styled('color', ['a b', 'c?d'], :path, 'array', nil, 'simple',
+        false)
+      _(result).must_equal('a%20b,c%3Fd')
+    end
+
+    it 'matrix style encodes value' do
+      result = PetstoreClient::ValueSerializer.serialize_styled('color', 'a b', :path, 'string', nil, 'matrix', false)
+      _(result).must_equal(';color=a%20b')
+    end
+
+    it 'label style encodes value' do
+      result = PetstoreClient::ValueSerializer.serialize_styled('color', 'a b', :path, 'string', nil, 'label', false)
+      _(result).must_equal('.a%20b')
+    end
+
+    it 'query location is not path-encoded' do
+      result = PetstoreClient::ValueSerializer.serialize_styled('color', 'a b', :query, 'string', nil, 'form', false)
+      _(result).must_equal('a b')
     end
   end
 end

@@ -356,10 +356,10 @@ func TestSerializeStyled_SimpleNil(t *testing.T) {
 	}
 }
 
-func TestSerializeStyled_SimpleScalarDoesNotUrlEncode(t *testing.T) {
+func TestSerializeStyled_SimpleScalarPathEncodesValue(t *testing.T) {
 	result := {{packageName}}.SerializeStyled("id", "hello world", "path", "string", "", "simple", false)
-	if result != "hello world" {
-		t.Errorf("expected 'hello world' (not URL-encoded), got %v", result)
+	if result != "hello%20world" {
+		t.Errorf("expected 'hello%%20world' (URL-encoded for path), got %v", result)
 	}
 }
 
@@ -489,5 +489,121 @@ func TestSerializeStyled_EmptyStyle(t *testing.T) {
 	result := {{packageName}}.SerializeStyled("id", "5", "query", "string", "", "", false)
 	if result != "5" {
 		t.Errorf("expected '5', got %v", result)
+	}
+}
+
+// ── Path encoding parity ──
+// Cross-language parity tests for path-segment percent-encoding.
+// Every SDK must produce identical encoded strings for these inputs.
+
+func TestPathEncodingParity_AsciiSafePassThrough(t *testing.T) {
+	result := {{packageName}}.SerializeValue("abc123", "path", "string", "")
+	if result != "abc123" {
+		t.Errorf("expected 'abc123', got %v", result)
+	}
+}
+
+func TestPathEncodingParity_SpaceEncoded(t *testing.T) {
+	result := {{packageName}}.SerializeValue("a b", "path", "string", "")
+	if result != "a%20b" {
+		t.Errorf("expected 'a%%20b', got %v", result)
+	}
+}
+
+func TestPathEncodingParity_SlashEncoded(t *testing.T) {
+	result := {{packageName}}.SerializeValue("a/b", "path", "string", "")
+	if result != "a%2Fb" {
+		t.Errorf("expected 'a%%2Fb', got %v", result)
+	}
+}
+
+func TestPathEncodingParity_QuestionMarkEncoded(t *testing.T) {
+	result := {{packageName}}.SerializeValue("a?b", "path", "string", "")
+	if result != "a%3Fb" {
+		t.Errorf("expected 'a%%3Fb', got %v", result)
+	}
+}
+
+func TestPathEncodingParity_HashEncoded(t *testing.T) {
+	result := {{packageName}}.SerializeValue("a#b", "path", "string", "")
+	if result != "a%23b" {
+		t.Errorf("expected 'a%%23b', got %v", result)
+	}
+}
+
+func TestPathEncodingParity_CommaPreserved(t *testing.T) {
+	result := {{packageName}}.SerializeValue("a,b", "path", "string", "")
+	if result != "a,b" {
+		t.Errorf("expected 'a,b', got %v", result)
+	}
+}
+
+func TestPathEncodingParity_ColonPreserved(t *testing.T) {
+	result := {{packageName}}.SerializeValue("a:b", "path", "string", "")
+	if result != "a:b" {
+		t.Errorf("expected 'a:b', got %v", result)
+	}
+}
+
+func TestPathEncodingParity_PlusPreserved(t *testing.T) {
+	result := {{packageName}}.SerializeValue("a+b", "path", "string", "")
+	if result != "a+b" {
+		t.Errorf("expected 'a+b', got %v", result)
+	}
+}
+
+func TestPathEncodingParity_UnicodeEncoded(t *testing.T) {
+	result := {{packageName}}.SerializeValue("日本", "path", "string", "")
+	if result != "%E6%97%A5%E6%9C%AC" {
+		t.Errorf("expected '%%E6%%97%%A5%%E6%%9C%%AC', got %v", result)
+	}
+}
+
+func TestPathEncodingParity_EmptyStringPreserved(t *testing.T) {
+	result := {{packageName}}.SerializeValue("", "path", "string", "")
+	if result != "" {
+		t.Errorf("expected empty string, got %v", result)
+	}
+}
+
+func TestPathEncodingParity_NullReturnsEmpty(t *testing.T) {
+	result := {{packageName}}.SerializeValue(nil, "path", "string", "")
+	if result != "" {
+		t.Errorf("expected empty string for nil path value, got %v", result)
+	}
+}
+
+func TestPathEncodingParity_SimpleStyleEncodesValue(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("color", "a b", "path", "string", "", "simple", false)
+	if result != "a%20b" {
+		t.Errorf("expected 'a%%20b', got %v", result)
+	}
+}
+
+func TestPathEncodingParity_SimpleStyleArrayEncodesEachItem(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("color", []string{"a b", "c?d"}, "path", "array", "", "simple", false)
+	if result != "a%20b,c%3Fd" {
+		t.Errorf("expected 'a%%20b,c%%3Fd', got %v", result)
+	}
+}
+
+func TestPathEncodingParity_MatrixStyleEncodesValue(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("color", "a b", "path", "string", "", "matrix", false)
+	if result != ";color=a%20b" {
+		t.Errorf("expected ';color=a%%20b', got %v", result)
+	}
+}
+
+func TestPathEncodingParity_LabelStyleEncodesValue(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("color", "a b", "path", "string", "", "label", false)
+	if result != ".a%20b" {
+		t.Errorf("expected '.a%%20b', got %v", result)
+	}
+}
+
+func TestPathEncodingParity_QueryLocationNotPathEncoded(t *testing.T) {
+	result := {{packageName}}.SerializeStyled("color", "a b", "query", "string", "", "form", false)
+	if result != "a b" {
+		t.Errorf("expected 'a b' (not path-encoded), got %v", result)
 	}
 }

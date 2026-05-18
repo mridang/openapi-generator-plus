@@ -8,6 +8,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use base64::Engine;
 use serde::de::DeserializeOwned;
 
 use crate::api_client::{ApiClient, RequestBody};
@@ -156,6 +157,10 @@ impl BaseApi {
             serialize_body(params.body, params.content_type)?.map(RequestBody::Bytes)
         };
 
+        if serialized_body.is_none() {
+            headers.remove("Content-Type");
+        }
+
         /* Send request */
         let response = self
             .api_client
@@ -202,7 +207,10 @@ impl BaseApi {
         } else if !is_json && !response.body.is_empty() {
             /* Non-JSON response -- populate data with the raw body string so
              * callers can access it without also checking raw_body. */
-            serde_json::from_value(serde_json::Value::String(response.body.clone())).ok()
+            serde_json::from_value(serde_json::Value::String(
+                base64::engine::general_purpose::STANDARD.encode(response.body.as_bytes()),
+            ))
+            .ok()
         } else {
             None
         };

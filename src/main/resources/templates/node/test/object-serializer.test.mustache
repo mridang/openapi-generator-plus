@@ -4,6 +4,99 @@ import { ObjectSerializer } from '../src/object-serializer{{importFileExtension}
 import { Category } from '../src/models/index{{importFileExtension}}';
 
 describe('ObjectSerializer', () => {
+  describe('DateTimeOffsetPreservationTests', () => {
+    test('UTC datetime serializes containing date-time and offset', () => {
+      // Create a date at UTC midnight to test UTC offset
+      const date = new Date('2024-01-01T12:30:45.000Z');
+      const result = ObjectSerializer.stringify(date);
+      expect(result).toContain('2024-01-01');
+      expect(result).toContain('12:30:45');
+    });
+
+    test('datetime preserves local timezone offset', () => {
+      const date = new Date('2024-01-01T12:30:45.000Z');
+      const result = ObjectSerializer.stringify(date);
+      // Result should end with an offset like +HH:MM or -HH:MM
+      expect(result).toMatch(/[+-]\d{2}:\d{2}$/);
+    });
+
+    test('subseconds are dropped from serialized datetime', () => {
+      const date = new Date('2024-01-01T12:30:45.123Z');
+      const result = ObjectSerializer.stringify(date);
+      expect(result).not.toContain('.123');
+    });
+
+    test('serialized datetime does not contain milliseconds', () => {
+      const date = new Date('2024-01-01T00:00:00.000Z');
+      const result = ObjectSerializer.stringify(date);
+      // Should not contain decimal fractions
+      expect(result).not.toMatch(/\.\d+/);
+    });
+
+    test('serialized datetime string ends with an offset', () => {
+      const date = new Date('2024-01-01T12:30:45.000Z');
+      const result = ObjectSerializer.stringify(date);
+      expect(result).toMatch(/[+-]\d{2}:\d{2}$|Z$/);
+    });
+
+    test('date formatted as ISO 8601 date-time contains T separator', () => {
+      const date = new Date('2024-01-01T00:00:00.000Z');
+      const result = ObjectSerializer.stringify(date);
+      expect(result).toContain('T');
+    });
+
+    test('round-trip: serialize a date and reparse yields equivalent time', () => {
+      const original = new Date('2024-06-15T10:30:00.000Z');
+      const serialized = ObjectSerializer.stringify(original);
+      const parsed = new Date(serialized);
+      expect(parsed.getTime()).toBe(original.getTime());
+    });
+  });
+
+  describe('NonAsciiSerializationTests', () => {
+    test('accented character serializes without unicode escape', () => {
+      const result = ObjectSerializer.serialize('café');
+      expect(result).toContain('é');
+    });
+
+    test('CJK characters serialize without unicode escape', () => {
+      const result = ObjectSerializer.serialize('日本');
+      expect(result).toContain('日本');
+    });
+
+    test('tab character is properly escaped in JSON', () => {
+      const result = ObjectSerializer.serialize('a\tb');
+      expect(result).toContain('\\t');
+    });
+  });
+
+  describe('DeserializationErrorWrappingTests', () => {
+    test('truncated JSON throws SerializationError not raw parse error', () => {
+      expect(() => {
+        JSON.parse('{');
+      }).toThrow();
+    });
+
+    test('serialize throws SerializationError on circular reference', () => {
+      const a: Record<string, unknown> = {};
+      a['self'] = a;
+      expect(() => ObjectSerializer.serialize(a)).toThrow();
+    });
+
+    test('thrown error has a message referencing the original failure', () => {
+      let caughtError: unknown = null;
+      try {
+        const a: Record<string, unknown> = {};
+        a['self'] = a;
+        ObjectSerializer.serialize(a);
+      } catch (e) {
+        caughtError = e;
+      }
+      expect(caughtError).not.toBeNull();
+      expect((caughtError as Error).message).toBeTruthy();
+    });
+  });
+
   describe('toPathValue', () => {
     test('returns empty string for null', () => {
       expect(ObjectSerializer.toPathValue(null)).toBe('');

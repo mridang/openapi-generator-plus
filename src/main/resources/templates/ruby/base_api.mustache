@@ -63,6 +63,7 @@ module {{moduleName}}
         end
         {{moduleName}}::TraceContextUtil.inject_trace_context(headers)
         serialized_body = serialize_body(body, content_type)
+        headers.delete('Content-Type') if serialized_body.nil?
         response = @api_client.send_request(method, url, headers, serialized_body)
         throw_api_error(response) if response.status_code < 200 || response.status_code >= 300
 

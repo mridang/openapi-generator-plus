@@ -1,6 +1,77 @@
 import datetime
-from petstore_client.object_serializer import ObjectSerializer
+import pytest
+from petstore_client.object_serializer import ObjectSerializer, SerializationError
 from petstore_client.models.category import Category
+
+
+class TestDateTimeOffsetPreservation:
+    def test_utc_datetime_serializes_containing_offset(self) -> None:
+        dt = datetime.datetime.fromisoformat('2024-01-01T12:30:45+00:00')
+        result = ObjectSerializer.stringify(dt)
+        assert '2024-01-01T12:30:45' in result
+        assert '+00:00' in result or result.endswith('Z')
+
+    def test_positive_offset_preserved(self) -> None:
+        dt = datetime.datetime.fromisoformat('2024-01-01T12:30:45+05:30')
+        result = ObjectSerializer.stringify(dt)
+        assert '+05:30' in result
+
+    def test_negative_offset_preserved(self) -> None:
+        dt = datetime.datetime.fromisoformat('2024-01-01T12:30:45-08:00')
+        result = ObjectSerializer.stringify(dt)
+        assert '-08:00' in result
+
+    def test_subseconds_dropped_from_serialized_datetime(self) -> None:
+        dt = datetime.datetime.fromisoformat('2024-01-01T12:30:45.123000+00:00')
+        result = ObjectSerializer.stringify(dt)
+        assert '.123' not in result
+
+    def test_date_only_serializes_as_iso8601_date(self) -> None:
+        d = datetime.date(2024, 1, 1)
+        result = ObjectSerializer.stringify(d)
+        assert result == '2024-01-01'
+
+    def test_serialized_datetime_ends_with_offset(self) -> None:
+        dt = datetime.datetime(2024, 1, 1, 12, 30, 45, tzinfo=datetime.timezone.utc)
+        result = ObjectSerializer.stringify(dt)
+        import re
+
+        assert re.search(r'[+-]\d{2}:\d{2}$|Z$', result), f'should end with offset: {result}'
+
+    def test_round_trip_datetime_yields_equivalent_instant(self) -> None:
+        original = datetime.datetime.fromisoformat('2024-01-01T12:30:45+05:30')
+        serialized = ObjectSerializer.stringify(original)
+        parsed = datetime.datetime.fromisoformat(serialized)
+        assert original.utctimetuple() == parsed.utctimetuple()
+
+
+class TestNonAsciiSerialization:
+    def test_accented_character_not_unicode_escaped(self) -> None:
+        result = ObjectSerializer().serialize('café')
+        assert 'é' in result
+
+    def test_cjk_characters_not_unicode_escaped(self) -> None:
+        result = ObjectSerializer().serialize('日本')
+        assert '日本' in result
+
+    def test_tab_character_escaped_properly_in_json(self) -> None:
+        result = ObjectSerializer().serialize('a\tb')
+        assert r'\t' in result
+
+
+class TestDeserializationErrorWrapping:
+    def test_truncated_json_raises_serialization_error(self) -> None:
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize('{', 'Category')
+
+    def test_invalid_json_structure_raises_serialization_error(self) -> None:
+        with pytest.raises(SerializationError):
+            ObjectSerializer().deserialize('"hello"', 'int')
+
+    def test_thrown_serialization_error_has_cause(self) -> None:
+        with pytest.raises(SerializationError) as exc_info:
+            ObjectSerializer().deserialize('{', 'Category')
+        assert exc_info.value.cause is not None
 
 
 class TestStringify:

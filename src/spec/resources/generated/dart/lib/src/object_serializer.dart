@@ -172,18 +172,21 @@ T? resolveAnyOf<T>(Map<String, dynamic> data,
   return resolveOneOf(data, fromJsonCandidates);
 }
 
-/// Formats a DateTime as an ISO 8601 string with a UTC offset (+00:00)
-/// instead of the "Z" suffix, matching the format used by Java, Kotlin, C#,
-/// and other language generators.
+/// Formats a DateTime as an ISO 8601 string preserving the original timezone
+/// offset instead of converting to UTC, matching the format used by Java,
+/// Kotlin, C#, and other language generators.
 String _formatDateTimeOffset(DateTime date) {
-  final utc = date.toUtc();
-  final y = utc.year.toString().padLeft(4, '0');
-  final mo = utc.month.toString().padLeft(2, '0');
-  final d = utc.day.toString().padLeft(2, '0');
-  final h = utc.hour.toString().padLeft(2, '0');
-  final mi = utc.minute.toString().padLeft(2, '0');
-  final s = utc.second.toString().padLeft(2, '0');
-  return '$y-$mo-${d}T$h:$mi:$s+00:00';
+  final y = date.year.toString().padLeft(4, '0');
+  final mo = date.month.toString().padLeft(2, '0');
+  final d = date.day.toString().padLeft(2, '0');
+  final h = date.hour.toString().padLeft(2, '0');
+  final mi = date.minute.toString().padLeft(2, '0');
+  final s = date.second.toString().padLeft(2, '0');
+  final offset = date.timeZoneOffset;
+  final sign = offset.isNegative ? '-' : '+';
+  final hh = offset.inHours.abs().toString().padLeft(2, '0');
+  final mm = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
+  return '$y-$mo-${d}T$h:$mi:$s$sign$hh:$mm';
 }
 
 Object? _joinCollection(List<String> items, String collectionFormat) {

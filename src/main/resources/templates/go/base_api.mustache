@@ -144,6 +144,12 @@ func (b *BaseApi) invokeApiForResult(params invokeApiParams) (*HttpResponse, err
 		}
 	}
 
+	/* Drop Content-Type when there is no body (sending Content-Type without a
+	 * body is semantically wrong and rejected by some servers). */
+	if serializedBody == nil {
+		delete(headers, "Content-Type")
+	}
+
 	/* Send request */
 	response, err := b.apiClient.SendRequest(params.method, requestURL, headers, serializedBody)
 	if err != nil {

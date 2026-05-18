@@ -133,4 +133,38 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert opts1.verify_ssl == opts2.verify_ssl
     assert opts1 == opts2
   end
+
+  # TimeoutConfigTests
+
+  test "timeout defaults to nil in timeout group" do
+    # Default TransportOptions has no timeout set; nil means no timeout applied.
+    opts = PetstoreClient.TransportOptions.new()
+    assert opts.timeout == nil
+  end
+
+  test "setting timeout to 5000 is accessible" do
+    opts = PetstoreClient.TransportOptions.new(timeout: 5000)
+    assert opts.timeout == 5000
+  end
+
+  test "timeout field is named exactly timeout" do
+    # Verify via the struct field that the key is :timeout
+    # (not e.g. :connection_timeout or :open_timeout).
+    opts = PetstoreClient.TransportOptions.new(timeout: 1000)
+    assert opts.timeout != nil
+    assert opts.timeout == 1000
+  end
+
+  # ProxyConfigTests
+
+  test "setting proxy URL is preserved on read-back" do
+    opts = PetstoreClient.TransportOptions.new(proxy: "http://proxy.example.com:8080")
+    assert opts.proxy == "http://proxy.example.com:8080"
+  end
+
+  test "setting proxy is supported on all platforms" do
+    # Proxy configuration must not raise on any Elixir platform.
+    opts = PetstoreClient.TransportOptions.new(proxy: "http://proxy.example.com:8080")
+    assert opts.proxy == "http://proxy.example.com:8080"
+  end
 end

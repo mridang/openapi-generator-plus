@@ -159,11 +159,15 @@ module PetstoreClient
     def self.serialize_styled: (String, untyped, Symbol, String, Symbol?, String?, bool) -> untyped
     def self.serialize_deep_object: (String, Hash[String, untyped]?) -> Hash[String, String]
 
+    PRESERVE_ENCODED: Hash[String, String]
+
     private
 
     def self.serialize_nil: (Symbol) -> untyped
     def self.serialize_array: (Array[untyped], Symbol, Symbol?) -> untyped
     def self.serialize_query_array: (Array[untyped], Symbol?) -> untyped
+    def self.encode_path_segment: (String str) -> String
+    def self.encode_item: (untyped value, Symbol location) -> String
   end
 
   class ObjectSerializer

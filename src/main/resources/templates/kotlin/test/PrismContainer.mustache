@@ -27,7 +27,11 @@ object PrismContainer {
             // of tests racing the server boot.
             .waitingFor(Wait.forLogMessage(".*Prism is listening.*", 1))
             .withStartupTimeout(java.time.Duration.ofMinutes(2))
+            .withLabel("com.mridang.openapi.testcontainer", "true")
         INSTANCE.start()
+        Runtime.getRuntime().addShutdownHook(Thread {
+            if (INSTANCE.isRunning) INSTANCE.stop()
+        })
     }
 
     fun getBaseUrl(): String =

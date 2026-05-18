@@ -157,6 +157,7 @@ class DefaultApiClient:
             encoded_body = body.encode('utf-8')
         else:
             encoded_body = None
+            merged_headers.pop('Content-Type', None)
 
         # --- Timeout ---
         request_kwargs: Dict[str, Any] = {}

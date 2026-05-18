@@ -142,6 +142,10 @@ class DefaultApiClient implements ApiClient {
       request = multipartRequest;
     } else {
       final standardRequest = http.Request(method, uri);
+      if (body == null) {
+        merged.remove('Content-Type');
+        merged.remove('content-type');
+      }
       standardRequest.headers.addAll(merged);
       standardRequest.followRedirects = _transportOptions.followRedirects;
       if (_transportOptions.followRedirects &&
@@ -228,10 +232,13 @@ class DefaultApiClient implements ApiClient {
   /// Decompresses [bytes] according to [contentEncoding].
   ///
   /// Handles `gzip` and `deflate` using [GZipCodec] and [ZLibDecoder]
-  /// from `dart:io`. Unknown or empty encodings are returned as-is.
+  /// from `dart:io`. An empty encoding passes bytes through unchanged.
+  /// An unknown encoding throws [ApiError] rather than returning garbage.
   static Uint8List _decompressBytes(Uint8List bytes, String contentEncoding) {
     if (bytes.isEmpty) return bytes;
     switch (contentEncoding) {
+      case '':
+        return bytes;
       case 'gzip':
         return Uint8List.fromList(GZipCodec().decode(bytes));
       case 'deflate':
@@ -241,7 +248,10 @@ class DefaultApiClient implements ApiClient {
           return bytes;
         }
       default:
-        return bytes;
+        throw ApiError(
+          statusCode: 0,
+          message: 'Unsupported Content-Encoding: $contentEncoding',
+        );
     }
   }
 

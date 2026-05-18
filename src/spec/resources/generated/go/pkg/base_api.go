@@ -48,15 +48,15 @@ func NewBaseApi(apiClient ApiClient, config *Configuration, authenticator Authen
 
 // invokeApiParams holds parameters for the invokeApi call.
 type invokeApiParams struct {
-	method       string
-	path         string
-	queryParams  map[string]interface{}
+	method      string
+	path        string
+	queryParams map[string]interface{}
 	headerParams map[string]string
-	body         interface{}
-	accepts      []string
-	contentType  string
-	returnType   string
-	auth         Authenticator
+	body        interface{}
+	accepts     []string
+	contentType string
+	returnType  string
+	auth        Authenticator
 }
 
 // invokeApiForResult dispatches an API request and returns the full result.
@@ -148,6 +148,12 @@ func (b *BaseApi) invokeApiForResult(params invokeApiParams) (*HttpResponse, err
 		if err != nil {
 			return nil, fmt.Errorf("failed to serialize request body: %w", err)
 		}
+	}
+
+	/* Drop Content-Type when there is no body (sending Content-Type without a
+	 * body is semantically wrong and rejected by some servers). */
+	if serializedBody == nil {
+		delete(headers, "Content-Type")
 	}
 
 	/* Send request */

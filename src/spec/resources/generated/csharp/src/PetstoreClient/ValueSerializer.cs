@@ -102,7 +102,7 @@ public static class ValueSerializer
 
         string str = ObjectSerializer.Stringify(value);
 
-        return location == "path" ? Uri.EscapeDataString(str) : str;
+        return location == "path" ? EncodePathSegment(str) : str;
     }
 
     /// <summary>
@@ -143,11 +143,10 @@ public static class ValueSerializer
             items = [.. list.Cast<object>().Select(ObjectSerializer.Stringify)];
         }
 
-        /* URL-encoding is applied at the call site (api.mustache path replace).
-         * serializeStyled returns the raw styled string. */
-        static string enc(string s)
+        /* URL-encoding is applied for path parameters only. */
+        string enc(string s)
         {
-            return s;
+            return location == "path" ? EncodePathSegment(s) : s;
         }
 
         switch (style)

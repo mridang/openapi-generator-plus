@@ -67,6 +67,9 @@ module {{moduleName}}
         boundary = SecureRandom.uuid
         merged['Content-Type'] = "multipart/form-data; boundary=#{boundary}"
         serialized_body = build_multipart_body(body, boundary)
+      elsif body.nil?
+        merged.delete('Content-Type')
+        serialized_body = nil
       else
         serialized_body = body
       end

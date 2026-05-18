@@ -410,7 +410,7 @@ describe('BaseApi header flow-through', () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
-    await testApi.call('GET', '/api/test', {}, {}, null, ['application/json'], '', null);
+    await testApi.call('POST', '/api/test', {}, {}, {}, ['application/json'], '', null);
     expect(client.capturedHeaders['Content-Type']).toBe('application/json');
   });
 
@@ -418,7 +418,7 @@ describe('BaseApi header flow-through', () => {
     const client = new CapturingApiClient();
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
-    await testApi.call('GET', '/api/test', {}, {}, null, ['application/json'], 'application/json', null);
+    await testApi.call('POST', '/api/test', {}, {}, {}, ['application/json'], 'application/json', null);
     expect(client.capturedHeaders['Accept']).toBeDefined();
     expect(client.capturedHeaders['Content-Type']).toBeDefined();
   });
@@ -455,5 +455,174 @@ describe('Configuration server variable overrides', () => {
     expect(config.baseUrl).toBe('https://staging.example.com/api/v3');
     const testApi = new TestableApi(new DefaultApiClient(), config);
     expect(testApi).toBeDefined();
+  });
+});
+
+describe('BinaryResponseTests', () => {
+  test('octet-stream response decoded as base64 bytes', async () => {
+    const binaryData = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const encoded = binaryData.toString('base64');
+    const client = new CapturingApiClient();
+    client.responseBody = encoded;
+    client.responseHeaders = { 'content-type': 'application/octet-stream' };
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    const result = await testApi.call(
+      'GET',
+      '/api/test',
+      {},
+      {},
+      null,
+      ['application/octet-stream'],
+      'application/octet-stream',
+      (json) => json as Buffer
+    );
+    expect(result).toBeDefined();
+  });
+
+  test('image/png response decoded as bytes', async () => {
+    const binaryData = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d]);
+    const encoded = binaryData.toString('base64');
+    const client = new CapturingApiClient();
+    client.responseBody = encoded;
+    client.responseHeaders = { 'content-type': 'image/png' };
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    const result = await testApi.call(
+      'GET',
+      '/api/img',
+      {},
+      {},
+      null,
+      ['image/png'],
+      'image/png',
+      (json) => json as Buffer
+    );
+    expect(result).toBeDefined();
+  });
+
+  test('application/json response parsed to object', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = '{"id":42,"name":"test"}';
+    client.responseHeaders = { 'content-type': 'application/json' };
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    const result = await testApi.call(
+      'GET',
+      '/api/test',
+      {},
+      {},
+      null,
+      ['application/json'],
+      'application/json',
+      (json) => json as { id: number; name: string }
+    );
+    expect(result).toBeDefined();
+    expect((result as { id: number; name: string }).id).toBe(42);
+  });
+
+  test('text/plain response returns string', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = 'hello world';
+    client.responseHeaders = { 'content-type': 'text/plain' };
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    const result = await testApi.call(
+      'GET',
+      '/api/test',
+      {},
+      {},
+      null,
+      ['text/plain'],
+      'application/json',
+      (json) => json as string
+    );
+    expect(typeof result).toBe('string');
+    expect(result).toBe('hello world');
+  });
+
+  test('empty body yields undefined', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = '';
+    client.responseHeaders = { 'content-type': 'application/octet-stream' };
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    const result = await testApi.call(
+      'GET',
+      '/api/test',
+      {},
+      {},
+      null,
+      ['application/octet-stream'],
+      'application/octet-stream',
+      null
+    );
+    expect(result).toBeUndefined();
+  });
+});
+
+describe('CrossOriginRedirectTests', () => {
+  test('same-origin redirect forwards Authorization header', () => {
+    const sensitiveHeaders = new Set(['authorization', 'cookie', 'proxy-authorization']);
+    const isSameOrigin = true;
+    const originalHeaders: Record<string, string> = { Authorization: 'Bearer token123', Accept: 'application/json' };
+    const forwarded: Record<string, string> = {};
+    for (const [key, value] of Object.entries(originalHeaders)) {
+      if (!isSameOrigin && sensitiveHeaders.has(key.toLowerCase())) continue;
+      forwarded[key] = value;
+    }
+    expect(forwarded['Authorization']).toBe('Bearer token123');
+  });
+
+  test('cross-origin redirect drops Authorization header', () => {
+    const sensitiveHeaders = new Set(['authorization', 'cookie', 'proxy-authorization']);
+    const isSameOrigin = false;
+    const originalHeaders: Record<string, string> = { Authorization: 'Bearer token123', Accept: 'application/json' };
+    const forwarded: Record<string, string> = {};
+    for (const [key, value] of Object.entries(originalHeaders)) {
+      if (!isSameOrigin && sensitiveHeaders.has(key.toLowerCase())) continue;
+      forwarded[key] = value;
+    }
+    expect(forwarded['Authorization']).toBeUndefined();
+    expect(forwarded['Accept']).toBe('application/json');
+  });
+
+  test('cross-origin redirect drops Cookie header', () => {
+    const sensitiveHeaders = new Set(['authorization', 'cookie', 'proxy-authorization']);
+    const isSameOrigin = false;
+    const originalHeaders: Record<string, string> = { Cookie: 'session=abc123', Accept: 'application/json' };
+    const forwarded: Record<string, string> = {};
+    for (const [key, value] of Object.entries(originalHeaders)) {
+      if (!isSameOrigin && sensitiveHeaders.has(key.toLowerCase())) continue;
+      forwarded[key] = value;
+    }
+    expect(forwarded['Cookie']).toBeUndefined();
+    expect(forwarded['Accept']).toBe('application/json');
+  });
+});
+
+describe('NullBodyContentTypeTests', () => {
+  test('null body POST does not send Content-Type', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    await testApi.call('POST', '/api/test', {}, {}, null, ['application/json'], 'application/json', null);
+    expect(client.capturedHeaders['Content-Type']).toBeUndefined();
+  });
+
+  test('empty string body includes Content-Type', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    await testApi.call('POST', '/api/test', {}, {}, '', ['application/json'], 'application/json', null);
+    expect(client.capturedHeaders['Content-Type']).toBeDefined();
+  });
+
+  test('empty JSON object body includes Content-Type and correct body', async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost' });
+    const testApi = new TestableApi(client, config);
+    await testApi.call('POST', '/api/test', {}, {}, {}, ['application/json'], 'application/json', null);
+    expect(client.capturedHeaders['Content-Type']).toBe('application/json');
   });
 });

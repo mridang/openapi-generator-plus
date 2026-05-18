@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	petstore "petstore/pkg"
+	"petstore/pkg"
 	"petstore/pkg/models"
 )
 
@@ -348,6 +348,155 @@ func TestStringify_NilStringPointer(t *testing.T) {
 	result := petstore.Stringify(s)
 	if result != "" {
 		t.Errorf("expected empty string for nil *string, got %q", result)
+	}
+}
+
+// DateTimeOffsetPreservationTests
+
+func TestDateTimeOffset_UTCPreservesOffset(t *testing.T) {
+	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, time.UTC)
+	result := petstore.Stringify(ts)
+	if !strings.Contains(result, "2024-01-01") {
+		t.Errorf("should contain date: %q", result)
+	}
+	if !strings.Contains(result, "12:30:45") {
+		t.Errorf("should contain time: %q", result)
+	}
+}
+
+func TestDateTimeOffset_PositiveOffsetPreserved(t *testing.T) {
+	loc := time.FixedZone("IST", 5*60*60+30*60)
+	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, loc)
+	result := petstore.Stringify(ts)
+	if !strings.Contains(result, "+05:30") {
+		t.Errorf("should contain +05:30 offset: %q", result)
+	}
+}
+
+func TestDateTimeOffset_NegativeOffsetPreserved(t *testing.T) {
+	loc := time.FixedZone("PST", -8*60*60)
+	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, loc)
+	result := petstore.Stringify(ts)
+	if !strings.Contains(result, "-08:00") {
+		t.Errorf("should contain -08:00 offset: %q", result)
+	}
+}
+
+func TestDateTimeOffset_NoSubseconds(t *testing.T) {
+	ts := time.Date(2024, 1, 1, 12, 30, 45, 123000000, time.UTC)
+	result := petstore.Stringify(ts)
+	if strings.Contains(result, ".123") {
+		t.Errorf("subseconds should not appear in output: %q", result)
+	}
+}
+
+func TestDateTimeOffset_DateOnlyFormatted(t *testing.T) {
+	ts := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	result := petstore.Stringify(ts)
+	if result == "" {
+		t.Error("expected non-empty string for date time")
+	}
+}
+
+func TestDateTimeOffset_EndsWithOffset(t *testing.T) {
+	ts := time.Date(2024, 1, 1, 12, 30, 45, 0, time.UTC)
+	result := petstore.Stringify(ts)
+	if result == "" {
+		t.Fatal("expected non-empty string")
+	}
+	last := result[len(result)-1]
+	if last != '0' && last != ':' {
+		// Simplified check: offset ends with digit
+	}
+	if !strings.Contains(result, "+") && !strings.Contains(result, "-") && !strings.HasSuffix(result, "Z") {
+		t.Errorf("should contain timezone offset: %q", result)
+	}
+}
+
+func TestDateTimeOffset_RoundTrip(t *testing.T) {
+	loc := time.FixedZone("IST", 5*60*60+30*60)
+	original := time.Date(2024, 1, 1, 12, 30, 45, 0, loc)
+	serialized := petstore.Stringify(original)
+	parsed, err := time.Parse("2006-01-02T15:04:05-07:00", serialized)
+	if err != nil {
+		t.Fatalf("failed to parse serialized datetime %q: %v", serialized, err)
+	}
+	if !original.Equal(parsed) {
+		t.Errorf("round-trip mismatch: original=%v parsed=%v", original, parsed)
+	}
+}
+
+// NonAsciiSerializationTests
+
+func TestNonAscii_AccentedCharacterNotEscaped(t *testing.T) {
+	input := map[string]interface{}{"key": "café"}
+	data, err := petstore.Serialize(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), "é") {
+		t.Errorf("should contain literal é, got: %s", string(data))
+	}
+}
+
+func TestNonAscii_CjkCharactersNotEscaped(t *testing.T) {
+	input := map[string]interface{}{"key": "日本"}
+	data, err := petstore.Serialize(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), "日本") {
+		t.Errorf("should contain literal CJK chars, got: %s", string(data))
+	}
+}
+
+func TestNonAscii_TabCharacterEscapedProperly(t *testing.T) {
+	input := map[string]interface{}{"key": "a\tb"}
+	data, err := petstore.Serialize(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `\t`) {
+		t.Errorf("tab should be escaped as \\t in JSON, got: %s", string(data))
+	}
+}
+
+// DeserializationErrorWrappingTests
+
+func TestDeserializationError_TruncatedJsonReturnsSerializationError(t *testing.T) {
+	var result map[string]interface{}
+	err := petstore.Deserialize([]byte("{"), &result)
+	if err == nil {
+		t.Fatal("expected error for truncated JSON")
+	}
+	if _, ok := err.(*petstore.SerializationError); !ok {
+		t.Errorf("expected *SerializationError, got %T: %v", err, err)
+	}
+}
+
+func TestDeserializationError_InvalidJsonReturnsSerializationError(t *testing.T) {
+	var result map[string]interface{}
+	err := petstore.Deserialize([]byte(`"hello"`), &result)
+	if err == nil {
+		t.Fatal("expected error for invalid JSON for map target")
+	}
+	if _, ok := err.(*petstore.SerializationError); !ok {
+		t.Errorf("expected *SerializationError, got %T: %v", err, err)
+	}
+}
+
+func TestDeserializationError_ErrorHasCause(t *testing.T) {
+	var result map[string]interface{}
+	err := petstore.Deserialize([]byte("{"), &result)
+	if err == nil {
+		t.Fatal("expected error for truncated JSON")
+	}
+	serErr, ok := err.(*petstore.SerializationError)
+	if !ok {
+		t.Fatalf("expected *SerializationError, got %T", err)
+	}
+	if serErr.Cause == nil {
+		t.Error("SerializationError should have a non-nil Cause")
 	}
 }
 

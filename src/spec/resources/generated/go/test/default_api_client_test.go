@@ -9,10 +9,11 @@ package petstore_test
 
 import (
 	"encoding/json"
-	petstore "petstore/pkg"
 	"regexp"
 	"strings"
 	"testing"
+
+	"petstore/pkg"
 )
 
 func TestDefaultApiClient_MakesHttpsRequestWithVerifySslFalse(t *testing.T) {
