@@ -10,8 +10,10 @@ import 'dart:convert';
 /// SetPetAvatarRequest is a model class generated from the OpenAPI schema.
 class SetPetAvatarRequest {
   /// Base64-encoded image data
+  /// Example: `null`
   final List<int> data;
 
+  /// Example: `image/jpeg`
   final String mimeType;
 
   const SetPetAvatarRequest({

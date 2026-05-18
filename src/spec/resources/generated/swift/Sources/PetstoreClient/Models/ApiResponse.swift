@@ -9,8 +9,11 @@ import Foundation
 
 /// ApiResponse is a model class generated from the OpenAPI schema.
 public struct ApiResponse: Codable, Sendable {
+  /// Example: `null`
   public var code: Int?
+  /// Example: `null`
   public var type: String?
+  /// Example: `null`
   public var message: String?
 
   enum CodingKeys: String, CodingKey {

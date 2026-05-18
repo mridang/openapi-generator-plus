@@ -7,8 +7,10 @@
 
 /// PhotoMetadataLocation is a model class generated from the OpenAPI schema.
 class PhotoMetadataLocation {
+  /// Example: `null`
   final double? lat;
 
+  /// Example: `null`
   final double? lng;
 
   const PhotoMetadataLocation({

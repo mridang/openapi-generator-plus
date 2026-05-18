@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 /// WetFood is a model class generated from the OpenAPI schema.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct WetFood {
+    /// Example: `null`
     #[serde(rename = "volumeMl")]
     pub volume_ml: i32,
 }

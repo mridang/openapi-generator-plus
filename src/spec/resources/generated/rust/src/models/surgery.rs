@@ -12,8 +12,10 @@ use serde::{Deserialize, Serialize};
 /// Surgery is a model class generated from the OpenAPI schema.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Surgery {
+    /// Example: `null`
     #[serde(rename = "procedureName")]
     pub procedure_name: String,
+    /// Example: `null`
     #[serde(rename = "durationMinutes", skip_serializing_if = "Option::is_none")]
     pub duration_minutes: Option<i32>,
 }

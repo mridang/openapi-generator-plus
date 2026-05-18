@@ -9,7 +9,9 @@ import Foundation
 
 /// DryFood is a model class generated from the OpenAPI schema.
 public struct DryFood: Codable, Sendable {
+  /// Example: `null`
   public var foodType: String
+  /// Example: `null`
   public var weightKg: Double
 
   enum CodingKeys: String, CodingKey {

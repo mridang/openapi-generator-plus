@@ -9,7 +9,9 @@ import Foundation
 
 /// Category is a model class generated from the OpenAPI schema.
 public struct Category: Codable, Sendable {
+  /// Example: `1`
   public var id: Int64?
+  /// Example: `Dogs`
   public var name: String?
 
   enum CodingKeys: String, CodingKey {

@@ -7,8 +7,10 @@
 
 /// Medication is a model class generated from the OpenAPI schema.
 class Medication {
+  /// Example: `null`
   final String drugName;
 
+  /// Example: `null`
   final String? dosage;
 
   const Medication({

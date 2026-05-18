@@ -9,11 +9,14 @@ import Foundation
 
 /// PetPassport is a model class generated from the OpenAPI schema.
 public struct PetPassport: Codable, Sendable {
+  /// Example: `null`
   public var pet: Pet?
   /// Base64-encoded primary thumbnail
   public var thumbnail: Data?
   /// Base64-encoded scans of each passport page
+  /// Example: `null`
   public var scans: [Data]?
+  /// Example: `null`
   public var issuedAt: Date?
 
   enum CodingKeys: String, CodingKey {

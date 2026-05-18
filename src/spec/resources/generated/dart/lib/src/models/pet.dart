@@ -10,17 +10,23 @@ import 'tag.dart';
 
 /// Pet is a model class generated from the OpenAPI schema.
 class Pet {
+  /// Example: `10`
   final int? id;
 
+  /// Example: `doggie`
   final String name;
 
+  /// Example: `null`
   final Category? category;
 
+  /// Example: `null`
   final Set<String> photoUrls;
 
+  /// Example: `null`
   final List<Tag>? tags;
 
   /// pet status in the store
+  /// Example: `null`
   @Deprecated('This property is deprecated.')
   final String? status;
 

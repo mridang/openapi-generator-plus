@@ -9,9 +9,13 @@ import Foundation
 
 /// PhotoMetadata is a model class generated from the OpenAPI schema.
 public struct PhotoMetadata: Codable, Sendable {
+  /// Example: `null`
   public var caption: String?
+  /// Example: `null`
   public var isPrimary: Bool?
+  /// Example: `null`
   public var takenAt: Date?
+  /// Example: `null`
   public var location: PhotoMetadataLocation?
 
   enum CodingKeys: String, CodingKey {

@@ -9,7 +9,9 @@ import Foundation
 
 /// WetFood is a model class generated from the OpenAPI schema.
 public struct WetFood: Codable, Sendable {
+  /// Example: `null`
   public var foodType: String
+  /// Example: `null`
   public var volumeMl: Int
 
   enum CodingKeys: String, CodingKey {

@@ -9,12 +9,18 @@ import Foundation
 
 /// Order is a model class generated from the OpenAPI schema.
 public struct Order: Codable, Sendable {
+  /// Example: `10`
   public var id: Int64?
+  /// Example: `198772`
   public var petId: Int64?
+  /// Example: `7`
   public var quantity: Int?
+  /// Example: `null`
   public var shipDate: Date?
   /// Order Status
+  /// Example: `approved`
   public var status: String?
+  /// Example: `null`
   public var complete: Bool?
 
   enum CodingKeys: String, CodingKey {

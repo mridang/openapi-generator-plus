@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 /// Metadata is a model class generated from the OpenAPI schema.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Metadata {
+    /// Example: `null`
     #[serde(rename = "createdAt", skip_serializing_if = "Option::is_none")]
     pub created_at: Option<String>,
     /// Additional properties not defined in the schema.

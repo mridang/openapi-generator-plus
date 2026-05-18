@@ -9,6 +9,7 @@ import Foundation
 
 /// Metadata is a model class generated from the OpenAPI schema.
 public struct Metadata: Codable, Sendable {
+  /// Example: `null`
   public var createdAt: Date?
 
   /// Additional properties not defined in the schema.

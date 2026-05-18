@@ -7,8 +7,10 @@
 
 /// DryFood is a model class generated from the OpenAPI schema.
 class DryFood {
+  /// Example: `null`
   final String foodType;
 
+  /// Example: `null`
   final double weightKg;
 
   const DryFood({

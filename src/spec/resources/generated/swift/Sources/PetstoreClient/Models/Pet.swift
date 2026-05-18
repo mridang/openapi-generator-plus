@@ -10,12 +10,18 @@ import Foundation
 /// Pet is a model class generated from the OpenAPI schema.
 /// See https://example.com/docs/pet Learn more about the Pet model
 public struct Pet: Codable, Sendable {
+  /// Example: `10`
   public var id: Int64?
+  /// Example: `doggie`
   public var name: String
+  /// Example: `null`
   public var category: Category?
+  /// Example: `null`
   public var photoUrls: Set<String>
+  /// Example: `null`
   public var tags: [Tag]?
   /// pet status in the store
+  /// Example: `null`
   @available(*, deprecated, message: "This property is deprecated.")
   public var status: String?
 

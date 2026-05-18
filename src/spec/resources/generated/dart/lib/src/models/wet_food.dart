@@ -7,8 +7,10 @@
 
 /// WetFood is a model class generated from the OpenAPI schema.
 class WetFood {
+  /// Example: `null`
   final String foodType;
 
+  /// Example: `null`
   final int volumeMl;
 
   const WetFood({

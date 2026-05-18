@@ -12,12 +12,16 @@ use serde::{Deserialize, Serialize};
 /// Photo is a model class generated from the OpenAPI schema.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Photo {
+    /// Example: `null`
     #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
     pub id: Option<i64>,
+    /// Example: `null`
     #[serde(rename = "caption", skip_serializing_if = "Option::is_none")]
     pub caption: Option<String>,
+    /// Example: `null`
     #[serde(rename = "isPrimary", skip_serializing_if = "Option::is_none")]
     pub is_primary: Option<bool>,
+    /// Example: `null`
     #[serde(rename = "url", skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 }

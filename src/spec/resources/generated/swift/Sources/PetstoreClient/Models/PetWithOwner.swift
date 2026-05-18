@@ -9,15 +9,23 @@ import Foundation
 
 /// PetWithOwner A pet record extended with owner information
 public struct PetWithOwner: Codable, Sendable {
+  /// Example: `10`
   public var id: Int64?
+  /// Example: `doggie`
   public var name: String
+  /// Example: `null`
   public var category: Category?
+  /// Example: `null`
   public var photoUrls: Set<String>
+  /// Example: `null`
   public var tags: [Tag]?
   /// pet status in the store
+  /// Example: `null`
   @available(*, deprecated, message: "This property is deprecated.")
   public var status: String?
+  /// Example: `null`
   public var ownerName: String
+  /// Example: `null`
   public var ownerEmail: String?
 
   enum CodingKeys: String, CodingKey {

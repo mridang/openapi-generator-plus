@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 /// DryFood is a model class generated from the OpenAPI schema.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct DryFood {
+    /// Example: `null`
     #[serde(rename = "weightKg")]
     pub weight_kg: f64,
 }

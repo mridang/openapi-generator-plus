@@ -7,10 +7,13 @@
 
 /// ApiResponse is a model class generated from the OpenAPI schema.
 class ApiResponse {
+  /// Example: `null`
   final int? code;
 
+  /// Example: `null`
   final String? type_;
 
+  /// Example: `null`
   final String? message;
 
   const ApiResponse({

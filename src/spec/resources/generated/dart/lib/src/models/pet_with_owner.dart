@@ -10,22 +10,30 @@ import 'tag.dart';
 
 /// PetWithOwner A pet record extended with owner information
 class PetWithOwner {
+  /// Example: `10`
   final int? id;
 
+  /// Example: `doggie`
   final String name;
 
+  /// Example: `null`
   final Category? category;
 
+  /// Example: `null`
   final Set<String> photoUrls;
 
+  /// Example: `null`
   final List<Tag>? tags;
 
   /// pet status in the store
+  /// Example: `null`
   @Deprecated('This property is deprecated.')
   final String? status;
 
+  /// Example: `null`
   final String ownerName;
 
+  /// Example: `null`
   final String? ownerEmail;
 
   const PetWithOwner({

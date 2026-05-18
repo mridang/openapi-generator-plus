@@ -12,17 +12,23 @@ use serde::{Deserialize, Serialize};
 /// Order is a model class generated from the OpenAPI schema.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct Order {
+    /// Example: `10`
     #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
     pub id: Option<i64>,
+    /// Example: `198772`
     #[serde(rename = "petId", skip_serializing_if = "Option::is_none")]
     pub pet_id: Option<i64>,
+    /// Example: `7`
     #[serde(rename = "quantity", skip_serializing_if = "Option::is_none")]
     pub quantity: Option<i32>,
+    /// Example: `null`
     #[serde(rename = "shipDate", skip_serializing_if = "Option::is_none")]
     pub ship_date: Option<String>,
     /// Order Status
+    /// Example: `approved`
     #[serde(rename = "status", skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
+    /// Example: `null`
     #[serde(rename = "complete", skip_serializing_if = "Option::is_none")]
     pub complete: Option<bool>,
 }

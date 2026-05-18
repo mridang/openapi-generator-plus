@@ -7,8 +7,10 @@
 
 /// Category is a model class generated from the OpenAPI schema.
 class Category {
+  /// Example: `1`
   final int? id;
 
+  /// Example: `Dogs`
   final String? name;
 
   const Category({

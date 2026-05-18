@@ -12,22 +12,30 @@ use serde::{Deserialize, Serialize};
 /// PetWithOwner A pet record extended with owner information
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct PetWithOwner {
+    /// Example: `10`
     #[serde(rename = "id", skip_serializing_if = "Option::is_none")]
     pub id: Option<i64>,
+    /// Example: `doggie`
     #[serde(rename = "name")]
     pub name: String,
+    /// Example: `null`
     #[serde(rename = "category", skip_serializing_if = "Option::is_none")]
     pub category: Option<Category>,
+    /// Example: `null`
     #[serde(rename = "photoUrls")]
     pub photo_urls: std::collections::HashSet<String>,
+    /// Example: `null`
     #[serde(rename = "tags", skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<Tag>>,
     /// pet status in the store
+    /// Example: `null`
     #[deprecated]
     #[serde(rename = "status", skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
+    /// Example: `null`
     #[serde(rename = "ownerName")]
     pub owner_name: String,
+    /// Example: `null`
     #[serde(rename = "ownerEmail", skip_serializing_if = "Option::is_none")]
     pub owner_email: Option<String>,
 }
