@@ -60,7 +60,11 @@ internal actual fun buildPlatformHttpClient(options: TransportOptions): HttpClie
             }
         }
 
-        if (options.followRedirects) {
+        // When maxRedirects is set, DefaultApiClient handles redirects manually in
+        // sendRequest so that sensitive headers (Authorization, Cookie,
+        // Proxy-Authorization) can be stripped on cross-origin hops.
+        // For the unlimited-redirect case (maxRedirects == null), delegate to Ktor.
+        if (options.followRedirects && options.maxRedirects == null) {
             install(HttpRedirect) {
                 checkHttpMethod = false
                 allowHttpsDowngrade = false

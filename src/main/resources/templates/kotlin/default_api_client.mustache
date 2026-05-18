@@ -77,7 +77,7 @@ class DefaultApiClient internal constructor(
             mergedHeaders["Accept-Encoding"] = "gzip, deflate"
         }
 
-        val response =
+        var response =
             try {
                 httpClient.request(url) {
                     this.method = HttpMethod(method)
@@ -92,6 +92,48 @@ class DefaultApiClient internal constructor(
             } catch (e: Exception) {
                 throw ApiException(e.toString())
             }
+
+        // Manual redirect loop for the maxRedirects case: strips sensitive headers
+        // (Authorization, Cookie, Proxy-Authorization) when following a cross-origin
+        // redirect so that credentials are never forwarded to a third-party host.
+        if (transportOptions.followRedirects && transportOptions.maxRedirects != null) {
+            val sensitiveHeaders = setOf("authorization", "cookie", "proxy-authorization")
+            var redirectsRemaining = transportOptions.maxRedirects!!
+            var currentUrl = url
+            var currentHeaders: Map<String, String> = mergedHeaders.toMap()
+
+            while (response.status.value in 300..399 && redirectsRemaining > 0) {
+                val location = response.headers[HttpHeaders.Location] ?: break
+                response.bodyAsBytes() // consume redirect body to release the connection
+                val originalUri = java.net.URI(currentUrl)
+                val redirectUri = originalUri.resolve(location)
+                val sameOrigin = redirectUri.host != null &&
+                    redirectUri.host.equals(originalUri.host, ignoreCase = true) &&
+                    redirectUri.port == originalUri.port
+
+                val redirectHeaders = currentHeaders.toMutableMap()
+                if (!sameOrigin) {
+                    val keysToRemove = redirectHeaders.keys
+                        .filter { sensitiveHeaders.contains(it.lowercase()) }
+                    keysToRemove.forEach { redirectHeaders.remove(it) }
+                }
+
+                currentUrl = redirectUri.toString()
+                currentHeaders = redirectHeaders
+
+                response = try {
+                    httpClient.request(currentUrl) {
+                        this.method = HttpMethod.Get
+                        for ((key, value) in redirectHeaders) {
+                            header(key, value)
+                        }
+                    }
+                } catch (e: Exception) {
+                    throw ApiException(e.toString())
+                }
+                redirectsRemaining--
+            }
+        }
 
         val responseHeaders = mutableMapOf<String, String>()
         response.headers.forEach { name, values ->
