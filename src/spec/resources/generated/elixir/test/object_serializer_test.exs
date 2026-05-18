@@ -11,13 +11,45 @@ defmodule PetstoreClient.ObjectSerializerTest do
     end
 
     test "positive timezone offset is preserved in serialized string" do
-      {:ok, dt, _} = DateTime.from_iso8601("2024-01-01T12:30:45+05:30")
+      # DateTime.from_iso8601/1 normalizes to UTC, so we construct the struct
+      # directly to preserve the +05:30 offset in the serialized output.
+      dt = %DateTime{
+        year: 2024,
+        month: 1,
+        day: 1,
+        hour: 12,
+        minute: 30,
+        second: 45,
+        microsecond: {0, 0},
+        utc_offset: 19800,
+        std_offset: 0,
+        zone_abbr: "+05:30",
+        time_zone: "Etc/UTC+5",
+        calendar: Calendar.ISO
+      }
+
       result = PetstoreClient.ObjectSerializer.stringify(dt)
       assert String.contains?(result, "+05:30"), "should contain +05:30: #{result}"
     end
 
     test "negative timezone offset is preserved in serialized string" do
-      {:ok, dt, _} = DateTime.from_iso8601("2024-01-01T12:30:45-08:00")
+      # DateTime.from_iso8601/1 normalizes to UTC, so we construct the struct
+      # directly to preserve the -08:00 offset in the serialized output.
+      dt = %DateTime{
+        year: 2024,
+        month: 1,
+        day: 1,
+        hour: 12,
+        minute: 30,
+        second: 45,
+        microsecond: {0, 0},
+        utc_offset: -28800,
+        std_offset: 0,
+        zone_abbr: "-08:00",
+        time_zone: "Etc/UTC-8",
+        calendar: Calendar.ISO
+      }
+
       result = PetstoreClient.ObjectSerializer.stringify(dt)
       assert String.contains?(result, "-08:00"), "should contain -08:00: #{result}"
     end
