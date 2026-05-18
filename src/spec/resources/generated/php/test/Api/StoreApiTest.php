@@ -48,7 +48,7 @@ class StoreApiTest extends TestCase
 
     public function testGetOrderById(): void
     {
-        $result = $this->api->getOrderById('1');
+        $result = $this->api->getOrderById(1);
 
         $this->assertInstanceOf(Order::class, $result);
         $this->assertNotNull($result->id);
@@ -57,8 +57,8 @@ class StoreApiTest extends TestCase
     public function testPlaceOrder(): void
     {
         $order = new Order();
-        $order->id = '1';
-        $order->petId = '12345';
+        $order->id = 1;
+        $order->petId = 12345;
         $order->quantity = 1;
         $order->shipDate = new \DateTime();
         $order->status = OrderStatusEnum::PLACED;
@@ -72,7 +72,7 @@ class StoreApiTest extends TestCase
 
     public function testDeleteOrder(): void
     {
-        $this->api->deleteOrder('1');
+        $this->api->deleteOrder(1);
 
         $this->addToAssertionCount(1);
     }
@@ -84,14 +84,14 @@ class StoreApiTest extends TestCase
         $api = $this->newStoreApiForMock(404, 'application/json', '{"message":"Order not found"}');
 
         $this->expectException(NotFoundException::class);
-        $api->getOrderById('99999');
+        $api->getOrderById(99999);
     }
 
     public function testPlaceOrderServerError(): void
     {
         $order = new Order();
-        $order->id = '1';
-        $order->petId = '12345';
+        $order->id = 1;
+        $order->petId = 12345;
         $order->quantity = 1;
         $order->shipDate = new \DateTime();
         $order->status = OrderStatusEnum::PLACED;
@@ -108,6 +108,6 @@ class StoreApiTest extends TestCase
         $api = $this->newStoreApiForMock(404, 'application/json', '{"message":"Order not found"}');
 
         $this->expectException(NotFoundException::class);
-        $api->deleteOrder('99999');
+        $api->deleteOrder(99999);
     }
 }

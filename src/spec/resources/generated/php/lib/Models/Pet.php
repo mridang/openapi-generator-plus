@@ -29,7 +29,7 @@ class Pet
 {
     /** @example 10 */
     #[SerializedName('id')]
-    public ?string $id = null;
+    public ?int $id = null;
 
     /** @example doggie */
     #[SerializedName('name')]
@@ -62,7 +62,7 @@ class Pet
     public function __construct(
         string $name,
         array $photoUrls,
-        ?string $id = null,
+        ?int $id = null,
         ?Category $category = null,
         ?array $tags = null,
         ?PetStatusEnum $status = null,

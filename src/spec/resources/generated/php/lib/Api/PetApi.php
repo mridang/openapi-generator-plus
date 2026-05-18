@@ -215,7 +215,7 @@ class PetApi extends BaseApi
      * @return Photo[]
      * @throws ApiException
      */
-    public function addPetPhotos(string $petId, AddPetPhotosOptions $options)
+    public function addPetPhotos(int $petId, AddPetPhotosOptions $options)
     {
         /** @var Photo[] $result */
         $result = $this->addPetPhotosWithHttpInfo($petId, $options)->data;
@@ -229,11 +229,11 @@ class PetApi extends BaseApi
      * @return ApiResult<Photo[]>
      * @throws ApiException
      */
-    public function addPetPhotosWithHttpInfo(string $petId, AddPetPhotosOptions $options): ApiResult
+    public function addPetPhotosWithHttpInfo(int $petId, AddPetPhotosOptions $options): ApiResult
     {
         $path = '/pet/{petId}/photos';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'string', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -270,7 +270,7 @@ class PetApi extends BaseApi
      * @return PetTreatment
      * @throws ApiException
      */
-    public function addPetTreatment(Authenticator $auth, string $petId, PetTreatment $petTreatment)
+    public function addPetTreatment(Authenticator $auth, int $petId, PetTreatment $petTreatment)
     {
         /** @var PetTreatment $result */
         $result = $this->addPetTreatmentWithHttpInfo($auth, $petId, $petTreatment)->data;
@@ -282,11 +282,11 @@ class PetApi extends BaseApi
      * @return ApiResult<PetTreatment>
      * @throws ApiException
      */
-    public function addPetTreatmentWithHttpInfo(Authenticator $auth, string $petId, PetTreatment $petTreatment): ApiResult
+    public function addPetTreatmentWithHttpInfo(Authenticator $auth, int $petId, PetTreatment $petTreatment): ApiResult
     {
         $path = '/pet/{petId}/treatment';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'string', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -318,30 +318,30 @@ class PetApi extends BaseApi
     /**
      * Deletes a pet
      * @param Authenticator $auth Authenticator for this operation
-     * @param string $petId Pet id to delete
+     * @param int $petId Pet id to delete
 
      * @param DeletePetOptions|null $options Options for query, header, form, and cookie parameters
 
      * @throws ApiException
      */
-    public function deletePet(Authenticator $auth, string $petId, ?DeletePetOptions $options = null): void
+    public function deletePet(Authenticator $auth, int $petId, ?DeletePetOptions $options = null): void
     {
         $this->deletePetWithHttpInfo($auth, $petId, $options);
     }
 
     /**
-     * @param string $petId Pet id to delete
+     * @param int $petId Pet id to delete
 
      * @param DeletePetOptions|null $options Options for query, header, form, and cookie parameters
 
      * @return ApiResult<null>
      * @throws ApiException
      */
-    public function deletePetWithHttpInfo(Authenticator $auth, string $petId, ?DeletePetOptions $options = null): ApiResult
+    public function deletePetWithHttpInfo(Authenticator $auth, int $petId, ?DeletePetOptions $options = null): ApiResult
     {
         $path = '/pet/{petId}';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'string', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -386,7 +386,7 @@ class PetApi extends BaseApi
      * @return \SplFileObject
      * @throws ApiException
      */
-    public function downloadPetDocument(string $petId, string $documentId)
+    public function downloadPetDocument(int $petId, int $documentId)
     {
         /** @var \SplFileObject $result */
         $result = $this->downloadPetDocumentWithHttpInfo($petId, $documentId)->data;
@@ -398,11 +398,11 @@ class PetApi extends BaseApi
      * @return ApiResult<\SplFileObject>
      * @throws ApiException
      */
-    public function downloadPetDocumentWithHttpInfo(string $petId, string $documentId): ApiResult
+    public function downloadPetDocumentWithHttpInfo(int $petId, int $documentId): ApiResult
     {
         $path = '/pet/{petId}/documents/{documentId}';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'string', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -413,7 +413,7 @@ class PetApi extends BaseApi
         ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('documentId', $documentId, 'path', 'string', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled('documentId', $documentId, 'path', 'int', null, 'simple', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -500,7 +500,7 @@ class PetApi extends BaseApi
      * @return Pet
      * @throws ApiException
      */
-    public function getExternalPetInfo(string $petId, ?GetExternalPetInfoServer $server = null)
+    public function getExternalPetInfo(int $petId, ?GetExternalPetInfoServer $server = null)
     {
         /** @var Pet $result */
         $result = $this->getExternalPetInfoWithHttpInfo($petId, $server)->data;
@@ -512,11 +512,11 @@ class PetApi extends BaseApi
      * @return ApiResult<Pet>
      * @throws ApiException
      */
-    public function getExternalPetInfoWithHttpInfo(string $petId, ?GetExternalPetInfoServer $server = null): ApiResult
+    public function getExternalPetInfoWithHttpInfo(int $petId, ?GetExternalPetInfoServer $server = null): ApiResult
     {
         $path = '/pet/{petId}/external';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'string', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -556,7 +556,7 @@ class PetApi extends BaseApi
      * @return Pet
      * @throws ApiException
      */
-    public function getMultiServerPetInfo(string $petId, ?GetMultiServerPetInfoServer $server = null)
+    public function getMultiServerPetInfo(int $petId, ?GetMultiServerPetInfoServer $server = null)
     {
         /** @var Pet $result */
         $result = $this->getMultiServerPetInfoWithHttpInfo($petId, $server)->data;
@@ -568,11 +568,11 @@ class PetApi extends BaseApi
      * @return ApiResult<Pet>
      * @throws ApiException
      */
-    public function getMultiServerPetInfoWithHttpInfo(string $petId, ?GetMultiServerPetInfoServer $server = null): ApiResult
+    public function getMultiServerPetInfoWithHttpInfo(int $petId, ?GetMultiServerPetInfoServer $server = null): ApiResult
     {
         $path = '/pet/{petId}/multi';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'string', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -613,7 +613,7 @@ class PetApi extends BaseApi
      * @return \SplFileObject
      * @throws ApiException
      */
-    public function getPetAvatar(string $petId)
+    public function getPetAvatar(int $petId)
     {
         /** @var \SplFileObject $result */
         $result = $this->getPetAvatarWithHttpInfo($petId)->data;
@@ -625,11 +625,11 @@ class PetApi extends BaseApi
      * @return ApiResult<\SplFileObject>
      * @throws ApiException
      */
-    public function getPetAvatarWithHttpInfo(string $petId): ApiResult
+    public function getPetAvatarWithHttpInfo(int $petId): ApiResult
     {
         $path = '/pet/{petId}/avatar';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'string', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -664,7 +664,7 @@ class PetApi extends BaseApi
      * @return string
      * @throws ApiException
      */
-    public function getPetAvatarThumbnail(string $petId)
+    public function getPetAvatarThumbnail(int $petId)
     {
         /** @var string $result */
         $result = $this->getPetAvatarThumbnailWithHttpInfo($petId)->data;
@@ -676,11 +676,11 @@ class PetApi extends BaseApi
      * @return ApiResult<string>
      * @throws ApiException
      */
-    public function getPetAvatarThumbnailWithHttpInfo(string $petId): ApiResult
+    public function getPetAvatarThumbnailWithHttpInfo(int $petId): ApiResult
     {
         $path = '/pet/{petId}/avatar/thumbnail';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'string', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -711,13 +711,13 @@ class PetApi extends BaseApi
     /**
      * Find pet by ID
      * Returns a single pet
-     * @param string $petId ID of pet to return
+     * @param int $petId ID of pet to return
 
      * @return Pet
      * @throws ApiException
      * @deprecated This operation is deprecated.
      */
-    public function getPetById(string $petId, ?GetPetByIdServer $server = null)
+    public function getPetById(int $petId, ?GetPetByIdServer $server = null)
     {
         /** @var Pet $result */
         $result = $this->getPetByIdWithHttpInfo($petId, $server)->data;
@@ -725,16 +725,16 @@ class PetApi extends BaseApi
     }
 
     /**
-     * @param string $petId ID of pet to return
+     * @param int $petId ID of pet to return
 
      * @return ApiResult<Pet>
      * @throws ApiException
      */
-    public function getPetByIdWithHttpInfo(string $petId, ?GetPetByIdServer $server = null): ApiResult
+    public function getPetByIdWithHttpInfo(int $petId, ?GetPetByIdServer $server = null): ApiResult
     {
         $path = '/pet/{petId}';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'string', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -775,7 +775,7 @@ class PetApi extends BaseApi
      * @return PetPassport
      * @throws ApiException
      */
-    public function getPetPassport(string $petId)
+    public function getPetPassport(int $petId)
     {
         /** @var PetPassport $result */
         $result = $this->getPetPassportWithHttpInfo($petId)->data;
@@ -787,11 +787,11 @@ class PetApi extends BaseApi
      * @return ApiResult<PetPassport>
      * @throws ApiException
      */
-    public function getPetPassportWithHttpInfo(string $petId): ApiResult
+    public function getPetPassportWithHttpInfo(int $petId): ApiResult
     {
         $path = '/pet/{petId}/passport';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'string', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -826,7 +826,7 @@ class PetApi extends BaseApi
      * @return \SplFileObject
      * @throws ApiException
      */
-    public function getPetPhoto(string $petId, string $photoId)
+    public function getPetPhoto(int $petId, int $photoId)
     {
         /** @var \SplFileObject $result */
         $result = $this->getPetPhotoWithHttpInfo($petId, $photoId)->data;
@@ -838,11 +838,11 @@ class PetApi extends BaseApi
      * @return ApiResult<\SplFileObject>
      * @throws ApiException
      */
-    public function getPetPhotoWithHttpInfo(string $petId, string $photoId): ApiResult
+    public function getPetPhotoWithHttpInfo(int $petId, int $photoId): ApiResult
     {
         $path = '/pet/{petId}/photos/{photoId}';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'string', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -853,7 +853,7 @@ class PetApi extends BaseApi
         ]);
         $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('photoId', $photoId, 'path', 'string', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled('photoId', $photoId, 'path', 'int', null, 'simple', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -889,7 +889,7 @@ class PetApi extends BaseApi
      * @return Pet
      * @throws ApiException
      */
-    public function getPetTag(string $petId, string $tagName, GetPetTagOptions $options)
+    public function getPetTag(int $petId, string $tagName, GetPetTagOptions $options)
     {
         /** @var Pet $result */
         $result = $this->getPetTagWithHttpInfo($petId, $tagName, $options)->data;
@@ -903,11 +903,11 @@ class PetApi extends BaseApi
      * @return ApiResult<Pet>
      * @throws ApiException
      */
-    public function getPetTagWithHttpInfo(string $petId, string $tagName, GetPetTagOptions $options): ApiResult
+    public function getPetTagWithHttpInfo(int $petId, string $tagName, GetPetTagOptions $options): ApiResult
     {
         $path = '/pet/{petId}/tag/{tagName}';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'string', null, 'matrix', false);
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'matrix', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -963,7 +963,7 @@ class PetApi extends BaseApi
      * @return Pet
      * @throws ApiException
      */
-    public function getStagingPetInfo(string $petId, ?GetStagingPetInfoServer $server = null)
+    public function getStagingPetInfo(int $petId, ?GetStagingPetInfoServer $server = null)
     {
         /** @var Pet $result */
         $result = $this->getStagingPetInfoWithHttpInfo($petId, $server)->data;
@@ -975,11 +975,11 @@ class PetApi extends BaseApi
      * @return ApiResult<Pet>
      * @throws ApiException
      */
-    public function getStagingPetInfoWithHttpInfo(string $petId, ?GetStagingPetInfoServer $server = null): ApiResult
+    public function getStagingPetInfoWithHttpInfo(int $petId, ?GetStagingPetInfoServer $server = null): ApiResult
     {
         $path = '/pet/{petId}/staging';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'string', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -1019,7 +1019,7 @@ class PetApi extends BaseApi
 
      * @throws ApiException
      */
-    public function setPetAvatar(string $petId, \SplFileObject $body): void
+    public function setPetAvatar(int $petId, \SplFileObject $body): void
     {
         $this->setPetAvatarWithHttpInfo($petId, $body);
     }
@@ -1029,11 +1029,11 @@ class PetApi extends BaseApi
      * @return ApiResult<null>
      * @throws ApiException
      */
-    public function setPetAvatarWithHttpInfo(string $petId, \SplFileObject $body): ApiResult
+    public function setPetAvatarWithHttpInfo(int $petId, \SplFileObject $body): ApiResult
     {
         $path = '/pet/{petId}/avatar';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'string', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -1067,7 +1067,7 @@ class PetApi extends BaseApi
 
      * @throws ApiException
      */
-    public function setPetAvatarThumbnail(string $petId, SetPetAvatarThumbnailRequest $setPetAvatarThumbnailRequest): void
+    public function setPetAvatarThumbnail(int $petId, SetPetAvatarThumbnailRequest $setPetAvatarThumbnailRequest): void
     {
         $this->setPetAvatarThumbnailWithHttpInfo($petId, $setPetAvatarThumbnailRequest);
     }
@@ -1077,11 +1077,11 @@ class PetApi extends BaseApi
      * @return ApiResult<null>
      * @throws ApiException
      */
-    public function setPetAvatarThumbnailWithHttpInfo(string $petId, SetPetAvatarThumbnailRequest $setPetAvatarThumbnailRequest): ApiResult
+    public function setPetAvatarThumbnailWithHttpInfo(int $petId, SetPetAvatarThumbnailRequest $setPetAvatarThumbnailRequest): ApiResult
     {
         $path = '/pet/{petId}/avatar/thumbnail';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'string', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -1111,13 +1111,13 @@ class PetApi extends BaseApi
 
     /**
      * Update an existing pet
-     * @param string $petId ID of pet to update
+     * @param int $petId ID of pet to update
      * @param Pet $pet Pet object that needs to be updated
 
      * @return Pet
      * @throws ApiException
      */
-    public function updatePet(string $petId, Pet $pet)
+    public function updatePet(int $petId, Pet $pet)
     {
         /** @var Pet $result */
         $result = $this->updatePetWithHttpInfo($petId, $pet)->data;
@@ -1125,17 +1125,17 @@ class PetApi extends BaseApi
     }
 
     /**
-     * @param string $petId ID of pet to update
+     * @param int $petId ID of pet to update
      * @param Pet $pet Pet object that needs to be updated
 
      * @return ApiResult<Pet>
      * @throws ApiException
      */
-    public function updatePetWithHttpInfo(string $petId, Pet $pet): ApiResult
+    public function updatePetWithHttpInfo(int $petId, Pet $pet): ApiResult
     {
         $path = '/pet/{petId}';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'string', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -1172,7 +1172,7 @@ class PetApi extends BaseApi
      * @return ApiResponse
      * @throws ApiException
      */
-    public function uploadPetCertificate(string $petId, UploadPetCertificateOptions $options)
+    public function uploadPetCertificate(int $petId, UploadPetCertificateOptions $options)
     {
         /** @var ApiResponse $result */
         $result = $this->uploadPetCertificateWithHttpInfo($petId, $options)->data;
@@ -1186,11 +1186,11 @@ class PetApi extends BaseApi
      * @return ApiResult<ApiResponse>
      * @throws ApiException
      */
-    public function uploadPetCertificateWithHttpInfo(string $petId, UploadPetCertificateOptions $options): ApiResult
+    public function uploadPetCertificateWithHttpInfo(int $petId, UploadPetCertificateOptions $options): ApiResult
     {
         $path = '/pet/{petId}/certificate';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'string', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -1228,7 +1228,7 @@ class PetApi extends BaseApi
      * @return ApiResponse
      * @throws ApiException
      */
-    public function uploadPetDocument(string $petId, UploadPetDocumentOptions $options)
+    public function uploadPetDocument(int $petId, UploadPetDocumentOptions $options)
     {
         /** @var ApiResponse $result */
         $result = $this->uploadPetDocumentWithHttpInfo($petId, $options)->data;
@@ -1242,11 +1242,11 @@ class PetApi extends BaseApi
      * @return ApiResult<ApiResponse>
      * @throws ApiException
      */
-    public function uploadPetDocumentWithHttpInfo(string $petId, UploadPetDocumentOptions $options): ApiResult
+    public function uploadPetDocumentWithHttpInfo(int $petId, UploadPetDocumentOptions $options): ApiResult
     {
         $path = '/pet/{petId}/documents';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'string', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled('petId', $petId, 'path', 'int', null, 'simple', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [

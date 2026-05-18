@@ -26,11 +26,11 @@ class Order
 {
     /** @example 10 */
     #[SerializedName('id')]
-    public ?string $id = null;
+    public ?int $id = null;
 
     /** @example 198772 */
     #[SerializedName('petId')]
-    public ?string $petId = null;
+    public ?int $petId = null;
 
     /** @example 7 */
     #[SerializedName('quantity')]
@@ -54,8 +54,8 @@ class Order
     /**
      */
     public function __construct(
-        ?string $id = null,
-        ?string $petId = null,
+        ?int $id = null,
+        ?int $petId = null,
         ?int $quantity = null,
         ?\DateTime $shipDate = null,
         OrderStatusEnum $status = OrderStatusEnum::PLACED,

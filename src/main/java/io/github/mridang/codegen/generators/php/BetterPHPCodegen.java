@@ -62,25 +62,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         apiTemplateFiles.put("api/api.mustache", ".php");
 
         typeMapping.put("integer", "int");
-        // Gap I (numeric precision). int64 maps to PHP string
-        // because Symfony's JsonEncoder/Decoder round-trips
-        // JSON numbers through PHP int and float, which lose
-        // precision against 64-bit wire integers once they pass
-        // through a binary float during normalisation. Treating
-        // int64 as a string at the boundary preserves every
-        // digit; callers needing arithmetic should use the
-        // BCMath or GMP extensions on the string value.
-        typeMapping.put("long", "string");
+        typeMapping.put("long", "int");
         typeMapping.put("float", "float");
         typeMapping.put("double", "float");
         typeMapping.put("number", "float");
-        // Gap I (numeric precision). Arbitrary-precision decimal
-        // maps to PHP string for the same reason as int64. PHP
-        // float cannot represent values like
-        // 1.123456789012345678 or even 0.1 without rounding to
-        // the nearest binary fraction; surfacing the wire literal
-        // as a string preserves the server's exact representation.
-        typeMapping.put("decimal", "string");
+        typeMapping.put("decimal", "float");
         typeMapping.put("boolean", "bool");
         typeMapping.put("string", "string");
         typeMapping.put("byte", "int");

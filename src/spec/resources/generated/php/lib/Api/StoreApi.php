@@ -30,26 +30,26 @@ class StoreApi extends BaseApi
 {
     /**
      * Delete purchase order by ID
-     * @param string $orderId ID of the order to delete
+     * @param int $orderId ID of the order to delete
 
      * @throws ApiException
      */
-    public function deleteOrder(string $orderId): void
+    public function deleteOrder(int $orderId): void
     {
         $this->deleteOrderWithHttpInfo($orderId);
     }
 
     /**
-     * @param string $orderId ID of the order to delete
+     * @param int $orderId ID of the order to delete
 
      * @return ApiResult<null>
      * @throws ApiException
      */
-    public function deleteOrderWithHttpInfo(string $orderId): ApiResult
+    public function deleteOrderWithHttpInfo(int $orderId): ApiResult
     {
         $path = '/store/order/{orderId}';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('orderId', $orderId, 'path', 'string', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled('orderId', $orderId, 'path', 'int', null, 'simple', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [
@@ -118,12 +118,12 @@ class StoreApi extends BaseApi
 
     /**
      * Find purchase order by ID
-     * @param string $orderId ID of order to return
+     * @param int $orderId ID of order to return
 
      * @return Order
      * @throws ApiException
      */
-    public function getOrderById(string $orderId)
+    public function getOrderById(int $orderId)
     {
         /** @var Order $result */
         $result = $this->getOrderByIdWithHttpInfo($orderId)->data;
@@ -131,16 +131,16 @@ class StoreApi extends BaseApi
     }
 
     /**
-     * @param string $orderId ID of order to return
+     * @param int $orderId ID of order to return
 
      * @return ApiResult<Order>
      * @throws ApiException
      */
-    public function getOrderByIdWithHttpInfo(string $orderId): ApiResult
+    public function getOrderByIdWithHttpInfo(int $orderId): ApiResult
     {
         $path = '/store/order/{orderId}';
         /** @var string $pathValue */
-        $pathValue = ValueSerializer::serializeStyled('orderId', $orderId, 'path', 'string', null, 'simple', false);
+        $pathValue = ValueSerializer::serializeStyled('orderId', $orderId, 'path', 'int', null, 'simple', false);
         /* URL-encode the styled value for use as a URL path segment, preserving
          * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
         $pathValue = strtr(rawurlencode($pathValue), [

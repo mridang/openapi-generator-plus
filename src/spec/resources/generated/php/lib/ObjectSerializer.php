@@ -16,9 +16,6 @@ namespace PetstoreClient;
 use Symfony\Component\PropertyInfo\Extractor\PhpDocExtractor;
 use Symfony\Component\PropertyInfo\Extractor\ReflectionExtractor;
 use Symfony\Component\PropertyInfo\PropertyInfoExtractor;
-use Symfony\Component\Serializer\Attribute\SerializedName;
-use Symfony\Component\Serializer\Encoder\JsonDecode;
-use Symfony\Component\Serializer\Encoder\JsonEncode;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
 use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
 use Symfony\Component\Serializer\Normalizer\ArrayDenormalizer;
@@ -57,14 +54,6 @@ class ObjectSerializer
                 initializableExtractors: [$reflectionExtractor]
             );
 
-            $jsonEncoder = new JsonEncoder(
-                new JsonEncode(),
-                new JsonDecode([
-                    JsonDecode::ASSOCIATIVE => true,
-                    JsonDecode::OPTIONS => \JSON_BIGINT_AS_STRING,
-                ]),
-            );
-
             self::$serializer = new Serializer([
                 new BackedEnumNormalizer(),
                 new DateTimeNormalizer([DateTimeNormalizer::FORMAT_KEY => self::DATE_TIME_FORMAT]),
@@ -72,7 +61,7 @@ class ObjectSerializer
                 new ObjectNormalizer(
                     propertyTypeExtractor: $propertyTypeExtractor,
                 ),
-            ], [$jsonEncoder]);
+            ], [new JsonEncoder()]);
         }
 
         return self::$serializer;
@@ -297,19 +286,12 @@ class ObjectSerializer
 
         if (is_string($data)) {
             try {
-                $prepared = self::preserveNumericPrecision($data);
-                $decoded = json_decode(
-                    $prepared,
-                    true,
-                    512,
-                    \JSON_THROW_ON_ERROR | \JSON_BIGINT_AS_STRING,
-                );
+                $decoded = json_decode($data, true, 512, JSON_THROW_ON_ERROR);
                 if (!is_array($decoded)) {
                     throw new \InvalidArgumentException(
                         sprintf('Expected a JSON object, got %s', get_debug_type($decoded))
                     );
                 }
-                $decoded = self::coerceScalarsForClass($decoded, $class);
                 /** @var object $result */
                 $result = self::getSerializer()->denormalize($decoded, $class);
                 return $result;
@@ -329,167 +311,6 @@ class ObjectSerializer
         } catch (\Throwable $e) {
             throw new ApiException($e->getMessage());
         }
-    }
-
-    /**
-     * Rewrite every fractional JSON number literal as a JSON
-     * string so that PHP's native json_decode cannot truncate
-     * the value through a binary float. Integer literals are
-     * left untouched because JSON_BIGINT_AS_STRING already
-     * promotes oversize integers to strings, and the coercion
-     * step below narrows them back to int when the target
-     * property is typed as int. String literals are skipped so
-     * quoted contents are never mutated. Gap I.
-     */
-    private static function preserveNumericPrecision(string $json): string
-    {
-        $length = strlen($json);
-        $out = '';
-        $i = 0;
-        while ($i < $length) {
-            $char = $json[$i];
-            if ($char === '"') {
-                $end = $i + 1;
-                while ($end < $length) {
-                    if ($json[$end] === '\\' && $end + 1 < $length) {
-                        $end += 2;
-                        continue;
-                    }
-                    if ($json[$end] === '"') {
-                        break;
-                    }
-                    $end++;
-                }
-                $out .= substr($json, $i, $end - $i + 1);
-                $i = $end + 1;
-                continue;
-            }
-            if ($char === '-' || ($char >= '0' && $char <= '9')) {
-                $prev = $out !== '' ? $out[strlen($out) - 1] : '';
-                $isNumeric = in_array($prev, ['', ':', ',', '[', ' ', "\n", "\t", "\r"], true);
-                if ($isNumeric) {
-                    $start = $i;
-                    if ($char === '-') {
-                        $i++;
-                    }
-                    while ($i < $length && $json[$i] >= '0' && $json[$i] <= '9') {
-                        $i++;
-                    }
-                    $hasFraction = false;
-                    if ($i < $length && $json[$i] === '.') {
-                        $hasFraction = true;
-                        $i++;
-                        while ($i < $length && $json[$i] >= '0' && $json[$i] <= '9') {
-                            $i++;
-                        }
-                    }
-                    if ($i < $length && ($json[$i] === 'e' || $json[$i] === 'E')) {
-                        $hasFraction = true;
-                        $i++;
-                        if ($i < $length && ($json[$i] === '+' || $json[$i] === '-')) {
-                            $i++;
-                        }
-                        while ($i < $length && $json[$i] >= '0' && $json[$i] <= '9') {
-                            $i++;
-                        }
-                    }
-                    $token = substr($json, $start, $i - $start);
-                    if ($hasFraction) {
-                        $out .= '"' . $token . '"';
-                    } else {
-                        $out .= $token;
-                    }
-                    continue;
-                }
-            }
-            $out .= $char;
-            $i++;
-        }
-        return $out;
-    }
-
-    /**
-     * Walks a decoded JSON payload and coerces leaf scalar
-     * values to match the target property type declared on the
-     * matching class. Strings whose contents are valid integer
-     * or float literals are narrowed when the property is typed
-     * int or float; ints and floats are widened to string when
-     * the property is a string (the format: int64 and
-     * format: decimal cases). Gap I.
-     *
-     * @param array<int|string, mixed> $data
-     * @return array<int|string, mixed>
-     */
-    private static function coerceScalarsForClass(array $data, string $class): array
-    {
-        if (!class_exists($class)) {
-            return $data;
-        }
-        $reflection = new \ReflectionClass($class);
-        foreach ($data as $key => $value) {
-            if (!is_string($key)) {
-                continue;
-            }
-            $property = self::findPropertyByName($reflection, $key);
-            if (!$property instanceof \ReflectionProperty) {
-                continue;
-            }
-            $type = $property->getType();
-            if (!$type instanceof \ReflectionNamedType) {
-                continue;
-            }
-            $typeName = $type->getName();
-            if (is_string($value)) {
-                if ($typeName === 'int' && preg_match('/^-?\d+$/', $value) === 1) {
-                    $data[$key] = (int) $value;
-                } elseif ($typeName === 'float' && is_numeric($value)) {
-                    $data[$key] = (float) $value;
-                }
-                continue;
-            }
-            if (is_int($value) && $typeName === 'string') {
-                $data[$key] = (string) $value;
-                continue;
-            }
-            if (is_float($value) && $typeName === 'string') {
-                $data[$key] = (string) $value;
-                continue;
-            }
-            if (is_array($value) && class_exists($typeName)) {
-                $data[$key] = self::coerceScalarsForClass($value, $typeName);
-            }
-        }
-        return $data;
-    }
-
-    /**
-     * Resolves a wire-format property name (matching the
-     * SerializedName attribute) to its ReflectionProperty.
-     * Falls back to property-name matching when no attribute
-     * is present so plain properties still resolve. Gap I.
-     *
-     * @param \ReflectionClass<object> $reflection
-     */
-    private static function findPropertyByName(
-        \ReflectionClass $reflection,
-        string $serializedName
-    ): ?\ReflectionProperty {
-        foreach ($reflection->getProperties() as $property) {
-            $attributes = $property->getAttributes(
-                SerializedName::class
-            );
-            foreach ($attributes as $attribute) {
-                /** @var SerializedName $instance */
-                $instance = $attribute->newInstance();
-                if ($instance->getSerializedName() === $serializedName) {
-                    return $property;
-                }
-            }
-        }
-        if ($reflection->hasProperty($serializedName)) {
-            return $reflection->getProperty($serializedName);
-        }
-        return null;
     }
 
     /**

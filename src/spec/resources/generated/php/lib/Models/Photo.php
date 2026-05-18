@@ -19,7 +19,7 @@ class Photo
 {
     /** @example null */
     #[SerializedName('id')]
-    public ?string $id = null;
+    public ?int $id = null;
 
     /** @example null */
     #[SerializedName('caption')]
@@ -36,7 +36,7 @@ class Photo
     /**
      */
     public function __construct(
-        ?string $id = null,
+        ?int $id = null,
         ?string $caption = null,
         ?bool $isPrimary = null,
         ?string $url = null,

@@ -325,15 +325,13 @@ class ObjectSerializerTest extends TestCase
     public function testSerializeSerializesModelToValidJson(): void
     {
         $category = new Category();
-        // Category::$id is generated as ?string because format:
-        // int64 maps to PHP string under Gap I.
-        $category->id = '1';
+        $category->id = 1;
         $category->name = 'Dogs';
         $json = ObjectSerializer::serialize($category);
         $this->assertJson($json);
         /** @var array<string, mixed> $data */
         $data = json_decode($json, true);
-        $this->assertSame('1', $data['id']);
+        $this->assertSame(1, $data['id']);
         $this->assertSame('Dogs', $data['name']);
     }
 
@@ -346,14 +344,14 @@ class ObjectSerializerTest extends TestCase
     public function testSerializeIncludesFieldsSetToDefaultValues(): void
     {
         $category = new Category();
-        $category->id = '0';
+        $category->id = 0;
         $category->name = '';
         $json = ObjectSerializer::serialize($category);
         $this->assertJson($json);
         /** @var array<string, mixed> $data */
         $data = json_decode($json, true);
         $this->assertArrayHasKey('id', $data, 'serialized JSON should include id field');
-        $this->assertSame('0', $data['id']);
+        $this->assertSame(0, $data['id']);
         $this->assertArrayHasKey('name', $data, 'serialized JSON should include name field');
         $this->assertSame('', $data['name']);
     }
@@ -365,97 +363,12 @@ class ObjectSerializerTest extends TestCase
         $json = '{"id":1,"name":"Dogs"}';
         $category = ObjectSerializer::deserialize($json, Category::class);
         $this->assertInstanceOf(Category::class, $category);
-        // The wire-format JSON number is coerced losslessly into
-        // the string representation by the precision-preserving
-        // deserializer because Category::$id is generated as
-        // ?string under Gap I.
-        $this->assertSame('1', $category->id);
+        $this->assertSame(1, $category->id);
         $this->assertSame('Dogs', $category->name);
     }
 
     public function testDeserializeReturnsNullForNullInput(): void
     {
         $this->assertNull(ObjectSerializer::deserialize(null, Category::class));
-    }
-
-    // -- NumericPrecision (Gap I) --
-
-    public function testInt64MaxValueRoundtripsAsStringWithoutPrecisionLoss(): void
-    {
-        $category = new Category();
-        $category->id = '9223372036854775807';
-        $category->name = 'BigInt';
-        $json = ObjectSerializer::serialize($category);
-        $decoded = ObjectSerializer::deserialize($json, Category::class);
-        $this->assertInstanceOf(Category::class, $decoded);
-        $this->assertSame('9223372036854775807', $decoded->id);
-    }
-
-    public function testInt64MaxValueAsJsonNumberDeserializesToStringExactly(): void
-    {
-        $json = '{"id":9223372036854775807,"name":"BigInt"}';
-        $decoded = ObjectSerializer::deserialize($json, Category::class);
-        $this->assertInstanceOf(Category::class, $decoded);
-        $this->assertSame('9223372036854775807', $decoded->id);
-    }
-
-    public function testHighPrecisionDecimalAsJsonNumberPreservesAllDigits(): void
-    {
-        $json = '{"id":1,"amount":1.123456789012345678}';
-        $prepared = $this->invokePreserve($json);
-        $this->assertStringContainsString('"1.123456789012345678"', $prepared);
-    }
-
-    public function testPointOneDecimalLiteralNotCoercedToBinaryFloat(): void
-    {
-        $json = '{"id":1,"amount":0.1}';
-        $prepared = $this->invokePreserve($json);
-        $this->assertStringContainsString('"0.1"', $prepared);
-        $this->assertStringNotContainsString('0.10000000000000001', $prepared);
-    }
-
-    public function testIntegerLiteralsAreNotQuotedByPreservePass(): void
-    {
-        $json = '{"id":42,"nested":[1,2,3]}';
-        $prepared = $this->invokePreserve($json);
-        $this->assertSame($json, $prepared);
-    }
-
-    public function testStringContainingDigitsIsNotMutatedByPreservePass(): void
-    {
-        $json = '{"id":"9223372036854775807","name":"a 1.5 b"}';
-        $prepared = $this->invokePreserve($json);
-        $this->assertSame($json, $prepared);
-    }
-
-    public function testQuotedDecimalRoundtripsWithoutTruncation(): void
-    {
-        $json = '{"id":"1","name":"1.123456789012345678"}';
-        $decoded = ObjectSerializer::deserialize($json, Category::class);
-        $this->assertInstanceOf(Category::class, $decoded);
-        $this->assertSame('1.123456789012345678', $decoded->name);
-    }
-
-    public function testPointOneRoundtripsThroughDeserializeAsExactString(): void
-    {
-        $json = '{"id":"1","name":"0.1"}';
-        $decoded = ObjectSerializer::deserialize($json, Category::class);
-        $this->assertInstanceOf(Category::class, $decoded);
-        $this->assertSame('0.1', $decoded->name);
-    }
-
-    /**
-     * Reflection helper for asserting on the private precision
-     * preservation pass without making it part of the public
-     * surface. Gap I.
-     */
-    private function invokePreserve(string $json): string
-    {
-        $reflection = new \ReflectionClass(ObjectSerializer::class);
-        $method = $reflection->getMethod('preserveNumericPrecision');
-        $method->setAccessible(true);
-        /** @var string $result */
-        $result = $method->invoke(null, $json);
-        return $result;
     }
 }
