@@ -19,7 +19,7 @@ import kotlinx.serialization.UseSerializers
 data class WetFood(
     /** Example: `null` */
     @SerialName("foodType")
-    val foodType: String,
+    val foodType: String = "wet",
     /** Example: `null` */
     @SerialName("volumeMl")
     val volumeMl: Int,

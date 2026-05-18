@@ -26,11 +26,11 @@ class Order
 {
     /** @example 10 */
     #[SerializedName('id')]
-    public ?int $id = null;
+    public ?string $id = null;
 
     /** @example 198772 */
     #[SerializedName('petId')]
-    public ?int $petId = null;
+    public ?string $petId = null;
 
     /** @example 7 */
     #[SerializedName('quantity')]
@@ -40,6 +40,10 @@ class Order
     #[SerializedName('shipDate')]
     public ?\DateTime $shipDate = null;
 
+    /** @example null */
+    #[SerializedName('complete')]
+    public ?bool $complete = null;
+
     /**
      * Order Status
      * @example approved
@@ -47,15 +51,11 @@ class Order
     #[SerializedName('status')]
     public ?OrderStatusEnum $status = OrderStatusEnum::PLACED;
 
-    /** @example null */
-    #[SerializedName('complete')]
-    public ?bool $complete = null;
-
     /**
      */
     public function __construct(
-        ?int $id = null,
-        ?int $petId = null,
+        ?string $id = null,
+        ?string $petId = null,
         ?int $quantity = null,
         ?\DateTime $shipDate = null,
         ?OrderStatusEnum $status = OrderStatusEnum::PLACED,
@@ -65,7 +65,7 @@ class Order
         $this->petId = $petId;
         $this->quantity = $quantity;
         $this->shipDate = $shipDate;
-        $this->status = $status;
         $this->complete = $complete;
+        $this->status = $status;
     }
 }

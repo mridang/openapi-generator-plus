@@ -51,7 +51,7 @@ module PetstoreClient
       end
 
       # @example null
-      attribute :food_type, Types::Required
+      attribute :food_type, Types::Required.default('wet')
       # @example null
       attribute :volume_ml, Types::Required
     end

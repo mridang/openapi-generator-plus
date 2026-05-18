@@ -693,4 +693,16 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         }
         return List.of();
     }
+
+    /**
+     * Enables Gap K so polymorphic subtypes auto-emit their
+     * discriminator field on serialization. The Go model template
+     * honours {@code defaultValue} on optional vars in the New*
+     * constructor, so the discriminator initialises to e.g.
+     * {@code "dry"} without the caller supplying it.
+     */
+    @Override
+    protected boolean setsDiscriminatorDefaultOnChildren() {
+        return true;
+    }
 }

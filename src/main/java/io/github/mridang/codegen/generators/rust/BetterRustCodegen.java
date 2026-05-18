@@ -738,4 +738,28 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             LOGGER.warn("Failed to write mod.rs in {}: {}", dir, e.getMessage());
         }
     }
+
+    /**
+     * Enables Gap K so polymorphic subtypes auto-emit their
+     * discriminator field on serialization. The Rust model template
+     * only honours {@code defaultValue} on {@code optionalVars}, so
+     * the discriminator property is demoted from required to
+     * optional with a default; serde then writes the field as
+     * {@code Some("foodType")} unconditionally from the constructor.
+     */
+    @Override
+    protected boolean setsDiscriminatorDefaultOnChildren() {
+        return true;
+    }
+
+    /**
+     * Required because the Rust struct/constructor templates only
+     * apply {@code defaultValue} inside the {@code optionalVars}
+     * iteration. Without demotion the discriminator would remain a
+     * required constructor parameter the caller had to pass.
+     */
+    @Override
+    protected boolean demotesDiscriminatorFromRequiredVars() {
+        return true;
+    }
 }

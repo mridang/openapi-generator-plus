@@ -3240,10 +3240,54 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
+     * Opt-in flag (Gap K) to set {@code defaultValue} on each child
+     * model's discriminator property to the mapping name declared on
+     * the parent, and demote the property out of {@code requiredVars}
+     * so generated constructors do not require it as a parameter.
+     * This lets generated subtype models auto-emit the discriminator
+     * field on serialization without the caller having to set it.
+     * Languages whose model templates honour {@code defaultValue} on
+     * properties (Node, Go) override this to {@code true}. Default
+     * is {@code false}.
+     */
+    protected boolean setsDiscriminatorDefaultOnChildren() {
+        return false;
+    }
+
+    /**
+     * Returns the target-language literal expression for a
+     * discriminator default string value. Called by
+     * {@link #postProcessAllModels} when
+     * {@link #setsDiscriminatorDefaultOnChildren()} is {@code true}.
+     * Override per language to switch quoting style. Default wraps
+     * the value in double quotes, which works for Go, Java, C# and
+     * similar languages.
+     */
+    protected String formatDiscriminatorDefaultValue(String mappingName) {
+        return "\"" + mappingName + "\"";
+    }
+
+    /**
+     * Opt-in flag that also demotes the discriminator property
+     * from {@code requiredVars} into {@code optionalVars} after
+     * the default value is set. Useful for languages whose
+     * constructor templates split required and optional parameter
+     * lists (Java, C#). Languages whose templates iterate
+     * {@code vars} directly and branch on {@code defaultValue}
+     * (Swift, Dart, Elixir) leave this at {@code false} so the
+     * property's type stays non-nullable in the constructor
+     * signature.
+     */
+    protected boolean demotesDiscriminatorFromRequiredVars() {
+        return false;
+    }
+
+    /**
      * Wires discriminator-to-subtype parent links (Gap 20), builds
-     * fully-qualified model imports (Gap 24), and removes the
-     * discriminator property from child struct field lists (Gap 25).
-     * Each step is gated by its own opt-in flag.
+     * fully-qualified model imports (Gap 24), removes the
+     * discriminator property from child struct field lists (Gap 25),
+     * and auto-injects the discriminator default on subtype models
+     * (Gap K). Each step is gated by its own opt-in flag.
      */
     @Override
     public Map<String, ModelsMap> postProcessAllModels(Map<String, ModelsMap> objs) {
@@ -3297,6 +3341,25 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                                 result, mapped.getModelName(), discPropName);
                     }
                 }
+
+                // Gap K: Auto-inject discriminator value on serialization by
+                // defaulting the child model's discriminator property.
+                if (setsDiscriminatorDefaultOnChildren()
+                        && model.discriminator != null && !model.oneOf.isEmpty()) {
+                    final String discPropName = model.discriminator.getPropertyBaseName();
+                    final boolean demote = demotesDiscriminatorFromRequiredVars();
+                    final boolean resort = sortVarsByDefaultValue();
+                    for (final CodegenDiscriminator.MappedModel mapped :
+                            model.discriminator.getMappedModels()) {
+                        setDiscriminatorDefaultOnChild(
+                                result,
+                                mapped.getModelName(),
+                                discPropName,
+                                formatDiscriminatorDefaultValue(mapped.getMappingName()),
+                                demote,
+                                resort);
+                    }
+                }
             }
         }
         return result;
@@ -3342,6 +3405,84 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             child.allVars.removeIf(p -> discPropName.equals(p.baseName));
             child.readWriteVars.removeIf(p -> discPropName.equals(p.baseName));
         }
+    }
+
+    /**
+     * Sets {@code defaultValue} on the discriminator property of the
+     * child model identified by {@code childName} (Gap K). The
+     * property keeps its required JSON shape in {@code vars} /
+     * {@code allVars} (so generated field declarations remain
+     * non-nullable). When {@code demote} is {@code true} it is also
+     * moved from {@code requiredVars} to {@code optionalVars} for
+     * languages whose constructor templates split required and
+     * optional parameter lists. When {@code resort} is {@code true},
+     * {@code vars} and {@code allVars} are re-sorted by presence of
+     * {@code defaultValue} (Elixir defstruct ordering).
+     */
+    private static void setDiscriminatorDefaultOnChild(
+            Map<String, ModelsMap> allModels,
+            String childName,
+            String discPropName,
+            String defaultLiteral,
+            boolean demote,
+            boolean resort) {
+        final ModelsMap childModels = allModels.get(childName);
+        if (childModels == null) {
+            return;
+        }
+        for (final ModelMap modelMap : childModels.getModels()) {
+            final CodegenModel child = modelMap.getModel();
+            CodegenProperty target = applyDiscriminatorDefault(
+                    child.vars, discPropName, defaultLiteral);
+            final CodegenProperty fromAllVars = applyDiscriminatorDefault(
+                    child.allVars, discPropName, defaultLiteral);
+            if (target == null) {
+                target = fromAllVars;
+            }
+            applyDiscriminatorDefault(child.readWriteVars, discPropName, defaultLiteral);
+            applyDiscriminatorDefault(child.requiredVars, discPropName, defaultLiteral);
+            applyDiscriminatorDefault(child.optionalVars, discPropName, defaultLiteral);
+
+            if (demote) {
+                child.requiredVars.removeIf(p -> discPropName.equals(p.baseName));
+                if (target != null) {
+                    final boolean alreadyOptional = child.optionalVars.stream()
+                            .anyMatch(p -> discPropName.equals(p.baseName));
+                    if (!alreadyOptional) {
+                        child.optionalVars.add(target);
+                    }
+                }
+                child.hasRequired = !child.requiredVars.isEmpty();
+            }
+
+            if (resort) {
+                child.vars.sort(
+                        Comparator.comparing(p -> p.defaultValue != null ? 1 : 0));
+                child.allVars.sort(
+                        Comparator.comparing(p -> p.defaultValue != null ? 1 : 0));
+            }
+        }
+    }
+
+    @Nullable
+    private static CodegenProperty applyDiscriminatorDefault(
+            @Nullable List<CodegenProperty> props,
+            String discPropName,
+            String defaultLiteral) {
+        if (props == null) {
+            return null;
+        }
+        CodegenProperty found = null;
+        for (final CodegenProperty prop : props) {
+            if (discPropName.equals(prop.baseName)) {
+                prop.defaultValue = defaultLiteral;
+                prop.isDiscriminator = true;
+                if (found == null) {
+                    found = prop;
+                }
+            }
+        }
+        return found;
     }
 
     /**

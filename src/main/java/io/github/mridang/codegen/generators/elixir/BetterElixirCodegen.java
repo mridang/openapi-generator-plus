@@ -454,6 +454,19 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         return true;
     }
 
+    /**
+     * Enables Gap K (auto-inject discriminator on serialise) for
+     * Elixir. The Elixir {@code defstruct} template emits keyword
+     * entries from {@code defaultValue}, so subtype structs gain
+     * {@code defstruct [:weight_kg, food_type: "dry"]} and the
+     * {@code ObjectSerializer} carries the discriminator value
+     * automatically.
+     */
+    @Override
+    protected boolean setsDiscriminatorDefaultOnChildren() {
+        return true;
+    }
+
 
     /** {@inheritDoc} */
     @Override

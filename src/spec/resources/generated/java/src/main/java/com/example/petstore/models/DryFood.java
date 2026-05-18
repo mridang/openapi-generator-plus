@@ -16,7 +16,7 @@ public class DryFood extends PetFood {
 
   /** Example: {@code null} */
   @JsonProperty("foodType")
-  public String foodType;
+  public String foodType = "dry";
 
   /** Example: {@code null} */
   @JsonProperty("weightKg")
@@ -26,10 +26,7 @@ public class DryFood extends PetFood {
   public DryFood() {}
 
   @com.fasterxml.jackson.annotation.JsonCreator
-  public DryFood(
-      @JsonProperty(value = "foodType", required = true) String foodType,
-      @JsonProperty(value = "weightKg", required = true) Double weightKg) {
-    this.foodType = java.util.Objects.requireNonNull(foodType, "foodType is required");
+  public DryFood(@JsonProperty(value = "weightKg", required = true) Double weightKg) {
     this.weightKg = java.util.Objects.requireNonNull(weightKg, "weightKg is required");
   }
 }

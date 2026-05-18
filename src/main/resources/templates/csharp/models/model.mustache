@@ -223,11 +223,11 @@ public class {{classname}}{{#parent}} : {{{.}}}{{/parent}}
     /// <remarks>Deprecated.</remarks>
     [Obsolete("This property is deprecated.")]
 {{/deprecated}}
-{{#required}}
+{{#required}}{{^defaultValue}}
     [JsonRequired]
-{{/required}}
+{{/defaultValue}}{{/required}}
     [JsonPropertyName("{{baseName}}")]
-    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}} {{name}} { get; set; }{{^required}}{{#defaultValue}} = {{{.}}};{{/defaultValue}}{{/required}}
+    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}} {{name}} { get; set; }{{#defaultValue}} = {{{.}}};{{/defaultValue}}
 {{^-last}}
 
 {{/-last}}

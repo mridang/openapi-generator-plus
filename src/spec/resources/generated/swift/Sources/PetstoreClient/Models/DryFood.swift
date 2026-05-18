@@ -18,7 +18,7 @@ public struct DryFood: Codable, Sendable {
   }
 
   /// Creates a new DryFood instance.
-  public init(foodType: String, weightKg: Double) {
+  public init(foodType: String = "dry", weightKg: Double) {
     self.foodType = foodType
     self.weightKg = weightKg
   }

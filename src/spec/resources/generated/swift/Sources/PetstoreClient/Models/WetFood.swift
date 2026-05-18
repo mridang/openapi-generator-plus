@@ -18,7 +18,7 @@ public struct WetFood: Codable, Sendable {
   }
 
   /// Creates a new WetFood instance.
-  public init(foodType: String, volumeMl: Int) {
+  public init(foodType: String = "wet", volumeMl: Int) {
     self.foodType = foodType
     self.volumeMl = volumeMl
   }

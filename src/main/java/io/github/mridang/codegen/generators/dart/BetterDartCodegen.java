@@ -471,6 +471,23 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
         return true;
     }
 
+    /**
+     * Enables Gap K (auto-inject discriminator on serialise) for
+     * Dart. The Dart constructor template branches on
+     * {@code defaultValue} per field, so subtype classes gain
+     * {@code DryFood({this.foodType = 'dry', required this.weightKg})}.
+     */
+    @Override
+    protected boolean setsDiscriminatorDefaultOnChildren() {
+        return true;
+    }
+
+    /** Dart string literals use single quotes by convention. */
+    @Override
+    protected String formatDiscriminatorDefaultValue(String mappingName) {
+        return "'" + mappingName + "'";
+    }
+
     /** {@inheritDoc} */
     @Override
     protected boolean filtersOneOfAnyOfPrimitives() {

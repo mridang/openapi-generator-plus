@@ -925,4 +925,27 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             prop.defaultValue = "'" + enumValue.toLowerCase(Locale.ROOT) + "'";
         }
     }
+
+    /**
+     * Enables Gap K so polymorphic subtypes auto-emit their
+     * discriminator field on serialization. The Ruby model template
+     * (Dry::Struct) honours {@code defaultValue} on required
+     * attributes via {@code Types::Required.default(value)} so the
+     * discriminator renders as a required attribute with a default,
+     * eliminating the need for the caller to set it.
+     */
+    @Override
+    protected boolean setsDiscriminatorDefaultOnChildren() {
+        return true;
+    }
+
+    /**
+     * Returns a single-quoted Ruby string literal for the
+     * discriminator default value, matching the rest of the Ruby
+     * codegen's string conventions (cf. {@link #fixEnumDefaultValue}).
+     */
+    @Override
+    protected String formatDiscriminatorDefaultValue(String mappingName) {
+        return "'" + mappingName + "'";
+    }
 }

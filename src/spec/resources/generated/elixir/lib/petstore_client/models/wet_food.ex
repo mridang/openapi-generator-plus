@@ -9,23 +9,22 @@ defmodule PetstoreClient.Models.WetFood do
   @moduledoc "Model for WetFood."
 
   @type t :: %__MODULE__{
-          food_type: String.t() | nil,
-          volume_ml: integer() | nil
+          volume_ml: integer() | nil,
+          food_type: String.t() | nil
         }
 
-  @enforce_keys [:food_type]
   @enforce_keys [:volume_ml]
   defstruct [
-    :food_type,
-    :volume_ml
+    :volume_ml,
+    food_type: "wet"
   ]
 
   @doc "Attribute mapping from Elixir field name to JSON key."
   @spec attribute_map() :: %{atom() => String.t()}
   def attribute_map do
     %{
-      food_type: "foodType",
-      volume_ml: "volumeMl"
+      volume_ml: "volumeMl",
+      food_type: "foodType"
     }
   end
 
@@ -39,8 +38,8 @@ defmodule PetstoreClient.Models.WetFood do
   @spec openapi_types() :: %{atom() => String.t()}
   def openapi_types do
     %{
-      food_type: "String.t()",
-      volume_ml: "integer()"
+      volume_ml: "integer()",
+      food_type: "String.t()"
     }
   end
 end

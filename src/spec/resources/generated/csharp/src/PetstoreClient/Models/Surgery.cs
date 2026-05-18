@@ -21,11 +21,13 @@ namespace PetstoreClient.Models;
 public class Surgery
 {
     /// <example>null</example>
+
     [JsonRequired]
     [JsonPropertyName("procedureName")]
     public string ProcedureName { get; set; }
 
     /// <example>null</example>
+
     [JsonPropertyName("durationMinutes")]
     public int? DurationMinutes { get; set; }
 

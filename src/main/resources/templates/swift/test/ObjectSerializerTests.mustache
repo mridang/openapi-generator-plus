@@ -307,4 +307,27 @@ import Testing
         #expect(json.contains("\"id\":0"), "serialized JSON should include id=0, got: \(json)")
         #expect(json.contains("\"name\":\"\""), "serialized JSON should include empty name, got: \(json)")
     }
+
+    // MARK: - Gap K — discriminator auto-emitted on subtype serialise
+
+    @Test func testSubtypeSerializeAutoEmitsDiscriminator() throws {
+        // Construct the DryFood subtype WITHOUT providing the foodType
+        // discriminator; the constructor's default value should fill it in.
+        let dry = DryFood(weightKg: 2.5)
+
+        let json = try ObjectSerializer.serialize(dry)
+        #expect(json.contains("\"foodType\":\"dry\""),
+            "serialised JSON must contain auto-injected discriminator, got: \(json)")
+    }
+
+    @Test func testSubtypeRoundTripViaParentDiscriminator() throws {
+        // Construct DryFood without setting foodType, serialise it, then
+        // decode through the parent oneOf wrapper; the discriminator
+        // injected on serialise must route the decoder back to DryFood.
+        let dry = DryFood(weightKg: 1.25)
+        let payload = try ObjectSerializer.serialize(dry)
+
+        let food = try JSONDecoder().decode(PetFood.self, from: Data(payload.utf8))
+        #expect(food.value() is DryFood)
+    }
 }

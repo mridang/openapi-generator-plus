@@ -434,6 +434,18 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
 
     /** {@inheritDoc} */
     @Override
+    protected boolean setsDiscriminatorDefaultOnChildren() {
+        return true;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean demotesDiscriminatorFromRequiredVars() {
+        return true;
+    }
+
+    /** {@inheritDoc} */
+    @Override
     protected String getMapDefaultValueType() {
         return "object";
     }

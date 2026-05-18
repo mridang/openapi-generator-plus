@@ -21,20 +21,19 @@ namespace PetstoreClient.Models;
 public class DryFood : PetFood
 {
     /// <example>null</example>
-    [JsonRequired]
+
     [JsonPropertyName("foodType")]
-    public string FoodType { get; set; }
+    public string FoodType { get; set; } = "dry";
 
     /// <example>null</example>
+
     [JsonRequired]
     [JsonPropertyName("weightKg")]
     public double WeightKg { get; set; }
 
     [System.Text.Json.Serialization.JsonConstructor]
-    public DryFood(string FoodType, double WeightKg)
+    public DryFood(double WeightKg)
     {
-        ArgumentNullException.ThrowIfNull(FoodType, nameof(FoodType));
-        this.FoodType = FoodType;
         this.WeightKg = WeightKg;
     }
 }

@@ -446,6 +446,18 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         return "nil";
     }
 
+    /**
+     * Enables Gap K (auto-inject discriminator on serialise) for
+     * Swift. The Swift struct {@code init} template renders a
+     * default literal directly from {@code defaultValue}, so
+     * subtype structs gain {@code init(weightKg: ..., foodType:
+     * String = "dry")}.
+     */
+    @Override
+    protected boolean setsDiscriminatorDefaultOnChildren() {
+        return true;
+    }
+
     /** {@inheritDoc} */
     @Override
     protected String getSourceFolder() {

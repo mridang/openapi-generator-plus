@@ -397,6 +397,18 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
         return true;
     }
 
+    /** {@inheritDoc} */
+    @Override
+    protected boolean setsDiscriminatorDefaultOnChildren() {
+        return true;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected boolean demotesDiscriminatorFromRequiredVars() {
+        return true;
+    }
+
     /**
      * Returns the default value expression for a schema type.
      * Arrays default to empty ArrayList or LinkedHashSet for

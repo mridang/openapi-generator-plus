@@ -37,24 +37,29 @@ public class PetWithOwner
     }
 
     /// <example>10</example>
+
     [JsonPropertyName("id")]
     public long? Id { get; set; }
 
     /// <example>doggie</example>
+
     [JsonRequired]
     [JsonPropertyName("name")]
     public string Name { get; set; }
 
     /// <example>null</example>
+
     [JsonPropertyName("category")]
     public Category? Category { get; set; }
 
     /// <example>null</example>
+
     [JsonRequired]
     [JsonPropertyName("photoUrls")]
     public HashSet<string> PhotoUrls { get; set; }
 
     /// <example>null</example>
+
     [JsonPropertyName("tags")]
     public List<Tag>? Tags { get; set; }
 
@@ -68,11 +73,13 @@ public class PetWithOwner
     public StatusEnum? Status { get; set; }
 
     /// <example>null</example>
+
     [JsonRequired]
     [JsonPropertyName("ownerName")]
     public string OwnerName { get; set; }
 
     /// <example>null</example>
+
     [JsonPropertyName("ownerEmail")]
     public string? OwnerEmail { get; set; }
 

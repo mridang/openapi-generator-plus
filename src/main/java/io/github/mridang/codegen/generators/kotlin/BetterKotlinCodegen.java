@@ -233,6 +233,12 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         return "src/main/kotlin";
     }
 
+    /** {@inheritDoc} */
+    @Override
+    protected boolean setsDiscriminatorDefaultOnChildren() {
+        return true;
+    }
+
     /**
      * Processes user-supplied codegen options after they are
      * resolved. Reads the invoker package, build coordinates,

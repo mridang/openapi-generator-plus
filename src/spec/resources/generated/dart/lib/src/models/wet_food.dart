@@ -12,7 +12,7 @@ class WetFood {
   final int volumeMl;
 
   const WetFood({
-    required this.foodType,
+    this.foodType = 'wet',
     required this.volumeMl,
   });
 

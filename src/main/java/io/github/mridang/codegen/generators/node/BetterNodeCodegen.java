@@ -781,4 +781,36 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
         return true;
     }
 
+    /**
+     * Enables Gap K so polymorphic subtypes auto-emit their
+     * discriminator field on serialization. The TS model template
+     * honours {@code defaultValue} on properties so the discriminator
+     * renders as e.g. {@code foodType!: string = 'dry';}.
+     */
+    @Override
+    protected boolean setsDiscriminatorDefaultOnChildren() {
+        return true;
+    }
+
+    /**
+     * The TS constructor block iterates {@code requiredVars} to
+     * throw on missing required fields. With the discriminator
+     * defaulted in the field initialiser, the runtime check is
+     * redundant, so demote it out of {@code requiredVars}.
+     */
+    @Override
+    protected boolean demotesDiscriminatorFromRequiredVars() {
+        return true;
+    }
+
+    /**
+     * Returns a single-quoted TypeScript string literal for the
+     * discriminator default value, matching the rest of the model
+     * template's string conventions.
+     */
+    @Override
+    protected String formatDiscriminatorDefaultValue(String mappingName) {
+        return "'" + mappingName + "'";
+    }
+
 }

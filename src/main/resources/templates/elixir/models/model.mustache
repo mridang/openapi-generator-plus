@@ -165,7 +165,9 @@ defmodule {{moduleName}}.Models.{{classname}} do
 
   {{#vars}}
   {{#required}}
+  {{^defaultValue}}
   @enforce_keys [:{{name}}]
+  {{/defaultValue}}
   {{/required}}
   {{/vars}}
   defstruct [

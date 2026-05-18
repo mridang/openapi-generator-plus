@@ -509,3 +509,57 @@ func TestSerialize_IncludesFieldsSetToDefaultValues(t *testing.T) {
 		t.Errorf("serialized JSON should include empty name, got: %s", string(data))
 	}
 }
+
+func TestDiscriminator_DrySubtypeAutoInjectsFoodType(t *testing.T) {
+	dry := models.NewDryFood(2.5)
+	data, err := {{packageName}}.Serialize(dry)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), "\"foodType\":\"dry\"") {
+		t.Errorf("expected foodType=\"dry\" in serialized output, got: %s", string(data))
+	}
+	if !strings.Contains(string(data), "\"weightKg\":2.5") {
+		t.Errorf("expected weightKg=2.5 in serialized output, got: %s", string(data))
+	}
+}
+
+func TestDiscriminator_WetSubtypeAutoInjectsFoodType(t *testing.T) {
+	wet := models.NewWetFood(350)
+	data, err := {{packageName}}.Serialize(wet)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), "\"foodType\":\"wet\"") {
+		t.Errorf("expected foodType=\"wet\" in serialized output, got: %s", string(data))
+	}
+	if !strings.Contains(string(data), "\"volumeMl\":350") {
+		t.Errorf("expected volumeMl=350 in serialized output, got: %s", string(data))
+	}
+}
+
+func TestDiscriminator_CallerCanOverrideDefault(t *testing.T) {
+	dry := models.NewDryFood(1)
+	dry.FoodType = "custom"
+	data, err := {{packageName}}.Serialize(dry)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), "\"foodType\":\"custom\"") {
+		t.Errorf("expected caller-supplied foodType=\"custom\", got: %s", string(data))
+	}
+}
+
+func TestDiscriminator_DeserializeReturnsSubtype(t *testing.T) {
+	input := []byte(`{"foodType":"dry","weightKg":2.5}`)
+	var dry models.DryFood
+	if err := {{packageName}}.Deserialize(input, &dry); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dry.FoodType != "dry" {
+		t.Errorf("expected FoodType=\"dry\", got %q", dry.FoodType)
+	}
+	if dry.WeightKg != 2.5 {
+		t.Errorf("expected WeightKg=2.5, got %v", dry.WeightKg)
+	}
+}

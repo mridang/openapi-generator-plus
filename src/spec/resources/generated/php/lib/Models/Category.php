@@ -19,7 +19,7 @@ class Category
 {
     /** @example 1 */
     #[SerializedName('id')]
-    public ?int $id = null;
+    public ?string $id = null;
 
     /** @example Dogs */
     #[SerializedName('name')]
@@ -28,7 +28,7 @@ class Category
     /**
      */
     public function __construct(
-        ?int $id = null,
+        ?string $id = null,
         ?string $name = null,
     ) {
         $this->id = $id;

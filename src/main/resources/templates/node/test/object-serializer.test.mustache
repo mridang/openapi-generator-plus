@@ -1,7 +1,7 @@
 {{>api_info}}
 
 import { ObjectSerializer } from '../src/object-serializer{{importFileExtension}}';
-import { Category } from '../src/models/index{{importFileExtension}}';
+import { Category, DryFood, WetFood } from '../src/models/index{{importFileExtension}}';
 
 describe('ObjectSerializer', () => {
   describe('DateTimeOffsetPreservationTests', () => {
@@ -302,6 +302,40 @@ describe('ObjectSerializer', () => {
       expect(category).toBeDefined();
       expect(category!.id).toBe(1);
       expect(category!.name).toBe('Dogs');
+    });
+  });
+
+  describe('DiscriminatorAutoInjectionTests', () => {
+    test('dry subtype serialization includes discriminator without caller setting it', () => {
+      const dry = new DryFood({ weightKg: 2.5 });
+      const json = ObjectSerializer.serialize(dry);
+      const parsed = JSON.parse(json);
+      expect(parsed.foodType).toBe('dry');
+      expect(parsed.weightKg).toBe(2.5);
+    });
+
+    test('wet subtype defaults discriminator to its mapping name', () => {
+      const wet = new WetFood({ volumeMl: 350 });
+      const json = ObjectSerializer.serialize(wet);
+      const parsed = JSON.parse(json);
+      expect(parsed.foodType).toBe('wet');
+      expect(parsed.volumeMl).toBe(350);
+    });
+
+    test('caller-supplied discriminator overrides the default', () => {
+      const dry = new DryFood({ foodType: 'custom', weightKg: 1 });
+      const json = ObjectSerializer.serialize(dry);
+      const parsed = JSON.parse(json);
+      expect(parsed.foodType).toBe('custom');
+    });
+
+    test('deserialize discriminator-tagged JSON returns subtype instance', () => {
+      const dryJson = { foodType: 'dry', weightKg: 2.5 };
+      const dry = ObjectSerializer.deserialize(dryJson, DryFood);
+      expect(dry).toBeDefined();
+      expect(dry).toBeInstanceOf(DryFood);
+      expect(dry!.foodType).toBe('dry');
+      expect(dry!.weightKg).toBe(2.5);
     });
   });
 });

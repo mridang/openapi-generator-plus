@@ -18,20 +18,20 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 class DryFood
 {
     /** @example null */
-    #[SerializedName('foodType')]
-    public string $foodType;
-
-    /** @example null */
     #[SerializedName('weightKg')]
     public float $weightKg;
+
+    /** @example null */
+    #[SerializedName('foodType')]
+    public string $foodType = 'dry';
 
     /**
      */
     public function __construct(
-        string $foodType,
         float $weightKg,
+        ?string $foodType = 'dry',
     ) {
-        $this->foodType = $foodType;
         $this->weightKg = $weightKg;
+        $this->foodType = $foodType;
     }
 }

@@ -288,5 +288,23 @@ void main() {
           reason: 'serialized JSON should include name field');
       expect(parsed['name'], equals(''));
     });
+
+    // Gap K — discriminator auto-emitted on subtype serialise.
+
+    test('subtype serialise auto-emits discriminator value', () {
+      const dry = DryFood(weightKg: 2.5);
+      final json = serialize(dry);
+      final parsed = jsonDecode(json) as Map<String, dynamic>;
+      expect(parsed['foodType'], equals('dry'));
+      expect(parsed['weightKg'], equals(2.5));
+    });
+
+    test('subtype round-trip via parent discriminator routes back to subtype',
+        () {
+      const dry = DryFood(weightKg: 1.25);
+      final json = serialize(dry);
+      final food = PetFood.fromJson(jsonDecode(json) as Map<String, dynamic>);
+      expect(food.value, isA<DryFood>());
+    });
   });
 }

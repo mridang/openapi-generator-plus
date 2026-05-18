@@ -12,7 +12,7 @@ class DryFood {
   final double weightKg;
 
   const DryFood({
-    required this.foodType,
+    this.foodType = 'dry',
     required this.weightKg,
   });
 

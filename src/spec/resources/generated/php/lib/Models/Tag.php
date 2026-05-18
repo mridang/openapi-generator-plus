@@ -24,7 +24,7 @@ class Tag
 {
     /** @example null */
     #[SerializedName('id')]
-    public ?int $id = null;
+    public ?string $id = null;
 
     /** @example null */
     #[SerializedName('name')]
@@ -33,7 +33,7 @@ class Tag
     /**
      */
     public function __construct(
-        ?int $id = null,
+        ?string $id = null,
         ?string $name = null,
     ) {
         $this->id = $id;

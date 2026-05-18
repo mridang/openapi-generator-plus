@@ -92,7 +92,12 @@ func New{{classname}}({{#requiredVars}}{{nameInCamelCase}} {{{dataType}}}{{^-las
 {{/requiredVars}}
 {{#optionalVars}}
 {{#defaultValue}}
+{{#required}}
+		{{name}}: default{{name}},
+{{/required}}
+{{^required}}
 		{{name}}: &default{{name}},
+{{/required}}
 {{/defaultValue}}
 {{/optionalVars}}
 	}

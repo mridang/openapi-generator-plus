@@ -62,11 +62,25 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         apiTemplateFiles.put("api/api.mustache", ".php");
 
         typeMapping.put("integer", "int");
-        typeMapping.put("long", "int");
+        // Gap I (numeric precision). int64 maps to PHP string
+        // because Symfony's JsonEncoder/Decoder round-trips
+        // JSON numbers through PHP int and float, which lose
+        // precision against 64-bit wire integers once they pass
+        // through a binary float during normalisation. Treating
+        // int64 as a string at the boundary preserves every
+        // digit; callers needing arithmetic should use the
+        // BCMath or GMP extensions on the string value.
+        typeMapping.put("long", "string");
         typeMapping.put("float", "float");
         typeMapping.put("double", "float");
         typeMapping.put("number", "float");
-        typeMapping.put("decimal", "float");
+        // Gap I (numeric precision). Arbitrary-precision decimal
+        // maps to PHP string for the same reason as int64. PHP
+        // float cannot represent values like
+        // 1.123456789012345678 or even 0.1 without rounding to
+        // the nearest binary fraction; surfacing the wire literal
+        // as a string preserves the server's exact representation.
+        typeMapping.put("decimal", "string");
         typeMapping.put("boolean", "bool");
         typeMapping.put("string", "string");
         typeMapping.put("byte", "int");
@@ -792,5 +806,55 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 prop.defaultValue = model.classname + parts[0] + "::" + parts[1];
             }
         }
+    }
+
+    /**
+     * Enables Gap K so polymorphic subtypes auto-emit their
+     * discriminator field on serialization. The PHP model template
+     * honours {@code defaultValue} on required constructor
+     * parameters via {@code string ${{name}} = 'mapped',}, so the
+     * caller can omit the discriminator when constructing a subtype.
+     */
+    @Override
+    protected boolean setsDiscriminatorDefaultOnChildren() {
+        return true;
+    }
+
+    /**
+     * Returns a single-quoted PHP string literal for the
+     * discriminator default value, matching PHP's idiomatic
+     * convention for non-interpolated string constants.
+     */
+    @Override
+    protected String formatDiscriminatorDefaultValue(String mappingName) {
+        return "'" + mappingName + "'";
+    }
+
+    /**
+     * Sort vars so properties carrying a default value (including
+     * the auto-injected discriminator default from Gap K) come
+     * last. PHP forbids non-defaulted parameters after defaulted
+     * parameters in a function signature (deprecated since 8.0,
+     * error in 9.0).
+     */
+    @Override
+    protected boolean sortVarsByDefaultValue() {
+        return true;
+    }
+
+    /**
+     * Move the discriminator property out of {@code requiredVars}
+     * and into {@code optionalVars} after defaulting. PHP's
+     * constructor template iterates {@code requiredVars} first
+     * then {@code optionalVars}, and a defaulted parameter
+     * (the discriminator) cannot precede a non-defaulted required
+     * parameter (other required fields) in the same parameter list.
+     * Demotion guarantees the discriminator is rendered after all
+     * non-defaulted required params, satisfying PHP's signature
+     * ordering rule.
+     */
+    @Override
+    protected boolean demotesDiscriminatorFromRequiredVars() {
+        return true;
     }
 }
