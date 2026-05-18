@@ -689,6 +689,59 @@ class BaseApiTest extends TestCase
         $this->assertSame($binaryData, $result);
     }
 
+    public function testBinaryResponseRoundtripsNulAndHighBytes(): void
+    {
+        // Use a byte sequence containing NUL (0x00) and a high byte (0xFF)
+        // that would be mangled by any naive UTF-8 string conversion.
+        $binaryData = "\x00\xFF\x42";
+        $encoded = base64_encode($binaryData);
+        $client = new class implements ApiClient {
+            public string $body = '';
+            public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
+            {
+                return new ApiResponse(200, $this->body, ['Content-Type' => 'application/octet-stream']);
+            }
+        };
+        $client->body = $encoded;
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $result = $testApi->call(
+            'GET',
+            '/api/bin',
+            [],
+            [],
+            null,
+            ['application/octet-stream'],
+            'application/octet-stream',
+            null
+        );
+        $this->assertSame($binaryData, $result);
+        $this->assertSame(3, strlen($result));
+    }
+
+    public function testEmptyBinaryBodyYieldsNull(): void
+    {
+        $client = new class implements ApiClient {
+            public function sendRequest(string $method, string $url, array $headers, mixed $body): ApiResponse
+            {
+                return new ApiResponse(200, '', ['Content-Type' => 'application/octet-stream']);
+            }
+        };
+        $config = new Configuration('http://localhost');
+        $testApi = new TestableApi($client, $config);
+        $result = $testApi->call(
+            'GET',
+            '/api/bin',
+            [],
+            [],
+            null,
+            ['application/octet-stream'],
+            'application/octet-stream',
+            null
+        );
+        $this->assertNull($result);
+    }
+
     public function testJsonResponseParsedToObject(): void
     {
         $client = new class implements ApiClient {

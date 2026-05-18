@@ -157,7 +157,7 @@ export class DefaultApiClient implements ApiClient {
     const responseBytes = Buffer.from(await response.arrayBuffer());
     const contentType = response.headers.get('content-type') ?? '';
     const responseBody = DefaultApiClient.isTextContentType(contentType)
-      ? responseBytes.toString('utf-8')
+      ? DefaultApiClient.decodeBody(responseBytes, contentType)
       : responseBytes.toString('base64');
 
     const responseHeaders: Record<string, string> = {};
@@ -217,25 +217,166 @@ export class DefaultApiClient implements ApiClient {
    */
   private async multipartPart(name: string, value: unknown, boundary: string): Promise<Buffer> {
     if (Buffer.isBuffer(value)) {
-      const header = `--${boundary}\r\nContent-Disposition: form-data; name="${name}"; filename="${name}"\r\nContent-Type: application/octet-stream\r\n\r\n`;
+      const disposition = DefaultApiClient.buildContentDisposition(name, name);
+      const mimeType = DefaultApiClient.mimeTypeForFilename(name);
+      const header = `--${boundary}\r\nContent-Disposition: ${disposition}\r\nContent-Type: ${mimeType}\r\n\r\n`;
       return Buffer.concat([Buffer.from(header, 'utf-8'), value, Buffer.from('\r\n', 'utf-8')]);
     }
     if (value instanceof Blob) {
       const buf = Buffer.from(await value.arrayBuffer());
-      const header = `--${boundary}\r\nContent-Disposition: form-data; name="${name}"; filename="${name}"\r\nContent-Type: application/octet-stream\r\n\r\n`;
+      const filename = (value as Blob & { name?: string }).name ?? name;
+      const disposition = DefaultApiClient.buildContentDisposition(name, filename);
+      const mimeType =
+        value.type && value.type.length > 0 ? value.type : DefaultApiClient.mimeTypeForFilename(filename);
+      const header = `--${boundary}\r\nContent-Disposition: ${disposition}\r\nContent-Type: ${mimeType}\r\n\r\n`;
       return Buffer.concat([Buffer.from(header, 'utf-8'), buf, Buffer.from('\r\n', 'utf-8')]);
     }
     if (typeof value === 'object' && value !== null) {
+      DefaultApiClient.assertNoControlChars(name, 'multipart field name');
+      const escapedName = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
       const json = JSON.stringify(value);
       return Buffer.from(
-        `--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\nContent-Type: application/json\r\n\r\n${json}\r\n`,
+        `--${boundary}\r\nContent-Disposition: form-data; name="${escapedName}"\r\nContent-Type: application/json\r\n\r\n${json}\r\n`,
         'utf-8'
       );
     }
+    DefaultApiClient.assertNoControlChars(name, 'multipart field name');
+    const escapedName = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     return Buffer.from(
-      `--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${String(value)}\r\n`,
+      `--${boundary}\r\nContent-Disposition: form-data; name="${escapedName}"\r\n\r\n${String(value)}\r\n`,
       'utf-8'
     );
+  }
+
+  /**
+   * Decode response bytes using the charset declared in the
+   * {@code Content-Type} header. Defaults to UTF-8 when no charset is
+   * present, and falls back to UTF-8 if the declared charset is not
+   * recognised by the runtime's {@link TextDecoder}.
+   *
+   * @param buf the raw response bytes
+   * @param contentType the response Content-Type header value
+   * @returns the decoded text
+   */
+  static decodeBody(buf: Buffer, contentType?: string): string {
+    const m = /charset=([^;]+)/i.exec(contentType ?? '');
+    const cs = m
+      ? m[1]
+          .trim()
+          .toLowerCase()
+          .replace(/^["']|["']$/g, '')
+      : 'utf-8';
+    try {
+      return new TextDecoder(cs, { fatal: false }).decode(buf);
+    } catch {
+      return buf.toString('utf-8');
+    }
+  }
+
+  /**
+   * Map common file extensions to their canonical MIME types for use
+   * as the per-part {@code Content-Type} in multipart uploads.
+   * Falls back to {@code application/octet-stream} when the extension
+   * is unknown.
+   */
+  private static readonly EXTENSION_MIME_TYPES: Record<string, string> = {
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    bmp: 'image/bmp',
+    svg: 'image/svg+xml',
+    tif: 'image/tiff',
+    tiff: 'image/tiff',
+    ico: 'image/x-icon',
+    pdf: 'application/pdf',
+    json: 'application/json',
+    xml: 'application/xml',
+    zip: 'application/zip',
+    gz: 'application/gzip',
+    tar: 'application/x-tar',
+    txt: 'text/plain',
+    csv: 'text/csv',
+    html: 'text/html',
+    htm: 'text/html',
+    css: 'text/css',
+    js: 'application/javascript',
+    mp3: 'audio/mpeg',
+    wav: 'audio/wav',
+    mp4: 'video/mp4',
+    webm: 'video/webm',
+    mov: 'video/quicktime',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xls: 'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  };
+
+  /**
+   * Look up the MIME type for the given filename based on its extension.
+   *
+   * @param filename the filename to inspect
+   * @returns the matching MIME type, or {@code application/octet-stream}
+   */
+  static mimeTypeForFilename(filename: string): string {
+    const dot = filename.lastIndexOf('.');
+    if (dot < 0 || dot === filename.length - 1) {
+      return 'application/octet-stream';
+    }
+    const ext = filename.substring(dot + 1).toLowerCase();
+    return DefaultApiClient.EXTENSION_MIME_TYPES[ext] ?? 'application/octet-stream';
+  }
+
+  /**
+   * Build a {@code Content-Disposition} header value for a multipart
+   * file part, sanitising the supplied filename to prevent CRLF header
+   * injection and ensuring non-ASCII filenames are transmitted via the
+   * RFC 5987 {@code filename*} parameter alongside an ASCII fallback.
+   *
+   * @param name the form field name
+   * @param filename the file name to advertise
+   * @returns the assembled {@code Content-Disposition} value
+   * @throws Error when the filename contains control characters
+   */
+  static buildContentDisposition(name: string, filename: string): string {
+    DefaultApiClient.assertNoControlChars(filename, 'multipart filename');
+    DefaultApiClient.assertNoControlChars(name, 'multipart field name');
+    const escapedName = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    let isAscii = true;
+    let asciiFallback = '';
+    for (const ch of filename) {
+      const code = ch.codePointAt(0)!;
+      if (code >= 0x20 && code <= 0x7e) {
+        asciiFallback += ch;
+      } else {
+        isAscii = false;
+        asciiFallback += '_';
+      }
+    }
+    const escapedFilename = asciiFallback.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    let header = `form-data; name="${escapedName}"; filename="${escapedFilename}"`;
+    if (!isAscii) {
+      header += `; filename*=UTF-8''${encodeURIComponent(filename)}`;
+    }
+    return header;
+  }
+
+  /**
+   * Reject strings containing CR, LF, or NUL bytes which could otherwise
+   * split the {@code Content-Disposition} header and inject arbitrary
+   * additional headers or a forged body.
+   *
+   * @param value the candidate string
+   * @param label human-readable label included in the error message
+   */
+  private static assertNoControlChars(value: string, label: string): void {
+    for (let i = 0; i < value.length; i++) {
+      const code = value.charCodeAt(i);
+      if (code === 0x0a || code === 0x0d || code === 0x00) {
+        throw new Error(`Invalid ${label}: contains CR, LF, or NUL`);
+      }
+    }
   }
 
   /**

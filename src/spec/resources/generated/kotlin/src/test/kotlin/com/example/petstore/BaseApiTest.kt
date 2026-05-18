@@ -643,9 +643,14 @@ class BaseApiTest {
     @DisplayName("BinaryResponseTests")
     inner class BinaryResponseTests {
         @Test
-        @DisplayName("octet-stream base64 body decodes to correct bytes")
+        @DisplayName("octet-stream base64 body decodes to correct bytes (strong roundtrip)")
         fun octetStreamBase64DecodesToCorrectBytes() {
-            // AP9C is base64 for [0x00, 0xFF, 0x42]
+            // Original bytes include 0x00 and 0xFF — values that would mangle under UTF-8 conversion.
+            val original = byteArrayOf(0x00, 0xFF.toByte(), 0x42)
+            val encoded =
+                java.util.Base64
+                    .getEncoder()
+                    .encodeToString(original)
             val client =
                 object : CapturingApiClient() {
                     override suspend fun sendRequest(
@@ -653,17 +658,14 @@ class BaseApiTest {
                         url: String,
                         headers: Map<String, String>,
                         body: Any?,
-                    ): ApiResponse = ApiResponse(200, "AP9C", mapOf("Content-Type" to "application/octet-stream"))
+                    ): ApiResponse = ApiResponse(200, encoded, mapOf("Content-Type" to "application/octet-stream"))
                 }
             val response = runBlocking { client.sendRequest("GET", "/api/binary", emptyMap(), null) }
             val decoded =
                 java.util.Base64
                     .getDecoder()
                     .decode(response.body)
-            assertEquals(3, decoded.size)
-            assertEquals(0x00.toByte(), decoded[0])
-            assertEquals(0xFF.toByte(), decoded[1])
-            assertEquals(0x42.toByte(), decoded[2])
+            assertArrayEquals(original, decoded, "binary roundtrip must preserve bytes exactly")
         }
 
         @Test

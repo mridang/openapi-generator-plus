@@ -96,7 +96,7 @@ async fn test_stores_refresh_token() {
         .await
         .expect("should succeed");
 
-    assert_eq!("ref1", manager.refresh_token());
+    assert_eq!("ref1", manager.refresh_token().await);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -152,7 +152,7 @@ async fn test_refetches_token_when_expired() {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_set_access_token_bypasses_endpoint() {
     let manager = OAuth2TokenManager::new();
-    manager.set_access_token("manual-token");
+    manager.set_access_token("manual-token").await;
 
     let params = HashMap::new();
 
@@ -176,6 +176,88 @@ async fn test_throws_when_no_api_client_injected() {
         .get_access_token("https://auth.example.com/token", &params)
         .await
         .unwrap();
+}
+
+/// Counts every request so the single-flight test can assert that N
+/// concurrent callers collapse onto exactly one token endpoint hit.
+struct CountingApiClient {
+    call_count: Mutex<usize>,
+    response_body: String,
+    delay_ms: u64,
+}
+
+impl CountingApiClient {
+    fn new(response_body: &str, delay_ms: u64) -> Self {
+        Self {
+            call_count: Mutex::new(0),
+            response_body: response_body.to_string(),
+            delay_ms,
+        }
+    }
+
+    fn calls(&self) -> usize {
+        *self.call_count.lock().unwrap()
+    }
+}
+
+impl ApiClient for CountingApiClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        _url: &str,
+        _headers: &HashMap<String, String>,
+        _body: Option<&RequestBody>,
+    ) -> Pin<Box<dyn Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        {
+            let mut count = self.call_count.lock().unwrap();
+            *count += 1;
+        }
+        let body = self.response_body.clone();
+        let delay = self.delay_ms;
+        Box::pin(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(delay)).await;
+            Ok(ApiResponse {
+                status_code: 200,
+                body,
+                headers: HashMap::new(),
+            })
+        })
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_concurrent_refresh_is_single_flight() {
+    let client = Arc::new(CountingApiClient::new(
+        r#"{"access_token":"single-flight","expires_in":3600}"#,
+        100,
+    ));
+
+    let manager = Arc::new(OAuth2TokenManager::new());
+    manager.set_api_client(client.clone());
+
+    let mut handles = Vec::new();
+    for _ in 0..10 {
+        let manager = manager.clone();
+        handles.push(tokio::spawn(async move {
+            let mut params = HashMap::new();
+            params.insert("grant_type".to_string(), "client_credentials".to_string());
+            manager
+                .get_access_token("https://auth.example.com/token", &params)
+                .await
+                .expect("token fetch should succeed")
+        }));
+    }
+
+    for handle in handles {
+        let token = handle.await.expect("task should not panic");
+        assert_eq!("single-flight", token);
+    }
+
+    assert_eq!(
+        1,
+        client.calls(),
+        "concurrent callers must collapse onto a single token endpoint call"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread")]

@@ -32,6 +32,11 @@ namespace PetstoreClient;
 /// </summary>
 public sealed class DefaultApiClient : IApiClient, IDisposable
 {
+    static DefaultApiClient()
+    {
+        Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+    }
+
     private readonly HttpClient _httpClient;
     private readonly TransportOptions _transportOptions;
 
@@ -227,8 +232,9 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         }
 
         byte[] responseBytes = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+        string? contentTypeHeader = response.Content.Headers.ContentType?.ToString();
         string responseBody = IsTextContentType(response.Content.Headers.ContentType?.MediaType)
-            ? Encoding.UTF8.GetString(responseBytes)
+            ? GetEncodingFromContentType(contentTypeHeader).GetString(responseBytes)
             : Convert.ToBase64String(responseBytes);
 
         Dictionary<string, string> responseHeaders = [];
@@ -280,11 +286,23 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         switch (value)
         {
             case byte[] bytes:
-                multipart.Add(new ByteArrayContent(bytes), name, name);
+            {
+                ByteArrayContent content = new(bytes);
+                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+                    GetMimeType(name)
+                );
+                multipart.Add(content, name, name);
                 break;
+            }
             case Stream stream:
-                multipart.Add(new StreamContent(stream), name, name);
+            {
+                StreamContent content = new(stream);
+                content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+                    GetMimeType(name)
+                );
+                multipart.Add(content, name, name);
                 break;
+            }
             case string s:
                 multipart.Add(new StringContent(s), name);
                 break;
@@ -304,6 +322,49 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     }
 
     /// <summary>
+    /// Maps a filename to a MIME type using a small extension lookup table.
+    /// Falls back to <c>application/octet-stream</c> for unknown or absent
+    /// extensions.
+    /// </summary>
+    /// <param name="filename">The filename (or field name treated as filename).</param>
+    /// <returns>The inferred MIME type, never null.</returns>
+    private static string GetMimeType(string filename)
+    {
+        if (string.IsNullOrEmpty(filename))
+        {
+            return "application/octet-stream";
+        }
+        string ext = System.IO.Path.GetExtension(filename);
+        return (ext ?? string.Empty).ToUpperInvariant() switch
+        {
+            ".PNG" => "image/png",
+            ".JPG" or ".JPEG" => "image/jpeg",
+            ".GIF" => "image/gif",
+            ".WEBP" => "image/webp",
+            ".BMP" => "image/bmp",
+            ".SVG" => "image/svg+xml",
+            ".TIFF" or ".TIF" => "image/tiff",
+            ".PDF" => "application/pdf",
+            ".ZIP" => "application/zip",
+            ".GZ" => "application/gzip",
+            ".TAR" => "application/x-tar",
+            ".JSON" => "application/json",
+            ".XML" => "application/xml",
+            ".HTML" or ".HTM" => "text/html",
+            ".CSS" => "text/css",
+            ".JS" => "application/javascript",
+            ".TXT" => "text/plain",
+            ".CSV" => "text/csv",
+            ".MP3" => "audio/mpeg",
+            ".MP4" => "video/mp4",
+            ".WEBM" => "video/webm",
+            ".WAV" => "audio/wav",
+            ".OGG" => "audio/ogg",
+            _ => "application/octet-stream",
+        };
+    }
+
+    /// <summary>
     /// Returns a comma-separated list of supported content encodings for
     /// the Accept-Encoding header.
     ///
@@ -315,6 +376,39 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     private static string SupportedEncodings()
     {
         return "gzip, deflate, br";
+    }
+
+    /// <summary>
+    /// Parses the <c>charset</c> parameter from a Content-Type header value
+    /// and returns the corresponding <see cref="Encoding"/>. Falls back to
+    /// UTF-8 if the header is missing, the charset is unspecified, or the
+    /// named charset is not recognised by the runtime.
+    /// </summary>
+    /// <param name="contentType">The full Content-Type header value, or null.</param>
+    /// <returns>The resolved encoding, never null.</returns>
+    private static Encoding GetEncodingFromContentType(string? contentType)
+    {
+        if (string.IsNullOrEmpty(contentType))
+        {
+            return Encoding.UTF8;
+        }
+        try
+        {
+            System.Net.Mime.ContentType media = new(contentType);
+            if (!string.IsNullOrEmpty(media.CharSet))
+            {
+                return Encoding.GetEncoding(media.CharSet);
+            }
+        }
+        catch (FormatException)
+        {
+            /* fall through to UTF-8 default */
+        }
+        catch (ArgumentException)
+        {
+            /* unknown charset name — fall through to UTF-8 default */
+        }
+        return Encoding.UTF8;
     }
 
     /// <summary>

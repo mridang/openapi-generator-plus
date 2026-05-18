@@ -26,6 +26,11 @@ class OAuth2TokenManager {
   String _refreshToken = '';
   DateTime? _tokenExpiry;
 
+  /// In-flight refresh future. When non-null, a refresh is already in
+  /// progress and concurrent callers should await this future rather than
+  /// issuing their own token request (single-flight pattern).
+  Future<String>? _inflightRefresh;
+
   /// Sets the shared API client for making token requests.
   void setApiClient(ApiClient client) {
     _apiClient = client;
@@ -35,6 +40,12 @@ class OAuth2TokenManager {
   String get refreshToken => _refreshToken;
 
   /// Returns a valid access token, fetching or refreshing as necessary.
+  ///
+  /// Concurrent callers that arrive while a refresh is in flight share a
+  /// single network request: the first caller starts the refresh, all
+  /// others await the same [Future]. This avoids a thundering-herd of
+  /// refresh requests against the OAuth2 provider when many requests race
+  /// to refresh an expired token.
   Future<String> getAccessToken(
     String tokenUrl,
     Map<String, String> params, [
@@ -47,6 +58,25 @@ class OAuth2TokenManager {
       return _accessToken;
     }
 
+    final existing = _inflightRefresh;
+    if (existing != null) {
+      return existing;
+    }
+
+    final refresh = _doRefresh(tokenUrl, params, extraHeaders);
+    _inflightRefresh = refresh;
+    try {
+      return await refresh;
+    } finally {
+      _inflightRefresh = null;
+    }
+  }
+
+  Future<String> _doRefresh(
+    String tokenUrl,
+    Map<String, String> params,
+    Map<String, String> extraHeaders,
+  ) async {
     if (_refreshToken.isNotEmpty) {
       final refreshParams = <String, String>{
         'grant_type': 'refresh_token',

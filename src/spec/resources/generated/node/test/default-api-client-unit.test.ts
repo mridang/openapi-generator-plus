@@ -216,3 +216,80 @@ describe('DefaultApiClient unit', () => {
     expect(body['accept']).toBe('application/json');
   });
 });
+
+describe('DefaultApiClient.decodeBody charset handling', () => {
+  it('decodes ISO-8859-1 when declared via Content-Type charset', () => {
+    const buf = Buffer.from([0xe9]);
+    expect(DefaultApiClient.decodeBody(buf, 'text/plain; charset=ISO-8859-1')).toBe('é');
+  });
+
+  it('defaults to UTF-8 when no charset is declared', () => {
+    const buf = Buffer.from([0xc3, 0xa9]);
+    expect(DefaultApiClient.decodeBody(buf, 'text/plain')).toBe('é');
+  });
+
+  it('falls back to UTF-8 when an unknown charset is declared', () => {
+    const buf = Buffer.from([0xc3, 0xa9]);
+    expect(() => DefaultApiClient.decodeBody(buf, 'text/plain; charset=not-a-real-charset')).not.toThrow();
+    expect(DefaultApiClient.decodeBody(buf, 'text/plain; charset=not-a-real-charset')).toBe('é');
+  });
+
+  it('handles quoted charset values', () => {
+    const buf = Buffer.from([0xe9]);
+    expect(DefaultApiClient.decodeBody(buf, 'text/plain; charset="ISO-8859-1"')).toBe('é');
+  });
+});
+
+describe('DefaultApiClient.buildContentDisposition multipart filename safety', () => {
+  it('throws on filename containing CR/LF (header-injection attempt)', () => {
+    expect(() => DefaultApiClient.buildContentDisposition('file', 'a\r\nX-Injected: yes')).toThrow();
+  });
+
+  it('throws on filename containing NUL', () => {
+    expect(() => DefaultApiClient.buildContentDisposition('file', `a${String.fromCharCode(0)}b.txt`)).toThrow();
+  });
+
+  it('backslash-escapes quotes and backslashes in filename', () => {
+    const header = DefaultApiClient.buildContentDisposition('file', 'a"b.txt');
+    expect(header).toContain('filename="a\\"b.txt"');
+  });
+
+  it('emits RFC 5987 filename* for non-ASCII filenames alongside ASCII fallback', () => {
+    const header = DefaultApiClient.buildContentDisposition('file', '日本.pdf');
+    expect(header).toContain("filename*=UTF-8''%E6%97%A5%E6%9C%AC.pdf");
+    expect(header).toMatch(/filename="[^"]*\.pdf"/);
+  });
+
+  it('omits filename* when filename is pure ASCII', () => {
+    const header = DefaultApiClient.buildContentDisposition('file', 'hello.txt');
+    expect(header).not.toContain('filename*=');
+    expect(header).toContain('filename="hello.txt"');
+  });
+});
+
+describe('DefaultApiClient.mimeTypeForFilename per-part MIME sniffing', () => {
+  it('maps .png to image/png', () => {
+    expect(DefaultApiClient.mimeTypeForFilename('photo.png')).toBe('image/png');
+  });
+
+  it('maps .pdf to application/pdf', () => {
+    expect(DefaultApiClient.mimeTypeForFilename('doc.pdf')).toBe('application/pdf');
+  });
+
+  it('maps .jpg and .jpeg to image/jpeg', () => {
+    expect(DefaultApiClient.mimeTypeForFilename('a.jpg')).toBe('image/jpeg');
+    expect(DefaultApiClient.mimeTypeForFilename('a.jpeg')).toBe('image/jpeg');
+  });
+
+  it('is case-insensitive on the extension', () => {
+    expect(DefaultApiClient.mimeTypeForFilename('PHOTO.PNG')).toBe('image/png');
+  });
+
+  it('falls back to application/octet-stream when extension is unknown', () => {
+    expect(DefaultApiClient.mimeTypeForFilename('blob.unknownext')).toBe('application/octet-stream');
+  });
+
+  it('falls back to application/octet-stream when filename has no extension', () => {
+    expect(DefaultApiClient.mimeTypeForFilename('noext')).toBe('application/octet-stream');
+  });
+});

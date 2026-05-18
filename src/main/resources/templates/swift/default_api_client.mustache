@@ -79,7 +79,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         if let formParts = body as? [String: Any] {
             let boundary = UUID().uuidString
             merged["Content-Type"] = "multipart/form-data; boundary=\(boundary)"
-            request.httpBody = DefaultApiClient.buildMultipartBody(formParts, boundary: boundary)
+            request.httpBody = try DefaultApiClient.buildMultipartBody(formParts, boundary: boundary)
         } else if let data = body as? Data {
             request.httpBody = data
         } else {
@@ -112,7 +112,10 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         let contentType = httpResponse.value(forHTTPHeaderField: "Content-Type") ?? ""
         let responseBody: String
         if DefaultApiClient.isTextContentType(contentType) {
-            responseBody = String(data: data, encoding: .utf8) ?? ""
+            let encoding = DefaultApiClient.encodingForContentType(contentType)
+            responseBody = String(data: data, encoding: encoding)
+                ?? String(data: data, encoding: .utf8)
+                ?? ""
         } else {
             responseBody = data.base64EncodedString()
         }
@@ -129,17 +132,20 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /// Each value may be `Data` (sent as a file part), `String`/number/bool (sent as
     /// a text part), `[Any]` (each element is added as a separate part with the same name),
     /// or any other Encodable type (JSON-serialized).
-    private static func buildMultipartBody(_ formParts: [String: Any], boundary: String) -> Data {
+    ///
+    /// Throws ``URLError/badURL`` if a filename contains CR, LF, or NUL bytes
+    /// (which would allow header injection).
+    static func buildMultipartBody(_ formParts: [String: Any], boundary: String) throws -> Data {
         var body = Data()
         let crlf = "\r\n"
 
         for (name, value) in formParts {
             if let list = value as? [Any] {
                 for item in list {
-                    appendMultipartField(&body, name: name, value: item, boundary: boundary, crlf: crlf)
+                    try appendMultipartField(&body, name: name, value: item, boundary: boundary, crlf: crlf)
                 }
             } else {
-                appendMultipartField(&body, name: name, value: value, boundary: boundary, crlf: crlf)
+                try appendMultipartField(&body, name: name, value: value, boundary: boundary, crlf: crlf)
             }
         }
 
@@ -147,28 +153,151 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         return body
     }
 
-    private static func appendMultipartField(_ body: inout Data, name: String, value: Any, boundary: String, crlf: String) {
+    private static func appendMultipartField(_ body: inout Data, name: String, value: Any, boundary: String, crlf: String) throws {
         let separator = "--\(boundary)\(crlf)Content-Disposition: form-data; name="
+        let safeName = try sanitizeQuotedHeaderValue(name)
 
         if let data = value as? Data {
-            body.append(Data("\(separator)\"\(name)\"; filename=\"\(name)\"\(crlf)Content-Type: application/octet-stream\(crlf)\(crlf)".utf8))
+            let disposition = try buildContentDisposition(name: safeName, filename: name)
+            let mime = mimeTypeForFilename(name)
+            body.append(Data("--\(boundary)\(crlf)\(disposition)\(crlf)Content-Type: \(mime)\(crlf)\(crlf)".utf8))
             body.append(data)
             body.append(Data(crlf.utf8))
         } else if let text = value as? String {
-            body.append(Data("\(separator)\"\(name)\"\(crlf)\(crlf)\(text)\(crlf)".utf8))
+            body.append(Data("\(separator)\"\(safeName)\"\(crlf)\(crlf)\(text)\(crlf)".utf8))
         } else if let number = value as? NSNumber {
-            body.append(Data("\(separator)\"\(name)\"\(crlf)\(crlf)\(number)\(crlf)".utf8))
+            body.append(Data("\(separator)\"\(safeName)\"\(crlf)\(crlf)\(number)\(crlf)".utf8))
         } else {
             if let jsonData = try? JSONSerialization.data(withJSONObject: value),
                let json = String(data: jsonData, encoding: .utf8) {
-                body.append(Data("\(separator)\"\(name)\"\(crlf)Content-Type: application/json\(crlf)\(crlf)\(json)\(crlf)".utf8))
+                body.append(Data("\(separator)\"\(safeName)\"\(crlf)Content-Type: application/json\(crlf)\(crlf)\(json)\(crlf)".utf8))
             }
+        }
+    }
+
+    /// Validates and escapes a value destined for a quoted multipart header.
+    ///
+    /// Throws ``URLError/badURL`` if the value contains CR, LF, or NUL (header
+    /// injection risk); otherwise backslash-escapes `\` and `"`.
+    static func sanitizeQuotedHeaderValue(_ value: String) throws -> String {
+        for scalar in value.unicodeScalars {
+            if scalar == "\r" || scalar == "\n" || scalar.value == 0 {
+                throw URLError(.badURL)
+            }
+        }
+        var escaped = ""
+        escaped.reserveCapacity(value.count)
+        for ch in value {
+            if ch == "\\" || ch == "\"" {
+                escaped.append("\\")
+            }
+            escaped.append(ch)
+        }
+        return escaped
+    }
+
+    /// Builds a `Content-Disposition` header value for a file part.
+    ///
+    /// Emits an ASCII-safe `filename="..."` (with non-ASCII chars replaced by `_`)
+    /// and, when the original filename contains non-ASCII codepoints, an additional
+    /// RFC 5987 `filename*=UTF-8''<percent-encoded>` parameter for clients that
+    /// support extended encoding.
+    static func buildContentDisposition(name: String, filename: String) throws -> String {
+        let safeFilename = try sanitizeQuotedHeaderValue(filename)
+        let isAscii = filename.unicodeScalars.allSatisfy { $0.isASCII }
+        if isAscii {
+            return "Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(safeFilename)\""
+        }
+        var asciiFallback = ""
+        for scalar in filename.unicodeScalars {
+            if scalar.isASCII {
+                asciiFallback.unicodeScalars.append(scalar)
+            } else {
+                asciiFallback.append("_")
+            }
+        }
+        let asciiSafe = try sanitizeQuotedHeaderValue(asciiFallback)
+        var allowed = CharacterSet.alphanumerics
+        allowed.insert(charactersIn: "!#$&+-.^_`|~")
+        let encoded = filename.addingPercentEncoding(withAllowedCharacters: allowed) ?? asciiSafe
+        return "Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(asciiSafe)\"; filename*=UTF-8''\(encoded)"
+    }
+
+    /// Returns a MIME type for the file based on its extension, or
+    /// `application/octet-stream` if no mapping is known.
+    static func mimeTypeForFilename(_ filename: String) -> String {
+        guard let dotIndex = filename.lastIndex(of: ".") else {
+            return "application/octet-stream"
+        }
+        let ext = String(filename[filename.index(after: dotIndex)...]).lowercased()
+        switch ext {
+        case "png": return "image/png"
+        case "jpg", "jpeg": return "image/jpeg"
+        case "gif": return "image/gif"
+        case "webp": return "image/webp"
+        case "svg": return "image/svg+xml"
+        case "bmp": return "image/bmp"
+        case "tiff", "tif": return "image/tiff"
+        case "ico": return "image/x-icon"
+        case "pdf": return "application/pdf"
+        case "json": return "application/json"
+        case "xml": return "application/xml"
+        case "zip": return "application/zip"
+        case "gz", "gzip": return "application/gzip"
+        case "tar": return "application/x-tar"
+        case "txt": return "text/plain"
+        case "csv": return "text/csv"
+        case "html", "htm": return "text/html"
+        case "css": return "text/css"
+        case "js": return "application/javascript"
+        case "mp4": return "video/mp4"
+        case "mp3": return "audio/mpeg"
+        case "wav": return "audio/wav"
+        case "ogg": return "audio/ogg"
+        case "webm": return "video/webm"
+        default: return "application/octet-stream"
+        }
+    }
+
+    /// Parses the `charset=` parameter from a Content-Type header and
+    /// returns the matching `String.Encoding`. Falls back to UTF-8 if the
+    /// charset is missing, unrecognised, or unsupported.
+    static func encodingForContentType(_ contentType: String?) -> String.Encoding {
+        guard let contentType = contentType,
+              let range = contentType.range(of: "charset=", options: .caseInsensitive) else {
+            return .utf8
+        }
+        let after = contentType[range.upperBound...]
+        let raw = after.split(separator: ";").first.map(String.init) ?? ""
+        var charset = raw.trimmingCharacters(in: .whitespaces)
+        /* Strip surrounding quotes if present (charset values may be quoted). */
+        if charset.hasPrefix("\"") && charset.hasSuffix("\"") && charset.count >= 2 {
+            charset = String(charset.dropFirst().dropLast())
+        }
+        switch charset.lowercased() {
+        case "utf-8", "utf8": return .utf8
+        case "iso-8859-1", "latin1", "latin-1": return .isoLatin1
+        case "iso-8859-2", "latin2", "latin-2": return .isoLatin2
+        case "us-ascii", "ascii": return .ascii
+        case "utf-16": return .utf16
+        case "utf-16be": return .utf16BigEndian
+        case "utf-16le": return .utf16LittleEndian
+        case "utf-32": return .utf32
+        case "windows-1250": return .windowsCP1250
+        case "windows-1251": return .windowsCP1251
+        case "windows-1252": return .windowsCP1252
+        case "windows-1253": return .windowsCP1253
+        case "windows-1254": return .windowsCP1254
+        case "shift_jis", "shift-jis": return .shiftJIS
+        case "euc-jp": return .japaneseEUC
+        case "iso-2022-jp": return .iso2022JP
+        default: return .utf8
         }
     }
 
     /// Determines whether the given content type represents text content
     /// that is safe to decode as a UTF-8 string.
-    private static func isTextContentType(_ contentType: String) -> Bool {
+    static func isTextContentType(_ contentType: String) -> Bool {
         let mediaType = contentType.split(separator: ";").first?
             .trimmingCharacters(in: .whitespaces).lowercased() ?? ""
         if mediaType.isEmpty { return true }

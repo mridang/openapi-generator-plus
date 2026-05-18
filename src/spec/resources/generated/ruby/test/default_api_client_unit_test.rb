@@ -265,4 +265,169 @@ describe PetstoreClient::DefaultApiClient do
     _(captured_accept).must_equal 'application/json'
     stubs.verify_stubbed_calls
   end
+
+  # ── Multipart filename sanitization (Gap F) ──
+
+  it 'rejects multipart filename containing CRLF (header injection)' do
+    require 'stringio'
+    client = PetstoreClient::DefaultApiClient.new
+    io = StringIO.new('payload')
+    io.define_singleton_method(:path) { "a\r\nX-Injected: yes" }
+    assert_raises(ArgumentError) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+    end
+  end
+
+  it 'rejects multipart filename containing NUL byte' do
+    require 'stringio'
+    client = PetstoreClient::DefaultApiClient.new
+    io = StringIO.new('payload')
+    io.define_singleton_method(:path) { "a\0b.txt" }
+    assert_raises(ArgumentError) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+    end
+  end
+
+  it 'backslash-escapes quotes and backslashes in multipart filename' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    require 'stringio'
+    io = StringIO.new('payload')
+    io.define_singleton_method(:path) { 'a"b.txt' }
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+    end
+    _(captured_body.to_s).must_include 'filename="a\\"b.txt"'
+    stubs.verify_stubbed_calls
+  end
+
+  it 'emits RFC 5987 filename* for non-ASCII multipart filenames' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    require 'stringio'
+    io = StringIO.new('payload')
+    io.define_singleton_method(:path) { '日本.pdf' }
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+    end
+    body_str = captured_body.to_s.dup.force_encoding(Encoding::ASCII_8BIT)
+    _(body_str).must_include "filename*=UTF-8''%E6%97%A5%E6%9C%AC.pdf"
+    stubs.verify_stubbed_calls
+  end
+
+  # ── Per-part MIME sniffing (Gap J) ──
+
+  it 'sets image/png Content-Type for .png upload' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    require 'stringio'
+    io = StringIO.new("\x89PNG\r\n".b)
+    io.define_singleton_method(:path) { 'pic.png' }
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+    end
+    _(captured_body.to_s).must_include 'Content-Type: image/png'
+    stubs.verify_stubbed_calls
+  end
+
+  it 'sets application/pdf for .pdf upload' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    require 'stringio'
+    io = StringIO.new('PDF-bytes')
+    io.define_singleton_method(:path) { 'doc.pdf' }
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+    end
+    _(captured_body.to_s).must_include 'Content-Type: application/pdf'
+    stubs.verify_stubbed_calls
+  end
+
+  it 'falls back to application/octet-stream for unknown extension' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    require 'stringio'
+    io = StringIO.new('bytes')
+    io.define_singleton_method(:path) { 'blob.xyzunknown' }
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+    end
+    _(captured_body.to_s).must_include 'Content-Type: application/octet-stream'
+    stubs.verify_stubbed_calls
+  end
+
+  # ── Response charset decoding (Gap H) ──
+
+  it 'decodes ISO-8859-1 response body to UTF-8' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/latin1') do
+        [200, { 'content-type' => 'text/plain; charset=ISO-8859-1' }, "\xE9".b]
+      end
+    end
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/latin1', {}, nil)
+      _(response.body.encoding).must_equal Encoding::UTF_8
+      _(response.body).must_equal 'é'
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'defaults to UTF-8 when no charset is given' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/no-charset') do
+        [200, { 'content-type' => 'text/plain' }, 'héllo']
+      end
+    end
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/no-charset', {}, nil)
+      _(response.body).must_equal 'héllo'
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'falls back to UTF-8 for unknown charset without raising' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/bogus') do
+        [200, { 'content-type' => 'text/plain; charset=not-a-real-charset' }, 'hello']
+      end
+    end
+    client = PetstoreClient::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/bogus', {}, nil)
+      _(response.body).must_equal 'hello'
+    end
+    stubs.verify_stubbed_calls
+  end
 end

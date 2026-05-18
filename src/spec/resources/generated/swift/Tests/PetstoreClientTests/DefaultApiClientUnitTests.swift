@@ -210,6 +210,153 @@
       #expect(value?.contains("val1") ?? false)
       #expect(value?.contains("val2") ?? false)
     }
+
+    // MARK: - Multipart filename sanitisation (Gap F)
+
+    @Test func testMultipartFilenameWithCRLFThrows() {
+      let formParts: [String: Any] = ["a\r\nX-Injected: yes": Data([0x01, 0x02])]
+      #expect(throws: URLError.self) {
+        _ = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
+      }
+    }
+
+    @Test func testMultipartFilenameWithNewlineThrows() {
+      let formParts: [String: Any] = ["foo\nbar": Data([0x01])]
+      #expect(throws: URLError.self) {
+        _ = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
+      }
+    }
+
+    @Test func testMultipartFilenameWithNullThrows() {
+      let formParts: [String: Any] = ["foo\u{0000}bar": Data([0x01])]
+      #expect(throws: URLError.self) {
+        _ = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
+      }
+    }
+
+    @Test func testMultipartFilenameWithQuoteIsEscaped() throws {
+      let formParts: [String: Any] = ["a\"b.txt": Data([0x01])]
+      let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
+      let bodyStr = String(data: body, encoding: .utf8) ?? ""
+      /* Both `name=` and `filename=` should carry the escaped form `a\"b.txt`. */
+      #expect(
+        bodyStr.contains("a\\\"b.txt"),
+        "expected backslash-escaped quote in body, got: \(bodyStr)")
+    }
+
+    @Test func testMultipartFilenameWithBackslashIsEscaped() throws {
+      let formParts: [String: Any] = ["a\\b.txt": Data([0x01])]
+      let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
+      let bodyStr = String(data: body, encoding: .utf8) ?? ""
+      #expect(
+        bodyStr.contains("a\\\\b.txt"),
+        "expected backslash-escaped backslash in body, got: \(bodyStr)")
+    }
+
+    @Test func testMultipartNonAsciiFilenameUsesRFC5987() throws {
+      let formParts: [String: Any] = ["日本.pdf": Data([0x01])]
+      let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
+      let bodyStr = String(data: body, encoding: .utf8) ?? ""
+      #expect(
+        bodyStr.contains("filename*=UTF-8''"),
+        "expected RFC 5987 filename* parameter for non-ASCII filename")
+      #expect(
+        bodyStr.contains("%E6%97%A5%E6%9C%AC.pdf"),
+        "expected percent-encoded Japanese characters, got: \(bodyStr)")
+    }
+
+    // MARK: - Per-part MIME sniffing (Gap J)
+
+    @Test func testMultipartUsesPngMimeForPngFilename() throws {
+      let formParts: [String: Any] = ["photo.png": Data([0x89, 0x50, 0x4e, 0x47])]
+      let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
+      let bodyStr = String(data: body, encoding: .utf8) ?? ""
+      #expect(
+        bodyStr.contains("Content-Type: image/png"),
+        "expected image/png Content-Type for .png filename, got: \(bodyStr)")
+    }
+
+    @Test func testMultipartUsesPdfMimeForPdfFilename() throws {
+      let formParts: [String: Any] = ["doc.pdf": Data([0x25, 0x50, 0x44, 0x46])]
+      let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
+      let bodyStr = String(data: body, encoding: .utf8) ?? ""
+      #expect(
+        bodyStr.contains("Content-Type: application/pdf"),
+        "expected application/pdf for .pdf filename, got: \(bodyStr)")
+    }
+
+    @Test func testMultipartFallsBackToOctetStreamForUnknownExtension() throws {
+      let formParts: [String: Any] = ["data.xyz123": Data([0x01])]
+      let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
+      let bodyStr = String(data: body, encoding: .utf8) ?? ""
+      #expect(
+        bodyStr.contains("Content-Type: application/octet-stream"),
+        "expected application/octet-stream fallback, got: \(bodyStr)")
+    }
+
+    @Test func testMultipartFallsBackToOctetStreamWithoutExtension() throws {
+      let formParts: [String: Any] = ["nodot": Data([0x01])]
+      let body = try DefaultApiClient.buildMultipartBody(formParts, boundary: "BOUNDARY")
+      let bodyStr = String(data: body, encoding: .utf8) ?? ""
+      #expect(
+        bodyStr.contains("Content-Type: application/octet-stream"),
+        "expected application/octet-stream fallback when no extension, got: \(bodyStr)")
+    }
+
+    // MARK: - Response charset handling (Gap H)
+
+    @Test func testRespectsIsoLatin1Charset() async throws {
+      let client = makeClient { _ in
+        (Data([0xE9]), 200, ["Content-Type": "text/plain; charset=ISO-8859-1"])
+      }
+      let resp = try await client.sendRequest(
+        method: "GET", url: "http://localhost/latin1", headers: [:], body: nil)
+      #expect(resp.body == "é", "ISO-8859-1 0xE9 should decode to 'é', got: \(resp.body)")
+    }
+
+    @Test func testDefaultsToUtf8WhenCharsetMissing() async throws {
+      let utf8Body = "héllo"
+      let client = makeClient { _ in
+        (Data(utf8Body.utf8), 200, ["Content-Type": "text/plain"])
+      }
+      let resp = try await client.sendRequest(
+        method: "GET", url: "http://localhost/no-charset", headers: [:], body: nil)
+      #expect(resp.body == utf8Body, "missing charset should default to UTF-8")
+    }
+
+    @Test func testFallsBackToUtf8ForUnknownCharset() async throws {
+      let utf8Body = "héllo"
+      let client = makeClient { _ in
+        (Data(utf8Body.utf8), 200, ["Content-Type": "text/plain; charset=x-unknown-banana"])
+      }
+      let resp = try await client.sendRequest(
+        method: "GET", url: "http://localhost/unknown-charset", headers: [:], body: nil)
+      #expect(resp.body == utf8Body, "unknown charset should fall back to UTF-8 without throwing")
+    }
+
+    @Test func testCharsetParseIsCaseInsensitive() async throws {
+      let client = makeClient { _ in
+        (Data([0xE9]), 200, ["Content-Type": "text/plain; CHARSET=iso-8859-1"])
+      }
+      let resp = try await client.sendRequest(
+        method: "GET", url: "http://localhost/case", headers: [:], body: nil)
+      #expect(resp.body == "é", "charset= parsing must be case-insensitive")
+    }
+
+    @Test func testEncodingForContentTypeWindows1252() {
+      let enc = DefaultApiClient.encodingForContentType("text/plain; charset=windows-1252")
+      #expect(enc == .windowsCP1252)
+    }
+
+    @Test func testEncodingForContentTypeUsAscii() {
+      let enc = DefaultApiClient.encodingForContentType("text/plain; charset=us-ascii")
+      #expect(enc == .ascii)
+    }
+
+    @Test func testEncodingForContentTypeNilDefaultsToUtf8() {
+      let enc = DefaultApiClient.encodingForContentType(nil)
+      #expect(enc == .utf8)
+    }
   }
 
   // MARK: - URL Protocol stub for unit tests

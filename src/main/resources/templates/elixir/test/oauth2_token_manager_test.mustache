@@ -6,20 +6,54 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
     defstruct [:agent]
 
     def new(responses) do
-      {:ok, agent} = Agent.start_link(fn -> %{responses: responses, last_url: nil, last_body: nil} end)
+      {:ok, agent} = Agent.start_link(fn -> %{responses: responses, last_url: nil, last_body: nil, call_count: 0} end)
       %__MODULE__{agent: agent}
     end
 
     def send_request(%__MODULE__{agent: agent}, _method, url, _headers, body) do
       Agent.get_and_update(agent, fn state ->
         [response | rest] = state.responses
-        new_state = %{state | responses: rest, last_url: url, last_body: body}
+        new_state = %{
+          state
+          | responses: rest,
+            last_url: url,
+            last_body: body,
+            call_count: state.call_count + 1
+        }
         {response, new_state}
       end)
     end
 
     def last_url(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_url)
     def last_body(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.last_body)
+    def call_count(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1.call_count)
+  end
+
+  defmodule CountingApiClient do
+    @moduledoc """
+    Always returns the same access-token response, but counts calls. Used to
+    assert single-flight refresh under concurrent load.
+    """
+
+    defstruct [:agent]
+
+    def new do
+      {:ok, agent} = Agent.start_link(fn -> 0 end)
+      %__MODULE__{agent: agent}
+    end
+
+    def send_request(%__MODULE__{agent: agent}, _method, _url, _headers, _body) do
+      Agent.update(agent, &(&1 + 1))
+      # Simulate a slow OP so concurrent callers genuinely race.
+      Process.sleep(50)
+
+      %{{moduleName}}.ApiResponse{
+        status_code: 200,
+        body: Jason.encode!(%{"access_token" => "shared-tok", "expires_in" => 3600})
+      }
+    end
+
+    def call_count(%__MODULE__{agent: agent}), do: Agent.get(agent, & &1)
   end
 
   describe "OAuth2TokenManager" do
@@ -132,6 +166,28 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
           %{"grant_type" => "client_credentials"}
         )
       end
+    end
+
+    test "10 concurrent get_access_token calls hit token endpoint exactly once" do
+      counting_client = CountingApiClient.new()
+
+      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, counting_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+
+      tokens =
+        1..10
+        |> Enum.map(fn _ ->
+          Task.async(fn ->
+            {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+          end)
+        end)
+        |> Enum.map(&Task.await(&1, 5_000))
+
+      assert Enum.all?(tokens, &(&1 == "shared-tok"))
+      assert CountingApiClient.call_count(counting_client) == 1
     end
 
     test "throws when token request fails" do

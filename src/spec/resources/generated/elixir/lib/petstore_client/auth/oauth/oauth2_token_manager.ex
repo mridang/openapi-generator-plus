@@ -66,40 +66,67 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManager do
 
   @doc """
   Get a valid access token, fetching or refreshing as necessary.
+
+  Uses `Agent.get_and_update/3` so the expiry check and fetch run atomically in
+  a single closure. While one caller is fetching/refreshing, all other callers
+  block in the Agent's message queue, then observe the freshly cached token --
+  preventing thundering-herd refreshes against the OP token endpoint.
+
+  Exceptions raised during the fetch are caught inside the closure (to avoid
+  crashing the Agent process), returned as a sentinel result, and re-raised in
+  the caller so callers see the original exception class.
   """
   @spec get_access_token(pid(), String.t(), %{optional(String.t()) => String.t()}, %{optional(String.t()) => String.t()}) ::
           String.t()
   def get_access_token(manager, token_url, params, extra_headers \\ %{}) do
-    state = Agent.get(manager, & &1)
-    now = System.system_time(:second)
+    result =
+      Agent.get_and_update(
+        manager,
+        fn state ->
+          now = System.system_time(:second)
 
-    cond do
-      state.access_token && (is_nil(state.token_expiry) || now < state.token_expiry - @expiry_safety_margin_s) ->
-        state.access_token
+          cond do
+            state.access_token &&
+                (is_nil(state.token_expiry) ||
+                   now < state.token_expiry - @expiry_safety_margin_s) ->
+              {{:ok, state.access_token}, state}
 
-      is_binary(state.refresh_token) and state.refresh_token != "" ->
-        refresh_params =
-          %{"grant_type" => "refresh_token", "refresh_token" => state.refresh_token}
-          |> maybe_put(params, "client_id")
-          |> maybe_put(params, "client_secret")
+            is_binary(state.refresh_token) and state.refresh_token != "" ->
+              refresh_params =
+                %{"grant_type" => "refresh_token", "refresh_token" => state.refresh_token}
+                |> maybe_put(params, "client_id")
+                |> maybe_put(params, "client_secret")
 
-        case try_fetch_token(state, token_url, refresh_params, extra_headers) do
-          {:ok, new_state} ->
-            Agent.update(manager, fn _ -> new_state end)
-            new_state.access_token
+              case try_fetch_token(state, token_url, refresh_params, extra_headers) do
+                {:ok, new_state} ->
+                  {{:ok, new_state.access_token}, new_state}
 
-          :error ->
-            # Refresh failed (e.g. refresh token revoked or expired).
-            # Fall back to re-running the original grant.
-            new_state = fetch_token(state, token_url, params, extra_headers)
-            Agent.update(manager, fn _ -> new_state end)
-            new_state.access_token
-        end
+                :error ->
+                  # Refresh failed (e.g. refresh token revoked or expired).
+                  # Fall back to re-running the original grant.
+                  try do
+                    new_state = fetch_token(state, token_url, params, extra_headers)
+                    {{:ok, new_state.access_token}, new_state}
+                  rescue
+                    e -> {{:raise, e, __STACKTRACE__}, state}
+                  end
+              end
 
-      true ->
-        new_state = fetch_token(state, token_url, params, extra_headers)
-        Agent.update(manager, fn _ -> new_state end)
-        new_state.access_token
+            true ->
+              try do
+                new_state = fetch_token(state, token_url, params, extra_headers)
+                {{:ok, new_state.access_token}, new_state}
+              rescue
+                e -> {{:raise, e, __STACKTRACE__}, state}
+              end
+          end
+        end,
+        :infinity
+      )
+
+    case result do
+      {:ok, token} -> token
+      {:raise, exception, stacktrace} -> reraise exception, stacktrace
     end
   end
 

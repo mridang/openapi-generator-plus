@@ -743,23 +743,26 @@ public class BaseApiTest
     [Fact]
     public async Task BinaryResponseOctetStreamBase64DecodesToCorrectBytes()
     {
-        // AP9C is base64 for [0x00, 0xFF, 0x42]
+        // AP9C is base64 for [0x00, 0xFF, 0x42] — values that would mangle under UTF-8
+        byte[] original = new byte[] { 0x00, 0xFF, 0x42 };
         var client = new BinaryResponseApiClient
         {
             ContentType = "application/octet-stream",
             Body = "AP9C",
         };
-        var rawResponse = await client.SendRequestAsync(
+        var testApi = new TestableApi(client, "http://localhost");
+        var result = await testApi.CallAsync<string>(
             "GET",
-            new Uri("http://localhost/api/binary"),
+            "/api/binary",
+            new Dictionary<string, object?>(),
             new Dictionary<string, string>(),
-            null
+            null,
+            ["application/octet-stream"],
+            "application/json"
         );
-        var decoded = Convert.FromBase64String(rawResponse.Body);
-        Assert.Equal(3, decoded.Length);
-        Assert.Equal(0x00, decoded[0]);
-        Assert.Equal(unchecked((byte)0xFF), decoded[1]);
-        Assert.Equal(0x42, decoded[2]);
+        Assert.NotNull(result);
+        byte[] decoded = Convert.FromBase64String(result!);
+        Assert.Equal(original, decoded);
     }
 
     [Fact]

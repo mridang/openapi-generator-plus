@@ -1,9 +1,16 @@
 import json
+import pytest
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
 from typing import Any
 
-from {{packageName}}.default_api_client import DefaultApiClient
+from {{packageName}}.default_api_client import (
+    DefaultApiClient,
+    _charset_from_content_type,
+    _decode_with_charset,
+    _guess_content_type,
+    _sanitize_multipart_filename,
+)
 from {{packageName}}.transport_options import TransportOptions
 
 
@@ -233,3 +240,159 @@ class TestDefaultApiClientUnit:
         lower_headers = {k.lower(): v for k, v in response.headers.items()}
         assert "x-multi" in lower_headers
         assert "val1" in lower_headers["x-multi"] and "val2" in lower_headers["x-multi"]
+
+
+class TestCharsetDecoding:
+    """Verify response body decoding honors the Content-Type charset."""
+
+    def test_extracts_charset_parameter(self) -> None:
+        assert _charset_from_content_type("text/plain; charset=ISO-8859-1") == "ISO-8859-1"
+        assert _charset_from_content_type("text/plain") is None
+        assert _charset_from_content_type("") is None
+        assert _charset_from_content_type('text/plain; charset="utf-8"') == "utf-8"
+
+    def test_decodes_iso_8859_1_response(self) -> None:
+        decoded = _decode_with_charset(b"\xe9", "text/plain; charset=ISO-8859-1")
+        assert decoded == "é"
+
+    def test_defaults_to_utf8_when_no_charset(self) -> None:
+        decoded = _decode_with_charset("é".encode("utf-8"), "text/plain")
+        assert decoded == "é"
+
+    def test_unknown_charset_falls_back_to_utf8(self) -> None:
+        decoded = _decode_with_charset("é".encode("utf-8"), "text/plain; charset=not-a-real-charset")
+        assert decoded == "é"
+
+    def test_send_request_decodes_iso_8859_1_response(self) -> None:
+        import socketserver
+        import threading
+
+        class _Latin1Handler(BaseHTTPRequestHandler):
+            def do_GET(self) -> None:
+                self.send_response(200)
+                self.send_header("Content-Type", "text/plain; charset=ISO-8859-1")
+                self.end_headers()
+                self.wfile.write(b"\xe9")
+
+            def log_message(self, format: str, *args: Any) -> None:
+                pass
+
+        with socketserver.TCPServer(("127.0.0.1", 0), _Latin1Handler) as httpd:
+            port = httpd.server_address[1]
+            t = threading.Thread(target=httpd.handle_request)
+            t.start()
+            client = DefaultApiClient()
+            response = client.send_request("GET", f"http://127.0.0.1:{port}/", {}, None)
+            t.join()
+        assert response.body == "é"
+
+
+class TestMultipartFilenameSanitization:
+    """Sanitize multipart filenames against CRLF injection and non-ASCII drift."""
+
+    def test_rejects_crlf_in_filename(self) -> None:
+        with pytest.raises(ValueError):
+            _sanitize_multipart_filename("a\r\nX-Injected: yes")
+
+    def test_rejects_nul_in_filename(self) -> None:
+        with pytest.raises(ValueError):
+            _sanitize_multipart_filename("a\x00b.txt")
+
+    def test_escapes_quote_and_backslash(self) -> None:
+        ascii_fallback, rfc5987 = _sanitize_multipart_filename('a"b\\c.txt')
+        assert ascii_fallback == 'a\\"b\\\\c.txt'
+        assert rfc5987 is None
+
+    def test_rfc5987_for_non_ascii(self) -> None:
+        ascii_fallback, rfc5987 = _sanitize_multipart_filename("日本.pdf")
+        assert rfc5987 == "UTF-8''%E6%97%A5%E6%9C%AC.pdf"
+        # ASCII fallback must still be present and quote-safe
+        assert '"' not in ascii_fallback or '\\"' in ascii_fallback
+
+    def test_multipart_body_rejects_filename_injection(self) -> None:
+        import io
+        client = DefaultApiClient()
+        file_like = io.BytesIO(b"hello")
+        file_like.name = "a\r\nX-Injected: yes"
+        with pytest.raises(ValueError):
+            client._build_multipart_body({"upload": file_like}, "boundary")
+
+    def test_multipart_body_escapes_quote_in_filename(self) -> None:
+        import io
+        client = DefaultApiClient()
+        file_like = io.BytesIO(b"hello")
+        file_like.name = 'a"b.txt'
+        body = client._build_multipart_body({"upload": file_like}, "boundary")
+        assert b'filename="a\\"b.txt"' in body
+
+    def test_multipart_body_uses_rfc5987_for_non_ascii_filename(self) -> None:
+        import io
+        client = DefaultApiClient()
+        file_like = io.BytesIO(b"hello")
+        file_like.name = "日本.pdf"
+        body = client._build_multipart_body({"upload": file_like}, "boundary")
+        assert b"filename*=UTF-8''%E6%97%A5%E6%9C%AC.pdf" in body
+
+
+class TestMultipartContentType:
+    """Per-part Content-Type comes from the filename extension."""
+
+    def test_guess_content_type_from_extension(self) -> None:
+        assert _guess_content_type("file.png") == "image/png"
+
+    def test_guess_content_type_unknown_extension_defaults_to_octet_stream(self) -> None:
+        assert _guess_content_type("blob.zzz") == "application/octet-stream"
+
+    def test_guess_content_type_no_filename_defaults_to_octet_stream(self) -> None:
+        assert _guess_content_type(None) == "application/octet-stream"
+        assert _guess_content_type("") == "application/octet-stream"
+
+    def test_multipart_body_emits_png_content_type_for_png_file(self) -> None:
+        import io
+        client = DefaultApiClient()
+        file_like = io.BytesIO(b"\x89PNG\r\n\x1a\n")
+        file_like.name = "file.png"
+        body = client._build_multipart_body({"upload": file_like}, "boundary")
+        assert b"Content-Type: image/png" in body
+
+    def test_multipart_body_uses_octet_stream_for_bytes_without_filename(self) -> None:
+        client = DefaultApiClient()
+        body = client._build_multipart_body({"upload": b"\x00\x01\x02"}, "boundary")
+        assert b"Content-Type: application/octet-stream" in body
+
+
+class TestMultipartBinaryPreservation:
+    """Binary multipart parts must not be re-encoded through UTF-8."""
+
+    def test_text_mode_file_is_rejected_not_silently_reencoded(self) -> None:
+        """Passing a str-yielding file-like must NOT silently round-trip via UTF-8."""
+        import io
+        client = DefaultApiClient()
+        # A text-mode file containing bytes that don't survive UTF-8 roundtrip
+        text_file = io.StringIO("é")
+        text_file.name = "note.txt"
+        with pytest.raises(TypeError):
+            client._build_multipart_body({"upload": text_file}, "boundary")
+
+    def test_explicit_str_tuple_content_is_rejected(self) -> None:
+        client = DefaultApiClient()
+        with pytest.raises(TypeError):
+            client._build_multipart_body(
+                {"upload": ("file.bin", "hello")}, "boundary"
+            )
+
+    def test_high_byte_binary_content_is_preserved(self) -> None:
+        client = DefaultApiClient()
+        payload = bytes(range(256))
+        body = client._build_multipart_body({"upload": payload}, "boundary")
+        # The payload must appear verbatim in the body
+        assert payload in body
+
+    def test_tuple_with_filename_emits_filename_and_mime(self) -> None:
+        client = DefaultApiClient()
+        body = client._build_multipart_body(
+            {"upload": ("file.pdf", b"%PDF-1.4")}, "boundary"
+        )
+        assert b'filename="file.pdf"' in body
+        assert b"Content-Type: application/pdf" in body
+        assert b"%PDF-1.4" in body

@@ -146,4 +146,71 @@ describe('OAuth2TokenManager', () => {
       })
     ).rejects.toThrow();
   });
+
+  test('coalesces concurrent refresh calls into single token request', async () => {
+    let pendingResolve: ((value: ApiResponse) => void) | null = null;
+    let networkCalls = 0;
+
+    class SlowMockApiClient implements ApiClient {
+      async sendRequest(): Promise<ApiResponse> {
+        networkCalls++;
+        return new Promise<ApiResponse>(resolve => {
+          pendingResolve = resolve;
+        });
+      }
+    }
+
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(new SlowMockApiClient());
+
+    const requests = Array.from({ length: 10 }, () =>
+      manager.getAccessToken('https://auth.example.com/token', {
+        grant_type: 'client_credentials'
+      })
+    );
+
+    // Allow the queued microtasks to schedule.
+    await new Promise(resolve => setImmediate(resolve));
+
+    expect(networkCalls).toBe(1);
+    expect(pendingResolve).not.toBeNull();
+    pendingResolve!({
+      statusCode: 200,
+      body: JSON.stringify({ access_token: 'concurrent-token', expires_in: 3600 }),
+      headers: { 'content-type': 'application/json' }
+    });
+
+    const tokens = await Promise.all(requests);
+    expect(tokens.every(t => t === 'concurrent-token')).toBe(true);
+    expect(networkCalls).toBe(1);
+  });
+
+  test('invalidateAccessToken triggers a single refetch under concurrency', async () => {
+    mockClient.responseBody = JSON.stringify({
+      access_token: 'first-token',
+      expires_in: 3600
+    });
+    await tokenManager.getAccessToken('https://auth.example.com/token', {
+      grant_type: 'client_credentials'
+    });
+    expect(mockClient.callCount).toBe(1);
+
+    tokenManager.invalidateAccessToken();
+    mockClient.responseBody = JSON.stringify({
+      access_token: 'second-token',
+      expires_in: 3600
+    });
+
+    const tokens = await Promise.all(
+      Array.from({ length: 10 }, () =>
+        tokenManager.getAccessToken('https://auth.example.com/token', {
+          grant_type: 'client_credentials'
+        })
+      )
+    );
+
+    expect(tokens.every(t => t === 'second-token')).toBe(true);
+    // exactly one additional network call (callCount went 1 -> 2)
+    expect(mockClient.callCount).toBe(2);
+  });
 });

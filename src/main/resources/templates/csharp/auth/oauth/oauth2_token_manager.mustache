@@ -20,6 +20,8 @@ public sealed class OAuth2TokenManager
     /// </summary>
     private const int ExpirySafetyMarginSeconds = 60;
 
+    private readonly System.Threading.Lock _stateLock = new();
+    private Task<string>? _inflightRefresh;
     private IApiClient? _apiClient;
     private string? _accessToken;
     private DateTimeOffset? _tokenExpiry;
@@ -42,7 +44,7 @@ public sealed class OAuth2TokenManager
     /// <param name="extraHeaders">Optional additional headers to send with the token request (e.g. Authorization for HTTP Basic client auth).</param>
     /// <returns>A valid access token.</returns>
     /// <exception cref="InvalidOperationException">If no API client has been injected or token fetch fails.</exception>
-    public async Task<string> GetAccessTokenAsync(
+    public Task<string> GetAccessTokenAsync(
         Uri tokenUrl,
         Dictionary<string, string> parameters,
         Dictionary<string, string>? extraHeaders = null
@@ -58,9 +60,54 @@ public sealed class OAuth2TokenManager
             )
         )
         {
-            return _accessToken;
+            return Task.FromResult(_accessToken);
         }
 
+        Task<string> task;
+        lock (_stateLock)
+        {
+            if (
+                _accessToken is not null
+                && (
+                    _tokenExpiry is null
+                    || DateTimeOffset.UtcNow
+                        < _tokenExpiry.Value.AddSeconds(-ExpirySafetyMarginSeconds)
+                )
+            )
+            {
+                return Task.FromResult(_accessToken);
+            }
+
+            task = _inflightRefresh ??= RefreshOrFetchAsync(tokenUrl, parameters, extraHeaders);
+        }
+
+        return AwaitAndClearAsync(task);
+    }
+
+    private async Task<string> AwaitAndClearAsync(Task<string> task)
+    {
+        try
+        {
+            return await task.ConfigureAwait(false);
+        }
+        finally
+        {
+            lock (_stateLock)
+            {
+                if (ReferenceEquals(_inflightRefresh, task))
+                {
+                    _inflightRefresh = null;
+                }
+            }
+        }
+    }
+
+    private async Task<string> RefreshOrFetchAsync(
+        Uri tokenUrl,
+        Dictionary<string, string> parameters,
+        Dictionary<string, string>? extraHeaders
+    )
+    {
         if (!string.IsNullOrEmpty(RefreshToken))
         {
             Dictionary<string, string> refreshParams = new()

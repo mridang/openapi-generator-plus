@@ -123,7 +123,7 @@ func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]st
 	contentType := resp.Header.Get("Content-Type")
 	var responseBody string
 	if isTextContentType(contentType) {
-		responseBody = string(respBody)
+		responseBody = decodeBodyByCharset(respBody, contentType)
 	} else {
 		responseBody = base64.StdEncoding.EncodeToString(respBody)
 	}
@@ -220,6 +220,70 @@ func decompressBody(resp *http.Response) ([]byte, error) {
 	}
 }
 
+// extractCharset returns the lower-cased charset parameter from a
+// Content-Type header, or empty string when absent.
+func extractCharset(contentType string) string {
+	parts := strings.Split(contentType, ";")
+	for _, p := range parts[1:] {
+		kv := strings.SplitN(strings.TrimSpace(p), "=", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(kv[0]), "charset") {
+			v := strings.TrimSpace(kv[1])
+			v = strings.Trim(v, "\"'")
+			return strings.ToLower(v)
+		}
+	}
+	return ""
+}
+
+// decodeBodyByCharset converts a byte slice to a string using the charset
+// declared in the Content-Type header. Falls back to UTF-8 when the charset
+// is absent or unrecognised so unknown values never panic.
+func decodeBodyByCharset(body []byte, contentType string) string {
+	charset := extractCharset(contentType)
+	switch charset {
+	case "", "utf-8", "utf8", "us-ascii", "ascii":
+		return string(body)
+	case "iso-8859-1", "latin1", "latin-1":
+		runes := make([]rune, len(body))
+		for i, b := range body {
+			runes[i] = rune(b)
+		}
+		return string(runes)
+	case "windows-1252", "cp1252":
+		return decodeWindows1252(body)
+	default:
+		return string(body)
+	}
+}
+
+// windows1252Overrides maps the 0x80–0x9F range from Windows-1252 to their
+// Unicode equivalents. Bytes outside this range round-trip 1:1 like
+// ISO-8859-1, so we only need a small override table.
+var windows1252Overrides = map[byte]rune{
+	0x80: 0x20AC, 0x82: 0x201A, 0x83: 0x0192, 0x84: 0x201E,
+	0x85: 0x2026, 0x86: 0x2020, 0x87: 0x2021, 0x88: 0x02C6,
+	0x89: 0x2030, 0x8A: 0x0160, 0x8B: 0x2039, 0x8C: 0x0152,
+	0x8E: 0x017D, 0x91: 0x2018, 0x92: 0x2019, 0x93: 0x201C,
+	0x94: 0x201D, 0x95: 0x2022, 0x96: 0x2013, 0x97: 0x2014,
+	0x98: 0x02DC, 0x99: 0x2122, 0x9A: 0x0161, 0x9B: 0x203A,
+	0x9C: 0x0153, 0x9E: 0x017E, 0x9F: 0x0178,
+}
+
+func decodeWindows1252(body []byte) string {
+	runes := make([]rune, 0, len(body))
+	for _, b := range body {
+		if r, ok := windows1252Overrides[b]; ok {
+			runes = append(runes, r)
+		} else {
+			runes = append(runes, rune(b))
+		}
+	}
+	return string(runes)
+}
+
 func isTextContentType(contentType string) bool {
 	parts := strings.SplitN(contentType, ";", 2)
 	mediaType := strings.ToLower(strings.TrimSpace(parts[0]))
@@ -249,7 +313,7 @@ func buildTransportMultipartBody(formFields map[string]interface{}) (*bytes.Buff
 			partHeader := make(textproto.MIMEHeader)
 			partHeader.Set("Content-Disposition",
 				fmt.Sprintf(`form-data; name="%s"; filename="%s"`, fieldName, fieldName))
-			partHeader.Set("Content-Type", "application/octet-stream")
+			partHeader.Set("Content-Type", mimeTypeForFilename(fieldName))
 			part, err := writer.CreatePart(partHeader)
 			if err != nil {
 				return nil, "", err
@@ -275,7 +339,7 @@ func buildTransportMultipartBody(formFields map[string]interface{}) (*bytes.Buff
 					partHeader := make(textproto.MIMEHeader)
 					partHeader.Set("Content-Disposition",
 						fmt.Sprintf(`form-data; name="%s"; filename="%s"`, fieldName, fieldName))
-					partHeader.Set("Content-Type", "application/octet-stream")
+					partHeader.Set("Content-Type", mimeTypeForFilename(fieldName))
 					part, err := writer.CreatePart(partHeader)
 					if err != nil {
 						return nil, "", err

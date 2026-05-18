@@ -10,10 +10,15 @@ import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
 import java.net.URI;
+import java.net.URLConnection;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.Charset;
+import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
+import java.nio.charset.UnsupportedCharsetException;
 import java.nio.file.Files;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.security.GeneralSecurityException;
@@ -28,6 +33,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.InflaterInputStream;
 import javax.annotation.Nullable;
@@ -268,8 +275,9 @@ public final class DefaultApiClient implements ApiClient {
                     .firstValue("content-type").orElse("");
             byte[] bodyBytes = response.body() != null ? response.body() : new byte[0];
             byte[] decompressedBytes = decompressBody(bodyBytes, contentEncoding);
+            Charset responseCharset = parseCharset(contentType);
             String responseBody = isTextContentType(contentType)
-                    ? new String(decompressedBytes, StandardCharsets.UTF_8)
+                    ? new String(decompressedBytes, responseCharset)
                     : Base64.getEncoder().encodeToString(decompressedBytes);
 
             return new ApiResponse(
@@ -287,6 +295,34 @@ public final class DefaultApiClient implements ApiClient {
     private static boolean isRedirect(int statusCode) {
         return statusCode == 301 || statusCode == 302 || statusCode == 303
                 || statusCode == 307 || statusCode == 308;
+    }
+
+    private static final Pattern CHARSET_PATTERN =
+            Pattern.compile("(?i)charset\\s*=\\s*\"?([^\";\\s]+)\"?");
+
+    /**
+     * Parse the {@code charset=} parameter from a Content-Type header value.
+     *
+     * <p>Falls back to UTF-8 if the header omits a charset, names an unsupported
+     * charset, or names an illegal charset (no exception is propagated).
+     *
+     * @param contentType the raw Content-Type header value (possibly empty)
+     * @return the resolved {@link Charset}, never {@code null}
+     */
+    private static Charset parseCharset(String contentType) {
+        if (contentType == null || contentType.isEmpty()) {
+            return StandardCharsets.UTF_8;
+        }
+        Matcher m = CHARSET_PATTERN.matcher(contentType);
+        if (!m.find()) {
+            return StandardCharsets.UTF_8;
+        }
+        String name = m.group(1).trim();
+        try {
+            return Charset.forName(name);
+        } catch (UnsupportedCharsetException | IllegalCharsetNameException e) {
+            return StandardCharsets.UTF_8;
+        }
     }
 
     private static boolean isTextContentType(String contentType) {
@@ -441,17 +477,18 @@ public final class DefaultApiClient implements ApiClient {
 
         if (value instanceof File file) {
             String fileName = file.getName();
+            validateMultipartFilename(fileName);
             String mimeType;
             try {
                 mimeType = Files.probeContentType(file.toPath());
             } catch (IOException e) {
-                mimeType = "application/octet-stream";
+                mimeType = null;
             }
             if (mimeType == null) {
-                mimeType = "application/octet-stream";
+                mimeType = guessMimeTypeFromName(fileName);
             }
             byteArrays.add(
-                    ("\"" + fieldName + "\"; filename=\"" + fileName + "\"\r\n"
+                    ("\"" + fieldName + "\"; " + buildFilenameDirective(fileName) + "\r\n"
                                     + "Content-Type: " + mimeType + "\r\n\r\n")
                             .getBytes(StandardCharsets.UTF_8));
             try {
@@ -460,15 +497,17 @@ public final class DefaultApiClient implements ApiClient {
                 throw new RuntimeException("Failed to read file: " + file, e);
             }
         } else if (value instanceof byte[] bytes) {
+            validateMultipartFilename(fieldName);
             byteArrays.add(
-                    ("\"" + fieldName + "\"; filename=\"" + fieldName + "\"\r\n"
+                    ("\"" + fieldName + "\"; " + buildFilenameDirective(fieldName) + "\r\n"
                                     + "Content-Type: application/octet-stream\r\n\r\n")
                             .getBytes(StandardCharsets.UTF_8));
             byteArrays.add(bytes);
         } else if (value instanceof InputStream stream) {
+            validateMultipartFilename(fieldName);
             try (stream) {
                 byteArrays.add(
-                        ("\"" + fieldName + "\"; filename=\"" + fieldName + "\"\r\n"
+                        ("\"" + fieldName + "\"; " + buildFilenameDirective(fieldName) + "\r\n"
                                         + "Content-Type: application/octet-stream\r\n\r\n")
                                 .getBytes(StandardCharsets.UTF_8));
                 byteArrays.add(stream.readAllBytes());
@@ -493,5 +532,78 @@ public final class DefaultApiClient implements ApiClient {
             }
         }
         byteArrays.add("\r\n".getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Reject filenames that would allow header injection or smuggling.
+     *
+     * <p>Filenames are interpolated directly into a {@code Content-Disposition}
+     * header value, so CR/LF/NUL characters could split the header and inject
+     * arbitrary new headers or a new request body.
+     *
+     * @param filename the proposed filename
+     * @throws IllegalArgumentException if the filename contains CR, LF, or NUL
+     */
+    static void validateMultipartFilename(String filename) {
+        if (filename == null) {
+            return;
+        }
+        for (int i = 0; i < filename.length(); i++) {
+            char c = filename.charAt(i);
+            if (c == '\r' || c == '\n' || c == '\0') {
+                throw new IllegalArgumentException(
+                        "Multipart filename must not contain CR, LF, or NUL characters");
+            }
+        }
+    }
+
+    /**
+     * Build the {@code filename=...} directive for a multipart part.
+     *
+     * <p>Backslash-escapes embedded {@code "} and {@code \} in the ASCII
+     * fallback. If the filename contains non-ASCII characters, additionally
+     * emits an RFC 5987 {@code filename*=UTF-8''<percent-encoded>} parameter
+     * for clients that support it. The caller is expected to have already
+     * validated the filename via {@link #validateMultipartFilename(String)}.
+     *
+     * @param filename the (already-validated) filename
+     * @return the {@code filename=...} fragment, possibly followed by
+     *     {@code ; filename*=...} for non-ASCII names
+     */
+    static String buildFilenameDirective(String filename) {
+        String escaped = filename.replace("\\", "\\\\").replace("\"", "\\\"");
+        boolean ascii = true;
+        for (int i = 0; i < filename.length(); i++) {
+            if (filename.charAt(i) > 0x7F) {
+                ascii = false;
+                break;
+            }
+        }
+        if (ascii) {
+            return "filename=\"" + escaped + "\"";
+        }
+        String asciiFallback = filename.replaceAll("[^\\x20-\\x7E]", "_")
+                .replace("\\", "\\\\").replace("\"", "\\\"");
+        String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8)
+                .replace("+", "%20");
+        return "filename=\"" + asciiFallback + "\"; filename*=UTF-8''" + encoded;
+    }
+
+    /**
+     * Best-effort MIME type lookup from a filename's extension.
+     *
+     * <p>Uses {@link URLConnection#guessContentTypeFromName(String)}; falls back
+     * to {@code application/octet-stream} when the JDK does not recognize the
+     * extension or when the name has no usable hint.
+     *
+     * @param filename the filename (may be {@code null})
+     * @return a non-null MIME type
+     */
+    static String guessMimeTypeFromName(@Nullable String filename) {
+        if (filename == null || filename.isEmpty()) {
+            return "application/octet-stream";
+        }
+        String guess = URLConnection.guessContentTypeFromName(filename);
+        return guess != null ? guess : "application/octet-stream";
     }
 }

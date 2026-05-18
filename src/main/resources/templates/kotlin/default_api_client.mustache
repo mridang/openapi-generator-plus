@@ -141,9 +141,13 @@ class DefaultApiClient internal constructor(
         }
 
         val rawBytes = response.bodyAsBytes()
-        val contentType = responseHeaders["content-type"] ?: ""
+        // Ktor's Headers are case-insensitive but we copy them into a plain Map<String, String>
+        // that preserves the server's original casing. Look up Content-Type without assuming case.
+        val contentType = responseHeaders.entries
+            .firstOrNull { it.key.equals("Content-Type", ignoreCase = true) }
+            ?.value ?: ""
         val responseBody = if (isTextContentType(contentType)) {
-            rawBytes.toString(Charsets.UTF_8)
+            rawBytes.toString(charsetFor(contentType))
         } else {
             java.util.Base64.getEncoder().encodeToString(rawBytes)
         }
@@ -205,7 +209,10 @@ class DefaultApiClient internal constructor(
                     fieldName,
                     value,
                     Headers.build {
-                        append(HttpHeaders.ContentType, ContentType.Application.OctetStream.toString())
+                        // Best-effort per-part MIME sniffing from the filename extension.
+                        // Servers that read per-part Content-Type (e.g. for image processing)
+                        // need this rather than a blanket application/octet-stream.
+                        append(HttpHeaders.ContentType, contentTypeForFilename(fieldName).toString())
                         append(HttpHeaders.ContentDisposition, "filename=$fieldName")
                     },
                 )
@@ -244,6 +251,48 @@ internal fun generateRequestId(): String {
         "${hex(b[6])}${hex(b[7])}-" +
         "${hex(b[8])}${hex(b[9])}-" +
         "${hex(b[10])}${hex(b[11])}${hex(b[12])}${hex(b[13])}${hex(b[14])}${hex(b[15])}"
+}
+
+/**
+ * Best-effort per-part MIME sniffing from a filename's extension. Falls back to
+ * `application/octet-stream` for unknown or missing extensions. Used by the
+ * multipart builder so that typed-file uploads (PNG, PDF, JSON) carry an
+ * accurate per-part Content-Type rather than a blanket octet-stream.
+ */
+internal fun contentTypeForFilename(filename: String): ContentType {
+    val dot = filename.lastIndexOf('.')
+    if (dot < 0 || dot == filename.length - 1) return ContentType.Application.OctetStream
+    val mime = when (filename.substring(dot + 1).lowercase()) {
+        "png" -> "image/png"
+        "jpg", "jpeg" -> "image/jpeg"
+        "gif" -> "image/gif"
+        "pdf" -> "application/pdf"
+        "json" -> "application/json"
+        else -> null
+    } ?: return ContentType.Application.OctetStream
+    return try {
+        ContentType.parse(mime)
+    } catch (_: Exception) {
+        ContentType.Application.OctetStream
+    }
+}
+
+/**
+ * Parses the `charset=` parameter from a Content-Type header (e.g.
+ * `text/plain; charset=ISO-8859-1`). Falls back to UTF-8 when the header is
+ * absent, malformed, or names a charset unknown to the JVM. Never throws.
+ */
+internal fun charsetFor(contentType: String?): java.nio.charset.Charset {
+    if (contentType.isNullOrEmpty()) return Charsets.UTF_8
+    val afterEquals = contentType.substringAfter("charset=", "")
+    if (afterEquals.isEmpty()) return Charsets.UTF_8
+    val name = afterEquals.substringBefore(";").trim().trim('"', '\'')
+    if (name.isEmpty()) return Charsets.UTF_8
+    return try {
+        java.nio.charset.Charset.forName(name)
+    } catch (_: Exception) {
+        Charsets.UTF_8
+    }
 }
 
 /** Returns true if the content type represents text that can be decoded as UTF-8. */

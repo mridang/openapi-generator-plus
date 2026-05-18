@@ -819,7 +819,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     @impl true
     def send_request(_method, _url, _headers, _body) do
-      binary_data = <<0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A>>
+      binary_data = <<0x00, 0xFF, 0x42>>
       encoded = Base.encode64(binary_data)
 
       %PetstoreClient.ApiResponse{
@@ -850,9 +850,8 @@ defmodule PetstoreClient.Api.BaseApiTest do
     end
   end
 
-  test "octet-stream response body is base64-encoded binary" do
-    binary_data = <<0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A>>
-    encoded = Base.encode64(binary_data)
+  test "octet-stream binary response roundtrips exactly via base64 decode" do
+    original = <<0x00, 0xFF, 0x42>>
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: OctetStreamApiClient}
 
@@ -869,12 +868,12 @@ defmodule PetstoreClient.Api.BaseApiTest do
                "String"
              )
 
-    assert result == encoded
+    assert {:ok, decoded} = Base.decode64(result)
+    assert decoded == original
   end
 
-  test "image/png response body is base64-encoded binary" do
-    binary_data = <<0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D>>
-    encoded = Base.encode64(binary_data)
+  test "image/png binary response roundtrips exactly via base64 decode" do
+    original = <<0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D>>
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: ImagePngApiClient}
 
@@ -891,7 +890,8 @@ defmodule PetstoreClient.Api.BaseApiTest do
                "String"
              )
 
-    assert result == encoded
+    assert {:ok, decoded} = Base.decode64(result)
+    assert decoded == original
   end
 
   test "application/json response is deserialized to map" do
@@ -1075,6 +1075,74 @@ defmodule PetstoreClient.Api.BaseApiTest do
            "Content-Type must be sent when body is an empty string"
 
     Agent.stop(CapturingHeadersApiClient)
+  end
+
+  # Multipart filename sanitization (Gap F)
+
+  test "multipart filename containing CRLF raises ArgumentError" do
+    assert_raise ArgumentError, fn ->
+      PetstoreClient.DefaultApiClient.build_content_disposition(
+        "file",
+        "a\r\nX-Injected: yes"
+      )
+    end
+  end
+
+  test "multipart filename containing NUL raises ArgumentError" do
+    assert_raise ArgumentError, fn ->
+      PetstoreClient.DefaultApiClient.build_content_disposition("file", "a\0b.txt")
+    end
+  end
+
+  test "multipart filename with embedded quote is backslash-escaped" do
+    disposition =
+      PetstoreClient.DefaultApiClient.build_content_disposition("file", "a\"b.txt")
+
+    assert String.contains?(disposition, "filename=\"a\\\"b.txt\"")
+  end
+
+  test "multipart filename with embedded backslash is backslash-escaped" do
+    disposition =
+      PetstoreClient.DefaultApiClient.build_content_disposition("file", "a\\b.txt")
+
+    assert String.contains?(disposition, "filename=\"a\\\\b.txt\"")
+  end
+
+  test "multipart non-ASCII filename emits RFC 5987 filename*" do
+    disposition =
+      PetstoreClient.DefaultApiClient.build_content_disposition("file", "日本.pdf")
+
+    assert String.contains?(disposition, "filename*=UTF-8''")
+    assert String.contains?(disposition, "%E6%97%A5%E6%9C%AC")
+    assert String.contains?(disposition, "filename=\"")
+  end
+
+  # Charset-aware response decoding (Gap H)
+
+  test "decode_text_body decodes ISO-8859-1 to é" do
+    result =
+      PetstoreClient.DefaultApiClient.decode_text_body(
+        <<0xE9>>,
+        "text/plain; charset=ISO-8859-1"
+      )
+
+    assert result == "é"
+  end
+
+  test "decode_text_body with no charset returns bytes unchanged (UTF-8 default)" do
+    result =
+      PetstoreClient.DefaultApiClient.decode_text_body("hello", "text/plain")
+
+    assert result == "hello"
+  end
+
+  test "decode_text_body with unknown charset falls back to UTF-8 (no exception)" do
+    bytes = "hello"
+
+    result =
+      PetstoreClient.DefaultApiClient.decode_text_body(bytes, "text/plain; charset=x-bogus")
+
+    assert result == bytes
   end
 
   test "empty JSON object body includes Content-Type" do

@@ -614,7 +614,10 @@ import Testing
   // MARK: - BinaryResponseTests
 
   @Test func testOctetStreamResponseDecodedAsBase64Bytes() async throws {
-    let binaryData = Data([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    /* Include 0x00 (would terminate C-strings) and 0xFF (invalid UTF-8 start byte)
+         * to catch any silent UTF-8 round-trip corruption in the transport. */
+    let original: [UInt8] = [0x00, 0xFF, 0x42]
+    let binaryData = Data(original)
     let encoded = binaryData.base64EncodedString()
     let mockClient = MockApiClient()
     mockClient.responseBody = encoded
@@ -623,12 +626,18 @@ import Testing
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
     let result = try await api.getPetByIdWithHTTPInfo(petId: 1)
-    // The raw body should be the base64-encoded string that the client can decode
-    #expect(!result.rawBody.isEmpty, "rawBody should not be empty for octet-stream response")
+    guard let decoded = Data(base64Encoded: result.rawBody) else {
+      Issue.record("rawBody was not valid base64: \(result.rawBody)")
+      return
+    }
+    #expect([UInt8](decoded) == original, "binary roundtrip must preserve bytes exactly")
   }
 
   @Test func testImagePngResponseDecodedAsBytes() async throws {
-    let binaryData = Data([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d])
+    let original: [UInt8] = [
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
+    ]
+    let binaryData = Data(original)
     let encoded = binaryData.base64EncodedString()
     let mockClient = MockApiClient()
     mockClient.responseBody = encoded
@@ -637,7 +646,11 @@ import Testing
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
     let result = try await api.getPetByIdWithHTTPInfo(petId: 1)
-    #expect(!result.rawBody.isEmpty, "rawBody should not be empty for image/png response")
+    guard let decoded = Data(base64Encoded: result.rawBody) else {
+      Issue.record("rawBody was not valid base64: \(result.rawBody)")
+      return
+    }
+    #expect([UInt8](decoded) == original, "image/png roundtrip must preserve bytes exactly")
   }
 
   @Test func testJsonResponseParsedToObject() async throws {

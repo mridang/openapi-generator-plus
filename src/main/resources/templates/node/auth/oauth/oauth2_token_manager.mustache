@@ -21,6 +21,7 @@ export class OAuth2TokenManager {
   private accessToken: string | null = null;
   private tokenExpiry: number | null = null;
   private refreshToken: string | null = null;
+  private inflightRefresh: Promise<string> | null = null;
 
   /**
    * Inject the shared API client for making token requests.
@@ -51,29 +52,49 @@ export class OAuth2TokenManager {
     ) {
       return this.accessToken;
     }
-    if (this.refreshToken) {
-      const refreshParams: Record<string, string> = {
-        grant_type: 'refresh_token',
-        refresh_token: this.refreshToken,
-      };
-      if (params.client_id !== undefined) {
-        refreshParams.client_id = params.client_id;
-      }
-      if (params.client_secret !== undefined) {
-        refreshParams.client_secret = params.client_secret;
-      }
-      try {
-        await this.fetchToken(tokenUrl, refreshParams, extraHeaders);
-        if (this.accessToken) {
-          return this.accessToken;
-        }
-      } catch {
-        /* Refresh failed (e.g. refresh token revoked or expired).
-         * Fall back to re-running the original grant below. */
-      }
+    if (this.inflightRefresh) {
+      return this.inflightRefresh;
     }
-    await this.fetchToken(tokenUrl, params, extraHeaders);
-    return this.accessToken!;
+    this.inflightRefresh = (async () => {
+      try {
+        if (this.refreshToken) {
+          const refreshParams: Record<string, string> = {
+            grant_type: 'refresh_token',
+            refresh_token: this.refreshToken,
+          };
+          if (params.client_id !== undefined) {
+            refreshParams.client_id = params.client_id;
+          }
+          if (params.client_secret !== undefined) {
+            refreshParams.client_secret = params.client_secret;
+          }
+          try {
+            await this.fetchToken(tokenUrl, refreshParams, extraHeaders);
+            if (this.accessToken) {
+              return this.accessToken;
+            }
+          } catch {
+            /* Refresh failed (e.g. refresh token revoked or expired).
+             * Fall back to re-running the original grant below. */
+          }
+        }
+        await this.fetchToken(tokenUrl, params, extraHeaders);
+        return this.accessToken!;
+      } finally {
+        this.inflightRefresh = null;
+      }
+    })();
+    return this.inflightRefresh;
+  }
+
+  /**
+   * Invalidate the cached access token so that the next call to
+   * {@link getAccessToken} fetches a fresh token from the token endpoint.
+   * Intended for tests and recovery flows.
+   */
+  invalidateAccessToken(): void {
+    this.accessToken = null;
+    this.tokenExpiry = null;
   }
 
   /**

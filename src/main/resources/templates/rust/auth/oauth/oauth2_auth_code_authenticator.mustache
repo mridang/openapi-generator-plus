@@ -125,7 +125,7 @@ impl Authenticator for OAuth2AuthorizationCodeAuthenticator {
             params.insert("grant_type".to_string(), "refresh_token".to_string());
             params.insert(
                 "refresh_token".to_string(),
-                self.token_manager.refresh_token(),
+                self.token_manager.refresh_token().await,
             );
 
             match self

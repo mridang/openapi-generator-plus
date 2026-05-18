@@ -89,7 +89,7 @@ impl Authenticator for OAuth2PasswordAuthenticator {
         &'a self,
     ) -> Pin<Box<dyn Future<Output = HashMap<String, String>> + Send + 'a>> {
         Box::pin(async move {
-            let refresh_token = self.token_manager.refresh_token();
+            let refresh_token = self.token_manager.refresh_token().await;
             let mut extra_headers = HashMap::new();
             if self.client_auth_method == ClientAuthMethod::Basic {
                 let credentials = BASE64_STANDARD

@@ -382,11 +382,50 @@ describe {{moduleName}}::Api::BaseApi do
     assert client.captured_headers.key?('Content-Type'), 'Expected Content-Type header'
   end
 
+  # ── Default header merge order (Gap C) ──
+
+  it 'operation-level Accept wins over config.default_headers Accept' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder
+      .base_url('http://localhost')
+      .default_header('Accept', 'text/plain')
+      .build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test', {}, {}, nil,
+                  ['application/json'], 'application/json', nil)
+    _(client.captured_headers['Accept']).must_equal 'application/json'
+  end
+
+  it 'config.default_headers custom headers propagate to request' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder
+      .base_url('http://localhost')
+      .default_header('X-Custom', 'v')
+      .build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test', {}, {}, nil,
+                  ['application/json'], 'application/json', nil)
+    _(client.captured_headers['X-Custom']).must_equal 'v'
+  end
+
+  it 'header_params Accept wins over both default and computed Accept' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder
+      .base_url('http://localhost')
+      .default_header('Accept', 'text/plain')
+      .build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test', {}, { 'Accept' => 'application/xml' }, nil,
+                  ['application/json'], 'application/json', nil)
+    _(client.captured_headers['Accept']).must_equal 'application/xml'
+  end
+
   # ── BinaryResponseTests ──
 
-  it 'decodes octet-stream response body from base64' do
-    binary_data = "\x89PNG\r\n\x1a\n".b
-    encoded = [binary_data].pack('m0')
+  it 'octet-stream binary response decodes to original bytes (roundtrip)' do
+    require 'base64'
+    original_bytes = "\x00\xFF\x42".b
+    encoded = Base64.strict_encode64(original_bytes)
     client = CapturingApiClient.new
     def client.send_request(_method, _url, _headers, _body)
       {{moduleName}}::ApiResponse.new(status_code: 200, body: @_encoded, headers: { 'Content-Type' => 'application/octet-stream' })
@@ -396,12 +435,14 @@ describe {{moduleName}}::Api::BaseApi do
     test_api = TestableApi.new(client, config)
     result = test_api.call('GET', '/api/test', {}, {}, nil,
                            ['application/octet-stream'], 'application/octet-stream', 'String')
-    _(result).must_equal encoded
+    decoded = Base64.strict_decode64(result)
+    assert_equal original_bytes, decoded.b, 'binary roundtrip must preserve bytes exactly'
   end
 
-  it 'decodes image/png response body from base64' do
-    binary_data = "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR".b
-    encoded = [binary_data].pack('m0')
+  it 'image/png binary response decodes to original bytes (roundtrip)' do
+    require 'base64'
+    original_bytes = "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR".b
+    encoded = Base64.strict_encode64(original_bytes)
     client = CapturingApiClient.new
     def client.send_request(_method, _url, _headers, _body)
       {{moduleName}}::ApiResponse.new(status_code: 200, body: @_encoded, headers: { 'Content-Type' => 'image/png' })
@@ -411,7 +452,8 @@ describe {{moduleName}}::Api::BaseApi do
     test_api = TestableApi.new(client, config)
     result = test_api.call('GET', '/api/img', {}, {}, nil,
                            ['image/png'], 'image/png', 'String')
-    _(result).must_equal encoded
+    decoded = Base64.strict_decode64(result)
+    assert_equal original_bytes, decoded.b, 'binary roundtrip must preserve bytes exactly'
   end
 
   it 'returns nil for nil return type (JSON response)' do

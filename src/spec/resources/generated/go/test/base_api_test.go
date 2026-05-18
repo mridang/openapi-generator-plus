@@ -8,6 +8,7 @@
 package petstore_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -613,17 +614,27 @@ func (c *binaryResponseApiClient) SendRequest(method, url string, headers map[st
 }
 
 func TestBinaryResponse_OctetStreamDecodedFromBase64(t *testing.T) {
-	binaryData := []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a}
-	// The DefaultApiClient base64-encodes non-text content types before storing in HttpResponse.Body
-	encoded := encodeBase64(binaryData)
+	/* End-to-end binary roundtrip: bytes including 0x00 and 0xFF must survive
+	 * transport base64-encoding and api.mustache base64-decoding without
+	 * mangling under UTF-8 string conversion. GetPetAvatarThumbnail's return
+	 * type is []byte, which exercises the binary-decode branch. */
+	original := []byte{0x00, 0xFF, 0x42, 0x89, 0x50, 0x4E, 0x47}
+	encoded := encodeBase64(original)
 	client := &binaryResponseApiClient{
 		responseBody:        encoded,
 		responseContentType: "application/octet-stream",
 	}
-	_ = client
-	// Verify the encoded body is non-empty and base64-decodable
-	if encoded == "" {
-		t.Fatal("expected non-empty base64 encoded body")
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+	got, err := api.GetPetAvatarThumbnail(int64(1))
+	if err != nil {
+		t.Fatalf("GetPetAvatarThumbnail returned error: %v", err)
+	}
+	if got == nil {
+		t.Fatal("expected non-nil []byte result")
+	}
+	if !bytes.Equal(*got, original) {
+		t.Fatalf("binary roundtrip mismatch: got %v, want %v", *got, original)
 	}
 }
 
@@ -657,29 +668,43 @@ func encodeBase64(data []byte) string {
 }
 
 func TestBinaryResponse_ImagePngDecodedFromBase64(t *testing.T) {
-	binaryData := []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d}
-	encoded := encodeBase64(binaryData)
+	original := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D}
+	encoded := encodeBase64(original)
 	client := &binaryResponseApiClient{
 		responseBody:        encoded,
 		responseContentType: "image/png",
 	}
-	_ = client
-	if encoded == "" {
-		t.Fatal("expected non-empty base64 encoded body for image/png")
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+	got, err := api.GetPetAvatarThumbnail(int64(1))
+	if err != nil {
+		t.Fatalf("GetPetAvatarThumbnail returned error: %v", err)
+	}
+	if got == nil {
+		t.Fatal("expected non-nil []byte result for image/png")
+	}
+	if !bytes.Equal(*got, original) {
+		t.Fatalf("image/png binary roundtrip mismatch: got %v, want %v", *got, original)
 	}
 }
 
 func TestBinaryResponse_JsonResponseParsedToObject(t *testing.T) {
 	client := &binaryResponseApiClient{
-		responseBody:        `{"id":42,"name":"test"}`,
+		responseBody:        `{"id":42,"name":"test","photoUrls":[]}`,
 		responseContentType: "application/json",
 	}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
 	api := petstore.NewPetApi(client, config, nil)
 	pet, err := api.GetPetById(int64(42), nil)
-	// The response may not deserialize cleanly to a Pet, but should not panic
-	_ = pet
-	_ = err
+	if err != nil {
+		t.Fatalf("GetPetById returned error: %v", err)
+	}
+	if pet == nil {
+		t.Fatal("expected non-nil Pet for JSON response")
+	}
+	if pet.Name != "test" {
+		t.Errorf("expected pet.Name 'test', got %q", pet.Name)
+	}
 }
 
 func TestBinaryResponse_TextPlainReturnsString(t *testing.T) {

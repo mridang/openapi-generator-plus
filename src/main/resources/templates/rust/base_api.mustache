@@ -182,10 +182,14 @@ impl BaseApi {
         let data = if is_json && !response.body.is_empty() {
             crate::object_serializer::deserialize(response.body.as_bytes())?
         } else if !is_json && !response.body.is_empty() {
-            /* Non-JSON response -- populate data with the raw body string so
-             * callers can access it without also checking raw_body. */
+            /* Non-JSON response -- transport layer base64-encoded the bytes;
+             * decode them back so callers see the original payload. */
+            use base64::Engine as _;
+            let bytes = base64::engine::general_purpose::STANDARD
+                .decode(response.body.as_bytes())
+                .unwrap_or_default();
             serde_json::from_value(serde_json::Value::String(
-                base64::engine::general_purpose::STANDARD.encode(response.body.as_bytes())
+                String::from_utf8_lossy(&bytes).into_owned()
             )).ok()
         } else {
             None

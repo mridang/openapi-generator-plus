@@ -14,6 +14,7 @@ require 'securerandom'
 require 'base64'
 require 'stringio'
 require 'zlib'
+require 'uri'
 begin
   require 'brotli'
 rescue LoadError
@@ -21,6 +22,11 @@ rescue LoadError
 end
 begin
   require 'zstd-ruby'
+rescue LoadError
+  nil
+end
+begin
+  require 'mime/types'
 rescue LoadError
   nil
 end
@@ -89,7 +95,7 @@ module PetstoreClient
       content_type = response.headers['content-type'].to_s
       decoded_body = decompress_body(response.body, response.headers['content-encoding'])
       response_body = if text_content_type?(content_type)
-                        decoded_body.to_s
+                        decode_text_body(decoded_body.to_s, content_type)
                       else
                         Base64.strict_encode64(decoded_body.to_s)
                       end
@@ -120,6 +126,41 @@ module PetstoreClient
       %w[application/json application/xml application/javascript].include?(media_type) ||
         media_type.end_with?('+json') ||
         media_type.end_with?('+xml')
+    end
+
+    # Decode a textual response body using the charset advertised in the
+    # +Content-Type+ header, falling back to UTF-8 when the charset is
+    # absent or unknown.
+    #
+    # @param body [String] raw response body bytes
+    # @param content_type [String] the response +Content-Type+ header value
+    # @return [String] the decoded body as a UTF-8 string
+    def decode_text_body(body, content_type)
+      encoding = detect_encoding(content_type)
+      bytes = body.dup.force_encoding(encoding)
+      bytes.encode(Encoding::UTF_8, invalid: :replace, undef: :replace)
+    rescue EncodingError
+      body.dup.force_encoding(Encoding::UTF_8)
+    end
+
+    # Parse the +charset=...+ parameter from a Content-Type header value
+    # and resolve it to a Ruby +Encoding+ instance. Defaults to UTF-8 when
+    # no charset is provided or the charset is not recognised.
+    #
+    # @param content_type [String] the +Content-Type+ header value
+    # @return [Encoding] the resolved character encoding
+    def detect_encoding(content_type)
+      return Encoding::UTF_8 if content_type.nil?
+
+      match = content_type.match(/charset\s*=\s*"?([^";\s]+)"?/i)
+      return Encoding::UTF_8 if match.nil?
+
+      charset = match[1].to_s
+      return Encoding::UTF_8 if charset.empty?
+
+      Encoding.find(charset) || Encoding::UTF_8
+    rescue ArgumentError
+      Encoding::UTF_8
     end
 
     # rubocop:disable Metrics/CyclomaticComplexity,Metrics/MethodLength
@@ -175,15 +216,22 @@ module PetstoreClient
       parts.join
     end
 
-    def multipart_part(name, value, boundary) # rubocop:disable Metrics/MethodLength
+    def multipart_part(name, value, boundary) # rubocop:disable Metrics/MethodLength,Metrics/AbcSize
       if value.respond_to?(:read)
+        filename = if value.respond_to?(:path) && value.path
+                     File.basename(value.path.to_s)
+                   else
+                     name.to_s
+                   end
         data = begin
           value.read
         ensure
           value.close if value.respond_to?(:close)
         end
-        header = "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{name}\"; filename=\"#{name}\"\r\n" \
-                 "Content-Type: application/octet-stream\r\n\r\n"
+        disposition = build_content_disposition(name, filename)
+        part_mime = sniff_part_mime(filename)
+        header = "--#{boundary}\r\n#{disposition}\r\n" \
+                 "Content-Type: #{part_mime}\r\n\r\n"
         header.b + data.b + "\r\n".b
       elsif value.respond_to?(:to_hash)
         json_str = JSON.generate(value.to_hash)
@@ -191,6 +239,60 @@ module PetstoreClient
           "Content-Type: application/json\r\n\r\n#{json_str}\r\n"
       else
         "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{name}\"\r\n\r\n#{value}\r\n"
+      end
+    end
+
+    # Build a Content-Disposition header value for a multipart file part.
+    #
+    # Rejects filenames containing CR, LF, or NUL to prevent header injection,
+    # backslash-escapes embedded quotes and backslashes, and emits an
+    # RFC 5987 +filename*+ parameter alongside the ASCII +filename+ fallback
+    # when the filename contains non-ASCII bytes.
+    #
+    # @param name [String, Symbol] form field name
+    # @param filename [String] proposed filename
+    # @return [String] the Content-Disposition header value
+    # @raise [ArgumentError] if +filename+ contains CR, LF, or NUL
+    def build_content_disposition(name, filename) # rubocop:disable Metrics/MethodLength
+      fname = filename.to_s
+      if fname.match?(/[\r\n\0]/)
+        raise ArgumentError,
+              "multipart filename must not contain CR, LF, or NUL bytes: #{fname.inspect}"
+      end
+
+      ascii_safe = fname.dup.force_encoding(Encoding::UTF_8)
+      escaped = fname.gsub(/([\\"])/) { |c| "\\#{c}" }
+      base = %(Content-Disposition: form-data; name="#{name}"; filename="#{escaped}")
+      if ascii_safe.valid_encoding? && !ascii_safe.ascii_only?
+        encoded = URI.encode_www_form_component(ascii_safe).gsub('+', '%20')
+        base + %(; filename*=UTF-8''#{encoded})
+      else
+        base
+      end
+    end
+
+    # Map a filename to a Content-Type by extension.
+    #
+    # Uses the +mime-types+ gem if available; otherwise falls back to a small
+    # built-in lookup table. Returns +application/octet-stream+ when no
+    # mapping is found.
+    #
+    # @param filename [String] the filename to inspect
+    # @return [String] the resolved MIME type
+    def sniff_part_mime(filename) # rubocop:disable Metrics/MethodLength,Metrics/CyclomaticComplexity
+      fname = filename.to_s
+      if defined?(MIME::Types)
+        types = MIME::Types.type_for(fname)
+        return types.first.to_s unless types.empty?
+      end
+      ext = File.extname(fname).downcase
+      case ext
+      when '.png' then 'image/png'
+      when '.jpg', '.jpeg' then 'image/jpeg'
+      when '.gif' then 'image/gif'
+      when '.pdf' then 'application/pdf'
+      when '.json' then 'application/json'
+      else 'application/octet-stream'
       end
     end
   end

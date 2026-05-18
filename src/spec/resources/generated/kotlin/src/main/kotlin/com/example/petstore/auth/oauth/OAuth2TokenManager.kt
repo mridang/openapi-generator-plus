@@ -10,6 +10,8 @@ package com.example.petstore.auth.oauth
 import com.example.petstore.ApiClient
 import com.example.petstore.ApiResponse
 import io.ktor.http.encodeURLQueryComponent
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -34,6 +36,15 @@ class OAuth2TokenManager {
     private val json = Json { ignoreUnknownKeys = true }
     var apiClient: ApiClient? = null
 
+    /**
+     * Single-flight refresh lock. Held across the suspending [fetchToken] call so
+     * that N concurrent coroutines that observe an expired token do not all stampede
+     * the token endpoint (thundering-herd). Callers re-check the expiry inside the
+     * lock (double-checked locking) so only the first waiter performs the network
+     * round-trip; the rest read the freshly cached token.
+     */
+    private val refreshMutex = Mutex()
+
     @Volatile
     private var accessToken: String? = null
 
@@ -42,6 +53,15 @@ class OAuth2TokenManager {
 
     @Volatile
     private var refreshToken: String? = null
+
+    private fun isTokenValid(
+        token: String?,
+        expiry: Long?,
+    ): Boolean {
+        if (token == null) return false
+        if (expiry == null) return true
+        return Clock.System.now().toEpochMilliseconds() < expiry - EXPIRY_SAFETY_MARGIN_MS
+    }
 
     /**
      * Get a valid access token, fetching or refreshing as necessary.
@@ -56,30 +76,39 @@ class OAuth2TokenManager {
         params: Map<String, String>,
         extraHeaders: Map<String, String> = emptyMap(),
     ): String {
-        val token = accessToken
-        val expiry = tokenExpiryMs
-        if (token != null && (expiry == null || Clock.System.now().toEpochMilliseconds() < expiry - EXPIRY_SAFETY_MARGIN_MS)) {
-            return token
+        // Fast path: serve the cached token without taking the lock.
+        val cached = accessToken
+        val cachedExpiry = tokenExpiryMs
+        if (isTokenValid(cached, cachedExpiry)) {
+            return cached!!
         }
-        val currentRefreshToken = refreshToken
-        if (!currentRefreshToken.isNullOrEmpty()) {
-            val refreshParams =
-                buildMap {
-                    put("grant_type", "refresh_token")
-                    put("refresh_token", currentRefreshToken)
-                    params["client_id"]?.let { put("client_id", it) }
-                    params["client_secret"]?.let { put("client_secret", it) }
-                }
-            try {
-                fetchToken(tokenUrl, refreshParams, extraHeaders)
-                accessToken?.let { return it }
-            } catch (_: RuntimeException) {
-                /* Refresh failed (e.g. refresh token revoked or expired).
-                 * Fall back to re-running the original grant below. */
+        return refreshMutex.withLock {
+            // Re-check inside the lock; another coroutine may have refreshed while we waited.
+            val current = accessToken
+            val currentExpiry = tokenExpiryMs
+            if (isTokenValid(current, currentExpiry)) {
+                return@withLock current!!
             }
+            val currentRefreshToken = refreshToken
+            if (!currentRefreshToken.isNullOrEmpty()) {
+                val refreshParams =
+                    buildMap {
+                        put("grant_type", "refresh_token")
+                        put("refresh_token", currentRefreshToken)
+                        params["client_id"]?.let { put("client_id", it) }
+                        params["client_secret"]?.let { put("client_secret", it) }
+                    }
+                try {
+                    fetchToken(tokenUrl, refreshParams, extraHeaders)
+                    accessToken?.let { return@withLock it }
+                } catch (_: RuntimeException) {
+                    /* Refresh failed (e.g. refresh token revoked or expired).
+                     * Fall back to re-running the original grant below. */
+                }
+            }
+            fetchToken(tokenUrl, params, extraHeaders)
+            accessToken ?: throw IllegalStateException("Token fetch did not return an access token")
         }
-        fetchToken(tokenUrl, params, extraHeaders)
-        return accessToken ?: throw IllegalStateException("Token fetch did not return an access token")
     }
 
     /**

@@ -5,6 +5,12 @@ import Foundation
 ///
 /// Uses the shared ``ApiClient`` instance so that token exchange requests honour
 /// the same transport configuration (proxy, TLS, timeouts) as regular API calls.
+///
+/// Concurrent calls to ``getAccessToken(tokenURL:params:extraHeaders:)`` are
+/// coalesced into a single in-flight refresh ``Task``. If N callers race on an
+/// expired token, exactly one HTTP request is sent to the token endpoint and all
+/// callers await the same result. This avoids the thundering-herd pattern that
+/// otherwise overloads the OP and consumes refresh-token rotations.
 public final class OAuth2TokenManager: @unchecked Sendable {
     /// Safety margin (in seconds) applied to token expiry checks so that we
     /// refresh slightly before the token actually expires, avoiding a race
@@ -16,6 +22,9 @@ public final class OAuth2TokenManager: @unchecked Sendable {
     private var accessToken: String = ""
     private var _refreshToken: String = ""
     private var tokenExpiry: Date = .distantPast
+    /// In-flight refresh task, if any. While non-nil, concurrent callers await
+    /// its result instead of starting another refresh.
+    private var inflightRefresh: Task<String, Error>?
 
     /// Creates a new token manager.
     ///
@@ -39,19 +48,56 @@ public final class OAuth2TokenManager: @unchecked Sendable {
 
     /// Returns a valid access token, fetching or refreshing as necessary.
     ///
-    /// This method is synchronized to prevent concurrent token requests.
+    /// Concurrent callers that arrive while a refresh is in flight all await the
+    /// same ``Task``, so the token endpoint is hit exactly once per refresh
+    /// regardless of caller concurrency.
     public func getAccessToken(tokenURL: String, params: [String: String], extraHeaders: [String: String] = [:]) async throws -> String {
-        let cached: String? = lock.withLock {
-            if !accessToken.isEmpty && Date() < tokenExpiry.addingTimeInterval(-Self.expirySafetyMargin) {
-                return accessToken
-            }
-            return nil
-        }
-        if let cached = cached {
+        /* Fast path under the lock: return the cached token if still fresh, or
+         * piggy-back on an already-running refresh task. */
+        lock.lock()
+        if !accessToken.isEmpty && Date() < tokenExpiry.addingTimeInterval(-Self.expirySafetyMargin) {
+            let cached = accessToken
+            lock.unlock()
             return cached
         }
+        if let existing = inflightRefresh {
+            lock.unlock()
+            return try await existing.value
+        }
 
-        let currentRefreshToken: String = lock.withLock { _refreshToken }
+        /* No fresh token and no in-flight refresh -- start one and publish the
+         * Task to the instance so concurrent callers find it. */
+        let currentRefreshToken = _refreshToken
+        let task = Task<String, Error> { [self] in
+            try await performRefresh(
+                tokenURL: tokenURL,
+                params: params,
+                extraHeaders: extraHeaders,
+                currentRefreshToken: currentRefreshToken
+            )
+        }
+        inflightRefresh = task
+        lock.unlock()
+
+        /* performRefresh always clears inflightRefresh via defer, so we don't
+         * need to clear it here -- doing so could accidentally clear a newer
+         * refresh task that started after ours completed. */
+        return try await task.value
+    }
+
+    /// Performs the actual token fetch (refresh first if a refresh token is
+    /// available, falling back to the original grant on failure). Always clears
+    /// ``inflightRefresh`` before returning so the next call is unblocked.
+    private func performRefresh(
+        tokenURL: String,
+        params: [String: String],
+        extraHeaders: [String: String],
+        currentRefreshToken: String
+    ) async throws -> String {
+        defer {
+            lock.withLock { inflightRefresh = nil }
+        }
+
         if !currentRefreshToken.isEmpty {
             var refreshParams: [String: String] = [
                 "grant_type": "refresh_token",
@@ -76,10 +122,7 @@ public final class OAuth2TokenManager: @unchecked Sendable {
         }
 
         try await fetchToken(tokenURL: tokenURL, params: params, extraHeaders: extraHeaders)
-
-        return lock.withLock {
-            return accessToken
-        }
+        return lock.withLock { accessToken }
     }
 
     /// Manually sets an access token, bypassing the token endpoint.

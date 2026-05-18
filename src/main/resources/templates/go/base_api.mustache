@@ -2,10 +2,13 @@
 package {{packageName}}
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
 	"mime/multipart"
+	"net/textproto"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -273,7 +276,7 @@ func writeMultipartField(writer *multipart.Writer, name string, value interface{
 			return nil
 		}
 		fileName := filepath.Base(v.Name())
-		part, err := writer.CreateFormFile(name, fileName)
+		part, err := createMultipartFilePart(writer, name, fileName)
 		if err != nil {
 			return fmt.Errorf("failed to create multipart file part %q: %w", name, err)
 		}
@@ -283,14 +286,14 @@ func writeMultipartField(writer *multipart.Writer, name string, value interface{
 		_, err = io.Copy(part, v)
 		return err
 	case io.Reader:
-		part, err := writer.CreateFormFile(name, name)
+		part, err := createMultipartFilePart(writer, name, name)
 		if err != nil {
 			return fmt.Errorf("failed to create multipart file part %q: %w", name, err)
 		}
 		_, err = io.Copy(part, v)
 		return err
 	case []byte:
-		part, err := writer.CreateFormFile(name, name)
+		part, err := createMultipartFilePart(writer, name, name)
 		if err != nil {
 			return fmt.Errorf("failed to create multipart file part %q: %w", name, err)
 		}
@@ -310,6 +313,66 @@ func writeMultipartField(writer *multipart.Writer, name string, value interface{
 	default:
 		return writer.WriteField(name, fmt.Sprintf("%v", v))
 	}
+}
+
+/* decodeBinaryResponse decodes the transport's base64-encoded response body
+ * back to its original raw bytes. The DefaultApiClient base64-encodes any
+ * non-text response so that the body can be carried as a string in
+ * HttpResponse; this helper reverses that encoding for callers that expect
+ * a []byte return type. */
+func decodeBinaryResponse(body string) ([]byte, error) {
+	if body == "" {
+		return []byte{}, nil
+	}
+	return base64.StdEncoding.DecodeString(body)
+}
+
+/* mimeTypeForFilename returns a Content-Type guess derived from the file
+ * extension. Falls back to application/octet-stream when the extension is
+ * unknown or absent. Used by multipart writers so that each file part
+ * advertises a meaningful Content-Type rather than the generic default. */
+func mimeTypeForFilename(filename string) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".png":
+		return "image/png"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".gif":
+		return "image/gif"
+	case ".pdf":
+		return "application/pdf"
+	case ".json":
+		return "application/json"
+	case ".txt":
+		return "text/plain"
+	case ".html", ".htm":
+		return "text/html"
+	}
+	if t := mime.TypeByExtension(ext); t != "" {
+		return t
+	}
+	return "application/octet-stream"
+}
+
+/* createMultipartFilePart creates a multipart file part with a Content-Type
+ * derived from the filename extension. multipart.Writer.CreateFormFile
+ * always uses application/octet-stream which loses the per-part media type
+ * for typed uploads (e.g. PNG, PDF). */
+func createMultipartFilePart(writer *multipart.Writer, fieldName, fileName string) (io.Writer, error) {
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition",
+		fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
+			escapeQuotes(fieldName), escapeQuotes(fileName)))
+	header.Set("Content-Type", mimeTypeForFilename(fileName))
+	return writer.CreatePart(header)
+}
+
+/* escapeQuotes backslash-escapes characters that would otherwise terminate a
+ * quoted-string in a multipart header. */
+func escapeQuotes(s string) string {
+	r := strings.NewReplacer("\\", "\\\\", `"`, `\"`)
+	return r.Replace(s)
 }
 
 func throwAPIError(response *HttpResponse) error {

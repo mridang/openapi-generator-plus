@@ -8,10 +8,15 @@
 package com.example.petstore
 
 import com.example.petstore.auth.oauth.OAuth2TokenManager
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.util.LinkedList
+import java.util.concurrent.atomic.AtomicInteger
 
 class OAuth2TokenManagerTest {
     private class FakeApiClient : ApiClient {
@@ -142,6 +147,52 @@ class OAuth2TokenManagerTest {
                 )
             }
         }
+    }
+
+    @Test
+    fun singleFlightRefreshCoalescesConcurrentCallers() {
+        // 10 coroutines all see no cached token and race into getAccessToken.
+        // The Mutex + double-checked locking inside the manager must coalesce them
+        // into exactly one network round-trip to the token endpoint.
+        val networkCalls = AtomicInteger(0)
+        val client =
+            object : ApiClient {
+                override suspend fun sendRequest(
+                    method: String,
+                    url: String,
+                    headers: Map<String, String>,
+                    body: Any?,
+                ): ApiResponse {
+                    networkCalls.incrementAndGet()
+                    // Tiny suspension to widen the race window for other coroutines.
+                    delay(50)
+                    return ApiResponse(200, """{"access_token":"shared-tok","expires_in":3600}""", emptyMap())
+                }
+            }
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val tokens =
+            runBlocking {
+                coroutineScope {
+                    (1..10)
+                        .map {
+                            async {
+                                manager.getAccessToken(
+                                    "https://auth.example.com/token",
+                                    mapOf("grant_type" to "client_credentials"),
+                                )
+                            }
+                        }.awaitAll()
+                }
+            }
+
+        assertEquals(
+            1,
+            networkCalls.get(),
+            "single-flight refresh must coalesce concurrent callers into one token request",
+        )
+        assertTrue(tokens.all { it == "shared-tok" }, "all callers must observe the same token")
     }
 
     @Test

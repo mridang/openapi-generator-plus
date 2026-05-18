@@ -9,6 +9,8 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:mime/mime.dart';
+
 import '../api_client.dart';
 import '../api_response.dart';
 import '../api_result.dart';
@@ -274,8 +276,9 @@ class BaseApi {
     Object? value,
   ) {
     if (value is List<int>) {
+      final mimeType = lookupMimeType(name) ?? 'application/octet-stream';
       parts.add(utf8.encode(
-        '--$boundary\r\nContent-Disposition: form-data; name="$name"; filename="$name"\r\nContent-Type: application/octet-stream\r\n\r\n',
+        '--$boundary\r\nContent-Disposition: form-data; name="$name"; filename="$name"\r\nContent-Type: $mimeType\r\n\r\n',
       ));
       parts.add(value);
       parts.add(utf8.encode('\r\n'));

@@ -865,6 +865,83 @@ void main() {
       }
     });
 
+    // -- CharsetDecodingTests --
+
+    test('decodes ISO-8859-1 charset body to correct string', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.set('content-type', 'text/plain; charset=ISO-8859-1')
+          ..add([0xE9])
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/api/test',
+          {},
+          null,
+        );
+        expect(resp.body, equals('é'),
+            reason: 'byte 0xE9 under ISO-8859-1 should decode to é (U+00E9)');
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('defaults to UTF-8 when no charset is specified', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.set('content-type', 'text/plain')
+          ..add(utf8.encode('café'))
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/api/test',
+          {},
+          null,
+        );
+        expect(resp.body, equals('café'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('falls back to UTF-8 for unknown charset without throwing', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers
+              .set('content-type', 'text/plain; charset=x-made-up-encoding')
+          ..add(utf8.encode('hello'))
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/api/test',
+          {},
+          null,
+        );
+        expect(resp.body, equals('hello'),
+            reason: 'unknown charset must fall back to UTF-8, not throw');
+      } finally {
+        await server.close();
+      }
+    });
+
     // -- CrossOriginRedirectTests --
 
     test('same-origin redirect forwards Authorization header', () {

@@ -459,11 +459,10 @@ describe('Configuration server variable overrides', () => {
 });
 
 describe('BinaryResponseTests', () => {
-  test('octet-stream response decoded as base64 bytes', async () => {
-    const binaryData = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-    const encoded = binaryData.toString('base64');
+  test('octet-stream response roundtrips bytes exactly', async () => {
+    const original = new Uint8Array([0x00, 0xff, 0x42, 0x7f, 0x80, 0xc3, 0xa9]);
     const client = new CapturingApiClient();
-    client.responseBody = encoded;
+    client.responseBody = Buffer.from(original).toString('base64');
     client.responseHeaders = { 'content-type': 'application/octet-stream' };
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
@@ -475,16 +474,16 @@ describe('BinaryResponseTests', () => {
       null,
       ['application/octet-stream'],
       'application/octet-stream',
-      (json) => json as Buffer
+      (json) => json as string
     );
-    expect(result).toBeDefined();
+    const decoded = Buffer.from(result as string, 'base64');
+    expect(Array.from(decoded)).toEqual(Array.from(original));
   });
 
-  test('image/png response decoded as bytes', async () => {
-    const binaryData = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d]);
-    const encoded = binaryData.toString('base64');
+  test('image/png response roundtrips bytes exactly', async () => {
+    const original = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d]);
     const client = new CapturingApiClient();
-    client.responseBody = encoded;
+    client.responseBody = Buffer.from(original).toString('base64');
     client.responseHeaders = { 'content-type': 'image/png' };
     const config = new Configuration({ baseUrl: 'http://localhost' });
     const testApi = new TestableApi(client, config);
@@ -496,9 +495,10 @@ describe('BinaryResponseTests', () => {
       null,
       ['image/png'],
       'image/png',
-      (json) => json as Buffer
+      (json) => json as string
     );
-    expect(result).toBeDefined();
+    const decoded = Buffer.from(result as string, 'base64');
+    expect(Array.from(decoded)).toEqual(Array.from(original));
   });
 
   test('application/json response parsed to object', async () => {

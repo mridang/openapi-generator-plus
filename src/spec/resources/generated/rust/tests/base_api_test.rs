@@ -931,28 +931,69 @@ impl petstore::api_client::ApiClient for BinaryResponseApiClient {
 #[tokio::test]
 async fn test_binary_response_octet_stream_decoded_from_base64() {
     use base64::Engine as _;
-    let binary_data: Vec<u8> = vec![0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-    let encoded = base64::engine::general_purpose::STANDARD.encode(&binary_data);
-    // Verify that the base64-encoded string is non-empty and round-trips correctly
-    assert!(!encoded.is_empty());
+    /* Bytes chosen to include 0x00 and 0xFF -- values that get mangled by
+     * naive UTF-8 conversion. The transport layer base64-encodes binary
+     * responses; the API's raw_body therefore carries the base64 string,
+     * and decoding it must return the original byte sequence exactly. */
+    let original: Vec<u8> = vec![0x00, 0xFF, 0x42];
+    let encoded = base64::engine::general_purpose::STANDARD.encode(&original);
+
+    let client = Arc::new(BinaryResponseApiClient {
+        body: encoded.clone(),
+        content_type: "application/octet-stream".to_string(),
+    });
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client, config, None);
+
+    let result = api
+        .get_pet_by_id_with_http_info(1, None)
+        .await
+        .expect("binary response must surface as Ok");
+
+    assert_eq!(
+        result.raw_body, encoded,
+        "raw_body must equal the transport-supplied base64 string"
+    );
+
     let decoded = base64::engine::general_purpose::STANDARD
-        .decode(&encoded)
-        .unwrap();
-    assert_eq!(decoded, binary_data);
+        .decode(result.raw_body.as_bytes())
+        .expect("raw_body must be valid base64");
+    assert_eq!(
+        decoded, original,
+        "binary roundtrip must preserve bytes exactly (0x00 and 0xFF survive)"
+    );
 }
 
 #[tokio::test]
 async fn test_binary_response_image_png_decoded_from_base64() {
     use base64::Engine as _;
-    let binary_data: Vec<u8> = vec![
+    /* PNG magic header -- another byte sequence with high bytes that would
+     * be corrupted under a UTF-8 round-trip. */
+    let original: Vec<u8> = vec![
         0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
     ];
-    let encoded = base64::engine::general_purpose::STANDARD.encode(&binary_data);
-    assert!(!encoded.is_empty());
+    let encoded = base64::engine::general_purpose::STANDARD.encode(&original);
+
+    let client = Arc::new(BinaryResponseApiClient {
+        body: encoded.clone(),
+        content_type: "image/png".to_string(),
+    });
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client, config, None);
+
+    let result = api
+        .get_pet_by_id_with_http_info(1, None)
+        .await
+        .expect("binary response must surface as Ok");
+
     let decoded = base64::engine::general_purpose::STANDARD
-        .decode(&encoded)
-        .unwrap();
-    assert_eq!(decoded, binary_data);
+        .decode(result.raw_body.as_bytes())
+        .expect("raw_body must be valid base64");
+    assert_eq!(decoded, original, "PNG bytes must roundtrip exactly");
 }
 
 #[tokio::test]
@@ -1186,5 +1227,94 @@ async fn test_get_request_with_no_body_omits_content_type() {
     assert!(
         headers.get("Content-Type").is_none(),
         "Content-Type must NOT be sent when body is None (GET request)"
+    );
+}
+
+// -- Charset decoding (Gap H) --
+
+#[test]
+fn test_decode_text_body_honours_iso_8859_1_charset() {
+    /* 0xE9 in ISO-8859-1 is "é"; UTF-8 lossy would yield U+FFFD. */
+    let decoded =
+        petstore::default_api_client::decode_text_body(&[0xE9], "text/plain; charset=ISO-8859-1");
+    assert_eq!(decoded, "é");
+}
+
+#[test]
+fn test_decode_text_body_defaults_to_utf8_when_charset_absent() {
+    let decoded =
+        petstore::default_api_client::decode_text_body("hello world".as_bytes(), "text/plain");
+    assert_eq!(decoded, "hello world");
+}
+
+#[test]
+fn test_decode_text_body_falls_back_to_utf8_for_unknown_charset() {
+    /* Unknown charset must not panic; the helper falls back to UTF-8. */
+    let decoded = petstore::default_api_client::decode_text_body(
+        "abc".as_bytes(),
+        "text/plain; charset=windows-9999",
+    );
+    assert_eq!(decoded, "abc");
+}
+
+#[test]
+fn test_parse_charset_extracts_quoted_value() {
+    assert_eq!(
+        petstore::default_api_client::parse_charset("text/plain; charset=\"UTF-8\""),
+        Some("UTF-8".to_string())
+    );
+}
+
+// -- Per-part MIME sniffing (Gap J) --
+
+#[test]
+fn test_mime_for_filename_image_extensions() {
+    assert_eq!(
+        petstore::default_api_client::mime_for_filename("photo.png"),
+        "image/png"
+    );
+    assert_eq!(
+        petstore::default_api_client::mime_for_filename("photo.JPG"),
+        "image/jpeg"
+    );
+    assert_eq!(
+        petstore::default_api_client::mime_for_filename("photo.jpeg"),
+        "image/jpeg"
+    );
+    assert_eq!(
+        petstore::default_api_client::mime_for_filename("anim.gif"),
+        "image/gif"
+    );
+}
+
+#[test]
+fn test_mime_for_filename_document_extensions() {
+    assert_eq!(
+        petstore::default_api_client::mime_for_filename("doc.pdf"),
+        "application/pdf"
+    );
+    assert_eq!(
+        petstore::default_api_client::mime_for_filename("payload.json"),
+        "application/json"
+    );
+    assert_eq!(
+        petstore::default_api_client::mime_for_filename("notes.txt"),
+        "text/plain"
+    );
+    assert_eq!(
+        petstore::default_api_client::mime_for_filename("index.html"),
+        "text/html"
+    );
+}
+
+#[test]
+fn test_mime_for_filename_unknown_extension_falls_back() {
+    assert_eq!(
+        petstore::default_api_client::mime_for_filename("blob.xyz"),
+        "application/octet-stream"
+    );
+    assert_eq!(
+        petstore::default_api_client::mime_for_filename("noextension"),
+        "application/octet-stream"
     );
 }

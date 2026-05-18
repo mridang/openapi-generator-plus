@@ -331,4 +331,156 @@ class DefaultApiClientUnitTest extends TestCase
 
         $this->assertSame('application/json', $capturedHeaders['Accept'] ?? null);
     }
+
+    public function testDecodesIso88591BodyToUtf8WhenCharsetDeclared(): void
+    {
+        $body = "\xE9"; // ISO-8859-1 'é'
+        $mockResponse = new MockResponse($body, [
+            'http_code' => 200,
+            'response_headers' => ['Content-Type' => 'text/plain; charset=ISO-8859-1'],
+        ]);
+        $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+
+        $response = $client->sendRequest('GET', 'http://example.com/iso', [], null);
+
+        $this->assertSame(200, $response->statusCode);
+        $this->assertSame("\xC3\xA9", $response->body); // UTF-8 'é'
+    }
+
+    public function testTreatsAbsentCharsetAsUtf8(): void
+    {
+        $body = "héllo"; // already UTF-8
+        $mockResponse = new MockResponse($body, [
+            'http_code' => 200,
+            'response_headers' => ['Content-Type' => 'text/plain'],
+        ]);
+        $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+
+        $response = $client->sendRequest('GET', 'http://example.com/utf8', [], null);
+
+        $this->assertSame($body, $response->body);
+    }
+
+    public function testFallsBackToUtf8OnUnknownCharsetWithoutThrowing(): void
+    {
+        $body = "hello";
+        $mockResponse = new MockResponse($body, [
+            'http_code' => 200,
+            'response_headers' => ['Content-Type' => 'text/plain; charset=not-a-real-charset'],
+        ]);
+        $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+
+        $response = $client->sendRequest('GET', 'http://example.com/unknown', [], null);
+
+        $this->assertSame(200, $response->statusCode);
+        $this->assertSame($body, $response->body);
+    }
+
+    public function testMultipartPngFileGetsImagePngContentType(): void
+    {
+        $tmp = tempnam(sys_get_temp_dir(), 'mp_');
+        $this->assertIsString($tmp);
+        $pngPath = $tmp . '.png';
+        rename($tmp, $pngPath);
+        file_put_contents($pngPath, "\x89PNG\r\n\x1A\n");
+
+        $capturedBody = '';
+        $mockClient = new MockHttpClient(
+            function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
+                $capturedBody = $this->collectRequestBody($options['body'] ?? '');
+                return new MockResponse('{}', ['http_code' => 200]);
+            }
+        );
+
+        try {
+            $client = new DefaultApiClient(null, $mockClient);
+            $client->sendRequest(
+                'POST',
+                'http://example.com/upload',
+                [],
+                ['file' => new \SplFileObject($pngPath)]
+            );
+
+            $this->assertStringContainsString('Content-Type: image/png', $capturedBody);
+        } finally {
+            @unlink($pngPath);
+        }
+    }
+
+    public function testMultipartResourceFallsBackToOctetStream(): void
+    {
+        $stream = fopen('php://temp', 'w+');
+        $this->assertIsResource($stream);
+        fwrite($stream, "\x00\xFF\x42 raw bytes");
+        rewind($stream);
+
+        $capturedBody = '';
+        $mockClient = new MockHttpClient(
+            function (string $method, string $url, array $options) use (&$capturedBody): MockResponse {
+                $capturedBody = $this->collectRequestBody($options['body'] ?? '');
+                return new MockResponse('{}', ['http_code' => 200]);
+            }
+        );
+
+        $client = new DefaultApiClient(null, $mockClient);
+        $client->sendRequest(
+            'POST',
+            'http://example.com/upload',
+            [],
+            ['file' => $stream]
+        );
+
+        $this->assertStringContainsString('Content-Type: application/octet-stream', $capturedBody);
+    }
+
+    public function testDecodesIso88591ErrorBodyToUtf8(): void
+    {
+        $body = "\xE9rreur"; // ISO-8859-1 'érreur'
+        $mockResponse = new MockResponse($body, [
+            'http_code' => 500,
+            'response_headers' => ['Content-Type' => 'text/plain; charset=ISO-8859-1'],
+        ]);
+        $client = new DefaultApiClient(null, new MockHttpClient($mockResponse));
+
+        $response = $client->sendRequest('GET', 'http://example.com/err', [], null);
+
+        $this->assertSame(500, $response->statusCode);
+        $this->assertSame("\xC3\xA9rreur", $response->body);
+    }
+
+    /**
+     * Collect a Symfony HttpClient request body into a single string.
+     *
+     * Symfony normalises iterable bodies into a `Closure(int): string` that
+     * returns chunks and signals end-of-body with an empty string. Strings
+     * and iterables are passed through as-is so each test can inspect the
+     * raw payload regardless of how the client supplied it.
+     *
+     * @param mixed $body Body value from the captured request options
+     */
+    private function collectRequestBody(mixed $body): string
+    {
+        if (is_string($body)) {
+            return $body;
+        }
+        if ($body instanceof \Closure) {
+            $buffer = '';
+            while (true) {
+                $chunk = $body(16384);
+                if (!is_string($chunk) || $chunk === '') {
+                    break;
+                }
+                $buffer .= $chunk;
+            }
+            return $buffer;
+        }
+        if (is_iterable($body)) {
+            $buffer = '';
+            foreach ($body as $chunk) {
+                $buffer .= (string) $chunk;
+            }
+            return $buffer;
+        }
+        return '';
+    }
 }

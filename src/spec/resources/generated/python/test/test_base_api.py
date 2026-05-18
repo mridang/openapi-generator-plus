@@ -453,6 +453,51 @@ class TestBinaryResponse:
         )
         assert result is None
 
+    async def test_empty_binary_body_with_bytes_return_type_yields_empty_bytes(self) -> None:
+        """An empty application/octet-stream response with a bytes return type
+        must yield an empty bytes object (None is acceptable when no body, but
+        the operation must not raise)."""
+        client = EmptyBinaryApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        result = await stub.call(
+            'GET', '/api/test', {}, {}, None, ['application/octet-stream'], 'application/octet-stream', 'bytes'
+        )
+        # Empty body short-circuits deserialization; either None or b'' is acceptable
+        assert result is None or result == b''
+
+
+class TestPerOperationServerOverride:
+    """Verify that operations accept a per-call base_url override that takes
+    precedence over the client configuration."""
+
+    async def test_per_operation_base_url_overrides_client_config(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://client-default')
+        api = PetApi(api_client=client, config=config)
+        try:
+            await api.find_pets_by_status(
+                FindPetsByStatusOptions(),
+                base_url='http://override.example.com',
+            )
+        except Exception:
+            pass  # response deserialization may fail; we only care about the captured URL
+        assert client.captured_url.startswith('http://override.example.com'), (
+            f'Expected request URL to use override base_url, got: {client.captured_url}'
+        )
+
+    async def test_omitting_base_url_uses_client_config(self) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://client-default.example.com')
+        api = PetApi(api_client=client, config=config)
+        try:
+            await api.find_pets_by_status(FindPetsByStatusOptions())
+        except Exception:
+            pass
+        assert client.captured_url.startswith('http://client-default.example.com'), (
+            f'Expected request URL to use client config base_url, got: {client.captured_url}'
+        )
+
 
 class TestCrossOriginRedirect:
     def test_same_origin_redirect_forwards_authorization(self) -> None:

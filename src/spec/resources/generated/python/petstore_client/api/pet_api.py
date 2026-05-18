@@ -163,6 +163,7 @@ class PetApi(BaseApi):
         self,
         auth: Authenticator,
         pet: Pet,
+        base_url: Optional[str] = None,
     ) -> Pet:
         """Add a new pet to the store
         :param auth: authenticator for this operation
@@ -174,7 +175,7 @@ class PetApi(BaseApi):
         if pet is None:
             raise ValueError("Missing the required parameter 'pet'")
 
-        result = await self.add_pet_with_http_info(auth, pet)
+        result = await self.add_pet_with_http_info(auth, pet, base_url=base_url)
         assert result.data is not None
         return result.data
 
@@ -182,6 +183,7 @@ class PetApi(BaseApi):
         self,
         auth: Authenticator,
         pet: Pet,
+        base_url: Optional[str] = None,
     ) -> 'ApiResult[Pet]':
         """Add a new pet to the store (with HTTP info)
         :param auth: authenticator for this operation
@@ -194,6 +196,9 @@ class PetApi(BaseApi):
             raise ValueError("Missing the required parameter 'pet'")
 
         path = '/pet'
+        if base_url is not None:
+            if base_url.startswith('http://') or base_url.startswith('https://'):
+                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = pet
@@ -214,6 +219,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         options: Optional[AddPetPhotosOptions] = None,
+        base_url: Optional[str] = None,
     ) -> List[Photo]:
         """Add photos to the pet&#39;s gallery
         Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
@@ -233,7 +239,7 @@ class PetApi(BaseApi):
         if options is None or options.metadata is None:
             raise ValueError("Missing the required parameter 'metadata'")
 
-        result = await self.add_pet_photos_with_http_info(pet_id, options)
+        result = await self.add_pet_photos_with_http_info(pet_id, options, base_url=base_url)
         assert result.data is not None
         return result.data
 
@@ -241,6 +247,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         options: Optional[AddPetPhotosOptions] = None,
+        base_url: Optional[str] = None,
     ) -> 'ApiResult[List[Photo]]':
         """Add photos to the pet&#39;s gallery (with HTTP info)
         Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
@@ -268,6 +275,9 @@ class PetApi(BaseApi):
                 safe="/;,=.~:!$&'()*+@",
             ),
         )
+        if base_url is not None:
+            if base_url.startswith('http://') or base_url.startswith('https://'):
+                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body: Dict[str, Any] = {}
@@ -293,6 +303,7 @@ class PetApi(BaseApi):
         auth: Authenticator,
         pet_id: int,
         pet_treatment: PetTreatment,
+        base_url: Optional[str] = None,
     ) -> PetTreatment:
         """Record a treatment for a pet
         :param auth: authenticator for this operation
@@ -308,7 +319,7 @@ class PetApi(BaseApi):
         if pet_treatment is None:
             raise ValueError("Missing the required parameter 'pet_treatment'")
 
-        result = await self.add_pet_treatment_with_http_info(auth, pet_id, pet_treatment)
+        result = await self.add_pet_treatment_with_http_info(auth, pet_id, pet_treatment, base_url=base_url)
         assert result.data is not None
         return result.data
 
@@ -317,6 +328,7 @@ class PetApi(BaseApi):
         auth: Authenticator,
         pet_id: int,
         pet_treatment: PetTreatment,
+        base_url: Optional[str] = None,
     ) -> 'ApiResult[PetTreatment]':
         """Record a treatment for a pet (with HTTP info)
         :param auth: authenticator for this operation
@@ -340,6 +352,9 @@ class PetApi(BaseApi):
                 safe="/;,=.~:!$&'()*+@",
             ),
         )
+        if base_url is not None:
+            if base_url.startswith('http://') or base_url.startswith('https://'):
+                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = pet_treatment
@@ -361,6 +376,7 @@ class PetApi(BaseApi):
         auth: Authenticator,
         pet_id: int,
         options: Optional[DeletePetOptions] = None,
+        base_url: Optional[str] = None,
     ) -> None:
         """Deletes a pet
         :param auth: authenticator for this operation
@@ -373,7 +389,7 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        result = await self.delete_pet_with_http_info(auth, pet_id, options)
+        result = await self.delete_pet_with_http_info(auth, pet_id, options, base_url=base_url)
         return result.data
 
     async def delete_pet_with_http_info(
@@ -381,6 +397,7 @@ class PetApi(BaseApi):
         auth: Authenticator,
         pet_id: int,
         options: Optional[DeletePetOptions] = None,
+        base_url: Optional[str] = None,
     ) -> 'ApiResult[None]':
         """Deletes a pet (with HTTP info)
         :param auth: authenticator for this operation
@@ -402,6 +419,9 @@ class PetApi(BaseApi):
                 safe="/;,=.~:!$&'()*+@",
             ),
         )
+        if base_url is not None:
+            if base_url.startswith('http://') or base_url.startswith('https://'):
+                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         cookie_parts = []
@@ -429,6 +449,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         document_id: int,
+        base_url: Optional[str] = None,
     ) -> bytes:
         """Download a vet document
         Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
@@ -444,7 +465,7 @@ class PetApi(BaseApi):
         if document_id is None:
             raise ValueError("Missing the required parameter 'document_id'")
 
-        result = await self.download_pet_document_with_http_info(pet_id, document_id)
+        result = await self.download_pet_document_with_http_info(pet_id, document_id, base_url=base_url)
         assert result.data is not None
         return result.data
 
@@ -452,6 +473,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         document_id: int,
+        base_url: Optional[str] = None,
     ) -> 'ApiResult[bytes]':
         """Download a vet document (with HTTP info)
         Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
@@ -482,6 +504,9 @@ class PetApi(BaseApi):
                 safe="/;,=.~:!$&'()*+@",
             ),
         )
+        if base_url is not None:
+            if base_url.startswith('http://') or base_url.startswith('https://'):
+                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -501,6 +526,7 @@ class PetApi(BaseApi):
     async def find_pets_by_status(
         self,
         options: Optional[FindPetsByStatusOptions] = None,
+        base_url: Optional[str] = None,
     ) -> List[Pet]:
         """Finds Pets by status
 
@@ -513,13 +539,14 @@ class PetApi(BaseApi):
         .. seealso::
             `Find out more about filtering <https://example.com/docs/filtering>`_
         """
-        result = await self.find_pets_by_status_with_http_info(options)
+        result = await self.find_pets_by_status_with_http_info(options, base_url=base_url)
         assert result.data is not None
         return result.data
 
     async def find_pets_by_status_with_http_info(
         self,
         options: Optional[FindPetsByStatusOptions] = None,
+        base_url: Optional[str] = None,
     ) -> 'ApiResult[List[Pet]]':
         """Finds Pets by status (with HTTP info)
 
@@ -529,6 +556,9 @@ class PetApi(BaseApi):
         :raises ApiException: if fails to make API call
         """
         path = '/pet/findByStatus'
+        if base_url is not None:
+            if base_url.startswith('http://') or base_url.startswith('https://'):
+                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         if options is not None:
             if options.status is not None:
@@ -558,6 +588,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         server: Optional['GetExternalPetInfoServer'] = None,
+        base_url: Optional[str] = None,
     ) -> Pet:
         """Get external pet info
         :param pet_id:  (required)
@@ -568,7 +599,7 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        result = await self.get_external_pet_info_with_http_info(pet_id, server=server)
+        result = await self.get_external_pet_info_with_http_info(pet_id, server=server, base_url=base_url)
         assert result.data is not None
         return result.data
 
@@ -576,6 +607,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         server: Optional['GetExternalPetInfoServer'] = None,
+        base_url: Optional[str] = None,
     ) -> 'ApiResult[Pet]':
         """Get external pet info (with HTTP info)
         :param pet_id:  (required)
@@ -598,6 +630,9 @@ class PetApi(BaseApi):
             _server_url = server.get_url()
             if _server_url.startswith('http://') or _server_url.startswith('https://'):
                 path = _server_url + path
+        if base_url is not None:
+            if base_url.startswith('http://') or base_url.startswith('https://'):
+                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -618,6 +653,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         server: Optional['GetMultiServerPetInfoServer'] = None,
+        base_url: Optional[str] = None,
     ) -> Pet:
         """Get multi-server pet info
         :param pet_id:  (required)
@@ -628,7 +664,7 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        result = await self.get_multi_server_pet_info_with_http_info(pet_id, server=server)
+        result = await self.get_multi_server_pet_info_with_http_info(pet_id, server=server, base_url=base_url)
         assert result.data is not None
         return result.data
 
@@ -636,6 +672,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         server: Optional['GetMultiServerPetInfoServer'] = None,
+        base_url: Optional[str] = None,
     ) -> 'ApiResult[Pet]':
         """Get multi-server pet info (with HTTP info)
         :param pet_id:  (required)
@@ -658,6 +695,9 @@ class PetApi(BaseApi):
             _server_url = server.get_url()
             if _server_url.startswith('http://') or _server_url.startswith('https://'):
                 path = _server_url + path
+        if base_url is not None:
+            if base_url.startswith('http://') or base_url.startswith('https://'):
+                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -677,6 +717,7 @@ class PetApi(BaseApi):
     async def get_pet_avatar(
         self,
         pet_id: int,
+        base_url: Optional[str] = None,
     ) -> bytes:
         """Get the pet&#39;s profile photo
         Returns the raw image bytes of the pet&#39;s current avatar.
@@ -688,13 +729,14 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        result = await self.get_pet_avatar_with_http_info(pet_id)
+        result = await self.get_pet_avatar_with_http_info(pet_id, base_url=base_url)
         assert result.data is not None
         return result.data
 
     async def get_pet_avatar_with_http_info(
         self,
         pet_id: int,
+        base_url: Optional[str] = None,
     ) -> 'ApiResult[bytes]':
         """Get the pet&#39;s profile photo (with HTTP info)
         Returns the raw image bytes of the pet&#39;s current avatar.
@@ -714,6 +756,9 @@ class PetApi(BaseApi):
                 safe="/;,=.~:!$&'()*+@",
             ),
         )
+        if base_url is not None:
+            if base_url.startswith('http://') or base_url.startswith('https://'):
+                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -733,6 +778,7 @@ class PetApi(BaseApi):
     async def get_pet_avatar_thumbnail(
         self,
         pet_id: int,
+        base_url: Optional[str] = None,
     ) -> bytes:
         """Get the pet&#39;s avatar thumbnail as base64
         Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
@@ -744,13 +790,14 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        result = await self.get_pet_avatar_thumbnail_with_http_info(pet_id)
+        result = await self.get_pet_avatar_thumbnail_with_http_info(pet_id, base_url=base_url)
         assert result.data is not None
         return result.data
 
     async def get_pet_avatar_thumbnail_with_http_info(
         self,
         pet_id: int,
+        base_url: Optional[str] = None,
     ) -> 'ApiResult[bytes]':
         """Get the pet&#39;s avatar thumbnail as base64 (with HTTP info)
         Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
@@ -770,6 +817,9 @@ class PetApi(BaseApi):
                 safe="/;,=.~:!$&'()*+@",
             ),
         )
+        if base_url is not None:
+            if base_url.startswith('http://') or base_url.startswith('https://'):
+                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -790,6 +840,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         server: Optional['GetPetByIdServer'] = None,
+        base_url: Optional[str] = None,
     ) -> Pet:
         """Find pet by ID
         Returns a single pet
@@ -803,7 +854,7 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        result = await self.get_pet_by_id_with_http_info(pet_id, server=server)
+        result = await self.get_pet_by_id_with_http_info(pet_id, server=server, base_url=base_url)
         assert result.data is not None
         return result.data
 
@@ -811,6 +862,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         server: Optional['GetPetByIdServer'] = None,
+        base_url: Optional[str] = None,
     ) -> 'ApiResult[Pet]':
         """Find pet by ID (with HTTP info)
         Returns a single pet
@@ -834,6 +886,9 @@ class PetApi(BaseApi):
             _server_url = server.get_url()
             if _server_url.startswith('http://') or _server_url.startswith('https://'):
                 path = _server_url + path
+        if base_url is not None:
+            if base_url.startswith('http://') or base_url.startswith('https://'):
+                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -853,6 +908,7 @@ class PetApi(BaseApi):
     async def get_pet_passport(
         self,
         pet_id: int,
+        base_url: Optional[str] = None,
     ) -> PetPassport:
         """Get the pet&#39;s passport
         Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
@@ -864,13 +920,14 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        result = await self.get_pet_passport_with_http_info(pet_id)
+        result = await self.get_pet_passport_with_http_info(pet_id, base_url=base_url)
         assert result.data is not None
         return result.data
 
     async def get_pet_passport_with_http_info(
         self,
         pet_id: int,
+        base_url: Optional[str] = None,
     ) -> 'ApiResult[PetPassport]':
         """Get the pet&#39;s passport (with HTTP info)
         Returns a single JSON document combining the pet&#39;s profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
@@ -890,6 +947,9 @@ class PetApi(BaseApi):
                 safe="/;,=.~:!$&'()*+@",
             ),
         )
+        if base_url is not None:
+            if base_url.startswith('http://') or base_url.startswith('https://'):
+                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -910,6 +970,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         photo_id: int,
+        base_url: Optional[str] = None,
     ) -> bytes:
         """Get a photo or its metadata
         Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
@@ -925,7 +986,7 @@ class PetApi(BaseApi):
         if photo_id is None:
             raise ValueError("Missing the required parameter 'photo_id'")
 
-        result = await self.get_pet_photo_with_http_info(pet_id, photo_id)
+        result = await self.get_pet_photo_with_http_info(pet_id, photo_id, base_url=base_url)
         assert result.data is not None
         return result.data
 
@@ -933,6 +994,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         photo_id: int,
+        base_url: Optional[str] = None,
     ) -> 'ApiResult[bytes]':
         """Get a photo or its metadata (with HTTP info)
         Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
@@ -963,6 +1025,9 @@ class PetApi(BaseApi):
                 safe="/;,=.~:!$&'()*+@",
             ),
         )
+        if base_url is not None:
+            if base_url.startswith('http://') or base_url.startswith('https://'):
+                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -984,6 +1049,7 @@ class PetApi(BaseApi):
         pet_id: int,
         tag_name: str,
         options: Optional[GetPetTagOptions] = None,
+        base_url: Optional[str] = None,
     ) -> Pet:
         """Get a tag for a pet
         :param pet_id:  (required)
@@ -1000,7 +1066,7 @@ class PetApi(BaseApi):
         if tag_name is None:
             raise ValueError("Missing the required parameter 'tag_name'")
 
-        result = await self.get_pet_tag_with_http_info(pet_id, tag_name, options)
+        result = await self.get_pet_tag_with_http_info(pet_id, tag_name, options, base_url=base_url)
         assert result.data is not None
         return result.data
 
@@ -1009,6 +1075,7 @@ class PetApi(BaseApi):
         pet_id: int,
         tag_name: str,
         options: Optional[GetPetTagOptions] = None,
+        base_url: Optional[str] = None,
     ) -> 'ApiResult[Pet]':
         """Get a tag for a pet (with HTTP info)
         :param pet_id:  (required)
@@ -1040,6 +1107,9 @@ class PetApi(BaseApi):
                 safe="/;,=.~:!$&'()*+@",
             ),
         )
+        if base_url is not None:
+            if base_url.startswith('http://') or base_url.startswith('https://'):
+                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         if options is not None and options.colors is not None:
             query_params['colors'] = ValueSerializer.serialize_styled(
@@ -1075,6 +1145,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         server: Optional['GetStagingPetInfoServer'] = None,
+        base_url: Optional[str] = None,
     ) -> Pet:
         """Get staging pet info
         :param pet_id:  (required)
@@ -1085,7 +1156,7 @@ class PetApi(BaseApi):
         if pet_id is None:
             raise ValueError("Missing the required parameter 'pet_id'")
 
-        result = await self.get_staging_pet_info_with_http_info(pet_id, server=server)
+        result = await self.get_staging_pet_info_with_http_info(pet_id, server=server, base_url=base_url)
         assert result.data is not None
         return result.data
 
@@ -1093,6 +1164,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         server: Optional['GetStagingPetInfoServer'] = None,
+        base_url: Optional[str] = None,
     ) -> 'ApiResult[Pet]':
         """Get staging pet info (with HTTP info)
         :param pet_id:  (required)
@@ -1115,6 +1187,9 @@ class PetApi(BaseApi):
             _server_url = server.get_url()
             if _server_url.startswith('http://') or _server_url.startswith('https://'):
                 path = _server_url + path
+        if base_url is not None:
+            if base_url.startswith('http://') or base_url.startswith('https://'):
+                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = None
@@ -1135,6 +1210,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         body: bytes,
+        base_url: Optional[str] = None,
     ) -> None:
         """Set the pet&#39;s profile photo
         Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
@@ -1149,13 +1225,14 @@ class PetApi(BaseApi):
         if body is None:
             raise ValueError("Missing the required parameter 'body'")
 
-        result = await self.set_pet_avatar_with_http_info(pet_id, body)
+        result = await self.set_pet_avatar_with_http_info(pet_id, body, base_url=base_url)
         return result.data
 
     async def set_pet_avatar_with_http_info(
         self,
         pet_id: int,
         body: bytes,
+        base_url: Optional[str] = None,
     ) -> 'ApiResult[None]':
         """Set the pet&#39;s profile photo (with HTTP info)
         Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
@@ -1179,6 +1256,9 @@ class PetApi(BaseApi):
                 safe="/;,=.~:!$&'()*+@",
             ),
         )
+        if base_url is not None:
+            if base_url.startswith('http://') or base_url.startswith('https://'):
+                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = body
@@ -1199,6 +1279,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
+        base_url: Optional[str] = None,
     ) -> None:
         """Set the pet&#39;s avatar thumbnail as base64
         Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
@@ -1213,13 +1294,16 @@ class PetApi(BaseApi):
         if set_pet_avatar_thumbnail_request is None:
             raise ValueError("Missing the required parameter 'set_pet_avatar_thumbnail_request'")
 
-        result = await self.set_pet_avatar_thumbnail_with_http_info(pet_id, set_pet_avatar_thumbnail_request)
+        result = await self.set_pet_avatar_thumbnail_with_http_info(
+            pet_id, set_pet_avatar_thumbnail_request, base_url=base_url
+        )
         return result.data
 
     async def set_pet_avatar_thumbnail_with_http_info(
         self,
         pet_id: int,
         set_pet_avatar_thumbnail_request: SetPetAvatarThumbnailRequest,
+        base_url: Optional[str] = None,
     ) -> 'ApiResult[None]':
         """Set the pet&#39;s avatar thumbnail as base64 (with HTTP info)
         Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
@@ -1243,6 +1327,9 @@ class PetApi(BaseApi):
                 safe="/;,=.~:!$&'()*+@",
             ),
         )
+        if base_url is not None:
+            if base_url.startswith('http://') or base_url.startswith('https://'):
+                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = set_pet_avatar_thumbnail_request
@@ -1263,6 +1350,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         pet: Pet,
+        base_url: Optional[str] = None,
     ) -> Pet:
         """Update an existing pet
         :param pet_id: ID of pet to update (required)
@@ -1277,7 +1365,7 @@ class PetApi(BaseApi):
         if pet is None:
             raise ValueError("Missing the required parameter 'pet'")
 
-        result = await self.update_pet_with_http_info(pet_id, pet)
+        result = await self.update_pet_with_http_info(pet_id, pet, base_url=base_url)
         assert result.data is not None
         return result.data
 
@@ -1285,6 +1373,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         pet: Pet,
+        base_url: Optional[str] = None,
     ) -> 'ApiResult[Pet]':
         """Update an existing pet (with HTTP info)
         :param pet_id: ID of pet to update (required)
@@ -1307,6 +1396,9 @@ class PetApi(BaseApi):
                 safe="/;,=.~:!$&'()*+@",
             ),
         )
+        if base_url is not None:
+            if base_url.startswith('http://') or base_url.startswith('https://'):
+                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body = pet
@@ -1327,6 +1419,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         options: Optional[UploadPetCertificateOptions] = None,
+        base_url: Optional[str] = None,
     ) -> ApiResponse:
         """Upload the pet&#39;s adoption certificate
         Attaches a single adoption certificate document. No metadata fields are required alongside the file.
@@ -1343,7 +1436,7 @@ class PetApi(BaseApi):
         if options is None or options.file is None:
             raise ValueError("Missing the required parameter 'file'")
 
-        result = await self.upload_pet_certificate_with_http_info(pet_id, options)
+        result = await self.upload_pet_certificate_with_http_info(pet_id, options, base_url=base_url)
         assert result.data is not None
         return result.data
 
@@ -1351,6 +1444,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         options: Optional[UploadPetCertificateOptions] = None,
+        base_url: Optional[str] = None,
     ) -> 'ApiResult[ApiResponse]':
         """Upload the pet&#39;s adoption certificate (with HTTP info)
         Attaches a single adoption certificate document. No metadata fields are required alongside the file.
@@ -1375,6 +1469,9 @@ class PetApi(BaseApi):
                 safe="/;,=.~:!$&'()*+@",
             ),
         )
+        if base_url is not None:
+            if base_url.startswith('http://') or base_url.startswith('https://'):
+                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body: Dict[str, Any] = {}
@@ -1397,6 +1494,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         options: Optional[UploadPetDocumentOptions] = None,
+        base_url: Optional[str] = None,
     ) -> ApiResponse:
         """Attach a vet document or health record
         Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
@@ -1413,7 +1511,7 @@ class PetApi(BaseApi):
         if options is None or options.file is None:
             raise ValueError("Missing the required parameter 'file'")
 
-        result = await self.upload_pet_document_with_http_info(pet_id, options)
+        result = await self.upload_pet_document_with_http_info(pet_id, options, base_url=base_url)
         assert result.data is not None
         return result.data
 
@@ -1421,6 +1519,7 @@ class PetApi(BaseApi):
         self,
         pet_id: int,
         options: Optional[UploadPetDocumentOptions] = None,
+        base_url: Optional[str] = None,
     ) -> 'ApiResult[ApiResponse]':
         """Attach a vet document or health record (with HTTP info)
         Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
@@ -1445,6 +1544,9 @@ class PetApi(BaseApi):
                 safe="/;,=.~:!$&'()*+@",
             ),
         )
+        if base_url is not None:
+            if base_url.startswith('http://') or base_url.startswith('https://'):
+                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
         header_params: Dict[str, str] = {}
         body: Dict[str, Any] = {}

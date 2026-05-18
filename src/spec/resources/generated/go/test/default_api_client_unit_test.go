@@ -386,3 +386,63 @@ func TestDefaultApiClient_JoinsMultiValueResponseHeaders(t *testing.T) {
 		t.Errorf("expected X-Custom-Value to contain val1, got %q", found)
 	}
 }
+
+// ── Charset decoding ──
+
+func TestDefaultApiClient_DecodesIso88591ResponseBody(t *testing.T) {
+	/* 0xE9 is "é" in ISO-8859-1; under naive UTF-8 string conversion it
+	 * would be lost or replaced. The client must honour the charset
+	 * parameter on Content-Type so the body decodes correctly. */
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=ISO-8859-1")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte{0xE9})
+	}))
+	defer server.Close()
+
+	client := petstore.NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("GET", server.URL+"/latin1", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Body != "é" {
+		t.Errorf("expected ISO-8859-1 body to decode to \"é\", got %q", resp.Body)
+	}
+}
+
+func TestDefaultApiClient_DefaultsToUtf8WhenCharsetMissing(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("héllo"))
+	}))
+	defer server.Close()
+
+	client := petstore.NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("GET", server.URL+"/no-charset", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Body != "héllo" {
+		t.Errorf("expected UTF-8 default to preserve body, got %q", resp.Body)
+	}
+}
+
+func TestDefaultApiClient_FallsBackToUtf8ForUnknownCharset(t *testing.T) {
+	/* Unknown charset must not panic and must fall back to UTF-8. */
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=x-unknown-charset-9000")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("hello"))
+	}))
+	defer server.Close()
+
+	client := petstore.NewDefaultApiClient(nil)
+	resp, err := client.SendRequest("GET", server.URL+"/unknown", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.Body != "hello" {
+		t.Errorf("expected unknown charset to fall back to UTF-8, got %q", resp.Body)
+	}
+}

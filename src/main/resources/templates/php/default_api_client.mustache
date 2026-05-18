@@ -123,10 +123,21 @@ class DefaultApiClient implements ApiClient
                             'application/json'
                         );
                     } elseif ($v instanceof \SplFileObject) {
-                        $parts[] = DataPart::fromPath($v->getRealPath());
+                        $path = $v->getRealPath();
+                        $filename = $v->getFilename();
+                        $mime = $this->guessMimeType($path !== false ? $path : null, $filename);
+                        $parts[] = DataPart::fromPath(
+                            $path !== false ? $path : $v->getPathname(),
+                            $filename,
+                            $mime
+                        );
                     } elseif (is_resource($v)) {
                         try {
-                            $parts[] = new DataPart(stream_get_contents($v));
+                            $parts[] = new DataPart(
+                                stream_get_contents($v),
+                                null,
+                                'application/octet-stream'
+                            );
                         } finally {
                             fclose($v);
                         }
@@ -174,6 +185,8 @@ class DefaultApiClient implements ApiClient
             $contentType = $rawHeaders['content-type'][0] ?? '';
             if (!$this->isTextContentType($contentType)) {
                 $responseBody = base64_encode($responseBody);
+            } else {
+                $responseBody = $this->decodeTextBody($responseBody, $contentType);
             }
 
             return new ApiResponse(
@@ -213,6 +226,169 @@ class DefaultApiClient implements ApiClient
         ], true)
             || str_ends_with($mediaType, '+json')
             || str_ends_with($mediaType, '+xml');
+    }
+
+    /**
+     * Guess the MIME type for a multipart file part based on its filename
+     * extension, falling back to filesystem detection and finally to
+     * application/octet-stream.
+     *
+     * Uses Symfony Mime's {@see \Symfony\Component\Mime\MimeTypes} when
+     * available, then a small hardcoded extension map, then PHP's built-in
+     * {@see mime_content_type()} on the actual file path.
+     *
+     * @param string|null $path     optional absolute path to the file on disk
+     * @param string|null $filename original filename (used for extension lookup)
+     * @return string the detected MIME type
+     */
+    private function guessMimeType(?string $path, ?string $filename): string
+    {
+        $extensionMap = [
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'svg' => 'image/svg+xml',
+            'bmp' => 'image/bmp',
+            'pdf' => 'application/pdf',
+            'json' => 'application/json',
+            'xml' => 'application/xml',
+            'zip' => 'application/zip',
+            'gz' => 'application/gzip',
+            'tar' => 'application/x-tar',
+            'txt' => 'text/plain',
+            'csv' => 'text/csv',
+            'html' => 'text/html',
+            'htm' => 'text/html',
+            'css' => 'text/css',
+            'js' => 'application/javascript',
+            'mp3' => 'audio/mpeg',
+            'mp4' => 'video/mp4',
+            'wav' => 'audio/wav',
+            'ogg' => 'audio/ogg',
+            'webm' => 'video/webm',
+        ];
+
+        $extension = null;
+        if ($filename !== null && $filename !== '') {
+            $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+        }
+        if (($extension === null || $extension === '') && $path !== null && $path !== '') {
+            $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        }
+
+        if (
+            class_exists(\Symfony\Component\Mime\MimeTypes::class)
+            && $extension !== null
+            && $extension !== ''
+        ) {
+            $guessed = \Symfony\Component\Mime\MimeTypes::getDefault()->getMimeTypes($extension);
+            if ($guessed !== []) {
+                return $guessed[0];
+            }
+        }
+
+        if ($extension !== null && isset($extensionMap[$extension])) {
+            return $extensionMap[$extension];
+        }
+
+        if (
+            $path !== null
+            && $path !== ''
+            && function_exists('mime_content_type')
+            && is_file($path)
+        ) {
+            $detected = @mime_content_type($path);
+            if (is_string($detected) && $detected !== '') {
+                return $detected;
+            }
+        }
+
+        return 'application/octet-stream';
+    }
+
+    /**
+     * Decode a text response body to UTF-8 using the charset declared in the
+     * Content-Type header, falling back to UTF-8 when the charset is absent
+     * or unknown.
+     *
+     * Applies to both successful and error response bodies, since both flow
+     * through this method via {@see sendRequest()}.
+     *
+     * @param string $body        the raw response body bytes
+     * @param string $contentType the Content-Type header value
+     * @return string the body re-encoded as UTF-8
+     */
+    private function decodeTextBody(string $body, string $contentType): string
+    {
+        if ($body === '') {
+            return $body;
+        }
+
+        $charset = $this->extractCharset($contentType);
+        if ($charset === null || strcasecmp($charset, 'utf-8') === 0 || strcasecmp($charset, 'utf8') === 0) {
+            return $body;
+        }
+
+        if (!function_exists('mb_convert_encoding')) {
+            return $body;
+        }
+
+        $encodings = mb_list_encodings();
+        $known = false;
+        foreach ($encodings as $supported) {
+            if (strcasecmp($supported, $charset) === 0) {
+                $known = true;
+                break;
+            }
+        }
+        if (!$known) {
+            try {
+                $aliases = mb_encoding_aliases($charset);
+            } catch (\ValueError) {
+                $aliases = [];
+            }
+            foreach ($aliases as $alias) {
+                if (in_array(strtolower($alias), array_map('strtolower', $encodings), true)) {
+                    $known = true;
+                    break;
+                }
+            }
+        }
+        if (!$known) {
+            return $body;
+        }
+
+        $converted = @mb_convert_encoding($body, 'UTF-8', $charset);
+
+        return is_string($converted) ? $converted : $body;
+    }
+
+    /**
+     * Extract the charset parameter from a Content-Type header value.
+     *
+     * @param string $contentType the Content-Type header value
+     * @return string|null the charset value, or null if none was declared
+     */
+    private function extractCharset(string $contentType): ?string
+    {
+        if ($contentType === '') {
+            return null;
+        }
+        $parts = explode(';', $contentType);
+        array_shift($parts);
+        foreach ($parts as $part) {
+            $kv = explode('=', $part, 2);
+            if (count($kv) !== 2) {
+                continue;
+            }
+            if (strcasecmp(trim($kv[0]), 'charset') === 0) {
+                return trim($kv[1], " \t\"'");
+            }
+        }
+
+        return null;
     }
 
     /**

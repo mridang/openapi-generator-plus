@@ -11,6 +11,16 @@ use {{invokerPackage}}\ApiException;
  * honour the same transport configuration (proxy, TLS, timeouts) as regular
  * API calls.
  *
+ * Concurrency: this class is single-process safe only. Within a single PHP
+ * process (which is single-threaded by default), token caching and refresh
+ * are inherently serialized. Across multiple concurrent processes (e.g.
+ * PHP-FPM workers handling parallel requests, or CLI processes started in
+ * parallel), each process maintains its own in-memory token cache and may
+ * issue its own refresh request against the OP. Coordinating refresh across
+ * processes requires external lock infrastructure (e.g. Redis, APCu, a
+ * filesystem lock, or a database row lock) and is intentionally out of
+ * scope for this generated client.
+ *
  * @category Class
  * @package  {{invokerPackage}}
  */

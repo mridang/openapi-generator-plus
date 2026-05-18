@@ -54,10 +54,9 @@ module PetstoreClient
         is_multipart = content_type == 'multipart/form-data'
         selected = @header_selector.select_headers(accepts, content_type || '', is_multipart)
         # @type var headers: Hash[String, String]
-        headers = {}
+        headers = @config.default_headers.dup
         headers['Accept'] = selected['Accept'] if selected['Accept']
         headers['Content-Type'] = selected['Content-Type'] if selected['Content-Type']
-        headers.merge!(@config.default_headers)
         headers.merge!(header_params)
         headers.merge!(effective_auth.auth_headers) if effective_auth
         cookies = effective_auth&.cookie_params || {}

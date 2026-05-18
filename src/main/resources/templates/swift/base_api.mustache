@@ -95,7 +95,7 @@ open class BaseApi {
         if params.contentType == "multipart/form-data", let formFields = params.body as? [String: Any] {
             let boundary = UUID().uuidString
             headers["Content-Type"] = "multipart/form-data; boundary=\(boundary)"
-            serializedBody = Self.buildMultipartBody(formFields, boundary: boundary)
+            serializedBody = try Self.buildMultipartBody(formFields, boundary: boundary)
         } else {
             serializedBody = try Self.serializeBody(params.body, contentType: params.contentType)
         }
@@ -221,43 +221,131 @@ open class BaseApi {
     ///   - formFields: dictionary mapping field names to values
     ///   - boundary: the multipart boundary string
     /// - Returns: the assembled multipart body as `Data`
-    static func buildMultipartBody(_ formFields: [String: Any], boundary: String) -> Data {
+    static func buildMultipartBody(_ formFields: [String: Any], boundary: String) throws -> Data {
         var body = Data()
 
         for (name, value) in formFields {
             if let list = value as? [Any] {
                 for item in list {
-                    appendMultipartField(&body, boundary: boundary, name: name, value: item)
+                    try appendMultipartField(&body, boundary: boundary, name: name, value: item)
                 }
             } else {
-                appendMultipartField(&body, boundary: boundary, name: name, value: value)
+                try appendMultipartField(&body, boundary: boundary, name: name, value: value)
             }
         }
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
         return body
     }
 
-    private static func appendMultipartField(_ body: inout Data, boundary: String, name: String, value: Any) {
+    private static func appendMultipartField(_ body: inout Data, boundary: String, name: String, value: Any) throws {
+        let safeName = try sanitizeQuotedHeaderValue(name)
+
         if let fileURL = value as? URL {
             let fileName = fileURL.lastPathComponent
             let fileData = (try? Data(contentsOf: fileURL)) ?? Data()
-            let mimeType = "application/octet-stream"
-            body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"; filename=\"\(fileName)\"\r\nContent-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+            let mimeType = mimeTypeForFilename(fileName)
+            let disposition = try buildContentDisposition(name: safeName, filename: fileName)
+            body.append("--\(boundary)\r\n\(disposition)\r\nContent-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
             body.append(fileData)
             body.append("\r\n".data(using: .utf8)!)
         } else if let data = value as? Data {
-            body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"; filename=\"\(name)\"\r\nContent-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
+            let mimeType = mimeTypeForFilename(name)
+            let disposition = try buildContentDisposition(name: safeName, filename: name)
+            body.append("--\(boundary)\r\n\(disposition)\r\nContent-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
             body.append(data)
             body.append("\r\n".data(using: .utf8)!)
         } else if value is String || value is Int || value is Double || value is Bool {
-            body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n\(value)\r\n".data(using: .utf8)!)
+            body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\n\r\n\(value)\r\n".data(using: .utf8)!)
         } else {
             /* Model objects -- serialize to JSON */
             if let jsonString = try? ObjectSerializer.serialize(value) {
-                body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\nContent-Type: application/json\r\n\r\n\(jsonString)\r\n".data(using: .utf8)!)
+                body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\nContent-Type: application/json\r\n\r\n\(jsonString)\r\n".data(using: .utf8)!)
             } else {
-                body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n\(value)\r\n".data(using: .utf8)!)
+                body.append("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(safeName)\"\r\n\r\n\(value)\r\n".data(using: .utf8)!)
             }
+        }
+    }
+
+    /// Validates and escapes a value destined for a quoted multipart header.
+    ///
+    /// Throws ``URLError/badURL`` if the value contains CR, LF, or NUL (header
+    /// injection risk); otherwise backslash-escapes `\` and `"`.
+    static func sanitizeQuotedHeaderValue(_ value: String) throws -> String {
+        for scalar in value.unicodeScalars {
+            if scalar == "\r" || scalar == "\n" || scalar.value == 0 {
+                throw URLError(.badURL)
+            }
+        }
+        var escaped = ""
+        escaped.reserveCapacity(value.count)
+        for ch in value {
+            if ch == "\\" || ch == "\"" {
+                escaped.append("\\")
+            }
+            escaped.append(ch)
+        }
+        return escaped
+    }
+
+    /// Builds a `Content-Disposition` header value for a file part.
+    ///
+    /// Emits an ASCII-safe `filename="..."` (with non-ASCII chars replaced by `_`)
+    /// and, when the original filename contains non-ASCII codepoints, an additional
+    /// RFC 5987 `filename*=UTF-8''<percent-encoded>` parameter.
+    static func buildContentDisposition(name: String, filename: String) throws -> String {
+        let safeFilename = try sanitizeQuotedHeaderValue(filename)
+        let isAscii = filename.unicodeScalars.allSatisfy { $0.isASCII }
+        if isAscii {
+            return "Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(safeFilename)\""
+        }
+        var asciiFallback = ""
+        for scalar in filename.unicodeScalars {
+            if scalar.isASCII {
+                asciiFallback.unicodeScalars.append(scalar)
+            } else {
+                asciiFallback.append("_")
+            }
+        }
+        let asciiSafe = try sanitizeQuotedHeaderValue(asciiFallback)
+        var allowed = CharacterSet.alphanumerics
+        allowed.insert(charactersIn: "!#$&+-.^_`|~")
+        let encoded = filename.addingPercentEncoding(withAllowedCharacters: allowed) ?? asciiSafe
+        return "Content-Disposition: form-data; name=\"\(name)\"; filename=\"\(asciiSafe)\"; filename*=UTF-8''\(encoded)"
+    }
+
+    /// Returns a MIME type for the file based on its extension, or
+    /// `application/octet-stream` if no mapping is known.
+    static func mimeTypeForFilename(_ filename: String) -> String {
+        guard let dotIndex = filename.lastIndex(of: ".") else {
+            return "application/octet-stream"
+        }
+        let ext = String(filename[filename.index(after: dotIndex)...]).lowercased()
+        switch ext {
+        case "png": return "image/png"
+        case "jpg", "jpeg": return "image/jpeg"
+        case "gif": return "image/gif"
+        case "webp": return "image/webp"
+        case "svg": return "image/svg+xml"
+        case "bmp": return "image/bmp"
+        case "tiff", "tif": return "image/tiff"
+        case "ico": return "image/x-icon"
+        case "pdf": return "application/pdf"
+        case "json": return "application/json"
+        case "xml": return "application/xml"
+        case "zip": return "application/zip"
+        case "gz", "gzip": return "application/gzip"
+        case "tar": return "application/x-tar"
+        case "txt": return "text/plain"
+        case "csv": return "text/csv"
+        case "html", "htm": return "text/html"
+        case "css": return "text/css"
+        case "js": return "application/javascript"
+        case "mp4": return "video/mp4"
+        case "mp3": return "audio/mpeg"
+        case "wav": return "audio/wav"
+        case "ogg": return "audio/ogg"
+        case "webm": return "video/webm"
+        default: return "application/octet-stream"
         }
     }
 

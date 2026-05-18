@@ -10,6 +10,7 @@ package com.example.petstore
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.mock.toByteArray
 import io.ktor.http.Headers
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
@@ -333,6 +334,64 @@ class DefaultApiClientUnitTest {
             }
             assertEquals(200, response!!.statusCode)
             assertTrue(response!!.body.contains("vendor"))
+        }
+
+        @Test
+        @DisplayName("decodes response body with charset from Content-Type")
+        fun decodesResponseBodyWithDeclaredCharset() {
+            // 0xE9 is "é" in ISO-8859-1; in UTF-8 it would be a replacement char or mojibake.
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = byteArrayOf(0xE9.toByte()),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "text/plain; charset=ISO-8859-1"),
+                    )
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine))
+            val response =
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://localhost/latin1", emptyMap(), null)
+                }
+            assertEquals("é", response.body, "ISO-8859-1 body must decode using the declared charset")
+        }
+
+        @Test
+        @DisplayName("defaults to UTF-8 when Content-Type has no charset")
+        fun defaultsToUtf8WhenNoCharset() {
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "héllo".toByteArray(Charsets.UTF_8),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "text/plain"),
+                    )
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine))
+            val response =
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://localhost/no-charset", emptyMap(), null)
+                }
+            assertEquals("héllo", response.body)
+        }
+
+        @Test
+        @DisplayName("falls back to UTF-8 for unknown charset without throwing")
+        fun fallsBackToUtf8ForUnknownCharset() {
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = "hello".toByteArray(Charsets.UTF_8),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "text/plain; charset=not-a-real-charset"),
+                    )
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine))
+            val response =
+                runBlocking {
+                    apiClient.sendRequest("GET", "http://localhost/unknown-charset", emptyMap(), null)
+                }
+            assertEquals("hello", response.body, "unknown charset must fall back to UTF-8, never throw")
         }
 
         @Test

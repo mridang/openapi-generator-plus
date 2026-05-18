@@ -94,7 +94,7 @@ defmodule {{moduleName}}.DefaultApiClient do
 
     response_body =
       if is_text_content_type(content_type) do
-        body_binary
+        decode_text_body(body_binary, content_type)
       else
         Base.encode64(body_binary)
       end
@@ -105,6 +105,96 @@ defmodule {{moduleName}}.DefaultApiClient do
       headers: headers
     }
   end
+
+  @doc """
+  Decode a response body to a binary string honouring the `charset` directive
+  parsed from the `Content-Type` header. Defaults to UTF-8 when no charset is
+  provided. Falls back to the raw bytes (treated as UTF-8) when the charset is
+  unknown or conversion fails -- never raises.
+
+  This is exposed for use by error-body decoding paths as well.
+  """
+  @spec decode_text_body(binary(), String.t()) :: binary()
+  def decode_text_body(body, content_type) when is_binary(body) do
+    charset = parse_charset(content_type)
+
+    case charset do
+      nil ->
+        body
+
+      "utf-8" ->
+        body
+
+      "utf8" ->
+        body
+
+      "us-ascii" ->
+        body
+
+      "ascii" ->
+        body
+
+      other ->
+        encoding = charset_to_atom(other)
+
+        case encoding do
+          nil ->
+            body
+
+          atom ->
+            try do
+              case :unicode.characters_to_binary(body, atom, :utf8) do
+                result when is_binary(result) -> result
+                _ -> body
+              end
+            rescue
+              _ -> body
+            catch
+              _, _ -> body
+            end
+        end
+    end
+  end
+
+  def decode_text_body(body, _content_type), do: body
+
+  defp parse_charset(content_type) when is_binary(content_type) do
+    content_type
+    |> String.split(";")
+    |> Enum.drop(1)
+    |> Enum.map(&String.trim/1)
+    |> Enum.find_value(fn part ->
+      case String.split(part, "=", parts: 2) do
+        [k, v] ->
+          if String.downcase(String.trim(k)) == "charset" do
+            v
+            |> String.trim()
+            |> String.trim("\"")
+            |> String.downcase()
+          else
+            nil
+          end
+
+        _ ->
+          nil
+      end
+    end)
+  end
+
+  defp parse_charset(_), do: nil
+
+  defp charset_to_atom("iso-8859-1"), do: :latin1
+  defp charset_to_atom("latin1"), do: :latin1
+  defp charset_to_atom("latin-1"), do: :latin1
+  defp charset_to_atom("utf-16"), do: :utf16
+  defp charset_to_atom("utf16"), do: :utf16
+  defp charset_to_atom("utf-16le"), do: {:utf16, :little}
+  defp charset_to_atom("utf-16be"), do: {:utf16, :big}
+  defp charset_to_atom("utf-32"), do: :utf32
+  defp charset_to_atom("utf32"), do: :utf32
+  defp charset_to_atom("utf-32le"), do: {:utf32, :little}
+  defp charset_to_atom("utf-32be"), do: {:utf32, :big}
+  defp charset_to_atom(_), do: nil
 
   @doc false
   def send_request(method, url, headers, body) do
@@ -220,6 +310,14 @@ defmodule {{moduleName}}.DefaultApiClient do
     Enum.join(parts) <> "--#{boundary}--\r\n"
   end
 
+  defp multipart_part(name, {:file, filename, content}, boundary) do
+    multipart_file_part(name, filename, content, nil, boundary)
+  end
+
+  defp multipart_part(name, {:file, filename, content, content_type}, boundary) do
+    multipart_file_part(name, filename, content, content_type, boundary)
+  end
+
   defp multipart_part(name, value, boundary) when is_binary(value) do
     "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{name}\"\r\n\r\n#{value}\r\n"
   end
@@ -234,6 +332,78 @@ defmodule {{moduleName}}.DefaultApiClient do
   defp multipart_part(name, value, boundary) do
     "--#{boundary}\r\nContent-Disposition: form-data; name=\"#{name}\"\r\n\r\n#{to_string(value)}\r\n"
   end
+
+  defp multipart_file_part(name, filename, content, content_type, boundary) do
+    disposition = build_content_disposition(name, filename)
+    ct = content_type || guess_mime_type(filename)
+
+    "--#{boundary}\r\n#{disposition}\r\n" <>
+      "Content-Type: #{ct}\r\n\r\n#{content}\r\n"
+  end
+
+  @doc """
+  Build a sanitized `Content-Disposition` header for a multipart file part.
+
+  Validates the filename to prevent header injection (CRLF/NUL) and escapes
+  `"` and `\\` inside the quoted ASCII fallback. When the filename contains
+  non-ASCII characters, emits an RFC 5987 `filename*=UTF-8''<percent-encoded>`
+  parameter alongside the sanitized ASCII `filename=` fallback.
+
+  Raises `ArgumentError` when the filename contains `\\r`, `\\n`, or NUL.
+  """
+  @spec build_content_disposition(String.t(), String.t()) :: String.t()
+  def build_content_disposition(name, filename) when is_binary(filename) do
+    if String.contains?(filename, ["\r", "\n", <<0>>]) do
+      raise ArgumentError,
+            "multipart filename must not contain CR, LF, or NUL characters (got: #{inspect(filename)})"
+    end
+
+    escaped_name = escape_quoted(to_string(name))
+
+    if ascii?(filename) do
+      "Content-Disposition: form-data; name=\"#{escaped_name}\"; filename=\"#{escape_quoted(filename)}\""
+    else
+      ascii_fallback = filename |> to_ascii_fallback() |> escape_quoted()
+      encoded = URI.encode(filename, &URI.char_unreserved?/1)
+
+      "Content-Disposition: form-data; name=\"#{escaped_name}\"; " <>
+        "filename=\"#{ascii_fallback}\"; filename*=UTF-8''#{encoded}"
+    end
+  end
+
+  defp escape_quoted(value) do
+    value
+    |> String.replace("\\", "\\\\")
+    |> String.replace("\"", "\\\"")
+  end
+
+  defp ascii?(binary) do
+    :binary.bin_to_list(binary) |> Enum.all?(fn b -> b < 128 end)
+  end
+
+  defp to_ascii_fallback(filename) do
+    filename
+    |> :binary.bin_to_list()
+    |> Enum.map(fn
+      b when b < 128 -> b
+      _ -> ?_
+    end)
+    |> :binary.list_to_bin()
+  end
+
+  defp guess_mime_type(filename) when is_binary(filename) do
+    if Code.ensure_loaded?(MIME) and function_exported?(MIME, :from_path, 1) do
+      try do
+        MIME.from_path(filename) || "application/octet-stream"
+      rescue
+        _ -> "application/octet-stream"
+      end
+    else
+      "application/octet-stream"
+    end
+  end
+
+  defp guess_mime_type(_), do: "application/octet-stream"
 
   defp normalize_headers(headers) do
     Enum.reduce(headers, %{}, fn {key, values}, acc ->

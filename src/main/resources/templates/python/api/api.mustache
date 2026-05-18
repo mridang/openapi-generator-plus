@@ -107,6 +107,7 @@ class {{classname}}(BaseApi):
 {{#servers}}{{#-first}}
         server: Optional['{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server'] = None,
 {{/-first}}{{/servers}}
+        base_url: Optional[str] = None,
     ) -> {{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}:
         """{{summary}}
 {{#notes}}
@@ -185,7 +186,7 @@ class {{classname}}(BaseApi):
 
 {{/required}}
 {{/cookieParams}}
-        result = await self.{{operationId}}_with_http_info({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server=server{{/-first}}{{/servers}})
+        result = await self.{{operationId}}_with_http_info({{#hasAuthMethods}}auth{{/hasAuthMethods}}{{#pathParams}}{{#-first}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/-first}}{{^-first}}, {{/-first}}{{paramName}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}{{#bodyParam}}, {{/bodyParam}}{{^bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{^hasPathParams}}{{#hasAuthMethods}}, {{/hasAuthMethods}}{{/hasPathParams}}{{/bodyParam}}options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, server=server{{/-first}}{{/servers}}{{#hasAuthMethods}}, base_url=base_url{{/hasAuthMethods}}{{^hasAuthMethods}}{{#allParams.0}}, base_url=base_url{{/allParams.0}}{{^allParams.0}}{{#servers.0}}, base_url=base_url{{/servers.0}}{{^servers.0}}base_url=base_url{{/servers.0}}{{/allParams.0}}{{/hasAuthMethods}})
 {{#returnType}}
         assert result.data is not None
 {{/returnType}}
@@ -214,6 +215,7 @@ class {{classname}}(BaseApi):
 {{#servers}}{{#-first}}
         server: Optional['{{#lambda.pascalcase}}{{operationId}}{{/lambda.pascalcase}}Server'] = None,
 {{/-first}}{{/servers}}
+        base_url: Optional[str] = None,
     ) -> 'ApiResult[{{#returnType}}{{{returnType}}}{{/returnType}}{{^returnType}}None{{/returnType}}]':
         """{{summary}} (with HTTP info)
 {{#notes}}
@@ -292,6 +294,9 @@ class {{classname}}(BaseApi):
                 path = _server_url + path
 {{/-first}}
 {{/servers}}
+        if base_url is not None:
+            if base_url.startswith('http://') or base_url.startswith('https://'):
+                path = base_url.rstrip('/') + path
         query_params: Dict[str, Any] = {}
 {{#queryParams}}
 {{#isDeepObject}}

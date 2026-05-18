@@ -147,7 +147,7 @@ impl ApiClient for DefaultApiClient {
                 .unwrap_or_default();
             let resp_bytes = response.bytes().await?;
             let resp_body = if is_text_content_type(&content_type) {
-                String::from_utf8_lossy(&resp_bytes).into_owned()
+                decode_text_body(&resp_bytes, &content_type)
             } else {
                 use base64::Engine as _;
                 base64::engine::general_purpose::STANDARD.encode(&resp_bytes)
@@ -202,9 +202,10 @@ fn add_multipart_field(
 ) -> reqwest::multipart::Form {
     match value {
         MultipartValue::Bytes(bytes) => {
+            let mime = mime_for_filename(name);
             let part = reqwest::multipart::Part::bytes(bytes)
                 .file_name(name.to_string())
-                .mime_str("application/octet-stream")
+                .mime_str(mime)
                 .unwrap_or_else(|_| reqwest::multipart::Part::bytes(vec![]));
             form.part(name.to_string(), part)
         }
@@ -217,6 +218,58 @@ fn add_multipart_field(
             f
         }
     }
+}
+
+/// Maps a filename extension to a MIME type. Falls back to
+/// `application/octet-stream` for unknown or missing extensions.
+pub fn mime_for_filename(filename: &str) -> &'static str {
+    let lower = filename.to_lowercase();
+    let ext = match lower.rfind('.') {
+        Some(idx) => &lower[idx + 1..],
+        None => return "application/octet-stream",
+    };
+    match ext {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "pdf" => "application/pdf",
+        "json" => "application/json",
+        "txt" => "text/plain",
+        "html" | "htm" => "text/html",
+        _ => "application/octet-stream",
+    }
+}
+
+/// Parses the `charset=` parameter from a Content-Type header value.
+/// Returns `None` when no charset is present.
+pub fn parse_charset(content_type: &str) -> Option<String> {
+    for part in content_type.split(';').skip(1) {
+        let trimmed = part.trim();
+        if let Some(rest) = trimmed.strip_prefix("charset=") {
+            let value = rest.trim().trim_matches('"');
+            if !value.is_empty() {
+                return Some(value.to_string());
+            }
+        } else if let Some(rest) = trimmed.strip_prefix("CHARSET=") {
+            let value = rest.trim().trim_matches('"');
+            if !value.is_empty() {
+                return Some(value.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Decodes a response body using the charset declared on the Content-Type
+/// header. Falls back to UTF-8 when the charset is absent or unrecognised.
+pub fn decode_text_body(bytes: &[u8], content_type: &str) -> String {
+    if let Some(charset) = parse_charset(content_type) {
+        if let Some(encoding) = encoding_rs::Encoding::for_label(charset.as_bytes()) {
+            let (decoded, _, _) = encoding.decode(bytes);
+            return decoded.into_owned();
+        }
+    }
+    String::from_utf8_lossy(bytes).into_owned()
 }
 
 /// Determines whether the given content type represents text content

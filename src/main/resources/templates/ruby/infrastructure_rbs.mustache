@@ -141,10 +141,14 @@ module {{moduleName}}
     def self.supported_encodings: () -> String
     private
     def text_content_type?: (String) -> bool
+    def decode_text_body: (String, String?) -> String
+    def detect_encoding: (String?) -> Encoding
     def decompress_body: (untyped, untyped) -> untyped
     def build_connection: () -> untyped
     def build_multipart_body: (Hash[String, untyped], String) -> String
     def multipart_part: (String, untyped, String) -> String
+    def build_content_disposition: (String | Symbol, String?) -> String
+    def sniff_part_mime: (String?) -> String
   end
 
   class SerializationError < StandardError
@@ -360,5 +364,11 @@ module {{moduleName}}
       def build_query_string: (Hash[String, untyped]) -> String
       def serialize_body: (untyped, String?) -> untyped
     end
+  end
+end
+
+module MIME
+  class Types
+    def self.type_for: (String) -> Array[untyped]
   end
 end

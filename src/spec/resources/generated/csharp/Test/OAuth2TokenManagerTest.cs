@@ -146,6 +146,63 @@ public class OAuth2TokenManagerTest
     }
 
     [Fact]
+    public async Task ConcurrentCallersTriggerOnlyOneTokenRequest()
+    {
+        // Gap G: single-flight refresh. 10 concurrent callers immediately after
+        // invalidation must result in exactly ONE HTTP call to the token endpoint.
+        var client = new CountingDelayingApiClient(
+            "{\"access_token\":\"tok-concurrent\",\"expires_in\":3600}"
+        );
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var parameters = new Dictionary<string, string> { ["grant_type"] = "client_credentials" };
+        var tokenUrl = new Uri("https://auth.example.com/token");
+
+        Task<string>[] tasks = new Task<string>[10];
+        for (int i = 0; i < tasks.Length; i++)
+        {
+            tasks[i] = manager.GetAccessTokenAsync(tokenUrl, parameters);
+        }
+
+        string[] tokens = await Task.WhenAll(tasks);
+
+        Assert.Equal(1, client.CallCount);
+        foreach (string t in tokens)
+        {
+            Assert.Equal("tok-concurrent", t);
+        }
+    }
+
+    private sealed class CountingDelayingApiClient : IApiClient
+    {
+        private readonly string _body;
+        private int _callCount;
+
+        public CountingDelayingApiClient(string body)
+        {
+            _body = body;
+        }
+
+        public int CallCount => _callCount;
+
+        public async Task<ApiResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            System.Threading.Interlocked.Increment(ref _callCount);
+            // Hold the "in flight" request long enough that all concurrent
+            // callers pile up behind the single-flight lock.
+            await Task.Delay(50).ConfigureAwait(false);
+            return new ApiResponse(200, _body, new Dictionary<string, string>());
+        }
+    }
+
+    [Fact]
     public async Task ThrowsWhenTokenRequestFails()
     {
         var client = new FakeApiClient();

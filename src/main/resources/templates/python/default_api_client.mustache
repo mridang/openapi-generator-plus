@@ -1,10 +1,13 @@
 {{>api_info}}
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 import base64
 import gzip
+import mimetypes
+import re
 import uuid
 import zlib
+from urllib.parse import quote as _url_quote
 
 import urllib3
 
@@ -38,6 +41,69 @@ def _supported_encodings() -> str:
     if _zstandard is not None:
         encodings.append('zstd')
     return ', '.join(encodings)
+
+
+_CHARSET_RE = re.compile(r'charset\s*=\s*"?([^";\s]+)"?', re.IGNORECASE)
+
+
+def _charset_from_content_type(content_type: str) -> Optional[str]:
+    """Extract the charset parameter from a Content-Type header value.
+
+    Returns ``None`` when the header is empty or has no ``charset=`` parameter.
+    """
+    if not content_type:
+        return None
+    match = _CHARSET_RE.search(content_type)
+    if not match:
+        return None
+    return match.group(1).strip()
+
+
+def _decode_with_charset(data: bytes, content_type: str) -> str:
+    """Decode bytes using the charset from a Content-Type header.
+
+    Falls back to UTF-8 when the charset is missing or unknown. Uses
+    ``errors='replace'`` so malformed bytes never raise.
+    """
+    charset = _charset_from_content_type(content_type) or 'utf-8'
+    try:
+        return data.decode(charset, errors='replace')
+    except LookupError:
+        return data.decode('utf-8', errors='replace')
+
+
+def _sanitize_multipart_filename(filename: str) -> Tuple[str, Optional[str]]:
+    """Sanitize a multipart filename for use in a Content-Disposition header.
+
+    Returns a tuple of ``(ascii_fallback, rfc5987_value_or_None)``. The first
+    element is suitable for ``filename="..."`` after backslash-escaping ``"``
+    and ``\\``. The second is suitable for ``filename*=UTF-8''<encoded>`` when
+    the original filename contained non-ASCII characters.
+
+    Raises ``ValueError`` if the filename contains CR, LF, or NUL.
+    """
+    if any(ch in filename for ch in ('\r', '\n', '\x00')):
+        raise ValueError('Multipart filename must not contain CR, LF, or NUL characters')
+    try:
+        filename.encode('ascii')
+        is_ascii = True
+    except UnicodeEncodeError:
+        is_ascii = False
+    if is_ascii:
+        escaped = filename.replace('\\', '\\\\').replace('"', '\\"')
+        return escaped, None
+    ascii_fallback = filename.encode('ascii', errors='replace').decode('ascii')
+    ascii_fallback = ascii_fallback.replace('\\', '\\\\').replace('"', '\\"')
+    rfc5987 = "UTF-8''" + _url_quote(filename, safe='')
+    return ascii_fallback, rfc5987
+
+
+def _guess_content_type(filename: Optional[str]) -> str:
+    """Guess a Content-Type from a filename, defaulting to octet-stream."""
+    if not filename:
+        return 'application/octet-stream'
+    guessed, _ = mimetypes.guess_type(filename)
+    return guessed or 'application/octet-stream'
 
 
 def _is_text_content_type(content_type: str) -> bool:
@@ -182,7 +248,7 @@ class DefaultApiClient:
         content_type = response.headers.get('content-type') or ''
         if decompressed:
             response_body = (
-                decompressed.decode('utf-8')
+                _decode_with_charset(decompressed, content_type)
                 if _is_text_content_type(content_type)
                 else base64.b64encode(decompressed).decode('ascii')
             )
@@ -217,47 +283,122 @@ class DefaultApiClient:
         return b''.join(parts)
 
     @staticmethod
-    def _multipart_part(name: str, value: Any, boundary: str) -> bytes:
+    def _build_disposition(name: str, filename: Optional[str]) -> str:
+        """Build a sanitized Content-Disposition header value for a multipart part."""
+        safe_name, _ = _sanitize_multipart_filename(name)
+        disposition = f'form-data; name="{safe_name}"'
+        if filename is not None:
+            ascii_fallback, rfc5987 = _sanitize_multipart_filename(filename)
+            disposition += f'; filename="{ascii_fallback}"'
+            if rfc5987 is not None:
+                disposition += f"; filename*={rfc5987}"
+        return disposition
+
+    @classmethod
+    def _multipart_part(cls, name: str, value: Any, boundary: str) -> bytes:
         """Build a single MIME part for multipart encoding.
+
+        Accepts strings, bytes, file-like objects, ``(filename, content)`` tuples,
+        and pydantic model instances. The per-part ``Content-Type`` is derived
+        from the filename extension via :mod:`mimetypes`, falling back to
+        ``application/octet-stream``.
 
         Args:
             name: The field name.
-            value: The field value (str, bytes, file-like, or model object).
+            value: The field value (str, bytes, file-like, tuple, or model object).
             boundary: The multipart boundary string.
 
         Returns:
             Encoded MIME part as bytes.
+
+        Raises:
+            ValueError: If the filename contains CR, LF, or NUL characters.
+            TypeError: If a ``str`` is supplied where binary content is expected.
         """
+        # (filename, content) tuples explicitly carry a filename
+        if isinstance(value, tuple) and len(value) == 2:
+            filename, content = value
+            if isinstance(content, str):
+                raise TypeError(
+                    f'multipart part {name!r}: str content with explicit filename is not supported; '
+                    f'pass bytes for binary data'
+                )
+            if hasattr(content, 'read'):
+                try:
+                    read_data = content.read()
+                finally:
+                    if hasattr(content, 'close'):
+                        content.close()
+                if isinstance(read_data, str):
+                    raise TypeError(
+                        f'multipart part {name!r}: file opened in text mode; open with mode="rb"'
+                    )
+                if not isinstance(read_data, bytes):
+                    raise TypeError(
+                        f'multipart part {name!r}: file-like object did not return bytes from read()'
+                    )
+                file_data: bytes = read_data
+            elif isinstance(content, bytes):
+                file_data = content
+            else:
+                raise TypeError(
+                    f'multipart part {name!r}: tuple content must be bytes or a binary file-like object'
+                )
+            disposition = cls._build_disposition(name, filename)
+            content_type = _guess_content_type(filename)
+            header = (
+                f'--{boundary}\r\n'
+                f'Content-Disposition: {disposition}\r\n'
+                f'Content-Type: {content_type}\r\n\r\n'
+            )
+            return header.encode('utf-8') + file_data + b'\r\n'
+
         if hasattr(value, 'read'):
+            filename = getattr(value, 'name', None)
             try:
                 raw_data = value.read()
             finally:
                 if hasattr(value, 'close'):
                     value.close()
-            file_data: bytes = raw_data.encode('utf-8') if isinstance(raw_data, str) else raw_data
+            if isinstance(raw_data, str):
+                # File was opened in text mode; refuse rather than silently
+                # round-tripping arbitrary bytes through UTF-8.
+                raise TypeError(
+                    f'multipart part {name!r}: file opened in text mode; open with mode="rb"'
+                )
+            if not isinstance(raw_data, bytes):
+                raise TypeError(
+                    f'multipart part {name!r}: file-like object did not return bytes from read()'
+                )
+            raw_bytes: bytes = raw_data
+            disposition = cls._build_disposition(name, filename)
+            content_type = _guess_content_type(filename)
             header = (
                 f'--{boundary}\r\n'
-                f'Content-Disposition: form-data; name="{name}"; filename="{name}"\r\n'
-                f'Content-Type: application/octet-stream\r\n\r\n'
+                f'Content-Disposition: {disposition}\r\n'
+                f'Content-Type: {content_type}\r\n\r\n'
             )
-            return header.encode('utf-8') + file_data + b'\r\n'
+            return header.encode('utf-8') + raw_bytes + b'\r\n'
         elif isinstance(value, bytes):
+            disposition = cls._build_disposition(name, None)
             header = (
                 f'--{boundary}\r\n'
-                f'Content-Disposition: form-data; name="{name}"; filename="{name}"\r\n'
+                f'Content-Disposition: {disposition}\r\n'
                 f'Content-Type: application/octet-stream\r\n\r\n'
             )
             return header.encode('utf-8') + value + b'\r\n'
         elif hasattr(value, 'model_dump_json'):
             json_str: str = value.model_dump_json(by_alias=True, exclude_none=True)
+            disposition = cls._build_disposition(name, None)
             header = (
                 f'--{boundary}\r\n'
-                f'Content-Disposition: form-data; name="{name}"\r\n'
+                f'Content-Disposition: {disposition}\r\n'
                 f'Content-Type: application/json\r\n\r\n'
             )
             return header.encode('utf-8') + json_str.encode('utf-8') + b'\r\n'
         else:
-            part = f'--{boundary}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{value}\r\n'
+            disposition = cls._build_disposition(name, None)
+            part = f'--{boundary}\r\nContent-Disposition: {disposition}\r\n\r\n{value}\r\n'
             return part.encode('utf-8')
 
     @staticmethod

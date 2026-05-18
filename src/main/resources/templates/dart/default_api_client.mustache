@@ -7,6 +7,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import 'package:http_parser/http_parser.dart';
+import 'package:mime/mime.dart';
 import 'dart:math';
 
 import 'api_client.dart';
@@ -163,7 +164,7 @@ class DefaultApiClient implements ApiClient {
     final responseBytes = _decompressBytes(rawBytes, contentEncoding);
     final contentType = streamedResponse.headers['content-type'] ?? '';
     final responseBody = _isTextContentType(contentType)
-        ? utf8.decode(responseBytes, allowMalformed: true)
+        ? _encodingFor(contentType).decode(responseBytes)
         : base64Encode(responseBytes);
 
     final responseHeaders = <String, String>{};
@@ -186,10 +187,16 @@ class DefaultApiClient implements ApiClient {
     Object value,
   ) {
     if (value is Uint8List) {
+      final mimeType = lookupMimeType(name) ?? 'application/octet-stream';
+      final parts = mimeType.split('/');
+      final contentType = parts.length == 2
+          ? MediaType(parts[0], parts[1])
+          : MediaType('application', 'octet-stream');
       request.files.add(http.MultipartFile.fromBytes(
         name,
         value,
         filename: name,
+        contentType: contentType,
       ));
     } else if (value is String) {
       request.fields[name] = value;
@@ -244,6 +251,35 @@ class DefaultApiClient implements ApiClient {
   static String _supportedEncodings() {
     final encodings = ['gzip', 'deflate'];
     return encodings.join(', ');
+  }
+
+  /// Returns the [Encoding] indicated by a `charset=` parameter in
+  /// [contentType], defaulting to UTF-8 when absent or unrecognised.
+  ///
+  /// Servers can declare non-UTF-8 response encodings (e.g.
+  /// `text/plain; charset=ISO-8859-1`); hard-coding UTF-8 would mangle
+  /// those bytes. Unknown charsets fall back to UTF-8 rather than
+  /// throwing, so an unfamiliar server header cannot break decoding.
+  static Encoding _encodingFor(String contentType) {
+    if (contentType.isEmpty) return utf8;
+    final match =
+        RegExp(r'charset=([^;]+)', caseSensitive: false).firstMatch(contentType);
+    final cs = match?.group(1)?.trim().toLowerCase();
+    if (cs == null || cs.isEmpty) return utf8;
+    switch (cs) {
+      case 'iso-8859-1':
+      case 'latin1':
+      case 'latin-1':
+        return latin1;
+      case 'us-ascii':
+      case 'ascii':
+        return ascii;
+      case 'utf-8':
+      case 'utf8':
+        return utf8;
+      default:
+        return utf8;
+    }
   }
 
   /// Determines whether the given content type represents text content
