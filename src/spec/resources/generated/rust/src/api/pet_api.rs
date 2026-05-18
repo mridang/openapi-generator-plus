@@ -214,7 +214,7 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "Pet",
-            auth: auth,
+            auth,
         };
 
         self.base.invoke_api_for_result::<Pet>(params).await
@@ -410,7 +410,7 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "PetTreatment",
-            auth: auth,
+            auth,
         };
 
         self.base
@@ -527,7 +527,7 @@ impl PetApi {
             accepts: vec![],
             content_type: "application/json",
             return_type: "",
-            auth: auth,
+            auth,
         };
 
         self.base.invoke_api_for_empty_result(params).await

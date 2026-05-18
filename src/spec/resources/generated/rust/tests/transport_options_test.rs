@@ -213,10 +213,9 @@ fn test_transport_options_builder_produces_independent_instances() {
 // TimeoutConfigTests
 
 #[test]
-fn test_transport_options_timeout_defaults_to_none_timeout_group() {
-    // Default TransportOptions has no timeout set; None means no timeout applied.
+fn test_transport_options_timeout_defaults_to_10_seconds_timeout_group() {
     let opts = TransportOptionsBuilder::new().build();
-    assert!(opts.timeout().is_none(), "expected no timeout by default");
+    assert_eq!(opts.timeout(), Some(10_000), "expected default 10s timeout");
 }
 
 #[test]

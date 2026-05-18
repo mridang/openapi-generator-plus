@@ -396,7 +396,7 @@ impl {{classname}} {
             accepts: vec![{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
             content_type: {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
             return_type: "{{#returnType}}{{{.}}}{{/returnType}}",
-            auth: {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}None{{/hasAuthMethods}},
+            {{#hasAuthMethods}}auth,{{/hasAuthMethods}}{{^hasAuthMethods}}auth: None,{{/hasAuthMethods}}
         };
 
 {{#returnType}}
