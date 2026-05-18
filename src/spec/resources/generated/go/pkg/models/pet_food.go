@@ -9,7 +9,6 @@ package models
 
 import (
 	"encoding/json"
-	"fmt"
 )
 
 // PetFood Food for pets, discriminated by foodType

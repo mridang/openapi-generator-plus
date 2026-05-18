@@ -27,7 +27,7 @@ var (
 	Server0 = &ServerConfiguration{
 		URLTemplate: "/api/v3",
 		Description: "Relative URL (no variables)",
-		Variables: map[string]ServerVariable{},
+		Variables:   map[string]ServerVariable{},
 	}
 
 	/* Server1 is the server configuration for: https://{environment}.example.com/api/{version}
@@ -39,16 +39,15 @@ var (
 			"environment": {
 				DefaultValue: "api",
 				Description:  "API environment",
-				EnumValues:   []string{ "api", "staging", "sandbox" },
+				EnumValues:   []string{"api", "staging", "sandbox"},
 			},
 			"version": {
 				DefaultValue: "v3",
 				Description:  "API version",
-				EnumValues:   []string{ "v2", "v3" },
+				EnumValues:   []string{"v2", "v3"},
 			},
 		},
 	}
-
 )
 
 // AllServers contains all server configurations in declaration order.

@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"petstore/pkg"
+	petstore "petstore/pkg"
 	"petstore/pkg/models"
 )
 

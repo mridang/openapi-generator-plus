@@ -72,7 +72,7 @@ defmodule PetstoreClient.ObjectSerializer do
   def stringify(false), do: "false"
 
   def stringify(%DateTime{} = dt) do
-    Calendar.strftime(dt, "%Y-%m-%dT%H:%M:%S%:z")
+    DateTime.to_iso8601(dt)
   end
 
   def stringify(%NaiveDateTime{} = dt) do
@@ -149,7 +149,7 @@ defmodule PetstoreClient.ObjectSerializer do
   end
 
   def sanitize_for_serialization(%Date{} = d), do: Date.to_iso8601(d)
-  def sanitize_for_serialization(%DateTime{} = dt), do: Calendar.strftime(dt, "%Y-%m-%dT%H:%M:%S%:z")
+  def sanitize_for_serialization(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
   def sanitize_for_serialization(%NaiveDateTime{} = dt), do: NaiveDateTime.to_iso8601(dt)
 
   def sanitize_for_serialization(%{__struct__: _module, actual_instance: inner}) do

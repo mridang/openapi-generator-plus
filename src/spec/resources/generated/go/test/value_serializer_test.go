@@ -10,7 +10,7 @@ package petstore_test
 import (
 	"testing"
 
-	"petstore/pkg"
+	petstore "petstore/pkg"
 )
 
 // ── SerializeValue by location ──

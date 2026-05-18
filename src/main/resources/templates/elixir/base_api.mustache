@@ -112,6 +112,7 @@ defmodule {{moduleName}}.Api.BaseApi do
 
     headers = {{moduleName}}.TraceContextUtil.inject_trace_context(headers)
     serialized_body = serialize_body(body, content_type)
+    headers = if is_nil(serialized_body), do: Map.delete(headers, "Content-Type"), else: headers
 
     result =
       try do

@@ -12,10 +12,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	petstore "petstore/pkg"
 	"strings"
 	"testing"
-
-	"petstore/pkg"
 )
 
 func TestDefaultApiClient_InjectsCustomUserAgent(t *testing.T) {

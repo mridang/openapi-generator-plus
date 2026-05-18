@@ -106,7 +106,7 @@ defmodule {{moduleName}}.ValueSerializer do
   # (! $ & ' ( ) * + , ; = : @) while percent-encoding everything else
   # (notably spaces → %20, ? → %3F, # → %23, / → %2F).
   defp encode_path_segment(s) do
-    URI.encode(s, fn c -> URI.char_unescaped?(c) or c in ~c"!$&'()*+,;=:@" end)
+    URI.encode(s, fn c -> URI.char_unreserved?(c) or c in ~c"!$&'()*+,;=:@" end)
   end
 
   defp serialize_nil(:query), do: nil

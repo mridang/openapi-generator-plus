@@ -48,15 +48,15 @@ func NewBaseApi(apiClient ApiClient, config *Configuration, authenticator Authen
 
 // invokeApiParams holds parameters for the invokeApi call.
 type invokeApiParams struct {
-	method      string
-	path        string
-	queryParams map[string]interface{}
+	method       string
+	path         string
+	queryParams  map[string]interface{}
 	headerParams map[string]string
-	body        interface{}
-	accepts     []string
-	contentType string
-	returnType  string
-	auth        Authenticator
+	body         interface{}
+	accepts      []string
+	contentType  string
+	returnType   string
+	auth         Authenticator
 }
 
 // invokeApiForResult dispatches an API request and returns the full result.
