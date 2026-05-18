@@ -37,13 +37,13 @@ class Pet
 
     /** @example null */
     #[SerializedName('category')]
-    public ?\PetstoreClient\Models\Category $category = null;
+    public ?Category $category = null;
 
     /** @var string[] */
     #[SerializedName('photoUrls')]
     public array $photoUrls;
 
-    /** @var \PetstoreClient\Models\Tag[]|null */
+    /** @var Tag[]|null */
     #[SerializedName('tags')]
     public ?array $tags = null;
 
@@ -57,13 +57,13 @@ class Pet
 
     /**
      * @param string[] $photoUrls
-     * @param \PetstoreClient\Models\Tag[]|null $tags
+     * @param Tag[]|null $tags
      */
     public function __construct(
         string $name,
         array $photoUrls,
         ?int $id = null,
-        ?\PetstoreClient\Models\Category $category = null,
+        ?Category $category = null,
         ?array $tags = null,
         ?PetStatusEnum $status = null,
     ) {

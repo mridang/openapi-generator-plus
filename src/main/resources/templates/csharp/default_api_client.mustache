@@ -256,7 +256,13 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         MultipartFormDataContent multipart = new();
         foreach (KeyValuePair<string, object> part in formParts)
         {
-            if (part.Value is System.Collections.IList list)
+            // byte[] and string both implement IList/IEnumerable but must be
+            // treated as single multipart parts, not iterated element-by-element.
+            if (part.Value is byte[] || part.Value is string || part.Value is Stream)
+            {
+                AddMultipartField(multipart, part.Key, part.Value);
+            }
+            else if (part.Value is System.Collections.IList list)
             {
                 foreach (object? item in list)
                 {
