@@ -21,9 +21,9 @@ describe {{moduleName}}::TransportOptions do
     _(opts.proxy).must_be_nil
   end
 
-  it 'timeout defaults to nil' do
+  it 'timeout defaults to 10000ms' do
     opts = {{moduleName}}::TransportOptions.builder.build
-    _(opts.timeout).must_be_nil
+    _(opts.timeout).must_equal 10_000
   end
 
   it 'follow_redirects defaults to true' do
@@ -160,9 +160,14 @@ describe {{moduleName}}::TransportOptions do
 
   # TimeoutConfigTests
 
-  it 'timeout defaults to nil' do
-    # Default TransportOptions has no timeout set; nil means no timeout applied.
+  it 'timeout defaults to 10000ms' do
+    # Default TransportOptions applies a 10-second timeout.
     opts = {{moduleName}}::TransportOptions.builder.build
+    _(opts.timeout).must_equal 10_000
+  end
+
+  it 'timeout can be explicitly set to nil for no timeout' do
+    opts = {{moduleName}}::TransportOptions.builder.timeout(nil).build
     _(opts.timeout).must_be_nil
   end
 

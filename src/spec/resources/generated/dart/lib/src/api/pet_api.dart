@@ -157,22 +157,14 @@ class PetApi extends BaseApi {
   });
 
   /// Add a new pet to the store
-  Future<Pet> addPet(
-    Authenticator auth,
-    Pet pet,
-  ) async {
-    final result = await addPetWithHTTPInfo(
-      auth,
-      pet,
-    );
+  Future<Pet> addPet(Pet pet, {Authenticator? auth}) async {
+    final result = await addPetWithHTTPInfo(pet, auth: auth);
     return result.data as Pet;
   }
 
   /// Performs the addPet operation and returns the full API result.
-  Future<ApiResult<Pet>> addPetWithHTTPInfo(
-    Authenticator auth,
-    Pet pet,
-  ) async {
+  Future<ApiResult<Pet>> addPetWithHTTPInfo(Pet pet,
+      {Authenticator? auth}) async {
     const path = '/pet';
 
     final queryParams = <String, Object?>{};
@@ -197,22 +189,16 @@ class PetApi extends BaseApi {
 
   /// Add photos to the pet's gallery
   /// Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
-  Future<List<Photo>> addPetPhotos(
-    int petId,
-    AddPetPhotosOptions? options,
-  ) async {
-    final result = await addPetPhotosWithHTTPInfo(
-      petId,
-      options,
-    );
+  Future<List<Photo>> addPetPhotos(int petId, AddPetPhotosOptions? options,
+      {Authenticator? auth}) async {
+    final result = await addPetPhotosWithHTTPInfo(petId, options, auth: auth);
     return result.data as List<Photo>;
   }
 
   /// Performs the addPetPhotos operation and returns the full API result.
   Future<ApiResult<List<Photo>>> addPetPhotosWithHTTPInfo(
-    int petId,
-    AddPetPhotosOptions? options,
-  ) async {
+      int petId, AddPetPhotosOptions? options,
+      {Authenticator? auth}) async {
     var path = '/pet/{petId}/photos';
     path = path.replaceAll(
         '{' 'petId' '}',
@@ -242,32 +228,24 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'multipart/form-data',
       returnType: 'List<Photo>',
-      auth: null,
+      auth: auth,
       deserialize: (body) =>
           deserializeList(body, Photo.fromJson) as List<Photo>,
     );
   }
 
   /// Record a treatment for a pet
-  Future<PetTreatment> addPetTreatment(
-    Authenticator auth,
-    int petId,
-    PetTreatment petTreatment,
-  ) async {
-    final result = await addPetTreatmentWithHTTPInfo(
-      auth,
-      petId,
-      petTreatment,
-    );
+  Future<PetTreatment> addPetTreatment(int petId, PetTreatment petTreatment,
+      {Authenticator? auth}) async {
+    final result =
+        await addPetTreatmentWithHTTPInfo(petId, petTreatment, auth: auth);
     return result.data as PetTreatment;
   }
 
   /// Performs the addPetTreatment operation and returns the full API result.
   Future<ApiResult<PetTreatment>> addPetTreatmentWithHTTPInfo(
-    Authenticator auth,
-    int petId,
-    PetTreatment petTreatment,
-  ) async {
+      int petId, PetTreatment petTreatment,
+      {Authenticator? auth}) async {
     var path = '/pet/{petId}/treatment';
     path = path.replaceAll(
         '{' 'petId' '}',
@@ -297,24 +275,15 @@ class PetApi extends BaseApi {
   }
 
   /// Deletes a pet
-  Future<void> deletePet(
-    Authenticator auth,
-    int petId,
-    DeletePetOptions? options,
-  ) async {
-    await deletePetWithHTTPInfo(
-      auth,
-      petId,
-      options,
-    );
+  Future<void> deletePet(int petId, DeletePetOptions? options,
+      {Authenticator? auth}) async {
+    await deletePetWithHTTPInfo(petId, options, auth: auth);
   }
 
   /// Performs the deletePet operation and returns the full API result.
   Future<ApiResult<void>> deletePetWithHTTPInfo(
-    Authenticator auth,
-    int petId,
-    DeletePetOptions? options,
-  ) async {
+      int petId, DeletePetOptions? options,
+      {Authenticator? auth}) async {
     var path = '/pet/{petId}';
     path = path.replaceAll(
         '{' 'petId' '}',
@@ -351,22 +320,17 @@ class PetApi extends BaseApi {
 
   /// Download a vet document
   /// Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
-  Future<List<int>> downloadPetDocument(
-    int petId,
-    int documentId,
-  ) async {
-    final result = await downloadPetDocumentWithHTTPInfo(
-      petId,
-      documentId,
-    );
+  Future<List<int>> downloadPetDocument(int petId, int documentId,
+      {Authenticator? auth}) async {
+    final result =
+        await downloadPetDocumentWithHTTPInfo(petId, documentId, auth: auth);
     return result.data as List<int>;
   }
 
   /// Performs the downloadPetDocument operation and returns the full API result.
   Future<ApiResult<List<int>>> downloadPetDocumentWithHTTPInfo(
-    int petId,
-    int documentId,
-  ) async {
+      int petId, int documentId,
+      {Authenticator? auth}) async {
     var path = '/pet/{petId}/documents/{documentId}';
     path = path.replaceAll(
         '{' 'petId' '}',
@@ -394,26 +358,23 @@ class PetApi extends BaseApi {
       accepts: ['application/octet-stream'],
       contentType: 'application/json',
       returnType: 'List<int>',
-      auth: null,
+      auth: auth,
       deserialize: (body) => deserializeRaw(body) as List<int>,
     );
   }
 
   /// Finds Pets by status
   @Deprecated('This operation is deprecated.')
-  Future<List<Pet>> findPetsByStatus(
-    FindPetsByStatusOptions? options,
-  ) async {
-    final result = await findPetsByStatusWithHTTPInfo(
-      options,
-    );
+  Future<List<Pet>> findPetsByStatus(FindPetsByStatusOptions? options,
+      {Authenticator? auth}) async {
+    final result = await findPetsByStatusWithHTTPInfo(options, auth: auth);
     return result.data as List<Pet>;
   }
 
   /// Performs the findPetsByStatus operation and returns the full API result.
   Future<ApiResult<List<Pet>>> findPetsByStatusWithHTTPInfo(
-    FindPetsByStatusOptions? options,
-  ) async {
+      FindPetsByStatusOptions? options,
+      {Authenticator? auth}) async {
     const path = '/pet/findByStatus';
 
     final queryParams = <String, Object?>{};
@@ -445,28 +406,23 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'List<Pet>',
-      auth: null,
+      auth: auth,
       deserialize: (body) => deserializeList(body, Pet.fromJson) as List<Pet>,
     );
   }
 
   /// Get external pet info
-  Future<Pet> getExternalPetInfo(
-    int petId,
-    GetExternalPetInfoServer? server,
-  ) async {
-    final result = await getExternalPetInfoWithHTTPInfo(
-      petId,
-      server,
-    );
+  Future<Pet> getExternalPetInfo(int petId, GetExternalPetInfoServer? server,
+      {Authenticator? auth}) async {
+    final result =
+        await getExternalPetInfoWithHTTPInfo(petId, server, auth: auth);
     return result.data as Pet;
   }
 
   /// Performs the getExternalPetInfo operation and returns the full API result.
   Future<ApiResult<Pet>> getExternalPetInfoWithHTTPInfo(
-    int petId,
-    GetExternalPetInfoServer? server,
-  ) async {
+      int petId, GetExternalPetInfoServer? server,
+      {Authenticator? auth}) async {
     var path = '/pet/{petId}/external';
     path = path.replaceAll(
         '{' 'petId' '}',
@@ -495,28 +451,24 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Pet',
-      auth: null,
+      auth: auth,
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
   }
 
   /// Get multi-server pet info
   Future<Pet> getMultiServerPetInfo(
-    int petId,
-    GetMultiServerPetInfoServer? server,
-  ) async {
-    final result = await getMultiServerPetInfoWithHTTPInfo(
-      petId,
-      server,
-    );
+      int petId, GetMultiServerPetInfoServer? server,
+      {Authenticator? auth}) async {
+    final result =
+        await getMultiServerPetInfoWithHTTPInfo(petId, server, auth: auth);
     return result.data as Pet;
   }
 
   /// Performs the getMultiServerPetInfo operation and returns the full API result.
   Future<ApiResult<Pet>> getMultiServerPetInfoWithHTTPInfo(
-    int petId,
-    GetMultiServerPetInfoServer? server,
-  ) async {
+      int petId, GetMultiServerPetInfoServer? server,
+      {Authenticator? auth}) async {
     var path = '/pet/{petId}/multi';
     path = path.replaceAll(
         '{' 'petId' '}',
@@ -545,26 +497,21 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Pet',
-      auth: null,
+      auth: auth,
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
   }
 
   /// Get the pet's profile photo
   /// Returns the raw image bytes of the pet's current avatar.
-  Future<List<int>> getPetAvatar(
-    int petId,
-  ) async {
-    final result = await getPetAvatarWithHTTPInfo(
-      petId,
-    );
+  Future<List<int>> getPetAvatar(int petId, {Authenticator? auth}) async {
+    final result = await getPetAvatarWithHTTPInfo(petId, auth: auth);
     return result.data as List<int>;
   }
 
   /// Performs the getPetAvatar operation and returns the full API result.
-  Future<ApiResult<List<int>>> getPetAvatarWithHTTPInfo(
-    int petId,
-  ) async {
+  Future<ApiResult<List<int>>> getPetAvatarWithHTTPInfo(int petId,
+      {Authenticator? auth}) async {
     var path = '/pet/{petId}/avatar';
     path = path.replaceAll(
         '{' 'petId' '}',
@@ -587,26 +534,22 @@ class PetApi extends BaseApi {
       accepts: ['image/jpeg', 'image/png'],
       contentType: 'application/json',
       returnType: 'List<int>',
-      auth: null,
+      auth: auth,
       deserialize: (body) => deserializeRaw(body) as List<int>,
     );
   }
 
   /// Get the pet's avatar thumbnail as base64
   /// Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
-  Future<List<int>> getPetAvatarThumbnail(
-    int petId,
-  ) async {
-    final result = await getPetAvatarThumbnailWithHTTPInfo(
-      petId,
-    );
+  Future<List<int>> getPetAvatarThumbnail(int petId,
+      {Authenticator? auth}) async {
+    final result = await getPetAvatarThumbnailWithHTTPInfo(petId, auth: auth);
     return result.data as List<int>;
   }
 
   /// Performs the getPetAvatarThumbnail operation and returns the full API result.
-  Future<ApiResult<List<int>>> getPetAvatarThumbnailWithHTTPInfo(
-    int petId,
-  ) async {
+  Future<ApiResult<List<int>>> getPetAvatarThumbnailWithHTTPInfo(int petId,
+      {Authenticator? auth}) async {
     var path = '/pet/{petId}/avatar/thumbnail';
     path = path.replaceAll(
         '{' 'petId' '}',
@@ -629,7 +572,7 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'List<int>',
-      auth: null,
+      auth: auth,
       deserialize: (body) => deserializeRaw(body) as List<int>,
     );
   }
@@ -637,22 +580,16 @@ class PetApi extends BaseApi {
   /// Find pet by ID
   /// Returns a single pet
   @Deprecated('This operation is deprecated.')
-  Future<Pet> getPetById(
-    int petId,
-    GetPetByIdServer? server,
-  ) async {
-    final result = await getPetByIdWithHTTPInfo(
-      petId,
-      server,
-    );
+  Future<Pet> getPetById(int petId, GetPetByIdServer? server,
+      {Authenticator? auth}) async {
+    final result = await getPetByIdWithHTTPInfo(petId, server, auth: auth);
     return result.data as Pet;
   }
 
   /// Performs the getPetById operation and returns the full API result.
   Future<ApiResult<Pet>> getPetByIdWithHTTPInfo(
-    int petId,
-    GetPetByIdServer? server,
-  ) async {
+      int petId, GetPetByIdServer? server,
+      {Authenticator? auth}) async {
     var path = '/pet/{petId}';
     path = path.replaceAll(
         '{' 'petId' '}',
@@ -681,26 +618,21 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Pet',
-      auth: null,
+      auth: auth,
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
   }
 
   /// Get the pet's passport
   /// Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
-  Future<PetPassport> getPetPassport(
-    int petId,
-  ) async {
-    final result = await getPetPassportWithHTTPInfo(
-      petId,
-    );
+  Future<PetPassport> getPetPassport(int petId, {Authenticator? auth}) async {
+    final result = await getPetPassportWithHTTPInfo(petId, auth: auth);
     return result.data as PetPassport;
   }
 
   /// Performs the getPetPassport operation and returns the full API result.
-  Future<ApiResult<PetPassport>> getPetPassportWithHTTPInfo(
-    int petId,
-  ) async {
+  Future<ApiResult<PetPassport>> getPetPassportWithHTTPInfo(int petId,
+      {Authenticator? auth}) async {
     var path = '/pet/{petId}/passport';
     path = path.replaceAll(
         '{' 'petId' '}',
@@ -723,7 +655,7 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'PetPassport',
-      auth: null,
+      auth: auth,
       deserialize: (body) =>
           deserialize(body, PetPassport.fromJson) as PetPassport,
     );
@@ -731,22 +663,15 @@ class PetApi extends BaseApi {
 
   /// Get a photo or its metadata
   /// Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
-  Future<List<int>> getPetPhoto(
-    int petId,
-    int photoId,
-  ) async {
-    final result = await getPetPhotoWithHTTPInfo(
-      petId,
-      photoId,
-    );
+  Future<List<int>> getPetPhoto(int petId, int photoId,
+      {Authenticator? auth}) async {
+    final result = await getPetPhotoWithHTTPInfo(petId, photoId, auth: auth);
     return result.data as List<int>;
   }
 
   /// Performs the getPetPhoto operation and returns the full API result.
-  Future<ApiResult<List<int>>> getPetPhotoWithHTTPInfo(
-    int petId,
-    int photoId,
-  ) async {
+  Future<ApiResult<List<int>>> getPetPhotoWithHTTPInfo(int petId, int photoId,
+      {Authenticator? auth}) async {
     var path = '/pet/{petId}/photos/{photoId}';
     path = path.replaceAll(
         '{' 'petId' '}',
@@ -774,31 +699,23 @@ class PetApi extends BaseApi {
       accepts: ['image/jpeg', 'image/png', 'application/json'],
       contentType: 'application/json',
       returnType: 'List<int>',
-      auth: null,
+      auth: auth,
       deserialize: (body) => deserializeRaw(body) as List<int>,
     );
   }
 
   /// Get a tag for a pet
-  Future<Pet> getPetTag(
-    int petId,
-    String tagName,
-    GetPetTagOptions? options,
-  ) async {
-    final result = await getPetTagWithHTTPInfo(
-      petId,
-      tagName,
-      options,
-    );
+  Future<Pet> getPetTag(int petId, String tagName, GetPetTagOptions? options,
+      {Authenticator? auth}) async {
+    final result =
+        await getPetTagWithHTTPInfo(petId, tagName, options, auth: auth);
     return result.data as Pet;
   }
 
   /// Performs the getPetTag operation and returns the full API result.
   Future<ApiResult<Pet>> getPetTagWithHTTPInfo(
-    int petId,
-    String tagName,
-    GetPetTagOptions? options,
-  ) async {
+      int petId, String tagName, GetPetTagOptions? options,
+      {Authenticator? auth}) async {
     var path = '/pet/{petId}/tag/{tagName}';
     path = path.replaceAll(
         '{' 'petId' '}',
@@ -842,28 +759,23 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Pet',
-      auth: null,
+      auth: auth,
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
   }
 
   /// Get staging pet info
-  Future<Pet> getStagingPetInfo(
-    int petId,
-    GetStagingPetInfoServer? server,
-  ) async {
-    final result = await getStagingPetInfoWithHTTPInfo(
-      petId,
-      server,
-    );
+  Future<Pet> getStagingPetInfo(int petId, GetStagingPetInfoServer? server,
+      {Authenticator? auth}) async {
+    final result =
+        await getStagingPetInfoWithHTTPInfo(petId, server, auth: auth);
     return result.data as Pet;
   }
 
   /// Performs the getStagingPetInfo operation and returns the full API result.
   Future<ApiResult<Pet>> getStagingPetInfoWithHTTPInfo(
-    int petId,
-    GetStagingPetInfoServer? server,
-  ) async {
+      int petId, GetStagingPetInfoServer? server,
+      {Authenticator? auth}) async {
     var path = '/pet/{petId}/staging';
     path = path.replaceAll(
         '{' 'petId' '}',
@@ -892,28 +804,21 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Pet',
-      auth: null,
+      auth: auth,
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
   }
 
   /// Set the pet's profile photo
   /// Accepts either raw image bytes (image/jpeg or image/png) or a JSON envelope carrying a base64-encoded image for clients that prefer a JSON-only workflow.
-  Future<void> setPetAvatar(
-    int petId,
-    List<int> body,
-  ) async {
-    await setPetAvatarWithHTTPInfo(
-      petId,
-      body,
-    );
+  Future<void> setPetAvatar(int petId, List<int> body,
+      {Authenticator? auth}) async {
+    await setPetAvatarWithHTTPInfo(petId, body, auth: auth);
   }
 
   /// Performs the setPetAvatar operation and returns the full API result.
-  Future<ApiResult<void>> setPetAvatarWithHTTPInfo(
-    int petId,
-    List<int> body,
-  ) async {
+  Future<ApiResult<void>> setPetAvatarWithHTTPInfo(int petId, List<int> body,
+      {Authenticator? auth}) async {
     var path = '/pet/{petId}/avatar';
     path = path.replaceAll(
         '{' 'petId' '}',
@@ -936,27 +841,23 @@ class PetApi extends BaseApi {
       accepts: [],
       contentType: 'image/jpeg',
       returnType: '',
-      auth: null,
+      auth: auth,
     );
   }
 
   /// Set the pet's avatar thumbnail as base64
   /// Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
   Future<void> setPetAvatarThumbnail(
-    int petId,
-    SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
-  ) async {
-    await setPetAvatarThumbnailWithHTTPInfo(
-      petId,
-      setPetAvatarThumbnailRequest,
-    );
+      int petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
+      {Authenticator? auth}) async {
+    await setPetAvatarThumbnailWithHTTPInfo(petId, setPetAvatarThumbnailRequest,
+        auth: auth);
   }
 
   /// Performs the setPetAvatarThumbnail operation and returns the full API result.
   Future<ApiResult<void>> setPetAvatarThumbnailWithHTTPInfo(
-    int petId,
-    SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
-  ) async {
+      int petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest,
+      {Authenticator? auth}) async {
     var path = '/pet/{petId}/avatar/thumbnail';
     path = path.replaceAll(
         '{' 'petId' '}',
@@ -979,27 +880,19 @@ class PetApi extends BaseApi {
       accepts: [],
       contentType: 'application/json',
       returnType: '',
-      auth: null,
+      auth: auth,
     );
   }
 
   /// Update an existing pet
-  Future<Pet> updatePet(
-    int petId,
-    Pet pet,
-  ) async {
-    final result = await updatePetWithHTTPInfo(
-      petId,
-      pet,
-    );
+  Future<Pet> updatePet(int petId, Pet pet, {Authenticator? auth}) async {
+    final result = await updatePetWithHTTPInfo(petId, pet, auth: auth);
     return result.data as Pet;
   }
 
   /// Performs the updatePet operation and returns the full API result.
-  Future<ApiResult<Pet>> updatePetWithHTTPInfo(
-    int petId,
-    Pet pet,
-  ) async {
+  Future<ApiResult<Pet>> updatePetWithHTTPInfo(int petId, Pet pet,
+      {Authenticator? auth}) async {
     var path = '/pet/{petId}';
     path = path.replaceAll(
         '{' 'petId' '}',
@@ -1022,7 +915,7 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'application/json',
       returnType: 'Pet',
-      auth: null,
+      auth: auth,
       deserialize: (body) => deserialize(body, Pet.fromJson) as Pet,
     );
   }
@@ -1030,21 +923,17 @@ class PetApi extends BaseApi {
   /// Upload the pet's adoption certificate
   /// Attaches a single adoption certificate document. No metadata fields are required alongside the file.
   Future<ApiResponse> uploadPetCertificate(
-    int petId,
-    UploadPetCertificateOptions? options,
-  ) async {
-    final result = await uploadPetCertificateWithHTTPInfo(
-      petId,
-      options,
-    );
+      int petId, UploadPetCertificateOptions? options,
+      {Authenticator? auth}) async {
+    final result =
+        await uploadPetCertificateWithHTTPInfo(petId, options, auth: auth);
     return result.data as ApiResponse;
   }
 
   /// Performs the uploadPetCertificate operation and returns the full API result.
   Future<ApiResult<ApiResponse>> uploadPetCertificateWithHTTPInfo(
-    int petId,
-    UploadPetCertificateOptions? options,
-  ) async {
+      int petId, UploadPetCertificateOptions? options,
+      {Authenticator? auth}) async {
     var path = '/pet/{petId}/certificate';
     path = path.replaceAll(
         '{' 'petId' '}',
@@ -1071,7 +960,7 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'multipart/form-data',
       returnType: 'ApiResponse',
-      auth: null,
+      auth: auth,
       deserialize: (body) =>
           deserialize(body, ApiResponse.fromJson) as ApiResponse,
     );
@@ -1080,21 +969,17 @@ class PetApi extends BaseApi {
   /// Attach a vet document or health record
   /// Accepts either a multipart upload with document classification fields, or a raw octet-stream for server-to-server and CLI clients that prefer to stream bytes directly.
   Future<ApiResponse> uploadPetDocument(
-    int petId,
-    UploadPetDocumentOptions? options,
-  ) async {
-    final result = await uploadPetDocumentWithHTTPInfo(
-      petId,
-      options,
-    );
+      int petId, UploadPetDocumentOptions? options,
+      {Authenticator? auth}) async {
+    final result =
+        await uploadPetDocumentWithHTTPInfo(petId, options, auth: auth);
     return result.data as ApiResponse;
   }
 
   /// Performs the uploadPetDocument operation and returns the full API result.
   Future<ApiResult<ApiResponse>> uploadPetDocumentWithHTTPInfo(
-    int petId,
-    UploadPetDocumentOptions? options,
-  ) async {
+      int petId, UploadPetDocumentOptions? options,
+      {Authenticator? auth}) async {
     var path = '/pet/{petId}/documents';
     path = path.replaceAll(
         '{' 'petId' '}',
@@ -1127,7 +1012,7 @@ class PetApi extends BaseApi {
       accepts: ['application/json'],
       contentType: 'multipart/form-data',
       returnType: 'ApiResponse',
-      auth: null,
+      auth: auth,
       deserialize: (body) =>
           deserialize(body, ApiResponse.fromJson) as ApiResponse,
     );

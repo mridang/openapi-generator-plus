@@ -267,6 +267,26 @@ describe('DefaultApiClient.buildContentDisposition multipart filename safety', (
   });
 });
 
+describe('DefaultApiClient proxy authentication', () => {
+  // Skipped: the bundled Squid container under
+  // test/fixtures/proxy/squid.conf does NOT have basic auth enabled
+  // (no auth_param / auth_required directives). Re-enable this test once
+  // a Squid fixture with `auth_param basic` is provisioned in
+  // global-setup.ts. The test asserts that credentials embedded in the
+  // proxy URL (http://user:pass@host:port) are forwarded as a
+  // Proxy-Authorization header on the CONNECT/HTTP request.
+  test.skip('forwards basic credentials from proxy URL to upstream proxy', async () => {
+    const wiremockUrl = process.env['WIREMOCK_INTERNAL_HTTP_URL']!;
+    const proxyHostPort = (process.env['PROXY_URL'] ?? '').replace(/^https?:\/\//, '');
+    const proxyUrl = `http://user:pass@${proxyHostPort}`;
+
+    const transport = TransportOptions.builder().proxy(proxyUrl).build();
+    const client = new DefaultApiClient(transport);
+    const response = await client.sendRequest('GET', `${wiremockUrl}/api/test`, {}, null);
+    expect(response.statusCode).toBe(200);
+  });
+});
+
 describe('DefaultApiClient.mimeTypeForFilename per-part MIME sniffing', () => {
   it('maps .png to image/png', () => {
     expect(DefaultApiClient.mimeTypeForFilename('photo.png')).toBe('image/png');

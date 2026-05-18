@@ -419,6 +419,21 @@ void main() {
       }
     });
 
+    // -- ProxyAuthenticationTests --
+    test(
+      'proxy URL with userinfo sends Proxy-Authorization through the proxy',
+      () async {
+        // End-to-end proxy-auth roundtrip requires Squid configured with
+        // htpasswd-backed basic_auth ACLs; the bundled squid.conf grants
+        // unauthenticated access (allow all). Wire this up only after the
+        // shared Squid container is provisioned with basic auth.
+        fail('unreachable: skipped');
+      },
+      skip: 'requires Squid configured with basic-auth; bundled squid.conf '
+          'runs allow-all without htpasswd, so the userinfo in the proxy URL '
+          'cannot be verified end-to-end.',
+    );
+
     test('joins multi-value response headers', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {

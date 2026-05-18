@@ -242,7 +242,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/isPrimitiveType}}
 {{/items}}
 {{/isArray}}
-  {{name}}{{^required}}?{{/required}}{{#required}}{{^defaultValue}}!{{/defaultValue}}{{/required}}: {{{dataType}}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
+  {{name}}{{^required}}?{{/required}}{{#required}}{{^defaultValue}}!{{/defaultValue}}{{/required}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
 {{^-last}}
 {{/-last}}
 {{/vars}}

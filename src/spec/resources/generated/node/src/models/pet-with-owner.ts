@@ -36,7 +36,7 @@ export class PetWithOwner {
    * @deprecated This property is deprecated.
    */
   @Expose({ name: 'status' })
-  status?: string;
+  status?: PetWithOwnerStatusEnum;
   /** @example null */
   @Expose({ name: 'ownerName' })
   ownerName!: string;

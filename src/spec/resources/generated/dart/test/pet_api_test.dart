@@ -47,10 +47,9 @@ void main() {
       final auth = _TestAuth();
 
       final result = await api.addPet(
-          auth,
           const Pet(
-              name: 'Fido',
-              photoUrls: <String>{'http://example.com/fido.jpg'}));
+              name: 'Fido', photoUrls: <String>{'http://example.com/fido.jpg'}),
+          auth: auth);
       expect(result, isNotNull);
     });
 
@@ -59,10 +58,10 @@ void main() {
       final auth = _TestAuth();
 
       final result = await api.addPetWithHTTPInfo(
-          auth,
           const Pet(
               name: 'Buddy',
-              photoUrls: <String>{'http://example.com/buddy.jpg'}));
+              photoUrls: <String>{'http://example.com/buddy.jpg'}),
+          auth: auth);
       expect(result.statusCode, greaterThanOrEqualTo(200));
       expect(result.statusCode, lessThan(300));
       expect(result.data, isNotNull);
@@ -128,14 +127,14 @@ void main() {
       final api = _newPetApiForIntegration();
       final auth = _TestAuth();
 
-      await api.deletePet(auth, 1, null);
+      await api.deletePet(1, null, auth: auth);
     });
 
     test('deletePetWithHTTPInfo', () async {
       final api = _newPetApiForIntegration();
       final auth = _TestAuth();
 
-      final result = await api.deletePetWithHTTPInfo(auth, 1, null);
+      final result = await api.deletePetWithHTTPInfo(1, null, auth: auth);
       expect(result.statusCode, greaterThanOrEqualTo(200));
       expect(result.statusCode, lessThan(300));
     });

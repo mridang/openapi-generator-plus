@@ -39,7 +39,7 @@ defmodule PetstoreClient.TransportOptions do
   defstruct verify_ssl: true,
             ca_cert_path: nil,
             proxy: nil,
-            timeout: nil,
+            timeout: 10_000,
             follow_redirects: true,
             max_redirects: nil,
             user_agent: "petstore_client/1.0.0 (elixir)",
@@ -54,7 +54,7 @@ defmodule PetstoreClient.TransportOptions do
     * `:verify_ssl` - Whether TLS certificate verification is enabled. Defaults to `true`.
     * `:ca_cert_path` - Path to a custom CA certificate bundle for TLS verification.
     * `:proxy` - HTTP or HTTPS proxy URL for all outbound requests.
-    * `:timeout` - End-to-end request timeout in milliseconds.
+    * `:timeout` - End-to-end request timeout in milliseconds. Defaults to `10_000` (10 seconds).
     * `:follow_redirects` - Whether the client follows HTTP 3xx redirects. Defaults to `true`.
     * `:max_redirects` - Maximum number of consecutive redirects to follow.
     * `:user_agent` - Custom User-Agent header value.

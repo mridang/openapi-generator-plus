@@ -17,9 +17,9 @@ defmodule {{moduleName}}.TransportOptionsTest do
     assert opts.proxy == nil
   end
 
-  test "timeout defaults to nil" do
+  test "timeout defaults to 10_000 ms" do
     opts = {{moduleName}}.TransportOptions.new()
-    assert opts.timeout == nil
+    assert opts.timeout == 10_000
   end
 
   test "follow_redirects defaults to true" do
@@ -140,10 +140,10 @@ defmodule {{moduleName}}.TransportOptionsTest do
 
   # TimeoutConfigTests
 
-  test "timeout defaults to nil in timeout group" do
-    # Default TransportOptions has no timeout set; nil means no timeout applied.
+  test "timeout defaults to 10_000 ms in timeout group" do
+    # Default TransportOptions sets a 10-second timeout to prevent hanging requests.
     opts = {{moduleName}}.TransportOptions.new()
-    assert opts.timeout == nil
+    assert opts.timeout == 10_000
   end
 
   test "setting timeout to 5000 is accessible" do

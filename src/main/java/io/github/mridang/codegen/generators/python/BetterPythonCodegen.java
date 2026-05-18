@@ -48,7 +48,8 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             Map.of(
                     "datetime", "from datetime import datetime",
                     "date", "from datetime import date",
-                    "Decimal", "from decimal import Decimal");
+                    "Decimal", "from decimal import Decimal",
+                    "uuid.UUID", "import uuid");
 
     protected String packageName = "openapi_client";
     protected String packageVersion = "1.0.0";
@@ -78,7 +79,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         typeMapping.put("ByteArray", "bytes");
         typeMapping.put("date", "date");
         typeMapping.put("DateTime", "datetime");
-        typeMapping.put("UUID", "str");
+        typeMapping.put("UUID", "uuid.UUID");
         typeMapping.put("URI", "str");
         typeMapping.put("object", "object");
         typeMapping.put("AnyType", "object");
@@ -93,7 +94,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                 new HashSet<>(
                         Arrays.asList(
                                 "int", "float", "bool", "str", "bytes", "object",
-                                "date", "datetime", "List", "Dict", "Set",
+                                "date", "datetime", "uuid.UUID", "List", "Dict", "Set",
                                 "Tuple", "Optional"));
 
         reservedWords = loadReservedWords("/reserved-words/python.txt");

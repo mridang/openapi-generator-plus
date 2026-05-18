@@ -63,4 +63,14 @@ public class ApiError: Error, LocalizedError, @unchecked Sendable {
     }
     return try JSONDecoder().decode(type, from: data)
   }
+
+  /// Deserializes the response body into the target type via
+  /// ``ObjectSerializer/deserialize(_:as:)``. Returns nil if there
+  /// is no response body to parse.
+  public func getTypedErrorBody<T: Decodable>(_ type: T.Type) throws -> T? {
+    guard let body = responseBody, !body.isEmpty else {
+      return nil
+    }
+    return try ObjectSerializer.deserialize(body, as: type)
+  }
 }

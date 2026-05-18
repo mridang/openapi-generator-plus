@@ -361,6 +361,37 @@ class TestMultipartContentType:
         assert b"Content-Type: application/octet-stream" in body
 
 
+class TestProxyAuthentication:
+    """Proxy URL with userinfo should produce a ``Proxy-Authorization`` header.
+
+    The shared Squid container in this test environment runs without
+    basic-auth ACLs, so this scenario cannot be verified end-to-end.
+    Enable when ``squid.conf`` is provisioned with htpasswd-backed auth.
+    """
+
+    @pytest.mark.skip(
+        reason=(
+            "requires Squid configured with basic-auth; the shared squid_container "
+            "in this test environment runs without basic_auth ACLs, so userinfo in the "
+            "proxy URL cannot be verified end-to-end. Enable when squid.conf is "
+            "provisioned with htpasswd-backed auth."
+        )
+    )
+    def test_proxy_url_with_userinfo_sends_proxy_authorization(self) -> None:
+        from urllib.parse import urlparse
+        # Splice basic-auth userinfo into the proxy URL: http://user:pass@host:port
+        base_proxy_url = 'http://127.0.0.1:3128'
+        parsed = urlparse(base_proxy_url)
+        proxy_url_with_auth = f'{parsed.scheme}://user:pass@{parsed.hostname}:{parsed.port}'
+
+        transport = TransportOptions.builder().proxy(proxy_url_with_auth).build()
+        client = DefaultApiClient(transport)
+        response = client.send_request('GET', 'http://wiremock:8080/api/test', {}, None)
+
+        assert response.status_code == 200
+        assert 'success' in response.body
+
+
 class TestMultipartBinaryPreservation:
     """Binary multipart parts must not be re-encoded through UTF-8."""
 

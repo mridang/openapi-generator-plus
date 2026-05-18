@@ -177,9 +177,18 @@ public enum ValueSerializer {
     }
 
     /// Attempts to convert a value to a [String] array.
+    ///
+    /// Preserves nil slots in styled csv/ssv/tsv/pipes arrays by emitting an
+    /// empty string for each nil element (OAS csv semantics for `1,,3`).
     private static func toStringArray(_ value: Any?) -> [String]? {
         if let items = value as? [String] {
             return items
+        }
+        if let items = value as? [String?] {
+            return items.map { $0 ?? "" }
+        }
+        if let items = value as? [Any?] {
+            return items.map { $0.map { ObjectSerializer.stringify($0) } ?? "" }
         }
         if let items = value as? [Any] {
             return items.map { ObjectSerializer.stringify($0) }

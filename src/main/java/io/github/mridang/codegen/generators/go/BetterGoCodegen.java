@@ -82,7 +82,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         typeMapping.put("file", "*os.File");
         typeMapping.put("binary", "[]byte");
         typeMapping.put("ByteArray", "[]byte");
-        typeMapping.put("UUID", "string");
+        typeMapping.put("UUID", "uuid.UUID");
         typeMapping.put("URI", "string");
 
         languageSpecificPrimitives =
@@ -96,7 +96,8 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                                 "float64",
                                 "byte",
                                 "interface{}",
-                                "error"));
+                                "error",
+                                "uuid.UUID"));
 
         reservedWords = loadReservedWords("/reserved-words/go.txt");
 
@@ -539,7 +540,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     protected Map<String, String> getModelContextFlags() {
         return Map.of(
                 "type:time.Time", "hasTimeImport",
-                "oneOfAnyOf", "hasFmtImport");
+                "type:uuid.UUID", "hasUuidImport",
+                "oneOfAnyOf", "hasFmtImport",
+                "isEnum", "hasFmtImport");
     }
 
     /** {@inheritDoc} */
@@ -547,6 +550,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     protected Map<String, String> getOperationContextFlags() {
         return Map.of(
                 "type:os.File", "hasOsImport",
+                "type:uuid.UUID", "hasUuidImport",
                 "servers", "hasStringsImport",
                 "cookieParams", "hasStringsImport",
                 "queryContent", "hasJsonImport");
@@ -571,6 +575,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                         "interface{}", "byte", "[]byte");
         boolean hasModelImport = false;
         boolean hasOsImport = false;
+        boolean hasUuidImport = false;
         final List<Map<String, Object>> params = new ArrayList<>();
         for (final CodegenParameter p : optionsParams) {
             final Map<String, Object> param = new HashMap<>();
@@ -583,11 +588,14 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             params.add(param);
             if (p.isFile || (p.dataType != null && p.dataType.contains("os.File"))) {
                 hasOsImport = true;
+            } else if (p.dataType != null && p.dataType.contains("uuid.UUID")) {
+                hasUuidImport = true;
             } else if (!p.isPrimitiveType) {
                 String baseType = p.dataType.replace("[]", "").replace("*", "");
                 if (!goPrimitives.contains(baseType)
                         && !baseType.startsWith("map[")
-                        && !baseType.equals("time.Time")) {
+                        && !baseType.equals("time.Time")
+                        && !baseType.equals("uuid.UUID")) {
                     hasModelImport = true;
                 }
             }
@@ -604,6 +612,9 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         }
         if (hasOsImport) {
             context.put("hasOsImport", true);
+        }
+        if (hasUuidImport) {
+            context.put("hasUuidImport", true);
         }
         return renderOptionsTemplate("api/options.mustache", context);
     }

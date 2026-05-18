@@ -75,7 +75,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         typeMapping.put("date", "\\DateTime");
         typeMapping.put("Date", "\\DateTime");
         typeMapping.put("DateTime", "\\DateTime");
-        typeMapping.put("UUID", "string");
+        typeMapping.put("UUID", "\\Symfony\\Component\\Uid\\Uuid");
         typeMapping.put("URI", "string");
         typeMapping.put("object", "object");
         typeMapping.put("AnyType", "mixed");
@@ -103,7 +103,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                                 "byte",
                                 "number",
                                 "\\DateTime",
-                                "\\SplFileObject"));
+                                "\\SplFileObject",
+                                "\\Symfony\\Component\\Uid\\Uuid"));
 
         instantiationTypes.put("array", "array");
         instantiationTypes.put("map", "array");
@@ -214,6 +215,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("trace_context_util.mustache", invokerFolder, "TraceContextUtil.php"),
             new SupportingFileSpec("api_response.mustache", invokerFolder, "ApiResponse.php"),
             new SupportingFileSpec("api_result.mustache", invokerFolder, "ApiResult.php"),
+            new SupportingFileSpec("cancellation_token.mustache", invokerFolder, "CancellationToken.php"),
+            new SupportingFileSpec("cancellation_exception.mustache", invokerFolder, "CancellationException.php"),
             new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.php"),
             new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.php"),
             new SupportingFileSpec("transport_options.mustache", invokerFolder, "TransportOptions.php"),
@@ -310,6 +313,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "test/TransportOptionsTest.mustache",
                             "test",
                             "TransportOptionsTest.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/CancellationTokenTest.mustache",
+                            "test",
+                            "CancellationTokenTest.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "test/HeaderSelectorTest.mustache",

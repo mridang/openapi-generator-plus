@@ -47,12 +47,13 @@ class TransportOptions:
     ``None`` means direct connections (no proxy).
     """
 
-    timeout: Optional[int] = None
+    timeout: Optional[int] = 10000
     """End-to-end request timeout in milliseconds.
 
     Covers the entire request lifecycle: connection, TLS handshake,
-    sending the request body, and reading the response. ``None`` means
-    no timeout (wait indefinitely).
+    sending the request body, and reading the response. Defaults to
+    10 seconds. Set to ``None`` to disable the timeout (wait
+    indefinitely).
     """
 
     follow_redirects: bool = True
@@ -131,7 +132,7 @@ class TransportOptionsBuilder:
         self._verify_ssl: bool = True
         self._ca_cert_path: Optional[str] = None
         self._proxy: Optional[str] = None
-        self._timeout: Optional[int] = None
+        self._timeout: Optional[int] = 10000
         self._follow_redirects: bool = True
         self._max_redirects: Optional[int] = None
         self._user_agent: Optional[str] = '{{userAgentDefault}}'

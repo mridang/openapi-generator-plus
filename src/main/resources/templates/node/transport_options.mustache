@@ -29,7 +29,7 @@ export class TransportOptions {
   /** HTTP or HTTPS proxy URL for all outbound requests. */
   public readonly proxy: string | null;
 
-  /** End-to-end request timeout in milliseconds. null means no timeout. */
+  /** End-to-end request timeout in milliseconds. Default 10000 (10 s). null means no timeout. */
   public readonly timeout: number | null;
 
   /** Whether the client follows HTTP 3xx redirects automatically. */
@@ -86,13 +86,14 @@ export class TransportOptions {
  * - `verifySsl` -- `true`
  * - `followRedirects` -- `true`
  * - `injectRequestId` -- `false`
+ * - `timeout` -- `10000` (10 seconds)
  * - All other fields -- `null` or empty
  */
 export class TransportOptionsBuilder {
   private _verifySsl: boolean = true;
   private _caCertPath: string | null = null;
   private _proxy: string | null = null;
-  private _timeout: number | null = null;
+  private _timeout: number | null = 10000;
   private _followRedirects: boolean = true;
   private _maxRedirects: number | null = null;
   private _userAgent: string | null = '{{userAgentDefault}}';

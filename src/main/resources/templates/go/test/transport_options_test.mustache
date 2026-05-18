@@ -28,10 +28,13 @@ func TestTransportOptions_ProxyDefaultsToNull(t *testing.T) {
 	}
 }
 
-func TestTransportOptions_TimeoutDefaultsToNull(t *testing.T) {
+func TestTransportOptions_TimeoutDefaultsToTenSeconds(t *testing.T) {
 	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
-	if opts.Timeout() != nil {
-		t.Error("expected nil timeout by default")
+	if opts.Timeout() == nil {
+		t.Fatal("expected non-nil default timeout")
+	}
+	if *opts.Timeout() != 10000 {
+		t.Errorf("expected default timeout 10000ms, got %d", *opts.Timeout())
 	}
 }
 
@@ -241,11 +244,15 @@ func TestTransportOptions_BuilderProducesIndependentInstances(t *testing.T) {
 
 // TimeoutConfigTests
 
-func TestTransportOptions_TimeoutDefaultsToNil(t *testing.T) {
-	// Default TransportOptions has no timeout set; nil means no timeout applied.
+func TestTransportOptions_TimeoutDefaultIsTenThousandMilliseconds(t *testing.T) {
+	// Default TransportOptions ships with a 10-second (10000ms) timeout to
+	// match Java, Python, Node, etc. and prevent runaway requests.
 	opts := {{packageName}}.NewTransportOptionsBuilder().Build()
-	if opts.Timeout() != nil {
-		t.Error("expected nil timeout by default")
+	if opts.Timeout() == nil {
+		t.Fatal("expected non-nil default timeout")
+	}
+	if *opts.Timeout() != 10000 {
+		t.Errorf("expected default timeout 10000ms, got %d", *opts.Timeout())
 	}
 }
 

@@ -723,5 +723,166 @@ defmodule {{moduleName}}.Api.BaseApiTest do
 
     Agent.stop(CapturingHeadersApiClient)
   end
+
+  # Auth via keyword arg (item #4) — client-level authenticator used when no :auth opt
+
+  defmodule AuthCapturingApiClient do
+    @behaviour {{moduleName}}.ApiClient
+    use Agent
+
+    def start do
+      Agent.start_link(fn -> %{} end, name: __MODULE__)
+    end
+
+    def captured_headers do
+      Agent.get(__MODULE__, & &1)
+    end
+
+    @impl true
+    def send_request(_method, _url, headers, _body) do
+      Agent.update(__MODULE__, fn _ -> headers end)
+      %{{moduleName}}.ApiResponse{status_code: 200, body: "{}", headers: %{"Content-Type" => "application/json"}}
+    end
+  end
+
+  defmodule MapAuth do
+    defstruct [:auth_headers, :query_params, :cookie_params]
+  end
+
+  test "client-level authenticator is used when no :auth opt is supplied" do
+    {:ok, _} = AuthCapturingApiClient.start()
+    client_auth = %MapAuth{
+      auth_headers: %{"X-Auth" => "from-client"},
+      query_params: %{},
+      cookie_params: %{}
+    }
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: AuthCapturingApiClient, authenticator: client_auth}
+
+    _result = {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/api/test", %{}, %{}, nil, ["application/json"], "application/json", nil)
+    headers = AuthCapturingApiClient.captured_headers()
+    assert headers["X-Auth"] == "from-client",
+      "Expected client-level auth header, got: #{inspect(headers)}"
+
+    Agent.stop(AuthCapturingApiClient)
+  end
+
+  test "per-call :auth overrides client-level authenticator" do
+    {:ok, _} = AuthCapturingApiClient.start()
+    client_auth = %MapAuth{
+      auth_headers: %{"X-Auth" => "from-client"},
+      query_params: %{},
+      cookie_params: %{}
+    }
+    per_call_auth = %MapAuth{
+      auth_headers: %{"X-Auth" => "from-call"},
+      query_params: %{},
+      cookie_params: %{}
+    }
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: AuthCapturingApiClient, authenticator: client_auth}
+
+    _result = {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/api/test", %{}, %{}, nil, ["application/json"], "application/json", nil, per_call_auth)
+    headers = AuthCapturingApiClient.captured_headers()
+    assert headers["X-Auth"] == "from-call",
+      "Expected per-call auth header, got: #{inspect(headers)}"
+
+    Agent.stop(AuthCapturingApiClient)
+  end
+
+  # Per-op server override (item #5)
+
+  defmodule UrlCapturingApiClient do
+    @behaviour {{moduleName}}.ApiClient
+    use Agent
+
+    def start do
+      Agent.start_link(fn -> "" end, name: __MODULE__)
+    end
+
+    def captured_url do
+      Agent.get(__MODULE__, & &1)
+    end
+
+    @impl true
+    def send_request(_method, url, _headers, _body) do
+      Agent.update(__MODULE__, fn _ -> url end)
+      %{{moduleName}}.ApiResponse{status_code: 200, body: "{}", headers: %{"Content-Type" => "application/json"}}
+    end
+  end
+
+  test "absolute URL in path bypasses client base_url (per-op server override)" do
+    {:ok, _} = UrlCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://default.example.com")
+    state = %{config: config, api_client: UrlCapturingApiClient}
+
+    _result = {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "http://override.example.com/api/test", %{}, %{}, nil, ["application/json"], "application/json", nil)
+    url = UrlCapturingApiClient.captured_url()
+    assert String.starts_with?(url, "http://override.example.com"),
+      "Expected override server base, got: #{url}"
+    refute String.starts_with?(url, "http://default.example.com"),
+      "Should not start with default base, got: #{url}"
+
+    Agent.stop(UrlCapturingApiClient)
+  end
+
+  test "relative path uses client base_url when no override given" do
+    {:ok, _} = UrlCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://default.example.com")
+    state = %{config: config, api_client: UrlCapturingApiClient}
+
+    _result = {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/api/test", %{}, %{}, nil, ["application/json"], "application/json", nil)
+    url = UrlCapturingApiClient.captured_url()
+    assert String.starts_with?(url, "http://default.example.com"),
+      "Expected default base, got: #{url}"
+
+    Agent.stop(UrlCapturingApiClient)
+  end
+
+  # Empty array in query is omitted (item #20)
+
+  test "empty array query param is omitted entirely" do
+    {:ok, _} = UrlCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: UrlCapturingApiClient}
+
+    _result = {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/api/test", %{"tags" => []}, %{}, nil, ["application/json"], "application/json", nil)
+    url = UrlCapturingApiClient.captured_url()
+    refute String.contains?(url, "tags="),
+      "Empty array param should be omitted, got: #{url}"
+    refute String.contains?(url, "tags"),
+      "Empty array param key should not appear, got: #{url}"
+
+    Agent.stop(UrlCapturingApiClient)
+  end
+
+  test "non-empty array query param is included" do
+    {:ok, _} = UrlCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: UrlCapturingApiClient}
+
+    _result = {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/api/test", %{"tags" => ["a", "b"]}, %{}, nil, ["application/json"], "application/json", nil)
+    url = UrlCapturingApiClient.captured_url()
+    assert String.contains?(url, "tags=a"),
+      "Expected tags=a in URL, got: #{url}"
+    assert String.contains?(url, "tags=b"),
+      "Expected tags=b in URL, got: #{url}"
+
+    Agent.stop(UrlCapturingApiClient)
+  end
+
+  # Proxy authentication (item #29)
+
+  @tag :skip
+  test "proxy with basic authentication forwards Proxy-Authorization header" do
+    # Skipped: requires a proxy with HTTP basic-auth configured (e.g. Squid).
+    # If the local test environment provides one (e.g. via PROXY_AUTH_URL), this
+    # block exercises the proxy_auth_url with embedded credentials.
+    proxy_auth_url = System.get_env("PROXY_AUTH_URL")
+    assert proxy_auth_url != nil
+
+    opts = {{moduleName}}.TransportOptions.new(proxy: proxy_auth_url)
+    assert opts.proxy == proxy_auth_url
+  end
 end
 {{/generateTests}}

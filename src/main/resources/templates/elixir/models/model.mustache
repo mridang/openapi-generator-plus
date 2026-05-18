@@ -6,19 +6,30 @@
 defmodule {{moduleName}}.Models.{{classname}} do
   @moduledoc """
   Enumeration of allowed values for {{classname}}.
+
+  Values are exposed as atoms (e.g. `:available`) and as the canonical
+  string form via `value/1` when wire interop is needed.
   """
 {{#allowableValues}}
 {{#enumVars}}
   @doc "Enum value `{{{value}}}`"
-  def {{#lambda.lowercase}}{{{name}}}{{/lambda.lowercase}}, do: {{{value}}}
+  def {{#lambda.lowercase}}{{{name}}}{{/lambda.lowercase}}, do: :"{{#lambda.lowercase}}{{{name}}}{{/lambda.lowercase}}"
 
 {{/enumVars}}
 {{/allowableValues}}
-  @doc "All allowed values."
-  @spec all_values() :: [term()]
+  @doc "All allowed values as atoms."
+  @spec all_values() :: [atom()]
   def all_values do
     [{{#allowableValues}}{{#enumVars}}{{#lambda.lowercase}}{{{name}}}{{/lambda.lowercase}}(){{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}]
   end
+
+  @doc "Map an atom to its wire string value."
+  @spec value(atom()) :: term()
+{{#allowableValues}}
+{{#enumVars}}
+  def value(:"{{#lambda.lowercase}}{{{name}}}{{/lambda.lowercase}}"), do: {{{value}}}
+{{/enumVars}}
+{{/allowableValues}}
 end
 {{/isEnum}}
 {{^isEnum}}

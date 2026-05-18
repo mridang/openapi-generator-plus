@@ -550,4 +550,49 @@ describe {{moduleName}}::Api::BaseApi do
            'Content-Type must be sent when body is {}'
     _(client.captured_headers['Content-Type']).must_equal 'application/json'
   end
+
+  # ── Empty array in query is omitted entirely (#20) ──
+
+  it 'empty array query param is omitted entirely (no bare key)' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test', { 'tags' => [] }, {}, nil,
+                  ['application/json'], 'application/json', nil)
+    _(client.captured_url).wont_include 'tags'
+    _(client.captured_url).wont_include '?'
+  end
+
+  it 'mixed query with empty array omits the empty array but keeps other params' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test', { 'tags' => [], 'limit' => 10 }, {}, nil,
+                  ['application/json'], 'application/json', nil)
+    _(client.captured_url).wont_include 'tags'
+    _(client.captured_url).must_include 'limit=10'
+  end
+
+  # ── Typed error body (#7) ──
+
+  it 'ApiError#typed_error_body deserializes error body to typed model' do
+    err = {{moduleName}}::ApiError.new(
+      status_code: 400,
+      response_body: '{"id":42,"name":"BadCategory"}',
+      response_headers: {}
+    )
+    body = err.typed_error_body('Category')
+    _(body).must_be_kind_of {{moduleName}}::Models::Category
+    _(body.id).must_equal 42
+    _(body.name).must_equal 'BadCategory'
+  end
+
+  it 'ApiError#typed_error_body returns nil for empty body' do
+    err = {{moduleName}}::ApiError.new(
+      status_code: 500,
+      response_body: '',
+      response_headers: {}
+    )
+    assert_nil err.typed_error_body('Category')
+  end
 end

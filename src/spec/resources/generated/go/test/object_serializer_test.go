@@ -569,3 +569,77 @@ func TestDiscriminator_DeserializeReturnsSubtype(t *testing.T) {
 		t.Errorf("expected WeightKg=2.5, got %v", dry.WeightKg)
 	}
 }
+
+// ── #24 format:double whole numbers keep the trailing .0 ──
+
+func TestStringify_WholeNumberFloatKeepsDotZero(t *testing.T) {
+	if got := petstore.Stringify(float64(1.0)); got != "1.0" {
+		t.Errorf("expected '1.0' for float64(1.0), got %q", got)
+	}
+	if got := petstore.Stringify(float64(42)); got != "42.0" {
+		t.Errorf("expected '42.0' for float64(42), got %q", got)
+	}
+	if got := petstore.Stringify(float32(2)); got != "2.0" {
+		t.Errorf("expected '2.0' for float32(2), got %q", got)
+	}
+}
+
+func TestStringify_FractionalFloatRendersAsDecimal(t *testing.T) {
+	if got := petstore.Stringify(float64(1.5)); got != "1.5" {
+		t.Errorf("expected '1.5' for 1.5, got %q", got)
+	}
+	if got := petstore.Stringify(float64(-3.14)); got != "-3.14" {
+		t.Errorf("expected '-3.14', got %q", got)
+	}
+}
+
+// ── #21 format:date path/query value uses date-only format ──
+
+func TestStringifyDate_TimeValueReturnsDateOnly(t *testing.T) {
+	when := time.Date(2024, 1, 15, 13, 45, 22, 0, time.UTC)
+	if got := petstore.StringifyDate(when); got != "2024-01-15" {
+		t.Errorf("expected '2024-01-15', got %q", got)
+	}
+}
+
+func TestStringifyDate_StringPassesThrough(t *testing.T) {
+	if got := petstore.StringifyDate("2024-12-31"); got != "2024-12-31" {
+		t.Errorf("expected '2024-12-31', got %q", got)
+	}
+}
+
+func TestStringifyDate_NilReturnsEmpty(t *testing.T) {
+	if got := petstore.StringifyDate(nil); got != "" {
+		t.Errorf("expected empty string for nil, got %q", got)
+	}
+}
+
+// ── #13 Serializer drops nil/null fields (omitempty) ──
+
+func TestSerialize_OmitsNilFields(t *testing.T) {
+	pet := models.NewPet("OmitTest", []string{"http://example.com/a.png"})
+	data, err := petstore.Serialize(pet)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// Optional pointer fields with no value should be absent from the JSON.
+	s := string(data)
+	if strings.Contains(s, "\"id\":null") || strings.Contains(s, "\"status\":null") {
+		t.Errorf("expected omitempty to drop nil fields, got %s", s)
+	}
+}
+
+// ── #14 Deserializer ignores unknown fields ──
+
+func TestDeserialize_IgnoresUnknownFields(t *testing.T) {
+	// Use a Pet payload with a bogus extra field. encoding/json should
+	// silently drop it (no error, no mangled value).
+	raw := []byte(`{"id":99,"name":"Skip","photoUrls":[],"bogusExtra":"keep-going"}`)
+	var pet models.Pet
+	if err := petstore.Deserialize(raw, &pet); err != nil {
+		t.Fatalf("expected unknown fields to be ignored, got %v", err)
+	}
+	if pet.Name != "Skip" {
+		t.Errorf("expected name 'Skip', got %q", pet.Name)
+	}
+}

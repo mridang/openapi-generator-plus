@@ -113,12 +113,17 @@ type TransportOptionsBuilder struct {
 }
 
 // NewTransportOptionsBuilder creates a new builder with sensible defaults.
+//
+// The default request timeout is 10 seconds (10000 ms). Use Timeout(0) for no
+// timeout or pass an explicit positive value to override.
 func NewTransportOptionsBuilder() *TransportOptionsBuilder {
+	defaultTimeout := 10000
 	return &TransportOptionsBuilder{
 		verifySSL:       true,
 		followRedirects: true,
 		userAgent:       "petstore/1.0.0 (go)",
 		defaultHeaders:  make(map[string]string),
+		timeout:         &defaultTimeout,
 	}
 }
 

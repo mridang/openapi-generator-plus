@@ -111,7 +111,8 @@ public final class TransportOptions {
    * End-to-end request timeout in milliseconds.
    *
    * <p>Covers the entire request lifecycle: connection, TLS handshake, sending the request body,
-   * and reading the response. A value of {@code null} means no timeout (wait indefinitely).
+   * and reading the response. Defaults to 10000 ms (10 seconds) when the builder does not set a
+   * value.
    *
    * @return timeout in milliseconds, or {@code null} for no timeout
    */
@@ -198,7 +199,7 @@ public final class TransportOptions {
     private boolean verifySsl = true;
     @Nullable private String caCertPath = null;
     @Nullable private String proxy = null;
-    @Nullable private Integer timeout = null;
+    @Nullable private Integer timeout = 10000;
     private boolean followRedirects = true;
     @Nullable private Integer maxRedirects = null;
     @Nullable private String userAgent = "com.example.petstore/1.0.0 (java)";

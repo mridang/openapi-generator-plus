@@ -94,6 +94,50 @@ class ObjectSerializerTest extends TestCase
         $this->assertSame(['a', 'b', 'c'], ObjectSerializer::toQueryValue(['a', 'b', 'c'], 'multi'));
     }
 
+    public function testToQueryValueCsvKeepsSlotForNullElement(): void
+    {
+        // Per N1/W1: a null element in a csv array becomes an empty slot, not skipped.
+        $this->assertSame('1,,3', ObjectSerializer::toQueryValue([1, null, 3]));
+    }
+
+    public function testToQueryValueCsvExplicitKeepsSlotForNullElement(): void
+    {
+        $this->assertSame('1,,3', ObjectSerializer::toQueryValue([1, null, 3], 'csv'));
+    }
+
+    public function testToQueryValueSsvKeepsSlotForNullElement(): void
+    {
+        $this->assertSame('1  3', ObjectSerializer::toQueryValue([1, null, 3], 'ssv'));
+    }
+
+    public function testToQueryValueMultiKeepsEmptyStringForNullElement(): void
+    {
+        $this->assertSame(['1', '', '3'], ObjectSerializer::toQueryValue([1, null, 3], 'multi'));
+    }
+
+    // -- UUID serialization --
+
+    public function testStringifyUuidReturnsRfc4122(): void
+    {
+        $uuid = \Symfony\Component\Uid\Uuid::fromString('550e8400-e29b-41d4-a716-446655440000');
+        $this->assertSame('550e8400-e29b-41d4-a716-446655440000', ObjectSerializer::stringify($uuid));
+    }
+
+    public function testDeserializeUuidFromString(): void
+    {
+        $json = '"550e8400-e29b-41d4-a716-446655440000"';
+        $result = ObjectSerializer::deserialize($json, \Symfony\Component\Uid\Uuid::class);
+        $this->assertInstanceOf(\Symfony\Component\Uid\Uuid::class, $result);
+        $this->assertSame('550e8400-e29b-41d4-a716-446655440000', $result->toRfc4122());
+    }
+
+    public function testSerializeUuidValueRoundtrips(): void
+    {
+        $uuid = \Symfony\Component\Uid\Uuid::fromString('550e8400-e29b-41d4-a716-446655440000');
+        $serialized = ObjectSerializer::serialize($uuid);
+        $this->assertSame('"550e8400-e29b-41d4-a716-446655440000"', $serialized);
+    }
+
     // -- toHeaderValue --
 
     public function testToHeaderValueReturnsEmptyStringForNull(): void

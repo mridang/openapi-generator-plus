@@ -31,4 +31,30 @@ public struct PetPassport: Codable, Sendable {
     self.scans = scans
     self.issuedAt = issuedAt
   }
+
+  /// Decodes this instance from the given decoder.
+  ///
+  /// Required fields use `decode(_:forKey:)`; optional fields use
+  /// `decodeIfPresent(_:forKey:)`. Unknown JSON keys are silently ignored
+  /// — matching the cross-language "discard extras on deserialise" expectation.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.pet = try container.decodeIfPresent(Pet.self, forKey: .pet)
+    self.thumbnail = try container.decodeIfPresent(Data.self, forKey: .thumbnail)
+    self.scans = try container.decodeIfPresent([Data].self, forKey: .scans)
+    self.issuedAt = try container.decodeIfPresent(Date.self, forKey: .issuedAt)
+  }
+
+  /// Encodes this instance, omitting nil optional fields from the JSON output.
+  ///
+  /// Uses `encodeIfPresent` for every optional property so that unset values
+  /// are dropped from the wire payload rather than emitted as `null` — matching
+  /// the cross-language "discard nulls on serialise" expectation.
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encodeIfPresent(pet, forKey: .pet)
+    try container.encodeIfPresent(thumbnail, forKey: .thumbnail)
+    try container.encodeIfPresent(scans, forKey: .scans)
+    try container.encodeIfPresent(issuedAt, forKey: .issuedAt)
+  }
 }

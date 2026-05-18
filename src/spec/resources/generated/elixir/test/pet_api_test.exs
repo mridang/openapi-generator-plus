@@ -24,7 +24,7 @@ defmodule PetstoreClient.Api.PetApiTest do
       status: "available"
     }
 
-    assert {:ok, result} = PetstoreClient.Api.PetApi.add_pet(api, auth, pet)
+    assert {:ok, result} = PetstoreClient.Api.PetApi.add_pet(api, pet, auth: auth)
     assert result != nil
   end
 
@@ -56,7 +56,7 @@ defmodule PetstoreClient.Api.PetApiTest do
 
   test "delete_pet deletes a pet", %{api: api, auth: auth} do
     assert {:ok, _result} =
-             PetstoreClient.Api.PetApi.delete_pet(api, auth, 1, %PetstoreClient.Api.Options.DeletePetOptions{})
+             PetstoreClient.Api.PetApi.delete_pet(api, 1, %PetstoreClient.Api.Options.DeletePetOptions{}, auth: auth)
   end
 
   test "set_pet_avatar uploads binary image data", %{api: api} do
@@ -196,7 +196,7 @@ defmodule PetstoreClient.Api.PetApiTest do
       status: "available"
     }
 
-    assert {:ok, result} = PetstoreClient.Api.PetApi.add_pet_with_http_info(api, auth, pet)
+    assert {:ok, result} = PetstoreClient.Api.PetApi.add_pet_with_http_info(api, pet, auth: auth)
     assert result.status_code >= 200
     assert result.status_code < 300
     assert result.data != nil

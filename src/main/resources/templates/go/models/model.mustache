@@ -9,6 +9,10 @@ import (
 {{#hasTimeImport}}
 	"time"
 {{/hasTimeImport}}
+{{#hasUuidImport}}
+
+	"github.com/google/uuid"
+{{/hasUuidImport}}
 )
 
 {{#models}}
@@ -35,6 +39,24 @@ func All{{classname}}Values() []{{classname}} {
 {{/enumVars}}
 {{/allowableValues}}
 	}
+}
+
+// UnmarshalJSON enforces that the deserialized value is one of the
+// declared enum members and returns an error otherwise. The default
+// json.Unmarshal would silently accept any string, masking spec drift.
+func (v *{{classname}}) UnmarshalJSON(data []byte) error {
+	var raw string
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	candidate := {{classname}}(raw)
+	for _, allowed := range All{{classname}}Values() {
+		if allowed == candidate {
+			*v = candidate
+			return nil
+		}
+	}
+	return fmt.Errorf("unexpected value %q for enum {{classname}}", raw)
 }
 {{/isEnum}}
 {{^isEnum}}

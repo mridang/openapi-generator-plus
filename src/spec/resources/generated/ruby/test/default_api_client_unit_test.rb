@@ -430,4 +430,32 @@ describe PetstoreClient::DefaultApiClient do
     end
     stubs.verify_stubbed_calls
   end
+
+  # ── Proxy authentication (#29) ──
+  #
+  # The test fixture Squid config does NOT enable basic auth, so any
+  # proxy-with-credentials request will succeed at the proxy level just
+  # like an unauthenticated request. We assert that the userinfo portion
+  # of the proxy URL is accepted and forwarded to Faraday's proxy config
+  # without raising; full end-to-end basic-auth verification is skipped
+  # because the fixture Squid lacks auth_param config.
+  it 'accepts proxy URL with basic-auth userinfo (skips if Squid lacks auth)' do
+    skip 'Squid fixture has no auth_param basic configuration'
+  end
+
+  it 'parses proxy URL with userinfo without raising' do
+    captured_proxy = nil
+    transport = PetstoreClient::TransportOptions.builder
+      .proxy('http://user:pass@proxy.example.com:3128')
+      .build
+    _(transport.proxy).must_equal 'http://user:pass@proxy.example.com:3128'
+
+    # Verify Faraday accepts the proxy URL during connection build.
+    client = PetstoreClient::DefaultApiClient.new(transport)
+    conn = client.send(:build_connection)
+    captured_proxy = conn.proxy
+    _(captured_proxy).wont_be_nil
+    _(captured_proxy.user).must_equal 'user'
+    _(captured_proxy.password).must_equal 'pass'
+  end
 end

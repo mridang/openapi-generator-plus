@@ -10,6 +10,7 @@ import datetime
 import decimal
 import json
 import re
+import uuid
 from datetime import timezone
 from enum import Enum
 from typing import Any, Callable, ClassVar, Optional, Type, TypeVar, Union
@@ -51,6 +52,7 @@ class ObjectSerializer:
         'date': datetime.date,
         'datetime': datetime.datetime,
         'decimal': decimal.Decimal,
+        'uuid.UUID': uuid.UUID,
         'object': object,
     }
 
@@ -106,6 +108,8 @@ class ObjectSerializer:
         elif isinstance(obj, datetime.date):
             return obj.isoformat()
         elif isinstance(obj, decimal.Decimal):
+            return str(obj)
+        elif isinstance(obj, uuid.UUID):
             return str(obj)
         elif isinstance(obj, (list, tuple, dict)) or hasattr(obj, '__dict__'):
             if _visited is None:
@@ -177,6 +181,8 @@ class ObjectSerializer:
             return parse(data)
         elif klass == decimal.Decimal:
             return decimal.Decimal(data)
+        elif klass == uuid.UUID:
+            return uuid.UUID(data) if not isinstance(data, uuid.UUID) else data
         elif isinstance(klass, type) and issubclass(klass, Enum):
             return klass(data)
         else:
@@ -238,6 +244,8 @@ class ObjectSerializer:
             return dt.isoformat(timespec='seconds')
         if isinstance(value, datetime.date):
             return value.isoformat()
+        if isinstance(value, uuid.UUID):
+            return str(value)
         return str(value)
 
     @classmethod
@@ -254,7 +262,12 @@ class ObjectSerializer:
         if value is None:
             return None
         if isinstance(value, list):
-            items = [cls.stringify(v) for v in value]
+            # Stringify each element; ``None`` becomes an empty slot so that
+            # ``[1, None, 3]`` serializes as ``"1,,3"`` (csv keep-slot) for
+            # csv/ssv/tsv/pipes joins. For the ``multi`` style, elements are
+            # returned as a list and ``None`` is preserved as ``''`` so that
+            # the slot is not dropped by downstream encoders.
+            items = ['' if v is None else cls.stringify(v) for v in value]
             if collection_format == 'multi':
                 return items
             if collection_format == 'ssv':

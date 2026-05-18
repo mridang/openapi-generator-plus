@@ -25,4 +25,28 @@ public struct ApiResponse: Codable, Sendable {
     self.type = type
     self.message = message
   }
+
+  /// Decodes this instance from the given decoder.
+  ///
+  /// Required fields use `decode(_:forKey:)`; optional fields use
+  /// `decodeIfPresent(_:forKey:)`. Unknown JSON keys are silently ignored
+  /// — matching the cross-language "discard extras on deserialise" expectation.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.code = try container.decodeIfPresent(Int.self, forKey: .code)
+    self.type = try container.decodeIfPresent(String.self, forKey: .type)
+    self.message = try container.decodeIfPresent(String.self, forKey: .message)
+  }
+
+  /// Encodes this instance, omitting nil optional fields from the JSON output.
+  ///
+  /// Uses `encodeIfPresent` for every optional property so that unset values
+  /// are dropped from the wire payload rather than emitted as `null` — matching
+  /// the cross-language "discard nulls on serialise" expectation.
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encodeIfPresent(code, forKey: .code)
+    try container.encodeIfPresent(type, forKey: .type)
+    try container.encodeIfPresent(message, forKey: .message)
+  }
 }

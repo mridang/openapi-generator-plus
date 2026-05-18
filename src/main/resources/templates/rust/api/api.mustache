@@ -109,7 +109,7 @@ impl {{classname}} {
     pub async fn {{operationId}}(
         &self,
 {{#hasAuthMethods}}
-        auth: &dyn Authenticator,
+        auth: Option<&dyn Authenticator>,
 {{/hasAuthMethods}}
 {{#pathParams}}
         {{paramName}}: {{{dataType}}},
@@ -166,7 +166,7 @@ impl {{classname}} {
     pub async fn {{operationId}}_with_http_info(
         &self,
 {{#hasAuthMethods}}
-        auth: &dyn Authenticator,
+        auth: Option<&dyn Authenticator>,
 {{/hasAuthMethods}}
 {{#pathParams}}
         {{paramName}}: {{{dataType}}},
@@ -202,7 +202,7 @@ impl {{classname}} {
 {{=<% %>=}}
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "<%baseName%>",
-            Some(&object_serializer::stringify(&<%paramName%>)),
+            Some(&object_serializer::to_path_value(&<%paramName%>)),
             None,
             "path",
             "<%dataType%>",
@@ -396,7 +396,7 @@ impl {{classname}} {
             accepts: vec![{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
             content_type: {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
             return_type: "{{#returnType}}{{{.}}}{{/returnType}}",
-            auth: {{#hasAuthMethods}}Some(auth){{/hasAuthMethods}}{{^hasAuthMethods}}None{{/hasAuthMethods}},
+            auth: {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}None{{/hasAuthMethods}},
         };
 
 {{#returnType}}

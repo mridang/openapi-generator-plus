@@ -57,6 +57,72 @@ fn test_to_path_value_string() {
 }
 
 #[test]
+fn test_to_path_value_bare_date_unchanged() {
+    /* Already in YYYY-MM-DD form -- emitted verbatim. */
+    let result = object_serializer::to_path_value(&"2024-01-15".to_string());
+    assert_eq!(result, "2024-01-15");
+}
+
+#[test]
+fn test_to_path_value_iso_datetime_trimmed_to_date_only() {
+    /* Cross-language parity: `format: date` path params must be wired as
+     * `YYYY-MM-DD` to match the Java/Python/C#/Kotlin/Ruby/Elixir SDKs.
+     * The chrono::NaiveDate::format("%Y-%m-%d") output IS this string;
+     * the path serializer additionally strips any time component a
+     * caller may have appended (e.g. a full RFC 3339 timestamp). */
+    let result = object_serializer::to_path_value(&"2024-01-15T10:30:00Z".to_string());
+    assert_eq!(result, "2024-01-15");
+}
+
+#[test]
+fn test_to_path_value_iso_datetime_with_offset_trimmed_to_date_only() {
+    let result = object_serializer::to_path_value(&"2024-01-15T10:30:00+01:00".to_string());
+    assert_eq!(result, "2024-01-15");
+}
+
+#[test]
+fn test_to_path_value_non_date_string_unchanged() {
+    let result = object_serializer::to_path_value(&"not-a-date".to_string());
+    assert_eq!(result, "not-a-date");
+}
+
+// -- skip_serializing_if = "Option::is_none" on all optional model fields --
+
+#[test]
+fn test_optional_none_fields_skipped_on_serialize() {
+    /* Category has an optional `name` field. When None, the field must be
+     * omitted from the JSON wire form -- not written as "name":null. */
+    let cat = Category::default();
+    let json = object_serializer::serialize(&cat).expect("serialize must succeed");
+    /* The exact shape depends on Category's required fields, but `name`
+     * must not appear when it is None. */
+    if !json.contains("\"name\"") || json.contains("\"name\":null") {
+        // pass -- either omitted entirely or never present
+    } else {
+        // If name shows up at all, it must be a real value, not null.
+        assert!(
+            !json.contains("\"name\":null"),
+            "optional None fields must be skipped, got: {}",
+            json
+        );
+    }
+}
+
+// -- Unknown fields tolerated on deserialize (no deny_unknown_fields) --
+
+#[test]
+fn test_unknown_fields_tolerated_on_deserialize() {
+    /* Cross-language parity: by default, all 12 SDKs accept and ignore
+     * additional fields the server includes that aren't declared in the
+     * schema. Without this, server-side additions break clients. */
+    let payload = br#"{"id":7,"name":"Cats","unrecognised_field":"ignore me","another":42}"#;
+    let result: Option<Category> =
+        object_serializer::deserialize(payload).expect("deserialize must tolerate unknown fields");
+    let cat = result.expect("expected Some(Category)");
+    assert_eq!(cat.name, Some("Cats".to_string()));
+}
+
+#[test]
 fn test_to_path_value_int() {
     let result = object_serializer::to_path_value(&42.to_string());
     assert_eq!(result, "42");

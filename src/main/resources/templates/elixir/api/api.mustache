@@ -104,9 +104,6 @@ defmodule {{moduleName}}.Api.{{classname}} do
   {{/isDeprecated}}
 
   ## Parameters
-  {{#hasAuthMethods}}
-    * `auth` - Authenticator for this operation.
-  {{/hasAuthMethods}}
   {{#pathParams}}
     * `{{paramName}}` - {{{dataType}}}{{#description}} - {{.}}{{/description}}
   {{/pathParams}}
@@ -122,6 +119,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
   {{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}
     * `options` - Optional parameters (query, header, form, cookie).
   {{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
 
@@ -132,10 +130,10 @@ defmodule {{moduleName}}.Api.{{classname}} do
   {{#isDeprecated}}
   @deprecated "This operation is deprecated."
   {{/isDeprecated}}
-  @spec {{operationId}}(t(){{#hasAuthMethods}}, term(){{/hasAuthMethods}}{{#pathParams}}, {{{dataType}}}{{/pathParams}}{{#bodyParam}}, {{{dataType}}}{{^required}} | nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, keyword(){{/-first}}{{/servers}}) ::
+  @spec {{operationId}}(t(){{#pathParams}}, {{{dataType}}}{{/pathParams}}{{#bodyParam}}, {{{dataType}}}{{^required}} | nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, keyword()) ::
           {:ok, {{{returnType}}}{{^returnType}}nil{{/returnType}}} | {:error, term()}
-  def {{operationId}}(%__MODULE__{} = api{{#hasAuthMethods}}, auth{{/hasAuthMethods}}{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{^required}} \\ nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, opts \\ []{{/-first}}{{/servers}}) do
-    case {{operationId}}_with_http_info(api{{#hasAuthMethods}}, auth{{/hasAuthMethods}}{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, opts{{/-first}}{{/servers}}) do
+  def {{operationId}}(%__MODULE__{} = api{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{^required}} \\ nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, opts \\ []) do
+    case {{operationId}}_with_http_info(api{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -144,8 +142,8 @@ defmodule {{moduleName}}.Api.{{classname}} do
   @doc """
   Bang version of `{{operationId}}`. Raises on error.
   """
-  def {{operationId}}!(%__MODULE__{} = api{{#hasAuthMethods}}, auth{{/hasAuthMethods}}{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{^required}} \\ nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, opts \\ []{{/-first}}{{/servers}}) do
-    case {{operationId}}(api{{#hasAuthMethods}}, auth{{/hasAuthMethods}}{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, opts{{/-first}}{{/servers}}) do
+  def {{operationId}}!(%__MODULE__{} = api{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{^required}} \\ nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, opts \\ []) do
+    case {{operationId}}(api{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -154,9 +152,10 @@ defmodule {{moduleName}}.Api.{{classname}} do
   @doc """
   Same as `{{operationId}}` but returns the full `ApiResult`.
   """
-  @spec {{operationId}}_with_http_info(t(){{#hasAuthMethods}}, term(){{/hasAuthMethods}}{{#pathParams}}, {{{dataType}}}{{/pathParams}}{{#bodyParam}}, {{{dataType}}}{{^required}} | nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, keyword(){{/-first}}{{/servers}}) ::
+  @spec {{operationId}}_with_http_info(t(){{#pathParams}}, {{{dataType}}}{{/pathParams}}{{#bodyParam}}, {{{dataType}}}{{^required}} | nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, {{#lambda.camelize}}{{operationId}}{{/lambda.camelize}}Options.t(){{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, keyword()) ::
           {:ok, {{moduleName}}.ApiResult.t()} | {:error, term()}
-  def {{operationId}}_with_http_info(%__MODULE__{} = api{{#hasAuthMethods}}, auth{{/hasAuthMethods}}{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{^required}} \\ nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}{{#servers}}{{#-first}}, opts \\ []{{/-first}}{{/servers}}) do
+  def {{operationId}}_with_http_info(%__MODULE__{} = api{{#pathParams}}, {{paramName}}{{/pathParams}}{{#bodyParam}}, {{paramName}}{{^required}} \\ nil{{/required}}{{/bodyParam}}{{#queryParams}}{{#-first}}, options{{/-first}}{{/queryParams}}{{^queryParams}}{{#headerParams}}{{#-first}}, options{{/-first}}{{/headerParams}}{{^headerParams}}{{#formParams}}{{#-first}}, options{{/-first}}{{/formParams}}{{^formParams}}{{#cookieParams}}{{#-first}}, options{{/-first}}{{/cookieParams}}{{/formParams}}{{/headerParams}}{{/queryParams}}, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
 {{#pathParams}}
 {{#required}}
     if is_nil({{paramName}}) do
@@ -181,8 +180,6 @@ defmodule {{moduleName}}.Api.{{classname}} do
     path = String.replace(path, "{<%baseName%>}", <%moduleName%>.ValueSerializer.serialize_styled("<%baseName%>", <%paramName%>, :path, "<%& dataType%>", nil, "<%style%>", <%isExplode%>) |> to_string() |> encode_path_segment())
 <%={{ }}=%>
 {{/pathParams}}
-{{#servers}}
-{{#-first}}
     server = Keyword.get(opts, :server)
     path = if server do
       server_url = {{moduleName}}.ServerConfiguration.url(server)
@@ -190,8 +187,6 @@ defmodule {{moduleName}}.Api.{{classname}} do
     else
       path
     end
-{{/-first}}
-{{/servers}}
     query_params = %{}
 {{#queryParams}}
 {{#isDeepObject}}
@@ -227,7 +222,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
 {{/isAllowEmptyValue}}
 {{^isAllowEmptyValue}}
     query_params =
-      if not is_nil(options) and not is_nil(options.{{paramName}}) do
+      if not is_nil(options) and not is_nil(options.{{paramName}}) and options.{{paramName}} != [] do
         Map.put(query_params, "{{baseName}}",
           {{moduleName}}.ValueSerializer.serialize_styled("{{baseName}}", options.{{paramName}}, :query, "{{{dataType}}}", {{#collectionFormat}}:{{collectionFormat}}{{/collectionFormat}}{{^collectionFormat}}nil{{/collectionFormat}}, "{{style}}", {{isExplode}}))
       else
@@ -285,7 +280,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
       [{{#produces}}"{{mediaType}}"{{^-last}}, {{/-last}}{{/produces}}],
       {{#consumes.0}}"{{{mediaType}}}"{{/consumes.0}}{{^consumes}}"application/json"{{/consumes}},
       {{#returnType}}"{{{.}}}"{{/returnType}}{{^returnType}}nil{{/returnType}},
-      {{#hasAuthMethods}}auth{{/hasAuthMethods}}{{^hasAuthMethods}}nil{{/hasAuthMethods}}
+      auth
     )
   end
 

@@ -17,9 +17,9 @@ class TestTransportOptions:
         opts = TransportOptions.builder().build()
         assert opts.proxy is None
 
-    def test_timeout_defaults_to_none(self) -> None:
+    def test_timeout_defaults_to_ten_seconds(self) -> None:
         opts = TransportOptions.builder().build()
-        assert opts.timeout is None
+        assert opts.timeout == 10000
 
     def test_follow_redirects_defaults_to_true(self) -> None:
         opts = TransportOptions.builder().build()
@@ -137,9 +137,13 @@ class TestTransportOptions:
 
     # TimeoutConfigTests
 
-    def test_timeout_defaults_to_none_in_timeout_group(self) -> None:
-        # Default TransportOptions has no timeout set; None means no timeout applied.
+    def test_timeout_defaults_to_ten_seconds_in_timeout_group(self) -> None:
+        # Default TransportOptions has a 10s end-to-end timeout.
         opts = TransportOptions.builder().build()
+        assert opts.timeout == 10000
+
+    def test_timeout_can_be_explicitly_disabled(self) -> None:
+        opts = TransportOptions.builder().timeout(None).build()
         assert opts.timeout is None
 
     def test_setting_timeout_is_accessible(self) -> None:

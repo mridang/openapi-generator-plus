@@ -167,6 +167,18 @@ class ObjectSerializerTest {
             assertTrue(json.contains("\"id\":0"), "serialized JSON should include id=0, got: $json")
             assertTrue(json.contains("\"name\":\"\""), "serialized JSON should include empty name, got: $json")
         }
+
+        @Test
+        @DisplayName("omits fields explicitly set to null (Gap 13: discard nulls)")
+        fun omitsNullFields() {
+            val category =
+                com.example.petstore.models
+                    .Category(id = null, name = "Dogs")
+            val json = serializer.serialize(category)
+            assertFalse(json.contains("\"id\""), "serialized JSON should NOT contain null id, got: $json")
+            assertTrue(json.contains("\"name\":\"Dogs\""), "serialized JSON should include name, got: $json")
+            assertFalse(json.contains("null"), "serialized JSON should not contain the literal 'null', got: $json")
+        }
     }
 
     @Nested
@@ -191,6 +203,16 @@ class ObjectSerializerTest {
         fun deserializesStringFromJson() {
             val result: String? = serializer.deserialize("\"hello\"")
             assertEquals("hello", result)
+        }
+
+        @Test
+        @DisplayName("ignores unknown JSON fields on deserialize (Gap 14: discard extras)")
+        fun ignoresUnknownFieldsOnDeserialize() {
+            val jsonWithExtras = "{\"id\":1,\"name\":\"Dogs\",\"unknownField\":\"x\",\"another\":42}"
+            val result = serializer.deserialize<com.example.petstore.models.Category>(jsonWithExtras)
+            assertNotNull(result)
+            assertEquals(1L, result!!.id)
+            assertEquals("Dogs", result.name)
         }
     }
 

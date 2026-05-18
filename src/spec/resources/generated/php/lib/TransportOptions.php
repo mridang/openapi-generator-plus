@@ -50,7 +50,7 @@ final class TransportOptions
         public readonly bool $verifySsl = true,
         public readonly ?string $caCertPath = null,
         public readonly ?string $proxy = null,
-        public readonly ?int $timeout = null,
+        public readonly ?int $timeout = 10000,
         public readonly bool $followRedirects = true,
         public readonly ?int $maxRedirects = null,
         public readonly ?string $userAgent = 'PetstoreClient/1.0.0 (php)',

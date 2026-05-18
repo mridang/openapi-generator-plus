@@ -18,9 +18,9 @@ describe('TransportOptions', () => {
     expect(opts.proxy).toBeNull();
   });
 
-  test('timeout defaults to null', () => {
+  test('timeout defaults to 10000 milliseconds', () => {
     const opts = TransportOptions.builder().build();
-    expect(opts.timeout).toBeNull();
+    expect(opts.timeout).toBe(10000);
   });
 
   test('followRedirects defaults to true', () => {
@@ -156,9 +156,14 @@ describe('TransportOptions', () => {
   });
 
   describe('TimeoutConfigTests', () => {
-    test('timeout defaults to null', () => {
-      // Default TransportOptions has no timeout set; null means no timeout applied.
+    test('timeout defaults to 10 seconds (10000 ms)', () => {
+      // Default TransportOptions sets a 10-second timeout for cross-language parity.
       const opts = TransportOptions.builder().build();
+      expect(opts.timeout).toBe(10000);
+    });
+
+    test('timeout default may be overridden to null for no timeout', () => {
+      const opts = TransportOptions.builder().timeout(null).build();
       expect(opts.timeout).toBeNull();
     });
 

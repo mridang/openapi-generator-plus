@@ -22,4 +22,26 @@ public struct PhotoMetadataLocation: Codable, Sendable {
     self.lat = lat
     self.lng = lng
   }
+
+  /// Decodes this instance from the given decoder.
+  ///
+  /// Required fields use `decode(_:forKey:)`; optional fields use
+  /// `decodeIfPresent(_:forKey:)`. Unknown JSON keys are silently ignored
+  /// — matching the cross-language "discard extras on deserialise" expectation.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.lat = try container.decodeIfPresent(Double.self, forKey: .lat)
+    self.lng = try container.decodeIfPresent(Double.self, forKey: .lng)
+  }
+
+  /// Encodes this instance, omitting nil optional fields from the JSON output.
+  ///
+  /// Uses `encodeIfPresent` for every optional property so that unset values
+  /// are dropped from the wire payload rather than emitted as `null` — matching
+  /// the cross-language "discard nulls on serialise" expectation.
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encodeIfPresent(lat, forKey: .lat)
+    try container.encodeIfPresent(lng, forKey: .lng)
+  }
 }

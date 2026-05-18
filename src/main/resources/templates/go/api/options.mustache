@@ -1,23 +1,17 @@
 package {{packageName}}
-{{#hasOsImport}}
-{{#hasModelImport}}
 
 import (
+{{#hasOsImport}}
 	"os"
-	. "{{moduleName}}/pkg/models"
-)
-{{/hasModelImport}}
-{{^hasModelImport}}
-
-import "os"
-{{/hasModelImport}}
 {{/hasOsImport}}
-{{^hasOsImport}}
 {{#hasModelImport}}
-
-import . "{{moduleName}}/pkg/models"
+	. "{{moduleName}}/pkg/models"
 {{/hasModelImport}}
-{{/hasOsImport}}
+{{#hasUuidImport}}
+
+	"github.com/google/uuid"
+{{/hasUuidImport}}
+)
 
 // {{className}} holds optional parameters for the {{operationId}} operation.
 type {{className}} struct {

@@ -175,6 +175,7 @@ defmodule {{moduleName}}.ObjectSerializer do
     Map.new(map, fn {k, v} -> {k, sanitize_for_serialization(v)} end)
   end
 
+  def sanitize_for_serialization(value) when is_atom(value), do: to_string(value)
   def sanitize_for_serialization(value), do: to_string(value)
 
   @doc """
@@ -234,10 +235,22 @@ defmodule {{moduleName}}.ObjectSerializer do
       function_exported?(module, :openapi_types, 0) ->
         deserialize_model(data, module)
 
+      function_exported?(module, :all_values, 0) ->
+        atomize_enum(module, data)
+
       true ->
         data
     end
   end
+
+  defp atomize_enum(module, data) when is_atom(data), do: data
+
+  defp atomize_enum(module, data) when is_binary(data) do
+    candidate = String.to_atom(String.downcase(data))
+    if Enum.member?(module.all_values(), candidate), do: candidate, else: data
+  end
+
+  defp atomize_enum(_module, data), do: data
 
   # Returns true when at least one key in data matches a JSON key for the struct,
   # preventing a catch-all empty struct from winning over a better candidate.

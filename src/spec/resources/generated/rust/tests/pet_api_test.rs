@@ -124,7 +124,7 @@ async fn test_pet_api_add_pet() {
         "Fido".to_string(),
         HashSet::from(["http://example.com/fido.jpg".to_string()]),
     );
-    let result = api.add_pet(&auth, pet).await;
+    let result = api.add_pet(Some(&auth), pet).await;
     assert!(result.is_ok(), "add_pet failed: {:?}", result.err());
 }
 
@@ -136,7 +136,7 @@ async fn test_pet_api_add_pet_with_http_info() {
         "Buddy".to_string(),
         HashSet::from(["http://example.com/buddy.jpg".to_string()]),
     );
-    let result = api.add_pet_with_http_info(&auth, pet).await;
+    let result = api.add_pet_with_http_info(Some(&auth), pet).await;
     assert!(
         result.is_ok(),
         "add_pet_with_http_info failed: {:?}",
@@ -196,7 +196,7 @@ async fn test_pet_api_update_pet_with_http_info() {
 async fn test_pet_api_delete_pet() {
     let api = new_pet_api_for_integration();
     let auth = basic_auth();
-    let result = api.delete_pet(&auth, 1, None).await;
+    let result = api.delete_pet(Some(&auth), 1, None).await;
     assert!(result.is_ok(), "delete_pet failed: {:?}", result.err());
 }
 
@@ -204,7 +204,7 @@ async fn test_pet_api_delete_pet() {
 async fn test_pet_api_delete_pet_with_http_info() {
     let api = new_pet_api_for_integration();
     let auth = basic_auth();
-    let result = api.delete_pet_with_http_info(&auth, 1, None).await;
+    let result = api.delete_pet_with_http_info(Some(&auth), 1, None).await;
     assert!(
         result.is_ok(),
         "delete_pet_with_http_info failed: {:?}",

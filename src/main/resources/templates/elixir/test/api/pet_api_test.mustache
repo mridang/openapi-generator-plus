@@ -24,7 +24,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
       status: "available"
     }
 
-    assert {:ok, result} = {{moduleName}}.Api.PetApi.add_pet(api, auth, pet)
+    assert {:ok, result} = {{moduleName}}.Api.PetApi.add_pet(api, pet, auth: auth)
     assert result != nil
   end
 
@@ -55,7 +55,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
   end
 
   test "delete_pet deletes a pet", %{api: api, auth: auth} do
-    assert {:ok, _result} = {{moduleName}}.Api.PetApi.delete_pet(api, auth, 1, %{{moduleName}}.Api.Options.DeletePetOptions{})
+    assert {:ok, _result} = {{moduleName}}.Api.PetApi.delete_pet(api, 1, %{{moduleName}}.Api.Options.DeletePetOptions{}, auth: auth)
   end
 
   test "set_pet_avatar uploads binary image data", %{api: api} do
@@ -189,7 +189,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
       status: "available"
     }
 
-    assert {:ok, result} = {{moduleName}}.Api.PetApi.add_pet_with_http_info(api, auth, pet)
+    assert {:ok, result} = {{moduleName}}.Api.PetApi.add_pet_with_http_info(api, pet, auth: auth)
     assert result.status_code >= 200
     assert result.status_code < 300
     assert result.data != nil

@@ -158,8 +158,9 @@ defmodule PetstoreClient.Api.PetApi do
   Add a new pet to the store
 
   ## Parameters
-    * `auth` - Authenticator for this operation.
     * `pet` - Pet - Create a new pet in the store
+
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
 
@@ -167,10 +168,10 @@ defmodule PetstoreClient.Api.PetApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec add_pet(t(), term(), Pet) ::
+  @spec add_pet(t(), Pet, keyword()) ::
           {:ok, Pet} | {:error, term()}
-  def add_pet(%__MODULE__{} = api, auth, pet) do
-    case add_pet_with_http_info(api, auth, pet) do
+  def add_pet(%__MODULE__{} = api, pet, opts \\ []) do
+    case add_pet_with_http_info(api, pet, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -179,8 +180,8 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `add_pet`. Raises on error.
   """
-  def add_pet!(%__MODULE__{} = api, auth, pet) do
-    case add_pet(api, auth, pet) do
+  def add_pet!(%__MODULE__{} = api, pet, opts \\ []) do
+    case add_pet(api, pet, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -189,15 +190,30 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `add_pet` but returns the full `ApiResult`.
   """
-  @spec add_pet_with_http_info(t(), term(), Pet) ::
+  @spec add_pet_with_http_info(t(), Pet, keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def add_pet_with_http_info(%__MODULE__{} = api, auth, pet) do
+  def add_pet_with_http_info(%__MODULE__{} = api, pet, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+
     if is_nil(pet) do
       raise ArgumentError,
             "Missing the required parameter 'pet' when calling PetApi.add_pet"
     end
 
     path = "/pet"
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
+
     query_params = %{}
     header_params = %{}
     request_body = pet
@@ -226,16 +242,18 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+
   ## Returns
 
     * `{:ok, [Photo]}` on success.
     * `{:error, exception}` on failure.
 
   """
-  @spec add_pet_photos(t(), integer(), Options.t()) ::
+  @spec add_pet_photos(t(), integer(), Options.t(), keyword()) ::
           {:ok, [Photo]} | {:error, term()}
-  def add_pet_photos(%__MODULE__{} = api, pet_id, options) do
-    case add_pet_photos_with_http_info(api, pet_id, options) do
+  def add_pet_photos(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+    case add_pet_photos_with_http_info(api, pet_id, options, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -244,8 +262,8 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `add_pet_photos`. Raises on error.
   """
-  def add_pet_photos!(%__MODULE__{} = api, pet_id, options) do
-    case add_pet_photos(api, pet_id, options) do
+  def add_pet_photos!(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+    case add_pet_photos(api, pet_id, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -254,9 +272,11 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `add_pet_photos` but returns the full `ApiResult`.
   """
-  @spec add_pet_photos_with_http_info(t(), integer(), Options.t()) ::
+  @spec add_pet_photos_with_http_info(t(), integer(), Options.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def add_pet_photos_with_http_info(%__MODULE__{} = api, pet_id, options) do
+  def add_pet_photos_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.add_pet_photos"
@@ -272,6 +292,19 @@ defmodule PetstoreClient.Api.PetApi do
         |> to_string()
         |> encode_path_segment()
       )
+
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
 
     query_params = %{}
     header_params = %{}
@@ -289,7 +322,7 @@ defmodule PetstoreClient.Api.PetApi do
       ["application/json"],
       "multipart/form-data",
       "[Photo]",
-      nil
+      auth
     )
   end
 
@@ -297,9 +330,10 @@ defmodule PetstoreClient.Api.PetApi do
   Record a treatment for a pet
 
   ## Parameters
-    * `auth` - Authenticator for this operation.
     * `pet_id` - integer()
     * `pet_treatment` - PetTreatment
+
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
 
@@ -307,10 +341,10 @@ defmodule PetstoreClient.Api.PetApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec add_pet_treatment(t(), term(), integer(), PetTreatment) ::
+  @spec add_pet_treatment(t(), integer(), PetTreatment, keyword()) ::
           {:ok, PetTreatment} | {:error, term()}
-  def add_pet_treatment(%__MODULE__{} = api, auth, pet_id, pet_treatment) do
-    case add_pet_treatment_with_http_info(api, auth, pet_id, pet_treatment) do
+  def add_pet_treatment(%__MODULE__{} = api, pet_id, pet_treatment, opts \\ []) do
+    case add_pet_treatment_with_http_info(api, pet_id, pet_treatment, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -319,8 +353,8 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `add_pet_treatment`. Raises on error.
   """
-  def add_pet_treatment!(%__MODULE__{} = api, auth, pet_id, pet_treatment) do
-    case add_pet_treatment(api, auth, pet_id, pet_treatment) do
+  def add_pet_treatment!(%__MODULE__{} = api, pet_id, pet_treatment, opts \\ []) do
+    case add_pet_treatment(api, pet_id, pet_treatment, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -329,9 +363,11 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `add_pet_treatment` but returns the full `ApiResult`.
   """
-  @spec add_pet_treatment_with_http_info(t(), term(), integer(), PetTreatment) ::
+  @spec add_pet_treatment_with_http_info(t(), integer(), PetTreatment, keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def add_pet_treatment_with_http_info(%__MODULE__{} = api, auth, pet_id, pet_treatment) do
+  def add_pet_treatment_with_http_info(%__MODULE__{} = api, pet_id, pet_treatment, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.add_pet_treatment"
@@ -352,6 +388,19 @@ defmodule PetstoreClient.Api.PetApi do
         |> to_string()
         |> encode_path_segment()
       )
+
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
 
     query_params = %{}
     header_params = %{}
@@ -375,10 +424,11 @@ defmodule PetstoreClient.Api.PetApi do
   Deletes a pet
 
   ## Parameters
-    * `auth` - Authenticator for this operation.
     * `pet_id` - integer() - Pet id to delete
 
     * `options` - Optional parameters (query, header, form, cookie).
+
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
 
@@ -386,10 +436,10 @@ defmodule PetstoreClient.Api.PetApi do
     * `{:error, exception}` on failure.
 
   """
-  @spec delete_pet(t(), term(), integer(), Options.t()) ::
+  @spec delete_pet(t(), integer(), Options.t(), keyword()) ::
           {:ok, nil} | {:error, term()}
-  def delete_pet(%__MODULE__{} = api, auth, pet_id, options) do
-    case delete_pet_with_http_info(api, auth, pet_id, options) do
+  def delete_pet(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+    case delete_pet_with_http_info(api, pet_id, options, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -398,8 +448,8 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `delete_pet`. Raises on error.
   """
-  def delete_pet!(%__MODULE__{} = api, auth, pet_id, options) do
-    case delete_pet(api, auth, pet_id, options) do
+  def delete_pet!(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+    case delete_pet(api, pet_id, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -408,9 +458,11 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `delete_pet` but returns the full `ApiResult`.
   """
-  @spec delete_pet_with_http_info(t(), term(), integer(), Options.t()) ::
+  @spec delete_pet_with_http_info(t(), integer(), Options.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def delete_pet_with_http_info(%__MODULE__{} = api, auth, pet_id, options) do
+  def delete_pet_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.delete_pet"
@@ -426,6 +478,19 @@ defmodule PetstoreClient.Api.PetApi do
         |> to_string()
         |> encode_path_segment()
       )
+
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
 
     query_params = %{}
     header_params = %{}
@@ -469,16 +534,18 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer()
     * `document_id` - integer()
 
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+
   ## Returns
 
     * `{:ok, binary()}` on success.
     * `{:error, exception}` on failure.
 
   """
-  @spec download_pet_document(t(), integer(), integer()) ::
+  @spec download_pet_document(t(), integer(), integer(), keyword()) ::
           {:ok, binary()} | {:error, term()}
-  def download_pet_document(%__MODULE__{} = api, pet_id, document_id) do
-    case download_pet_document_with_http_info(api, pet_id, document_id) do
+  def download_pet_document(%__MODULE__{} = api, pet_id, document_id, opts \\ []) do
+    case download_pet_document_with_http_info(api, pet_id, document_id, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -487,8 +554,8 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `download_pet_document`. Raises on error.
   """
-  def download_pet_document!(%__MODULE__{} = api, pet_id, document_id) do
-    case download_pet_document(api, pet_id, document_id) do
+  def download_pet_document!(%__MODULE__{} = api, pet_id, document_id, opts \\ []) do
+    case download_pet_document(api, pet_id, document_id, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -497,9 +564,11 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `download_pet_document` but returns the full `ApiResult`.
   """
-  @spec download_pet_document_with_http_info(t(), integer(), integer()) ::
+  @spec download_pet_document_with_http_info(t(), integer(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def download_pet_document_with_http_info(%__MODULE__{} = api, pet_id, document_id) do
+  def download_pet_document_with_http_info(%__MODULE__{} = api, pet_id, document_id, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.download_pet_document"
@@ -538,6 +607,19 @@ defmodule PetstoreClient.Api.PetApi do
         |> encode_path_segment()
       )
 
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
+
     query_params = %{}
     header_params = %{}
     request_body = nil
@@ -552,7 +634,7 @@ defmodule PetstoreClient.Api.PetApi do
       ["application/octet-stream"],
       "application/json",
       "binary()",
-      nil
+      auth
     )
   end
 
@@ -565,6 +647,8 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+
   ## Returns
 
     * `{:ok, [Pet]}` on success.
@@ -572,10 +656,10 @@ defmodule PetstoreClient.Api.PetApi do
 
   """
   @deprecated "This operation is deprecated."
-  @spec find_pets_by_status(t(), Options.t()) ::
+  @spec find_pets_by_status(t(), Options.t(), keyword()) ::
           {:ok, [Pet]} | {:error, term()}
-  def find_pets_by_status(%__MODULE__{} = api, options) do
-    case find_pets_by_status_with_http_info(api, options) do
+  def find_pets_by_status(%__MODULE__{} = api, options, opts \\ []) do
+    case find_pets_by_status_with_http_info(api, options, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -584,8 +668,8 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `find_pets_by_status`. Raises on error.
   """
-  def find_pets_by_status!(%__MODULE__{} = api, options) do
-    case find_pets_by_status(api, options) do
+  def find_pets_by_status!(%__MODULE__{} = api, options, opts \\ []) do
+    case find_pets_by_status(api, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -594,10 +678,24 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `find_pets_by_status` but returns the full `ApiResult`.
   """
-  @spec find_pets_by_status_with_http_info(t(), Options.t()) ::
+  @spec find_pets_by_status_with_http_info(t(), Options.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def find_pets_by_status_with_http_info(%__MODULE__{} = api, options) do
+  def find_pets_by_status_with_http_info(%__MODULE__{} = api, options, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
     path = "/pet/findByStatus"
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
+
     query_params = %{}
 
     query_params =
@@ -643,7 +741,7 @@ defmodule PetstoreClient.Api.PetApi do
       ["application/json"],
       "application/json",
       "[Pet]",
-      nil
+      auth
     )
   end
 
@@ -652,6 +750,8 @@ defmodule PetstoreClient.Api.PetApi do
 
   ## Parameters
     * `pet_id` - integer()
+
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
 
@@ -684,6 +784,8 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_external_pet_info_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_external_pet_info_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.get_external_pet_info"
@@ -727,7 +829,7 @@ defmodule PetstoreClient.Api.PetApi do
       ["application/json"],
       "application/json",
       "Pet",
-      nil
+      auth
     )
   end
 
@@ -736,6 +838,8 @@ defmodule PetstoreClient.Api.PetApi do
 
   ## Parameters
     * `pet_id` - integer()
+
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
 
@@ -768,6 +872,8 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_multi_server_pet_info_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_multi_server_pet_info_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.get_multi_server_pet_info"
@@ -811,7 +917,7 @@ defmodule PetstoreClient.Api.PetApi do
       ["application/json"],
       "application/json",
       "Pet",
-      nil
+      auth
     )
   end
 
@@ -823,16 +929,18 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
 
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+
   ## Returns
 
     * `{:ok, binary()}` on success.
     * `{:error, exception}` on failure.
 
   """
-  @spec get_pet_avatar(t(), integer()) ::
+  @spec get_pet_avatar(t(), integer(), keyword()) ::
           {:ok, binary()} | {:error, term()}
-  def get_pet_avatar(%__MODULE__{} = api, pet_id) do
-    case get_pet_avatar_with_http_info(api, pet_id) do
+  def get_pet_avatar(%__MODULE__{} = api, pet_id, opts \\ []) do
+    case get_pet_avatar_with_http_info(api, pet_id, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -841,8 +949,8 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `get_pet_avatar`. Raises on error.
   """
-  def get_pet_avatar!(%__MODULE__{} = api, pet_id) do
-    case get_pet_avatar(api, pet_id) do
+  def get_pet_avatar!(%__MODULE__{} = api, pet_id, opts \\ []) do
+    case get_pet_avatar(api, pet_id, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -851,9 +959,11 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `get_pet_avatar` but returns the full `ApiResult`.
   """
-  @spec get_pet_avatar_with_http_info(t(), integer()) ::
+  @spec get_pet_avatar_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def get_pet_avatar_with_http_info(%__MODULE__{} = api, pet_id) do
+  def get_pet_avatar_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar"
@@ -870,6 +980,19 @@ defmodule PetstoreClient.Api.PetApi do
         |> encode_path_segment()
       )
 
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
+
     query_params = %{}
     header_params = %{}
     request_body = nil
@@ -884,7 +1007,7 @@ defmodule PetstoreClient.Api.PetApi do
       ["image/jpeg", "image/png"],
       "application/json",
       "binary()",
-      nil
+      auth
     )
   end
 
@@ -896,16 +1019,18 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
 
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+
   ## Returns
 
     * `{:ok, binary()}` on success.
     * `{:error, exception}` on failure.
 
   """
-  @spec get_pet_avatar_thumbnail(t(), integer()) ::
+  @spec get_pet_avatar_thumbnail(t(), integer(), keyword()) ::
           {:ok, binary()} | {:error, term()}
-  def get_pet_avatar_thumbnail(%__MODULE__{} = api, pet_id) do
-    case get_pet_avatar_thumbnail_with_http_info(api, pet_id) do
+  def get_pet_avatar_thumbnail(%__MODULE__{} = api, pet_id, opts \\ []) do
+    case get_pet_avatar_thumbnail_with_http_info(api, pet_id, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -914,8 +1039,8 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `get_pet_avatar_thumbnail`. Raises on error.
   """
-  def get_pet_avatar_thumbnail!(%__MODULE__{} = api, pet_id) do
-    case get_pet_avatar_thumbnail(api, pet_id) do
+  def get_pet_avatar_thumbnail!(%__MODULE__{} = api, pet_id, opts \\ []) do
+    case get_pet_avatar_thumbnail(api, pet_id, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -924,9 +1049,11 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `get_pet_avatar_thumbnail` but returns the full `ApiResult`.
   """
-  @spec get_pet_avatar_thumbnail_with_http_info(t(), integer()) ::
+  @spec get_pet_avatar_thumbnail_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def get_pet_avatar_thumbnail_with_http_info(%__MODULE__{} = api, pet_id) do
+  def get_pet_avatar_thumbnail_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.get_pet_avatar_thumbnail"
@@ -943,6 +1070,19 @@ defmodule PetstoreClient.Api.PetApi do
         |> encode_path_segment()
       )
 
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
+
     query_params = %{}
     header_params = %{}
     request_body = nil
@@ -957,7 +1097,7 @@ defmodule PetstoreClient.Api.PetApi do
       ["application/json"],
       "application/json",
       "binary()",
-      nil
+      auth
     )
   end
 
@@ -970,6 +1110,8 @@ defmodule PetstoreClient.Api.PetApi do
 
   ## Parameters
     * `pet_id` - integer() - ID of pet to return
+
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
 
@@ -1003,6 +1145,8 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_pet_by_id_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_pet_by_id_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.get_pet_by_id"
@@ -1046,7 +1190,7 @@ defmodule PetstoreClient.Api.PetApi do
       ["application/json"],
       "application/json",
       "Pet",
-      nil
+      auth
     )
   end
 
@@ -1058,16 +1202,18 @@ defmodule PetstoreClient.Api.PetApi do
   ## Parameters
     * `pet_id` - integer()
 
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+
   ## Returns
 
     * `{:ok, PetPassport}` on success.
     * `{:error, exception}` on failure.
 
   """
-  @spec get_pet_passport(t(), integer()) ::
+  @spec get_pet_passport(t(), integer(), keyword()) ::
           {:ok, PetPassport} | {:error, term()}
-  def get_pet_passport(%__MODULE__{} = api, pet_id) do
-    case get_pet_passport_with_http_info(api, pet_id) do
+  def get_pet_passport(%__MODULE__{} = api, pet_id, opts \\ []) do
+    case get_pet_passport_with_http_info(api, pet_id, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -1076,8 +1222,8 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `get_pet_passport`. Raises on error.
   """
-  def get_pet_passport!(%__MODULE__{} = api, pet_id) do
-    case get_pet_passport(api, pet_id) do
+  def get_pet_passport!(%__MODULE__{} = api, pet_id, opts \\ []) do
+    case get_pet_passport(api, pet_id, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -1086,9 +1232,11 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `get_pet_passport` but returns the full `ApiResult`.
   """
-  @spec get_pet_passport_with_http_info(t(), integer()) ::
+  @spec get_pet_passport_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def get_pet_passport_with_http_info(%__MODULE__{} = api, pet_id) do
+  def get_pet_passport_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.get_pet_passport"
@@ -1105,6 +1253,19 @@ defmodule PetstoreClient.Api.PetApi do
         |> encode_path_segment()
       )
 
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
+
     query_params = %{}
     header_params = %{}
     request_body = nil
@@ -1119,7 +1280,7 @@ defmodule PetstoreClient.Api.PetApi do
       ["application/json"],
       "application/json",
       "PetPassport",
-      nil
+      auth
     )
   end
 
@@ -1132,16 +1293,18 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer()
     * `photo_id` - integer()
 
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+
   ## Returns
 
     * `{:ok, binary()}` on success.
     * `{:error, exception}` on failure.
 
   """
-  @spec get_pet_photo(t(), integer(), integer()) ::
+  @spec get_pet_photo(t(), integer(), integer(), keyword()) ::
           {:ok, binary()} | {:error, term()}
-  def get_pet_photo(%__MODULE__{} = api, pet_id, photo_id) do
-    case get_pet_photo_with_http_info(api, pet_id, photo_id) do
+  def get_pet_photo(%__MODULE__{} = api, pet_id, photo_id, opts \\ []) do
+    case get_pet_photo_with_http_info(api, pet_id, photo_id, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -1150,8 +1313,8 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `get_pet_photo`. Raises on error.
   """
-  def get_pet_photo!(%__MODULE__{} = api, pet_id, photo_id) do
-    case get_pet_photo(api, pet_id, photo_id) do
+  def get_pet_photo!(%__MODULE__{} = api, pet_id, photo_id, opts \\ []) do
+    case get_pet_photo(api, pet_id, photo_id, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -1160,9 +1323,11 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `get_pet_photo` but returns the full `ApiResult`.
   """
-  @spec get_pet_photo_with_http_info(t(), integer(), integer()) ::
+  @spec get_pet_photo_with_http_info(t(), integer(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def get_pet_photo_with_http_info(%__MODULE__{} = api, pet_id, photo_id) do
+  def get_pet_photo_with_http_info(%__MODULE__{} = api, pet_id, photo_id, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.get_pet_photo"
@@ -1193,6 +1358,19 @@ defmodule PetstoreClient.Api.PetApi do
         |> encode_path_segment()
       )
 
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
+
     query_params = %{}
     header_params = %{}
     request_body = nil
@@ -1207,7 +1385,7 @@ defmodule PetstoreClient.Api.PetApi do
       ["image/jpeg", "image/png", "application/json"],
       "application/json",
       "binary()",
-      nil
+      auth
     )
   end
 
@@ -1220,16 +1398,18 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+
   ## Returns
 
     * `{:ok, Pet}` on success.
     * `{:error, exception}` on failure.
 
   """
-  @spec get_pet_tag(t(), integer(), String.t(), Options.t()) ::
+  @spec get_pet_tag(t(), integer(), String.t(), Options.t(), keyword()) ::
           {:ok, Pet} | {:error, term()}
-  def get_pet_tag(%__MODULE__{} = api, pet_id, tag_name, options) do
-    case get_pet_tag_with_http_info(api, pet_id, tag_name, options) do
+  def get_pet_tag(%__MODULE__{} = api, pet_id, tag_name, options, opts \\ []) do
+    case get_pet_tag_with_http_info(api, pet_id, tag_name, options, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -1238,8 +1418,8 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `get_pet_tag`. Raises on error.
   """
-  def get_pet_tag!(%__MODULE__{} = api, pet_id, tag_name, options) do
-    case get_pet_tag(api, pet_id, tag_name, options) do
+  def get_pet_tag!(%__MODULE__{} = api, pet_id, tag_name, options, opts \\ []) do
+    case get_pet_tag(api, pet_id, tag_name, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -1248,9 +1428,11 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `get_pet_tag` but returns the full `ApiResult`.
   """
-  @spec get_pet_tag_with_http_info(t(), integer(), String.t(), Options.t()) ::
+  @spec get_pet_tag_with_http_info(t(), integer(), String.t(), Options.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def get_pet_tag_with_http_info(%__MODULE__{} = api, pet_id, tag_name, options) do
+  def get_pet_tag_with_http_info(%__MODULE__{} = api, pet_id, tag_name, options, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.get_pet_tag"
@@ -1281,10 +1463,23 @@ defmodule PetstoreClient.Api.PetApi do
         |> encode_path_segment()
       )
 
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
+
     query_params = %{}
 
     query_params =
-      if not is_nil(options) and not is_nil(options.colors) do
+      if not is_nil(options) and not is_nil(options.colors) and options.colors != [] do
         Map.put(
           query_params,
           "colors",
@@ -1303,7 +1498,7 @@ defmodule PetstoreClient.Api.PetApi do
       end
 
     query_params =
-      if not is_nil(options) and not is_nil(options.sizes) do
+      if not is_nil(options) and not is_nil(options.sizes) and options.sizes != [] do
         Map.put(
           query_params,
           "sizes",
@@ -1357,7 +1552,7 @@ defmodule PetstoreClient.Api.PetApi do
       ["application/json"],
       "application/json",
       "Pet",
-      nil
+      auth
     )
   end
 
@@ -1366,6 +1561,8 @@ defmodule PetstoreClient.Api.PetApi do
 
   ## Parameters
     * `pet_id` - integer()
+
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
 
   ## Returns
 
@@ -1398,6 +1595,8 @@ defmodule PetstoreClient.Api.PetApi do
   @spec get_staging_pet_info_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
   def get_staging_pet_info_with_http_info(%__MODULE__{} = api, pet_id, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.get_staging_pet_info"
@@ -1441,7 +1640,7 @@ defmodule PetstoreClient.Api.PetApi do
       ["application/json"],
       "application/json",
       "Pet",
-      nil
+      auth
     )
   end
 
@@ -1454,16 +1653,18 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer()
     * `body` - binary()
 
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+
   ## Returns
 
     * `{:ok, nil}` on success.
     * `{:error, exception}` on failure.
 
   """
-  @spec set_pet_avatar(t(), integer(), binary()) ::
+  @spec set_pet_avatar(t(), integer(), binary(), keyword()) ::
           {:ok, nil} | {:error, term()}
-  def set_pet_avatar(%__MODULE__{} = api, pet_id, body) do
-    case set_pet_avatar_with_http_info(api, pet_id, body) do
+  def set_pet_avatar(%__MODULE__{} = api, pet_id, body, opts \\ []) do
+    case set_pet_avatar_with_http_info(api, pet_id, body, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -1472,8 +1673,8 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `set_pet_avatar`. Raises on error.
   """
-  def set_pet_avatar!(%__MODULE__{} = api, pet_id, body) do
-    case set_pet_avatar(api, pet_id, body) do
+  def set_pet_avatar!(%__MODULE__{} = api, pet_id, body, opts \\ []) do
+    case set_pet_avatar(api, pet_id, body, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -1482,9 +1683,11 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `set_pet_avatar` but returns the full `ApiResult`.
   """
-  @spec set_pet_avatar_with_http_info(t(), integer(), binary()) ::
+  @spec set_pet_avatar_with_http_info(t(), integer(), binary(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def set_pet_avatar_with_http_info(%__MODULE__{} = api, pet_id, body) do
+  def set_pet_avatar_with_http_info(%__MODULE__{} = api, pet_id, body, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar"
@@ -1506,6 +1709,19 @@ defmodule PetstoreClient.Api.PetApi do
         |> encode_path_segment()
       )
 
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
+
     query_params = %{}
     header_params = %{}
     request_body = body
@@ -1520,7 +1736,7 @@ defmodule PetstoreClient.Api.PetApi do
       [],
       "image/jpeg",
       nil,
-      nil
+      auth
     )
   end
 
@@ -1533,16 +1749,18 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer()
     * `set_pet_avatar_thumbnail_request` - SetPetAvatarThumbnailRequest
 
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+
   ## Returns
 
     * `{:ok, nil}` on success.
     * `{:error, exception}` on failure.
 
   """
-  @spec set_pet_avatar_thumbnail(t(), integer(), SetPetAvatarThumbnailRequest) ::
+  @spec set_pet_avatar_thumbnail(t(), integer(), SetPetAvatarThumbnailRequest, keyword()) ::
           {:ok, nil} | {:error, term()}
-  def set_pet_avatar_thumbnail(%__MODULE__{} = api, pet_id, set_pet_avatar_thumbnail_request) do
-    case set_pet_avatar_thumbnail_with_http_info(api, pet_id, set_pet_avatar_thumbnail_request) do
+  def set_pet_avatar_thumbnail(%__MODULE__{} = api, pet_id, set_pet_avatar_thumbnail_request, opts \\ []) do
+    case set_pet_avatar_thumbnail_with_http_info(api, pet_id, set_pet_avatar_thumbnail_request, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -1551,8 +1769,8 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `set_pet_avatar_thumbnail`. Raises on error.
   """
-  def set_pet_avatar_thumbnail!(%__MODULE__{} = api, pet_id, set_pet_avatar_thumbnail_request) do
-    case set_pet_avatar_thumbnail(api, pet_id, set_pet_avatar_thumbnail_request) do
+  def set_pet_avatar_thumbnail!(%__MODULE__{} = api, pet_id, set_pet_avatar_thumbnail_request, opts \\ []) do
+    case set_pet_avatar_thumbnail(api, pet_id, set_pet_avatar_thumbnail_request, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -1561,9 +1779,11 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `set_pet_avatar_thumbnail` but returns the full `ApiResult`.
   """
-  @spec set_pet_avatar_thumbnail_with_http_info(t(), integer(), SetPetAvatarThumbnailRequest) ::
+  @spec set_pet_avatar_thumbnail_with_http_info(t(), integer(), SetPetAvatarThumbnailRequest, keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def set_pet_avatar_thumbnail_with_http_info(%__MODULE__{} = api, pet_id, set_pet_avatar_thumbnail_request) do
+  def set_pet_avatar_thumbnail_with_http_info(%__MODULE__{} = api, pet_id, set_pet_avatar_thumbnail_request, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.set_pet_avatar_thumbnail"
@@ -1585,6 +1805,19 @@ defmodule PetstoreClient.Api.PetApi do
         |> encode_path_segment()
       )
 
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
+
     query_params = %{}
     header_params = %{}
     request_body = set_pet_avatar_thumbnail_request
@@ -1599,7 +1832,7 @@ defmodule PetstoreClient.Api.PetApi do
       [],
       "application/json",
       nil,
-      nil
+      auth
     )
   end
 
@@ -1610,16 +1843,18 @@ defmodule PetstoreClient.Api.PetApi do
     * `pet_id` - integer() - ID of pet to update
     * `pet` - Pet - Pet object that needs to be updated
 
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+
   ## Returns
 
     * `{:ok, Pet}` on success.
     * `{:error, exception}` on failure.
 
   """
-  @spec update_pet(t(), integer(), Pet) ::
+  @spec update_pet(t(), integer(), Pet, keyword()) ::
           {:ok, Pet} | {:error, term()}
-  def update_pet(%__MODULE__{} = api, pet_id, pet) do
-    case update_pet_with_http_info(api, pet_id, pet) do
+  def update_pet(%__MODULE__{} = api, pet_id, pet, opts \\ []) do
+    case update_pet_with_http_info(api, pet_id, pet, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -1628,8 +1863,8 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `update_pet`. Raises on error.
   """
-  def update_pet!(%__MODULE__{} = api, pet_id, pet) do
-    case update_pet(api, pet_id, pet) do
+  def update_pet!(%__MODULE__{} = api, pet_id, pet, opts \\ []) do
+    case update_pet(api, pet_id, pet, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -1638,9 +1873,11 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `update_pet` but returns the full `ApiResult`.
   """
-  @spec update_pet_with_http_info(t(), integer(), Pet) ::
+  @spec update_pet_with_http_info(t(), integer(), Pet, keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def update_pet_with_http_info(%__MODULE__{} = api, pet_id, pet) do
+  def update_pet_with_http_info(%__MODULE__{} = api, pet_id, pet, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.update_pet"
@@ -1662,6 +1899,19 @@ defmodule PetstoreClient.Api.PetApi do
         |> encode_path_segment()
       )
 
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
+
     query_params = %{}
     header_params = %{}
     request_body = pet
@@ -1676,7 +1926,7 @@ defmodule PetstoreClient.Api.PetApi do
       ["application/json"],
       "application/json",
       "Pet",
-      nil
+      auth
     )
   end
 
@@ -1690,16 +1940,18 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+
   ## Returns
 
     * `{:ok, ApiResponse}` on success.
     * `{:error, exception}` on failure.
 
   """
-  @spec upload_pet_certificate(t(), integer(), Options.t()) ::
+  @spec upload_pet_certificate(t(), integer(), Options.t(), keyword()) ::
           {:ok, ApiResponse} | {:error, term()}
-  def upload_pet_certificate(%__MODULE__{} = api, pet_id, options) do
-    case upload_pet_certificate_with_http_info(api, pet_id, options) do
+  def upload_pet_certificate(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+    case upload_pet_certificate_with_http_info(api, pet_id, options, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -1708,8 +1960,8 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `upload_pet_certificate`. Raises on error.
   """
-  def upload_pet_certificate!(%__MODULE__{} = api, pet_id, options) do
-    case upload_pet_certificate(api, pet_id, options) do
+  def upload_pet_certificate!(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+    case upload_pet_certificate(api, pet_id, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -1718,9 +1970,11 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `upload_pet_certificate` but returns the full `ApiResult`.
   """
-  @spec upload_pet_certificate_with_http_info(t(), integer(), Options.t()) ::
+  @spec upload_pet_certificate_with_http_info(t(), integer(), Options.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def upload_pet_certificate_with_http_info(%__MODULE__{} = api, pet_id, options) do
+  def upload_pet_certificate_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_certificate"
@@ -1737,6 +1991,19 @@ defmodule PetstoreClient.Api.PetApi do
         |> encode_path_segment()
       )
 
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
+
     query_params = %{}
     header_params = %{}
     request_body = %{}
@@ -1752,7 +2019,7 @@ defmodule PetstoreClient.Api.PetApi do
       ["application/json"],
       "multipart/form-data",
       "ApiResponse",
-      nil
+      auth
     )
   end
 
@@ -1766,16 +2033,18 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `options` - Optional parameters (query, header, form, cookie).
 
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+
   ## Returns
 
     * `{:ok, ApiResponse}` on success.
     * `{:error, exception}` on failure.
 
   """
-  @spec upload_pet_document(t(), integer(), Options.t()) ::
+  @spec upload_pet_document(t(), integer(), Options.t(), keyword()) ::
           {:ok, ApiResponse} | {:error, term()}
-  def upload_pet_document(%__MODULE__{} = api, pet_id, options) do
-    case upload_pet_document_with_http_info(api, pet_id, options) do
+  def upload_pet_document(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+    case upload_pet_document_with_http_info(api, pet_id, options, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -1784,8 +2053,8 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Bang version of `upload_pet_document`. Raises on error.
   """
-  def upload_pet_document!(%__MODULE__{} = api, pet_id, options) do
-    case upload_pet_document(api, pet_id, options) do
+  def upload_pet_document!(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+    case upload_pet_document(api, pet_id, options, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -1794,9 +2063,11 @@ defmodule PetstoreClient.Api.PetApi do
   @doc """
   Same as `upload_pet_document` but returns the full `ApiResult`.
   """
-  @spec upload_pet_document_with_http_info(t(), integer(), Options.t()) ::
+  @spec upload_pet_document_with_http_info(t(), integer(), Options.t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def upload_pet_document_with_http_info(%__MODULE__{} = api, pet_id, options) do
+  def upload_pet_document_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+
     if is_nil(pet_id) do
       raise ArgumentError,
             "Missing the required parameter 'pet_id' when calling PetApi.upload_pet_document"
@@ -1812,6 +2083,19 @@ defmodule PetstoreClient.Api.PetApi do
         |> to_string()
         |> encode_path_segment()
       )
+
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
 
     query_params = %{}
     header_params = %{}
@@ -1838,7 +2122,7 @@ defmodule PetstoreClient.Api.PetApi do
       ["application/json"],
       "multipart/form-data",
       "ApiResponse",
-      nil
+      auth
     )
   end
 

@@ -120,7 +120,7 @@ class DefaultApiClientTest {
             val transport =
                 TransportOptions
                     .builder()
-                    .timeout(1)
+                    .timeout(1L)
                     .build()
             val client = DefaultApiClient(transport)
             assertThrows(ApiException::class.java) {

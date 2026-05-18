@@ -171,10 +171,10 @@ class PetApi extends BaseApi
      * @return Pet
      * @throws ApiException
      */
-    public function addPet(Authenticator $auth, Pet $pet)
+    public function addPet(Pet $pet, ?Authenticator $auth = null)
     {
         /** @var Pet $result */
-        $result = $this->addPetWithHttpInfo($auth, $pet)->data;
+        $result = $this->addPetWithHttpInfo($pet, $auth)->data;
         return $result;
     }
 
@@ -184,7 +184,7 @@ class PetApi extends BaseApi
      * @return ApiResult<Pet>
      * @throws ApiException
      */
-    public function addPetWithHttpInfo(Authenticator $auth, Pet $pet): ApiResult
+    public function addPetWithHttpInfo(Pet $pet, ?Authenticator $auth = null): ApiResult
     {
         $path = '/pet';
         $queryParams = [];
@@ -270,10 +270,10 @@ class PetApi extends BaseApi
      * @return PetTreatment
      * @throws ApiException
      */
-    public function addPetTreatment(Authenticator $auth, int $petId, PetTreatment $petTreatment)
+    public function addPetTreatment(int $petId, PetTreatment $petTreatment, ?Authenticator $auth = null)
     {
         /** @var PetTreatment $result */
-        $result = $this->addPetTreatmentWithHttpInfo($auth, $petId, $petTreatment)->data;
+        $result = $this->addPetTreatmentWithHttpInfo($petId, $petTreatment, $auth)->data;
         return $result;
     }
 
@@ -282,7 +282,7 @@ class PetApi extends BaseApi
      * @return ApiResult<PetTreatment>
      * @throws ApiException
      */
-    public function addPetTreatmentWithHttpInfo(Authenticator $auth, int $petId, PetTreatment $petTreatment): ApiResult
+    public function addPetTreatmentWithHttpInfo(int $petId, PetTreatment $petTreatment, ?Authenticator $auth = null): ApiResult
     {
         $path = '/pet/{petId}/treatment';
         /** @var string $pathValue */
@@ -324,9 +324,9 @@ class PetApi extends BaseApi
 
      * @throws ApiException
      */
-    public function deletePet(Authenticator $auth, int $petId, ?DeletePetOptions $options = null): void
+    public function deletePet(int $petId, ?DeletePetOptions $options = null, ?Authenticator $auth = null): void
     {
-        $this->deletePetWithHttpInfo($auth, $petId, $options);
+        $this->deletePetWithHttpInfo($petId, $options, $auth);
     }
 
     /**
@@ -337,7 +337,7 @@ class PetApi extends BaseApi
      * @return ApiResult<null>
      * @throws ApiException
      */
-    public function deletePetWithHttpInfo(Authenticator $auth, int $petId, ?DeletePetOptions $options = null): ApiResult
+    public function deletePetWithHttpInfo(int $petId, ?DeletePetOptions $options = null, ?Authenticator $auth = null): ApiResult
     {
         $path = '/pet/{petId}';
         /** @var string $pathValue */

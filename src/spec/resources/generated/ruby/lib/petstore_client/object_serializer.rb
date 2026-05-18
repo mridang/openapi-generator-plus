@@ -56,6 +56,8 @@ module PetstoreClient
       convert_to_type(data, target_type)
     rescue JSON::ParserError => e
       raise SerializationError.new("Failed to parse JSON: #{e.message}", e)
+    rescue ArgumentError
+      raise
     rescue StandardError => e
       raise e if e.is_a?(SerializationError)
 
@@ -157,6 +159,8 @@ module PetstoreClient
             # @type var sanitized: Hash[untyped, untyped]
             sanitized = {}
             object.each_with_object(sanitized) do |(key, value), hash|
+              next if value.nil?
+
               hash[key] = sanitize_for_serialization(value, visited)
             end
           end
@@ -234,6 +238,13 @@ module PetstoreClient
           klass.build(data)
         elsif klass.const_defined?(:OPENAPI_TYPES)
           deserialize_model(data, klass)
+        elsif klass.const_defined?(:VALUES)
+          values = klass.const_get(:VALUES)
+          unless values.include?(data)
+            raise ArgumentError, "Unknown enum value for #{return_type}: #{data.inspect} (allowed: #{values.inspect})"
+          end
+
+          data
         else
           klass.new(data)
         end

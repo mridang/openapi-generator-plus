@@ -51,6 +51,12 @@ final class ValueSerializer
             return '';
         }
 
+        // Per W3/N3: in path params, format: date emits YYYY-MM-DD (no time).
+        // The codegen appends '|date' to the schemaType for date-only path params.
+        if ($location === 'path' && str_ends_with($schemaType, '|date') && $value instanceof \DateTimeInterface) {
+            return rawurlencode($value->format('Y-m-d'));
+        }
+
         if (is_array($value)) {
             if ($location === 'query') {
                 $items = array_map([ObjectSerializer::class, 'stringify'], $value);
@@ -114,9 +120,15 @@ final class ValueSerializer
             return '';
         }
 
+        // Per W3/N3: format: date in path becomes YYYY-MM-DD (no time component).
+        $isDateOnly = str_ends_with($schemaType, '|date');
+        $stringifier = $isDateOnly
+            ? static fn (mixed $v): string => ($v instanceof \DateTimeInterface) ? $v->format('Y-m-d') : ObjectSerializer::stringify($v)
+            : [ObjectSerializer::class, 'stringify'];
+
         $items = is_array($value)
-            ? array_map([ObjectSerializer::class, 'stringify'], $value)
-            : [ObjectSerializer::stringify($value)];
+            ? array_map($stringifier, $value)
+            : [$stringifier($value)];
 
         return match ($style) {
             'matrix' => self::serializeMatrix($paramName, $items, $explode),

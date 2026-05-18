@@ -36,8 +36,8 @@ final class TransportOptionsBuilder
     /** @var string|null HTTP or HTTPS proxy URL. */
     private ?string $proxy = null;
 
-    /** @var int|null End-to-end request timeout in milliseconds. */
-    private ?int $timeout = null;
+    /** @var int|null End-to-end request timeout in milliseconds. Defaults to 10000ms (10 seconds). */
+    private ?int $timeout = 10000;
 
     /** @var bool Whether to follow HTTP 3xx redirects. */
     private bool $followRedirects = true;

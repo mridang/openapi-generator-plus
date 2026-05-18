@@ -943,4 +943,35 @@ public class BaseApiTest
         Assert.NotNull(client.CapturedBody);
         Assert.Contains("{}", client.CapturedBody!.ToString()!);
     }
+
+    // Gap #29 — proxy authentication propagation.
+    // Embeds basic-auth credentials in the proxy URL (RFC 3986 userinfo) and
+    // verifies the HTTP client surfaces them as a Proxy-Authorization header.
+    // The bundled Squid fixture intentionally allows all (`http_access allow
+    // all`) and does not require basic-auth, so this test would always succeed
+    // even if the credentials were silently dropped. It is skipped until the
+    // Squid fixture is reconfigured with `auth_param basic` + `proxy_auth
+    // REQUIRED`, at which point removing the Skip turns the assertion into a
+    // real end-to-end check that credentials are being sent.
+    [Fact(
+        Skip = "Squid fixture has no basic-auth configured; enable when squid.conf requires proxy_auth"
+    )]
+    public async Task ProxyAuthenticationCredentialsAreSentToProxy()
+    {
+        var proxyUri = new Uri(_fixture.ProxyUrl);
+        var proxyWithAuth =
+            $"{proxyUri.Scheme}://testuser:testpass@{proxyUri.Host}:{proxyUri.Port}";
+        var transport = TransportOptions.Builder().Proxy(proxyWithAuth).Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.WireMockInternalHttpUrl + "/api/test"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("success", response.Body);
+    }
 }

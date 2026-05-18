@@ -7,8 +7,10 @@ module {{moduleName}}::Models
 {{#enumVars}}
     {{{name}}}: {{{dataType}}}
 {{/enumVars}}
+    VALUES: Array[{{{dataType}}}]
 {{/allowableValues}}
     def self.all_vars: () -> Array[{{{dataType}}}]
+    def self.validate!: ({{{dataType}}}?) -> {{{dataType}}}?
   end
 {{/isEnum}}
 {{^isEnum}}

@@ -14,7 +14,7 @@ class TransportOptions private constructor(
     val verifySsl: Boolean,
     val caCertPath: String?,
     val proxy: String?,
-    val timeout: Int?,
+    val timeout: Long?,
     val followRedirects: Boolean,
     val maxRedirects: Int?,
     val userAgent: String?,
@@ -29,7 +29,7 @@ class TransportOptions private constructor(
         private var verifySsl: Boolean = true
         private var caCertPath: String? = null
         private var proxy: String? = null
-        private var timeout: Int? = null
+        private var timeout: Long? = 10000L
         private var followRedirects: Boolean = true
         private var maxRedirects: Int? = null
         private var userAgent: String? = "com.example.petstore/1.0.0 (kotlin)"
@@ -67,7 +67,7 @@ class TransportOptions private constructor(
                 this.proxy = proxy
             }
 
-        fun timeout(timeout: Int?): Builder = apply { this.timeout = timeout }
+        fun timeout(timeout: Long?): Builder = apply { this.timeout = timeout }
 
         fun followRedirects(followRedirects: Boolean): Builder = apply { this.followRedirects = followRedirects }
 

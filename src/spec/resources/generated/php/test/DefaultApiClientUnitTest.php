@@ -483,4 +483,23 @@ class DefaultApiClientUnitTest extends TestCase
         }
         return '';
     }
+
+    // -- Proxy auth (gap #29) --
+
+    public function testProxyWithBasicAuthIsAcceptedByBuilder(): void
+    {
+        // Verify the transport accepts a proxy URL embedding user:pass and exposes it.
+        // The actual proxy-auth header is constructed by Symfony's underlying CurlHttpClient.
+        $opts = (new TransportOptionsBuilder())
+            ->proxy('http://user:secret@proxy.example.com:8080')
+            ->build();
+
+        $this->assertSame('http://user:secret@proxy.example.com:8080', $opts->proxy);
+    }
+
+    public function testProxyAuthSquidEndToEnd(): void
+    {
+        // Container-backed Squid+auth proxy is not provisioned in this suite.
+        $this->markTestSkipped('Skipped: requires a containerized Squid proxy with basic-auth credentials.');
+    }
 }

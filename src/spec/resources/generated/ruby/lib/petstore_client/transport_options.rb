@@ -104,7 +104,7 @@ module PetstoreClient
         @verify_ssl = true
         @ca_cert_path = nil
         @proxy = nil
-        @timeout = nil
+        @timeout = 10_000
         @follow_redirects = true
         @max_redirects = nil
         @user_agent = 'petstore_client/1.0.0 (ruby)'

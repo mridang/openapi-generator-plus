@@ -55,9 +55,22 @@ class PetApiTest extends TestCase
         $pet->id = 12345;
         $pet->status = PetStatusEnum::AVAILABLE;
 
-        $result = $this->api->addPet($this->auth, $pet);
+        $result = $this->api->addPet($pet, auth: $this->auth);
 
         $this->assertInstanceOf(Pet::class, $result);
+    }
+
+    public function testAddPetWithHttpInfoExposesStatusAndHeaders(): void
+    {
+        $pet = new Pet(name: 'TestDog', photoUrls: ['http://example.com/photo.jpg']);
+        $pet->id = 67890;
+        $pet->status = PetStatusEnum::AVAILABLE;
+
+        $result = $this->api->addPetWithHttpInfo($pet, auth: $this->auth);
+
+        $this->assertSame(200, $result->statusCode);
+        $this->assertInstanceOf(Pet::class, $result->data);
+        $this->assertIsArray($result->headers);
     }
 
     public function testGetPetById(): void
@@ -96,7 +109,7 @@ class PetApiTest extends TestCase
 
     public function testDeletePet(): void
     {
-        $this->api->deletePet($this->auth, 1);
+        $this->api->deletePet(1, auth: $this->auth);
 
         $this->addToAssertionCount(1);
     }

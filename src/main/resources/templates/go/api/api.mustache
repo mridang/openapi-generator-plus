@@ -12,6 +12,10 @@ import (
 {{#hasStringsImport}}
 	"strings"
 {{/hasStringsImport}}
+{{#hasUuidImport}}
+
+	"github.com/google/uuid"
+{{/hasUuidImport}}
 
 	. "{{packageName}}/pkg/models"
 {{#optionsImports}}
@@ -125,9 +129,14 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo({{#hasAuthMethods}}auth Auth
 
 	path := "{{{path}}}"
 {{#pathParams}}
+{{#isDate}}
+	path = replacePathParam(path, "{{baseName}}", StringifyDate({{paramName}}))
+{{/isDate}}
+{{^isDate}}
 {{=<% %>=}}
 	path = replacePathParam(path, "<%baseName%>", fmt.Sprintf("%v", <%paramName%>))
 <%={{ }}=%>
+{{/isDate}}
 {{/pathParams}}
 {{#servers}}
 {{#-first}}

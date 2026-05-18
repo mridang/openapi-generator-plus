@@ -56,3 +56,11 @@ func (e *ApiError) TypedErrorBody(target interface{}) error {
 	}
 	return json.Unmarshal([]byte(e.ResponseBody), target)
 }
+
+// GetTypedErrorBody deserializes the response body into the given target value.
+// This is the canonical accessor for spec-declared error schemas — callers pass
+// a pointer to the typed struct they expect (e.g. `var e MyErrorBody;
+// apiErr.GetTypedErrorBody(&e)`).
+func (e *ApiError) GetTypedErrorBody(target interface{}) error {
+	return e.TypedErrorBody(target)
+}

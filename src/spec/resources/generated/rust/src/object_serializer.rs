@@ -72,8 +72,42 @@ pub fn stringify<T: Serialize>(value: &T) -> String {
 }
 
 /// Converts a value to a string suitable for use as a URL path parameter.
+///
+/// Cross-language parity: when the value parses as an ISO-8601 date (with
+/// or without a time component), it is serialized as a date-only
+/// `YYYY-MM-DD` string. This matches the Java/Python/C#/Kotlin/Ruby/Elixir
+/// behaviour for `format: date` path parameters.
 pub fn to_path_value<T: Serialize>(value: &T) -> String {
-    stringify(value)
+    let raw = stringify(value);
+    format_date_only_for_path(&raw)
+}
+
+/// If `s` parses as an ISO-8601 datetime (RFC 3339), return only the date
+/// portion (`YYYY-MM-DD`). If it already looks like a bare date, return as is.
+/// Otherwise return the original string unchanged.
+fn format_date_only_for_path(s: &str) -> String {
+    /* Fast path: bare YYYY-MM-DD (10 chars, dashes at positions 4 and 7). */
+    if is_bare_date(s) {
+        return s.to_string();
+    }
+    /* RFC 3339 datetime: keep only the date prefix if present. */
+    if let Some(t_idx) = s.find('T') {
+        let date_part = &s[..t_idx];
+        if is_bare_date(date_part) {
+            return date_part.to_string();
+        }
+    }
+    s.to_string()
+}
+
+fn is_bare_date(s: &str) -> bool {
+    let bytes = s.as_bytes();
+    if bytes.len() != 10 || bytes[4] != b'-' || bytes[7] != b'-' {
+        return false;
+    }
+    bytes[..4].iter().all(|c| c.is_ascii_digit())
+        && bytes[5..7].iter().all(|c| c.is_ascii_digit())
+        && bytes[8..10].iter().all(|c| c.is_ascii_digit())
 }
 
 /// Represents a query parameter value, which can be either a single string

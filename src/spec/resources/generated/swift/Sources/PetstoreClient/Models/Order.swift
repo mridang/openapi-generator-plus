@@ -38,4 +38,34 @@ public struct Order: Codable, Sendable {
     self.status = status
     self.complete = complete
   }
+
+  /// Decodes this instance from the given decoder.
+  ///
+  /// Required fields use `decode(_:forKey:)`; optional fields use
+  /// `decodeIfPresent(_:forKey:)`. Unknown JSON keys are silently ignored
+  /// — matching the cross-language "discard extras on deserialise" expectation.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
+    self.petId = try container.decodeIfPresent(Int64.self, forKey: .petId)
+    self.quantity = try container.decodeIfPresent(Int.self, forKey: .quantity)
+    self.shipDate = try container.decodeIfPresent(Date.self, forKey: .shipDate)
+    self.status = try container.decodeIfPresent(String.self, forKey: .status)
+    self.complete = try container.decodeIfPresent(Bool.self, forKey: .complete)
+  }
+
+  /// Encodes this instance, omitting nil optional fields from the JSON output.
+  ///
+  /// Uses `encodeIfPresent` for every optional property so that unset values
+  /// are dropped from the wire payload rather than emitted as `null` — matching
+  /// the cross-language "discard nulls on serialise" expectation.
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encodeIfPresent(id, forKey: .id)
+    try container.encodeIfPresent(petId, forKey: .petId)
+    try container.encodeIfPresent(quantity, forKey: .quantity)
+    try container.encodeIfPresent(shipDate, forKey: .shipDate)
+    try container.encodeIfPresent(status, forKey: .status)
+    try container.encodeIfPresent(complete, forKey: .complete)
+  }
 }

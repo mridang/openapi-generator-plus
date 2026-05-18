@@ -464,6 +464,34 @@ void main() {
         expect(result, equals('a b'));
       });
     });
+
+    // -- DateOnlyPathParamTests --
+    //
+    // For `format: date` parameters the Dart generator maps the type to
+    // String, so the caller passes "YYYY-MM-DD" directly and it must flow
+    // through serializeValue unchanged (after percent-encoding for path).
+    //
+    // This guards against accidental DateTime upcasting that would inject
+    // a `T00:00:00+00:00` suffix into the URL.
+    group('DateOnlyPathParam', () {
+      test('serializeValue path date-only string preserves YYYY-MM-DD', () {
+        final result =
+            serializeValue('2024-01-15', 'path', 'string', '');
+        expect(result, equals('2024-01-15'),
+            reason: 'a format: date value must not gain a time/offset suffix');
+      });
+
+      test('serializeStyled simple path date-only preserves YYYY-MM-DD', () {
+        final result = serializeStyled(
+            'when', '2024-01-15', 'path', 'string', '', 'simple', false);
+        expect(result, equals('2024-01-15'));
+      });
+
+      test('stringify of date-only string preserves YYYY-MM-DD', () {
+        // Sanity check: stringify must not reformat date-only strings.
+        expect(stringify('2024-01-15'), equals('2024-01-15'));
+      });
+    });
   });
 }
 {{/generateTests}}

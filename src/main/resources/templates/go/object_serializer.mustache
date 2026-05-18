@@ -4,11 +4,43 @@ package {{packageName}}
 import (
 	"encoding/json"
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 	"time"
 )
 
 const defaultDateTimeFormat = "2006-01-02T15:04:05-07:00"
+const dateOnlyFormat = "2006-01-02"
+
+// StringifyDate formats a value as a date-only string (YYYY-MM-DD).
+//
+// Used for `format: date` path/query/header/cookie parameters so the wire value
+// matches what the spec asks for (date-only) rather than a full RFC 3339
+// datetime with offset.
+func StringifyDate(value interface{}) string {
+	if value == nil {
+		return ""
+	}
+	switch v := value.(type) {
+	case time.Time:
+		return v.Format(dateOnlyFormat)
+	case *time.Time:
+		if v == nil {
+			return ""
+		}
+		return v.Format(dateOnlyFormat)
+	case string:
+		return v
+	case *string:
+		if v == nil {
+			return ""
+		}
+		return *v
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
 
 // SerializationError is returned when serialization or deserialization fails.
 type SerializationError struct {
@@ -63,6 +95,21 @@ func Deserialize(data []byte, target interface{}) error {
 	return nil
 }
 
+// formatFloat formats a float64 such that whole-number values keep their
+// trailing ".0" (e.g. 1.0 → "1.0" rather than "1"). Other values use the
+// shortest decimal representation. This matches the wire-format produced
+// by Java, Kotlin, C#, Python, Ruby, PHP, Node, Swift, Dart, Rust, Elixir.
+func formatFloat(v float64) string {
+	if math.IsInf(v, 0) || math.IsNaN(v) {
+		return strconv.FormatFloat(v, 'g', -1, 64)
+	}
+	s := strconv.FormatFloat(v, 'g', -1, 64)
+	if !strings.ContainsAny(s, ".eE") {
+		s += ".0"
+	}
+	return s
+}
+
 // Stringify converts a single scalar value to its string representation.
 //
 // This is the canonical type-conversion method used by all parameter
@@ -100,9 +147,9 @@ func Stringify(value interface{}) string {
 	case int64:
 		return fmt.Sprintf("%d", v)
 	case float32:
-		return fmt.Sprintf("%g", v)
+		return formatFloat(float64(v))
 	case float64:
-		return fmt.Sprintf("%g", v)
+		return formatFloat(v)
 	case fmt.Stringer:
 		return v.String()
 	default:

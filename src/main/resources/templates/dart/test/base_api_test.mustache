@@ -124,7 +124,7 @@ void main() {
 
       // Exercise auth headers through the API layer
       try {
-        await api.addPet(auth, Pet(name: 'Test', photoUrls: <String>{}));
+        await api.addPet(Pet(name: 'Test', photoUrls: <String>{}), auth: auth);
       } catch (_) {}
 
       // Verify via echo-headers endpoint
@@ -147,7 +147,7 @@ void main() {
       final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
       try {
-        await api.addPet(auth, Pet(name: 'Test', photoUrls: <String>{}));
+        await api.addPet(Pet(name: 'Test', photoUrls: <String>{}), auth: auth);
       } catch (_) {}
     });
 
@@ -175,6 +175,167 @@ void main() {
 
         await api.getPetById(1, null);
         expect(receivedQuery, contains('api_key=test123'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    // -- TypedErrorBodyTests --
+    //
+    // ApiError exposes typedErrorBody<T>(fromJson) which deserialises the
+    // response body into a typed model when the server returned JSON.
+    test('typedErrorBody parses JSON body into a typed model', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 400
+          ..headers.set('Content-Type', 'application/json')
+          ..write('{"code":400,"type":"validation","message":"bad input"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        try {
+          await api.getPetById(1, null);
+          fail('expected BadRequestError');
+        } on BadRequestError catch (e) {
+          final typed = e.typedErrorBody<ApiResponse>(ApiResponse.fromJson);
+          expect(typed, isNotNull);
+          expect(typed!.code, equals(400));
+          expect(typed.message, equals('bad input'));
+        }
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('typedErrorBody returns null on empty response body', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 400
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        try {
+          await api.getPetById(1, null);
+          fail('expected BadRequestError');
+        } on BadRequestError catch (e) {
+          final typed = e.typedErrorBody<ApiResponse>(ApiResponse.fromJson);
+          expect(typed, isNull);
+        }
+      } finally {
+        await server.close();
+      }
+    });
+
+    // -- WithHttpInfoVariantTests --
+    //
+    // Every operation method has a sibling `<op>WithHTTPInfo` that returns an
+    // `ApiResult<T>` exposing status, data, raw body, and headers.
+    test('WithHTTPInfo variant returns ApiResult exposing status/data/body/headers', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.set('Content-Type', 'application/json')
+          ..headers.add('X-Test-Header', 'present')
+          ..write('{"id":1,"name":"Fido","photoUrls":["http://x/y.jpg"]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        final result = await api.getPetByIdWithHTTPInfo(1, null);
+        expect(result, isA<ApiResult<dynamic>>());
+        expect(result.statusCode, equals(200));
+        expect(result.data, isNotNull);
+        expect(result.rawBody, contains('Fido'));
+        final hdr = result.headers.entries
+            .firstWhere((e) => e.key.toLowerCase() == 'x-test-header',
+                orElse: () => const MapEntry('', ''))
+            .value;
+        expect(hdr, equals('present'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    // -- OptionalAuthParamTests --
+
+    test('op-level auth is optional named param and falls back to client-level', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      String? receivedAuth;
+      server.listen((request) {
+        receivedAuth = request.headers.value('authorization');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final clientAuth = _BaseApiAuth(
+            headers: {'Authorization': 'Bearer client-level'});
+        final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            authenticator: clientAuth);
+
+        // No `auth:` passed → falls back to client-level authenticator.
+        await api.getPetById(1, null);
+        expect(receivedAuth, equals('Bearer client-level'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('op-level auth overrides client-level auth when passed as named param', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      String? receivedAuth;
+      server.listen((request) {
+        receivedAuth = request.headers.value('authorization');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final clientAuth = _BaseApiAuth(
+            headers: {'Authorization': 'Bearer client-level'});
+        final opAuth = _BaseApiAuth(
+            headers: {'Authorization': 'Bearer op-level'});
+        final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            authenticator: clientAuth);
+
+        await api.getPetById(1, null, auth: opAuth);
+        expect(receivedAuth, equals('Bearer op-level'));
       } finally {
         await server.close();
       }
@@ -489,7 +650,7 @@ void main() {
         final auth = _BaseApiAuth();
         final api = PetApi(apiClient: DefaultApiClient(), config: config);
 
-        await api.addPet(auth, Pet(name: 'TestPet', photoUrls: <String>{}));
+        await api.addPet(Pet(name: 'TestPet', photoUrls: <String>{}), auth: auth);
         expect(receivedBody, contains('TestPet'));
       } finally {
         await server.close();
@@ -647,7 +808,7 @@ void main() {
 
         final auth = _BaseApiAuth();
         try {
-          await api.deletePet(auth, 1, null);
+          await api.deletePet(1, null, auth: auth);
         } catch (_) {}
       } finally {
         await server.close();

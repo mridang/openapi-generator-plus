@@ -305,6 +305,41 @@ describe('ObjectSerializer', () => {
     });
   });
 
+  describe('SerializeDiscardsNullFields', () => {
+    test('null field is absent from JSON output', () => {
+      const obj: Record<string, unknown> = { keep: 'yes', drop: null };
+      const json = ObjectSerializer.serialize(obj);
+      const parsed = JSON.parse(json);
+      expect(parsed).toHaveProperty('keep', 'yes');
+      expect(parsed).not.toHaveProperty('drop');
+      expect(json).not.toContain('null');
+    });
+
+    test('nested null field inside an object is omitted', () => {
+      const obj = { outer: { keep: 1, drop: null } };
+      const json = ObjectSerializer.serialize(obj);
+      const parsed = JSON.parse(json);
+      expect(parsed.outer).toEqual({ keep: 1 });
+    });
+  });
+
+  describe('DeserializeDiscardsExtraneousFields', () => {
+    test('unknown JSON keys do not appear on the deserialized instance', () => {
+      const json: Record<string, unknown> = {
+        id: 7,
+        name: 'Cats',
+        unknownField: 'should-be-dropped',
+        anotherExtra: 99,
+      };
+      const category = ObjectSerializer.deserialize(json, Category);
+      expect(category).toBeDefined();
+      expect(category!.id).toBe(7);
+      expect(category!.name).toBe('Cats');
+      expect(category as unknown as Record<string, unknown>).not.toHaveProperty('unknownField');
+      expect(category as unknown as Record<string, unknown>).not.toHaveProperty('anotherExtra');
+    });
+  });
+
   describe('DiscriminatorAutoInjectionTests', () => {
     test('dry subtype serialization includes discriminator without caller setting it', () => {
       const dry = new DryFood({ weightKg: 2.5 });

@@ -23,4 +23,26 @@ public struct SetPetAvatarRequest: Codable, Sendable {
     self.data = data
     self.mimeType = mimeType
   }
+
+  /// Decodes this instance from the given decoder.
+  ///
+  /// Required fields use `decode(_:forKey:)`; optional fields use
+  /// `decodeIfPresent(_:forKey:)`. Unknown JSON keys are silently ignored
+  /// — matching the cross-language "discard extras on deserialise" expectation.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.data = try container.decode(Data.self, forKey: .data)
+    self.mimeType = try container.decode(String.self, forKey: .mimeType)
+  }
+
+  /// Encodes this instance, omitting nil optional fields from the JSON output.
+  ///
+  /// Uses `encodeIfPresent` for every optional property so that unset values
+  /// are dropped from the wire payload rather than emitted as `null` — matching
+  /// the cross-language "discard nulls on serialise" expectation.
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(data, forKey: .data)
+    try container.encode(mimeType, forKey: .mimeType)
+  }
 }

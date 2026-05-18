@@ -1450,6 +1450,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     if (!model.oneOf.isEmpty() || !model.anyOf.isEmpty()) {
                         result.put(flagName, true);
                     }
+                } else if ("isEnum".equals(key)) {
+                    if (model.isEnum) {
+                        modelMap.put(flagName, true);
+                        result.put(flagName, true);
+                    }
                 }
             }
         }

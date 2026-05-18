@@ -125,8 +125,8 @@ public struct GetStagingPetInfoServerStagingServer: GetStagingPetInfoServer {
 public final class PetApi: BaseApi {
 
     /// Add a new pet to the store
-    public func addPet(auth: Authenticator, pet: Pet, ) async throws -> Pet {
-        let result = try await addPetWithHTTPInfo(auth: auth, pet: pet, )
+    public func addPet(pet: Pet, auth: Authenticator? = nil) async throws -> Pet {
+        let result = try await addPetWithHTTPInfo(pet: pet, auth: auth)
         guard let data = result.data else {
             throw ApiError(
                 statusCode: result.statusCode,
@@ -139,7 +139,7 @@ public final class PetApi: BaseApi {
     }
 
     /// Performs the addPet operation and returns the full API result.
-    public func addPetWithHTTPInfo(auth: Authenticator, pet: Pet, ) async throws -> ApiResult<Pet> {
+    public func addPetWithHTTPInfo(pet: Pet, auth: Authenticator? = nil) async throws -> ApiResult<Pet> {
 
         var path = "/pet"
 
@@ -214,8 +214,8 @@ public final class PetApi: BaseApi {
     }
 
     /// Record a treatment for a pet
-    public func addPetTreatment(auth: Authenticator, petId: Int64, petTreatment: PetTreatment, ) async throws -> PetTreatment {
-        let result = try await addPetTreatmentWithHTTPInfo(auth: auth, petId: petId, petTreatment: petTreatment, )
+    public func addPetTreatment(petId: Int64, petTreatment: PetTreatment, auth: Authenticator? = nil) async throws -> PetTreatment {
+        let result = try await addPetTreatmentWithHTTPInfo(petId: petId, petTreatment: petTreatment, auth: auth)
         guard let data = result.data else {
             throw ApiError(
                 statusCode: result.statusCode,
@@ -228,7 +228,7 @@ public final class PetApi: BaseApi {
     }
 
     /// Performs the addPetTreatment operation and returns the full API result.
-    public func addPetTreatmentWithHTTPInfo(auth: Authenticator, petId: Int64, petTreatment: PetTreatment, ) async throws -> ApiResult<PetTreatment> {
+    public func addPetTreatmentWithHTTPInfo(petId: Int64, petTreatment: PetTreatment, auth: Authenticator? = nil) async throws -> ApiResult<PetTreatment> {
 
         var path = "/pet/{petId}/treatment"
         path = replacePathParam(path, name: "petId", value: "\(petId)")
@@ -255,13 +255,13 @@ public final class PetApi: BaseApi {
     }
 
     /// Deletes a pet
-    public func deletePet(auth: Authenticator, petId: Int64, options: DeletePetOptions? = nil, ) async throws {
-        let result = try await deletePetWithHTTPInfo(auth: auth, petId: petId, options: options, )
+    public func deletePet(petId: Int64, options: DeletePetOptions? = nil, auth: Authenticator? = nil) async throws {
+        let result = try await deletePetWithHTTPInfo(petId: petId, options: options, auth: auth)
         _ = result
     }
 
     /// Performs the deletePet operation and returns the full API result.
-    public func deletePetWithHTTPInfo(auth: Authenticator, petId: Int64, options: DeletePetOptions? = nil, ) async throws -> ApiResult<Void> {
+    public func deletePetWithHTTPInfo(petId: Int64, options: DeletePetOptions? = nil, auth: Authenticator? = nil) async throws -> ApiResult<Void> {
 
         var path = "/pet/{petId}"
         path = replacePathParam(path, name: "petId", value: "\(petId)")

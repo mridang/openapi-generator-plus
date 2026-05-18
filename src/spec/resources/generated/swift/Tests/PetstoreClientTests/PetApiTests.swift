@@ -38,7 +38,7 @@ final class PetApiTests {
 
     let pet = Pet(name: "Fido", photoUrls: ["http://example.com/fido.jpg"])
 
-    let result = try await api.addPet(auth: auth, pet: pet)
+    let result = try await api.addPet(pet: pet, auth: auth)
     #expect(result != nil)
   }
 
@@ -48,7 +48,7 @@ final class PetApiTests {
 
     let pet = Pet(name: "Buddy", photoUrls: ["http://example.com/buddy.jpg"])
 
-    let result = try await api.addPetWithHTTPInfo(auth: auth, pet: pet)
+    let result = try await api.addPetWithHTTPInfo(pet: pet, auth: auth)
     #expect(result.statusCode >= 200)
     #expect(result.statusCode < 300)
     #expect(!result.rawBody.isEmpty)
@@ -93,14 +93,14 @@ final class PetApiTests {
     let api = petApiForIntegration()
     let auth = TestAuthenticator()
 
-    try await api.deletePet(auth: auth, petId: 1, options: nil)
+    try await api.deletePet(petId: 1, options: nil, auth: auth)
   }
 
   @Test func testDeletePetWithHTTPInfo() async throws {
     let api = petApiForIntegration()
     let auth = TestAuthenticator()
 
-    let result = try await api.deletePetWithHTTPInfo(auth: auth, petId: 1, options: nil)
+    let result = try await api.deletePetWithHTTPInfo(petId: 1, options: nil, auth: auth)
     #expect(result.statusCode >= 200)
     #expect(result.statusCode < 300)
   }

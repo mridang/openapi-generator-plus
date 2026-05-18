@@ -358,6 +358,11 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                             "test/client.test.mustache",
                             "test",
                             "client.test.ts"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "test/api-error.test.mustache",
+                            "test",
+                            "api-error.test.ts"));
         }
     }
 
@@ -461,6 +466,38 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             return mapped;
         }
         return super.toEnumVarName(value, datatype);
+    }
+
+    /**
+     * For TypeScript, an enum-typed property's default value must be the
+     * enum member reference (e.g. {@code OrderStatusEnum.Placed}), not the
+     * raw string literal, because a string literal is not assignable to a
+     * string enum without an explicit cast.
+     *
+     * <p>This overrides the base class behaviour, which emits a quoted
+     * string literal suitable for most languages but invalid in TypeScript
+     * strict mode when the property has been retyped to a generated
+     * {@code enum}.
+     */
+    @Override
+    protected void fixEnumDefaultValue(
+            org.openapitools.codegen.CodegenProperty prop,
+            org.openapitools.codegen.CodegenModel model) {
+        if (prop.defaultValue != null && prop.isEnum) {
+            String raw = prop.defaultValue;
+            // Base class may have already lowered the value to a quoted
+            // literal ('placed'); strip the quotes back off.
+            if (raw.length() >= 2
+                    && raw.charAt(0) == getQuoteChar()
+                    && raw.charAt(raw.length() - 1) == getQuoteChar()) {
+                raw = raw.substring(1, raw.length() - 1);
+            } else if (raw.contains(".")) {
+                raw = raw.substring(raw.lastIndexOf('.') + 1);
+            }
+            final String enumTypeName = model.classname + prop.enumName;
+            final String memberName = toEnumVarName(raw, prop.dataType);
+            prop.defaultValue = enumTypeName + "." + memberName;
+        }
     }
 
     /** {@inheritDoc} */

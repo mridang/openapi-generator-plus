@@ -306,5 +306,73 @@ void main() {
       final food = PetFood.fromJson(jsonDecode(json) as Map<String, dynamic>);
       expect(food.value, isA<DryFood>());
     });
+
+    // -- DiscardNullsOnSerializeTests --
+    //
+    // Models constructed without any of their optional fields must omit those
+    // keys from the toJson() map entirely (no `"id": null` slots). Required
+    // fields and explicit defaults must still appear.
+    test('toJson omits optional fields left null', () {
+      const pet = Pet(name: 'Fido', photoUrls: <String>{'http://x/y.jpg'});
+      final json = pet.toJson();
+      expect(json.containsKey('name'), isTrue,
+          reason: 'required field name present');
+      expect(json.containsKey('photoUrls'), isTrue,
+          reason: 'required field photoUrls present');
+      expect(json.containsKey('id'), isFalse,
+          reason:
+              'optional id left unset must be omitted, not emitted as null');
+      expect(json.containsKey('category'), isFalse,
+          reason: 'optional category left unset must be omitted');
+      expect(json.containsKey('tags'), isFalse,
+          reason: 'optional tags left unset must be omitted');
+    });
+
+    test('toJson includes optional fields when explicitly set', () {
+      const pet = Pet(
+        id: 7,
+        name: 'Fido',
+        photoUrls: <String>{'http://x/y.jpg'},
+      );
+      final json = pet.toJson();
+      expect(json['id'], equals(7));
+    });
+
+    // -- DiscardExtrasOnDeserializeTests --
+    //
+    // fromJson must read only declared properties and silently drop unknown
+    // keys (no exception thrown). This protects clients against new server
+    // fields added after the SDK was generated.
+    test('fromJson silently ignores unknown extra fields', () {
+      final input = <String, dynamic>{
+        'id': 1,
+        'name': 'Fido',
+        'photoUrls': <String>['http://x/y.jpg'],
+        // Unknown / future fields:
+        'unknownField': 'value',
+        'serverSideOnly': 12345,
+        'nestedExtra': {'foo': 'bar'},
+      };
+      final pet = Pet.fromJson(input);
+      expect(pet.id, equals(1));
+      expect(pet.name, equals('Fido'));
+      // Declared optional fields stay null when absent.
+      expect(pet.category, isNull);
+      expect(pet.status, isNull);
+    });
+
+    test('fromJson then toJson does not leak unknown fields back to wire', () {
+      final input = <String, dynamic>{
+        'id': 9,
+        'name': 'Rex',
+        'photoUrls': <String>['http://x/z.jpg'],
+        'unknownLeak': 'should not appear',
+      };
+      final pet = Pet.fromJson(input);
+      final round = pet.toJson();
+      expect(round.containsKey('unknownLeak'), isFalse,
+          reason:
+              'unknown fields read by fromJson must NOT be re-emitted by toJson');
+    });
   });
 }

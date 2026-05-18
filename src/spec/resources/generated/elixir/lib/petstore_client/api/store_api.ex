@@ -46,16 +46,18 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `order_id` - integer() - ID of the order to delete
 
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+
   ## Returns
 
     * `{:ok, nil}` on success.
     * `{:error, exception}` on failure.
 
   """
-  @spec delete_order(t(), integer()) ::
+  @spec delete_order(t(), integer(), keyword()) ::
           {:ok, nil} | {:error, term()}
-  def delete_order(%__MODULE__{} = api, order_id) do
-    case delete_order_with_http_info(api, order_id) do
+  def delete_order(%__MODULE__{} = api, order_id, opts \\ []) do
+    case delete_order_with_http_info(api, order_id, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -64,8 +66,8 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `delete_order`. Raises on error.
   """
-  def delete_order!(%__MODULE__{} = api, order_id) do
-    case delete_order(api, order_id) do
+  def delete_order!(%__MODULE__{} = api, order_id, opts \\ []) do
+    case delete_order(api, order_id, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -74,9 +76,11 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `delete_order` but returns the full `ApiResult`.
   """
-  @spec delete_order_with_http_info(t(), integer()) ::
+  @spec delete_order_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def delete_order_with_http_info(%__MODULE__{} = api, order_id) do
+  def delete_order_with_http_info(%__MODULE__{} = api, order_id, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+
     if is_nil(order_id) do
       raise ArgumentError,
             "Missing the required parameter 'order_id' when calling StoreApi.delete_order"
@@ -93,6 +97,19 @@ defmodule PetstoreClient.Api.StoreApi do
         |> encode_path_segment()
       )
 
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
+
     query_params = %{}
     header_params = %{}
     request_body = nil
@@ -107,7 +124,7 @@ defmodule PetstoreClient.Api.StoreApi do
       [],
       "application/json",
       nil,
-      nil
+      auth
     )
   end
 
@@ -116,16 +133,18 @@ defmodule PetstoreClient.Api.StoreApi do
 
   ## Parameters
 
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+
   ## Returns
 
     * `{:ok, %{String.t() => integer()}}` on success.
     * `{:error, exception}` on failure.
 
   """
-  @spec get_inventory(t()) ::
+  @spec get_inventory(t(), keyword()) ::
           {:ok, %{String.t() => integer()}} | {:error, term()}
-  def get_inventory(%__MODULE__{} = api) do
-    case get_inventory_with_http_info(api) do
+  def get_inventory(%__MODULE__{} = api, opts \\ []) do
+    case get_inventory_with_http_info(api, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -134,8 +153,8 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_inventory`. Raises on error.
   """
-  def get_inventory!(%__MODULE__{} = api) do
-    case get_inventory(api) do
+  def get_inventory!(%__MODULE__{} = api, opts \\ []) do
+    case get_inventory(api, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -144,10 +163,24 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `get_inventory` but returns the full `ApiResult`.
   """
-  @spec get_inventory_with_http_info(t()) ::
+  @spec get_inventory_with_http_info(t(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def get_inventory_with_http_info(%__MODULE__{} = api) do
+  def get_inventory_with_http_info(%__MODULE__{} = api, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
     path = "/store/inventory"
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
+
     query_params = %{}
     header_params = %{}
     request_body = nil
@@ -162,7 +195,7 @@ defmodule PetstoreClient.Api.StoreApi do
       ["application/json"],
       "application/json",
       "%{String.t() => integer()}",
-      nil
+      auth
     )
   end
 
@@ -172,16 +205,18 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `order_id` - integer() - ID of order to return
 
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+
   ## Returns
 
     * `{:ok, Order}` on success.
     * `{:error, exception}` on failure.
 
   """
-  @spec get_order_by_id(t(), integer()) ::
+  @spec get_order_by_id(t(), integer(), keyword()) ::
           {:ok, Order} | {:error, term()}
-  def get_order_by_id(%__MODULE__{} = api, order_id) do
-    case get_order_by_id_with_http_info(api, order_id) do
+  def get_order_by_id(%__MODULE__{} = api, order_id, opts \\ []) do
+    case get_order_by_id_with_http_info(api, order_id, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -190,8 +225,8 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `get_order_by_id`. Raises on error.
   """
-  def get_order_by_id!(%__MODULE__{} = api, order_id) do
-    case get_order_by_id(api, order_id) do
+  def get_order_by_id!(%__MODULE__{} = api, order_id, opts \\ []) do
+    case get_order_by_id(api, order_id, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -200,9 +235,11 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `get_order_by_id` but returns the full `ApiResult`.
   """
-  @spec get_order_by_id_with_http_info(t(), integer()) ::
+  @spec get_order_by_id_with_http_info(t(), integer(), keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def get_order_by_id_with_http_info(%__MODULE__{} = api, order_id) do
+  def get_order_by_id_with_http_info(%__MODULE__{} = api, order_id, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
+
     if is_nil(order_id) do
       raise ArgumentError,
             "Missing the required parameter 'order_id' when calling StoreApi.get_order_by_id"
@@ -219,6 +256,19 @@ defmodule PetstoreClient.Api.StoreApi do
         |> encode_path_segment()
       )
 
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
+
     query_params = %{}
     header_params = %{}
     request_body = nil
@@ -233,7 +283,7 @@ defmodule PetstoreClient.Api.StoreApi do
       ["application/json"],
       "application/json",
       "Order",
-      nil
+      auth
     )
   end
 
@@ -243,16 +293,18 @@ defmodule PetstoreClient.Api.StoreApi do
   ## Parameters
     * `order` - Order
 
+    * `opts` - Keyword list. Supported keys: `:auth` (authenticator override), `:server` (per-call server override).
+
   ## Returns
 
     * `{:ok, Order}` on success.
     * `{:error, exception}` on failure.
 
   """
-  @spec place_order(t(), Order | nil) ::
+  @spec place_order(t(), Order | nil, keyword()) ::
           {:ok, Order} | {:error, term()}
-  def place_order(%__MODULE__{} = api, order \\ nil) do
-    case place_order_with_http_info(api, order) do
+  def place_order(%__MODULE__{} = api, order \\ nil, opts \\ []) do
+    case place_order_with_http_info(api, order, opts) do
       {:ok, result} -> {:ok, result.data}
       {:error, _} = error -> error
     end
@@ -261,8 +313,8 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Bang version of `place_order`. Raises on error.
   """
-  def place_order!(%__MODULE__{} = api, order \\ nil) do
-    case place_order(api, order) do
+  def place_order!(%__MODULE__{} = api, order \\ nil, opts \\ []) do
+    case place_order(api, order, opts) do
       {:ok, data} -> data
       {:error, error} -> raise error
     end
@@ -271,10 +323,24 @@ defmodule PetstoreClient.Api.StoreApi do
   @doc """
   Same as `place_order` but returns the full `ApiResult`.
   """
-  @spec place_order_with_http_info(t(), Order | nil) ::
+  @spec place_order_with_http_info(t(), Order | nil, keyword()) ::
           {:ok, PetstoreClient.ApiResult.t()} | {:error, term()}
-  def place_order_with_http_info(%__MODULE__{} = api, order \\ nil) do
+  def place_order_with_http_info(%__MODULE__{} = api, order \\ nil, opts \\ []) do
+    auth = Keyword.get(opts, :auth, Map.get(api, :authenticator))
     path = "/store/order"
+    server = Keyword.get(opts, :server)
+
+    path =
+      if server do
+        server_url = PetstoreClient.ServerConfiguration.url(server)
+
+        if String.starts_with?(server_url, "http://") or String.starts_with?(server_url, "https://"),
+          do: server_url <> path,
+          else: path
+      else
+        path
+      end
+
     query_params = %{}
     header_params = %{}
     request_body = order
@@ -289,7 +355,7 @@ defmodule PetstoreClient.Api.StoreApi do
       ["application/json"],
       "application/json",
       "Order",
-      nil
+      auth
     )
   end
 

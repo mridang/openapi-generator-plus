@@ -128,7 +128,9 @@ impl TransportOptionsBuilder {
             verify_ssl: true,
             ca_cert_path: None,
             proxy: None,
-            timeout: None,
+            // Default 10-second end-to-end timeout (10_000 ms). Callers can override
+            // via `TransportOptionsBuilder::timeout()` or disable with `timeout(0)`.
+            timeout: Some(10_000),
             follow_redirects: true,
             max_redirects: None,
             user_agent: "petstore/1.0.0 (rust)".to_string(),

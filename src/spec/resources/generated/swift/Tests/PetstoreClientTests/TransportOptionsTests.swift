@@ -27,9 +27,9 @@ import Testing
     #expect(opts.proxy == nil)
   }
 
-  @Test func testTimeoutDefaultsToNull() {
+  @Test func testTimeoutDefaultsTo10Seconds() {
     let opts = TransportOptionsBuilder().build()
-    #expect(opts.timeout == nil)
+    #expect(opts.timeout == 10000)
   }
 
   @Test func testFollowRedirectsDefaultsToTrue() {
@@ -167,10 +167,11 @@ import Testing
 
   // TimeoutConfigTests
 
-  @Test func testTimeoutDefaultsToNil() {
-    // Default TransportOptions has no timeout set; nil means no timeout applied.
+  @Test func testTimeoutDefaultsTo10000ms() {
+    // Default TransportOptions applies a 10-second (10000 ms) request timeout
+    // so that no SDK call blocks forever when the server stalls.
     let opts = TransportOptionsBuilder().build()
-    #expect(opts.timeout == nil)
+    #expect(opts.timeout == 10000)
   }
 
   @Test func testSettingTimeoutIsAccessible() {

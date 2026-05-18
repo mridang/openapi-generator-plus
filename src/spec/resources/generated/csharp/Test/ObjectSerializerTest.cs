@@ -471,4 +471,79 @@ public class ObjectSerializerTest
             Assert.Null(result);
         }
     }
+
+    // Gap #13 — discard nulls on serialize.
+    // The ObjectSerializer's default JsonSerializerOptions configures
+    // DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull so
+    // properties whose value is null are omitted from the JSON payload.
+    public class NullPropertyOmissionOnSerializeTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void NullPropertyIsOmittedFromSerializedJson()
+        {
+            var category = new Category { Id = 1L, Name = null };
+            var json = _serializer.Serialize(category);
+            Assert.Contains("\"id\":1", json);
+            Assert.DoesNotContain("\"name\"", json);
+        }
+
+        [Fact]
+        public void AllNullPropertiesProduceEmptyJsonObject()
+        {
+            var category = new Category { Id = null, Name = null };
+            var json = _serializer.Serialize(category);
+            Assert.Equal("{}", json);
+        }
+
+        [Fact]
+        public void NonNullValuesArePreservedAlongsideOmittedNulls()
+        {
+            var category = new Category { Id = null, Name = "Dogs" };
+            var json = _serializer.Serialize(category);
+            Assert.DoesNotContain("\"id\"", json);
+            Assert.Contains("\"name\":\"Dogs\"", json);
+        }
+    }
+
+    // Gap #14 — discard extras on deserialize.
+    // System.Text.Json silently skips unmapped JSON properties by default
+    // (UnmappedMemberHandling.Skip). Deserialising a payload containing
+    // unknown fields must succeed and return a populated model.
+    public class UnknownPropertyTolerantOnDeserializeTests
+    {
+        private readonly ObjectSerializer _serializer = new();
+
+        [Fact]
+        public void UnknownPropertyDoesNotThrow()
+        {
+            var json = "{\"id\":1,\"name\":\"Dogs\",\"unknownField\":\"ignored\"}";
+            var category = _serializer.Deserialize<Category>(json);
+            Assert.NotNull(category);
+            Assert.Equal(1L, category!.Id);
+            Assert.Equal("Dogs", category.Name);
+        }
+
+        [Fact]
+        public void MultipleUnknownPropertiesAreSilentlySkipped()
+        {
+            var json =
+                "{\"extra1\":1,\"id\":42,\"extra2\":true,\"name\":\"Cats\",\"extra3\":[1,2,3]}";
+            var category = _serializer.Deserialize<Category>(json);
+            Assert.NotNull(category);
+            Assert.Equal(42L, category!.Id);
+            Assert.Equal("Cats", category.Name);
+        }
+
+        [Fact]
+        public void NestedUnknownObjectIsSilentlySkipped()
+        {
+            var json = "{\"id\":1,\"name\":\"Dogs\",\"meta\":{\"nested\":{\"a\":1}}}";
+            var category = _serializer.Deserialize<Category>(json);
+            Assert.NotNull(category);
+            Assert.Equal(1L, category!.Id);
+            Assert.Equal("Dogs", category.Name);
+        }
+    }
 }

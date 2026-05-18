@@ -20,9 +20,9 @@ void main() {
       expect(opts.proxy, isNull);
     });
 
-    test('timeout defaults to null', () {
+    test('timeout defaults to 10000 ms (10 seconds)', () {
       final opts = TransportOptionsBuilder().build();
-      expect(opts.timeout, isNull);
+      expect(opts.timeout, equals(10000));
     });
 
     test('followRedirects defaults to true', () {
@@ -163,10 +163,10 @@ void main() {
   });
 
   group('TimeoutConfigTests', () {
-    test('timeout defaults to null', () {
-      // Default TransportOptions has no timeout set; null means no timeout applied.
+    test('timeout defaults to 10000 ms (10 seconds)', () {
+      // Default TransportOptions applies a 10-second end-to-end request timeout.
       final opts = TransportOptionsBuilder().build();
-      expect(opts.timeout, isNull);
+      expect(opts.timeout, equals(10000));
     });
 
     test('setting timeout to 5000 is accessible', () {

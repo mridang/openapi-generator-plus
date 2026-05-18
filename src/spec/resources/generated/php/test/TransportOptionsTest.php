@@ -27,9 +27,16 @@ class TransportOptionsTest extends TestCase
         $this->assertNull($opts->proxy);
     }
 
-    public function testTimeoutDefaultsToNull(): void
+    public function testTimeoutDefaultsToTenSeconds(): void
     {
+        // Per fix #27: default request timeout is 10000ms (10 seconds).
         $opts = TransportOptions::builder()->build();
+        $this->assertSame(10000, $opts->timeout);
+    }
+
+    public function testTimeoutCanBeSetToNullForNoTimeout(): void
+    {
+        $opts = TransportOptions::builder()->timeout(null)->build();
         $this->assertNull($opts->timeout);
     }
 

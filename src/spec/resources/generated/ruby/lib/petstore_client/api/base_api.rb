@@ -148,12 +148,14 @@ module PetstoreClient
       # rubocop:enable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/PerceivedComplexity
 
       def build_query_string(query_params) # rubocop:disable Metrics/MethodLength
-        pairs = query_params.compact.map do |k, v|
+        pairs = query_params.compact.flat_map do |k, v|
           encoded_key = CGI.escape(k.to_s)
           if v.is_a?(Array)
+            next [] if v.empty?
+
             v.map do |val|
               "#{encoded_key}=#{CGI.escape(PetstoreClient::ObjectSerializer.to_query_value(val))}"
-            end.join('&')
+            end
           else
             encoded_val = CGI.escape(PetstoreClient::ObjectSerializer.to_query_value(v))
             "#{encoded_key}=#{encoded_val}"

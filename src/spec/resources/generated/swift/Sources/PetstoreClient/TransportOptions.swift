@@ -92,7 +92,7 @@ public final class TransportOptionsBuilder {
   private var verifySSL: Bool = true
   private var caCertPath: String? = nil
   private var proxy: URL? = nil
-  private var timeout: Int? = nil
+  private var timeout: Int? = 10000
   private var followRedirects: Bool = true
   private var maxRedirects: Int? = nil
   private var userAgent: String? = "PetstoreClient/1.0.0 (swift)"

@@ -35,10 +35,10 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("timeout defaults to null")
-        fun timeoutDefaultsToNull() {
+        @DisplayName("timeout defaults to 10000L (10 seconds)")
+        fun timeoutDefaultsToTenSeconds() {
             val opts = TransportOptions.builder().build()
-            assertNull(opts.timeout)
+            assertEquals(10000L, opts.timeout)
         }
 
         @Test
@@ -105,7 +105,7 @@ class TransportOptionsTest {
                 .verifySsl(false)
                 .caCertPath("/path/to/ca.pem")
                 .proxy("http://proxy:8080")
-                .timeout(5000)
+                .timeout(5000L)
                 .followRedirects(false)
                 .maxRedirects(3)
                 .userAgent("TestAgent/1.0")
@@ -116,7 +116,7 @@ class TransportOptionsTest {
             assertFalse(opts.verifySsl)
             assertEquals("/path/to/ca.pem", opts.caCertPath)
             assertEquals("http://proxy:8080", opts.proxy)
-            assertEquals(5000, opts.timeout)
+            assertEquals(5000L, opts.timeout)
             assertFalse(opts.followRedirects)
             assertEquals(3, opts.maxRedirects)
             assertEquals("TestAgent/1.0", opts.userAgent)
@@ -233,27 +233,34 @@ class TransportOptionsTest {
     inner class TimeoutConfigTests {
 
         @Test
-        @DisplayName("timeout defaults to null")
-        fun timeoutDefaultsToNull() {
-            // Default TransportOptions has no timeout set; null means no timeout applied.
+        @DisplayName("timeout defaults to 10000L (10 seconds)")
+        fun timeoutDefaultsToTenSeconds() {
+            // Default timeout is 10 seconds (10000ms) for parity across SDKs.
             val opts = TransportOptions.builder().build()
-            assertNull(opts.timeout)
+            assertEquals(10000L, opts.timeout)
         }
 
         @Test
         @DisplayName("setting timeout to 5000 is accessible")
         fun settingTimeoutIsAccessible() {
-            val opts = TransportOptions.builder().timeout(5000).build()
-            assertEquals(5000, opts.timeout)
+            val opts = TransportOptions.builder().timeout(5000L).build()
+            assertEquals(5000L, opts.timeout)
         }
 
         @Test
         @DisplayName("timeout field is named exactly 'timeout'")
         fun timeoutFieldIsNamedTimeout() {
             // Verify via the property that the field is named 'timeout'.
-            val opts = TransportOptions.builder().timeout(1000).build()
+            val opts = TransportOptions.builder().timeout(1000L).build()
             assertNotNull(opts.timeout)
-            assertEquals(1000, opts.timeout)
+            assertEquals(1000L, opts.timeout)
+        }
+
+        @Test
+        @DisplayName("explicitly setting timeout to null disables timeout")
+        fun timeoutCanBeNulledOut() {
+            val opts = TransportOptions.builder().timeout(null).build()
+            assertNull(opts.timeout)
         }
     }
 

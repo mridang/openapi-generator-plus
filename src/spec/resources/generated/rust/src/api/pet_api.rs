@@ -184,7 +184,7 @@ impl PetApi {
     /// Add a new pet to the store
     pub async fn add_pet(
         &self,
-        auth: &dyn Authenticator,
+        auth: Option<&dyn Authenticator>,
         pet: Pet,
     ) -> Result<Pet, Box<dyn std::error::Error + Send + Sync>> {
         let result = self.add_pet_with_http_info(auth, pet).await?;
@@ -194,7 +194,7 @@ impl PetApi {
     /// Performs the add_pet operation and returns the full API result.
     pub async fn add_pet_with_http_info(
         &self,
-        auth: &dyn Authenticator,
+        auth: Option<&dyn Authenticator>,
         pet: Pet,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet".to_string();
@@ -214,7 +214,7 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "Pet",
-            auth: Some(auth),
+            auth: auth,
         };
 
         self.base.invoke_api_for_result::<Pet>(params).await
@@ -242,7 +242,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/photos".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::stringify(&pet_id)),
+            Some(&object_serializer::to_path_value(&pet_id)),
             None,
             "path",
             "i64",
@@ -327,7 +327,7 @@ impl PetApi {
     /// Record a treatment for a pet
     pub async fn add_pet_treatment(
         &self,
-        auth: &dyn Authenticator,
+        auth: Option<&dyn Authenticator>,
         pet_id: i64,
         pet_treatment: PetTreatment,
     ) -> Result<PetTreatment, Box<dyn std::error::Error + Send + Sync>> {
@@ -340,14 +340,14 @@ impl PetApi {
     /// Performs the add_pet_treatment operation and returns the full API result.
     pub async fn add_pet_treatment_with_http_info(
         &self,
-        auth: &dyn Authenticator,
+        auth: Option<&dyn Authenticator>,
         pet_id: i64,
         pet_treatment: PetTreatment,
     ) -> Result<ApiResult<PetTreatment>, Box<dyn std::error::Error + Send + Sync>> {
         let mut path = "/pet/{petId}/treatment".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::stringify(&pet_id)),
+            Some(&object_serializer::to_path_value(&pet_id)),
             None,
             "path",
             "i64",
@@ -410,7 +410,7 @@ impl PetApi {
             accepts: vec!["application/json"],
             content_type: "application/json",
             return_type: "PetTreatment",
-            auth: Some(auth),
+            auth: auth,
         };
 
         self.base
@@ -421,7 +421,7 @@ impl PetApi {
     /// Deletes a pet
     pub async fn delete_pet(
         &self,
-        auth: &dyn Authenticator,
+        auth: Option<&dyn Authenticator>,
         pet_id: i64,
 
         options: Option<&DeletePetOptions>,
@@ -436,7 +436,7 @@ impl PetApi {
     /// Performs the delete_pet operation and returns the full API result.
     pub async fn delete_pet_with_http_info(
         &self,
-        auth: &dyn Authenticator,
+        auth: Option<&dyn Authenticator>,
         pet_id: i64,
 
         options: Option<&DeletePetOptions>,
@@ -444,7 +444,7 @@ impl PetApi {
         let mut path = "/pet/{petId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::stringify(&pet_id)),
+            Some(&object_serializer::to_path_value(&pet_id)),
             None,
             "path",
             "i64",
@@ -527,7 +527,7 @@ impl PetApi {
             accepts: vec![],
             content_type: "application/json",
             return_type: "",
-            auth: Some(auth),
+            auth: auth,
         };
 
         self.base.invoke_api_for_empty_result(params).await
@@ -555,7 +555,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/documents/{documentId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::stringify(&pet_id)),
+            Some(&object_serializer::to_path_value(&pet_id)),
             None,
             "path",
             "i64",
@@ -604,7 +604,7 @@ impl PetApi {
         }
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "documentId",
-            Some(&object_serializer::stringify(&document_id)),
+            Some(&object_serializer::to_path_value(&document_id)),
             None,
             "path",
             "i64",
@@ -771,7 +771,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/external".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::stringify(&pet_id)),
+            Some(&object_serializer::to_path_value(&pet_id)),
             None,
             "path",
             "i64",
@@ -869,7 +869,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/multi".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::stringify(&pet_id)),
+            Some(&object_serializer::to_path_value(&pet_id)),
             None,
             "path",
             "i64",
@@ -962,7 +962,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/avatar".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::stringify(&pet_id)),
+            Some(&object_serializer::to_path_value(&pet_id)),
             None,
             "path",
             "i64",
@@ -1049,7 +1049,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/avatar/thumbnail".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::stringify(&pet_id)),
+            Some(&object_serializer::to_path_value(&pet_id)),
             None,
             "path",
             "i64",
@@ -1141,7 +1141,7 @@ impl PetApi {
         let mut path = "/pet/{petId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::stringify(&pet_id)),
+            Some(&object_serializer::to_path_value(&pet_id)),
             None,
             "path",
             "i64",
@@ -1234,7 +1234,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/passport".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::stringify(&pet_id)),
+            Some(&object_serializer::to_path_value(&pet_id)),
             None,
             "path",
             "i64",
@@ -1323,7 +1323,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/photos/{photoId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::stringify(&pet_id)),
+            Some(&object_serializer::to_path_value(&pet_id)),
             None,
             "path",
             "i64",
@@ -1372,7 +1372,7 @@ impl PetApi {
         }
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "photoId",
-            Some(&object_serializer::stringify(&photo_id)),
+            Some(&object_serializer::to_path_value(&photo_id)),
             None,
             "path",
             "i64",
@@ -1474,7 +1474,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/tag/{tagName}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::stringify(&pet_id)),
+            Some(&object_serializer::to_path_value(&pet_id)),
             None,
             "path",
             "i64",
@@ -1523,7 +1523,7 @@ impl PetApi {
         }
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "tagName",
-            Some(&object_serializer::stringify(&tag_name)),
+            Some(&object_serializer::to_path_value(&tag_name)),
             None,
             "path",
             "String",
@@ -1692,7 +1692,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/staging".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::stringify(&pet_id)),
+            Some(&object_serializer::to_path_value(&pet_id)),
             None,
             "path",
             "i64",
@@ -1788,7 +1788,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/avatar".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::stringify(&pet_id)),
+            Some(&object_serializer::to_path_value(&pet_id)),
             None,
             "path",
             "i64",
@@ -1880,7 +1880,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/avatar/thumbnail".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::stringify(&pet_id)),
+            Some(&object_serializer::to_path_value(&pet_id)),
             None,
             "path",
             "i64",
@@ -1969,7 +1969,7 @@ impl PetApi {
         let mut path = "/pet/{petId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::stringify(&pet_id)),
+            Some(&object_serializer::to_path_value(&pet_id)),
             None,
             "path",
             "i64",
@@ -2062,7 +2062,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/certificate".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::stringify(&pet_id)),
+            Some(&object_serializer::to_path_value(&pet_id)),
             None,
             "path",
             "i64",
@@ -2159,7 +2159,7 @@ impl PetApi {
         let mut path = "/pet/{petId}/documents".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "petId",
-            Some(&object_serializer::stringify(&pet_id)),
+            Some(&object_serializer::to_path_value(&pet_id)),
             None,
             "path",
             "i64",

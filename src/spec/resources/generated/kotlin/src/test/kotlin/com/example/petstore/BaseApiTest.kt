@@ -15,6 +15,7 @@ import com.example.petstore.auth.Authenticator
 import com.example.petstore.errors.*
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
@@ -844,6 +845,46 @@ class BaseApiTest {
             )
             assertNotNull(client.capturedBody)
             assertEquals("{}", client.capturedBody.toString())
+        }
+    }
+
+    // ── Proxy authentication tests (Gap 29) ──
+
+    @Nested
+    @DisplayName("ProxyAuthTests")
+    inner class ProxyAuthTests {
+        @Test
+        @Disabled(
+            "Squid fixture (src/main/resources/fixtures/proxy/squid.conf) is open (no auth); enable when a basic-auth proxy fixture is configured.",
+        )
+        @DisplayName("proxy URL with embedded basic-auth credentials routes through proxy")
+        fun proxyUrlWithBasicAuthCredentialsRoutesThroughProxy() {
+            val wiremockUrl = WireMockContainer.getInternalHttpUrl()
+            val proxyHostPort = SquidContainer.getProxyUrl().removePrefix("http://")
+            val authenticatedProxy = "http://user:pass@$proxyHostPort"
+            val transport =
+                TransportOptions
+                    .builder()
+                    .proxy(authenticatedProxy)
+                    .build()
+            val client = DefaultApiClient(transport)
+            val response =
+                runBlocking {
+                    client.sendRequest("GET", "$wiremockUrl/api/test", emptyMap(), null)
+                }
+            assertEquals(200, response.statusCode)
+        }
+
+        @Test
+        @DisplayName("TransportOptions accepts proxy URL containing basic-auth credentials")
+        fun transportOptionsAcceptsProxyWithBasicAuthCredentials() {
+            // Verifies the proxy URL parser does not reject user:pass@host:port form.
+            val opts =
+                TransportOptions
+                    .builder()
+                    .proxy("http://user:pass@proxy.example.com:3128")
+                    .build()
+            assertEquals("http://user:pass@proxy.example.com:3128", opts.proxy)
         }
     }
 }

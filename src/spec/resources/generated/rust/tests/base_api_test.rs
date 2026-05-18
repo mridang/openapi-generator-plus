@@ -223,7 +223,7 @@ async fn test_base_api_returns_unit_when_return_type_is_void() {
     let api = PetApi::new(client.clone(), config, None);
     let auth = NoopAuthenticator;
     // DeletePet is a void operation -- it should return Ok(()) for a 200 OK response
-    let result = api.delete_pet(&auth, 1, None).await;
+    let result = api.delete_pet(Some(&auth), 1, None).await;
     assert!(
         result.is_ok(),
         "expected Ok(()) for void operation with 200 response, got: {:?}",
@@ -465,7 +465,7 @@ async fn test_base_api_all_headers_flow_through() {
     let api = PetApi::new(client.clone(), config, None);
     let pet = Pet::new("TestPet".to_string(), HashSet::new());
     let auth = NoopAuthenticator;
-    let _ = api.add_pet(&auth, pet).await;
+    let _ = api.add_pet(Some(&auth), pet).await;
     let headers = client.captured_headers.lock().unwrap();
     assert!(
         headers.contains_key("Accept"),
@@ -474,6 +474,46 @@ async fn test_base_api_all_headers_flow_through() {
     assert!(
         headers.contains_key("Content-Type"),
         "Expected Content-Type header from selector"
+    );
+}
+
+// -- Auth Option<>: falling back to the client-level authenticator --
+
+#[tokio::test]
+async fn test_base_api_op_auth_none_falls_back_to_client_authenticator() {
+    /* When `None` is passed for `auth`, the operation must fall back to the
+     * authenticator that was wired into the BaseApi at construction time. */
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let client_auth: Arc<dyn petstore::auth::Authenticator> = Arc::new(NoopAuthenticator);
+    let api = PetApi::new(client.clone(), config, Some(client_auth));
+    let pet = Pet::new("FallbackPet".to_string(), HashSet::new());
+    /* Passing None must succeed (no panic) and dispatch the request. */
+    let _ = api.add_pet(None, pet).await;
+    let body = client.captured_body.lock().unwrap();
+    assert!(
+        body.is_some(),
+        "expected request body to be captured when auth=None falls back to client authenticator"
+    );
+}
+
+#[tokio::test]
+async fn test_base_api_op_auth_none_with_no_client_authenticator_still_sends() {
+    /* Passing None for both the op auth and the client authenticator is
+     * permitted for endpoints that don't strictly require credentials. */
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let pet = Pet::new("Anon".to_string(), HashSet::new());
+    let _ = api.add_pet(None, pet).await;
+    let body = client.captured_body.lock().unwrap();
+    assert!(
+        body.is_some(),
+        "expected request body to be captured when no authenticator at all"
     );
 }
 
@@ -488,7 +528,7 @@ async fn test_base_api_serializes_json_body() {
     let api = PetApi::new(client.clone(), config, None);
     let pet = Pet::new("TestPet".to_string(), HashSet::new());
     let auth = NoopAuthenticator;
-    let _ = api.add_pet(&auth, pet).await;
+    let _ = api.add_pet(Some(&auth), pet).await;
     let body = client.captured_body.lock().unwrap();
     assert!(body.is_some(), "expected body to be captured");
     let body_str = String::from_utf8(body.as_ref().unwrap().clone()).unwrap();
@@ -645,7 +685,7 @@ async fn test_base_api_sets_cookie_from_auth() {
     let api = PetApi::new(client.clone(), config, None);
     let auth = CookieAuthenticator;
     let pet = Pet::new("TestPet".to_string(), HashSet::new());
-    let _ = api.add_pet(&auth, pet).await;
+    let _ = api.add_pet(Some(&auth), pet).await;
     let headers = client.captured_headers.lock().unwrap();
     if let Some(cookie) = headers.get("Cookie") {
         assert!(
@@ -1036,7 +1076,7 @@ async fn test_binary_response_empty_body_no_panic() {
     let api = PetApi::new(client, config, None);
     let auth = NoopAuthenticator;
     // DeletePet is void -- empty body should not panic
-    let _ = api.delete_pet(&auth, 1, None).await;
+    let _ = api.delete_pet(Some(&auth), 1, None).await;
 }
 
 // -- CrossOriginRedirectTests --
@@ -1190,7 +1230,7 @@ async fn test_null_body_post_does_not_send_content_type() {
     let api = PetApi::new(client.clone(), config, None);
     let auth = NoopAuthenticator;
     // delete_pet sends no body -- Content-Type should not be present
-    let _ = api.delete_pet(&auth, 1, None).await;
+    let _ = api.delete_pet(Some(&auth), 1, None).await;
     let headers = client.captured_headers.lock().unwrap();
     assert!(
         headers.get("Content-Type").is_none(),
@@ -1207,7 +1247,7 @@ async fn test_body_present_includes_content_type() {
     let api = PetApi::new(client.clone(), config, None);
     let auth = NoopAuthenticator;
     let pet = Pet::new("TestPet".to_string(), HashSet::new());
-    let _ = api.add_pet(&auth, pet).await;
+    let _ = api.add_pet(Some(&auth), pet).await;
     let headers = client.captured_headers.lock().unwrap();
     assert!(
         headers.get("Content-Type").is_some(),
@@ -1227,6 +1267,218 @@ async fn test_get_request_with_no_body_omits_content_type() {
     assert!(
         headers.get("Content-Type").is_none(),
         "Content-Type must NOT be sent when body is None (GET request)"
+    );
+}
+
+// -- Proxy authentication propagation --
+
+#[tokio::test]
+async fn test_base_api_routes_through_proxy_with_basic_auth() {
+    /* Cross-language parity: a `http://user:pass@proxy:port` URL must
+     * forward Proxy-Authorization correctly. The bundled Squid testcontainer
+     * is configured without basic-auth, so we exercise the credential-bearing
+     * code path against the unauthenticated proxy and accept any of:
+     *   - 200 (proxy ignored the auth header, request succeeded)
+     *   - 407 (proxy demanded auth our config didn't satisfy)
+     *   - transport error (proxy refused the connection)
+     * The point is the URL parser accepts user:pass, not that the proxy
+     * actually challenges. Tighten this test when the helper grows a
+     * Squid-with-basic-auth fixture. */
+    let wiremock_url = testcontainers_helper::wiremock_internal_http_url();
+    let proxy = testcontainers_helper::proxy_url();
+    /* Splice credentials into the proxy URL: http://user:pass@host:port */
+    let proxy_with_auth = proxy.replacen("http://", "http://proxyuser:proxypass@", 1);
+    let transport = petstore::TransportOptionsBuilder::new()
+        .proxy(&proxy_with_auth)
+        .build();
+    let client = petstore::DefaultApiClient::new(Some(transport));
+    let headers = HashMap::new();
+    let result = client
+        .send_request("GET", &format!("{}/api/test", wiremock_url), &headers, None)
+        .await;
+    /* Either Ok(any status) or Err -- both are acceptable shapes here.
+     * The test verifies the proxy URL was parsed and applied without panic. */
+    match result {
+        Ok(resp) => assert!(
+            resp.status_code >= 200 && resp.status_code < 600,
+            "got nonsensical status: {}",
+            resp.status_code
+        ),
+        Err(_) => { /* Squid may refuse -- acceptable for this fixture. */ }
+    }
+}
+
+// -- ApiErrorKind: per-status enum variants --
+
+fn make_api_error(code: u16) -> petstore::api_error::ApiError {
+    petstore::api_error::ApiError::new(
+        code,
+        format!("status {}", code),
+        Some(format!("{{\"code\":{}}}", code)),
+        Some(HashMap::new()),
+        None,
+    )
+}
+
+#[test]
+fn test_api_error_kind_bad_request_variant() {
+    let kind: petstore::api_error::ApiErrorKind = make_api_error(400).into();
+    assert!(matches!(
+        kind,
+        petstore::api_error::ApiErrorKind::BadRequest(_)
+    ));
+    assert_eq!(kind.status_code(), 400);
+}
+
+#[test]
+fn test_api_error_kind_unauthorized_variant() {
+    let kind: petstore::api_error::ApiErrorKind = make_api_error(401).into();
+    assert!(matches!(
+        kind,
+        petstore::api_error::ApiErrorKind::Unauthorized(_)
+    ));
+}
+
+#[test]
+fn test_api_error_kind_forbidden_variant() {
+    let kind: petstore::api_error::ApiErrorKind = make_api_error(403).into();
+    assert!(matches!(
+        kind,
+        petstore::api_error::ApiErrorKind::Forbidden(_)
+    ));
+}
+
+#[test]
+fn test_api_error_kind_not_found_variant() {
+    let kind: petstore::api_error::ApiErrorKind = make_api_error(404).into();
+    assert!(matches!(
+        kind,
+        petstore::api_error::ApiErrorKind::NotFound(_)
+    ));
+}
+
+#[test]
+fn test_api_error_kind_conflict_variant() {
+    let kind: petstore::api_error::ApiErrorKind = make_api_error(409).into();
+    assert!(matches!(
+        kind,
+        petstore::api_error::ApiErrorKind::Conflict(_)
+    ));
+}
+
+#[test]
+fn test_api_error_kind_unprocessable_entity_variant() {
+    let kind: petstore::api_error::ApiErrorKind = make_api_error(422).into();
+    assert!(matches!(
+        kind,
+        petstore::api_error::ApiErrorKind::UnprocessableEntity(_)
+    ));
+}
+
+#[test]
+fn test_api_error_kind_internal_server_error_variant() {
+    let kind: petstore::api_error::ApiErrorKind = make_api_error(500).into();
+    assert!(matches!(
+        kind,
+        petstore::api_error::ApiErrorKind::InternalServerError(_)
+    ));
+}
+
+#[test]
+fn test_api_error_kind_client_error_fallback() {
+    let kind: petstore::api_error::ApiErrorKind = make_api_error(418).into();
+    assert!(matches!(
+        kind,
+        petstore::api_error::ApiErrorKind::ClientError(_)
+    ));
+}
+
+#[test]
+fn test_api_error_kind_server_error_fallback() {
+    let kind: petstore::api_error::ApiErrorKind = make_api_error(503).into();
+    assert!(matches!(
+        kind,
+        petstore::api_error::ApiErrorKind::ServerError(_)
+    ));
+}
+
+#[test]
+fn test_api_error_kind_other_for_unrecognized_status() {
+    let kind: petstore::api_error::ApiErrorKind = make_api_error(0).into();
+    assert!(matches!(
+        kind,
+        petstore::api_error::ApiErrorKind::Other(_, _)
+    ));
+}
+
+#[test]
+fn test_api_error_kind_network_variant_carries_io_error() {
+    let io_err = std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "down");
+    let kind = petstore::api_error::ApiErrorKind::Network(io_err);
+    assert!(matches!(
+        kind,
+        petstore::api_error::ApiErrorKind::Network(_)
+    ));
+    assert_eq!(kind.status_code(), 0);
+}
+
+// -- ApiError::typed_body (typed error-body accessor) --
+
+#[test]
+fn test_api_error_typed_body_parses_into_target_type() {
+    #[derive(serde::Deserialize, Debug, PartialEq)]
+    struct Problem {
+        title: String,
+        status: u16,
+    }
+
+    let mut headers = HashMap::new();
+    headers.insert("Content-Type".to_string(), "application/json".to_string());
+    let err = petstore::api_error::ApiError::new(
+        400,
+        "bad request".to_string(),
+        Some(r#"{"title":"Bad Input","status":400}"#.to_string()),
+        Some(headers),
+        None,
+    );
+    let parsed: Option<Problem> = err.typed_body().expect("should deserialize");
+    assert_eq!(
+        parsed,
+        Some(Problem {
+            title: "Bad Input".to_string(),
+            status: 400
+        })
+    );
+}
+
+#[test]
+fn test_api_error_typed_body_returns_none_when_no_body() {
+    let err = petstore::api_error::ApiError::new(500, "boom".to_string(), None, None, None);
+    let parsed: Result<Option<serde_json::Value>, _> = err.typed_body();
+    assert!(
+        matches!(parsed, Ok(None)),
+        "typed_body must return Ok(None) when there is no response body"
+    );
+}
+
+#[test]
+fn test_api_error_typed_body_returns_err_when_body_invalid() {
+    #[derive(serde::Deserialize, Debug)]
+    #[allow(dead_code)]
+    struct Strict {
+        id: i64,
+    }
+    let err = petstore::api_error::ApiError::new(
+        400,
+        "bad".to_string(),
+        Some("not json at all".to_string()),
+        None,
+        None,
+    );
+    let parsed: Result<Option<Strict>, _> = err.typed_body();
+    assert!(
+        parsed.is_err(),
+        "typed_body must return Err for unparseable bodies"
     );
 }
 

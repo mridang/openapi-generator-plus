@@ -23,6 +23,7 @@ use Symfony\Component\Serializer\Normalizer\BackedEnumNormalizer;
 use Symfony\Component\Serializer\Normalizer\DateTimeNormalizer;
 use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
 use Symfony\Component\Serializer\Serializer;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Handles JSON serialization and deserialization for API requests and responses.
@@ -84,6 +85,10 @@ class ObjectSerializer
             return $data->format(self::DATE_TIME_FORMAT);
         }
 
+        if ($data instanceof Uuid) {
+            return $data->toRfc4122();
+        }
+
         if (is_array($data)) {
             foreach ($data as $property => $value) {
                 $data[$property] = self::sanitizeForSerialization($value);
@@ -123,6 +128,10 @@ class ObjectSerializer
 
         if ($value instanceof \DateTimeInterface) {
             return $value->format(self::DATE_TIME_FORMAT);
+        }
+
+        if ($value instanceof Uuid) {
+            return $value->toRfc4122();
         }
 
         if (is_bool($value)) {
@@ -235,6 +244,19 @@ class ObjectSerializer
                     $cleaned = preg_replace('/(:\d{2}.\d{6})\d*/', '$1', $data);
                     return new \DateTime((string) $cleaned);
                 }
+            }
+            return null;
+        }
+
+        if ($class === 'Symfony\Component\Uid\Uuid' || $class === 'Symfony\\Component\\Uid\\Uuid') {
+            if (is_string($data)) {
+                $decoded = json_decode($data, true);
+                if (is_string($decoded)) {
+                    $data = $decoded;
+                }
+            }
+            if (is_string($data) && $data !== '') {
+                return Uuid::fromString($data);
             }
             return null;
         }

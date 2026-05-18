@@ -1,0 +1,64 @@
+{{>api_info}}
+
+import { ApiError } from '../src/api-error{{importFileExtension}}';
+import { Category } from '../src/models/index{{importFileExtension}}';
+
+describe('ApiError', () => {
+  describe('basic shape', () => {
+    test('exposes statusCode, responseBody, responseHeaders, errorBody', () => {
+      const err = new ApiError(
+        404,
+        'not found',
+        { 'content-type': 'application/json' },
+        '{"id":7,"name":"missing"}',
+        null
+      );
+      expect(err.statusCode).toBe(404);
+      expect(err.message).toBe('not found');
+      expect(err.responseBody).toBe('{"id":7,"name":"missing"}');
+      expect(err.responseHeaders['content-type']).toBe('application/json');
+      expect(err.errorBody).toBeNull();
+    });
+
+    test('name is ApiError', () => {
+      const err = new ApiError(500, 'boom');
+      expect(err.name).toBe('ApiError');
+      expect(err).toBeInstanceOf(Error);
+    });
+  });
+
+  describe('getTypedErrorBody', () => {
+    test('deserializes the raw body into the requested class', () => {
+      const err = new ApiError<unknown>(
+        400,
+        'bad request',
+        {},
+        '{"id":42,"name":"Dogs"}'
+      );
+      const typed = err.getTypedErrorBody(Category);
+      expect(typed).not.toBeNull();
+      expect(typed).toBeInstanceOf(Category);
+      expect(typed!.id).toBe(42);
+      expect(typed!.name).toBe('Dogs');
+    });
+
+    test('returns null when there is no response body', () => {
+      const err = new ApiError<unknown>(500, 'oops', {}, null);
+      expect(err.getTypedErrorBody(Category)).toBeNull();
+    });
+
+    test('ignores extraneous fields not declared on the model', () => {
+      const err = new ApiError<unknown>(
+        422,
+        'unprocessable',
+        {},
+        '{"id":1,"name":"Cat","extra":"drop-me"}'
+      );
+      const typed = err.getTypedErrorBody(Category);
+      expect(typed).not.toBeNull();
+      expect(typed!.id).toBe(1);
+      expect(typed!.name).toBe('Cat');
+      expect(typed as unknown as Record<string, unknown>).not.toHaveProperty('extra');
+    });
+  });
+});

@@ -310,7 +310,7 @@ import Testing
         let api = PetApi(apiClient: mockClient, config: config)
 
         let pet = Pet(name: "test", photoUrls: [])
-        _ = try? await api.addPet(auth: MockAuth(), pet: pet)
+        _ = try? await api.addPet(pet: pet, auth: MockAuth())
         #expect(mockClient.lastHeaders["Accept"] != nil, "Expected Accept header from selector")
         #expect(mockClient.lastHeaders["Content-Type"] != nil, "Expected Content-Type header from selector")
     }
@@ -324,7 +324,7 @@ import Testing
 
         // POST requests with a body should always send Content-Type: application/json
         let pet = Pet(name: "test", photoUrls: [])
-        _ = try? await api.addPet(auth: MockAuth(), pet: pet)
+        _ = try? await api.addPet(pet: pet, auth: MockAuth())
         // The header selector should default empty content-type to application/json
         let ct = mockClient.lastHeaders["Content-Type"]
         #expect(ct != nil, "Expected Content-Type to be set")
@@ -341,7 +341,7 @@ import Testing
         let api = PetApi(apiClient: mockClient, config: config)
 
         let pet = Pet(name: "TestPet", photoUrls: [])
-        _ = try? await api.addPet(auth: MockAuth(), pet: pet)
+        _ = try? await api.addPet(pet: pet, auth: MockAuth())
         #expect(mockClient.lastBody != nil, "Expected body to be captured")
         if let body = mockClient.lastBody {
             let bodyStr = String(data: body, encoding: .utf8) ?? ""
@@ -412,7 +412,7 @@ import Testing
 
         let auth = MockAuth(cookies: ["session": "abc123"])
         let pet = Pet(name: "TestPet", photoUrls: [])
-        _ = try? await api.addPet(auth: auth, pet: pet)
+        _ = try? await api.addPet(pet: pet, auth: auth)
         if let cookie = mockClient.lastHeaders["Cookie"] {
             #expect(cookie.contains("session=abc123"))
         }
@@ -572,7 +572,7 @@ import Testing
         // deletePet is a void operation
         let auth = MockAuth()
         do {
-            try await api.deletePet(auth: auth, petId: 1)
+            try await api.deletePet(petId: 1, auth: auth)
             // Success - void operation returns no value
         } catch {
             // OK - WireMock may not have matching mapping
@@ -713,10 +713,125 @@ import Testing
         let config = ConfigurationBuilder().baseURL("https://example.com").build()
         let api = PetApi(apiClient: mockClient, config: config)
         let pet = Pet(name: "TestPet", photoUrls: [])
-        _ = try? await api.addPet(auth: MockAuth(), pet: pet)
+        _ = try? await api.addPet(pet: pet, auth: MockAuth())
         // addPet sends a JSON body -- Content-Type should be present
         #expect(mockClient.lastHeaders["Content-Type"] != nil,
             "Content-Type must be sent when body is non-nil")
+    }
+
+    // MARK: - Auth optional fallback
+
+    @Test func testAuthOmittedFallsBackToClientLevel() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let auth = MockAuth(headers: ["Authorization": "Bearer client-level"])
+        let api = PetApi(apiClient: mockClient, config: config, authenticator: auth)
+        let pet = Pet(name: "TestPet", photoUrls: [])
+        _ = try? await api.addPet(pet: pet)
+        #expect(mockClient.lastHeaders["Authorization"] == "Bearer client-level",
+            "Client-level authenticator should be applied when op-level auth is omitted")
+    }
+
+    @Test func testOpLevelAuthOverridesClientLevel() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let clientAuth = MockAuth(headers: ["Authorization": "Bearer client-level"])
+        let opAuth = MockAuth(headers: ["Authorization": "Bearer op-level"])
+        let api = PetApi(apiClient: mockClient, config: config, authenticator: clientAuth)
+        let pet = Pet(name: "TestPet", photoUrls: [])
+        _ = try? await api.addPet(pet: pet, auth: opAuth)
+        #expect(mockClient.lastHeaders["Authorization"] == "Bearer op-level",
+            "Op-level auth must override the client-level authenticator")
+    }
+
+    // MARK: - WithHTTPInfo result shape
+
+    @Test func testWithHTTPInfoExposesStatusHeadersAndData() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"id\":42,\"name\":\"Rex\",\"photoUrls\":[]}"
+        mockClient.responseHeaders = [
+            "Content-Type": "application/json",
+            "X-Trace-Id": "trace-123"
+        ]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+        let result = try await api.getPetByIdWithHTTPInfo(petId: 42)
+        #expect(result.statusCode == 200)
+        #expect(result.data?.id == 42)
+        #expect(result.headers["X-Trace-Id"] == "trace-123")
+        #expect(result.rawBody.contains("Rex"))
+    }
+
+    // MARK: - getTypedErrorBody
+
+    @Test func testGetTypedErrorBodyDeserializesViaObjectSerializer() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 404
+        mockClient.responseBody = "{\"message\":\"missing\"}"
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+        struct ApiErrorPayload: Codable, Sendable {
+            let message: String
+        }
+        do {
+            _ = try await api.getPetById(petId: 1)
+            Issue.record("Expected NotFoundError")
+        } catch let err as NotFoundError {
+            let payload = try err.getTypedErrorBody(ApiErrorPayload.self)
+            #expect(payload?.message == "missing")
+        }
+    }
+
+    @Test func testGetTypedErrorBodyReturnsNilForEmptyBody() {
+        let err = ApiError(statusCode: 500, message: "boom", responseBody: nil)
+        struct Empty: Codable, Sendable {}
+        #expect((try? err.getTypedErrorBody(Empty.self)) == nil)
+    }
+
+    // MARK: - Codable null/extras behaviour (#13, #14)
+
+    @Test func testSerializeOmitsNilOptionalFields() throws {
+        /* Swift Codable's encodeIfPresent omits nil Optional fields on encode,
+         * matching the cross-language "discard nulls on serialise" expectation. */
+        let pet = Pet(name: "NoOptional", photoUrls: [])
+        let json = try ObjectSerializer.serialize(pet)
+        /* id and category are optional and unset; they must not appear in the wire payload. */
+        #expect(!json.contains("\"id\""), "nil id must be omitted from JSON: \(json)")
+        #expect(!json.contains("\"category\""), "nil category must be omitted from JSON: \(json)")
+    }
+
+    @Test func testDeserializeIgnoresUnknownProperties() throws {
+        /* Swift's synthesized Codable init silently drops unknown JSON keys,
+         * matching the cross-language "discard extras on deserialise" expectation. */
+        let json = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[],\"unknownField\":\"ignored\",\"anotherExtra\":42}"
+        let pet: Pet? = try ObjectSerializer.deserialize(json, as: Pet.self)
+        #expect(pet?.name == "Fido")
+        #expect(pet?.id == 1)
+    }
+
+    // MARK: - ProxyAuthTests
+
+    /// Verifies that Proxy-Authorization credentials supplied through the proxy
+    /// URL (`http://user:pass@host:port`) are accepted by ``TransportOptions``
+    /// and surfaced on the resulting ``TransportOptions/proxy`` URL.
+    ///
+    /// The test is skipped when the bundled Squid container does not advertise
+    /// basic-auth (the default `squid.conf` in this repo does not), because the
+    /// proxy would reject any authenticated client before we could observe the
+    /// upstream request and the assertion would be meaningless.
+    @Test func testProxyAuthCredentialsRoundTrip() throws {
+        let squidSupportsBasicAuth = ProcessInfo.processInfo.environment["SQUID_BASIC_AUTH"] == "1"
+        guard squidSupportsBasicAuth else {
+            /* Skipped: bundled Squid container lacks basic-auth in this config. */
+            return
+        }
+        let proxyURL = "http://alice:s3cret@proxy.example.com:3128"
+        let opts = try TransportOptionsBuilder().proxy(proxyURL).build()
+        #expect(opts.proxy?.user == "alice")
+        #expect(opts.proxy?.password == "s3cret")
     }
 
     @Test func testEmptyJsonObjectBodyIncludesContentType() async throws {
@@ -726,7 +841,7 @@ import Testing
         let config = ConfigurationBuilder().baseURL("https://example.com").build()
         let api = PetApi(apiClient: mockClient, config: config)
         let pet = Pet(name: "EmptyPet", photoUrls: [])
-        _ = try? await api.addPet(auth: MockAuth(), pet: pet)
+        _ = try? await api.addPet(pet: pet, auth: MockAuth())
         #expect(mockClient.lastHeaders["Content-Type"] == "application/json",
             "Content-Type must be application/json when body is a JSON object")
     }

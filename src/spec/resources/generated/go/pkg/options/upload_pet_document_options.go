@@ -1,6 +1,8 @@
 package options
 
-import "os"
+import (
+	"os"
+)
 
 // UploadPetDocumentOptions holds optional parameters for the UploadPetDocument operation.
 type UploadPetDocumentOptions struct {

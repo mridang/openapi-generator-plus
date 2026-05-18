@@ -59,7 +59,8 @@ public sealed class TransportOptions
     /// End-to-end request timeout in milliseconds.
     /// Covers the entire request lifecycle: connection, TLS handshake,
     /// sending the request body, and reading the response.
-    /// <c>null</c> means no timeout (wait indefinitely).
+    /// Defaults to <c>10000</c> ms (10 seconds). Pass <c>null</c> to disable
+    /// the timeout (wait indefinitely).
     /// </summary>
     public int? Timeout { get; }
 
@@ -154,7 +155,7 @@ public sealed class TransportOptionsBuilder
     private bool _verifySsl = true;
     private string? _caCertPath;
     private string? _proxy;
-    private int? _timeout;
+    private int? _timeout = 10000;
     private bool _followRedirects = true;
     private int? _maxRedirects;
     private string? _userAgent = "PetstoreClient/1.0.0 (csharp)";

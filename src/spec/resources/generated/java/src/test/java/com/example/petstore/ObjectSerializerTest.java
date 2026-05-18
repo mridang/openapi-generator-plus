@@ -465,6 +465,20 @@ class ObjectSerializerTest {
           json.contains("\"name\":\"\""),
           "serialized JSON should include empty name, got: " + json);
     }
+
+    @Test
+    @DisplayName("omits fields that are null from JSON output")
+    void omitsNullFieldsFromJson() {
+      // Gap #13: nulls must be discarded on serialize (Jackson NON_NULL inclusion).
+      com.example.petstore.models.Category category = new com.example.petstore.models.Category();
+      category.id = 1L;
+      category.name = null;
+      String json = serializer.serialize(category);
+      assertTrue(json.contains("\"id\":1"), "serialized JSON should include id=1, got: " + json);
+      assertFalse(
+          json.contains("\"name\""),
+          "serialized JSON must NOT include null name field, got: " + json);
+    }
   }
 
   @Nested
@@ -503,6 +517,24 @@ class ObjectSerializerTest {
               null,
               new com.fasterxml.jackson.core.type.TypeReference<
                   com.example.petstore.models.Category>() {}));
+    }
+
+    @Test
+    @DisplayName("ignores unknown properties in JSON input")
+    void ignoresUnknownPropertiesInJsonInput() {
+      // Gap #14: extras must be discarded on deserialize (FAIL_ON_UNKNOWN_PROPERTIES=false).
+      String json =
+          "{\"id\":42,\"name\":\"Dogs\",\"unexpectedField\":\"surprise\"," + "\"another\":123}";
+      com.example.petstore.models.Category category =
+          assertDoesNotThrow(
+              () ->
+                  serializer.deserialize(
+                      json,
+                      new com.fasterxml.jackson.core.type.TypeReference<
+                          com.example.petstore.models.Category>() {}));
+      assertNotNull(category);
+      assertEquals(42L, category.id);
+      assertEquals("Dogs", category.name);
     }
   }
 }

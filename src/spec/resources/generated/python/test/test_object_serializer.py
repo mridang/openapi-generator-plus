@@ -155,6 +155,21 @@ class TestToQueryValue:
     def test_returns_array_for_multi(self) -> None:
         assert ObjectSerializer.to_query_value(['a', 'b', 'c'], 'multi') == ['a', 'b', 'c']
 
+    def test_keeps_empty_slot_for_null_array_element_in_csv(self) -> None:
+        assert ObjectSerializer.to_query_value([1, None, 3], 'csv') == '1,,3'
+
+    def test_keeps_empty_slot_for_null_array_element_in_default_csv(self) -> None:
+        assert ObjectSerializer.to_query_value([1, None, 3]) == '1,,3'
+
+    def test_keeps_empty_slot_for_null_array_element_in_ssv(self) -> None:
+        assert ObjectSerializer.to_query_value([1, None, 3], 'ssv') == '1  3'
+
+    def test_keeps_empty_slot_for_null_array_element_in_pipes(self) -> None:
+        assert ObjectSerializer.to_query_value([1, None, 3], 'pipes') == '1||3'
+
+    def test_keeps_empty_slot_for_null_array_element_in_multi(self) -> None:
+        assert ObjectSerializer.to_query_value([1, None, 3], 'multi') == ['1', '', '3']
+
 
 class TestToHeaderValue:
     def test_returns_empty_string_for_none(self) -> None:
@@ -222,6 +237,50 @@ class TestSerialize:
         assert data['id'] == 0
         assert 'name' in data, 'serialized JSON should include name field'
         assert data['name'] == ''
+
+
+class TestUuidRoundtrip:
+    def test_serializes_uuid_to_string(self) -> None:
+        import uuid
+
+        u = uuid.UUID('12345678-1234-5678-1234-567812345678')
+        assert ObjectSerializer.stringify(u) == '12345678-1234-5678-1234-567812345678'
+
+    def test_deserializes_uuid_string(self) -> None:
+        import uuid
+
+        result = ObjectSerializer()._deserialize('12345678-1234-5678-1234-567812345678', 'uuid.UUID')
+        assert isinstance(result, uuid.UUID)
+        assert str(result) == '12345678-1234-5678-1234-567812345678'
+
+    def test_serializes_uuid_via_sanitize(self) -> None:
+        import json
+        import uuid
+
+        u = uuid.UUID('12345678-1234-5678-1234-567812345678')
+        result = ObjectSerializer().serialize(u)
+        assert json.loads(result) == '12345678-1234-5678-1234-567812345678'
+
+
+class TestExtraFieldsOnDeserialize:
+    def test_extra_field_in_json_is_ignored(self) -> None:
+        json_str = '{"id":1,"name":"Dogs","unknown_field":"extra"}'
+        category = ObjectSerializer().deserialize(json_str, 'Category')
+        assert isinstance(category, Category)
+        assert category.id == 1
+        assert category.name == 'Dogs'
+
+
+class TestExcludeNoneOnSerialize:
+    def test_none_values_are_omitted(self) -> None:
+        import json
+
+        # Category with id=None should not include the id key on the wire.
+        category = Category(id=None, name='Dogs')
+        result = ObjectSerializer().serialize(category)
+        data = json.loads(result)
+        assert 'id' not in data
+        assert data['name'] == 'Dogs'
 
 
 class TestDeserialize:

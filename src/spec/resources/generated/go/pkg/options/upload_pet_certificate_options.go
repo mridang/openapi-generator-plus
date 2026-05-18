@@ -1,6 +1,8 @@
 package options
 
-import "os"
+import (
+	"os"
+)
 
 // UploadPetCertificateOptions holds optional parameters for the UploadPetCertificate operation.
 type UploadPetCertificateOptions struct {

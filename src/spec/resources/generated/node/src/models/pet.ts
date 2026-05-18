@@ -36,7 +36,7 @@ export class Pet {
    * @deprecated This property is deprecated.
    */
   @Expose({ name: 'status' })
-  status?: string;
+  status?: PetStatusEnum;
 
   constructor(data?: Partial<Pet>) {
     Object.assign(this, data);

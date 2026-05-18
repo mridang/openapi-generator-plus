@@ -277,7 +277,7 @@ defmodule PetstoreClient.Api.BaseApi do
 
   defp build_query_string(query_params) do
     query_params
-    |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+    |> Enum.reject(fn {_k, v} -> is_nil(v) or v == [] end)
     |> Enum.flat_map(fn {k, v} ->
       encoded_key = URI.encode_www_form(to_string(k))
 

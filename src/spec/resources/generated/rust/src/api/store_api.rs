@@ -57,7 +57,7 @@ impl StoreApi {
         let mut path = "/store/order/{orderId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "orderId",
-            Some(&object_serializer::stringify(&order_id)),
+            Some(&object_serializer::to_path_value(&order_id)),
             None,
             "path",
             "i64",
@@ -184,7 +184,7 @@ impl StoreApi {
         let mut path = "/store/order/{orderId}".to_string();
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "orderId",
-            Some(&object_serializer::stringify(&order_id)),
+            Some(&object_serializer::to_path_value(&order_id)),
             None,
             "path",
             "i64",

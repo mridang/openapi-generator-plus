@@ -209,7 +209,7 @@ import com.example.petstore.TransportOptions
 
 val transport = TransportOptions.builder()
     .proxy("http://proxy:3128")
-    .timeout(5000)
+    .timeout(5000L)
     .build()
 
 val client = Client(authenticator, transport)

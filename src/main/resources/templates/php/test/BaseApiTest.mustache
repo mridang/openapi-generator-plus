@@ -26,6 +26,7 @@ use {{invokerPackage}}\ApiClient;
 use {{invokerPackage}}\ApiResponse;
 use {{apiPackage}}\PetApi;
 use {{apiPackage}}\Options\FindPetsByStatusOptions;
+use {{invokerPackage}}\Models\Category;
 
 class CapturingApiClient implements ApiClient
 {
@@ -159,6 +160,28 @@ class BaseApiTest extends TestCase
             $this->assertSame($status, $e->getCode());
             $this->assertNotEmpty($e->getResponseBody());
         }
+    }
+
+    public function testGetTypedErrorBodyDeserializesIntoGivenClass(): void
+    {
+        $ex = new ApiException('boom', 400, [], '{"id":42,"name":"Dogs"}', null);
+        $typed = $ex->getTypedErrorBody(Category::class);
+
+        $this->assertInstanceOf(Category::class, $typed);
+        $this->assertSame(42, $typed->id);
+        $this->assertSame('Dogs', $typed->name);
+    }
+
+    public function testGetTypedErrorBodyReturnsNullForEmptyBody(): void
+    {
+        $ex = new ApiException('boom', 400, [], '', null);
+        $this->assertNull($ex->getTypedErrorBody(Category::class));
+    }
+
+    public function testGetTypedErrorBodyReturnsNullForWhitespaceBody(): void
+    {
+        $ex = new ApiException('boom', 400, [], "   \n\t", null);
+        $this->assertNull($ex->getTypedErrorBody(Category::class));
     }
 
     public function testParsesJsonErrorBody(): void

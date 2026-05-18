@@ -292,4 +292,115 @@ describe {{moduleName}}::ObjectSerializer do
       _({{moduleName}}::ObjectSerializer.deserialize(nil, 'Category')).must_be_nil
     end
   end
+
+  # ── nil discard on serialize (#13) ──
+
+  describe 'nil discard on serialize' do
+    it 'omits hash entries with nil values from serialized JSON' do
+      input = { 'present' => 'value', 'absent' => nil }
+      json = {{moduleName}}::ObjectSerializer.serialize(input)
+      data = JSON.parse(json)
+      _(data).must_include 'present'
+      _(data['present']).must_equal 'value'
+      _(data).wont_include 'absent'
+    end
+
+    it 'omits nested nil hash values from serialized JSON' do
+      input = { 'outer' => { 'a' => 1, 'b' => nil, 'c' => 3 } }
+      json = {{moduleName}}::ObjectSerializer.serialize(input)
+      data = JSON.parse(json)
+      _(data['outer']).must_include 'a'
+      _(data['outer']).wont_include 'b'
+      _(data['outer']).must_include 'c'
+    end
+
+    it 'keeps nil array elements (only hashes filter)' do
+      json = {{moduleName}}::ObjectSerializer.serialize([1, nil, 3])
+      _(JSON.parse(json)).must_equal [1, nil, 3]
+    end
+  end
+
+  # ── enum unknown value throws on deserialize (#12) ──
+
+  describe 'enum unknown value detection' do
+    before do
+      stub_const_name = :TestStatusEnumDeserialize
+      unless {{moduleName}}::Models.const_defined?(stub_const_name)
+        klass = Class.new do
+          VALUES = %w[placed approved delivered].freeze
+        end
+        {{moduleName}}::Models.const_set(stub_const_name, klass)
+      end
+    end
+
+    it 'raises ArgumentError when deserializing unknown enum value' do
+      assert_raises(ArgumentError) do
+        {{moduleName}}::ObjectSerializer.deserialize('"shipped"', 'TestStatusEnumDeserialize')
+      end
+    end
+
+    it 'returns value when deserializing valid enum value' do
+      result = {{moduleName}}::ObjectSerializer.deserialize('"approved"', 'TestStatusEnumDeserialize')
+      _(result).must_equal 'approved'
+    end
+  end
+
+  # ── enum frozen const + VALUES validation (#11) ──
+
+  describe 'enum frozen consts' do
+    before do
+      stub_const_name = :TestStatusEnumValidate
+      unless {{moduleName}}::Models.const_defined?(stub_const_name)
+        klass = Class.new do
+          PLACED = 'placed'.freeze
+          APPROVED = 'approved'.freeze
+          DELIVERED = 'delivered'.freeze
+          VALUES = [PLACED, APPROVED, DELIVERED].freeze
+
+          def self.validate!(value)
+            return value if value.nil? || VALUES.include?(value)
+
+            raise ArgumentError, "Unknown enum value: #{value.inspect}"
+          end
+        end
+        {{moduleName}}::Models.const_set(stub_const_name, klass)
+      end
+    end
+
+    it 'enum constants are frozen strings' do
+      _({{moduleName}}::Models::TestStatusEnumValidate::PLACED).must_be :frozen?
+      _({{moduleName}}::Models::TestStatusEnumValidate::APPROVED).must_be :frozen?
+    end
+
+    it 'VALUES contains all enum constants and is frozen' do
+      values = {{moduleName}}::Models::TestStatusEnumValidate::VALUES
+      _(values).must_be :frozen?
+      _(values).must_include 'placed'
+      _(values).must_include 'approved'
+      _(values).must_include 'delivered'
+    end
+
+    it 'validate! returns value when in VALUES' do
+      _({{moduleName}}::Models::TestStatusEnumValidate.validate!('approved')).must_equal 'approved'
+    end
+
+    it 'validate! raises ArgumentError for value not in VALUES' do
+      assert_raises(ArgumentError) do
+        {{moduleName}}::Models::TestStatusEnumValidate.validate!('shipped')
+      end
+    end
+  end
+
+  # ── discard extras on deserialize (#14) ──
+
+  describe 'extras discarded on deserialize' do
+    it 'silently ignores unknown JSON keys not in OPENAPI_TYPES' do
+      json_str = '{"id":1,"name":"Dogs","unexpected":"extra","another":42}'
+      category = {{moduleName}}::ObjectSerializer.deserialize(json_str, 'Category')
+      _(category).must_be_kind_of {{moduleName}}::Models::Category
+      _(category.id).must_equal 1
+      _(category.name).must_equal 'Dogs'
+      _(category.respond_to?(:unexpected)).must_equal false
+    end
+  end
 end

@@ -23,9 +23,11 @@ fn test_transport_options_proxy_defaults_to_none() {
 }
 
 #[test]
-fn test_transport_options_timeout_defaults_to_none() {
+fn test_transport_options_timeout_defaults_to_10_seconds() {
+    /* Cross-language parity: a 10s end-to-end timeout (10_000 ms) is the
+     * default for every SDK. Callers can override or disable per request. */
     let opts = TransportOptionsBuilder::new().build();
-    assert!(opts.timeout().is_none(), "expected no timeout by default");
+    assert_eq!(opts.timeout(), Some(10_000), "expected 10s default timeout");
 }
 
 #[test]

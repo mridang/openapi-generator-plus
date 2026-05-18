@@ -196,7 +196,7 @@ class ObjectSerializer(
         fun createDefaultJson(): Json =
             Json {
                 ignoreUnknownKeys = true
-                encodeDefaults = true
+                encodeDefaults = false
                 explicitNulls = false
                 isLenient = true
                 coerceInputValues = true

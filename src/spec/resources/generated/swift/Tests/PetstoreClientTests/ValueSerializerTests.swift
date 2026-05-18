@@ -136,6 +136,29 @@ import Testing
     #expect(result as? String == "a")
   }
 
+  @Test func testSerializeValueCsvArrayKeepsNilSlot() {
+    /* OAS csv style with explode=false preserves the position of nil
+         * elements as empty strings, producing "a,,c" not "a,c". */
+    let items: [String?] = ["a", nil, "c"]
+    let result = ValueSerializer.serializeValue(
+      items, location: "query", schemaType: "array", collectionFormat: "csv")
+    #expect(result as? String == "a,,c")
+  }
+
+  @Test func testSerializeValueCsvArrayMultipleNilsKeptAsEmptySlots() {
+    let items: [String?] = [nil, "x", nil, "y", nil]
+    let result = ValueSerializer.serializeValue(
+      items, location: "query", schemaType: "array", collectionFormat: "csv")
+    #expect(result as? String == ",x,,y,")
+  }
+
+  @Test func testSerializeValueCsvArrayAnyOptionalKeepsNilSlot() {
+    let items: [Any?] = [1, nil, 3]
+    let result = ValueSerializer.serializeValue(
+      items, location: "query", schemaType: "array", collectionFormat: "csv")
+    #expect(result as? String == "1,,3")
+  }
+
   @Test func testSerializeValueQueryArrayIntegers() {
     let result = ValueSerializer.serializeValue(
       [1, 2, 3], location: "query", schemaType: "array", collectionFormat: "csv")

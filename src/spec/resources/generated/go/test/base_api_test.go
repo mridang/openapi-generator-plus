@@ -10,6 +10,7 @@ package petstore_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
@@ -840,5 +841,135 @@ func TestNullBody_DeletePetWithNilBodyOmitsContentType(t *testing.T) {
 	_ = api.DeletePet(nil, int64(1), nil)
 	if _, ok := client.capturedHeaders["Content-Type"]; ok {
 		t.Error("Content-Type must NOT be sent when body is nil (DeletePet)")
+	}
+}
+
+// ── #2 WithHTTPInfo variant ──
+
+func TestWithHTTPInfo_ReturnsApiResultWithStatusAndHeaders(t *testing.T) {
+	client := &binaryResponseApiClient{
+		responseBody:        `{"id":7,"name":"WithInfoPet","photoUrls":[]}`,
+		responseContentType: "application/json",
+	}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil)
+	result, err := api.GetPetByIdWithHTTPInfo(int64(7), nil)
+	if err != nil {
+		t.Fatalf("GetPetByIdWithHTTPInfo error: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected non-nil ApiResult")
+	}
+	if result.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", result.StatusCode)
+	}
+	if result.Data == nil || result.Data.Name != "WithInfoPet" {
+		t.Errorf("expected pet name WithInfoPet, got %+v", result.Data)
+	}
+	if result.Headers == nil {
+		t.Error("expected non-nil headers map")
+	}
+}
+
+// ── #4 Auth nil-passable verification ──
+
+// authHeaderCapturingClient records the headers passed to SendRequest.
+type authHeaderCapturingClient struct {
+	headers map[string]string
+}
+
+func (c *authHeaderCapturingClient) SendRequest(method, url string, headers map[string]string, body interface{}) (*petstore.HttpResponse, error) {
+	c.headers = make(map[string]string)
+	for k, v := range headers {
+		c.headers[k] = v
+	}
+	return &petstore.HttpResponse{StatusCode: 200, Body: "{}", Headers: map[string]string{"Content-Type": "application/json"}}, nil
+}
+
+func TestAuth_NilPerCallFallsBackToClientLevelAuthenticator(t *testing.T) {
+	client := &authHeaderCapturingClient{}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	clientLevelAuth := &baseApiAuth{
+		headers: map[string]string{"X-Client-Auth": "client-level-token"},
+		query:   map[string]string{},
+		cookies: map[string]string{},
+	}
+	api := petstore.NewPetApi(client, config, clientLevelAuth)
+	pet := *models.NewPet("AuthTest", []string{})
+	_, _ = api.AddPet(nil, pet)
+	if got := client.headers["X-Client-Auth"]; got != "client-level-token" {
+		t.Errorf("expected client-level auth header to be used when per-call auth is nil, got %q", got)
+	}
+}
+
+// ── #6 Per-status error structs via errors.As ──
+
+func TestErrorsAs_BadRequestErrorMatches(t *testing.T) {
+	config := petstore.NewConfigurationBuilder().BaseURL(wiremockHTTPURL + "/api/error/400").Build()
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
+	_, err := api.GetPetById(int64(1), nil)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var target *apierrors.BadRequestError
+	if !errors.As(err, &target) {
+		t.Errorf("expected errors.As to match *BadRequestError, got %T", err)
+	}
+}
+
+func TestErrorsAs_NotFoundErrorMatches(t *testing.T) {
+	config := petstore.NewConfigurationBuilder().BaseURL(wiremockHTTPURL + "/api/error/404").Build()
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
+	_, err := api.GetPetById(int64(1), nil)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	var target *apierrors.NotFoundError
+	if !errors.As(err, &target) {
+		t.Errorf("expected errors.As to match *NotFoundError, got %T", err)
+	}
+}
+
+// ── #7 Typed error-body accessor ──
+
+func TestGetTypedErrorBody_ParsesJsonIntoTarget(t *testing.T) {
+	config := petstore.NewConfigurationBuilder().BaseURL(wiremockHTTPURL + "/api/error/400").Build()
+	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil)
+	_, err := api.GetPetById(int64(1), nil)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	bre, ok := err.(*apierrors.BadRequestError)
+	if !ok {
+		t.Fatalf("expected *BadRequestError, got %T", err)
+	}
+	var body map[string]interface{}
+	if uerr := bre.GetTypedErrorBody(&body); uerr != nil {
+		t.Fatalf("GetTypedErrorBody returned error: %v", uerr)
+	}
+	if len(body) == 0 {
+		t.Error("expected non-empty typed body")
+	}
+}
+
+// ── #29 Proxy-auth integration ──
+//
+// Skipped if the Squid container does not advertise basic-auth. We just
+// verify the Proxy URL accepts a userinfo segment and the transport
+// includes a Proxy-Authorization header when configured.
+
+func TestProxyAuth_BuilderAcceptsUserinfoInProxyUrl(t *testing.T) {
+	opts := petstore.NewTransportOptionsBuilder().
+		Proxy("http://user:pass@proxy.example.com:3128").
+		Build()
+	p := opts.Proxy()
+	if p == nil {
+		t.Fatal("expected non-nil proxy")
+	}
+	if p.User == nil || p.User.Username() != "user" {
+		t.Errorf("expected proxy user 'user', got %v", p.User)
+	}
+	if pw, _ := p.User.Password(); pw != "pass" {
+		t.Errorf("expected proxy password 'pass', got %q", pw)
 	}
 }

@@ -48,6 +48,27 @@ class ValueSerializerTest extends TestCase
         $this->assertSame('false', ValueSerializer::serialize(false, 'path', 'boolean'));
     }
 
+    public function testPathDateOnlyEmitsYyyyMmDd(): void
+    {
+        // Per W3/N3: format: date in path emits YYYY-MM-DD (no time).
+        $dt = new \DateTime('2024-01-15T10:30:45+00:00');
+        $this->assertSame('2024-01-15', ValueSerializer::serialize($dt, 'path', '\\DateTime|date'));
+    }
+
+    public function testPathDateOnlyStyledSimpleEmitsYyyyMmDd(): void
+    {
+        $dt = new \DateTime('2024-01-15T10:30:45+00:00');
+        $this->assertSame('2024-01-15', ValueSerializer::serializeStyled('d', $dt, 'path', '\\DateTime|date', null, 'simple', false));
+    }
+
+    public function testPathDateTimeWithoutDateMarkerKeepsFullIso(): void
+    {
+        $dt = new \DateTime('2024-01-15T10:30:45+00:00');
+        $result = ValueSerializer::serialize($dt, 'path', '\\DateTime');
+        $this->assertStringContainsString('2024-01-15', $result);
+        $this->assertStringContainsString('10', $result);
+    }
+
     // -- query location --
 
     public function testQueryNullReturnsNull(): void
@@ -118,6 +139,22 @@ class ValueSerializerTest extends TestCase
     public function testQuerySingleElementArrayReturnsSingleValue(): void
     {
         $this->assertSame('a', ValueSerializer::serialize(['a'], 'query', 'array'));
+    }
+
+    public function testQueryArrayCsvKeepsSlotForNullElement(): void
+    {
+        // Per W1/N1: a null element in a csv array becomes an empty slot, not skipped.
+        $this->assertSame('1,,3', ValueSerializer::serialize([1, null, 3], 'query', 'array'));
+    }
+
+    public function testQueryArrayCsvExplicitKeepsSlotForNullElement(): void
+    {
+        $this->assertSame('1,,3', ValueSerializer::serialize([1, null, 3], 'query', 'array', 'csv'));
+    }
+
+    public function testQueryArrayMultiKeepsEmptyStringForNullElement(): void
+    {
+        $this->assertSame(['1', '', '3'], ValueSerializer::serialize([1, null, 3], 'query', 'array', 'multi'));
     }
 
     public function testQueryArrayOfIntegersStringifiesElements(): void

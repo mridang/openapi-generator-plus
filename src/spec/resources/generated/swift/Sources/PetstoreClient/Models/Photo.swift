@@ -29,4 +29,30 @@ public struct Photo: Codable, Sendable {
     self.isPrimary = isPrimary
     self.url = url
   }
+
+  /// Decodes this instance from the given decoder.
+  ///
+  /// Required fields use `decode(_:forKey:)`; optional fields use
+  /// `decodeIfPresent(_:forKey:)`. Unknown JSON keys are silently ignored
+  /// — matching the cross-language "discard extras on deserialise" expectation.
+  public init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
+    self.caption = try container.decodeIfPresent(String.self, forKey: .caption)
+    self.isPrimary = try container.decodeIfPresent(Bool.self, forKey: .isPrimary)
+    self.url = try container.decodeIfPresent(String.self, forKey: .url)
+  }
+
+  /// Encodes this instance, omitting nil optional fields from the JSON output.
+  ///
+  /// Uses `encodeIfPresent` for every optional property so that unset values
+  /// are dropped from the wire payload rather than emitted as `null` — matching
+  /// the cross-language "discard nulls on serialise" expectation.
+  public func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encodeIfPresent(id, forKey: .id)
+    try container.encodeIfPresent(caption, forKey: .caption)
+    try container.encodeIfPresent(isPrimary, forKey: .isPrimary)
+    try container.encodeIfPresent(url, forKey: .url)
+  }
 }
