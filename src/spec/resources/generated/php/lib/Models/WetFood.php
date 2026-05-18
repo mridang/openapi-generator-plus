@@ -29,7 +29,7 @@ class WetFood
      */
     public function __construct(
         int $volumeMl,
-        ?string $foodType = 'wet',
+        string $foodType = 'wet',
     ) {
         $this->volumeMl = $volumeMl;
         $this->foodType = $foodType;

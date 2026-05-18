@@ -404,14 +404,14 @@ class ObjectSerializerTest extends TestCase
     public function testHighPrecisionDecimalAsJsonNumberPreservesAllDigits(): void
     {
         $json = '{"id":1,"amount":1.123456789012345678}';
-        $prepared = self::invokePreserve($json);
+        $prepared = $this->invokePreserve($json);
         $this->assertStringContainsString('"1.123456789012345678"', $prepared);
     }
 
     public function testPointOneDecimalLiteralNotCoercedToBinaryFloat(): void
     {
         $json = '{"id":1,"amount":0.1}';
-        $prepared = self::invokePreserve($json);
+        $prepared = $this->invokePreserve($json);
         $this->assertStringContainsString('"0.1"', $prepared);
         $this->assertStringNotContainsString('0.10000000000000001', $prepared);
     }
@@ -419,14 +419,14 @@ class ObjectSerializerTest extends TestCase
     public function testIntegerLiteralsAreNotQuotedByPreservePass(): void
     {
         $json = '{"id":42,"nested":[1,2,3]}';
-        $prepared = self::invokePreserve($json);
+        $prepared = $this->invokePreserve($json);
         $this->assertSame($json, $prepared);
     }
 
     public function testStringContainingDigitsIsNotMutatedByPreservePass(): void
     {
         $json = '{"id":"9223372036854775807","name":"a 1.5 b"}';
-        $prepared = self::invokePreserve($json);
+        $prepared = $this->invokePreserve($json);
         $this->assertSame($json, $prepared);
     }
 
@@ -451,7 +451,7 @@ class ObjectSerializerTest extends TestCase
      * preservation pass without making it part of the public
      * surface. Gap I.
      */
-    private static function invokePreserve(string $json): string
+    private function invokePreserve(string $json): string
     {
         $reflection = new \ReflectionClass(ObjectSerializer::class);
         $method = $reflection->getMethod('preserveNumericPrecision');

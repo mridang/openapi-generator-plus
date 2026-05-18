@@ -361,11 +361,17 @@ public class DefaultApiClientUnitTest
     [Fact]
     public async Task MultipartFileWithPngExtensionSetsImagePngContentType()
     {
-        HttpContent? capturedContent = null;
-        var handler = new CapturingHandler(req =>
+        // Serialize the multipart inside the handler — the request is wrapped in
+        // `using` in SendRequestAsync, so its Content is disposed once that method
+        // returns. Reading the wire bytes here captures the part headers (including
+        // per-part Content-Type) before disposal clears them.
+        string? wireText = null;
+        string? contentTypeHeader = null;
+        var handler = new CapturingHandler(async req =>
         {
-            capturedContent = req.Content;
-            return Task.CompletedTask;
+            Assert.NotNull(req.Content);
+            contentTypeHeader = req.Content!.Headers.ContentType?.ToString();
+            wireText = await req.Content.ReadAsStringAsync();
         });
         var client = new DefaultApiClient(new HttpClient(handler));
         var formData = new Dictionary<string, object>
@@ -379,22 +385,21 @@ public class DefaultApiClientUnitTest
             formData
         );
 
-        Assert.NotNull(capturedContent);
-        var multipart = Assert.IsType<MultipartFormDataContent>(capturedContent);
-        var partWithPng = multipart.FirstOrDefault(p =>
-            p.Headers.ContentType?.MediaType == "image/png"
-        );
-        Assert.NotNull(partWithPng);
+        Assert.NotNull(wireText);
+        Assert.StartsWith("multipart/form-data", contentTypeHeader);
+        Assert.Contains("Content-Type: image/png", wireText);
     }
 
     [Fact]
     public async Task MultipartFileWithoutExtensionDefaultsToOctetStream()
     {
-        HttpContent? capturedContent = null;
-        var handler = new CapturingHandler(req =>
+        string? wireText = null;
+        string? contentTypeHeader = null;
+        var handler = new CapturingHandler(async req =>
         {
-            capturedContent = req.Content;
-            return Task.CompletedTask;
+            Assert.NotNull(req.Content);
+            contentTypeHeader = req.Content!.Headers.ContentType?.ToString();
+            wireText = await req.Content.ReadAsStringAsync();
         });
         var client = new DefaultApiClient(new HttpClient(handler));
         var formData = new Dictionary<string, object>
@@ -408,22 +413,21 @@ public class DefaultApiClientUnitTest
             formData
         );
 
-        Assert.NotNull(capturedContent);
-        var multipart = Assert.IsType<MultipartFormDataContent>(capturedContent);
-        var partWithOctet = multipart.FirstOrDefault(p =>
-            p.Headers.ContentType?.MediaType == "application/octet-stream"
-        );
-        Assert.NotNull(partWithOctet);
+        Assert.NotNull(wireText);
+        Assert.StartsWith("multipart/form-data", contentTypeHeader);
+        Assert.Contains("Content-Type: application/octet-stream", wireText);
     }
 
     [Fact]
     public async Task MultipartFileWithPdfExtensionSetsApplicationPdfContentType()
     {
-        HttpContent? capturedContent = null;
-        var handler = new CapturingHandler(req =>
+        string? wireText = null;
+        string? contentTypeHeader = null;
+        var handler = new CapturingHandler(async req =>
         {
-            capturedContent = req.Content;
-            return Task.CompletedTask;
+            Assert.NotNull(req.Content);
+            contentTypeHeader = req.Content!.Headers.ContentType?.ToString();
+            wireText = await req.Content.ReadAsStringAsync();
         });
         var client = new DefaultApiClient(new HttpClient(handler));
         var formData = new Dictionary<string, object>
@@ -437,12 +441,9 @@ public class DefaultApiClientUnitTest
             formData
         );
 
-        Assert.NotNull(capturedContent);
-        var multipart = Assert.IsType<MultipartFormDataContent>(capturedContent);
-        var partWithPdf = multipart.FirstOrDefault(p =>
-            p.Headers.ContentType?.MediaType == "application/pdf"
-        );
-        Assert.NotNull(partWithPdf);
+        Assert.NotNull(wireText);
+        Assert.StartsWith("multipart/form-data", contentTypeHeader);
+        Assert.Contains("Content-Type: application/pdf", wireText);
     }
 
     // -- Gap H: response body charset handling --

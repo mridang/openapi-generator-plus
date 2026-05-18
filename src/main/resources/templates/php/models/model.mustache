@@ -316,14 +316,29 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{/required}}
 {{^required}}
 {{#isContainer}}
-    public ?array ${{name}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}};
+{{#defaultValue}}
+    public array ${{name}} = {{{.}}};
+{{/defaultValue}}
+{{^defaultValue}}
+    public ?array ${{name}} = null;
+{{/defaultValue}}
 {{/isContainer}}
 {{^isContainer}}
 {{#isEnum}}
-    public ?{{classname}}{{enumName}} ${{name}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}};
+{{#defaultValue}}
+    public {{classname}}{{enumName}} ${{name}} = {{{.}}};
+{{/defaultValue}}
+{{^defaultValue}}
+    public ?{{classname}}{{enumName}} ${{name}} = null;
+{{/defaultValue}}
 {{/isEnum}}
 {{^isEnum}}
-    public ?{{{dataType}}} ${{name}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}};
+{{#defaultValue}}
+    public {{{dataType}}} ${{name}} = {{{.}}};
+{{/defaultValue}}
+{{^defaultValue}}
+    public ?{{{dataType}}} ${{name}} = null;
+{{/defaultValue}}
 {{/isEnum}}
 {{/isContainer}}
 {{/required}}
@@ -345,7 +360,12 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{/requiredVars}}
 {{#optionalVars}}
 {{#isContainer}}
+{{#defaultValue}}
+     * @param {{{dataType}}} ${{name}}
+{{/defaultValue}}
+{{^defaultValue}}
      * @param {{{dataType}}}|null ${{name}}
+{{/defaultValue}}
 {{/isContainer}}
 {{/optionalVars}}
      */
@@ -365,14 +385,29 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{/requiredVars}}
 {{#optionalVars}}
 {{#isContainer}}
-        ?array ${{name}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}},
+{{#defaultValue}}
+        array ${{name}} = {{{.}}},
+{{/defaultValue}}
+{{^defaultValue}}
+        ?array ${{name}} = null,
+{{/defaultValue}}
 {{/isContainer}}
 {{^isContainer}}
 {{#isEnum}}
-        ?{{classname}}{{enumName}} ${{name}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}},
+{{#defaultValue}}
+        {{classname}}{{enumName}} ${{name}} = {{{.}}},
+{{/defaultValue}}
+{{^defaultValue}}
+        ?{{classname}}{{enumName}} ${{name}} = null,
+{{/defaultValue}}
 {{/isEnum}}
 {{^isEnum}}
-        ?{{{dataType}}} ${{name}} = {{#defaultValue}}{{{.}}}{{/defaultValue}}{{^defaultValue}}null{{/defaultValue}},
+{{#defaultValue}}
+        {{{dataType}}} ${{name}} = {{{.}}},
+{{/defaultValue}}
+{{^defaultValue}}
+        ?{{{dataType}}} ${{name}} = null,
+{{/defaultValue}}
 {{/isEnum}}
 {{/isContainer}}
 {{/optionalVars}}

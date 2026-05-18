@@ -29,7 +29,7 @@ class DryFood
      */
     public function __construct(
         float $weightKg,
-        ?string $foodType = 'dry',
+        string $foodType = 'dry',
     ) {
         $this->weightKg = $weightKg;
         $this->foodType = $foodType;
