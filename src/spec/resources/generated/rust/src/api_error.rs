@@ -151,7 +151,7 @@ impl From<ApiError> for ApiErrorFields {
 /// by the Java, Kotlin, C#, PHP, Python, Node, and Ruby SDKs.
 ///
 /// Convert from a plain [`ApiError`] via [`ApiErrorKind::from`].
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum ApiErrorKind {
     /// HTTP 400 Bad Request.
     BadRequest(ApiErrorFields),

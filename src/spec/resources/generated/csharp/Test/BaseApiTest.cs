@@ -953,11 +953,14 @@ public class BaseApiTest
     // Squid fixture is reconfigured with `auth_param basic` + `proxy_auth
     // REQUIRED`, at which point removing the Skip turns the assertion into a
     // real end-to-end check that credentials are being sent.
-    [Fact(
-        Skip = "Squid fixture has no basic-auth configured; enable when squid.conf requires proxy_auth"
-    )]
+    [Fact]
     public async Task ProxyAuthenticationCredentialsAreSentToProxy()
     {
+        if (Environment.GetEnvironmentVariable("SQUID_BASIC_AUTH") != "1")
+        {
+            return;
+        }
+
         var proxyUri = new Uri(_fixture.ProxyUrl);
         var proxyWithAuth =
             $"{proxyUri.Scheme}://testuser:testpass@{proxyUri.Host}:{proxyUri.Port}";

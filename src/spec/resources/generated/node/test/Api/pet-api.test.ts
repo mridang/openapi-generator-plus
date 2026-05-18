@@ -9,7 +9,7 @@ import * as http from 'node:http';
 import { PetApi, UploadPetDocumentDocumentTypeEnum } from '../../src/api/pet-api.js';
 import { BearerAuthenticator } from '../../src/auth/bearer-authenticator.js';
 import { Configuration } from '../../src/configuration.js';
-import { Pet, PhotoMetadata, SetPetAvatarThumbnailRequest } from '../../src/models/index.js';
+import { Pet, PetStatusEnum, PhotoMetadata, SetPetAvatarThumbnailRequest } from '../../src/models/index.js';
 
 const baseUrl = process.env.API_BASE_URL || 'http://localhost:4010';
 const config = Configuration.builder().baseUrl(baseUrl).defaultHeader('Authorization', 'Bearer test-token').build();
@@ -33,7 +33,7 @@ describe('PetApi', () => {
       id: 12345,
       name: 'TestDog',
       photoUrls: new Set(['http://example.com/photo.jpg']),
-      status: 'available'
+      status: PetStatusEnum.Available
     };
 
     const result = await api.addPet(auth, pet);
@@ -43,7 +43,7 @@ describe('PetApi', () => {
   });
 
   test('findPetsByStatus', async () => {
-    const result = await api.findPetsByStatus({ status: 'available' });
+    const result = await api.findPetsByStatus({ status: PetStatusEnum.Available });
 
     expect(Array.isArray(result)).toBe(true);
     expect(result.length).toBeGreaterThan(0);
@@ -62,7 +62,7 @@ describe('PetApi', () => {
       id: 1,
       name: 'UpdatedDog',
       photoUrls: new Set(['http://example.com/updated.jpg']),
-      status: 'pending'
+      status: PetStatusEnum.Pending
     };
 
     const result = await api.updatePet(1, pet);

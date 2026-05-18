@@ -120,7 +120,9 @@ final class ValueSerializer
 
         $isDateOnly = str_ends_with($schemaType, '|date');
         $stringifier = $isDateOnly
-            ? static fn (mixed $v): string => ($v instanceof \DateTimeInterface) ? $v->format('Y-m-d') : ObjectSerializer::stringify($v)
+            ? static fn (mixed $v): string => $v instanceof \DateTimeInterface
+                ? $v->format('Y-m-d')
+                : ObjectSerializer::stringify($v)
             : [ObjectSerializer::class, 'stringify'];
 
         $items = is_array($value)

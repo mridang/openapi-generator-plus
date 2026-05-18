@@ -8,12 +8,10 @@
 import * as http from 'node:http';
 import { StoreApi } from '../../src/api/store-api.js';
 import { Configuration } from '../../src/configuration.js';
-import { Order } from '../../src/models/index.js';
+import { Order, OrderStatusEnum } from '../../src/models/index.js';
 
-const config = Configuration.builder()
-  .baseUrl(process.env.API_BASE_URL || 'http://localhost:4010')
-  .defaultHeader('Authorization', 'Bearer test-token')
-  .build();
+const baseUrl = process.env.API_BASE_URL || 'http://localhost:4010';
+const config = Configuration.builder().baseUrl(baseUrl).defaultHeader('Authorization', 'Bearer test-token').build();
 const api = new StoreApi(undefined, config);
 
 describe('StoreApi', () => {
@@ -41,7 +39,7 @@ describe('StoreApi', () => {
       petId: 12345,
       quantity: 1,
       shipDate: new Date().toISOString(),
-      status: 'placed',
+      status: OrderStatusEnum.Placed,
       complete: false
     };
 
@@ -104,7 +102,7 @@ describe('StoreApi error handling', () => {
         petId: 12345,
         quantity: 1,
         shipDate: new Date().toISOString(),
-        status: 'placed',
+        status: OrderStatusEnum.Placed,
         complete: false
       };
       await expect(mockApi.placeOrder(order)).rejects.toThrow();

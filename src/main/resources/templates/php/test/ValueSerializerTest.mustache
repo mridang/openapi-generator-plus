@@ -65,6 +65,7 @@ class ValueSerializerTest extends TestCase
     {
         $dt = new \DateTime('2024-01-15T10:30:45+00:00');
         $result = ValueSerializer::serialize($dt, 'path', '\\DateTime');
+        $this->assertIsString($result);
         $this->assertStringContainsString('2024-01-15', $result);
         $this->assertStringContainsString('10', $result);
     }
