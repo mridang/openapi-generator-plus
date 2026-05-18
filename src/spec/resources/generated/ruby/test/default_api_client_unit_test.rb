@@ -444,7 +444,6 @@ describe PetstoreClient::DefaultApiClient do
   end
 
   it 'parses proxy URL with userinfo without raising' do
-    captured_proxy = nil
     transport = PetstoreClient::TransportOptions.builder
       .proxy('http://user:pass@proxy.example.com:3128')
       .build

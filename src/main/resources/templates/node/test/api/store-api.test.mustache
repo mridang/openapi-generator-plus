@@ -12,6 +12,17 @@ const config = Configuration.builder()
 const api = new StoreApi(undefined, config);
 
 describe('StoreApi', () => {
+  beforeAll(async () => {
+    for (let i = 0; i < 5; i++) {
+      try {
+        await fetch(baseUrl, { method: 'GET' });
+        return;
+      } catch {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+  });
+
   test('getInventory', async () => {
     const result = await api.getInventory();
 

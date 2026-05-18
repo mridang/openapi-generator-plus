@@ -70,7 +70,7 @@ class PetApiTest extends TestCase
 
         $this->assertSame(200, $result->statusCode);
         $this->assertInstanceOf(Pet::class, $result->data);
-        $this->assertIsArray($result->headers);
+        $this->assertNotEmpty($result->headers);
     }
 
     public function testGetPetById(): void

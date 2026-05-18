@@ -90,10 +90,6 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
 
         if (transportOptions.Proxy != null)
         {
-            // Parse user-info ("user:password@") out of the proxy URL so it is
-            // surfaced as a Proxy-Authorization basic-auth header rather than
-            // being silently dropped — see Gap #29 (proxy authentication
-            // propagation).
             Uri proxyUri = new(transportOptions.Proxy);
             WebProxy webProxy;
             if (!string.IsNullOrEmpty(proxyUri.UserInfo))

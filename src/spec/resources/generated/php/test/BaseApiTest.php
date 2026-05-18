@@ -164,7 +164,7 @@ class BaseApiTest extends TestCase
 
     public function testGetTypedErrorBodyDeserializesIntoGivenClass(): void
     {
-        $ex = new ApiException('boom', 400, [], '{"id":42,"name":"Dogs"}', null);
+        $ex = new ApiException('boom', 400, [], '{"id":42,"name":"Dogs"}');
         $typed = $ex->getTypedErrorBody(Category::class);
 
         $this->assertInstanceOf(Category::class, $typed);
@@ -174,13 +174,13 @@ class BaseApiTest extends TestCase
 
     public function testGetTypedErrorBodyReturnsNullForEmptyBody(): void
     {
-        $ex = new ApiException('boom', 400, [], '', null);
+        $ex = new ApiException('boom', 400, [], '');
         $this->assertNull($ex->getTypedErrorBody(Category::class));
     }
 
     public function testGetTypedErrorBodyReturnsNullForWhitespaceBody(): void
     {
-        $ex = new ApiException('boom', 400, [], "   \n\t", null);
+        $ex = new ApiException('boom', 400, [], "   \n\t");
         $this->assertNull($ex->getTypedErrorBody(Category::class));
     }
 

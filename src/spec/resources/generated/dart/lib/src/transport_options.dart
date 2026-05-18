@@ -80,7 +80,6 @@ class TransportOptionsBuilder {
   bool _verifySSL = true;
   String? _caCertPath;
   Uri? _proxy;
-  // Default to 10 seconds end-to-end timeout. Override via [timeout].
   int? _timeout = 10000;
   bool _followRedirects = true;
   int? _maxRedirects;

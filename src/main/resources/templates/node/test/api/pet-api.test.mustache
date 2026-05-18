@@ -15,6 +15,17 @@ const api = new PetApi(undefined, config);
 const auth = new BearerAuthenticator(baseUrl, 'test-token');
 
 describe('PetApi', () => {
+  beforeAll(async () => {
+    for (let i = 0; i < 5; i++) {
+      try {
+        await fetch(baseUrl, { method: 'GET' });
+        return;
+      } catch {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+  });
+
   test('addPet', async () => {
     const pet: Pet = {
       id: 12345,
