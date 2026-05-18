@@ -52,7 +52,7 @@ class PetApiTest extends TestCase
     public function testAddPet(): void
     {
         $pet = new Pet(name: 'TestDog', photoUrls: ['http://example.com/photo.jpg']);
-        $pet->id = 12345;
+        $pet->id = '12345';
         $pet->status = PetStatusEnum::AVAILABLE;
 
         $result = $this->api->addPet($this->auth, $pet);
@@ -62,7 +62,7 @@ class PetApiTest extends TestCase
 
     public function testGetPetById(): void
     {
-        $result = $this->api->getPetById(1);
+        $result = $this->api->getPetById('1');
 
         $this->assertInstanceOf(Pet::class, $result);
     }
@@ -78,7 +78,7 @@ class PetApiTest extends TestCase
 
     public function testGetPetPassport(): void
     {
-        $result = $this->api->getPetPassport(1);
+        $result = $this->api->getPetPassport('1');
 
         $this->assertInstanceOf(PetPassport::class, $result);
     }
@@ -86,17 +86,17 @@ class PetApiTest extends TestCase
     public function testUpdatePet(): void
     {
         $pet = new Pet(name: 'UpdatedDog', photoUrls: ['http://example.com/updated.jpg']);
-        $pet->id = 1;
+        $pet->id = '1';
         $pet->status = PetStatusEnum::PENDING;
 
-        $result = $this->api->updatePet(1, $pet);
+        $result = $this->api->updatePet('1', $pet);
 
         $this->assertInstanceOf(Pet::class, $result);
     }
 
     public function testDeletePet(): void
     {
-        $this->api->deletePet($this->auth, 1);
+        $this->api->deletePet($this->auth, '1');
 
         $this->addToAssertionCount(1);
     }
@@ -107,7 +107,7 @@ class PetApiTest extends TestCase
         file_put_contents($tmpFile, "\xFF\xD8\xFF");
         $body = new \SplFileObject($tmpFile, 'r');
 
-        $this->api->setPetAvatar(1, $body);
+        $this->api->setPetAvatar('1', $body);
 
         $this->addToAssertionCount(1);
         unlink($tmpFile);
@@ -115,7 +115,7 @@ class PetApiTest extends TestCase
 
     public function testGetPetAvatar(): void
     {
-        $result = $this->api->getPetAvatar(1);
+        $result = $this->api->getPetAvatar('1');
 
         $this->assertNotNull($result);
         $this->assertIsString($result);
@@ -123,7 +123,7 @@ class PetApiTest extends TestCase
 
     public function testGetPetAvatarThumbnail(): void
     {
-        $result = $this->api->getPetAvatarThumbnail(1);
+        $result = $this->api->getPetAvatarThumbnail('1');
 
         $this->assertNotNull($result);
     }
@@ -132,7 +132,7 @@ class PetApiTest extends TestCase
     {
         $request = new SetPetAvatarThumbnailRequest('iVBORw0KGgoAAAANSUhEUg==');
 
-        $this->api->setPetAvatarThumbnail(1, $request);
+        $this->api->setPetAvatarThumbnail('1', $request);
 
         $this->addToAssertionCount(1);
     }
@@ -143,7 +143,7 @@ class PetApiTest extends TestCase
         file_put_contents($tmpFile, 'certificate-content');
         $file = new \SplFileObject($tmpFile, 'r');
 
-        $result = $this->api->uploadPetCertificate(1, new UploadPetCertificateOptions($file));
+        $result = $this->api->uploadPetCertificate('1', new UploadPetCertificateOptions($file));
 
         $this->assertInstanceOf(ApiResponseModel::class, $result);
         unlink($tmpFile);
@@ -156,7 +156,7 @@ class PetApiTest extends TestCase
         $file = new \SplFileObject($tmpFile, 'r');
 
         $options = new UploadPetDocumentOptions($file, 'vaccination_record', 'Annual checkup');
-        $result = $this->api->uploadPetDocument(1, $options);
+        $result = $this->api->uploadPetDocument('1', $options);
 
         $this->assertInstanceOf(ApiResponseModel::class, $result);
         unlink($tmpFile);
@@ -173,7 +173,7 @@ class PetApiTest extends TestCase
 
     public function testDownloadPetDocument(): void
     {
-        $result = $this->api->downloadPetDocument(1, 1);
+        $result = $this->api->downloadPetDocument('1', '1');
 
         $this->assertNotNull($result);
         $this->assertIsString($result);
@@ -205,7 +205,7 @@ class PetApiTest extends TestCase
         $api = $this->newPetApiForMock(404, 'application/json', '{"message":"Pet not found"}');
 
         $this->expectException(NotFoundException::class);
-        $api->getPetById(99999);
+        $api->getPetById('99999');
     }
 
     public function testErrorHandlingServerError(): void
@@ -213,7 +213,7 @@ class PetApiTest extends TestCase
         $api = $this->newPetApiForMock(500, 'application/json', '{"message":"Internal server error"}');
 
         $this->expectException(ServerException::class);
-        $api->getPetById(1);
+        $api->getPetById('1');
     }
 
     // -- Mock-based binary download test --
@@ -223,7 +223,7 @@ class PetApiTest extends TestCase
         $binaryData = "\x89\x50\x4E\x47\x0D\x0A\x1A\x0A";
         $api = $this->newPetApiForMock(200, 'application/octet-stream', $binaryData);
 
-        $result = $api->getPetAvatar(1);
+        $result = $api->getPetAvatar('1');
 
         $this->assertNotNull($result);
         $this->assertSame($binaryData, $result);
@@ -238,7 +238,7 @@ class PetApiTest extends TestCase
         file_put_contents($tmpFile, 'certificate-content');
         $file = new \SplFileObject($tmpFile, 'r');
 
-        $result = $api->uploadPetCertificate(1, new UploadPetCertificateOptions($file));
+        $result = $api->uploadPetCertificate('1', new UploadPetCertificateOptions($file));
 
         $this->assertNotNull($result);
         unlink($tmpFile);

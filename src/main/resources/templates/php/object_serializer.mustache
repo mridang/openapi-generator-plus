@@ -409,19 +409,15 @@ class ObjectSerializer
      * the property is a string (the format: int64 and
      * format: decimal cases). Gap I.
      *
-     * @param array<string, mixed> $data
-     * @return array<string, mixed>
+     * @param array<int|string, mixed> $data
+     * @return array<int|string, mixed>
      */
     private static function coerceScalarsForClass(array $data, string $class): array
     {
         if (!class_exists($class)) {
             return $data;
         }
-        try {
-            $reflection = new \ReflectionClass($class);
-        } catch (\ReflectionException) {
-            return $data;
-        }
+        $reflection = new \ReflectionClass($class);
         foreach ($data as $key => $value) {
             if (!is_string($key)) {
                 continue;
@@ -463,6 +459,8 @@ class ObjectSerializer
      * SerializedName attribute) to its ReflectionProperty.
      * Falls back to property-name matching when no attribute
      * is present so plain properties still resolve. Gap I.
+     *
+     * @param \ReflectionClass<object> $reflection
      */
     private static function findPropertyByName(
         \ReflectionClass $reflection,
