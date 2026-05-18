@@ -36,7 +36,7 @@ defmodule PetstoreClient.ValueSerializer do
         str_val = PetstoreClient.ObjectSerializer.stringify(value)
 
         if location == :path do
-          URI.encode_www_form(str_val) |> String.replace("+", "%20")
+          encode_path_segment(str_val)
         else
           str_val
         end
@@ -107,6 +107,13 @@ defmodule PetstoreClient.ValueSerializer do
     end
   end
 
+  # RFC 3986 path-segment encoder: preserves unreserved chars and sub-delimiters
+  # (! $ & ' ( ) * + , ; = : @) while percent-encoding everything else
+  # (notably spaces → %20, ? → %3F, # → %23, / → %2F).
+  defp encode_path_segment(s) do
+    URI.encode(s, fn c -> URI.char_unescaped?(c) or c in ~c"!$&'()*+,;=:@" end)
+  end
+
   defp serialize_nil(:query), do: nil
   defp serialize_nil(_location), do: ""
 
@@ -133,6 +140,23 @@ defmodule PetstoreClient.ValueSerializer do
   defp serialize_matrix(_param_name, nil, :query, _explode), do: nil
   defp serialize_matrix(_param_name, nil, _location, _explode), do: ""
 
+  defp serialize_matrix(param_name, value, :path, explode) when is_list(value) do
+    if explode do
+      Enum.map_join(value, "", fn v ->
+        str_val = encode_path_segment(PetstoreClient.ObjectSerializer.stringify(v))
+        ";#{param_name}=#{str_val}"
+      end)
+    else
+      joined = Enum.map_join(value, ",", fn v -> encode_path_segment(PetstoreClient.ObjectSerializer.stringify(v)) end)
+      ";#{param_name}=#{joined}"
+    end
+  end
+
+  defp serialize_matrix(param_name, value, :path, _explode) do
+    str_val = encode_path_segment(PetstoreClient.ObjectSerializer.stringify(value))
+    ";#{param_name}=#{str_val}"
+  end
+
   defp serialize_matrix(param_name, value, _location, explode) when is_list(value) do
     if explode do
       Enum.map_join(value, "", fn v ->
@@ -152,6 +176,19 @@ defmodule PetstoreClient.ValueSerializer do
 
   defp serialize_label(nil, :query, _explode), do: nil
   defp serialize_label(nil, _location, _explode), do: ""
+
+  defp serialize_label(value, :path, explode) when is_list(value) do
+    if explode do
+      ".#{Enum.map_join(value, ".", fn v -> encode_path_segment(PetstoreClient.ObjectSerializer.stringify(v)) end)}"
+    else
+      ".#{Enum.map_join(value, ",", fn v -> encode_path_segment(PetstoreClient.ObjectSerializer.stringify(v)) end)}"
+    end
+  end
+
+  defp serialize_label(value, :path, _explode) do
+    str_val = encode_path_segment(PetstoreClient.ObjectSerializer.stringify(value))
+    ".#{str_val}"
+  end
 
   defp serialize_label(value, _location, explode) when is_list(value) do
     if explode do
@@ -194,6 +231,14 @@ defmodule PetstoreClient.ValueSerializer do
 
   defp serialize_simple(nil, :query), do: nil
   defp serialize_simple(nil, _location), do: ""
+
+  defp serialize_simple(value, :path) when is_list(value) do
+    Enum.map_join(value, ",", fn v -> encode_path_segment(PetstoreClient.ObjectSerializer.stringify(v)) end)
+  end
+
+  defp serialize_simple(value, :path) do
+    encode_path_segment(PetstoreClient.ObjectSerializer.stringify(value))
+  end
 
   defp serialize_simple(value, _location) when is_list(value) do
     Enum.map_join(value, ",", &PetstoreClient.ObjectSerializer.stringify/1)
