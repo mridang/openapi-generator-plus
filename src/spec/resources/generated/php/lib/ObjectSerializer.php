@@ -57,12 +57,6 @@ class ObjectSerializer
                 initializableExtractors: [$reflectionExtractor]
             );
 
-            // Gap I (numeric precision). JsonDecode is configured
-            // with JSON_BIGINT_AS_STRING so integer literals beyond
-            // PHP_INT_MAX survive the wire as PHP strings rather
-            // than being silently converted to float. Decimal
-            // precision is preserved by the JSON pre-quoting pass
-            // in self::deserialize().
             $jsonEncoder = new JsonEncoder(
                 new JsonEncode(),
                 new JsonDecode([
@@ -371,11 +365,8 @@ class ObjectSerializer
                 continue;
             }
             if ($char === '-' || ($char >= '0' && $char <= '9')) {
-                $prev = strlen($out) > 0 ? $out[strlen($out) - 1] : '';
-                $isNumeric = $prev === ''
-                    || $prev === ':' || $prev === ',' || $prev === '['
-                    || $prev === ' ' || $prev === "\n" || $prev === "\t"
-                    || $prev === "\r";
+                $prev = $out !== '' ? $out[strlen($out) - 1] : '';
+                $isNumeric = in_array($prev, ['', ':', ',', '[', ' ', "\n", "\t", "\r"], true);
                 if ($isNumeric) {
                     $start = $i;
                     if ($char === '-') {
@@ -444,7 +435,7 @@ class ObjectSerializer
                 continue;
             }
             $property = self::findPropertyByName($reflection, $key);
-            if ($property === null) {
+            if (!$property instanceof \ReflectionProperty) {
                 continue;
             }
             $type = $property->getType();

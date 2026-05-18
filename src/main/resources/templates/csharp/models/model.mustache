@@ -184,7 +184,8 @@ namespace {{packageName}}.Models;
 {{#externalDocumentation}}
 /// <seealso href="{{url}}">{{description}}</seealso>
 {{/externalDocumentation}}
-public class {{classname}}{{#parent}} : {{{.}}}{{/parent}}
+[method: System.Text.Json.Serialization.JsonConstructor]
+public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{nameInCamelCase}}{{^-last}}, {{/-last}}{{/requiredVars}}){{#parent}} : {{{.}}}{{/parent}}
 {
     {{#vars}}
     {{#isEnum}}
@@ -227,7 +228,7 @@ public class {{classname}}{{#parent}} : {{{.}}}{{/parent}}
     [JsonRequired]
 {{/defaultValue}}{{/required}}
     [JsonPropertyName("{{baseName}}")]
-    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}} {{name}} { get; set; }{{#defaultValue}} = {{{.}}};{{/defaultValue}}
+    public {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}} {{name}} { get; set; }{{#defaultValue}} = {{{.}}};{{/defaultValue}}{{^defaultValue}}{{#required}} = {{^isPrimitiveType}}{{nameInCamelCase}} ?? throw new ArgumentNullException(nameof({{nameInCamelCase}})){{/isPrimitiveType}}{{#isPrimitiveType}}{{#isString}}{{nameInCamelCase}} ?? throw new ArgumentNullException(nameof({{nameInCamelCase}})){{/isString}}{{^isString}}{{nameInCamelCase}}{{/isString}}{{/isPrimitiveType}};{{/required}}{{/defaultValue}}
 {{^-last}}
 
 {{/-last}}
@@ -237,20 +238,6 @@ public class {{classname}}{{#parent}} : {{{.}}}{{/parent}}
     [JsonExtensionData]
     public Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>? AdditionalProperties { get; set; }
 {{/isAdditionalPropertiesTrue}}
-
-    [System.Text.Json.Serialization.JsonConstructor]
-    public {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{^-last}}, {{/-last}}{{/requiredVars}})
-    {
-{{#requiredVars}}
-{{^isPrimitiveType}}
-        ArgumentNullException.ThrowIfNull({{name}}, nameof({{name}}));
-{{/isPrimitiveType}}
-{{#isString}}
-        ArgumentNullException.ThrowIfNull({{name}}, nameof({{name}}));
-{{/isString}}
-        this.{{name}} = {{name}};
-{{/requiredVars}}
-    }
 }
 {{/hasRequired}}
 {{^hasRequired}}

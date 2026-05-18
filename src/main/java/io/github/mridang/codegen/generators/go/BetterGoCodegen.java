@@ -705,4 +705,19 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
     protected boolean setsDiscriminatorDefaultOnChildren() {
         return true;
     }
+
+    /**
+     * Demotes the discriminator out of {@code requiredVars} so the
+     * generated {@code New*} constructor signature drops the
+     * discriminator parameter (e.g. {@code NewDryFood(weightKg float64)}
+     * instead of {@code NewDryFood(foodType string, weightKg float64)}).
+     * The Go struct field stays a non-pointer {@code string} because
+     * the property's {@code required} flag remains {@code true}, and
+     * the constructor body assigns the default literal via the
+     * optionalVars branch of {@code model.mustache}.
+     */
+    @Override
+    protected boolean demotesDiscriminatorFromRequiredVars() {
+        return true;
+    }
 }

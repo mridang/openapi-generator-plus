@@ -18,7 +18,8 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class DryFood : PetFood
+[method: System.Text.Json.Serialization.JsonConstructor]
+public class DryFood(double weightKg) : PetFood
 {
     /// <example>null</example>
 
@@ -29,11 +30,5 @@ public class DryFood : PetFood
 
     [JsonRequired]
     [JsonPropertyName("weightKg")]
-    public double WeightKg { get; set; }
-
-    [System.Text.Json.Serialization.JsonConstructor]
-    public DryFood(double WeightKg)
-    {
-        this.WeightKg = WeightKg;
-    }
+    public double WeightKg { get; set; } = weightKg;
 }

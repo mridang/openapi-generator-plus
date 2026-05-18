@@ -242,7 +242,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/isPrimitiveType}}
 {{/items}}
 {{/isArray}}
-  {{name}}{{^required}}?{{/required}}{{#required}}!{{/required}}: {{{dataType}}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
+  {{name}}{{^required}}?{{/required}}{{#required}}{{^defaultValue}}!{{/defaultValue}}{{/required}}: {{{dataType}}}{{#defaultValue}} = {{{.}}}{{/defaultValue}};
 {{^-last}}
 {{/-last}}
 {{/vars}}

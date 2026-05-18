@@ -19,7 +19,8 @@ using System.Text.Json.Serialization;
 namespace PetstoreClient.Models;
 
 /// <seealso href="https://example.com/docs/pet">Learn more about the Pet model</seealso>
-public class Pet
+[method: System.Text.Json.Serialization.JsonConstructor]
+public class Pet(string name, HashSet<string> photoUrls)
 {
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum StatusEnum
@@ -43,7 +44,7 @@ public class Pet
 
     [JsonRequired]
     [JsonPropertyName("name")]
-    public string Name { get; set; }
+    public string Name { get; set; } = name ?? throw new ArgumentNullException(nameof(name));
 
     /// <example>null</example>
 
@@ -54,7 +55,7 @@ public class Pet
 
     [JsonRequired]
     [JsonPropertyName("photoUrls")]
-    public HashSet<string> PhotoUrls { get; set; }
+    public HashSet<string> PhotoUrls { get; set; } = photoUrls;
 
     /// <example>null</example>
 
@@ -69,12 +70,4 @@ public class Pet
     [Obsolete("This property is deprecated.")]
     [JsonPropertyName("status")]
     public StatusEnum? Status { get; set; }
-
-    [System.Text.Json.Serialization.JsonConstructor]
-    public Pet(string Name, HashSet<string> PhotoUrls)
-    {
-        ArgumentNullException.ThrowIfNull(Name, nameof(Name));
-        this.Name = Name;
-        this.PhotoUrls = PhotoUrls;
-    }
 }

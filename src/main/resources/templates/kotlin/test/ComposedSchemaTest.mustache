@@ -59,12 +59,18 @@ class ComposedSchemaTest {
         @Test
         @DisplayName("serializes DryFood back to JSON")
         fun testSerializeDryFood() {
-            val dryFood = DryFood(foodType = "dry", weightKg = 2.5)
+            val encodingJson = Json {
+                ignoreUnknownKeys = true
+                encodeDefaults = true
+                isLenient = true
+                coerceInputValues = true
+            }
+            val dryFood = DryFood(weightKg = 2.5)
 
-            val jsonString = json.encodeToString(dryFood)
+            val jsonString = encodingJson.encodeToString(dryFood)
 
             assertNotNull(jsonString)
-            assertTrue(jsonString.contains("dry"))
+            assertTrue(jsonString.contains("\"foodType\":\"dry\""))
             assertTrue(jsonString.contains("2.5"))
         }
     }

@@ -18,10 +18,11 @@ type WetFood struct {
 }
 
 // NewWetFood creates a new WetFood instance.
-func NewWetFood(foodType string, volumeMl int32) *WetFood {
+func NewWetFood(volumeMl int32) *WetFood {
+	var defaultFoodType string = "wet"
 	return &WetFood{
-		FoodType: foodType,
 		VolumeMl: volumeMl,
+		FoodType: defaultFoodType,
 	}
 }
 

@@ -18,23 +18,18 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class Surgery
+[method: System.Text.Json.Serialization.JsonConstructor]
+public class Surgery(string procedureName)
 {
     /// <example>null</example>
 
     [JsonRequired]
     [JsonPropertyName("procedureName")]
-    public string ProcedureName { get; set; }
+    public string ProcedureName { get; set; } =
+        procedureName ?? throw new ArgumentNullException(nameof(procedureName));
 
     /// <example>null</example>
 
     [JsonPropertyName("durationMinutes")]
     public int? DurationMinutes { get; set; }
-
-    [System.Text.Json.Serialization.JsonConstructor]
-    public Surgery(string ProcedureName)
-    {
-        ArgumentNullException.ThrowIfNull(ProcedureName, nameof(ProcedureName));
-        this.ProcedureName = ProcedureName;
-    }
 }

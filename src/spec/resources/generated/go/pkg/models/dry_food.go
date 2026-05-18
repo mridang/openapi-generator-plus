@@ -18,10 +18,11 @@ type DryFood struct {
 }
 
 // NewDryFood creates a new DryFood instance.
-func NewDryFood(foodType string, weightKg float64) *DryFood {
+func NewDryFood(weightKg float64) *DryFood {
+	var defaultFoodType string = "dry"
 	return &DryFood{
-		FoodType: foodType,
 		WeightKg: weightKg,
+		FoodType: defaultFoodType,
 	}
 }
 

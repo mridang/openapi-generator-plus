@@ -21,7 +21,8 @@ namespace PetstoreClient.Models;
 /// <summary>
 /// A pet record extended with owner information
 /// </summary>
-public class PetWithOwner
+[method: System.Text.Json.Serialization.JsonConstructor]
+public class PetWithOwner(string name, HashSet<string> photoUrls, string ownerName)
 {
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum StatusEnum
@@ -45,7 +46,7 @@ public class PetWithOwner
 
     [JsonRequired]
     [JsonPropertyName("name")]
-    public string Name { get; set; }
+    public string Name { get; set; } = name ?? throw new ArgumentNullException(nameof(name));
 
     /// <example>null</example>
 
@@ -56,7 +57,7 @@ public class PetWithOwner
 
     [JsonRequired]
     [JsonPropertyName("photoUrls")]
-    public HashSet<string> PhotoUrls { get; set; }
+    public HashSet<string> PhotoUrls { get; set; } = photoUrls;
 
     /// <example>null</example>
 
@@ -76,20 +77,11 @@ public class PetWithOwner
 
     [JsonRequired]
     [JsonPropertyName("ownerName")]
-    public string OwnerName { get; set; }
+    public string OwnerName { get; set; } =
+        ownerName ?? throw new ArgumentNullException(nameof(ownerName));
 
     /// <example>null</example>
 
     [JsonPropertyName("ownerEmail")]
     public string? OwnerEmail { get; set; }
-
-    [System.Text.Json.Serialization.JsonConstructor]
-    public PetWithOwner(string Name, HashSet<string> PhotoUrls, string OwnerName)
-    {
-        ArgumentNullException.ThrowIfNull(Name, nameof(Name));
-        this.Name = Name;
-        this.PhotoUrls = PhotoUrls;
-        ArgumentNullException.ThrowIfNull(OwnerName, nameof(OwnerName));
-        this.OwnerName = OwnerName;
-    }
 }

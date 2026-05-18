@@ -10,7 +10,7 @@ import { Expose } from 'class-transformer';
 export class DryFood {
   /** @example null */
   @Expose({ name: 'foodType' })
-  foodType!: string = 'dry';
+  foodType: string = 'dry';
   /** @example null */
   @Expose({ name: 'weightKg' })
   weightKg!: number;
