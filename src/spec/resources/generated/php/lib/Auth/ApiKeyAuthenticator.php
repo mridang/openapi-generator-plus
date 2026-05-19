@@ -26,6 +26,18 @@ class ApiKeyAuthenticator extends BaseAuthenticator
 
     public function __construct(string $host, string $keyParamName, string $apiKey, ApiKeyLocation $location)
     {
+        /* Reject CR / LF in a header-location API key to prevent HTTP
+         * header injection. RFC 7230 §3.2.4 forbids CR/LF in header
+         * field values; a key containing them would split the header
+         * line and inject arbitrary headers (or a new request body). */
+        if (
+            $location === ApiKeyLocation::HEADER
+            && (str_contains($apiKey, "\r") || str_contains($apiKey, "\n"))
+        ) {
+            throw new \InvalidArgumentException(
+                "API key for header '{$keyParamName}' must not contain CR or LF characters"
+            );
+        }
         $this->host = $host;
         $this->keyParamName = $keyParamName;
         $this->apiKey = $apiKey;

@@ -19,6 +19,17 @@ public class ApiKeyAuthenticator: BaseAuthenticator, @unchecked Sendable {
     ///   - apiKey: The API key value
     ///   - location: Where to send the key (header, query, or cookie)
     public init(host: String, keyParamName: String, apiKey: String, location: ApiKeyLocation) {
+        /* Reject CR / LF in a header-location API key to prevent HTTP
+         * header injection. RFC 7230 §3.2.4 forbids CR/LF in header
+         * field values; a key containing them would split the header
+         * line and inject arbitrary headers (or a new request body).
+         * preconditionFailure is appropriate because the failure is a
+         * programmer error, not a recoverable runtime condition. */
+        if location == .header && (apiKey.contains("\r") || apiKey.contains("\n")) {
+            preconditionFailure(
+                "API key for header '\(keyParamName)' must not contain CR or LF characters"
+            )
+        }
         self._host = host
         self.keyParamName = keyParamName
         self.apiKey = apiKey

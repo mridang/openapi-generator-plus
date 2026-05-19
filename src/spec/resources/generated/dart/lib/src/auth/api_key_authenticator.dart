@@ -33,7 +33,18 @@ class ApiKeyAuthenticator extends BaseAuthenticator {
   })  : _host = host,
         _keyParamName = keyParamName,
         _apiKey = apiKey,
-        _location = location;
+        _location = location {
+    /* Reject CR / LF in a header-location API key to prevent HTTP
+     * header injection. RFC 7230 §3.2.4 forbids CR/LF in header
+     * field values; a key containing them would split the header
+     * line and inject arbitrary headers (or a new request body). */
+    if (location == ApiKeyLocation.header &&
+        (apiKey.contains('\r') || apiKey.contains('\n'))) {
+      throw ArgumentError(
+        "API key for header '$keyParamName' must not contain CR or LF characters",
+      );
+    }
+  }
 
   @override
   String host() => _host;

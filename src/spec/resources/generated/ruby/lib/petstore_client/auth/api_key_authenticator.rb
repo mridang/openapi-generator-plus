@@ -19,6 +19,14 @@ module PetstoreClient
       # @param location [Symbol] :header, :query, or :cookie
       def initialize(host, key_param_name, api_key, location)
         super()
+        # Reject CR / LF in a header-location API key to prevent HTTP
+        # header injection. RFC 7230 §3.2.4 forbids CR/LF in header
+        # field values; a key containing them would split the header
+        # line and inject arbitrary headers (or a new request body).
+        if location == ApiKeyLocation::HEADER && (api_key.include?("\r") || api_key.include?("\n"))
+          raise ArgumentError,
+            "API key for header '#{key_param_name}' must not contain CR or LF characters"
+        end
         @host = host
         @key_param_name = key_param_name
         @api_key = api_key

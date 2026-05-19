@@ -29,6 +29,15 @@ defmodule {{moduleName}}.Auth.ApiKeyAuthenticator do
   """
   @spec new(String.t(), String.t(), String.t(), atom()) :: t()
   def new(host, key_param_name, api_key, location) do
+    # Reject CR / LF in a header-location API key to prevent HTTP header
+    # injection. RFC 7230 §3.2.4 forbids CR/LF in header field values;
+    # a key containing them would split the header line and inject
+    # arbitrary headers (or a new request body).
+    if location == :header and (String.contains?(api_key, "\r") or String.contains?(api_key, "\n")) do
+      raise ArgumentError,
+            "API key for header '#{key_param_name}' must not contain CR or LF characters"
+    end
+
     %__MODULE__{
       host: host,
       key_param_name: key_param_name,

@@ -23,6 +23,17 @@ public class ApiKeyAuthenticator extends BaseAuthenticator {
 
   public ApiKeyAuthenticator(
       String host, String keyParamName, String apiKey, ApiKeyLocation location) {
+    /* Reject CR / LF in a header-location API key to prevent HTTP header
+     * injection. The header itself is later joined with "\r\n"; a value
+     * containing those bytes would split the header line and inject
+     * arbitrary new headers (or a new request body). RFC 7230 §3.2.4
+     * forbids CR/LF in header field values. */
+    if (location == ApiKeyLocation.HEADER
+        && apiKey != null
+        && (apiKey.indexOf('\r') >= 0 || apiKey.indexOf('\n') >= 0)) {
+      throw new IllegalArgumentException(
+          "API key for header '" + keyParamName + "' must not contain CR or LF characters");
+    }
     this.host = host;
     this.keyParamName = keyParamName;
     this.apiKey = apiKey;

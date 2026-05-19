@@ -21,6 +21,14 @@ class ApiKeyAuthenticator(BaseAuthenticator):
     api_key: str
     location: ApiKeyLocation
 
+    def __post_init__(self) -> None:
+        # Reject CR / LF in a header-location API key to prevent HTTP
+        # header injection. RFC 7230 §3.2.4 forbids CR/LF in header
+        # field values; a key containing them would split the header
+        # line and inject arbitrary headers (or a new request body).
+        if self.location == ApiKeyLocation.HEADER and ('\r' in self.api_key or '\n' in self.api_key):
+            raise ValueError(f"API key for header '{self.key_param_name}' must not contain CR or LF characters")
+
     def get_host(self) -> str:
         return self.host
 

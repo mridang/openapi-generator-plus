@@ -33,6 +33,19 @@ impl ApiKeyAuthenticator {
     /// * `api_key` - the API key value
     /// * `location` - where to send the key (header, query, or cookie)
     pub fn new(host: &str, key_param_name: &str, api_key: &str, location: ApiKeyLocation) -> Self {
+        // Reject CR / LF in a header-location API key to prevent HTTP
+        // header injection. RFC 7230 §3.2.4 forbids CR/LF in header
+        // field values; a key containing them would split the header
+        // line and inject arbitrary headers (or a new request body).
+        // panic is appropriate because this is a programmer error,
+        // not a recoverable runtime condition.
+        if location == ApiKeyLocation::Header && (api_key.contains('\r') || api_key.contains('\n'))
+        {
+            panic!(
+                "API key for header '{}' must not contain CR or LF characters",
+                key_param_name
+            );
+        }
         Self {
             host: host.to_string(),
             key_param_name: key_param_name.to_string(),
