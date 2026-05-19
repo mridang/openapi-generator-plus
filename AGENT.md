@@ -58,3 +58,47 @@ grep -E "(FAILED|panicked|error)" target/surefire-reports/io.github.mridang.code
 - Ruby tests may show a flaky "proxy-test-network already exists" Docker error — re-run
 - Swift codegen runs `git init` inside Docker for swift-format; the `.git` is removed after formatting
 - Rust OAuth2 tests require `#[tokio::test(flavor = "multi_thread")]` because the token manager uses `block_in_place`
+
+## Known unaddressed issues (do not attempt to fix)
+
+These are real cross-language gaps that have been triaged and explicitly
+deferred. Don't reopen them without an owner sign-off — the cost of fixing
+exceeds the value of the fix for this project's use case.
+
+### Numeric precision (`format: int64` > 2^53, BigDecimal, `format: decimal`)
+
+Six SDKs silently lose precision on JSON numbers that exceed their native
+integer/float range:
+
+- **Node TS** — `JSON.parse` returns IEEE-754 `number`; loses bits above 2^53
+- **PHP** — `json_decode` returns float for ints > PHP_INT_MAX (the
+  `ObjectSerializer::deserialize` overflow guard for the `int` *type* lands
+  in commit `7963a5cc`, but the wider wire-format precision question is
+  unsolved)
+- **Dart** — `jsonDecode` returns `num`; same IEEE-754 limit
+- **Go / Ruby / Swift** — `format: decimal` deserialised as `float64` /
+  `Float` / `Double`; `"0.1"` no longer round-trips exactly
+
+Fixing this properly needs all of:
+1. A wire-format decision (number vs string vs `oneOf`) — last attempt
+   mapping PHP `int64 → string` (commit `759966ca`) was reverted because
+   Prism rejected `{"id":"1"}` against `format: int64` schema validation.
+2. A public-type-surface decision in each of the 6 SDKs (`bigint` /
+   `BigInt` / `*big.Int` / `BigDecimal` / `Decimal`). That's a breaking
+   change for existing consumers; needs a migration story.
+3. A custom JSON parser per lang that doesn't pre-coerce.
+
+We're not going to do this. The petstore fixture happens not to exercise
+the overflow boundary, so the gap is dormant in CI but real in production.
+If you find a related symptom, link back to this section instead of trying
+to fix it incrementally — partial fixes (e.g. one lang) create wire-format
+divergence that's worse than the silent precision loss.
+
+### Decompression-bomb cap (all 12 SDKs)
+
+Every transport decompresses gzip/deflate/brotli/zstd response bodies to
+EOF with no `max_decompressed_response_bytes` cap. A 1 KB compressed
+payload expanding to 1 GB OOMs every SDK uniformly. Fix is possible
+(add a TransportOptions flag + per-decompressor guard) but the bound has
+to be plumbed into each language's underlying stream reader, and the
+project's threat model assumes a trusted server. Don't fix.
