@@ -26,20 +26,27 @@ defmodule PetstoreClient.DefaultApiClient do
   @behaviour PetstoreClient.ApiClient
 
   @type t :: %__MODULE__{
-          transport_options: PetstoreClient.TransportOptions.t()
+          transport_options: PetstoreClient.TransportOptions.t(),
+          base_req: Req.Request.t()
         }
 
-  defstruct transport_options: nil
+  defstruct [:transport_options, :base_req]
 
   @doc """
   Creates a new DefaultApiClient with the given transport options.
 
-  If no transport options are provided, defaults are used.
+  If no transport options are provided, defaults are used. A `Req.Request`
+  struct is built once with all static transport settings (proxy, TLS,
+  timeouts, redirect policy) so the underlying Finch connection pool is
+  reused across requests instead of being torn down per call.
   """
   @spec new(PetstoreClient.TransportOptions.t() | nil) :: t()
   def new(transport_options \\ nil) do
+    opts = transport_options || PetstoreClient.TransportOptions.new()
+
     %__MODULE__{
-      transport_options: transport_options || PetstoreClient.TransportOptions.new()
+      transport_options: opts,
+      base_req: Req.new(build_static_req_options(opts))
     }
   end
 
@@ -84,11 +91,15 @@ defmodule PetstoreClient.DefaultApiClient do
 
     {serialized_body, merged} = prepare_body(body, merged)
 
-    req_opts = build_req_options(opts, method, url, merged, serialized_body)
-
     response =
       try do
-        Req.request!(req_opts)
+        Req.request!(
+          client.base_req,
+          method: method,
+          url: url,
+          headers: Enum.map(merged, fn {k, v} -> {k, v} end),
+          body: serialized_body
+        )
       rescue
         e -> raise PetstoreClient.ApiError, message: Exception.message(e), status_code: 0
       end
@@ -206,12 +217,12 @@ defmodule PetstoreClient.DefaultApiClient do
     new() |> send_request(method, url, headers, body)
   end
 
-  defp build_req_options(opts, method, url, headers, body) do
+  # Build the static portion of the Req options (everything that depends on
+  # TransportOptions and is fixed for the lifetime of the ApiClient). The
+  # per-request options (method, url, headers, body) are merged at the call
+  # site via Req.request!/2.
+  defp build_static_req_options(opts) do
     req_opts = [
-      method: method,
-      url: url,
-      headers: Enum.map(headers, fn {k, v} -> {k, v} end),
-      body: body,
       decode_body: false,
       redirect: opts.follow_redirects
     ]
