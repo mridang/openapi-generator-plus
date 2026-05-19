@@ -443,6 +443,25 @@ defmodule PetstoreClient.Api.BaseApiTest do
     Agent.stop(CapturingApiClient)
   end
 
+  test "collapses double-slash when base_url has trailing slash" do
+    # Gap Z — base_url='http://x/' + path='/y' must produce 'http://x/y',
+    # not 'http://x//y' which most servers route to 404.
+    {:ok, _} = CapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost/")
+    api = PetstoreClient.Api.PetApi.new(CapturingApiClient, config)
+
+    _result = PetstoreClient.Api.PetApi.get_pet_by_id(api, 1)
+    url = CapturingApiClient.captured_url()
+
+    refute String.contains?(url, "//pet"),
+           "Expected no double-slash in URL, got: #{url}"
+
+    assert String.starts_with?(url, "http://localhost/pet/"),
+           "Expected http://localhost/pet/... in URL, got: #{url}"
+
+    Agent.stop(CapturingApiClient)
+  end
+
   # Query serialization
 
   test "serializes boolean query params" do

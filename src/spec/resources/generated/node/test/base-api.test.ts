@@ -283,6 +283,16 @@ describe('BaseApi query serialization', () => {
     await testApi.call('GET', '/api/test', {}, {}, null, ['application/json'], 'application/json', null);
     expect(client.capturedUrl).not.toContain('?');
   });
+
+  test('collapses double-slash when baseUrl has trailing /', async () => {
+    // Gap Z — baseUrl='http://x/' + path='/y' must produce
+    // 'http://x/y', not 'http://x//y' which most servers route to 404.
+    const client = new CapturingApiClient();
+    const config = new Configuration({ baseUrl: 'http://localhost/' });
+    const testApi = new TestableApi(client, config);
+    await testApi.call('GET', '/api/test', {}, {}, null, ['application/json'], 'application/json', null);
+    expect(client.capturedUrl).toBe('http://localhost/api/test');
+  });
 });
 
 describe('BaseApi auth injection', () => {

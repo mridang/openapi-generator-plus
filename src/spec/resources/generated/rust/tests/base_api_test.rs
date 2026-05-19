@@ -231,6 +231,32 @@ async fn test_base_api_returns_unit_when_return_type_is_void() {
     );
 }
 
+// -- Gap Z: URL trailing-slash collapse --
+
+#[tokio::test]
+async fn test_base_api_collapses_double_slash_when_baseurl_has_trailing() {
+    // baseUrl='http://x/' + path='/y' must produce 'http://x/y', not
+    // 'http://x//y' which most servers route to 404.
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost/")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let auth = NoopAuthenticator;
+    let _ = api.delete_pet(Some(&auth), 1, None).await;
+    let captured = client.captured_url.lock().unwrap().clone();
+    assert!(
+        captured.starts_with("http://localhost/pet/"),
+        "expected single slash in URL, got: {}",
+        captured
+    );
+    assert!(
+        !captured.contains("//pet"),
+        "expected no double slash in URL, got: {}",
+        captured
+    );
+}
+
 // -- Auth header forwarding --
 
 #[tokio::test]
@@ -404,6 +430,7 @@ impl petstore::auth::Authenticator for NoopAuthenticator {
 use std::sync::Mutex;
 
 struct CapturingApiClient {
+    captured_url: Mutex<String>,
     captured_headers: Mutex<HashMap<String, String>>,
     captured_body: Mutex<Option<Vec<u8>>>,
 }
@@ -411,6 +438,7 @@ struct CapturingApiClient {
 impl CapturingApiClient {
     fn new() -> Self {
         CapturingApiClient {
+            captured_url: Mutex::new(String::new()),
             captured_headers: Mutex::new(HashMap::new()),
             captured_body: Mutex::new(None),
         }
@@ -421,7 +449,7 @@ impl petstore::api_client::ApiClient for CapturingApiClient {
     fn send_request(
         &self,
         _method: &str,
-        _url: &str,
+        url: &str,
         headers: &HashMap<String, String>,
         body: Option<&petstore::api_client::RequestBody>,
     ) -> std::pin::Pin<
@@ -435,6 +463,7 @@ impl petstore::api_client::ApiClient for CapturingApiClient {
                 + '_,
         >,
     > {
+        *self.captured_url.lock().unwrap() = url.to_string();
         *self.captured_headers.lock().unwrap() = headers.clone();
         *self.captured_body.lock().unwrap() = match body {
             Some(petstore::api_client::RequestBody::Bytes(b)) => Some(b.clone()),

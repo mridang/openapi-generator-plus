@@ -299,6 +299,17 @@ describe PetstoreClient::Api::BaseApi do
     _(client.captured_url).wont_include '?'
   end
 
+  it 'collapses double-slash when base_url has trailing slash' do
+    # Gap Z — base_url='http://x/' + path='/y' must produce
+    # 'http://x/y', not 'http://x//y' which most servers route to 404.
+    client = CapturingApiClient.new
+    config = PetstoreClient::Configuration.builder.base_url('http://localhost/').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test', {}, {}, nil,
+                  ['application/json'], 'application/json', nil)
+    _(client.captured_url).must_equal 'http://localhost/test'
+  end
+
   # ── Body serialization by content type ──
 
   it 'serializes text/plain body' do

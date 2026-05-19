@@ -201,6 +201,17 @@ class TestQuerySerialization:
         await stub.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', None)
         assert '?' not in client.captured_url
 
+    async def test_collapses_double_slash_when_baseurl_has_trailing(self) -> None:
+        # Gap Z — baseUrl='http://x/' + path='/y' must produce
+        # 'http://x/y', not 'http://x//y' which most servers route to
+        # 404. Matches Java/C#/Go/Swift/Dart/Kotlin which collapse via
+        # URI parsers.
+        client = CapturingApiClient()
+        config = Configuration(base_url='http://localhost/')
+        stub = StubApi(api_client=client, config=config)
+        await stub.call('GET', '/api/test', {}, {}, None, ['application/json'], 'application/json', None)
+        assert client.captured_url == 'http://localhost/api/test'
+
 
 class TestAllowEmptyValueQueryParams:
     async def test_null_options_omits_allow_empty_value_param(self) -> None:
