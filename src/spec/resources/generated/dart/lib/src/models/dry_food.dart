@@ -36,4 +36,18 @@ class DryFood {
 
     return json;
   }
+
+  /// Value-equality based on all declared fields. Nested List/Map fields are compared
+  /// by reference — callers needing structural equality on those should
+  /// use `package:collection`'s `DeepCollectionEquality`.
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is DryFood &&
+        foodType == other.foodType &&
+        weightKg == other.weightKg;
+  }
+
+  @override
+  int get hashCode => Object.hash(foodType, weightKg);
 }

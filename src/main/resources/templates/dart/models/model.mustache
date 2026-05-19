@@ -328,6 +328,32 @@ class {{classname}} {
 {{/isAdditionalPropertiesTrue}}
     return json;
   }
+
+  /// Value-equality based on all declared fields{{#isAdditionalPropertiesTrue}} (including the
+  /// additionalProperties map){{/isAdditionalPropertiesTrue}}. Nested List/Map fields are compared
+  /// by reference — callers needing structural equality on those should
+  /// use `package:collection`'s `DeepCollectionEquality`.
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is {{classname}}{{#vars}} &&
+        {{name}} == other.{{name}}{{/vars}}{{#isAdditionalPropertiesTrue}} &&
+        _mapEquals(additionalProperties, other.additionalProperties){{/isAdditionalPropertiesTrue}};
+  }
+
+  @override
+  int get hashCode => Object.hash({{#vars}}{{name}}{{^-last}}, {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties{{/isAdditionalPropertiesTrue}});
+{{#isAdditionalPropertiesTrue}}
+
+  static bool _mapEquals(Map<String, dynamic> a, Map<String, dynamic> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (final key in a.keys) {
+      if (!b.containsKey(key) || a[key] != b[key]) return false;
+    }
+    return true;
+  }
+{{/isAdditionalPropertiesTrue}}
 }
 {{/anyOf}}
 {{/oneOf}}

@@ -185,7 +185,7 @@ namespace {{packageName}}.Models;
 /// <seealso href="{{url}}">{{description}}</seealso>
 {{/externalDocumentation}}
 [method: System.Text.Json.Serialization.JsonConstructor]
-public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{nameInCamelCase}}{{^-last}}, {{/-last}}{{/requiredVars}}){{#parent}} : {{{.}}}{{/parent}}
+public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{nameInCamelCase}}{{^-last}}, {{/-last}}{{/requiredVars}}){{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/parent}} IEquatable<{{classname}}>
 {
     {{#vars}}
     {{#isEnum}}
@@ -238,6 +238,33 @@ public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/
     [JsonExtensionData]
     public Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>? AdditionalProperties { get; set; }
 {{/isAdditionalPropertiesTrue}}
+
+    /// <summary>Value-equality based on all declared fields{{#isAdditionalPropertiesTrue}}
+    /// (including the AdditionalProperties dictionary){{/isAdditionalPropertiesTrue}}. Generated so
+    /// model instances work correctly as HashSet/Dictionary keys and in
+    /// test assertions.</summary>
+    public bool Equals({{classname}}? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return {{^vars}}true{{/vars}}{{#vars}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{^-last}}
+            && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
+            && EqualityComparer<Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>?>.Default.Equals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}};
+    }
+
+    public override bool Equals(object? obj) => Equals(obj as {{classname}});
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        {{#vars}}
+        hash.Add(this.{{name}});
+        {{/vars}}
+        {{#isAdditionalPropertiesTrue}}
+        hash.Add(this.AdditionalProperties);
+        {{/isAdditionalPropertiesTrue}}
+        return hash.ToHashCode();
+    }
 }
 {{/hasRequired}}
 {{^hasRequired}}
@@ -248,7 +275,7 @@ public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/
 {{#externalDocumentation}}
 /// <seealso href="{{url}}">{{description}}</seealso>
 {{/externalDocumentation}}
-public class {{classname}}{{#parent}} : {{{.}}}{{/parent}}
+public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/parent}} IEquatable<{{classname}}>
 {
     {{#vars}}
     {{#isEnum}}
@@ -298,6 +325,31 @@ public class {{classname}}{{#parent}} : {{{.}}}{{/parent}}
     [JsonExtensionData]
     public Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>? AdditionalProperties { get; set; }
 {{/isAdditionalPropertiesTrue}}
+
+    /// <summary>Value-equality based on all declared fields{{#isAdditionalPropertiesTrue}}
+    /// (including the AdditionalProperties dictionary){{/isAdditionalPropertiesTrue}}.</summary>
+    public bool Equals({{classname}}? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return {{^vars}}true{{/vars}}{{#vars}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{^-last}}
+            && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
+            && EqualityComparer<Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>?>.Default.Equals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}};
+    }
+
+    public override bool Equals(object? obj) => Equals(obj as {{classname}});
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        {{#vars}}
+        hash.Add(this.{{name}});
+        {{/vars}}
+        {{#isAdditionalPropertiesTrue}}
+        hash.Add(this.AdditionalProperties);
+        {{/isAdditionalPropertiesTrue}}
+        return hash.ToHashCode();
+    }
 }
 {{/hasRequired}}
 {{/anyOf}}

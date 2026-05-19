@@ -32,4 +32,24 @@ public class Surgery {
     this.procedureName =
         java.util.Objects.requireNonNull(procedureName, "procedureName is required");
   }
+
+  /* Value-equality based on all declared fields. Generated so model
+   * instances work correctly as Set/Map keys and in test assertions. */
+  @Override
+  public boolean equals(@javax.annotation.Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Surgery other = (Surgery) o;
+    return java.util.Objects.equals(this.procedureName, other.procedureName)
+        && java.util.Objects.equals(this.durationMinutes, other.durationMinutes);
+  }
+
+  @Override
+  public int hashCode() {
+    return java.util.Objects.hash(procedureName, durationMinutes);
+  }
 }

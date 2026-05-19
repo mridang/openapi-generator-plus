@@ -19,7 +19,7 @@ using System.Text.Json.Serialization;
 namespace PetstoreClient.Models;
 
 [method: System.Text.Json.Serialization.JsonConstructor]
-public class SetPetAvatarRequest(byte[] data, string mimeType)
+public class SetPetAvatarRequest(byte[] data, string mimeType) : IEquatable<SetPetAvatarRequest>
 {
     /// <summary>
     /// Base64-encoded image data
@@ -36,4 +36,27 @@ public class SetPetAvatarRequest(byte[] data, string mimeType)
     [JsonPropertyName("mimeType")]
     public string MimeType { get; set; } =
         mimeType ?? throw new ArgumentNullException(nameof(mimeType));
+
+    /// <summary>Value-equality based on all declared fields. Generated so
+    /// model instances work correctly as HashSet/Dictionary keys and in
+    /// test assertions.</summary>
+    public bool Equals(SetPetAvatarRequest? other)
+    {
+        if (other is null)
+            return false;
+        if (ReferenceEquals(this, other))
+            return true;
+        return EqualityComparer<byte[]>.Default.Equals(this.Data, other.Data)
+            && EqualityComparer<string>.Default.Equals(this.MimeType, other.MimeType);
+    }
+
+    public override bool Equals(object? obj) => Equals(obj as SetPetAvatarRequest);
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(this.Data);
+        hash.Add(this.MimeType);
+        return hash.ToHashCode();
+    }
 }

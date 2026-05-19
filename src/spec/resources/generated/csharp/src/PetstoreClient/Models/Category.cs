@@ -18,7 +18,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class Category
+public class Category : IEquatable<Category>
 {
     /// <example>1</example>
     [JsonPropertyName("id")]
@@ -27,4 +27,25 @@ public class Category
     /// <example>Dogs</example>
     [JsonPropertyName("name")]
     public string? Name { get; set; }
+
+    /// <summary>Value-equality based on all declared fields.</summary>
+    public bool Equals(Category? other)
+    {
+        if (other is null)
+            return false;
+        if (ReferenceEquals(this, other))
+            return true;
+        return EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
+            && EqualityComparer<string?>.Default.Equals(this.Name, other.Name);
+    }
+
+    public override bool Equals(object? obj) => Equals(obj as Category);
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(this.Id);
+        hash.Add(this.Name);
+        return hash.ToHashCode();
+    }
 }

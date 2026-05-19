@@ -58,6 +58,37 @@ export class Pet {
       }
     }
   }
+
+  /**
+   * Value-equality based on all declared fields. Generated so model
+   * instances work correctly with Set/Map and in test assertions.
+   * Field comparison uses JSON.stringify which is deterministic for
+   * plain data classes (insertion-order preserved by all engines for
+   * string keys).
+   */
+  equals(other: unknown): boolean {
+    if (this === other) return true;
+    if (!(other instanceof Pet)) return false;
+    if (JSON.stringify(this.id) !== JSON.stringify(other.id)) {
+      return false;
+    }
+    if (JSON.stringify(this.name) !== JSON.stringify(other.name)) {
+      return false;
+    }
+    if (JSON.stringify(this.category) !== JSON.stringify(other.category)) {
+      return false;
+    }
+    if (JSON.stringify(this.photoUrls) !== JSON.stringify(other.photoUrls)) {
+      return false;
+    }
+    if (JSON.stringify(this.tags) !== JSON.stringify(other.tags)) {
+      return false;
+    }
+    if (JSON.stringify(this.status) !== JSON.stringify(other.status)) {
+      return false;
+    }
+    return true;
+  }
 }
 
 /**

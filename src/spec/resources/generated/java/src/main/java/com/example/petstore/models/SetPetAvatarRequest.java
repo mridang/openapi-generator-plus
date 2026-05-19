@@ -36,4 +36,24 @@ public class SetPetAvatarRequest {
     this.data = java.util.Objects.requireNonNull(data, "data is required");
     this.mimeType = java.util.Objects.requireNonNull(mimeType, "mimeType is required");
   }
+
+  /* Value-equality based on all declared fields. Generated so model
+   * instances work correctly as Set/Map keys and in test assertions. */
+  @Override
+  public boolean equals(@javax.annotation.Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    SetPetAvatarRequest other = (SetPetAvatarRequest) o;
+    return java.util.Objects.equals(this.data, other.data)
+        && java.util.Objects.equals(this.mimeType, other.mimeType);
+  }
+
+  @Override
+  public int hashCode() {
+    return java.util.Objects.hash(data, mimeType);
+  }
 }

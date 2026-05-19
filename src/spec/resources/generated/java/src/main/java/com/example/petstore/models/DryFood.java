@@ -29,4 +29,24 @@ public class DryFood extends PetFood {
   public DryFood(@JsonProperty(value = "weightKg", required = true) Double weightKg) {
     this.weightKg = java.util.Objects.requireNonNull(weightKg, "weightKg is required");
   }
+
+  /* Value-equality based on all declared fields. Generated so model
+   * instances work correctly as Set/Map keys and in test assertions. */
+  @Override
+  public boolean equals(@javax.annotation.Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    DryFood other = (DryFood) o;
+    return java.util.Objects.equals(this.foodType, other.foodType)
+        && java.util.Objects.equals(this.weightKg, other.weightKg);
+  }
+
+  @Override
+  public int hashCode() {
+    return java.util.Objects.hash(foodType, weightKg);
+  }
 }

@@ -19,7 +19,7 @@ using System.Text.Json.Serialization;
 namespace PetstoreClient.Models;
 
 [method: System.Text.Json.Serialization.JsonConstructor]
-public class Surgery(string procedureName)
+public class Surgery(string procedureName) : IEquatable<Surgery>
 {
     /// <example>null</example>
 
@@ -32,4 +32,27 @@ public class Surgery(string procedureName)
 
     [JsonPropertyName("durationMinutes")]
     public int? DurationMinutes { get; set; }
+
+    /// <summary>Value-equality based on all declared fields. Generated so
+    /// model instances work correctly as HashSet/Dictionary keys and in
+    /// test assertions.</summary>
+    public bool Equals(Surgery? other)
+    {
+        if (other is null)
+            return false;
+        if (ReferenceEquals(this, other))
+            return true;
+        return EqualityComparer<string>.Default.Equals(this.ProcedureName, other.ProcedureName)
+            && EqualityComparer<int?>.Default.Equals(this.DurationMinutes, other.DurationMinutes);
+    }
+
+    public override bool Equals(object? obj) => Equals(obj as Surgery);
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(this.ProcedureName);
+        hash.Add(this.DurationMinutes);
+        return hash.ToHashCode();
+    }
 }

@@ -18,7 +18,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class Order
+public class Order : IEquatable<Order>
 {
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum StatusEnum
@@ -59,4 +59,33 @@ public class Order
     /// <example>null</example>
     [JsonPropertyName("complete")]
     public bool? Complete { get; set; }
+
+    /// <summary>Value-equality based on all declared fields.</summary>
+    public bool Equals(Order? other)
+    {
+        if (other is null)
+            return false;
+        if (ReferenceEquals(this, other))
+            return true;
+        return EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
+            && EqualityComparer<long?>.Default.Equals(this.PetId, other.PetId)
+            && EqualityComparer<int?>.Default.Equals(this.Quantity, other.Quantity)
+            && EqualityComparer<DateTimeOffset?>.Default.Equals(this.ShipDate, other.ShipDate)
+            && EqualityComparer<StatusEnum?>.Default.Equals(this.Status, other.Status)
+            && EqualityComparer<bool?>.Default.Equals(this.Complete, other.Complete);
+    }
+
+    public override bool Equals(object? obj) => Equals(obj as Order);
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(this.Id);
+        hash.Add(this.PetId);
+        hash.Add(this.Quantity);
+        hash.Add(this.ShipDate);
+        hash.Add(this.Status);
+        hash.Add(this.Complete);
+        return hash.ToHashCode();
+    }
 }

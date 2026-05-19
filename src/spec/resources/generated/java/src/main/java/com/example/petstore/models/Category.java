@@ -24,4 +24,24 @@ public class Category {
   @JsonProperty("name")
   @Nullable
   public String name;
+
+  /* Value-equality based on all declared fields. Generated so model
+   * instances work correctly as Set/Map keys and in test assertions. */
+  @Override
+  public boolean equals(@javax.annotation.Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Category other = (Category) o;
+    return java.util.Objects.equals(this.id, other.id)
+        && java.util.Objects.equals(this.name, other.name);
+  }
+
+  @Override
+  public int hashCode() {
+    return java.util.Objects.hash(id, name);
+  }
 }

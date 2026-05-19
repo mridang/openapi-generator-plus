@@ -29,4 +29,24 @@ public class WetFood extends PetFood {
   public WetFood(@JsonProperty(value = "volumeMl", required = true) Integer volumeMl) {
     this.volumeMl = java.util.Objects.requireNonNull(volumeMl, "volumeMl is required");
   }
+
+  /* Value-equality based on all declared fields. Generated so model
+   * instances work correctly as Set/Map keys and in test assertions. */
+  @Override
+  public boolean equals(@javax.annotation.Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    WetFood other = (WetFood) o;
+    return java.util.Objects.equals(this.foodType, other.foodType)
+        && java.util.Objects.equals(this.volumeMl, other.volumeMl);
+  }
+
+  @Override
+  public int hashCode() {
+    return java.util.Objects.hash(foodType, volumeMl);
+  }
 }

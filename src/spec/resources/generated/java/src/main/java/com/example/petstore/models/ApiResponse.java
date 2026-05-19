@@ -29,4 +29,25 @@ public class ApiResponse {
   @JsonProperty("message")
   @Nullable
   public String message;
+
+  /* Value-equality based on all declared fields. Generated so model
+   * instances work correctly as Set/Map keys and in test assertions. */
+  @Override
+  public boolean equals(@javax.annotation.Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    ApiResponse other = (ApiResponse) o;
+    return java.util.Objects.equals(this.code, other.code)
+        && java.util.Objects.equals(this.type, other.type)
+        && java.util.Objects.equals(this.message, other.message);
+  }
+
+  @Override
+  public int hashCode() {
+    return java.util.Objects.hash(code, type, message);
+  }
 }

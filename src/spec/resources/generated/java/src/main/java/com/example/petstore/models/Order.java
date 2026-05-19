@@ -78,4 +78,28 @@ public class Order {
   @JsonProperty("complete")
   @Nullable
   public Boolean complete;
+
+  /* Value-equality based on all declared fields. Generated so model
+   * instances work correctly as Set/Map keys and in test assertions. */
+  @Override
+  public boolean equals(@javax.annotation.Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Order other = (Order) o;
+    return java.util.Objects.equals(this.id, other.id)
+        && java.util.Objects.equals(this.petId, other.petId)
+        && java.util.Objects.equals(this.quantity, other.quantity)
+        && java.util.Objects.equals(this.shipDate, other.shipDate)
+        && java.util.Objects.equals(this.status, other.status)
+        && java.util.Objects.equals(this.complete, other.complete);
+  }
+
+  @Override
+  public int hashCode() {
+    return java.util.Objects.hash(id, petId, quantity, shipDate, status, complete);
+  }
 }

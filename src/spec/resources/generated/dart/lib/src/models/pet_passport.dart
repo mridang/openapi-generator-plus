@@ -69,4 +69,20 @@ class PetPassport {
     }
     return json;
   }
+
+  /// Value-equality based on all declared fields. Nested List/Map fields are compared
+  /// by reference — callers needing structural equality on those should
+  /// use `package:collection`'s `DeepCollectionEquality`.
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is PetPassport &&
+        pet == other.pet &&
+        thumbnail == other.thumbnail &&
+        scans == other.scans &&
+        issuedAt == other.issuedAt;
+  }
+
+  @override
+  int get hashCode => Object.hash(pet, thumbnail, scans, issuedAt);
 }

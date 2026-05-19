@@ -23,4 +23,23 @@ export class Surgery {
       }
     }
   }
+
+  /**
+   * Value-equality based on all declared fields. Generated so model
+   * instances work correctly with Set/Map and in test assertions.
+   * Field comparison uses JSON.stringify which is deterministic for
+   * plain data classes (insertion-order preserved by all engines for
+   * string keys).
+   */
+  equals(other: unknown): boolean {
+    if (this === other) return true;
+    if (!(other instanceof Surgery)) return false;
+    if (JSON.stringify(this.procedureName) !== JSON.stringify(other.procedureName)) {
+      return false;
+    }
+    if (JSON.stringify(this.durationMinutes) !== JSON.stringify(other.durationMinutes)) {
+      return false;
+    }
+    return true;
+  }
 }

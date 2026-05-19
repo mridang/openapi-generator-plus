@@ -35,4 +35,26 @@ public class PhotoMetadata {
   @JsonProperty("location")
   @Nullable
   public PhotoMetadataLocation location;
+
+  /* Value-equality based on all declared fields. Generated so model
+   * instances work correctly as Set/Map keys and in test assertions. */
+  @Override
+  public boolean equals(@javax.annotation.Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    PhotoMetadata other = (PhotoMetadata) o;
+    return java.util.Objects.equals(this.caption, other.caption)
+        && java.util.Objects.equals(this.isPrimary, other.isPrimary)
+        && java.util.Objects.equals(this.takenAt, other.takenAt)
+        && java.util.Objects.equals(this.location, other.location);
+  }
+
+  @Override
+  public int hashCode() {
+    return java.util.Objects.hash(caption, isPrimary, takenAt, location);
+  }
 }

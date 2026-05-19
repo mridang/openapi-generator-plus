@@ -18,7 +18,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class Photo
+public class Photo : IEquatable<Photo>
 {
     /// <example>null</example>
     [JsonPropertyName("id")]
@@ -35,4 +35,29 @@ public class Photo
     /// <example>null</example>
     [JsonPropertyName("url")]
     public string? Url { get; set; }
+
+    /// <summary>Value-equality based on all declared fields.</summary>
+    public bool Equals(Photo? other)
+    {
+        if (other is null)
+            return false;
+        if (ReferenceEquals(this, other))
+            return true;
+        return EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
+            && EqualityComparer<string?>.Default.Equals(this.Caption, other.Caption)
+            && EqualityComparer<bool?>.Default.Equals(this.IsPrimary, other.IsPrimary)
+            && EqualityComparer<string?>.Default.Equals(this.Url, other.Url);
+    }
+
+    public override bool Equals(object? obj) => Equals(obj as Photo);
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(this.Id);
+        hash.Add(this.Caption);
+        hash.Add(this.IsPrimary);
+        hash.Add(this.Url);
+        return hash.ToHashCode();
+    }
 }

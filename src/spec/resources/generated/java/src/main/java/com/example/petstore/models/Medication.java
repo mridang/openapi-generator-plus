@@ -31,4 +31,24 @@ public class Medication {
   public Medication(@JsonProperty(value = "drugName", required = true) String drugName) {
     this.drugName = java.util.Objects.requireNonNull(drugName, "drugName is required");
   }
+
+  /* Value-equality based on all declared fields. Generated so model
+   * instances work correctly as Set/Map keys and in test assertions. */
+  @Override
+  public boolean equals(@javax.annotation.Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Medication other = (Medication) o;
+    return java.util.Objects.equals(this.drugName, other.drugName)
+        && java.util.Objects.equals(this.dosage, other.dosage);
+  }
+
+  @Override
+  public int hashCode() {
+    return java.util.Objects.hash(drugName, dosage);
+  }
 }

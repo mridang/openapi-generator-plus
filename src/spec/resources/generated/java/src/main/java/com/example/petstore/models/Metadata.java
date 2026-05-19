@@ -32,4 +32,25 @@ public class Metadata {
   public java.util.Map<String, Object> getAdditionalProperties() {
     return this.additionalProperties;
   }
+
+  /* Value-equality based on all declared fields (including
+   * the additionalProperties map). Generated so model
+   * instances work correctly as Set/Map keys and in test assertions. */
+  @Override
+  public boolean equals(@javax.annotation.Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    Metadata other = (Metadata) o;
+    return java.util.Objects.equals(this.createdAt, other.createdAt)
+        && java.util.Objects.equals(this.additionalProperties, other.additionalProperties);
+  }
+
+  @Override
+  public int hashCode() {
+    return java.util.Objects.hash(createdAt, additionalProperties);
+  }
 }

@@ -41,4 +41,26 @@ public class PetPassport {
   @JsonProperty("issuedAt")
   @Nullable
   public OffsetDateTime issuedAt;
+
+  /* Value-equality based on all declared fields. Generated so model
+   * instances work correctly as Set/Map keys and in test assertions. */
+  @Override
+  public boolean equals(@javax.annotation.Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    PetPassport other = (PetPassport) o;
+    return java.util.Objects.equals(this.pet, other.pet)
+        && java.util.Objects.equals(this.thumbnail, other.thumbnail)
+        && java.util.Objects.equals(this.scans, other.scans)
+        && java.util.Objects.equals(this.issuedAt, other.issuedAt);
+  }
+
+  @Override
+  public int hashCode() {
+    return java.util.Objects.hash(pet, thumbnail, scans, issuedAt);
+  }
 }

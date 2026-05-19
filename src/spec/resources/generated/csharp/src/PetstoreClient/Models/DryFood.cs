@@ -19,7 +19,7 @@ using System.Text.Json.Serialization;
 namespace PetstoreClient.Models;
 
 [method: System.Text.Json.Serialization.JsonConstructor]
-public class DryFood(double weightKg) : PetFood
+public class DryFood(double weightKg) : PetFood, IEquatable<DryFood>
 {
     /// <example>null</example>
 
@@ -31,4 +31,27 @@ public class DryFood(double weightKg) : PetFood
     [JsonRequired]
     [JsonPropertyName("weightKg")]
     public double WeightKg { get; set; } = weightKg;
+
+    /// <summary>Value-equality based on all declared fields. Generated so
+    /// model instances work correctly as HashSet/Dictionary keys and in
+    /// test assertions.</summary>
+    public bool Equals(DryFood? other)
+    {
+        if (other is null)
+            return false;
+        if (ReferenceEquals(this, other))
+            return true;
+        return EqualityComparer<string>.Default.Equals(this.FoodType, other.FoodType)
+            && EqualityComparer<double>.Default.Equals(this.WeightKg, other.WeightKg);
+    }
+
+    public override bool Equals(object? obj) => Equals(obj as DryFood);
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(this.FoodType);
+        hash.Add(this.WeightKg);
+        return hash.ToHashCode();
+    }
 }

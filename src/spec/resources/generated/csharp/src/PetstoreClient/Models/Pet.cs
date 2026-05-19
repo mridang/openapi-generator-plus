@@ -20,7 +20,7 @@ namespace PetstoreClient.Models;
 
 /// <seealso href="https://example.com/docs/pet">Learn more about the Pet model</seealso>
 [method: System.Text.Json.Serialization.JsonConstructor]
-public class Pet(string name, HashSet<string> photoUrls)
+public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
 {
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public enum StatusEnum
@@ -70,4 +70,35 @@ public class Pet(string name, HashSet<string> photoUrls)
     [Obsolete("This property is deprecated.")]
     [JsonPropertyName("status")]
     public StatusEnum? Status { get; set; }
+
+    /// <summary>Value-equality based on all declared fields. Generated so
+    /// model instances work correctly as HashSet/Dictionary keys and in
+    /// test assertions.</summary>
+    public bool Equals(Pet? other)
+    {
+        if (other is null)
+            return false;
+        if (ReferenceEquals(this, other))
+            return true;
+        return EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
+            && EqualityComparer<string>.Default.Equals(this.Name, other.Name)
+            && EqualityComparer<Category?>.Default.Equals(this.Category, other.Category)
+            && EqualityComparer<HashSet<string>>.Default.Equals(this.PhotoUrls, other.PhotoUrls)
+            && EqualityComparer<List<Tag>?>.Default.Equals(this.Tags, other.Tags)
+            && EqualityComparer<StatusEnum?>.Default.Equals(this.Status, other.Status);
+    }
+
+    public override bool Equals(object? obj) => Equals(obj as Pet);
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(this.Id);
+        hash.Add(this.Name);
+        hash.Add(this.Category);
+        hash.Add(this.PhotoUrls);
+        hash.Add(this.Tags);
+        hash.Add(this.Status);
+        return hash.ToHashCode();
+    }
 }

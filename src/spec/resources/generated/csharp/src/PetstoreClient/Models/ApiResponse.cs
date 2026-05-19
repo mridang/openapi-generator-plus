@@ -18,7 +18,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class ApiResponse
+public class ApiResponse : IEquatable<ApiResponse>
 {
     /// <example>null</example>
     [JsonPropertyName("code")]
@@ -31,4 +31,27 @@ public class ApiResponse
     /// <example>null</example>
     [JsonPropertyName("message")]
     public string? Message { get; set; }
+
+    /// <summary>Value-equality based on all declared fields.</summary>
+    public bool Equals(ApiResponse? other)
+    {
+        if (other is null)
+            return false;
+        if (ReferenceEquals(this, other))
+            return true;
+        return EqualityComparer<int?>.Default.Equals(this.Code, other.Code)
+            && EqualityComparer<string?>.Default.Equals(this.Type, other.Type)
+            && EqualityComparer<string?>.Default.Equals(this.Message, other.Message);
+    }
+
+    public override bool Equals(object? obj) => Equals(obj as ApiResponse);
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(this.Code);
+        hash.Add(this.Type);
+        hash.Add(this.Message);
+        return hash.ToHashCode();
+    }
 }

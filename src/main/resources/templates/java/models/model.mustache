@@ -365,6 +365,28 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/requiredVars}}
   }
 {{/hasRequired}}
+
+  /* Value-equality based on all declared fields{{#isAdditionalPropertiesTrue}} (including
+   * the additionalProperties map){{/isAdditionalPropertiesTrue}}. Generated so model
+   * instances work correctly as Set/Map keys and in test assertions. */
+  @Override
+  public boolean equals(@javax.annotation.Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    {{classname}} other = ({{classname}}) o;
+    return {{^vars}}true{{/vars}}{{#vars}}java.util.Objects.equals(this.{{name}}, other.{{name}}){{^-last}}
+        && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
+        && java.util.Objects.equals(this.additionalProperties, other.additionalProperties){{/isAdditionalPropertiesTrue}};
+  }
+
+  @Override
+  public int hashCode() {
+    return java.util.Objects.hash({{#vars}}{{name}}{{^-last}}, {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}{{#hasVars}}, {{/hasVars}}additionalProperties{{/isAdditionalPropertiesTrue}});
+  }
 }
 {{/anyOf}}
 {{/oneOf}}

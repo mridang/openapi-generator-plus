@@ -19,7 +19,7 @@ using System.Text.Json.Serialization;
 namespace PetstoreClient.Models;
 
 [method: System.Text.Json.Serialization.JsonConstructor]
-public class WetFood(int volumeMl) : PetFood
+public class WetFood(int volumeMl) : PetFood, IEquatable<WetFood>
 {
     /// <example>null</example>
 
@@ -31,4 +31,27 @@ public class WetFood(int volumeMl) : PetFood
     [JsonRequired]
     [JsonPropertyName("volumeMl")]
     public int VolumeMl { get; set; } = volumeMl;
+
+    /// <summary>Value-equality based on all declared fields. Generated so
+    /// model instances work correctly as HashSet/Dictionary keys and in
+    /// test assertions.</summary>
+    public bool Equals(WetFood? other)
+    {
+        if (other is null)
+            return false;
+        if (ReferenceEquals(this, other))
+            return true;
+        return EqualityComparer<string>.Default.Equals(this.FoodType, other.FoodType)
+            && EqualityComparer<int>.Default.Equals(this.VolumeMl, other.VolumeMl);
+    }
+
+    public override bool Equals(object? obj) => Equals(obj as WetFood);
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(this.FoodType);
+        hash.Add(this.VolumeMl);
+        return hash.ToHashCode();
+    }
 }

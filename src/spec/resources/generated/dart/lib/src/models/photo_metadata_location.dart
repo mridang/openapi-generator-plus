@@ -37,4 +37,18 @@ class PhotoMetadataLocation {
     }
     return json;
   }
+
+  /// Value-equality based on all declared fields. Nested List/Map fields are compared
+  /// by reference — callers needing structural equality on those should
+  /// use `package:collection`'s `DeepCollectionEquality`.
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is PhotoMetadataLocation &&
+        lat == other.lat &&
+        lng == other.lng;
+  }
+
+  @override
+  int get hashCode => Object.hash(lat, lng);
 }

@@ -105,4 +105,31 @@ public class PetWithOwner {
     this.photoUrls = java.util.Objects.requireNonNull(photoUrls, "photoUrls is required");
     this.ownerName = java.util.Objects.requireNonNull(ownerName, "ownerName is required");
   }
+
+  /* Value-equality based on all declared fields. Generated so model
+   * instances work correctly as Set/Map keys and in test assertions. */
+  @Override
+  public boolean equals(@javax.annotation.Nullable Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    PetWithOwner other = (PetWithOwner) o;
+    return java.util.Objects.equals(this.id, other.id)
+        && java.util.Objects.equals(this.name, other.name)
+        && java.util.Objects.equals(this.category, other.category)
+        && java.util.Objects.equals(this.photoUrls, other.photoUrls)
+        && java.util.Objects.equals(this.tags, other.tags)
+        && java.util.Objects.equals(this.status, other.status)
+        && java.util.Objects.equals(this.ownerName, other.ownerName)
+        && java.util.Objects.equals(this.ownerEmail, other.ownerEmail);
+  }
+
+  @Override
+  public int hashCode() {
+    return java.util.Objects.hash(
+        id, name, category, photoUrls, tags, status, ownerName, ownerEmail);
+  }
 }

@@ -18,7 +18,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class PetPassport
+public class PetPassport : IEquatable<PetPassport>
 {
     /// <example>null</example>
     [JsonPropertyName("pet")]
@@ -40,4 +40,29 @@ public class PetPassport
     /// <example>null</example>
     [JsonPropertyName("issuedAt")]
     public DateTimeOffset? IssuedAt { get; set; }
+
+    /// <summary>Value-equality based on all declared fields.</summary>
+    public bool Equals(PetPassport? other)
+    {
+        if (other is null)
+            return false;
+        if (ReferenceEquals(this, other))
+            return true;
+        return EqualityComparer<Pet?>.Default.Equals(this.Pet, other.Pet)
+            && EqualityComparer<byte[]?>.Default.Equals(this.Thumbnail, other.Thumbnail)
+            && EqualityComparer<List<byte[]>?>.Default.Equals(this.Scans, other.Scans)
+            && EqualityComparer<DateTimeOffset?>.Default.Equals(this.IssuedAt, other.IssuedAt);
+    }
+
+    public override bool Equals(object? obj) => Equals(obj as PetPassport);
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(this.Pet);
+        hash.Add(this.Thumbnail);
+        hash.Add(this.Scans);
+        hash.Add(this.IssuedAt);
+        return hash.ToHashCode();
+    }
 }

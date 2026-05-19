@@ -18,7 +18,7 @@ using System.Text.Json.Serialization;
 
 namespace PetstoreClient.Models;
 
-public class Metadata
+public class Metadata : IEquatable<Metadata>
 {
     /// <example>null</example>
     [JsonPropertyName("createdAt")]
@@ -26,4 +26,29 @@ public class Metadata
 
     [JsonExtensionData]
     public Dictionary<string, object>? AdditionalProperties { get; set; }
+
+    /// <summary>Value-equality based on all declared fields
+    /// (including the AdditionalProperties dictionary).</summary>
+    public bool Equals(Metadata? other)
+    {
+        if (other is null)
+            return false;
+        if (ReferenceEquals(this, other))
+            return true;
+        return EqualityComparer<DateTimeOffset?>.Default.Equals(this.CreatedAt, other.CreatedAt)
+            && EqualityComparer<Dictionary<string, object>?>.Default.Equals(
+                this.AdditionalProperties,
+                other.AdditionalProperties
+            );
+    }
+
+    public override bool Equals(object? obj) => Equals(obj as Metadata);
+
+    public override int GetHashCode()
+    {
+        var hash = new HashCode();
+        hash.Add(this.CreatedAt);
+        hash.Add(this.AdditionalProperties);
+        return hash.ToHashCode();
+    }
 }
