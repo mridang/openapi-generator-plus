@@ -110,7 +110,9 @@ module {{moduleName}}
           # returning nil. Aligns with Swift / Dart / Go / Rust / Python
           # which throw on union no-match (5 of 12 SDKs already strict;
           # we promote the other 7 here).
-          raise ArgumentError, "Missing discriminator '#{openapi_discriminator_name}' for {{classname}}" if discriminator_value.nil?
+          if discriminator_value.nil?
+            raise ArgumentError, "Missing discriminator '#{openapi_discriminator_name}' for {{classname}}"
+          end
         {{#mappedModels}}
         {{#-first}}
 
@@ -138,7 +140,7 @@ module {{moduleName}}
 
           # Raise on union no-match (see comment above for cross-lang
           # rationale). Avoids silent nil that masks data-shape bugs.
-          raise ArgumentError, "JSON did not match any schema in the {{classname}} oneOf union"
+          raise ArgumentError, 'JSON did not match any schema in the {{classname}} oneOf union'
         {{/discriminator}}
         end
       end
@@ -194,7 +196,7 @@ module {{moduleName}}
           # oneOf branch for the cross-lang rationale (5 of 12 SDKs
           # already throw; we promote the rest to the same strict
           # behaviour).
-          raise ArgumentError, "JSON did not match any schema in the {{classname}} anyOf union"
+          raise ArgumentError, 'JSON did not match any schema in the {{classname}} anyOf union'
         end
       end
     end

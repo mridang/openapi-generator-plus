@@ -56,7 +56,7 @@ module PetstoreClient
 
           # Raise on union no-match (see comment above for cross-lang
           # rationale). Avoids silent nil that masks data-shape bugs.
-          raise ArgumentError, "JSON did not match any schema in the SetPetAvatarThumbnailRequest oneOf union"
+          raise ArgumentError, 'JSON did not match any schema in the SetPetAvatarThumbnailRequest oneOf union'
         end
       end
     end

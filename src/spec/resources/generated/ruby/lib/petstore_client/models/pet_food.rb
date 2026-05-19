@@ -61,8 +61,9 @@ module PetstoreClient
           # returning nil. Aligns with Swift / Dart / Go / Rust / Python
           # which throw on union no-match (5 of 12 SDKs already strict;
           # we promote the other 7 here).
-          raise ArgumentError,
-            "Missing discriminator '#{openapi_discriminator_name}' for PetFood" if discriminator_value.nil?
+          if discriminator_value.nil?
+            raise ArgumentError, "Missing discriminator '#{openapi_discriminator_name}' for PetFood"
+          end
 
           klass_name = openapi_discriminator_mapping[discriminator_value.to_s]
           raise ArgumentError, "Unknown discriminator value for PetFood: '#{discriminator_value}'" unless klass_name

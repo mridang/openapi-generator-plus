@@ -225,7 +225,9 @@ module PetstoreClient
       when 'Float'
         raise ArgumentError, "Expected Float, got #{data.class}: #{data.inspect}" unless data.is_a?(Numeric)
 
-        data.to_f
+        # Float() takes any Numeric and is RBS-typed accordingly;
+        # Numeric#to_f isn't declared in the core RBS sigs Steep uses.
+        Float(data)
       when 'Boolean'
         raise ArgumentError, "Expected Boolean, got #{data.class}: #{data.inspect}" unless [true, false].include?(data)
 
