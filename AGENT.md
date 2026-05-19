@@ -102,3 +102,53 @@ payload expanding to 1 GB OOMs every SDK uniformly. Fix is possible
 (add a TransportOptions flag + per-decompressor guard) but the bound has
 to be plumbed into each language's underlying stream reader, and the
 project's threat model assumes a trusted server. Don't fix.
+
+### Accept-Encoding header value divergence (W7)
+
+The 12 SDKs send 5 different literal `Accept-Encoding` values today:
+`br, gzip, deflate, zstd` (Go/Rust); `gzip, deflate, br` (C#/Node/Elixir);
+the same with a Linux-conditional fallback (Swift); `gzip, deflate` +
+runtime-conditional `br`/`zstd` (Java/Python/PHP/Ruby); fixed
+`gzip, deflate` (Kotlin/Dart). Each lang advertises only what its
+underlying HTTP library can decompress, so the divergence is functionally
+correct — just cosmetic on the wire. Don't normalise; if a server demands
+a specific advertised set, callers can override via
+`TransportOptions.defaultHeader("Accept-Encoding", "...")`.
+
+### OAuth2 PKCE — RFC 7636 (L34)
+
+No SDK implements PKCE (`code_verifier` / `code_challenge`) for the
+`authorizationCode` grant. PKCE is mandatory for public clients
+(mobile/SPA) per current OAuth 2.1 draft, but our consumers are
+confidential clients (server-to-server with a `client_secret`) and don't
+strictly need it. If a public-client SDK is ever needed, generate a
+crypto-random 43–128-char `code_verifier`, hash with SHA-256, base64url
+the digest as `code_challenge` with `code_challenge_method=S256`, send
+both on `buildAuthorizationUrl`, and send `code_verifier` on
+`exchangeCode`. Not implementing.
+
+### OIDC ID-token signature + claim validation (L36)
+
+The OAuth2 token-endpoint response may include an `id_token` JWT alongside
+`access_token`. No SDK verifies the JWT signature against the OP's JWKS,
+nor validates the standard claims (`iss`, `aud`, `exp`, `nonce`). This is
+typically an application-level concern; the access_token is what we use
+for API auth. Implementing properly would need a JWT lib per lang (jose,
+jjwt, python-jose, etc.) + JWKS cache + algorithm-specific verifiers
+(RS256, ES256, EdDSA). Not implementing.
+
+### Pagination iterator (L41)
+
+No SDK ships a helper that auto-iterates `Link: <next-url>; rel="next"`
+(RFC 5988) responses or cursor-in-body conventions. OpenAPI doesn't
+standardise pagination, so per-API iteration logic lives best at the
+application layer. Not implementing.
+
+### Logger / interceptor hooks + sensitive-header masking (L38, L40)
+
+No `TransportOptions` field exposes a request/response interceptor, and
+no built-in helper masks sensitive header values (Authorization, Cookie,
+X-API-Key) before stringifying for logs. Each language has its own
+middleware ecosystem (Java HttpClient interceptors, OkHttp interceptors,
+Symfony HttpClient event listeners, etc.) — push the concern there. Not
+implementing in the SDK.
