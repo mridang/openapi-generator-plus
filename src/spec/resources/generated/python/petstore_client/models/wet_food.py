@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import re  # noqa: F401
-from pydantic import BaseModel, ConfigDict, Field, field_validator  # noqa: F401
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator  # noqa: F401
 from typing import Any, ClassVar, Dict, List, Optional, Set, Union  # noqa: F401
 from typing_extensions import Self  # noqa: F401
 
@@ -20,7 +20,41 @@ class WetFood(BaseModel):
 
     food_type: str = Field(alias='foodType')
     volume_ml: int = Field(alias='volumeMl')
-    additional_properties: Dict[str, Any] = {}
+    additional_properties: Dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode='before')
+    @classmethod
+    def _capture_additional_properties(cls, values: Any) -> Any:
+        """Collect JSON keys not declared as fields into additional_properties.
+
+        Pydantic v2 doesn't auto-merge unknown keys into a typed dict
+        field. Here we walk the incoming mapping, split known-vs-extra
+        based on the model's declared fields (by alias and by name), and
+        funnel extras into `additional_properties`. This makes the
+        Metadata-style schema (fixed fields + additionalProperties: {...})
+        round-trip without dropping data, matching the cross-language
+        contract.
+        """
+        if not isinstance(values, dict):
+            return values
+        known: Set[str] = set()
+        for fname, finfo in cls.model_fields.items():
+            known.add(fname)
+            if finfo.alias is not None:
+                known.add(finfo.alias)
+        extras: Dict[str, Any] = values.get('additional_properties') or {}
+        if not isinstance(extras, dict):
+            extras = {}
+        merged: Dict[str, Any] = {}
+        for key, value in values.items():
+            if key == 'additional_properties':
+                continue
+            if key in known:
+                merged[key] = value
+            else:
+                extras[key] = value
+        merged['additional_properties'] = extras
+        return merged
 
     # Pydantic default mode (lenient) is kept here. strict=True was tried
     # for Gap S but it rejects legitimate JSON-to-Python coercions like

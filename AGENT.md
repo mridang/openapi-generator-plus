@@ -199,3 +199,38 @@ field. Defer until a real wire-compat bug surfaces.
 
 **W5 (UTC trailing form)** — `+00:00` (9 langs) vs `Z` (Python, Rust,
 Elixir). Cosmetic; both round-trip cleanly through every parser. Defer.
+
+### additionalProperties data-loss in 4 SDKs
+
+When a schema combines fixed properties AND `additionalProperties: true`
+(e.g. `Metadata` in petstore), 8 of 12 SDKs round-trip extras correctly
+(Java, C#, Node, Swift, Dart, Go, Rust, Python). The remaining 4
+silently drop extras on deserialise:
+
+- **Kotlin** — `@kotlinx.serialization.Transient` annotation on the
+  `additional_properties` field excludes it from both serialise and
+  deserialise. Fix: remove `@Transient` and add a custom KSerializer
+  that funnels unknown JsonElements into the map (substantial refactor).
+
+- **PHP** — `additional_properties` is declared as a public array but
+  the Symfony denormaliser doesn't populate it from unknown JSON keys.
+  Fix: implement `DenormalizerInterface` on the model OR use the
+  `ObjectNormalizer::EXTRA_ATTRIBUTES` context option to collect extras
+  into a callback.
+
+- **Ruby** — `Dry::Struct` ignores attributes not declared via
+  `attribute :foo` and exposes no hook to capture unknown keys. Fix:
+  override `Dry::Struct.new` to peel off unknown JSON keys into the
+  field before calling super.
+
+- **Elixir** — `defstruct` only declares the fixed fields. The
+  generated `additional_properties/0` accessor returns `true` but the
+  struct has no field to store extras. Fix: add
+  `additional_properties: %{}` to the defstruct + capture unknown keys
+  in the generated `build/1` function.
+
+These are real data-loss bugs but each fix is a 50–100-line refactor of
+the affected `models/model.mustache` plus possibly the language's
+ObjectSerializer. Defer until a real consumer hits the issue, since
+petstore CI's Metadata tests currently assert only the fixed-field
+round-trip (extras assertions are weak in the affected langs).
