@@ -152,3 +152,35 @@ X-API-Key) before stringifying for logs. Each language has its own
 middleware ecosystem (Java HttpClient interceptors, OkHttp interceptors,
 Symfony HttpClient event listeners, etc.) — push the concern there. Not
 implementing in the SDK.
+
+### Date / DateTime wire-format normalisation (W3, W4, W5)
+
+Three related dimensions, all deferred because:
+
+- petstore fixture has zero `format: date` or `format: date-time` path
+  parameters, so CI cannot exercise any change we make
+- per-lang fixes require touching the type-mapping in the Java codegen
+  (e.g. mapping OAS `format: date` → `chrono::NaiveDate` in Rust instead
+  of `DateTime<Utc>`, or to a date-only wrapper in Dart/Node/Swift)
+- the existing behaviour is mostly correct for each lang's native type
+  (Python/Java/Kotlin/C#/Ruby/Elixir produce date-only because they map
+  `format: date` to a date-only native type; Go/PHP have explicit
+  `StringifyDate` / `|date` sigil; Dart/Swift/Node/Rust use a full
+  datetime type and serialise as full ISO)
+
+**W3 (date in path)** — when `format: date`, six SDKs emit
+`YYYY-MM-DD` and six emit full ISO. Owner decision was "respect the
+schema's declared format + add tests" but with no path-param coverage
+in petstore this can't be validated. To revisit, add a fixture op with
+`schema: { type: string, format: date }` as a path parameter, then fix
+Dart/Swift/Node/Rust to emit date-only when the path-param sigil
+indicates `|date`.
+
+**W4 (DateTime precision)** — seconds (Java/Kotlin/C#/Python/Dart/Go) /
+milliseconds (Node/Swift) / microseconds (Ruby/PHP/Rust) / native
+(Elixir). Owner picked "any consistent format, never discuss again"
+but the per-lang serialiser refactor touches every model's datetime
+field. Defer until a real wire-compat bug surfaces.
+
+**W5 (UTC trailing form)** — `+00:00` (9 langs) vs `Z` (Python, Rust,
+Elixir). Cosmetic; both round-trip cleanly through every parser. Defer.
