@@ -107,6 +107,18 @@ class DefaultApiClient internal constructor(
                 response.bodyAsBytes() // consume redirect body to release the connection
                 val originalUri = java.net.URI(currentUrl)
                 val redirectUri = originalUri.resolve(location)
+                // Refuse non-HTTP(S) redirect schemes (javascript:, file:,
+                // data:, etc.). URI.resolve() preserves whatever scheme the
+                // server returned in Location, so a malicious or
+                // misconfigured server could otherwise steer the client at
+                // a local-file or scripting URL.
+                val redirectScheme = redirectUri.scheme
+                if (redirectScheme == null ||
+                    (!redirectScheme.equals("http", ignoreCase = true) &&
+                        !redirectScheme.equals("https", ignoreCase = true))
+                ) {
+                    throw ApiException("Refusing to follow redirect to non-HTTP(S) URL: $redirectUri")
+                }
                 val sameOrigin = redirectUri.host != null &&
                     redirectUri.host.equals(originalUri.host, ignoreCase = true) &&
                     redirectUri.port == originalUri.port

@@ -444,6 +444,17 @@ private final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTas
                 return
             }
         }
+        /* Refuse non-HTTP(S) redirect schemes (javascript:, file:, data:,
+         * etc.). URLSession will hand the proposed request to this delegate
+         * with whatever scheme the server returned in Location; a malicious
+         * or misconfigured server could otherwise steer the client at a
+         * local-file or scripting URL. */
+        guard let scheme = request.url?.scheme?.lowercased(),
+            scheme == "http" || scheme == "https"
+        else {
+            completionHandler(nil)
+            return
+        }
         completionHandler(request)
     }
 }

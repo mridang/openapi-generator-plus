@@ -239,6 +239,19 @@ public final class DefaultApiClient implements ApiClient {
             break;
           }
           URI redirectUri = originalUri.resolve(location);
+          /* Refuse non-HTTP(S) redirect schemes (javascript:, file:,
+           * data:, etc.). URI.resolve() preserves whatever scheme the
+           * server returned in Location, so a malicious or
+           * misconfigured server could otherwise steer the client at
+           * a local-file or scripting URL. */
+          String redirectScheme = redirectUri.getScheme();
+          if (redirectScheme == null
+              || (!"http".equalsIgnoreCase(redirectScheme)
+                  && !"https".equalsIgnoreCase(redirectScheme))) {
+            throw new ApiException(
+                response.statusCode(),
+                "Refusing to follow redirect to non-HTTP(S) URL: " + redirectUri);
+          }
           boolean sameOrigin =
               redirectUri.getHost() != null
                   && redirectUri.getHost().equalsIgnoreCase(originalUri.getHost())
