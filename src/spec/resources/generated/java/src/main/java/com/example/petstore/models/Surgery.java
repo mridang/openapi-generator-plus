@@ -35,18 +35,17 @@ public class Surgery {
 
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.
-   * Uses `instanceof` rather than `getClass()` comparison so Error Prone's
-   * EqualsGetClass check passes (instanceof correctly handles subclass
-   * symmetry in this generated code: subclasses get their own equals). */
+   * Uses pattern-matching `instanceof other` (Java 16+) — required by
+   * Error Prone's PatternMatchingInstanceof rule and avoids the
+   * EqualsGetClass warning that plain getClass() comparison triggers. */
   @Override
   public boolean equals(@javax.annotation.Nullable Object o) {
     if (this == o) {
       return true;
     }
-    if (!(o instanceof Surgery)) {
+    if (!(o instanceof Surgery other)) {
       return false;
     }
-    Surgery other = (Surgery) o;
     return java.util.Objects.equals(this.procedureName, other.procedureName)
         && java.util.Objects.equals(this.durationMinutes, other.durationMinutes);
   }

@@ -27,18 +27,17 @@ public class PhotoMetadataLocation {
 
   /* Value-equality based on all declared fields. Generated so model
    * instances work correctly as Set/Map keys and in test assertions.
-   * Uses `instanceof` rather than `getClass()` comparison so Error Prone's
-   * EqualsGetClass check passes (instanceof correctly handles subclass
-   * symmetry in this generated code: subclasses get their own equals). */
+   * Uses pattern-matching `instanceof other` (Java 16+) — required by
+   * Error Prone's PatternMatchingInstanceof rule and avoids the
+   * EqualsGetClass warning that plain getClass() comparison triggers. */
   @Override
   public boolean equals(@javax.annotation.Nullable Object o) {
     if (this == o) {
       return true;
     }
-    if (!(o instanceof PhotoMetadataLocation)) {
+    if (!(o instanceof PhotoMetadataLocation other)) {
       return false;
     }
-    PhotoMetadataLocation other = (PhotoMetadataLocation) o;
     return java.util.Objects.equals(this.lat, other.lat)
         && java.util.Objects.equals(this.lng, other.lng);
   }
