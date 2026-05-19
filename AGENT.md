@@ -58,6 +58,21 @@ grep -E "(FAILED|panicked|error)" target/surefire-reports/io.github.mridang.code
 - Ruby tests may show a flaky "proxy-test-network already exists" Docker error — re-run
 - Swift codegen runs `git init` inside Docker for swift-format; the `.git` is removed after formatting
 - Rust OAuth2 tests require `#[tokio::test(flavor = "multi_thread")]` because the token manager uses `block_in_place`
+- **Container reap filter** — testcontainers-java labels its containers
+  with `org.testcontainers=true` and `org.testcontainers.managed-by=testcontainers`,
+  NOT a project-specific label. To reap leaked fixtures after a test run:
+
+  ```bash
+  docker ps -a --filter label=org.testcontainers=true -q          | xargs -r docker rm -f
+  docker ps -a --filter label=org.testcontainers.managed-by=testcontainers -q | xargs -r docker rm -f
+  ```
+
+  Earlier filters using `com.mridang.openapi.testcontainer=true`
+  matched nothing because testcontainers ignores custom labels by default.
+  `mvn integration-test` does **not** trigger the `post-integration-test`
+  cleanup exec — only `mvn verify` does. Run the reap commands manually
+  after each per-language spec invocation, or use `mvn verify` when
+  doing a full sweep.
 
 ## Known unaddressed issues (do not attempt to fix)
 
