@@ -69,17 +69,20 @@ module PetstoreClient
           params = { 'grant_type' => 'client_credentials' }
           extra_headers = {} # : Hash[String, String]
           if @client_auth_method == ClientAuthMethod::BASIC
-            # RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
-            # separately before joining with ':' and base64-encoding.
-            encoded_id = CGI.escape(@client_id)
-            encoded_secret = CGI.escape(@client_secret)
-            credentials = Base64.strict_encode64("#{encoded_id}:#{encoded_secret}")
-            extra_headers['Authorization'] = "Basic #{credentials}"
+            extra_headers['Authorization'] = "Basic #{basic_credentials}"
           else
             params['client_id'] = @client_id
             params['client_secret'] = @client_secret
           end
           [params, extra_headers]
+        end
+
+        # RFC 6749 §2.3.1: form-urlencode client_id and client_secret
+        # separately before joining with ':' and base64-encoding.
+        def basic_credentials
+          encoded_id = CGI.escape(@client_id)
+          encoded_secret = CGI.escape(@client_secret)
+          Base64.strict_encode64("#{encoded_id}:#{encoded_secret}")
         end
       end
     end

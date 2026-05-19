@@ -55,8 +55,8 @@ public class OAuth2ClientCredentialsAuthenticator: BaseAuthenticator, HttpAwareA
     ]
     var extraHeaders: [String: String] = [:]
     if clientAuthMethod == .basic {
-      // RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
-      // separately before joining with ':' and base64-encoding.
+      /* RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
+             * separately before joining with ':' and base64-encoding. */
       let unreserved = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
       let encodedID = clientID.addingPercentEncoding(withAllowedCharacters: unreserved) ?? clientID
       let encodedSecret =

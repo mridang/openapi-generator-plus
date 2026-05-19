@@ -54,9 +54,9 @@ class ApiException extends Exception
         mixed $errorBody = null,
         ?Throwable $previous = null
     ) {
-        // Pass $previous to the parent so callers can drill down via
-        // getPrevious() — preserves the original network/IO exception's
-        // stack trace and message.
+        /* Pass $previous to the parent so callers can drill down via
+         * getPrevious() — preserves the original network/IO exception's
+         * stack trace and message. */
         parent::__construct($message, $statusCode, $previous);
         $this->statusCode = $statusCode;
         $this->responseHeaders = $responseHeaders;

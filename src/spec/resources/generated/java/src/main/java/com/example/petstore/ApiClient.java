@@ -48,6 +48,6 @@ public interface ApiClient extends AutoCloseable {
    */
   @Override
   default void close() {
-    // No-op by default. Implementations override to release resources.
+    /* No-op by default. Implementations override to release resources. */
   }
 }

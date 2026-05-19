@@ -35,7 +35,7 @@ public class ApiKeyAuthenticator(
          * header injection. RFC 7230 §3.2.4 forbids CR/LF in header
          * field values; a key containing them would split the header
          * line and inject arbitrary headers (or a new request body). */
-        if (apiKey != null && (apiKey.IndexOf('\r') >= 0 || apiKey.IndexOf('\n') >= 0))
+        if (apiKey.Contains('\r') || apiKey.Contains('\n'))
         {
             throw new ArgumentException(
                 $"API key for header '{keyParamName}' must not contain CR or LF characters",

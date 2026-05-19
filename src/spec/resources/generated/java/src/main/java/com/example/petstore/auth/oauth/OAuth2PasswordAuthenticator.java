@@ -161,10 +161,10 @@ public class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
     }
     Map<String, String> extraHeaders = new HashMap<>();
     if (clientAuthMethod == ClientAuthMethod.BASIC) {
-      // RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
-      // separately before joining with ':' and base64-encoding. Without
-      // this, a credential containing ':' or any reserved char would
-      // corrupt the Basic header and fail against strict OPs.
+      /* RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
+       * separately before joining with ':' and base64-encoding. Without
+       * this, a credential containing ':' or any reserved char would
+       * corrupt the Basic header and fail against strict OPs. */
       String encodedId =
           java.net.URLEncoder.encode(clientId, java.nio.charset.StandardCharsets.UTF_8);
       String encodedSecret =
