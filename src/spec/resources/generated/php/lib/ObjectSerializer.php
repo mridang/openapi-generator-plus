@@ -173,7 +173,7 @@ class ObjectSerializer
      * @param string                    $class       class name is passed as a string
      * @param array<string, string>|null $httpHeaders HTTP headers
      *
-     * @return object|array<mixed>|null a single or an array of $class instances
+     * @return mixed a single deserialized instance, an array, or a primitive
      */
     public static function deserialize(mixed $data, string $class, ?array $httpHeaders = null): mixed
     {
@@ -242,8 +242,13 @@ class ObjectSerializer
                     }
                     return $casted;
                 }
-                settype($data, 'int');
-                return $data;
+                /* Narrow mixed to a scalar/null so intval doesn't trip
+                 * PHPStan's argument.type rule. Non-scalar input falls
+                 * back to 0, matching PHP's settype('int') semantics. */
+                if (is_scalar($data) || is_null($data)) {
+                    return intval($data);
+                }
+                return 0;
             }
             $data = is_string($data) ? json_decode($data, true) : $data;
             settype($data, $class);
