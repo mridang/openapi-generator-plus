@@ -157,7 +157,17 @@ public final class OAuth2TokenManager: @unchecked Sendable {
       return client
     }
 
-    let body = params.map { "\($0.key)=\($0.value)" }.joined(separator: "&")
+    /* Percent-encode both key and value per RFC 6749 §B / RFC 3986
+         * (form-urlencoded body). Raw concatenation would corrupt the
+         * request when client_secret, username, or password contains any
+         * of `=`, `&`, `+`, `%`, or space. */
+    let unreserved = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+    let body = params.map { entry -> String in
+      let key = entry.key.addingPercentEncoding(withAllowedCharacters: unreserved) ?? entry.key
+      let value =
+        entry.value.addingPercentEncoding(withAllowedCharacters: unreserved) ?? entry.value
+      return "\(key)=\(value)"
+    }.joined(separator: "&")
     let bodyData = body.data(using: .utf8)
 
     var headers = ["Content-Type": "application/x-www-form-urlencoded"]
