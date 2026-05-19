@@ -32,18 +32,25 @@ public class Category : IEquatable<Category>
     public bool Equals(Category? other)
     {
         if (other is null)
+        {
             return false;
+        }
         if (ReferenceEquals(this, other))
+        {
             return true;
+        }
         return EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
             && EqualityComparer<string?>.Default.Equals(this.Name, other.Name);
     }
 
-    public override bool Equals(object? obj) => Equals(obj as Category);
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as Category);
+    }
 
     public override int GetHashCode()
     {
-        var hash = new HashCode();
+        HashCode hash = default;
         hash.Add(this.Id);
         hash.Add(this.Name);
         return hash.ToHashCode();

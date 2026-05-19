@@ -77,9 +77,13 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
     public bool Equals(Pet? other)
     {
         if (other is null)
+        {
             return false;
+        }
         if (ReferenceEquals(this, other))
+        {
             return true;
+        }
         return EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
             && EqualityComparer<string>.Default.Equals(this.Name, other.Name)
             && EqualityComparer<Category?>.Default.Equals(this.Category, other.Category)
@@ -88,11 +92,14 @@ public class Pet(string name, HashSet<string> photoUrls) : IEquatable<Pet>
             && EqualityComparer<StatusEnum?>.Default.Equals(this.Status, other.Status);
     }
 
-    public override bool Equals(object? obj) => Equals(obj as Pet);
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as Pet);
+    }
 
     public override int GetHashCode()
     {
-        var hash = new HashCode();
+        HashCode hash = default;
         hash.Add(this.Id);
         hash.Add(this.Name);
         hash.Add(this.Category);

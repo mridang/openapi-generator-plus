@@ -26,29 +26,4 @@ export class PhotoMetadata {
   constructor(data?: Partial<PhotoMetadata>) {
     Object.assign(this, data);
   }
-
-  /**
-   * Value-equality based on all declared fields. Generated so model
-   * instances work correctly with Set/Map and in test assertions.
-   * Field comparison uses JSON.stringify which is deterministic for
-   * plain data classes (insertion-order preserved by all engines for
-   * string keys).
-   */
-  equals(other: unknown): boolean {
-    if (this === other) return true;
-    if (!(other instanceof PhotoMetadata)) return false;
-    if (JSON.stringify(this.caption) !== JSON.stringify(other.caption)) {
-      return false;
-    }
-    if (JSON.stringify(this.isPrimary) !== JSON.stringify(other.isPrimary)) {
-      return false;
-    }
-    if (JSON.stringify(this.takenAt) !== JSON.stringify(other.takenAt)) {
-      return false;
-    }
-    if (JSON.stringify(this.location) !== JSON.stringify(other.location)) {
-      return false;
-    }
-    return true;
-  }
 }

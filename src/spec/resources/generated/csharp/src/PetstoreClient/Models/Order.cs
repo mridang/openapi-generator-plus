@@ -64,9 +64,13 @@ public class Order : IEquatable<Order>
     public bool Equals(Order? other)
     {
         if (other is null)
+        {
             return false;
+        }
         if (ReferenceEquals(this, other))
+        {
             return true;
+        }
         return EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
             && EqualityComparer<long?>.Default.Equals(this.PetId, other.PetId)
             && EqualityComparer<int?>.Default.Equals(this.Quantity, other.Quantity)
@@ -75,11 +79,14 @@ public class Order : IEquatable<Order>
             && EqualityComparer<bool?>.Default.Equals(this.Complete, other.Complete);
     }
 
-    public override bool Equals(object? obj) => Equals(obj as Order);
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as Order);
+    }
 
     public override int GetHashCode()
     {
-        var hash = new HashCode();
+        HashCode hash = default;
         hash.Add(this.Id);
         hash.Add(this.PetId);
         hash.Add(this.Quantity);

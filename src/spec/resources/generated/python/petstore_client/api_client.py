@@ -16,9 +16,11 @@ class ApiClient(Protocol):
 
     Implementations handle the actual HTTP request/response cycle.
     The default implementation uses urllib3. Implementations that own a
-    connection pool should provide ``close()`` and the context-manager
-    protocol so callers can release sockets deterministically via
-    ``with``.
+    connection pool should additionally provide ``close()`` and the
+    context-manager protocol (``__enter__``/``__exit__``) so callers can
+    release sockets deterministically via ``with``; this Protocol does
+    not require those methods so test fixtures and lightweight stubs
+    don't have to implement them.
     """
 
     def send_request(self, method: str, url: str, headers: Dict[str, str], body: Any = None) -> ApiResponse:
@@ -29,13 +31,5 @@ class ApiClient(Protocol):
         :param headers: HTTP headers
         :param body: Request body (serialized JSON string, bytes, dict for multipart, or None)
         :return: ApiResponse containing status code, body, and headers
-        """
-        ...
-
-    def close(self) -> None:
-        """Release any resources held by this client (pool, sockets).
-
-        Default Protocol implementations are no-ops; concrete clients
-        that own a pool should override.
         """
         ...

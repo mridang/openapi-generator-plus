@@ -21,9 +21,4 @@ type ApiClient interface {
 	 *
 	 * Returns an HttpResponse and any error that occurred. */
 	SendRequest(method, url string, headers map[string]string, body interface{}) (*HttpResponse, error)
-
-	/* Close releases resources held by the underlying transport
-	 * (idle TCP/TLS connections). After calling Close the client
-	 * must not be reused. */
-	Close() error
 }

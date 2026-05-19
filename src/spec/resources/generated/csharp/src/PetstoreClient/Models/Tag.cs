@@ -37,18 +37,25 @@ public class Tag : IEquatable<Tag>
     public bool Equals(Tag? other)
     {
         if (other is null)
+        {
             return false;
+        }
         if (ReferenceEquals(this, other))
+        {
             return true;
+        }
         return EqualityComparer<long?>.Default.Equals(this.Id, other.Id)
             && EqualityComparer<string?>.Default.Equals(this.Name, other.Name);
     }
 
-    public override bool Equals(object? obj) => Equals(obj as Tag);
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as Tag);
+    }
 
     public override int GetHashCode()
     {
-        var hash = new HashCode();
+        HashCode hash = default;
         hash.Add(this.Id);
         hash.Add(this.Name);
         return hash.ToHashCode();

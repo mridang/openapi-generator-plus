@@ -32,18 +32,25 @@ public class PhotoMetadataLocation : IEquatable<PhotoMetadataLocation>
     public bool Equals(PhotoMetadataLocation? other)
     {
         if (other is null)
+        {
             return false;
+        }
         if (ReferenceEquals(this, other))
+        {
             return true;
+        }
         return EqualityComparer<double?>.Default.Equals(this.Lat, other.Lat)
             && EqualityComparer<double?>.Default.Equals(this.Lng, other.Lng);
     }
 
-    public override bool Equals(object? obj) => Equals(obj as PhotoMetadataLocation);
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as PhotoMetadataLocation);
+    }
 
     public override int GetHashCode()
     {
-        var hash = new HashCode();
+        HashCode hash = default;
         hash.Add(this.Lat);
         hash.Add(this.Lng);
         return hash.ToHashCode();

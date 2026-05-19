@@ -43,18 +43,25 @@ public class SetPetAvatarRequest(byte[] data, string mimeType) : IEquatable<SetP
     public bool Equals(SetPetAvatarRequest? other)
     {
         if (other is null)
+        {
             return false;
+        }
         if (ReferenceEquals(this, other))
+        {
             return true;
+        }
         return EqualityComparer<byte[]>.Default.Equals(this.Data, other.Data)
             && EqualityComparer<string>.Default.Equals(this.MimeType, other.MimeType);
     }
 
-    public override bool Equals(object? obj) => Equals(obj as SetPetAvatarRequest);
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as SetPetAvatarRequest);
+    }
 
     public override int GetHashCode()
     {
-        var hash = new HashCode();
+        HashCode hash = default;
         hash.Add(this.Data);
         hash.Add(this.MimeType);
         return hash.ToHashCode();

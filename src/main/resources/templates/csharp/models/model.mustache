@@ -245,18 +245,27 @@ public class {{classname}}({{#requiredVars}}{{#isEnum}}{{{datatypeWithEnum}}}{{/
     /// test assertions.</summary>
     public bool Equals({{classname}}? other)
     {
-        if (other is null) return false;
-        if (ReferenceEquals(this, other)) return true;
+        if (other is null)
+        {
+            return false;
+        }
+        if (ReferenceEquals(this, other))
+        {
+            return true;
+        }
         return {{^vars}}true{{/vars}}{{#vars}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{^-last}}
             && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
             && EqualityComparer<Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>?>.Default.Equals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}};
     }
 
-    public override bool Equals(object? obj) => Equals(obj as {{classname}});
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as {{classname}});
+    }
 
     public override int GetHashCode()
     {
-        var hash = new HashCode();
+        HashCode hash = default;
         {{#vars}}
         hash.Add(this.{{name}});
         {{/vars}}
@@ -330,18 +339,27 @@ public class {{classname}}{{#parent}} : {{{.}}},{{/parent}}{{^parent}} :{{/paren
     /// (including the AdditionalProperties dictionary){{/isAdditionalPropertiesTrue}}.</summary>
     public bool Equals({{classname}}? other)
     {
-        if (other is null) return false;
-        if (ReferenceEquals(this, other)) return true;
+        if (other is null)
+        {
+            return false;
+        }
+        if (ReferenceEquals(this, other))
+        {
+            return true;
+        }
         return {{^vars}}true{{/vars}}{{#vars}}EqualityComparer<{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{^required}}?{{/required}}>.Default.Equals(this.{{name}}, other.{{name}}){{^-last}}
             && {{/-last}}{{/vars}}{{#isAdditionalPropertiesTrue}}
             && EqualityComparer<Dictionary<string, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}object{{/additionalPropertiesType}}>?>.Default.Equals(this.AdditionalProperties, other.AdditionalProperties){{/isAdditionalPropertiesTrue}};
     }
 
-    public override bool Equals(object? obj) => Equals(obj as {{classname}});
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as {{classname}});
+    }
 
     public override int GetHashCode()
     {
-        var hash = new HashCode();
+        HashCode hash = default;
         {{#vars}}
         hash.Add(this.{{name}});
         {{/vars}}

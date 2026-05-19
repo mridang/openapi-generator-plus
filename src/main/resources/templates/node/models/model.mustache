@@ -281,24 +281,6 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/vars}}
 {{/hasEnums}}
   }
-
-  /**
-   * Value-equality based on all declared fields. Generated so model
-   * instances work correctly with Set/Map and in test assertions.
-   * Field comparison uses JSON.stringify which is deterministic for
-   * plain data classes (insertion-order preserved by all engines for
-   * string keys).
-   */
-  equals(other: unknown): boolean {
-    if (this === other) return true;
-    if (!(other instanceof {{classname}})) return false;
-{{#vars}}
-    if (JSON.stringify(this.{{name}}) !== JSON.stringify(other.{{name}})) {
-      return false;
-    }
-{{/vars}}
-    return true;
-  }
 }
 {{#hasEnums}}
 

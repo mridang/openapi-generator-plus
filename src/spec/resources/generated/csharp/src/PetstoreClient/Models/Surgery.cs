@@ -39,18 +39,25 @@ public class Surgery(string procedureName) : IEquatable<Surgery>
     public bool Equals(Surgery? other)
     {
         if (other is null)
+        {
             return false;
+        }
         if (ReferenceEquals(this, other))
+        {
             return true;
+        }
         return EqualityComparer<string>.Default.Equals(this.ProcedureName, other.ProcedureName)
             && EqualityComparer<int?>.Default.Equals(this.DurationMinutes, other.DurationMinutes);
     }
 
-    public override bool Equals(object? obj) => Equals(obj as Surgery);
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as Surgery);
+    }
 
     public override int GetHashCode()
     {
-        var hash = new HashCode();
+        HashCode hash = default;
         hash.Add(this.ProcedureName);
         hash.Add(this.DurationMinutes);
         return hash.ToHashCode();

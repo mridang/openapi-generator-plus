@@ -36,19 +36,26 @@ public class ApiResponse : IEquatable<ApiResponse>
     public bool Equals(ApiResponse? other)
     {
         if (other is null)
+        {
             return false;
+        }
         if (ReferenceEquals(this, other))
+        {
             return true;
+        }
         return EqualityComparer<int?>.Default.Equals(this.Code, other.Code)
             && EqualityComparer<string?>.Default.Equals(this.Type, other.Type)
             && EqualityComparer<string?>.Default.Equals(this.Message, other.Message);
     }
 
-    public override bool Equals(object? obj) => Equals(obj as ApiResponse);
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as ApiResponse);
+    }
 
     public override int GetHashCode()
     {
-        var hash = new HashCode();
+        HashCode hash = default;
         hash.Add(this.Code);
         hash.Add(this.Type);
         hash.Add(this.Message);

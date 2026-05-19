@@ -38,18 +38,25 @@ public class WetFood(int volumeMl) : PetFood, IEquatable<WetFood>
     public bool Equals(WetFood? other)
     {
         if (other is null)
+        {
             return false;
+        }
         if (ReferenceEquals(this, other))
+        {
             return true;
+        }
         return EqualityComparer<string>.Default.Equals(this.FoodType, other.FoodType)
             && EqualityComparer<int>.Default.Equals(this.VolumeMl, other.VolumeMl);
     }
 
-    public override bool Equals(object? obj) => Equals(obj as WetFood);
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as WetFood);
+    }
 
     public override int GetHashCode()
     {
-        var hash = new HashCode();
+        HashCode hash = default;
         hash.Add(this.FoodType);
         hash.Add(this.VolumeMl);
         return hash.ToHashCode();

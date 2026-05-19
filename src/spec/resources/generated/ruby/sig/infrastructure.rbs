@@ -262,6 +262,7 @@ module PetstoreClient
         private
 
         def body_or_basic_params: () -> [Hash[String, String], Hash[String, String]]
+        def basic_credentials: () -> String
       end
       class OAuth2PasswordAuthenticator < BaseAuthenticator
         include HttpAwareAuthenticator

@@ -32,9 +32,13 @@ public class Metadata : IEquatable<Metadata>
     public bool Equals(Metadata? other)
     {
         if (other is null)
+        {
             return false;
+        }
         if (ReferenceEquals(this, other))
+        {
             return true;
+        }
         return EqualityComparer<DateTimeOffset?>.Default.Equals(this.CreatedAt, other.CreatedAt)
             && EqualityComparer<Dictionary<string, object>?>.Default.Equals(
                 this.AdditionalProperties,
@@ -42,11 +46,14 @@ public class Metadata : IEquatable<Metadata>
             );
     }
 
-    public override bool Equals(object? obj) => Equals(obj as Metadata);
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as Metadata);
+    }
 
     public override int GetHashCode()
     {
-        var hash = new HashCode();
+        HashCode hash = default;
         hash.Add(this.CreatedAt);
         hash.Add(this.AdditionalProperties);
         return hash.ToHashCode();

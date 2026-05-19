@@ -29,23 +29,4 @@ export class SetPetAvatarRequest {
       }
     }
   }
-
-  /**
-   * Value-equality based on all declared fields. Generated so model
-   * instances work correctly with Set/Map and in test assertions.
-   * Field comparison uses JSON.stringify which is deterministic for
-   * plain data classes (insertion-order preserved by all engines for
-   * string keys).
-   */
-  equals(other: unknown): boolean {
-    if (this === other) return true;
-    if (!(other instanceof SetPetAvatarRequest)) return false;
-    if (JSON.stringify(this.data) !== JSON.stringify(other.data)) {
-      return false;
-    }
-    if (JSON.stringify(this.mimeType) !== JSON.stringify(other.mimeType)) {
-      return false;
-    }
-    return true;
-  }
 }

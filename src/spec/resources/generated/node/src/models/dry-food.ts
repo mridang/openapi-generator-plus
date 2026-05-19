@@ -23,23 +23,4 @@ export class DryFood {
       }
     }
   }
-
-  /**
-   * Value-equality based on all declared fields. Generated so model
-   * instances work correctly with Set/Map and in test assertions.
-   * Field comparison uses JSON.stringify which is deterministic for
-   * plain data classes (insertion-order preserved by all engines for
-   * string keys).
-   */
-  equals(other: unknown): boolean {
-    if (this === other) return true;
-    if (!(other instanceof DryFood)) return false;
-    if (JSON.stringify(this.foodType) !== JSON.stringify(other.foodType)) {
-      return false;
-    }
-    if (JSON.stringify(this.weightKg) !== JSON.stringify(other.weightKg)) {
-      return false;
-    }
-    return true;
-  }
 }

@@ -40,9 +40,13 @@ public class PhotoMetadata : IEquatable<PhotoMetadata>
     public bool Equals(PhotoMetadata? other)
     {
         if (other is null)
+        {
             return false;
+        }
         if (ReferenceEquals(this, other))
+        {
             return true;
+        }
         return EqualityComparer<string?>.Default.Equals(this.Caption, other.Caption)
             && EqualityComparer<bool?>.Default.Equals(this.IsPrimary, other.IsPrimary)
             && EqualityComparer<DateTimeOffset?>.Default.Equals(this.TakenAt, other.TakenAt)
@@ -52,11 +56,14 @@ public class PhotoMetadata : IEquatable<PhotoMetadata>
             );
     }
 
-    public override bool Equals(object? obj) => Equals(obj as PhotoMetadata);
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as PhotoMetadata);
+    }
 
     public override int GetHashCode()
     {
-        var hash = new HashCode();
+        HashCode hash = default;
         hash.Add(this.Caption);
         hash.Add(this.IsPrimary);
         hash.Add(this.TakenAt);

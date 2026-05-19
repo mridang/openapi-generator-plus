@@ -29,11 +29,4 @@ export interface ApiClient {
     headers: Record<string, string>,
     body: string | Buffer | Record<string, unknown> | null
   ): Promise<ApiResponse>;
-
-  /**
-   * Release any resources held by this client (connection pool, sockets).
-   * Implementations that don't own pooled state may treat this as a no-op.
-   * After calling, the client must not be reused.
-   */
-  close?(): Promise<void> | void;
 }

@@ -92,6 +92,10 @@ class Pet {
         status == other.status;
   }
 
+  /// hashCode emits Object.hashAll which accepts an arbitrary-length
+  /// Iterable (Object.hash requires 2+ positional args, so it can't
+  /// represent the 0-var or 1-var cases without special-casing).
   @override
-  int get hashCode => Object.hash(id, name, category, photoUrls, tags, status);
+  int get hashCode =>
+      Object.hashAll([id, name, category, photoUrls, tags, status]);
 }

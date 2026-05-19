@@ -18,23 +18,4 @@ export class Category {
   constructor(data?: Partial<Category>) {
     Object.assign(this, data);
   }
-
-  /**
-   * Value-equality based on all declared fields. Generated so model
-   * instances work correctly with Set/Map and in test assertions.
-   * Field comparison uses JSON.stringify which is deterministic for
-   * plain data classes (insertion-order preserved by all engines for
-   * string keys).
-   */
-  equals(other: unknown): boolean {
-    if (this === other) return true;
-    if (!(other instanceof Category)) return false;
-    if (JSON.stringify(this.id) !== JSON.stringify(other.id)) {
-      return false;
-    }
-    if (JSON.stringify(this.name) !== JSON.stringify(other.name)) {
-      return false;
-    }
-    return true;
-  }
 }

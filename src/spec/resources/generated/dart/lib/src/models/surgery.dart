@@ -49,6 +49,9 @@ class Surgery {
         durationMinutes == other.durationMinutes;
   }
 
+  /// hashCode emits Object.hashAll which accepts an arbitrary-length
+  /// Iterable (Object.hash requires 2+ positional args, so it can't
+  /// represent the 0-var or 1-var cases without special-casing).
   @override
-  int get hashCode => Object.hash(procedureName, durationMinutes);
+  int get hashCode => Object.hashAll([procedureName, durationMinutes]);
 }

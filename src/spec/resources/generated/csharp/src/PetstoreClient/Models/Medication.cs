@@ -39,18 +39,25 @@ public class Medication(string drugName) : IEquatable<Medication>
     public bool Equals(Medication? other)
     {
         if (other is null)
+        {
             return false;
+        }
         if (ReferenceEquals(this, other))
+        {
             return true;
+        }
         return EqualityComparer<string>.Default.Equals(this.DrugName, other.DrugName)
             && EqualityComparer<string?>.Default.Equals(this.Dosage, other.Dosage);
     }
 
-    public override bool Equals(object? obj) => Equals(obj as Medication);
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as Medication);
+    }
 
     public override int GetHashCode()
     {
-        var hash = new HashCode();
+        HashCode hash = default;
         hash.Add(this.DrugName);
         hash.Add(this.Dosage);
         return hash.ToHashCode();
