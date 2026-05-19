@@ -120,6 +120,19 @@ func SerializeDeepObject(paramName string, value interface{}) map[string]string 
 //   - style: OAS 3.0 style (e.g. "matrix", "label", "form", "simple", "spaceDelimited", "pipeDelimited")
 //   - explode: whether to explode array values
 func SerializeStyled(paramName string, value interface{}, location, schemaType, collectionFormat, style string, explode bool) interface{} {
+	/* Path parameters are required components of the URL — accepting an
+	 * empty string would silently produce a malformed URL like
+	 * `/pet//details`, which most servers route to 404 instead of
+	 * surfacing the bug at the call site. The required-non-nil check
+	 * lives in the operation method; here we catch the empty-string
+	 * case that slips through it. panic is appropriate because this
+	 * is a programmer error, not a recoverable runtime condition. */
+	if location == "path" {
+		if s, ok := value.(string); ok && s == "" {
+			panic(fmt.Sprintf("path parameter '%s' must not be empty", paramName))
+		}
+	}
+
 	if style == "" {
 		return SerializeValue(value, location, schemaType, collectionFormat)
 	}

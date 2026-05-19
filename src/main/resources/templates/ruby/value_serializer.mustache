@@ -101,6 +101,16 @@ module {{moduleName}}
     # @param explode [Boolean] whether to explode array values
     # @return [String, Array<String>, nil] the serialized value
     def self.serialize_styled(param_name, value, location, schema_type, collection_format, style, explode) # rubocop:disable Metrics/AbcSize, Metrics/CyclomaticComplexity, Metrics/MethodLength, Metrics/ParameterLists, Metrics/PerceivedComplexity
+      # Path parameters are required components of the URL — accepting an
+      # empty string would silently produce a malformed URL like
+      # `/pet//details`, which most servers route to 404 instead of
+      # surfacing the bug at the call site. The required-non-null check
+      # lives in the operation method; here we catch the empty-string
+      # case that slips through it.
+      if location == :path && value.is_a?(String) && value.empty?
+        raise ArgumentError, "Path parameter '#{param_name}' must not be empty"
+      end
+
       return serialize(value, location, schema_type, collection_format: collection_format) if style.nil? || style.empty?
 
       case style

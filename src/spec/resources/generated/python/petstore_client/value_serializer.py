@@ -106,6 +106,15 @@ class ValueSerializer:
         Returns:
             The serialized string, a list of strings (for exploded form), or None.
         """
+        # Path parameters are required components of the URL — accepting an
+        # empty string would silently produce a malformed URL like
+        # `/pet//details`, which most servers route to 404 instead of
+        # surfacing the bug at the call site. The required-non-null check
+        # lives in the operation method; here we catch the empty-string
+        # case that slips through it.
+        if location == 'path' and isinstance(value, str) and value == '':
+            raise ValueError(f"Path parameter '{param_name}' must not be empty")
+
         if style is None or style == '':
             return cls.serialize(value, location, schema_type, collection_format)
 

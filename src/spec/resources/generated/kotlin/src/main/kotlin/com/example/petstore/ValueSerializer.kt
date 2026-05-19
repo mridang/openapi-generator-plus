@@ -108,6 +108,18 @@ object ValueSerializer {
         style: String?,
         explode: Boolean,
     ): Any? {
+        // Path parameters are required components of the URL — accepting an
+        // empty string would silently produce a malformed URL like
+        // `/pet//details`, which most servers route to 404 instead of
+        // surfacing the bug at the call site. The required-non-null check
+        // lives in the operation method; here we catch the empty-string
+        // case that slips through it.
+        if ("path" == location && value is String && value.isEmpty()) {
+            throw IllegalArgumentException(
+                "Path parameter '$paramName' must not be empty",
+            )
+        }
+
         if (value == null) {
             return if ("query" == location) null else ""
         }

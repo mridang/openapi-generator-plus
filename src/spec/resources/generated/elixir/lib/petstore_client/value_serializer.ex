@@ -74,6 +74,17 @@ defmodule PetstoreClient.ValueSerializer do
   """
   @spec serialize_styled(String.t(), term(), atom(), String.t(), atom() | nil, String.t() | nil, boolean()) ::
           String.t() | [String.t()] | nil
+  # Path parameters are required components of the URL — accepting an
+  # empty string would silently produce a malformed URL like
+  # `/pet//details`, which most servers route to 404 instead of
+  # surfacing the bug at the call site. The required-non-nil check
+  # lives in the operation method; here we catch the empty-string
+  # case that slips through it. This clause must precede the others
+  # so Elixir's pattern matcher selects it first.
+  def serialize_styled(param_name, "", :path, _schema_type, _collection_format, _style, _explode) do
+    raise ArgumentError, "Path parameter '#{param_name}' must not be empty"
+  end
+
   def serialize_styled(_param_name, value, location, schema_type, collection_format, nil, _explode) do
     serialize(value, location, schema_type, collection_format: collection_format)
   end

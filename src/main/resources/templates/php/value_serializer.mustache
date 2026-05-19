@@ -98,6 +98,18 @@ final class ValueSerializer
         ?string $style,
         bool $explode
     ): string|array|null {
+        /* Path parameters are required components of the URL — accepting an
+         * empty string would silently produce a malformed URL like
+         * `/pet//details`, which most servers route to 404 instead of
+         * surfacing the bug at the call site. The required-non-null check
+         * lives in the operation method; here we catch the empty-string
+         * case that slips through it. */
+        if ($location === 'path' && is_string($value) && $value === '') {
+            throw new \InvalidArgumentException(
+                "Path parameter '{$paramName}' must not be empty"
+            );
+        }
+
         if ($style === null || $style === '') {
             return self::serialize($value, $location, $schemaType, $collectionFormat);
         }

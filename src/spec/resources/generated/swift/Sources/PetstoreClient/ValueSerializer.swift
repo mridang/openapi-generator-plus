@@ -72,6 +72,18 @@ public enum ValueSerializer {
     style: String,
     explode: Bool
   ) -> Any? {
+    /* Path parameters are required components of the URL — accepting an
+         * empty string would silently produce a malformed URL like
+         * `/pet//details`, which most servers route to 404 instead of
+         * surfacing the bug at the call site. The required-non-null check
+         * lives in the operation method; here we catch the empty-string
+         * case that slips through it. preconditionFailure is appropriate
+         * because passing "" for a required path param is a programmer
+         * error, not a recoverable runtime condition. */
+    if location == "path", let str = value as? String, str.isEmpty {
+      preconditionFailure("Path parameter '\(paramName)' must not be empty")
+    }
+
     if style.isEmpty {
       return serializeValue(
         value, location: location, schemaType: schemaType, collectionFormat: collectionFormat)

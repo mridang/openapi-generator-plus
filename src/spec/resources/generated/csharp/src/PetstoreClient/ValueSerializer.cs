@@ -127,6 +127,20 @@ public static class ValueSerializer
         bool explode
     )
     {
+        /* Path parameters are required components of the URL — accepting an
+         * empty string would silently produce a malformed URL like
+         * `/pet//details`, which most servers route to 404 instead of
+         * surfacing the bug at the call site. The required-non-null check
+         * lives in the operation method; here we catch the empty-string
+         * case that slips through it. */
+        if (location == "path" && value is string strValue && strValue.Length == 0)
+        {
+            throw new ArgumentException(
+                $"Path parameter '{paramName}' must not be empty",
+                nameof(value)
+            );
+        }
+
         if (string.IsNullOrEmpty(style))
         {
             return Serialize(value, location, schemaType, collectionFormat);
