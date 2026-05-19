@@ -74,6 +74,41 @@ grep -E "(FAILED|panicked|error)" target/surefire-reports/io.github.mridang.code
   after each per-language spec invocation, or use `mvn verify` when
   doing a full sweep.
 
+## What counts as a real cross-language gap (audit criterion)
+
+A finding is worth raising as a gap **only if all three hold**:
+
+1. **Divergence** — some of the 12 SDKs do A, others do B. "Everyone
+   does X" or "no one does X" is consistent behaviour, not a parity
+   gap. A consistent feature-gap (e.g. no SDK auto-retries on 429) is
+   a feature request, not a bug.
+2. **Caller-visible** — the divergence shows up in wire format, data
+   shape, error type, or security boundary the caller can observe.
+   Differences that the underlying HTTP library hides from generated
+   code (HTTP/2 vs HTTP/1.1, chunked-encoding reassembly, connection-
+   pool size defaults) don't count.
+3. **Correctness or security impact** — silent data loss, wrong wire
+   format, injection vector, type-confusion. Cosmetic differences
+   (header capitalisation, log message wording, internal field naming)
+   don't count.
+
+Past gaps that passed the criterion and got fixed:
+- Gap L: 5 throw / 7 silent on oneOf no-match (data corruption)
+- Gap N: 12 forward CRLF in API-key header (security, all-same)
+- Gap S: 6 strict / 6 lenient on type mismatch (silent data)
+- Gap V: 2 accept NaN / 10 reject (wire-format spec violation)
+- Gap W: 11 produce `/pet//details` / 1 catches (URL malformation)
+- Gap Y: 8 emit equals / 4 don't (silent set/map misbehaviour)
+- additionalProperties: 8 round-trip / 4 drop (data loss)
+
+Past dimensions that failed the criterion and were dropped:
+- HTTP/2 negotiation (divergent but caller-invisible)
+- Chunked transfer encoding (consistent — every lib does it)
+- Rate-limit auto-retry (consistent — no lib does it)
+
+When in doubt, ask: "if this difference flipped on one SDK
+overnight, would a caller of that SDK notice?" If no, skip it.
+
 ## Known unaddressed issues (do not attempt to fix)
 
 These are real cross-language gaps that have been triaged and explicitly
