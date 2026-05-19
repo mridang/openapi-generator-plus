@@ -20,6 +20,7 @@ use Symfony\Component\Mime\Part\DataPart;
 use Symfony\Component\Mime\Part\Multipart\FormDataPart;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Symfony\Contracts\Service\ResetInterface;
 
 /**
  * Default implementation of {@see ApiClient} using Symfony HTTP client.
@@ -468,5 +469,18 @@ class DefaultApiClient implements ApiClient
                 : $body,
             default => $body,
         };
+    }
+
+    /**
+     * Resets the underlying Symfony HTTP client, closing any open
+     * connections and clearing pooled state. Safe to call multiple times.
+     * Symfony's `ResetInterface` is implemented by both CurlHttpClient and
+     * NativeHttpClient; for clients that don't implement it this is a no-op.
+     */
+    public function close(): void
+    {
+        if ($this->client instanceof ResetInterface) {
+            $this->client->reset();
+        }
     }
 }

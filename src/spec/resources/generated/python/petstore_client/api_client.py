@@ -15,7 +15,10 @@ class ApiClient(Protocol):
     """Interface for API HTTP transport.
 
     Implementations handle the actual HTTP request/response cycle.
-    The default implementation uses urllib3.
+    The default implementation uses urllib3. Implementations that own a
+    connection pool should provide ``close()`` and the context-manager
+    protocol so callers can release sockets deterministically via
+    ``with``.
     """
 
     def send_request(self, method: str, url: str, headers: Dict[str, str], body: Any = None) -> ApiResponse:
@@ -26,5 +29,13 @@ class ApiClient(Protocol):
         :param headers: HTTP headers
         :param body: Request body (serialized JSON string, bytes, dict for multipart, or None)
         :return: ApiResponse containing status code, body, and headers
+        """
+        ...
+
+    def close(self) -> None:
+        """Release any resources held by this client (pool, sockets).
+
+        Default Protocol implementations are no-ops; concrete clients
+        that own a pool should override.
         """
         ...

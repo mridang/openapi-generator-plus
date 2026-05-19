@@ -8,13 +8,24 @@
 package com.example.petstore
 
 /**
- * Interface for API HTTP transport.
+ * Interface for API HTTP transport. Extends [AutoCloseable] so callers can
+ * use try-with-resources / Kotlin's `use { }` to release the underlying
+ * connection pool deterministically.
  */
-interface ApiClient {
+interface ApiClient : AutoCloseable {
     suspend fun sendRequest(
         method: String,
         url: String,
         headers: Map<String, String>,
         body: Any?,
     ): ApiResponse
+
+    /**
+     * Releases resources held by the underlying HTTP client. Default
+     * implementation is a no-op; implementations that own a pooled client
+     * should override and dispose of it.
+     */
+    override fun close() {
+        // No-op by default.
+    }
 }

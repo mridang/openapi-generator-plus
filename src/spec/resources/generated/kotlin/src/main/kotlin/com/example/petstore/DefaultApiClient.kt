@@ -267,6 +267,15 @@ class DefaultApiClient internal constructor(
             }
         }
     }
+
+    /**
+     * Closes the underlying Ktor [HttpClient] and releases its connection
+     * pool / engine threads. After calling this method the client must not
+     * be reused.
+     */
+    override fun close() {
+        httpClient.close()
+    }
 }
 
 /** Generates a UUID v4 string without JVM-specific APIs. */

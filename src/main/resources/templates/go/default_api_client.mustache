@@ -145,6 +145,15 @@ func (c *DefaultApiClient) SendRequest(method, url string, headers map[string]st
 	}, nil
 }
 
+// Close releases idle TCP/TLS connections held by the underlying
+// http.Transport. After Close the client should not be reused.
+func (c *DefaultApiClient) Close() error {
+	if transport, ok := c.httpClient.Transport.(*http.Transport); ok {
+		transport.CloseIdleConnections()
+	}
+	return nil
+}
+
 func buildHTTPClient(opts *TransportOptions) *http.Client {
 	transport := &http.Transport{}
 

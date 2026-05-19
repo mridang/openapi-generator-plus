@@ -107,6 +107,16 @@ module PetstoreClient
       )
     end
 
+    # Releases the Faraday connection and its underlying socket pool.
+    # Subsequent calls to {#send_request} will lazily build a fresh
+    # connection. After calling this method the client may still be reused;
+    # it's safe to call repeatedly.
+    def close
+      conn = @connection
+      @connection = nil
+      conn&.close if conn.respond_to?(:close)
+    end
+
     # Returns the list of supported content encodings.
     # @return [String]
     def self.supported_encodings

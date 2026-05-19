@@ -621,4 +621,22 @@ public final class DefaultApiClient implements ApiClient {
     String guess = URLConnection.guessContentTypeFromName(filename);
     return guess != null ? guess : "application/octet-stream";
   }
+
+  /**
+   * Releases resources held by the underlying {@link HttpClient}. On JDK 21+ {@code HttpClient}
+   * implements {@code AutoCloseable} and this delegates to its {@code close()} method. On JDK 17
+   * (the current build target) the runtime exposes no teardown hook, so this is a no-op — the
+   * connection pool releases on GC. Provided so user code can use try-with-resources today and
+   * benefit automatically once the build target advances.
+   */
+  @Override
+  public void close() {
+    if (httpClient instanceof AutoCloseable) {
+      try {
+        ((AutoCloseable) httpClient).close();
+      } catch (Exception ignored) {
+        // Best-effort cleanup; closure failure is not actionable.
+      }
+    }
+  }
 }

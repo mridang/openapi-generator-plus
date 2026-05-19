@@ -402,4 +402,15 @@ export class DefaultApiClient implements ApiClient {
       mediaType.endsWith('+xml')
     );
   }
+
+  /**
+   * Closes the undici dispatcher (and any underlying connection pool) if
+   * one was created. After calling this method the client must not be
+   * reused.
+   */
+  async close(): Promise<void> {
+    if (this.dispatcher != null) {
+      await this.dispatcher.close();
+    }
+  }
 }

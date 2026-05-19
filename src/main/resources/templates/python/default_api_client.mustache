@@ -174,6 +174,25 @@ class DefaultApiClient:
             else:
                 self._pool_manager = urllib3.PoolManager(**kwargs)
 
+    def close(self) -> None:
+        """Close the underlying urllib3 PoolManager and release sockets.
+
+        After calling this method the client must not be reused.
+        """
+        if self._pool_manager is not None:
+            self._pool_manager.clear()
+
+    def __enter__(self) -> 'DefaultApiClient':
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Any,
+        exc_val: Any,
+        exc_tb: Any,
+    ) -> None:
+        self.close()
+
     def send_request(self, method: str, url: str, headers: Dict[str, str], body: Any = None) -> ApiResponse:
         """Send an HTTP request and return the response.
 

@@ -455,4 +455,17 @@ class DefaultApiClient implements ApiClient
             default => $body,
         };
     }
+
+    /**
+     * Resets the underlying Symfony HTTP client, closing any open
+     * connections and clearing pooled state. Safe to call multiple times.
+     * Symfony's `ResetInterface` is implemented by both CurlHttpClient and
+     * NativeHttpClient; for clients that don't implement it this is a no-op.
+     */
+    public function close(): void
+    {
+        if ($this->client instanceof \Symfony\Contracts\Service\ResetInterface) {
+            $this->client->reset();
+        }
+    }
 }

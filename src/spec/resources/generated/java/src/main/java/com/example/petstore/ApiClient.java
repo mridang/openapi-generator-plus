@@ -16,7 +16,7 @@ import javax.annotation.Nullable;
  * <p>Implementations handle the actual HTTP request/response cycle. The default implementation uses
  * {@link java.net.http.HttpClient}.
  */
-public interface ApiClient {
+public interface ApiClient extends AutoCloseable {
 
   /**
    * Send an HTTP request and return the response.
@@ -32,4 +32,22 @@ public interface ApiClient {
   ApiResponse sendRequest(
       String method, String url, Map<String, String> headers, @Nullable Object body)
       throws ApiException;
+
+  /**
+   * Releases any resources held by this client (connection pool, executor threads, sockets).
+   * Default implementation is a no-op; implementations that own a pooled HTTP client should
+   * override and dispose of it.
+   *
+   * <p>Use with try-with-resources:
+   *
+   * <pre>{@code
+   * try (ApiClient client = new DefaultApiClient()) {
+   *     // ... make requests ...
+   * }
+   * }</pre>
+   */
+  @Override
+  default void close() {
+    // No-op by default. Implementations override to release resources.
+  }
 }

@@ -137,6 +137,7 @@ module PetstoreClient
   class DefaultApiClient < ApiClient
     def initialize: (?TransportOptions?) -> void
     def send_request: (Symbol, String, Hash[String, String], untyped) -> ApiResponse
+    def close: () -> void
     def self.supported_encodings: () -> String
     private
     def text_content_type?: (String) -> bool
