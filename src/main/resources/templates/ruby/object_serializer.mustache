@@ -31,19 +31,28 @@ module {{moduleName}}
     DEFAULT_DATETIME_FORMAT = '%Y-%m-%dT%H:%M:%S%:z'
 
     # Serialize an object to a JSON string.
+    #
+    # allow_nan: false rejects NaN/Infinity/-Infinity on encode (RFC 8259
+    # forbids non-finite numeric literals; Ruby's JSON.generate accepts
+    # them by default). Aligns Ruby with the 10 SDKs that already reject
+    # non-finite floats on both encode and decode.
     def self.serialize(object)
       sanitized = sanitize_for_serialization(object)
-      JSON.generate(sanitized)
+      JSON.generate(sanitized, allow_nan: false)
     rescue StandardError => e
       raise SerializationError.new("Failed to serialize object to JSON: #{e.message}", e)
     end
 
     # Deserialize a JSON string to an object of the specified type.
+    #
+    # allow_nan: false rejects NaN/Infinity/-Infinity on decode (same
+    # rationale as serialize above). JSON::ParserError is raised when a
+    # non-finite literal is encountered.
     def self.deserialize(json_string, target_type)
       return nil if json_string.nil? || (json_string.is_a?(String) && json_string.empty?)
 
       data = if json_string.is_a?(String)
-               JSON.parse(json_string, symbolize_names: true)
+               JSON.parse(json_string, symbolize_names: true, allow_nan: false)
              else
                json_string
              end
