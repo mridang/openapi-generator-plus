@@ -43,6 +43,22 @@ public class ClientTest : IDisposable
     }
 
     [Fact]
+    public void ApiKeyHeaderRejectsCrlfAndNonAscii()
+    {
+        // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
+        // ApiKeyAuthenticator's Header location must reject anything
+        // outside printable ASCII + TAB to prevent header injection
+        // (\r\n) and silent UTF-8 mangling that varies per HTTP lib.
+        Assert.Throws<ArgumentException>(() =>
+            new ApiKeyAuthenticator("{{{basePath}}}", "X-Api-Key", "abc\r\nInjected: yes", ApiKeyLocation.Header).GetAuthHeaders());
+        Assert.Throws<ArgumentException>(() =>
+            new ApiKeyAuthenticator("{{{basePath}}}", "X-Api-Key", "kéy", ApiKeyLocation.Header).GetAuthHeaders());
+        // Non-header locations accept arbitrary chars.
+        Assert.NotNull(
+            new ApiKeyAuthenticator("{{{basePath}}}", "api_key", "kéy", ApiKeyLocation.Query).GetQueryParams());
+    }
+
+    [Fact]
     public void ApiGroupsAreAccessible()
     {
         using var client = new {{clientClassName}}(_authenticator);

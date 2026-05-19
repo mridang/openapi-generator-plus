@@ -34,13 +34,14 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticator do
   """
   @spec new(String.t(), String.t(), String.t(), atom()) :: t()
   def new(host, key_param_name, api_key, location) do
-    # Reject CR / LF in a header-location API key to prevent HTTP header
-    # injection. RFC 7230 §3.2.4 forbids CR/LF in header field values;
-    # a key containing them would split the header line and inject
-    # arbitrary headers (or a new request body).
-    if location == :header and (String.contains?(api_key, "\r") or String.contains?(api_key, "\n")) do
+    # RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
+    # Reject anything outside printable ASCII + TAB so callers see a
+    # clear error rather than (a) HTTP header injection from CR/LF,
+    # or (b) silently-mangled non-ASCII bytes that different HTTP
+    # libs encode differently per language.
+    if location == :header and api_key =~ ~r/[^\t\x20-\x7E]/ do
       raise ArgumentError,
-            "API key for header '#{key_param_name}' must not contain CR or LF characters"
+            "API key for header '#{key_param_name}' must contain only printable ASCII characters (RFC 7230 §3.2.6)"
     end
 
     %__MODULE__{

@@ -27,6 +27,23 @@ defmodule {{moduleName}}.ClientTest do
     assert %{{moduleName}}.{{clientClassName}}{} = client
   end
 
+  test "ApiKeyAuthenticator :header rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)" do
+    # HEADER location must reject anything outside printable ASCII + TAB
+    # to prevent header injection (\r\n) and silent UTF-8 mangling that
+    # varies per HTTP lib.
+    assert_raise ArgumentError, fn ->
+      {{moduleName}}.Auth.ApiKeyAuthenticator.new("{{{basePath}}}", "X-Api-Key", "abc\r\nInjected: yes", :header)
+    end
+
+    assert_raise ArgumentError, fn ->
+      {{moduleName}}.Auth.ApiKeyAuthenticator.new("{{{basePath}}}", "X-Api-Key", "kéy", :header)
+    end
+
+    # Non-header locations accept arbitrary chars.
+    query_auth = {{moduleName}}.Auth.ApiKeyAuthenticator.new("{{{basePath}}}", "api_key", "kéy", :query)
+    assert {{moduleName}}.Auth.ApiKeyAuthenticator.query_params(query_auth) == %{"api_key" => "kéy"}
+  end
+
   test "API groups are accessible" do
     authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "test-token")
 

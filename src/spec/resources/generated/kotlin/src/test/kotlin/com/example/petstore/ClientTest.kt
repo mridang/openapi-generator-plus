@@ -7,6 +7,8 @@
 
 package com.example.petstore
 
+import com.example.petstore.auth.ApiKeyAuthenticator
+import com.example.petstore.auth.ApiKeyLocation
 import com.example.petstore.auth.BearerAuthenticator
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
@@ -31,6 +33,24 @@ class ClientTest {
         val client = Client(authenticator, transport)
 
         assertNotNull(client)
+    }
+
+    @Test
+    @DisplayName("ApiKey header rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)")
+    fun apiKeyHeaderRejectsCrlfAndNonAscii() {
+        // ApiKeyAuthenticator's HEADER location must reject any value
+        // outside printable ASCII + TAB to prevent both header injection
+        // (\r\n) and silent UTF-8 mangling that varies per HTTP lib.
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator("/api/v3", "X-Api-Key", "abc\r\nInjected: yes", ApiKeyLocation.HEADER)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator("/api/v3", "X-Api-Key", "kéy", ApiKeyLocation.HEADER)
+        }
+        // Non-header locations accept arbitrary chars.
+        assertNotNull(
+            ApiKeyAuthenticator("/api/v3", "api_key", "kéy", ApiKeyLocation.QUERY).getQueryParams(),
+        )
     }
 
     @Test

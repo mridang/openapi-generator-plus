@@ -26,6 +26,23 @@ defmodule PetstoreClient.ClientTest do
     assert %PetstoreClient.Client{} = client
   end
 
+  test "ApiKeyAuthenticator :header rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)" do
+    # HEADER location must reject anything outside printable ASCII + TAB
+    # to prevent header injection (\r\n) and silent UTF-8 mangling that
+    # varies per HTTP lib.
+    assert_raise ArgumentError, fn ->
+      PetstoreClient.Auth.ApiKeyAuthenticator.new("/api/v3", "X-Api-Key", "abc\r\nInjected: yes", :header)
+    end
+
+    assert_raise ArgumentError, fn ->
+      PetstoreClient.Auth.ApiKeyAuthenticator.new("/api/v3", "X-Api-Key", "kéy", :header)
+    end
+
+    # Non-header locations accept arbitrary chars.
+    query_auth = PetstoreClient.Auth.ApiKeyAuthenticator.new("/api/v3", "api_key", "kéy", :query)
+    assert PetstoreClient.Auth.ApiKeyAuthenticator.query_params(query_auth) == %{"api_key" => "kéy"}
+  end
+
   test "API groups are accessible" do
     authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "test-token")
 

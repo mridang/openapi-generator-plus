@@ -20,12 +20,15 @@ export class ApiKeyAuthenticator extends BaseAuthenticator {
 
   constructor(host: string, keyParamName: string, apiKey: string, location: ApiKeyLocation) {
     super();
-    /* Reject CR / LF in a header-location API key to prevent HTTP
-     * header injection. RFC 7230 §3.2.4 forbids CR/LF in header
-     * field values; a key containing them would split the header
-     * line and inject arbitrary headers (or a new request body). */
-    if (location === ApiKeyLocation.HEADER && /[\r\n]/.test(apiKey)) {
-      throw new Error(`API key for header '${keyParamName}' must not contain CR or LF characters`);
+    /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
+     * Reject anything outside printable ASCII + TAB so callers see a
+     * clear error rather than (a) HTTP header injection from CR/LF,
+     * or (b) silently-mangled non-ASCII bytes that different HTTP
+     * libs encode differently per language. */
+    if (location === ApiKeyLocation.HEADER && /[^\t\x20-\x7E]/.test(apiKey)) {
+      throw new Error(
+        `API key for header '${keyParamName}' must contain only printable ASCII characters (RFC 7230 §3.2.6)`
+      );
     }
     this.host = host;
     this.keyParamName = keyParamName;

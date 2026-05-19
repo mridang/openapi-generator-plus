@@ -1,6 +1,9 @@
 {{>api_info}}
 
 use {{packageName}}::{{clientClassName}};
+use {{packageName}}::auth::api_key_authenticator::ApiKeyAuthenticator;
+use {{packageName}}::auth::api_key_location::ApiKeyLocation;
+use {{packageName}}::auth::Authenticator;
 use {{packageName}}::auth::BearerAuthenticator;
 use {{packageName}}::TransportOptionsBuilder;
 
@@ -22,6 +25,43 @@ fn test_client_construct_with_transport_options() {
     let client = {{clientClassName}}::new(Box::new(authenticator), Some(transport));
 
     let _ = &client;
+}
+
+#[test]
+#[should_panic(expected = "printable ASCII")]
+fn test_client_api_key_header_rejects_crlf() {
+    // RFC 7230 §3.2.6 — ApiKeyAuthenticator's Header location must
+    // reject anything outside printable ASCII + TAB to prevent header
+    // injection (\r\n) and silent UTF-8 mangling.
+    let _ = ApiKeyAuthenticator::new(
+        "{{{basePath}}}",
+        "X-Api-Key",
+        "abc\r\nInjected: yes",
+        ApiKeyLocation::Header,
+    );
+}
+
+#[test]
+#[should_panic(expected = "printable ASCII")]
+fn test_client_api_key_header_rejects_non_ascii() {
+    let _ = ApiKeyAuthenticator::new(
+        "{{{basePath}}}",
+        "X-Api-Key",
+        "kéy",
+        ApiKeyLocation::Header,
+    );
+}
+
+#[test]
+fn test_client_api_key_query_accepts_non_ascii() {
+    // Non-header locations accept arbitrary chars.
+    let auth = ApiKeyAuthenticator::new(
+        "{{{basePath}}}",
+        "api_key",
+        "kéy",
+        ApiKeyLocation::Query,
+    );
+    assert_eq!(auth.query_params().get("api_key"), Some(&"kéy".to_string()));
 }
 
 #[test]

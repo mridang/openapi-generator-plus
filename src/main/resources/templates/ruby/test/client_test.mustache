@@ -28,6 +28,28 @@ describe {{moduleName}}::{{clientClassName}} do
     _(client).wont_be_nil
   end
 
+  it 'ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII' do
+    # RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
+    # The HEADER location must reject anything outside printable ASCII
+    # + TAB to prevent header injection (CR/LF) and silent UTF-8
+    # mangling that varies per HTTP lib.
+    _(-> {
+      {{moduleName}}::Auth::ApiKeyAuthenticator.new('{{{basePath}}}', 'X-Api-Key', "abc\r\nInjected: yes",
+                                                    {{moduleName}}::Auth::ApiKeyLocation::HEADER)
+    }).must_raise ArgumentError
+
+    _(-> {
+      {{moduleName}}::Auth::ApiKeyAuthenticator.new('{{{basePath}}}', 'X-Api-Key', 'kéy',
+                                                    {{moduleName}}::Auth::ApiKeyLocation::HEADER)
+    }).must_raise ArgumentError
+
+    # Non-header locations accept arbitrary chars.
+    query_auth = {{moduleName}}::Auth::ApiKeyAuthenticator.new(
+      '{{{basePath}}}', 'api_key', 'kéy', {{moduleName}}::Auth::ApiKeyLocation::QUERY
+    )
+    _(query_auth.query_params).must_equal({ 'api_key' => 'kéy' })
+  end
+
   it 'API groups are accessible' do
     authenticator = {{moduleName}}::Auth::BearerAuthenticator.new('{{{basePath}}}', 'test-token')
 

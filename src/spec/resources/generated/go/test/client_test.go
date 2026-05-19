@@ -35,6 +35,31 @@ func TestClient_ConstructWithAuthenticatorAndTransportOptions(t *testing.T) {
 	}
 }
 
+func TestClient_ApiKeyHeaderRejectsCrlfAndNonAscii(t *testing.T) {
+	// RFC 7230 §3.2.6 — ApiKeyAuthenticator's Header location must
+	// reject anything outside printable ASCII + TAB to prevent header
+	// injection (\r\n) and silent UTF-8 mangling that varies per
+	// HTTP lib. The check panics on invalid input.
+	cases := []string{"abc\r\nInjected: yes", "kéy"}
+	for _, bad := range cases {
+		func(val string) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Fatalf("expected panic for invalid header api key %q", val)
+				}
+			}()
+			_ = auth.NewApiKeyAuthenticator("/api/v3", "X-Api-Key", val, auth.ApiKeyLocationHeader)
+		}(bad)
+	}
+
+	// Non-header locations accept arbitrary chars.
+	queryAuth := auth.NewApiKeyAuthenticator("/api/v3", "api_key", "kéy", auth.ApiKeyLocationQuery)
+	got := queryAuth.QueryParams()
+	if got["api_key"] != "kéy" {
+		t.Fatalf("expected query param 'kéy', got %v", got)
+	}
+}
+
 func TestClient_ApiGroupsAreAccessible(t *testing.T) {
 	authenticator := auth.NewBearerAuthenticator("/api/v3", "test-token")
 

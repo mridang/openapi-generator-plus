@@ -40,6 +40,41 @@ void main() {
       expect(client, isNotNull);
     });
 
+    test(
+        'ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)',
+        () {
+      // HEADER location must reject anything outside printable ASCII +
+      // TAB to prevent header injection (\r\n) and silent UTF-8
+      // mangling that varies per HTTP lib.
+      expect(
+        () => ApiKeyAuthenticator(
+          host: '/api/v3',
+          keyParamName: 'X-Api-Key',
+          apiKey: 'abc\r\nInjected: yes',
+          location: ApiKeyLocation.header,
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => ApiKeyAuthenticator(
+          host: '/api/v3',
+          keyParamName: 'X-Api-Key',
+          apiKey: 'kéy',
+          location: ApiKeyLocation.header,
+        ),
+        throwsArgumentError,
+      );
+
+      // Non-header locations accept arbitrary chars.
+      final queryAuth = ApiKeyAuthenticator(
+        host: '/api/v3',
+        keyParamName: 'api_key',
+        apiKey: 'kéy',
+        location: ApiKeyLocation.query,
+      );
+      expect(queryAuth.queryParams(), equals({'api_key': 'kéy'}));
+    });
+
     test('API groups are accessible', () {
       final authenticator =
           BearerAuthenticator(host: '/api/v3', token: 'test-token');

@@ -9,6 +9,8 @@ package com.example.petstore;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.example.petstore.auth.ApiKeyAuthenticator;
+import com.example.petstore.auth.ApiKeyLocation;
 import com.example.petstore.auth.BearerAuthenticator;
 import org.junit.jupiter.api.Test;
 
@@ -31,6 +33,32 @@ class ClientTest {
     Client client = new Client(authenticator, transport);
 
     assertNotNull(client);
+  }
+
+  @Test
+  void apiKeyHeaderRejectsCrlfAndNonAscii() {
+    // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
+    // ApiKeyAuthenticator's HEADER location must reject any value
+    // outside printable ASCII + TAB to prevent both header injection
+    // (\r\n) and silent UTF-8 mangling that varies per HTTP lib.
+    // Query / Cookie locations are URL-encoded by the transport so
+    // they are not subject to the same restriction.
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ApiKeyAuthenticator(
+                    "/api/v3", "X-Api-Key", "abc\r\nInjected: yes", ApiKeyLocation.HEADER)
+                .getAuthHeaders());
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new ApiKeyAuthenticator("/api/v3", "X-Api-Key", "kéy", ApiKeyLocation.HEADER)
+                .getAuthHeaders());
+    // Non-header locations accept arbitrary chars (they go through
+    // their own URL-encoding pipeline downstream).
+    assertNotNull(
+        new ApiKeyAuthenticator("/api/v3", "api_key", "kéy", ApiKeyLocation.QUERY)
+            .getQueryParams());
   }
 
   @Test

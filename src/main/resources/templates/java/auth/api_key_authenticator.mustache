@@ -34,17 +34,22 @@ public class ApiKeyAuthenticator extends BaseAuthenticator {
         if (location != ApiKeyLocation.HEADER) {
             return Collections.emptyMap();
         }
-        /* Reject CR / LF in a header-location API key to prevent HTTP header
-         * injection. The header is later joined with "\r\n"; a value
-         * containing those bytes would split the header line and inject
-         * arbitrary headers. RFC 7230 §3.2.4 forbids CR/LF in header field
-         * values. Validation runs lazily here (not in the constructor) to
-         * avoid SpotBugs CT_CONSTRUCTOR_THROW (finalizer-attack vector on
-         * partially-initialised instances of non-final classes). */
-        if (apiKey != null
-                && (apiKey.indexOf('\r') >= 0 || apiKey.indexOf('\n') >= 0)) {
-            throw new IllegalArgumentException(
-                    "API key for header '" + keyParamName + "' must not contain CR or LF characters");
+        /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
+         * Reject anything outside printable ASCII + TAB at use time so
+         * callers see a clear error rather than (a) HTTP header injection
+         * from a CR/LF, or (b) silently-mangled non-ASCII bytes that
+         * different HTTP libs encode differently per language. Validation
+         * is lazy (not in the constructor) to avoid SpotBugs
+         * CT_CONSTRUCTOR_THROW on a non-final class. */
+        if (apiKey != null) {
+            for (int i = 0; i < apiKey.length(); i++) {
+                char c = apiKey.charAt(i);
+                if (c != '\t' && (c < 0x20 || c >= 0x7F)) {
+                    throw new IllegalArgumentException(
+                            "API key for header '" + keyParamName
+                                    + "' must contain only printable ASCII characters (RFC 7230 §3.2.6)");
+                }
+            }
         }
         return Collections.singletonMap(keyParamName, apiKey);
     }

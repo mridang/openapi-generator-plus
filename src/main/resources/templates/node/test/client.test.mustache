@@ -1,5 +1,7 @@
 {{>api_info}}
 
+import { ApiKeyAuthenticator } from '../src/auth/api-key-authenticator{{importFileExtension}}';
+import { ApiKeyLocation } from '../src/auth/api-key-location{{importFileExtension}}';
 import { BearerAuthenticator } from '../src/auth/bearer-authenticator{{importFileExtension}}';
 import { {{clientClassName}} } from '../src/{{clientClassFile}}{{importFileExtension}}';
 import { TransportOptions } from '../src/transport-options{{importFileExtension}}';
@@ -19,6 +21,16 @@ describe('{{clientClassName}}', () => {
     const client = new {{clientClassName}}(authenticator, transport);
 
     expect(client).toBeDefined();
+  });
+
+  test('ApiKeyAuthenticator HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () => {
+    // HEADER location must reject anything outside printable ASCII +
+    // TAB to prevent header injection (\r\n) and silent UTF-8 mangling.
+    expect(() => new ApiKeyAuthenticator('{{{basePath}}}', 'X-Api-Key', 'abc\r\nInjected: yes', ApiKeyLocation.HEADER)).toThrow();
+    expect(() => new ApiKeyAuthenticator('{{{basePath}}}', 'X-Api-Key', 'kéy', ApiKeyLocation.HEADER)).toThrow();
+    // Non-header locations accept arbitrary chars.
+    const queryAuth = new ApiKeyAuthenticator('{{{basePath}}}', 'api_key', 'kéy', ApiKeyLocation.QUERY);
+    expect(queryAuth.getQueryParams()).toEqual({ api_key: 'kéy' });
   });
 
   test('API groups are accessible', () => {

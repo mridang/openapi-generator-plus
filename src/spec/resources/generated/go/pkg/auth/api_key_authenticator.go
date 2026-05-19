@@ -9,7 +9,6 @@ package auth
 
 import (
 	"fmt"
-	"strings"
 )
 
 // ApiKeyAuthenticator provides API key authentication.
@@ -32,17 +31,22 @@ type ApiKeyAuthenticator struct {
 //   - apiKey: the API key value
 //   - location: where to send the key (header, query, or cookie)
 func NewApiKeyAuthenticator(host, keyParamName, apiKey string, location ApiKeyLocation) *ApiKeyAuthenticator {
-	// Reject CR / LF in a header-location API key to prevent HTTP header
-	// injection. RFC 7230 §3.2.4 forbids CR/LF in header field values;
-	// a key containing them would split the header line and inject
-	// arbitrary headers (or a new request body). panic is appropriate
+	// RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
+	// Reject anything outside printable ASCII + TAB so callers see a
+	// clear error rather than (a) HTTP header injection from CR/LF,
+	// or (b) silently-mangled non-ASCII bytes that different HTTP
+	// libs encode differently per language. panic is appropriate
 	// because this is a programmer error, not a recoverable runtime
 	// condition.
-	if location == ApiKeyLocationHeader && (strings.ContainsAny(apiKey, "\r\n")) {
-		panic(fmt.Sprintf(
-			"API key for header '%s' must not contain CR or LF characters",
-			keyParamName,
-		))
+	if location == ApiKeyLocationHeader {
+		for _, c := range apiKey {
+			if c != '\t' && (c < 0x20 || c >= 0x7F) {
+				panic(fmt.Sprintf(
+					"API key for header '%s' must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+					keyParamName,
+				))
+			}
+		}
 	}
 	return &ApiKeyAuthenticator{
 		host:         host,

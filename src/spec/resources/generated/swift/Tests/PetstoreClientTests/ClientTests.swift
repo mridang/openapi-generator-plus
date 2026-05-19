@@ -34,6 +34,18 @@ import Testing
     #expect(client != nil)
   }
 
+  @Test func testApiKeyQueryAcceptsNonAscii() {
+    // RFC 7230 §3.2.6 — ApiKeyAuthenticator's HEADER location must
+    // reject anything outside printable ASCII + TAB. That path uses
+    // preconditionFailure which traps the process and cannot be
+    // caught from Swift Testing without third-party trap helpers, so
+    // this test exercises the safe non-header path which must NOT
+    // validate (it goes through URL-encoding downstream).
+    let auth = ApiKeyAuthenticator(
+      host: "/api/v3", keyParamName: "api_key", apiKey: "kéy", location: .query)
+    #expect(auth.queryParams() == ["api_key": "kéy"])
+  }
+
   @Test func testApiGroupsAreAccessible() {
     let client = Client(authenticator: authenticator)
 

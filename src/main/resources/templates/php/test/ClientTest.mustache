@@ -6,6 +6,8 @@ namespace {{invokerPackage}}\Test;
 
 use PHPUnit\Framework\TestCase;
 use {{invokerPackage}}\{{clientClassName}};
+use {{invokerPackage}}\Auth\ApiKeyAuthenticator;
+use {{invokerPackage}}\Auth\ApiKeyLocation;
 use {{invokerPackage}}\Auth\BearerAuthenticator;
 use {{invokerPackage}}\TransportOptions;
 
@@ -32,6 +34,29 @@ class ClientTest extends TestCase
         $client = new {{clientClassName}}($this->authenticator, $transport);
 
         $this->assertInstanceOf({{clientClassName}}::class, $client);
+    }
+
+    public function testApiKeyHeaderRejectsCrlfAndNonAscii(): void
+    {
+        // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
+        // ApiKeyAuthenticator's HEADER location must reject anything
+        // outside printable ASCII + TAB to prevent header injection
+        // (\r\n) and silent UTF-8 mangling that varies per HTTP lib.
+        $this->expectException(\InvalidArgumentException::class);
+        new ApiKeyAuthenticator('{{{basePath}}}', 'X-Api-Key', "abc\r\nInjected: yes", ApiKeyLocation::HEADER);
+    }
+
+    public function testApiKeyHeaderRejectsNonAscii(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        new ApiKeyAuthenticator('{{{basePath}}}', 'X-Api-Key', 'kéy', ApiKeyLocation::HEADER);
+    }
+
+    public function testApiKeyQueryAllowsNonAscii(): void
+    {
+        // Non-header locations accept arbitrary chars.
+        $auth = new ApiKeyAuthenticator('{{{basePath}}}', 'api_key', 'kéy', ApiKeyLocation::QUERY);
+        $this->assertSame(['api_key' => 'kéy'], $auth->getQueryParams());
     }
 
     public function testApiGroupsAreAccessible(): void
