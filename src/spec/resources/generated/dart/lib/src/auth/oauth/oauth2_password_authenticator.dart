@@ -75,8 +75,12 @@ class OAuth2PasswordAuthenticator extends BaseAuthenticator
     String tokenUrl;
     final extraHeaders = <String, String>{};
     if (_clientAuthMethod == ClientAuthMethod.basic) {
+      // RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
+      // separately before joining with ':' and base64-encoding.
+      final encodedId = Uri.encodeComponent(_clientId);
+      final encodedSecret = Uri.encodeComponent(_clientSecret);
       final credentials =
-          base64.encode(utf8.encode('$_clientId:$_clientSecret'));
+          base64.encode(utf8.encode('$encodedId:$encodedSecret'));
       extraHeaders['Authorization'] = 'Basic $credentials';
     }
 

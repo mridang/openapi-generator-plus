@@ -72,7 +72,11 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator do
     {params, extra_headers} =
       case self.client_auth_method do
         :basic ->
-          credentials = Base.encode64("#{self.client_id}:#{self.client_secret}")
+          # RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
+          # separately before joining with ':' and base64-encoding.
+          encoded_id = URI.encode_www_form(self.client_id)
+          encoded_secret = URI.encode_www_form(self.client_secret)
+          credentials = Base.encode64("#{encoded_id}:#{encoded_secret}")
           {%{"grant_type" => "client_credentials"}, %{"Authorization" => "Basic #{credentials}"}}
 
         _ ->

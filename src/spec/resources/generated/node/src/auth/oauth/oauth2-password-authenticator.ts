@@ -107,7 +107,11 @@ export class OAuth2PasswordAuthenticator implements HttpAwareAuthenticator {
     let params: Record<string, string>;
     const extraHeaders: Record<string, string> = {};
     if (this.clientAuthMethod === ClientAuthMethod.Basic) {
-      const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
+      // RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
+      // separately before joining with ':' and base64-encoding.
+      const encodedId = encodeURIComponent(this.clientId);
+      const encodedSecret = encodeURIComponent(this.clientSecret);
+      const credentials = Buffer.from(`${encodedId}:${encodedSecret}`).toString('base64');
       extraHeaders.Authorization = `Basic ${credentials}`;
     }
     if (this.tokenManager.getRefreshToken()) {

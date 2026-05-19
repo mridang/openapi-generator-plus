@@ -76,7 +76,13 @@ class OAuth2ClientCredentialsAuthenticator(HttpAwareAuthenticator):
         }
         extra_headers: Optional[Dict[str, str]] = None
         if self._client_auth_method == ClientAuthMethod.BASIC:
-            credentials = base64.b64encode(f'{self._client_id}:{self._client_secret}'.encode('utf-8')).decode('ascii')
+            # RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
+            # separately before joining with ':' and base64-encoding.
+            from urllib.parse import quote
+
+            encoded_id = quote(self._client_id, safe='')
+            encoded_secret = quote(self._client_secret, safe='')
+            credentials = base64.b64encode(f'{encoded_id}:{encoded_secret}'.encode('utf-8')).decode('ascii')
             extra_headers = {'Authorization': f'Basic {credentials}'}
         else:
             params['client_id'] = self._client_id

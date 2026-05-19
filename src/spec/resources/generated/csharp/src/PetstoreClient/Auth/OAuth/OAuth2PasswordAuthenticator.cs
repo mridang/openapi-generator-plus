@@ -118,8 +118,12 @@ public class OAuth2PasswordAuthenticator : BaseAuthenticator, IHttpAwareAuthenti
         Dictionary<string, string>? extraHeaders = null;
         if (_clientAuthMethod == ClientAuthMethod.Basic)
         {
+            // RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
+            // separately before joining with ':' and base64-encoding.
+            string encodedId = Uri.EscapeDataString(_clientId);
+            string encodedSecret = Uri.EscapeDataString(_clientSecret);
             string credentials = Convert.ToBase64String(
-                System.Text.Encoding.UTF8.GetBytes(_clientId + ":" + _clientSecret)
+                System.Text.Encoding.UTF8.GetBytes(encodedId + ":" + encodedSecret)
             );
             extraHeaders = new() { ["Authorization"] = "Basic " + credentials };
         }

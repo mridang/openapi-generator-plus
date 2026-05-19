@@ -76,8 +76,12 @@ impl Authenticator for OAuth2ClientCredentialsAuthenticator {
             params.insert("grant_type".to_string(), "client_credentials".to_string());
             let mut extra_headers = HashMap::new();
             if self.client_auth_method == ClientAuthMethod::Basic {
-                let credentials = BASE64_STANDARD
-                    .encode(format!("{}:{}", self.client_id, self.client_secret).as_bytes());
+                // RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
+                // separately before joining with ':' and base64-encoding.
+                let encoded_id = form_url_encode(&self.client_id);
+                let encoded_secret = form_url_encode(&self.client_secret);
+                let credentials =
+                    BASE64_STANDARD.encode(format!("{}:{}", encoded_id, encoded_secret).as_bytes());
                 extra_headers.insert(
                     "Authorization".to_string(),
                     format!("Basic {}", credentials),
@@ -114,4 +118,23 @@ impl HttpAwareAuthenticator for OAuth2ClientCredentialsAuthenticator {
     fn set_api_client(&mut self, client: Arc<dyn ApiClient>) {
         self.token_manager.set_api_client(client);
     }
+}
+
+/// Percent-encodes a string for use in application/x-www-form-urlencoded
+/// payloads (RFC 3986 unreserved + `+` for space). Mirrors the helper in
+/// oauth2_token_manager.mustache so the two stay in lockstep.
+fn form_url_encode(s: &str) -> String {
+    let mut result = String::new();
+    for byte in s.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                result.push(byte as char);
+            }
+            b' ' => result.push('+'),
+            _ => {
+                result.push_str(&format!("%{:02X}", byte));
+            }
+        }
+    }
+    result
 }

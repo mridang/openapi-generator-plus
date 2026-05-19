@@ -40,10 +40,14 @@ open class OAuth2ClientCredentialsAuthenticator(
             )
         val extraHeaders = mutableMapOf<String, String>()
         if (clientAuthMethod == ClientAuthMethod.BASIC) {
+            // RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
+            // separately before joining with ':' and base64-encoding.
+            val encodedId = java.net.URLEncoder.encode(clientId, Charsets.UTF_8)
+            val encodedSecret = java.net.URLEncoder.encode(clientSecret, Charsets.UTF_8)
             val credentials =
                 java.util.Base64
                     .getEncoder()
-                    .encodeToString("$clientId:$clientSecret".toByteArray(Charsets.UTF_8))
+                    .encodeToString("$encodedId:$encodedSecret".toByteArray(Charsets.UTF_8))
             extraHeaders["Authorization"] = "Basic $credentials"
         } else {
             params["client_id"] = clientId

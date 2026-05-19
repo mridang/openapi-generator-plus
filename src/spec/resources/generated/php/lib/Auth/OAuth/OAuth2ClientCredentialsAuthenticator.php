@@ -108,7 +108,11 @@ class OAuth2ClientCredentialsAuthenticator extends BaseAuthenticator implements 
         $params = ['grant_type' => 'client_credentials'];
         $extraHeaders = [];
         if ($this->clientAuthMethod === ClientAuthMethod::Basic) {
-            $credentials = base64_encode($this->clientId . ':' . $this->clientSecret);
+            // RFC 6749 §2.3.1: form-urlencode the client_id and client_secret
+            // separately before joining with ':' and base64-encoding.
+            $encodedId = rawurlencode($this->clientId);
+            $encodedSecret = rawurlencode($this->clientSecret);
+            $credentials = base64_encode($encodedId . ':' . $encodedSecret);
             $extraHeaders['Authorization'] = 'Basic ' . $credentials;
         } else {
             $params['client_id'] = $this->clientId;
